@@ -1744,4 +1744,12 @@ max-time: 300
 cmd: testBlobs
 args: -bug 62321 -skip p
 
+# async api extensions
+max-time: 500
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitPkRead T1
+
+max-time: 500
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitWakeup T1
 

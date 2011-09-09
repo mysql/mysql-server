@@ -29,6 +29,7 @@ flexTT \
 testBackup \
 testBasic \
 testBasicAsynch \
+testAsynchMultiwait \
 testBlobs \
 testDataBuffers \
 testDict \
@@ -89,6 +90,7 @@ testBackup_SOURCES = testBackup.cpp
 testBasic_SOURCES = testBasic.cpp
 testSpj_SOURCES = testSpj.cpp
 testBasicAsynch_SOURCES = testBasicAsynch.cpp
+testAsynchMultiwait_SOURCES = testAsynchMultiwait.cpp
 testBlobs_SOURCES = testBlobs.cpp
 testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
@@ -97,12 +99,14 @@ testLimits_SOURCES = testLimits.cpp
 testMgm_SOURCES = testMgm.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
-	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
+	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp \
+	$(top_srcdir)/storage/ndb/src/kernel/vm/mt_thr_config.cpp
 testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
 testMgmd_SOURCES = testMgmd.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
-	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
+	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp \
+	$(top_srcdir)/storage/ndb/src/kernel/vm/mt_thr_config.cpp
 testMgmd_LDFLAGS = -static
 testMgmd_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
 testSingleUserMode_SOURCES = testSingleUserMode.cpp

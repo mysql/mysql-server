@@ -41,3 +41,14 @@ tcp,3,4,55,3 tcp,3,5,55,3 tcp,3,6,55,3 tcp,4,5,55,4 tcp,4,6,55,4 tcp,5,6,55,5 tc
 10485760 10485760 10485760 10485760 10485760
 1
 1
+== 21 == ThreadConfig
+ WARNING  -- at line 12: WARNING: Too few CPU's specified with LockExecuteThreadToCPU. Only 4 specified  but 7 was needed, this may cause contention.
+Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
+
+ WARNING  -- at line 17: Assigning each thread its own CPU
+
+ WARNING  -- at line 22: ThreadConfig overrides MaxNoOfExecutionThreads
+ WARNING  -- at line 27: WARNING: Too few CPU's specified with LockExecuteThreadToCPU. Only 4 specified  but 7 was needed, this may cause contention.
+Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
+
+6,, 7,, 1,0-3,ldm={count=4} 2,4-8,ldm={count=4,cpubind=0-3} 3,,ldm={count=4} 4,0-3,main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=1},recv={cpubind=0},rep={cpubind=0} 5,,ldm,ldm

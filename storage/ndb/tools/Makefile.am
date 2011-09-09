@@ -59,7 +59,8 @@ ndb_restore_SOURCES = restore/restore_main.cpp \
 ndb_config_SOURCES = ndb_config.cpp \
 	../src/mgmsrv/Config.cpp \
 	../src/mgmsrv/ConfigInfo.cpp \
-	../src/mgmsrv/InitConfigFileParser.cpp
+	../src/mgmsrv/InitConfigFileParser.cpp \
+        $(top_srcdir)/storage/ndb/src/kernel/vm/mt_thr_config.cpp
 
 ndb_restore_LDADD = $(top_builddir)/storage/ndb/src/common/util/libndbazio.la \
                     $(LDADD)
@@ -67,7 +68,8 @@ ndb_restore_LDADD = $(top_builddir)/storage/ndb/src/common/util/libndbazio.la \
 
 ndbinfo_sql_SOURCES = ndbinfo_sql.cpp \
 	../src/mgmsrv/Config.cpp \
-	../src/mgmsrv/InitConfigFileParser.cpp
+	../src/mgmsrv/InitConfigFileParser.cpp \
+        $(top_srcdir)/storage/ndb/src/kernel/vm/mt_thr_config.cpp
 
 ndbinfo_sql_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
 

@@ -343,12 +343,6 @@ public:
   const NdbInterpretedCode* getInterpretedCode() const
   { return m_options.m_interpretedCode; }
 
-  Uint32 assignQueryOperationId(Uint32& nodeId)
-  { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
-    m_id = nodeId++;
-    return m_id;
-  }
-
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
 
@@ -418,6 +412,7 @@ protected:
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
                                      Uint32 ix,
+                                     Uint32 id,
                                      int& error);
 public:
   // Get the ordinal position of this operation within the query def.
@@ -475,7 +470,7 @@ private:
   const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index of this operation within operation array
-  Uint32       m_id;         // Operation id when materialized into queryTree.
+  const Uint32 m_id;         // Operation id when materialized into queryTree.
                              // If op has index, index id is 'm_id-1'.
 
   // Optional (or default) options specified when building query:
@@ -505,6 +500,7 @@ public:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error);
 
   virtual bool isScanOperation() const
@@ -563,6 +559,7 @@ private:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error);
 
   // Append pattern for creating a single bound value to serialized code 
@@ -665,6 +662,13 @@ private:
   int takeOwnership(NdbQueryOperationDefImpl*);
 
   bool contains(const NdbQueryOperationDefImpl*);
+
+  // Get interal operation number of the next operation.
+  Uint32 getNextId() const
+  { 
+    return m_operations.size() == 0 ? 0 :
+      m_operations[m_operations.size()-1]->getQueryOperationId()+1; 
+  }
 
   NdbQueryBuilder m_interface;
   NdbError m_error;

@@ -48,6 +48,9 @@ replace into test.t2 values (2, 1);
 --connection slave
 --echo -- Flushed to slave
 select * from test.t1 order by a;
+--disable_query_log
+FLUSH LOGS;
+--enable_query_log
 --sync_slave_with_master master
 --connection master
 --echo -- Flushed back to Master

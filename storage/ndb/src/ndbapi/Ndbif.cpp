@@ -1014,12 +1014,24 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     theNoOfSentTransactions = tNoSentTransactions - 1;
     aCon->theListState = NdbTransaction::InCompletedList;
     aCon->handleExecuteCompletion();
-    if ((theMinNoOfEventsToWakeUp != 0) &&
-        (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
-      theMinNoOfEventsToWakeUp = 0;
-      theImpl->theWaiter.signal(NO_WAIT);
-      return;
-    }//if
+
+    if (theImpl->wakeHandler == 0)
+    {
+      if ((theMinNoOfEventsToWakeUp != 0) &&
+          (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp))
+      {
+        theMinNoOfEventsToWakeUp = 0;
+        theImpl->theWaiter.signal(NO_WAIT);
+        return;
+      }
+    }
+    else
+    {
+      /**
+       * This is for multi-wait handling
+       */
+      theImpl->wakeHandler->notifyTransactionCompleted(this);
+    }
   } else {
     ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
     ndbout << " theListState = " << (int) aCon->theListState;
@@ -1247,7 +1259,13 @@ Ndb::sendPrepTrans(int forceSend)
     insert_completed_list(a_con);
   }//for
   theNoOfPreparedTransactions = 0;
-  theImpl->do_forceSend(forceSend);
+  int did_send = theImpl->do_forceSend(forceSend);
+  if(forceSend) {
+    theImpl->incClientStat(Ndb::ForcedSendsCount, 1);
+  }
+  else {
+    theImpl->incClientStat(did_send ? Ndb::UnforcedSendsCount : Ndb::DeferredSendsCount, 1);
+  }
   return;
 }//Ndb::sendPrepTrans()
 

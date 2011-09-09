@@ -42,6 +42,7 @@
 #include <NdbBlob.hpp>
 #include <NdbBlobImpl.hpp>
 #include <NdbInterpretedCode.hpp>
+#include <NdbWaitGroup.hpp>
 
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
