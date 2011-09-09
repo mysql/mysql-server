@@ -506,6 +506,7 @@ os_file_get_last_error(
 					err, strerror((int)err));
 			}
 
+
 			fprintf(stderr,
 				"InnoDB: Some operating system"
 				" error numbers are described at\n"

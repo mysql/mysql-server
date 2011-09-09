@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -148,7 +148,7 @@ row_merge_create_fts_sort_index(
 
 	field->col->mbminmaxlen = 0;
 
-	/* The third field is on the word's Position in original doc */
+	/* The third field is on the word's position in the original doc */
 	field = dict_index_get_nth_field(new_index, 2);
 	field->name = NULL;
 	field->prefix_len = 0;
@@ -218,9 +218,9 @@ row_fts_psort_info_init(
 		return FALSE;
 	}
 
-	/* There will be FTS_NUM_AUX_INDEX "sort buckets" for each parallel
-	sort thread. Each "sort bucket" holds records for a particular
-	FTS index partition */
+	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
+	each parallel sort thread. Each "sort bucket" holds records for
+	a particular "FTS index partition" */
 	for (j = 0; j < fts_sort_pll_degree; j++) {
 
 		UT_LIST_INIT(psort_info[j].fts_doc_list);
@@ -479,8 +479,9 @@ row_merge_fts_doc_tokenize(
 		data_size[idx] += cur_len;
 	}
 
+	/* Update the data length and the number of new word tuples
+	added in this round of tokenization */
 	for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
-		/* Total data length */
 		sort_buf[i]->total_size += data_size[i];
 
 		sort_buf[i]->n_tuples += n_tuple[i];
@@ -555,7 +556,7 @@ fts_parallel_tokenization(
 
 	/* Initialize the sort field for the "fts sort index" */
 	
-	/* tokenized word field */
+	/* Tokenized word field */
 	t_ctx.sort_field[0].type.mtype = (strcmp(doc.charset->name,
 					       "latin1_swedish_ci") == 0)
 						? DATA_VARCHAR
@@ -577,7 +578,7 @@ fts_parallel_tokenization(
 		t_ctx.sort_field[1].type.len = sizeof(ib_uint32_t);
 	}
 
-	/* position field */
+	/* Position field */
 	t_ctx.sort_field[2].type.mtype = DATA_INT;
 	t_ctx.sort_field[2].type.prtype = DATA_NOT_NULL;
 	t_ctx.sort_field[2].type.mbminmaxlen = 0;
@@ -600,7 +601,7 @@ loop:
 			continue;
 		}
 
-		/* If finish processing the last item, refresh "doc" with
+		/* If finish processing the last item, update "doc" with
 		strings in the doc_item, otherwise continue processing last
 		item */
 		if (processed) {
@@ -671,8 +672,8 @@ loop:
 		}
 	}
 
-	/* If we run out of current buffer, need to sort
-	and flush the buffer to disk */
+	/* If we run out of current sort buffer, need to sort
+	and flush the sort buffer to disk */
 	if (t_ctx.rows_added[t_ctx.buf_used] && !processed) {
 		row_merge_buf_sort(buf[t_ctx.buf_used], NULL);
 		row_merge_buf_write(buf[t_ctx.buf_used],
@@ -690,7 +691,7 @@ loop:
 		goto loop;
 	}
 
-	/* Parent done scanning, and if we process all the docs, exit */
+	/* Parent done scanning, and if finish processing all the docs, exit */
 	if (psort_info->state == FTS_PARENT_COMPLETE
 	    && num_doc_processed >= UT_LIST_GET_LEN(psort_info->fts_doc_list)) {
 		goto exit;
@@ -786,19 +787,19 @@ fts_parallel_merge(
 /*===============*/
 	void*		arg)		/*!< in: parallel merge info */
 {
-	fts_psort_t*	psort_merge = (fts_psort_t*)arg;
+	fts_psort_t*	psort_info = (fts_psort_t*)arg;
 	ulint		id;
 
-	ut_ad(psort_merge);
+	ut_ad(psort_info);
 
-	id = psort_merge->psort_id;
+	id = psort_info->psort_id;
 
-	row_fts_merge_insert(psort_merge->psort_common->sort_index,
-			     psort_merge->psort_common->new_table,
-			     psort_merge->psort_common->all_info, id);
+	row_fts_merge_insert(psort_info->psort_common->sort_index,
+			     psort_info->psort_common->new_table,
+			     psort_info->psort_common->all_info, id);
 
-	psort_merge->child_status = FTS_CHILD_COMPLETE;
-	os_event_set(psort_merge->psort_common->sort_event);
+	psort_info->child_status = FTS_CHILD_COMPLETE;
+	os_event_set(psort_info->psort_common->sort_event);
 
 	os_thread_exit(NULL);
 	OS_THREAD_DUMMY_RETURN;
@@ -824,7 +825,7 @@ row_fts_start_parallel_merge(
 	}
 }
 /********************************************************************//**
-Insert processed FTS data to the auxillary tables.
+Insert processed FTS data to auxillary index tables.
 @return	DB_SUCCESS if insertion runs fine */
 UNIV_INTERN
 ulint
@@ -874,18 +875,13 @@ UNIV_INTERN
 void
 row_fts_insert_tuple(
 /*=================*/
-	trx_t*		trx,		/*!< in: transaction */
-	que_t**		ins_graph,	/*!< in: Insert query graphs */
-	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
+	fts_psort_insert_t*
+			ins_ctx,	/*!< in: insert context */
 	fts_tokenizer_word_t* word,	/*!< in: last processed
 					tokenized word */
 	ib_vector_t*	positions,	/*!< in: word position */
 	doc_id_t*	in_doc_id,	/*!< in: last item doc id */
-	dtuple_t*	dtuple,		/*!< in: index entry */
-	CHARSET_INFO*	charset,	/*!< in: charset */
-	mem_heap_t*	heap,		/*!< in: heap */
-	ibool		opt_doc_id_size)/*!< in: Doc ID value needs to add
-					back */
+	dtuple_t*	dtuple)		/*!< in: entry to insert */
 {
 	fts_node_t*	fts_node = NULL;
 	dfield_t*	dfield;
@@ -915,8 +911,10 @@ row_fts_insert_tuple(
 				positions);
 
 			/* Write out the current word */
-			row_merge_write_fts_word(trx, ins_graph, word,
-						 fts_table, charset);
+			row_merge_write_fts_word(ins_ctx->trx,
+						 ins_ctx->ins_graph, word,
+						 &ins_ctx->fts_table,
+						 ins_ctx->charset);
 
 		}
 
@@ -929,12 +927,13 @@ row_fts_insert_tuple(
 	token_word.f_len = dfield->len;
 
 	if (!word->text.f_str) {
-		fts_utf8_string_dup(&word->text, &token_word, heap);
+		fts_utf8_string_dup(&word->text, &token_word, ins_ctx->heap);
 	}
 
 	/* compare to the last word, to see if they are the same
 	word */
-	if (innobase_fts_text_cmp(charset, &word->text, &token_word) != 0) {
+	if (innobase_fts_text_cmp(ins_ctx->charset,
+				  &word->text, &token_word) != 0) {
 		ulint	num_item;
 
 		/* Getting a new word, flush the last position info
@@ -945,11 +944,12 @@ row_fts_insert_tuple(
 		}
 
 		/* Write out the current word */
-		row_merge_write_fts_word(trx, ins_graph, word,
-					 fts_table, charset);
+		row_merge_write_fts_word(ins_ctx->trx, ins_ctx->ins_graph,
+					 word, &ins_ctx->fts_table,
+					 ins_ctx->charset);
 
 		/* Copy the new word */
-		fts_utf8_string_dup(&word->text, &token_word, heap);
+		fts_utf8_string_dup(&word->text, &token_word, ins_ctx->heap);
 
 		num_item = ib_vector_size(positions);
 
@@ -966,7 +966,7 @@ row_fts_insert_tuple(
 	/* Get the word's Doc ID */
 	dfield = dtuple_get_nth_field(dtuple, 1);
 
-	if (!opt_doc_id_size) {
+	if (!ins_ctx->opt_doc_id_size) {
 		doc_id = fts_read_doc_id(dfield_get_data(dfield));
 	} else {
 		doc_id = (doc_id_t) mach_read_from_4(dfield_get_data(dfield));
@@ -1083,7 +1083,6 @@ row_fts_build_sel_tree_level(
 	ulint	start;
 	int	child_left;
 	int	child_right;
-	ibool	null_eq = FALSE;
 	ulint	i;
 	ulint	num_item;
 
@@ -1091,6 +1090,8 @@ row_fts_build_sel_tree_level(
 	num_item = (1 << level);
 
 	for (i = 0; i < num_item;  i++) {
+		ibool	null_eq = FALSE;
+
 		child_left = sel_tree[(start + i) * 2 + 1];
 		child_right = sel_tree[(start + i) * 2 + 2];
 
@@ -1193,12 +1194,9 @@ row_fts_merge_insert(
 	fts_tokenizer_word_t	new_word;
 	ib_vector_t*		positions;
 	doc_id_t		last_doc_id;
-	que_t**			ins_graph;
-	fts_table_t		fts_table;
 	ib_alloc_t*		heap_alloc;
 	ulint			n_bytes;
 	ulint			i;
-	ulint			num;
 	mrec_buf_t**		buf;
 	int*			fd;
 	byte**			block;
@@ -1207,9 +1205,7 @@ row_fts_merge_insert(
 	int*			sel_tree;
 	ulint			height;
 	ulint			start;
-	trx_t*			insert_trx;
-	CHARSET_INFO*		charset;
-	ibool			opt_doc_id_size;
+	fts_psort_insert_t	ins_ctx;
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	ulint			count_diag = 0;
 #endif
@@ -1220,11 +1216,11 @@ row_fts_merge_insert(
 	/* We use the insert query graph as the dummy graph
 	needed in the row module call */
 
-	insert_trx = trx_allocate_for_background();
+	ins_ctx.trx = trx_allocate_for_background();
 
-	insert_trx->op_info = "inserting index entries";
+	ins_ctx.trx->op_info = "inserting index entries";
 
-	opt_doc_id_size = psort_info[0].psort_common->opt_doc_id_size;
+	ins_ctx.opt_doc_id_size = psort_info[0].psort_common->opt_doc_id_size;
 
 	heap = mem_heap_create(500 + sizeof(mrec_buf_t));
 
@@ -1246,9 +1242,11 @@ row_fts_merge_insert(
 
 	tuple_heap = mem_heap_create(1000);
 
-	charset = fts_index_get_charset(index);
+	ins_ctx.charset = fts_index_get_charset(index);
+	ins_ctx.heap = heap;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
+		ulint	num;
 
 		num = 1 + REC_OFFS_HEADER_SIZE
 			+ dict_index_get_n_fields(index);
@@ -1283,14 +1281,14 @@ row_fts_merge_insert(
 	/* Allocate insert query graphs for FTS auxillary
 	Index Table, note we have FTS_NUM_AUX_INDEX such index tables */
 	n_bytes = sizeof(que_t*) * (FTS_NUM_AUX_INDEX + 1);
-	ins_graph = mem_heap_alloc(heap, n_bytes);
-	memset(ins_graph, 0x0, n_bytes);
+	ins_ctx.ins_graph = mem_heap_alloc(heap, n_bytes);
+	memset(ins_ctx.ins_graph, 0x0, n_bytes);
 
-	fts_table.type = FTS_INDEX_TABLE;
-	fts_table.index_id = index->id;
-	fts_table.table_id = table->id;
-	fts_table.parent = index->table->name;
-	fts_table.table = NULL;
+	ins_ctx.fts_table.type = FTS_INDEX_TABLE;
+	ins_ctx.fts_table.index_id = index->id;
+	ins_ctx.fts_table.table_id = table->id;
+	ins_ctx.fts_table.parent = index->table->name;
+	ins_ctx.fts_table.table = NULL;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {
@@ -1324,13 +1322,10 @@ row_fts_merge_insert(
 				min_rec++;
 
 				if (min_rec >= (int) fts_sort_pll_degree) {
-
 					row_fts_insert_tuple(
-						insert_trx, ins_graph,
-						&fts_table, &new_word,
+						&ins_ctx, &new_word,
 						positions, &last_doc_id,
-						NULL, charset, heap,
-						opt_doc_id_size);
+						NULL);
 
 					goto exit;
 				}
@@ -1353,10 +1348,9 @@ row_fts_merge_insert(
 
 			if (min_rec ==  -1) {
 				row_fts_insert_tuple(
-					insert_trx, ins_graph,
-					&fts_table, &new_word,
+					&ins_ctx, &new_word,
 					positions, &last_doc_id,
-					NULL, charset, heap, opt_doc_id_size);
+					NULL);
 
 				goto exit;
 			}
@@ -1367,9 +1361,8 @@ row_fts_merge_insert(
 			tuple_heap);
 
 		row_fts_insert_tuple(
-			insert_trx, ins_graph, &fts_table, &new_word,
-			positions, &last_doc_id, dtuple, charset, heap,
-			opt_doc_id_size);
+			&ins_ctx, &new_word, positions,
+			&last_doc_id, dtuple);
 
 
 		ROW_MERGE_READ_GET_NEXT(min_rec);
@@ -1390,19 +1383,19 @@ row_fts_merge_insert(
 	}
 
 exit:
-	fts_sql_commit(insert_trx);
+	fts_sql_commit(ins_ctx.trx);
 
-	insert_trx->op_info = "";
+	ins_ctx.trx->op_info = "";
 
 	mem_heap_free(tuple_heap);
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-		if (ins_graph[i]) {
-			fts_que_graph_free(ins_graph[i]);
+		if (ins_ctx.ins_graph[i]) {
+			fts_que_graph_free(ins_ctx.ins_graph[i]);
 		}
 	}
 
-	trx_free_for_background(insert_trx);
+	trx_free_for_background(ins_ctx.trx);
 
 	mem_heap_free(heap);
 
