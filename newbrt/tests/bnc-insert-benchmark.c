@@ -19,8 +19,8 @@ long_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
     return (*x > *y) - (*x < *y);
 }
 
-void
-run_test(long eltsize, long nodesize, long repeat)
+static void
+run_test(unsigned long eltsize, unsigned long nodesize, unsigned long repeat)
 {
     int cur = 0;
     long keys[1024];
@@ -28,7 +28,7 @@ run_test(long eltsize, long nodesize, long repeat)
     for (int i = 0; i < 1024; ++i) {
         keys[i] = rand();
         vals[i] = toku_xmalloc(eltsize - (sizeof keys[i]));
-        int j = 0;
+        unsigned int j = 0;
         for (; j < eltsize - (sizeof keys[i]) - sizeof(int); j += sizeof(int)) {
             int *p = (void *) &((char *) vals[i])[j];
             *p = rand();
@@ -48,7 +48,7 @@ run_test(long eltsize, long nodesize, long repeat)
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
 
-    for (int i = 0; i < repeat; ++i) {
+    for (unsigned int i = 0; i < repeat; ++i) {
         bnc = toku_create_empty_nl();
         for (; toku_bnc_nbytesinbuf(bnc) <= nodesize; ++cur) {
             r = toku_bnc_insert_msg(bnc,
@@ -72,15 +72,15 @@ run_test(long eltsize, long nodesize, long repeat)
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
-    long eltsize, nodesize, repeat;
+    unsigned long eltsize, nodesize, repeat;
 
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <eltsize> <nodesize> <repeat>\n", argv[0]);
         return 2;
     }
-    eltsize = strtol(argv[1], NULL, 0);
-    nodesize = strtol(argv[2], NULL, 0);
-    repeat = strtol(argv[3], NULL, 0);
+    eltsize = strtoul(argv[1], NULL, 0);
+    nodesize = strtoul(argv[2], NULL, 0);
+    repeat = strtoul(argv[3], NULL, 0);
 
     run_test(eltsize, nodesize, repeat);
 
