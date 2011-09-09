@@ -1351,6 +1351,9 @@ TransporterRegistry::consume_extra_sockets()
     ret = my_recv(sock, buf, sizeof(buf), 0);
     err = my_socket_errno();
   } while (ret == sizeof(buf) || (ret == -1 && err == EINTR));
+
+  /* Notify upper layer of explicit wakeup */
+  callbackObj->reportWakeup();
 }
 
 void

@@ -35,6 +35,8 @@ public:
 
   virtual void trp_deliver_signal(const NdbApiSignal *,
                                   const LinearSectionPtr ptr[3]) = 0;
+  virtual void trp_wakeup()
+    {};
 
   Uint32 open(class TransporterFacade*, int blockNo = -1);
   void close();
