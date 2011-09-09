@@ -98,6 +98,32 @@ name
 't1'
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~ test that aborted online alter rollback DDL transaction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Connection default
+START TRANSACTION;
+SELECT * FROM t1;
+pk	a	b	c
+1	5000	5000	5000
+# Connection con1
+SET lock_wait_timeout=1;
+ALTER ONLINE TABLE t1 ADD d INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER ONLINE TABLE t1 ADD d INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+pk	a	b	c
+1	5000	5000	5000
+COMMIT;
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ cleanup section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
