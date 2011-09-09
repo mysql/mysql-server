@@ -746,6 +746,9 @@ THD::THD()
               /* statement id */ 0),
    rli_fake(0),
    user_time(0), in_sub_stmt(0),
+#ifndef MCP_WL5353
+   binlog_row_event_extra_data(NULL),
+#endif
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    table_map_for_update(0),
@@ -1193,6 +1196,9 @@ void THD::init(void)
   reset_current_stmt_binlog_format_row();
   bzero((char *) &status_var, sizeof(status_var));
 
+#ifndef MCP_WL5353
+  binlog_row_event_extra_data = 0;
+#endif
   if (variables.sql_log_bin)
     variables.option_bits|= OPTION_BIN_LOG;
   else
@@ -4467,7 +4473,13 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
       pending->get_type_code() != type_code || 
       pending->get_data_size() + needed > opt_binlog_rows_event_max_size || 
       pending->get_width() != colcnt ||
-      !bitmap_cmp(pending->get_cols(), cols)) 
+      !bitmap_cmp(pending->get_cols(), cols)
+#ifndef MCP_WL5353
+      ||
+      !binlog_row_event_extra_data_eq(pending->get_extra_row_data(),
+                                      binlog_row_event_extra_data)
+#endif
+      )
   {
     /* Create a new RowsEventT... */
     Rows_log_event* const
@@ -4982,6 +4994,64 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
   }
   DBUG_RETURN(0);
 }
+
+#ifndef MCP_WL5353
+/**
+   get_binlog_row_event_extra_data_len
+
+   Returns the length in bytes of the current thread's
+   binlog row event extra data, if present.
+   The length is stored at some offset from the extra
+   data ptr.
+   Note that this length is the length of the whole extra
+   data structure, including the fixed length header
+   of size EXTRA_ROW_INFO_HDR_BYTES
+
+   @return
+     Length in bytes of the extra data.
+     Zero is valid.  Maximum is 255
+*/
+uint8
+THD::get_binlog_row_event_extra_data_len() const
+{
+  return (binlog_row_event_extra_data?
+          binlog_row_event_extra_data[EXTRA_ROW_INFO_LEN_OFFSET]:
+          0);
+};
+
+/**
+   binlog_row_event_extra_data_eq
+
+   Comparator for two binlog row event extra data
+   pointers.
+
+   It compares their significant bytes.
+
+   Null pointers are acceptable
+
+   @param a
+     first pointer
+
+   @param b
+     first pointer
+
+   @return
+     true if the referenced structures are equal
+*/
+bool
+THD::binlog_row_event_extra_data_eq(const uchar* a,
+                                    const uchar* b)
+{
+  return ((a == b) ||
+          ((a != NULL) &&
+           (b != NULL) &&
+           (a[EXTRA_ROW_INFO_LEN_OFFSET] ==
+            b[EXTRA_ROW_INFO_LEN_OFFSET]) &&
+           (memcmp(a, b,
+                   a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
+}
+
+#endif  // #ifndef MCP_WL5353
 
 bool Discrete_intervals_list::append(ulonglong start, ulonglong val,
                                  ulonglong incr)

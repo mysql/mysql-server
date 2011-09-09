@@ -1590,6 +1590,18 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+#ifndef MCP_WL5353
+  /*
+     Ptr to row event extra data to be written to Binlog /
+     received from Binlog.
+
+   */
+  uchar* binlog_row_event_extra_data;
+  uint8  get_binlog_row_event_extra_data_len() const;
+  static bool binlog_row_event_extra_data_eq(const uchar* a,
+                                             const uchar* b);
+#endif
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 

@@ -38,6 +38,8 @@
 #include "transaction.h"
 #include "sql_test.h"       // print_where
 #include "key.h"            // key_restore
+#include "rpl_constants.h"  // Transid in Binlog
+#include "slave.h"          // Silent retry definition
 #else
 #include "mysql_priv.h"
 #endif
