@@ -245,7 +245,7 @@ row_merge_buf_add(
 	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
 	dict_index_t*		fts_index,/*!< fts index to be
 					created */
-	fts_psort_info_t*	psort_info, /*!< in: parallel sort info */
+	fts_psort_t*		psort_info, /*!< in: parallel sort info */
 	const dtuple_t*		row,	/*!< in: row in clustered index */
 	const row_ext_t*	ext,	/*!< in: cache of externally stored
 					column prefixes, or NULL */
@@ -262,7 +262,6 @@ row_merge_buf_add(
 	dfield_t*		field;
 	const dict_field_t*	ifield;
 	ulint			n_row_added = 0;
-	ulint			init_pos = 0;
 	ulint			bucket = 0;
 	ulint			zip_size;
 
@@ -334,6 +333,7 @@ row_merge_buf_add(
 			/* Tokenize and process data for FTS */
 			if (index->type & DICT_FTS) {
 				fts_doc_item_t*	doc_item;
+				byte*		value;
 
 				if (dfield_is_null(field)) {
 					n_row_added = 1;
@@ -362,59 +362,21 @@ row_merge_buf_add(
 					}
 				}
 
-				if (FTS_PLL_ENABLED) {
-					byte*	value;
+				value = ut_malloc(field->len);
+				memcpy(value, field->data, field->len);
+				field->data = value;
 
-					value = ut_malloc(field->len);
-					memcpy(value, field->data, field->len);
-					field->data = value;
+				doc_item->field = field;
+				doc_item->doc_id = *doc_id;
 
-					doc_item->field = field;
-					doc_item->doc_id = *doc_id;
+				bucket = *doc_id % fts_sort_pll_degree;
 
-					bucket = *doc_id % fts_sort_pll_degree;
-
-					UT_LIST_ADD_LAST(
-						doc_list,
-						psort_info[bucket].fts_doc_list,
-						doc_item);
-					n_row_added = 1;
-					continue;
-				} else {
-					dtype_t		w_dtype;
-					fts_doc_t	doc;
-					ibool		processed;
-
-					doc.charset = fts_index_get_charset(
-						(dict_index_t*) index);
-
-					w_dtype.prtype =
-						ifield->col->prtype;
-					w_dtype.mbminmaxlen =
-						ifield->col->mbminmaxlen;
-					w_dtype.mtype =
-						(strcmp(doc.charset->name,
-						 "latin1_swedish_ci") == 0)
-							? DATA_VARCHAR
-							: DATA_VARMYSQL;
-
-					processed = row_merge_fts_doc_tokenize(
-						&buf, row_field, *doc_id,
-						&doc, NULL, zip_size, buf->heap,
-						NULL, &w_dtype, &init_pos,
-						NULL, &n_row_added, NULL,
-						ULINT_UNDEFINED);
-
-					if (!processed) {
-						/* Not enough space */
-						return(0);
-					} else {
-						/* Already processed this
-						field, proceed to the next
-						field */
-						continue;
-					}
-				}
+				UT_LIST_ADD_LAST(
+					doc_list,
+					psort_info[bucket].fts_doc_list,
+					doc_item);
+				n_row_added = 1;
+				continue;
 			}
 		}
 
@@ -1246,7 +1208,7 @@ row_merge_read_clustered_index(
 	dict_index_t**		index,	/*!< in: indexes to be created */
 	dict_index_t*		fts_sort_idx,
 					/*!< in: indexes to be created */
-	fts_psort_info_t*	psort_info, /*!< in: parallel sort info */
+	fts_psort_t*		psort_info, /*!< in: parallel sort info */
 	merge_file_t*		files,	/*!< in: temporary files */
 	ulint			n_index,/*!< in: number of indexes to create */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
@@ -1310,12 +1272,10 @@ row_merge_read_clustered_index(
 				ut_ad(doc_id > 0);
 			}
 
-			if (FTS_PLL_ENABLED) {
-				fts_pll_sort = TRUE;
-				row_fts_start_psort(psort_info);
-				fts_parallel_sort_event =
-					 psort_info[0].psort_common->sort_event;
-			}
+			fts_pll_sort = TRUE;
+			row_fts_start_psort(psort_info);
+			fts_parallel_sort_event =
+				 psort_info[0].psort_common->sort_event;
 		} else {
 			merge_buf[i] = row_merge_buf_create(index[i]);
 		}
@@ -1469,7 +1429,7 @@ row_merge_read_clustered_index(
 			}
 
 			if ((!row || !doc_id)
-			    && index->type & DICT_FTS && FTS_PLL_ENABLED) {
+			    && index->type & DICT_FTS) {
 				continue;
 			}
 
@@ -1576,9 +1536,7 @@ wait_again:
 		row_merge_buf_free(merge_buf[i]);
 	}
 
-	if (fts_sort_idx && FTS_PLL_ENABLED) {
-		row_fts_free_pll_merge_buf(psort_info);
-	}
+	row_fts_free_pll_merge_buf(psort_info);
 
 	mem_free(merge_buf);
 
@@ -2906,8 +2864,8 @@ row_merge_build_indexes(
 	ulint			error;
 	int			tmpfd;
 	dict_index_t*		fts_sort_idx = NULL;
-	fts_psort_info_t*	psort_info = NULL;
-	fts_psort_info_t*	merge_info = NULL;
+	fts_psort_t*		psort_info = NULL;
+	fts_psort_t*		merge_info = NULL;
 
 	ut_ad(trx);
 	ut_ad(old_table);
@@ -2973,7 +2931,7 @@ row_merge_build_indexes(
 				? fts_sort_idx
 				: indexes[i];
 
-		if (FTS_PLL_ENABLED && indexes[i]->type & DICT_FTS) {
+		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
 
 			fts_parallel_merge_event
@@ -2981,8 +2939,7 @@ row_merge_build_indexes(
 
 			if (FTS_PLL_MERGE) {
 				os_event_reset(fts_parallel_merge_event);
-				row_fts_start_parallel_merge(
-					merge_info, psort_info);
+				row_fts_start_parallel_merge(merge_info);
 wait_again:
 				os_event_wait(fts_parallel_merge_event);
 
@@ -2997,8 +2954,7 @@ wait_again:
 				}
 			} else {
 				error = row_fts_merge_insert(
-					trx, sort_idx, new_table,
-					dict_table_zip_size(old_table),
+					sort_idx, new_table,
 					psort_info, 0);
 			}
 
@@ -3021,7 +2977,7 @@ wait_again:
 		/* Close the temporary file to free up space. */
 		row_merge_file_destroy(&merge_files[i]);
 
-		if (FTS_PLL_ENABLED && indexes[i]->type & DICT_FTS) {
+		if (indexes[i]->type & DICT_FTS) {
 			row_fts_psort_info_destroy(psort_info, merge_info);
 		}
 
