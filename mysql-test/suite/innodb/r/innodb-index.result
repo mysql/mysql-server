@@ -978,6 +978,15 @@ INSERT INTO t1 VALUES(9,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r);
 UPDATE t1 SET a=1000;
 DELETE FROM t1;
 DROP TABLE t1;
+CREATE TABLE bug12547647(
+a INT NOT NULL, b BLOB NOT NULL, c TEXT,
+PRIMARY KEY (b(10), a), INDEX (c(767)), INDEX(b(767))
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+INSERT INTO bug12547647 VALUES (5,repeat('khdfo5AlOq',1900),repeat('g',7751));
+COMMIT;
+UPDATE bug12547647 SET c = REPEAT('b',16928);
+ERROR HY000: Undo log record is too big.
+DROP TABLE bug12547647;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 set global innodb_file_format_max=Antelope;
