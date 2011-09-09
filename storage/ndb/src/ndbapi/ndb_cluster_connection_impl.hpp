@@ -74,6 +74,7 @@ public:
 private:
   friend class Ndb;
   friend class NdbImpl;
+  friend class NdbWaitGroup;
   friend void* run_ndb_cluster_connection_connect_thread(void*);
   friend class Ndb_cluster_connection;
   friend class NdbEventBuffer;
@@ -131,6 +132,8 @@ private:
   // Base offset for stats, from Ndb objects that are no 
   // longer with us
   Uint64 globalApiStatsBaseline[ Ndb::NumClientStatistics ];
+
+  NdbWaitGroup *m_multi_wait_group;
 };
 
 #endif

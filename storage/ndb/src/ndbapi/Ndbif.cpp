@@ -1014,12 +1014,24 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     theNoOfSentTransactions = tNoSentTransactions - 1;
     aCon->theListState = NdbTransaction::InCompletedList;
     aCon->handleExecuteCompletion();
-    if ((theMinNoOfEventsToWakeUp != 0) &&
-        (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
-      theMinNoOfEventsToWakeUp = 0;
-      theImpl->theWaiter.signal(NO_WAIT);
-      return;
-    }//if
+
+    if (theImpl->wakeHandler == 0)
+    {
+      if ((theMinNoOfEventsToWakeUp != 0) &&
+          (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp))
+      {
+        theMinNoOfEventsToWakeUp = 0;
+        theImpl->theWaiter.signal(NO_WAIT);
+        return;
+      }
+    }
+    else
+    {
+      /**
+       * This is for multi-wait handling
+       */
+      theImpl->wakeHandler->notifyTransactionCompleted(this);
+    }
   } else {
     ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
     ndbout << " theListState = " << (int) aCon->theListState;
