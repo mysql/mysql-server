@@ -463,6 +463,9 @@ Configuration::setupConfiguration(){
   do
   {
     globalData.isNdbMt = NdbIsMultiThreaded();
+    if (!globalData.isNdbMt)
+      break;
+
     globalData.isNdbMtLqh = true;
     {
       if (m_thr_config.getMtClassic())
