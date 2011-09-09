@@ -386,8 +386,8 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
-    thd->variables.sql_mode &
-    (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
+    test(thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   thd->transaction.stmt.modified_non_trans_table= FALSE;
 
   /* Save the value in the field. Convert the value if needed. */
@@ -1374,7 +1374,10 @@ sp_head::execute(THD *thd)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
+  if (cur_db_changed &&
+      thd->killed != THD::KILL_CONNECTION &&
+      thd->killed != THD::KILL_SERVER &&
+      thd->killed != THD::KILL_SYSTEM_THREAD)
   {
     /*
       Force switching back to the saved current database, because it may be

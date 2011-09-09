@@ -837,6 +837,7 @@ bool is_network_error(uint errorno)
       errorno == CR_SERVER_GONE_ERROR ||
       errorno == CR_SERVER_LOST ||
       errorno == ER_CON_COUNT_ERROR ||
+      errorno == ER_NEW_ABORTING_CONNECTION ||
       errorno == ER_SERVER_SHUTDOWN)
     return TRUE;
 

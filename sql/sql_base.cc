@@ -8743,7 +8743,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
         {
           if (!in_use->killed)
           {
-            in_use->killed= THD::KILL_CONNECTION;
+            in_use->killed= THD::KILL_SYSTEM_THREAD;
             pthread_mutex_lock(&in_use->mysys_var->mutex);
             if (in_use->mysys_var->current_cond)
             {
@@ -9077,7 +9077,7 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
       if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
           ! in_use->killed)
       {
-        in_use->killed= THD::KILL_CONNECTION;
+        in_use->killed= THD::KILL_SYSTEM_THREAD;
         pthread_mutex_lock(&in_use->mysys_var->mutex);
         if (in_use->mysys_var->current_cond)
         {

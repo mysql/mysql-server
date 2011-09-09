@@ -1180,7 +1180,8 @@ pthread_handler_t handle_one_connection(void *arg)
     prepare_new_connection_state(thd);
 
     while (!net->error && net->vio != 0 &&
-           !(thd->killed == THD::KILL_CONNECTION))
+           thd->killed != THD::KILL_CONNECTION &&
+           thd->killed != THD::KILL_SERVER)
     {
       if (do_command(thd))
 	break;

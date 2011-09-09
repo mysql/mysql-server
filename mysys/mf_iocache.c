@@ -178,11 +178,9 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
     if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
     {
       /*
-         This kind of object doesn't support seek() or tell(). Don't set a
-         flag that will make us again try to seek() later and fail.
-      */
-      info->seek_not_done= 0;
-      /*
+        This kind of object doesn't support seek() or tell(). Don't set a
+        seek_not_done that will make us again try to seek() later and fail.
+
         Additionally, if we're supposed to start somewhere other than the
         the beginning of whatever this file is, then somebody made a bad
         assumption.
