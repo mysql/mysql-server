@@ -16998,7 +16998,7 @@ int ha_ndbcluster::alter_table_abort(THD *thd, TABLE *table,
                                      HA_ALTER_FLAGS *alter_flags)
 {
   int error= 0;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  //Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
   NDBDICT *dict= alter_data->dictionary;
   DBUG_ENTER("alter_table_abort");
