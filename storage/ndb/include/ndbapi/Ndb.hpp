@@ -1801,7 +1801,12 @@ public:
     NonDataEventsRecvdCount  = 19, /* Number of non-data events received */
     EventBytesRecvdCount     = 20, /* Number of bytes of event data received */
     
-    NumClientStatistics      = 21   /* End marker */
+    /* Adaptive Send */
+    ForcedSendsCount         = 21, /* Number of sends with force-send set */
+    UnforcedSendsCount       = 22, /* Number of sends without force-send */
+    DeferredSendsCount       = 23, /* Number of adaptive send calls not actually sent */
+    
+    NumClientStatistics      = 24   /* End marker */
   };
   
   Uint64 getClientStat(Uint32 id) const;

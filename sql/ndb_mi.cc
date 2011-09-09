@@ -82,6 +82,16 @@ bool ndb_mi_get_in_relay_log_statement(Relay_log_info* rli)
   return (rli->get_flag(Relay_log_info::IN_STMT) != 0);
 }
 
+ulong ndb_mi_get_relay_log_trans_retries()
+{
+  return active_mi->rli.trans_retries;
+}
+
+void ndb_mi_set_relay_log_trans_retries(ulong number)
+{
+  active_mi->rli.trans_retries = number;
+}
+
 /* #ifdef HAVE_NDB_BINLOG */
 
 #endif
