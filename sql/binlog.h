@@ -177,6 +177,18 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+#ifdef HAVE_UGID
+  /**
+    Add @@global.server_uuid to this binlog's Sid_map.
+
+    This can't be done in the constructor because the constructor is
+    invoked at server startup before server_uuid is initialized.
+    
+    @retval 0 Success
+    @retval 1 Error (out of memory or IO error).
+  */
+  int init_sid_map();
+#endif
 
   int open(const char *opt_name);
   void close();
@@ -228,9 +240,11 @@ public:
   /* Use this to start writing a new log file */
   int new_file();
 
-  bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, bool incident, bool prepared);
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  bool write_event(Log_event* event_info);
+  bool write_cache(THD *thd, class binlog_cache_mngr *cache_mngr,
+                   class binlog_cache_data *binlog_cache_data,
+                   bool prepared, my_off_t offset_after_last_statement);
+  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -241,12 +255,8 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  /*
-    v stands for vector
-    invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
-  */
-  bool appendv(const char* buf,uint len,...);
-  bool append(Log_event* ev);
+  bool append_buffer(const char* buf, uint len);
+  bool append_event(Log_event* ev);
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
@@ -308,6 +318,13 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+
+#ifdef HAVE_UGID
+  Checkable_rwlock sid_lock;
+  Sid_map sid_map;
+  Group_log_state group_log_state;
+  rpl_sidno server_uuid_sidno;
+#endif
 };
 
 typedef struct st_load_file_info

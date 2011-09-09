@@ -65,6 +65,20 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_record.cc
   ../sql/rpl_reporting.cc
   ../sql/rpl_utility.cc
+  ../sql/zcompact.cc
+  ../sql/zatom_file.cc
+  ../sql/zrot_file.cc
+  ../sql/zuuid.cc
+  ../sql/zgroup.cc
+  ../sql/zowner_id.cc
+  ../sql/zsid_map.cc
+  ../sql/zgroup_set.cc
+  ../sql/zugid_specification.cc
+  ../sql/zgroup_log_state.cc
+  ../sql/zowned_groups.cc
+  ../sql/zgroup_cache.cc
+  ../sql/zgroup_execution.cc
+  ../sql/zmutex_cond_array.cc
   ${IMPORTED_SOURCES}
 )
 

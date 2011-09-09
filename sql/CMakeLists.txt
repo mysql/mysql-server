@@ -189,7 +189,12 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
-SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
+SET (BINLOG_SOURCE zatom_file.cc zrot_file.cc zuuid.cc zgroup.cc zowner_id.cc
+                   zcompact.cc
+                   zsid_map.cc zgroup_set.cc zugid_specification.cc
+                   zgroup_log_state.cc zowned_groups.cc zgroup_cache.cc
+                   zgroup_execution.cc zmutex_cond_array.cc
+                   log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})

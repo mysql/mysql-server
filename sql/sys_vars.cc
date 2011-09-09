@@ -34,6 +34,8 @@
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars.h"
+#include "zgroups.h"
+#include "mysql_com.h"
 
 #include "events.h"
 #include <thr_alarm.h>
@@ -406,6 +408,35 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 #endif
   return false;
 }
+
+#ifdef HAVE_UGID
+static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
+{
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name);
+    return true;
+  }
+  return false;
+}
+
+static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var)
+{
+  return (check_has_super(self, thd, var) ||
+          check_top_level_stmt(self, thd, var));
+}
+
+static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
+{  
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name);
+    return true;
+  }
+  return false;
+}
+#endif
+
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
   if (check_has_super(self, thd, var))
@@ -3560,3 +3591,96 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        READ_ONLY GLOBAL_VAR(opt_ignore_db_dirs), 
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
+
+#ifdef HAVE_UGID
+
+static bool check_ugid_next_list(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_ugid_next_list");
+  if (check_top_level_stmt_and_super(self, thd, var) ||
+      check_outside_transaction(self, thd, var))
+    DBUG_RETURN(true);
+  if (thd->variables.ugid_has_ongoing_super_group)
+  {
+    my_error(ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP, MYF(0));
+    DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
+}
+
+static bool check_ugid_next(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_ugid_next");
+
+  // Note: we also check in sql_yacc.yy:set_system_variable that the
+  // SET UGID_NEXT statement does not invoke a stored function.
+
+  // UGID_NEXT must be set by SUPER in a top-level statement
+  if (check_top_level_stmt_and_super(self, thd, var))
+    DBUG_RETURN(true);
+
+  if (thd->variables.ugid_has_ongoing_super_group)
+  {
+    // Inside a master-super-group, UGID_NEXT is read-only if
+    // UGID_NEXT_LIST is NULL.
+    if (!thd->variables.ugid_next_list.is_non_null)
+    {
+      my_error(ER_CANT_CHANGE_UGID_NEXT_IN_SUPER_GROUP_WHEN_UGID_NEXT_LIST_IS_NULL, MYF(0));
+      DBUG_RETURN(true);
+    }
+    DBUG_RETURN(false);
+  }
+  else
+    // Outside a master-super-group, UGID_NEXT may only be set outside
+    // of a transaction.
+    DBUG_RETURN(check_outside_transaction(self, thd, var));
+}
+
+static Sys_var_group_set Sys_ugid_next_list(
+       "ugid_next_list",
+       "The set of groups that will be part of the following super-group.",
+       SESSION_ONLY(ugid_next_list), NO_CMD_LINE,
+       DEFAULT(NULL), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_ugid_next_list));
+export sys_var *Sys_ugid_next_list_ptr= &Sys_ugid_next_list;
+
+static Sys_var_ugid_specification Sys_ugid_next(
+       "ugid_next",
+       "The Universal Group Identifier for the following statement.",
+       SESSION_ONLY(ugid_next), NO_CMD_LINE,
+       DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_ugid_next));
+export sys_var *Sys_ugid_next_ptr= &Sys_ugid_next;
+
+static Sys_var_mybool Sys_ugid_end(
+       "ugid_end",
+       "If 1, the next statement will end the group.",
+       SESSION_ONLY(ugid_end), NO_CMD_LINE,
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_top_level_stmt_and_super));
+export sys_var *Sys_ugid_end_ptr= &Sys_ugid_end;
+
+static Sys_var_mybool Sys_ugid_commit(
+       "ugid_commit",
+       "If 1, the next statement will commit the super-group.",
+       SESSION_ONLY(ugid_commit), NO_CMD_LINE,
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_top_level_stmt_and_super));
+export sys_var *Sys_ugid_commit_ptr= &Sys_ugid_commit;
+
+static Sys_var_mybool Sys_ugid_has_ongoing_super_group(
+       "ugid_has_ongoing_super_group",
+       "Read-only variable that is set to 1 while the server re-executes a super-group.",
+       READ_ONLY SESSION_ONLY(ugid_has_ongoing_super_group), NO_CMD_LINE,
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_top_level_stmt_and_super));
+
+static Sys_var_ugid_ended_groups Sys_ugid_ended_groups(
+       "ugid_ended_groups",
+       "The global variable contains the set of groups that are ended in the binary log. The session variable contains the set of groups that are ended in the current transaction.");
+
+static Sys_var_ugid_partial_groups Sys_ugid_partial_groups(
+       "ugid_partial_groups",
+       "The global variable contains the set of groups that are partial in the binary log. The session variable contains the set of groups that are partial in the current transaction.");
+
+#endif

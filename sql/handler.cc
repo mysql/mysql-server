@@ -513,6 +513,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     the switch below and hton->state should be removed when
     command-line options for plugins will be implemented
   */
+  DBUG_PRINT("info", ("hton->state=%d", hton->state));
   switch (hton->state) {
   case SHOW_OPTION_NO:
     break;
@@ -1193,6 +1194,8 @@ int ha_commit_trans(THD *thd, bool all)
     DBUG_RETURN(2);
   }
 
+  DBUG_PRINT("sven", ("ha_info=%p is_real_trans=%d all=%d thd->transaction.all.ha_list=%p",
+                      ha_info, is_real_trans, all, thd->transaction.all.ha_list));
   if (ha_info)
   {
     uint rw_ha_count;
@@ -1209,6 +1212,8 @@ int ha_commit_trans(THD *thd, bool all)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
+    DBUG_PRINT("sven", ("rw_ha_count=%d rw_trans=%d",
+                        rw_ha_count, rw_trans));
     if (rw_trans)
     {
       /*

@@ -3255,6 +3255,13 @@ bool LEX::is_partition_management() const
 }
 
 
+bool LEX::is_binloggable() const
+{
+  return !(sql_command_flags[sql_command] & CF_ONLY_BINLOGGABLE_WITH_SF) ||
+    uses_stored_routines();
+}
+
+
 /**
   Set all fields to their "unspecified" value.
 */

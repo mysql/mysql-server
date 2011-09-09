@@ -35,6 +35,8 @@
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 #include "opt_trace_context.h"    /* Opt_trace_context */
+#include "zgroups.h"
+
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
 
@@ -541,6 +543,14 @@ typedef struct system_variables
   my_bool binlog_rows_query_log_events;
 
   double long_query_time_double;
+
+#ifdef HAVE_UGID
+  Ugid_specification ugid_next;
+  Group_set_or_null ugid_next_list;
+  my_bool ugid_end;
+  my_bool ugid_commit;
+  my_bool ugid_has_ongoing_super_group;
+#endif
 
 } SV;
 
@@ -3060,6 +3070,21 @@ public:
     DBUG_VOID_RETURN;
   }
 
+#ifdef HAVE_UGID
+  Group_set *get_ugid_next_list()
+  {
+    return variables.ugid_next_list.is_non_null ?
+      variables.ugid_next_list.group_set : NULL;
+  }
+
+  const Group_set *get_ugid_next_list_const() const
+  {
+    return const_cast<const Group_set *>(const_cast<THD *>(this)->get_ugid_next_list());
+  }
+
+  Group_cache *get_group_cache(bool is_transactional);
+#endif
+
   /**
     Set the current database; use deep copy of C-string.
 
@@ -4183,6 +4208,13 @@ public:
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)
+
+/**
+  Identifies statements that normally do not write anything to the
+  binary log, but could write something in case they invoke a stored
+  function (e.g. SELECT, DO, SET).
+*/
+#define CF_ONLY_BINLOGGABLE_WITH_SF    (1U << 15)
 
 /* Bits in server_command_flags */
 

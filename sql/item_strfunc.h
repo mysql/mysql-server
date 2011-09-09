@@ -968,6 +968,15 @@ public:
   String *val_str(String *);
 };
 
+class Item_func_group_subtract: public Item_str_ascii_func
+{
+public:
+  Item_func_group_subtract(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  void fix_length_and_dec();
+  const char *func_name() const{ return "group_subtract"; }
+  String *val_str_ascii(String *);
+};
+
 extern String my_empty_string;
 
 #endif /* ITEM_STRFUNC_INCLUDED */
