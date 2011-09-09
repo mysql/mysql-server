@@ -5449,6 +5449,9 @@ compare_tables(THD *thd,
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
   }
+  if (ha_alter_info->index_drop_count || ha_alter_info->index_add_count)
+    alter_info->change_level= ALTER_TABLE_INDEX_CHANGED;
+  ha_alter_info->candidate_key_count= candidate_key_count;
 #ifndef DBUG_OFF
   {
     char dbug_string[HA_MAX_ALTER_FLAGS+1];
@@ -6017,6 +6020,7 @@ int mysql_fast_or_online_alter_table(THD *thd,
                                      HA_ALTER_INFO *alter_info,
                                      HA_ALTER_FLAGS *ha_alter_flags,
                                      enum enum_enable_or_disable keys_onoff,
+                                     bool need_lock_for_indexes,
                                      MDL_request *target_mdl_request)
 {
   int error= 0;
@@ -6034,13 +6038,15 @@ int mysql_fast_or_online_alter_table(THD *thd,
 
   DBUG_ENTER(" mysql_fast_or_online_alter_table");
   //VOID(pthread_mutex_lock(&LOCK_open));
-  if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+  if (!table->s->tmp_table && need_lock_for_indexes &&
+      (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN)))
   {
-    error= my_errno;
+    error= -1;
     goto err;
   }
   //VOID(pthread_mutex_unlock(&LOCK_open));
   thd_proc_info(thd, "manage keys");
+  DEBUG_SYNC(thd, "alter_table_manage_keys");
   alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                           keys_onoff);
   error= trans_commit_stmt(thd);
@@ -6074,6 +6080,24 @@ int mysql_fast_or_online_alter_table(THD *thd,
        if check_if_supported_alter() returned HA_ALTER_SUPPORTED_WAIT_LOCK
        we need to wrap the next call with a DDL lock.
      */
+
+
+    /*
+      Wait for users of the table before continuing with next phase
+     */
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+    {
+      if ((error= table->file->alter_table_abort(thd,
+                                                 alter_info,
+                                                 ha_alter_flags)))
+      {
+        goto err;
+      }
+
+      error= my_errno;
+      goto err;
+    }
+
     if ((error= table->file->alter_table_phase2(thd,
                                                 altered_table,
                                                 create_info,
@@ -6088,11 +6112,6 @@ int mysql_fast_or_online_alter_table(THD *thd,
     and will be renamed to the original table name.
   */
   //VOID(pthread_mutex_lock(&LOCK_open));
-  if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
-  {
-    error= my_errno;
-    goto err;
-  }
 
   strcpy(table_name, altered_table->s->table_name.str);
   strcpy(db, altered_table->s->db.str);
@@ -7428,7 +7447,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       char dbug_string[HA_MAX_ALTER_FLAGS+1];
       ha_alter_flags.print(dbug_string);
-      DBUG_PRINT("info", ("need_copy_table: %u, table_changes: %u, Real alter_flags:  %s",
+      DBUG_PRINT("info", ("change_level: %u, need_copy_table: %u, table_changes: %u, Real alter_flags:  %s",
+                          alter_info->change_level,
                           need_copy_table, table_changes,
                           (char *) dbug_string));
     }
@@ -7471,10 +7491,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       alter_info->create_list= create_list_orig;
       alter_info->alter_list= alter_list_orig;
       alter_info->key_list= key_list_orig;
-
+      ha_alter_info.data= alter_info;
+      
       alter_supported= (table->file->check_if_supported_alter(altered_table,
                                                               create_info,
-                                                              alter_info,
+                                                              &ha_alter_info,
                                                               &ha_alter_flags,
                                                               table_changes));
       
@@ -7485,7 +7506,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       alter_info->key_list= key_list;
       switch (alter_supported) {
       case HA_ALTER_SUPPORTED_WAIT_LOCK:
+        DBUG_PRINT("info", ("check_if_supported_alter: HA_ALTER_SUPPORTED_WAIT_LOCK"));
+        need_copy_table= FALSE;
+        need_lock_for_indexes= TRUE;
+        break;
       case HA_ALTER_SUPPORTED_NO_LOCK:
+        DBUG_PRINT("info", ("check_if_supported_alter: HA_ALTER_SUPPORTED_NO_LOCK"));
         /*
           @todo: Currently we always acquire an exclusive name
           lock on the table metadata when performing fast or online
@@ -7496,10 +7522,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           already now.
         */
         need_copy_table= FALSE;
-        if (alter_info->change_level == ALTER_TABLE_METADATA_ONLY)
-          need_lock_for_indexes= FALSE;
+        need_lock_for_indexes= FALSE;
         break;
       case HA_ALTER_NOT_SUPPORTED:
+        DBUG_PRINT("info", ("check_if_supported_alter: HA_ALTER_NOT_SUPPORTED"));
+        need_copy_table= TRUE;
+        need_lock_for_indexes= FALSE;
         if (alter_info->build_method == HA_BUILD_ONLINE)
         {
           my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
@@ -7512,6 +7540,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         need_copy_table= TRUE;
         break;
       case HA_ALTER_ERROR:
+        DBUG_PRINT("info", ("check_if_supported_alter: HA_ALTER_ERROR"));
       default:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         altered_table->part_info= NULL;;
@@ -7536,6 +7565,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
     if (!need_copy_table)
     {
+      if (alter_info->keys_onoff != LEAVE_AS_IS ||
+          table->file->indexes_are_disabled())
+        need_lock_for_indexes= true;
       error= mysql_fast_or_online_alter_table(thd,
                                               table,
                                               altered_table,
@@ -7543,6 +7575,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                               &ha_alter_info,
                                               &ha_alter_flags,
                                               alter_info->keys_onoff,
+                                              need_lock_for_indexes,
                                               &target_mdl_request);
       if (thd->lock)
       {
