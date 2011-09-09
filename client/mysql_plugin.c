@@ -1169,6 +1169,8 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
   
   if (opt_verbose)
     verbose_str= "--console";
+  else
+    verbose_str= "";
   if (has_spaces(opt_datadir) || has_spaces(opt_basedir) ||
       has_spaces(bootstrap_file))
     format_str= "\"%s %s --bootstrap --datadir=%s --basedir=%s < %s\"";
