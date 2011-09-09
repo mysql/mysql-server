@@ -4797,7 +4797,7 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
   /* 
     If current statement is not instrumented
   */
-  if(!flag_events_statements_current)
+  if( !(flag_thread_instrumentation && flag_events_statements_current) )
   {
     return NULL;
   }
@@ -4890,8 +4890,8 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
        TODO If I un comment following code, few test cases in performance
        schema starts crashing. Need to investigate this.
     */
-    //digest_storage->m_token_array[digest_storage->m_token_count]= token;
-    //digest_storage->m_token_count++;
+    digest_storage->m_token_array[digest_storage->m_token_count]= token;
+    digest_storage->m_token_count++;
   }
 }
 

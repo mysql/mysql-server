@@ -1304,7 +1304,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= statement_digest_max * sizeof(PFS_statements_digest_stat);
       total_memory+= size;
       break;    
-/*
+    /*
       This case must be last,
       for aggregation in total_memory.
     */
