@@ -37,30 +37,6 @@ let $pushed_queries_dropped_at_startup = query_get_value(show status like 'Ndb_p
 let $pushed_queries_executed_at_startup = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
 let $pushed_reads_at_startup = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
 
-# Use this table and the two queries below to turn of meassuring 
-# SCAN_ROWS_RETURNED for certain bushy scan queries. The reason for this is 
-# that growth of this counter is platform dependent for these queries. There
-# are two reasons for this:
-# 1. Distribution hashing (partitioning) of tables is endian dependent. This
-# may cause data to be more skewed on some platforms. This again requires more
-# batches to scan the table and thus more repeats of repeatable scans (i.e. 
-# those that will be repeated for each batch of the other branch of a bushy
-# scan). This increases the overall scan row count.
-# 2. If a timer expires in LQH after receiving SCAN_FRAGREQ, LQH may decide to
-# send SCAN_FRAGCONF immediately, even if more tuples could fit in the batch.
-# As above this causes more repeats of repeatable scans.
-
-create temporary table spj_save_counts like spj_counts_at_startup;
-
-insert into spj_save_counts values ('SCAN_ROWS_RETURNED', 0);
-
-# Record current counter value.
-let $save_scan_rows_returned = update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
-
-# Update spj_counts_at_startup to compensate for counter increments since 
-# running save_scan_rows_returned.
-let $compensate_scan_rows_returned = update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
-
 ##############
 # Test start
 
@@ -1046,7 +1022,6 @@ connection ddl;
 alter table t1 partition by key(a);
 
 connection spj;
-eval $save_scan_rows_returned;
 
 explain select count(*) from t1 
   join t1 as t2 on t2.a = t1.c 
@@ -1076,8 +1051,6 @@ explain select count(*) from t1 as x1
 select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
   join t1 as x3 on x3.a = x1.c;
-
-eval $compensate_scan_rows_returned;
 
 connection ddl;
 drop table t1;
@@ -2987,7 +2960,6 @@ explain extended select straight_join * from
 # These should be allowed to be executed in 'parallel', depending on
 # only the root operation
 #
-eval $save_scan_rows_returned;
 
 explain extended select straight_join count(*) from t1 as x1 
   join t1 as x2 on x2.b = x1.a
@@ -3022,8 +2994,6 @@ select straight_join count(*) from t1 as x1
   join t1 as x6 on x6.b = x1.a
   join t1 as x7 on x7.b = x1.a
 where x3.a < x2.pk and x4.a < x3.pk; 
-
-eval $compensate_scan_rows_returned;
 
 #############
 # If we have an outer join, we can't create an artificial dep. 'through' the outer join.
@@ -3064,8 +3034,6 @@ select straight_join count(*) from t1 as x1
 #
 # Bushy execution is expected for these scans (x2 & x4) wrt. root (x1)
 #
-eval $save_scan_rows_returned;
-
 explain extended
 select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
@@ -3079,8 +3047,6 @@ set ndb_join_pushdown=on;
 select straight_join count(*) from t1 as x1
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
-
-eval $compensate_scan_rows_returned;
 
 #############
 # Test bushy lookups + 1scan, 
@@ -3195,15 +3161,11 @@ explain select straight_join count(*) from t1 as x0
    join t3 as x3 on x2.c=x3.a  
    join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
 
-eval $save_scan_rows_returned;
-
 select straight_join count(*) from t1 as x0  
    join t3 as x1 on x0.c=x1.a  
    join t1 as x2 on x0.c=x2.a 
    join t3 as x3 on x2.c=x3.a  
    join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
-
-eval $compensate_scan_rows_returned;
 
 connection ddl;
 drop table t1;
@@ -3720,21 +3682,15 @@ connection spj;
 select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
        from spj_counts_at_end, spj_counts_at_startup 
        where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
+       and spj_counts_at_end.counter_name <> 'READS_NOT_FOUND'
        and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'REMOTE_READS_SENT'
        and spj_counts_at_end.counter_name <> 'LOCAL_RANGE_SCANS_SENT'
        and spj_counts_at_end.counter_name <> 'REMOTE_RANGE_SCANS_SENT'
+       and spj_counts_at_end.counter_name <> 'SCAN_ROWS_RETURNED'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 
-# The sum of LOCAL+REMOTE should be constant
-select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
-       from spj_counts_at_end, spj_counts_at_startup 
-       where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-       and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
-       or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
-
 connection spj;
-drop table spj_save_counts;
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 
@@ -3750,7 +3706,10 @@ let $pushed_reads_at_end = query_get_value(show status like 'Ndb_pushed_reads', 
 
 # Calculate the change.
 --disable_query_log
---eval select $scan_count_at_end - $scan_count_at_startup as scan_count
+# There is some random variation in scan_count, probably due to statistics
+# being updated at unpredictable intervals. Therefore, we only test for 
+# deviations greater than on tenth of the expected value.
+--eval select round(($scan_count_at_end - $scan_count_at_startup)/2524, 1) as scan_count_derived
 --eval select $pruned_scan_count_at_end - $pruned_scan_count_at_startup as pruned_scan_count
 --eval select $sorted_scan_count_at_end - $sorted_scan_count_at_startup as sorted_scan_count
 --eval select $pushed_queries_defined_at_end - $pushed_queries_defined_at_startup as pushed_queries_defined
