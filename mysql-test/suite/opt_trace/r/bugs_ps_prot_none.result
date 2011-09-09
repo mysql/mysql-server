@@ -1076,6 +1076,13 @@ ON table2 .col_int_key = table1 .col_int_key
                             "database": "test",
                             "table": "table1",
                             "field": "col_int_key",
+                            "equals": "<cache>(`test`.`where_subselect_20070`.`field1`)",
+                            "null_rejecting": false
+                          },
+                          {
+                            "database": "test",
+                            "table": "table1",
+                            "field": "col_int_key",
                             "equals": "`test`.`table2`.`col_int_key`",
                             "null_rejecting": true
                           },
@@ -1125,19 +1132,21 @@ ON table2 .col_int_key = table1 .col_int_key
                                 {
                                   "access_type": "ref",
                                   "index": "col_int_key",
-                                  "usable": false,
-                                  "chosen": false
+                                  "records": 2,
+                                  "cost": 1.4233,
+                                  "chosen": true
                                 },
                                 {
                                   "access_type": "scan",
+                                  "cost": 2,
                                   "records": 4,
-                                  "cost": 2.0068,
-                                  "chosen": true
+                                  "cause": "cost",
+                                  "chosen": false
                                 }
                               ] /* considered_access_paths */
                             } /* best_access_path */,
-                            "cost_for_plan": 2.8068,
-                            "records_for_plan": 4,
+                            "cost_for_plan": 1.4233,
+                            "records_for_plan": 2,
                             "rest_of_plan": [
                               {
                                 "database": "test",
@@ -1148,20 +1157,20 @@ ON table2 .col_int_key = table1 .col_int_key
                                       "access_type": "ref",
                                       "index": "col_int_key",
                                       "records": 2,
-                                      "cost": 4.493,
+                                      "cost": 2.4465,
                                       "chosen": true
                                     },
                                     {
                                       "access_type": "scan",
                                       "using_join_cache": true,
                                       "records": 3,
-                                      "cost": 2.2071,
-                                      "chosen": true
+                                      "cost": 2.207,
+                                      "chosen": false
                                     }
                                   ] /* considered_access_paths */
                                 } /* best_access_path */,
-                                "cost_for_plan": 7.414,
-                                "records_for_plan": 12,
+                                "cost_for_plan": 4.2698,
+                                "records_for_plan": 4,
                                 "chosen": true
                               }
                             ] /* rest_of_plan */
@@ -1213,7 +1222,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 } /* best_access_path */,
                                 "cost_for_plan": 4.2698,
                                 "records_for_plan": 4,
-                                "chosen": true
+                                "pruned_by_cost": true
                               }
                             ] /* rest_of_plan */
                           }
@@ -1221,19 +1230,19 @@ ON table2 .col_int_key = table1 .col_int_key
                       },
                       {
                         "attaching_conditions_to_tables": {
-                          "original_condition": "((`test`.`table1`.`col_int_key` = `test`.`table2`.`col_int_key`) and (<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`))",
+                          "original_condition": "((`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`) and (<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table1`.`col_int_key`))",
                           "attached_conditions_computation": [
                           ] /* attached_conditions_computation */,
                           "attached_conditions_summary": [
                             {
                               "database": "test",
-                              "table": "table2",
-                              "attached": "(`test`.`table2`.`col_int_key` is not null)"
+                              "table": "table1",
+                              "attached": null
                             },
                             {
                               "database": "test",
-                              "table": "table1",
-                              "attached": null
+                              "table": "table2",
+                              "attached": "(`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`)"
                             }
                           ] /* attached_conditions_summary */
                         } /* attaching_conditions_to_tables */
@@ -1242,11 +1251,11 @@ ON table2 .col_int_key = table1 .col_int_key
                         "refine_plan": [
                           {
                             "database": "test",
-                            "table": "table2"
+                            "table": "table1"
                           },
                           {
                             "database": "test",
-                            "table": "table1"
+                            "table": "table2"
                           }
                         ] /* refine_plan */
                       }
