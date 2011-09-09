@@ -1352,7 +1352,6 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
   DBUG_ENTER("wait_for_workers_to_finish");
 
   llstr(const_cast<Relay_log_info*>(rli)->get_event_relay_log_pos(), llbuf);
-  sql_print_information("Coordinator enter synchronization when distributes event relay-log: %s pos: %s", const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(), llbuf);
 
   for (uint i= 0, ret= 0; i < hash->records; i++)
   {
