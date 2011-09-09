@@ -29,6 +29,7 @@ flexTT \
 testBackup \
 testBasic \
 testBasicAsynch \
+testAsynchMultiwait \
 testBlobs \
 testDataBuffers \
 testDict \
@@ -89,6 +90,7 @@ testBackup_SOURCES = testBackup.cpp
 testBasic_SOURCES = testBasic.cpp
 testSpj_SOURCES = testSpj.cpp
 testBasicAsynch_SOURCES = testBasicAsynch.cpp
+testAsynchMultiwait_SOURCES = testAsynchMultiwait.cpp
 testBlobs_SOURCES = testBlobs.cpp
 testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
