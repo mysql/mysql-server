@@ -264,6 +264,7 @@ Table	Op	Msg_type	Msg_text
 test.t1_will_crash	analyze	status	OK
 OPTIMIZE TABLE t1_will_crash;
 Table	Op	Msg_type	Msg_text
+test.t1_will_crash	optimize	info	Found row block followed by deleted block
 test.t1_will_crash	optimize	warning	Number of rows changed from 8 to 7
 test.t1_will_crash	optimize	status	OK
 CHECK TABLE t1_will_crash;

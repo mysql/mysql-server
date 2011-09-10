@@ -4919,7 +4919,8 @@ int query_error_code(THD *thd, bool not_killed)
        is not set to these errors when specified not_killed by the
        caller.
     */
-    if (error == ER_SERVER_SHUTDOWN || error == ER_QUERY_INTERRUPTED)
+    if (error == ER_SERVER_SHUTDOWN || error == ER_QUERY_INTERRUPTED ||
+        error == ER_NEW_ABORTING_CONNECTION)
       error= 0;
   }
   else

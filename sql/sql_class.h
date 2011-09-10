@@ -1838,7 +1838,9 @@ public:
     NOT_KILLED=0,
     KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
+    KILL_SYSTEM_THREAD=ER_NEW_ABORTING_CONNECTION, /* Kill connection nicely */
     KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_SERVER,	 /* Placeholder for shortdown */
     KILLED_NO_VALUE      /* means neither of the states */
   };
   killed_state volatile killed;

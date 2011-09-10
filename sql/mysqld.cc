@@ -1968,6 +1968,17 @@ void close_connection(THD *thd, uint errcode, bool lock)
   if (lock)
     (void) pthread_mutex_lock(&LOCK_thread_count);
   thd->killed= THD::KILL_CONNECTION;
+
+  if (global_system_variables.log_warnings > 3)
+  {
+    Security_context *sctx= &thd->main_security_ctx;
+    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                      thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                      sctx->user ? sctx->user : "unauthenticated",
+                      sctx->host_or_ip,
+                      (errcode ? ER(errcode) : "CLOSE_CONNECTION"));
+  }
+
   if ((vio= thd->net.vio) != 0)
   {
     if (errcode)
@@ -2127,24 +2138,6 @@ void flush_thread_cache()
   kill_cached_threads--;
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 }
-
-
-#ifdef THREAD_SPECIFIC_SIGPIPE
-/**
-  Aborts a thread nicely. Comes here on SIGPIPE.
-
-  @todo
-    One should have to fix that thr_alarm know about this thread too.
-*/
-extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
-{
-  THD *thd=current_thd;
-  DBUG_ENTER("abort_thread");
-  if (thd)
-    thd->killed= THD::KILL_CONNECTION;
-  DBUG_VOID_RETURN;
-}
-#endif
 
 
 /******************************************************************************
@@ -2680,6 +2673,12 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
       break;
     case THD::KILL_QUERY:
       kreason= "KILL_QUERY";
+      break;
+    case THD::KILL_SYSTEM_THREAD:
+      kreason= "KILL_SYSTEM_THREAD";
+      break;
+    case THD::KILL_SERVER:
+      kreason= "KILL_SERVER";
       break;
     case THD::KILLED_NO_VALUE:
       kreason= "KILLED_NO_VALUE";
@@ -6068,7 +6067,9 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_DEBUG_ASSERT_IF_CRASHED_TABLE, OPT_OLD_MODE,
+  OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_DEBUG_ASSERT_IF_CRASHED_TABLE,
+  OPT_DEBUG_ASSERT_ON_ERROR,
+  OPT_OLD_MODE,
   OPT_TEST_IGNORE_WRONG_OPTIONS, OPT_TEST_RESTART,
 #if defined(ENABLED_DEBUG_SYNC)
   OPT_DEBUG_SYNC_TIMEOUT,
@@ -6242,6 +6243,10 @@ struct my_option my_long_options[] =
   {"debug-assert-if-crashed-table", OPT_DEBUG_ASSERT_IF_CRASHED_TABLE,
    "Do an assert in handler::print_error() if we get a crashed table",
    &debug_assert_if_crashed_table, &debug_assert_if_crashed_table,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-assert-on-error", OPT_DEBUG_ASSERT_ON_ERROR,
+   "Do an assert in various functions if we get a fatal error",
+   &my_assert_on_error, &my_assert_on_error,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"default-character-set", OPT_DEFAULT_CHARACTER_SET_OLD, 
@@ -9422,14 +9427,17 @@ static int get_options(int *argc,char **argv)
   my_crc_dbug_check= opt_my_crc_dbug_check;
 
   /*
-    Log mysys errors when we don't have a thd or thd->log_all_errors is set (recovery) to
-    the log.  This is mainly useful for debugging strange system errors.
+    Log mysys errors when we don't have a thd or thd->log_all_errors is set
+    (recovery) to the log.  This is mainly useful for debugging strange system
+    errors.
   */
   if (global_system_variables.log_warnings >= 10)
     my_global_flags= MY_WME | ME_JUST_INFO;
   /* Log all errors not handled by thd->handle_error() to my_message_sql() */
   if (global_system_variables.log_warnings >= 11)
     my_global_flags|= ME_NOREFRESH;
+  if (my_assert_on_error)
+    debug_assert_if_crashed_table= 1;
 
   /* long_query_time is in microseconds */
   global_system_variables.long_query_time= max_system_variables.long_query_time=

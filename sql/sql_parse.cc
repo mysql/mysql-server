@@ -789,7 +789,17 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   if (res < 0)
     my_error(thd->killed_errno(), MYF(0));
   else if ((res == 0) && do_release)
+  {
     thd->killed= THD::KILL_CONNECTION;
+    if (global_system_variables.log_warnings > 3)
+    {
+      Security_context *sctx= &thd->main_security_ctx;
+      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                        sctx->user ? sctx->user : "unauthenticated",
+                        sctx->host_or_ip, "RELEASE");
+    }
+  }
 
   DBUG_RETURN(res);
 }
@@ -1670,6 +1680,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+
+  /* Check that some variables are reset properly */
+  DBUG_ASSERT(thd->abort_on_warning == 0);
   DBUG_RETURN(error);
 }
 
@@ -7258,6 +7271,10 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 
       If user of both killer and killee are non-NULL, proceed with
       slayage if both are string-equal.
+
+      It's ok to also kill DELAYED threads with KILL_CONNECTION instead of
+      KILL_SYSTEM_THREAD; The difference is that KILL_CONNECTION may be
+      faster and do a harder kill than KILL_SYSTEM_THREAD;
     */
 
     if ((thd->security_ctx->master_access & SUPER_ACL) ||

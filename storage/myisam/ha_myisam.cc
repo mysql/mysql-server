@@ -526,6 +526,7 @@ void mi_check_print_info(HA_CHECK *param, const char *fmt,...)
   va_list args;
   va_start(args, fmt);
   mi_check_print_msg(param, "info", fmt, args);
+  param->note_printed= 1;
   va_end(args);
 }
 
