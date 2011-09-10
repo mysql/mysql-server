@@ -255,6 +255,7 @@ extern ulong    my_file_total_opened;
 extern ulong    my_sync_count;
 extern uint	mysys_usage_id;
 extern my_bool	my_init_done;
+extern my_bool  my_assert_on_error;
 extern myf      my_global_flags;        /* Set to MY_WME for more error messages */
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),

@@ -2362,7 +2362,7 @@ void kill_delayed_threads(void)
   Delayed_insert *di;
   while ((di= it++))
   {
-    di->thd.killed= THD::KILL_CONNECTION;
+    di->thd.killed= THD::KILL_SYSTEM_THREAD;
     pthread_mutex_lock(&di->thd.LOCK_thd_data);
     if (di->thd.mysys_var)
     {
@@ -2447,7 +2447,8 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
 
   for (;;)
   {
-    if (thd->killed == THD::KILL_CONNECTION)
+    if (thd->killed == THD::KILL_CONNECTION ||
+        thd->killed == THD::KILL_SYSTEM_THREAD || thd->killed == THD::KILL_SERVER)
     {
       uint lock_count;
       /*
@@ -2495,7 +2496,7 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
 	  break;
 	if (error == ETIMEDOUT || error == ETIME)
 	{
-	  thd->killed= THD::KILL_CONNECTION;
+	  thd->killed= THD::KILL_SYSTEM_THREAD;
 	  break;
 	}
       }
@@ -2528,7 +2529,7 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
       {
 	/* Fatal error */
 	di->dead= 1;
-	thd->killed= THD::KILL_CONNECTION;
+	thd->killed= THD::KILL_SYSTEM_THREAD;
       }
       pthread_cond_broadcast(&di->cond_client);
     }
@@ -2538,7 +2539,7 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
       {
 	/* Some fatal error */
 	di->dead= 1;
-	thd->killed= THD::KILL_CONNECTION;
+	thd->killed= THD::KILL_SYSTEM_THREAD;
       }
     }
     di->status=0;
@@ -2598,7 +2599,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
   threads.append(thd);
-  thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
+  thd->killed=abort_loop ? THD::KILL_SYSTEM_THREAD : THD::NOT_KILLED;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   /*
@@ -2632,7 +2633,7 @@ end:
 
   di->table=0;
   di->dead= 1;                                  // If error
-  thd->killed= THD::KILL_CONNECTION;	        // If error
+  thd->killed= THD::KILL_SYSTEM_THREAD;	        // If error
   pthread_mutex_unlock(&di->mutex);
 
   close_thread_tables(thd);			// Free the table
@@ -2711,7 +2712,7 @@ bool Delayed_insert::handle_inserts(void)
   max_rows= delayed_insert_limit;
   if (thd.killed || table->needs_reopen_or_name_lock())
   {
-    thd.killed= THD::KILL_CONNECTION;
+    thd.killed= THD::KILL_SYSTEM_THREAD;
     max_rows= ULONG_MAX;                     // Do as much as possible
   }
 

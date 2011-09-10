@@ -1346,7 +1346,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   }
   if (param->testflag & T_INFO)
   {
-    if (param->warning_printed || param->error_printed)
+    if (param->warning_printed || param->error_printed || param->note_printed)
       puts("");
     if (used != 0 && ! param->error_printed)
     {
@@ -1540,8 +1540,7 @@ int mi_repair(HA_CHECK *param, register MI_INFO *info,
   new_file= -1;
   sort_param.sort_info=&sort_info;
   param->retry_repair= 0;
-  param->warning_printed= 0;
-  param->error_printed= 0;
+  param->warning_printed= param->error_printed= param->note_printed= 0;
 
   if (!(param->testflag & T_SILENT))
   {
@@ -2248,8 +2247,7 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
   }
   param->testflag|=T_REP; /* for easy checking */
   param->retry_repair= 0;
-  param->warning_printed= 0;
-  param->error_printed= 0;
+  param->warning_printed= param->error_printed= param->note_printed= 0;
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
@@ -2577,6 +2575,8 @@ err:
           param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
+    if (killed_ptr(param))
+      param->retry_repair= 0;                   /* No use to retry repair */
   }
   else if (key_map == share->state.key_map)
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
@@ -3112,6 +3112,8 @@ err:
           param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
+    if (killed_ptr(param))
+      param->retry_repair= 0;
   }
   else if (key_map == share->state.key_map)
     share->state.changed&= ~STATE_NOT_OPTIMIZED_KEYS;
@@ -3147,7 +3149,13 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
   DBUG_ENTER("sort_key_read");
 
   if ((error=sort_get_next_record(sort_param)))
+  {
+    DBUG_ASSERT(error < 0 ||
+                sort_info->param->error_printed ||
+                sort_info->param->warning_printed ||
+                sort_info->param->note_printed);
     DBUG_RETURN(error);
+  }
   if (info->state->records == sort_info->max_records)
   {
     mi_check_print_error(sort_info->param,
@@ -3264,7 +3272,12 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   DBUG_ENTER("sort_get_next_record");
 
   if (killed_ptr(param))
+  {
+    mi_check_print_error(param, "Repair killed by user with cause: %d",
+                         (int) killed_ptr(param));
+    param->retry_repair= 0;
     DBUG_RETURN(1);
+  }
 
   switch (share->data_file_type) {
   case STATIC_RECORD:
@@ -3350,6 +3363,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	}
 	if (searching && ! sort_param->fix_datafile)
 	{
+          mi_check_print_info(param,
+                              "Datafile is corrupted; Restart repair with option to copy datafile");
 	  param->error_printed=1;
           param->retry_repair=1;
           param->testflag|=T_RETRY_WITHOUT_QUICK;
@@ -3411,6 +3426,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  }
 	  if (error)
 	  {
+            DBUG_ASSERT(param->note_printed);
 	    if (found_record)
 	      goto try_next;
 	    searching=1;
@@ -3451,7 +3467,11 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	    share->state.split++;
 	  }
 	  if (found_record)
+          {
+            mi_check_print_info(param,
+                                "Found row block followed by deleted block");
 	    goto try_next;
+          }
 	  if (searching)
 	  {
 	    pos+=MI_DYN_ALIGN_SIZE;
@@ -3485,6 +3505,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 		mi_check_print_error(param,"Not enough memory for blob at %s (need %lu)",
 				     llstr(sort_param->start_recpos,llbuff),
 				     (ulong) block_info.rec_len);
+                DBUG_ASSERT(param->error_printed);
 		DBUG_RETURN(1);
 	      }
 	      else
@@ -3566,8 +3587,6 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       if (_mi_rec_unpack(info,sort_param->record,sort_param->rec_buff,
 			 sort_param->find_length) != MY_FILE_ERROR)
       {
-	if (sort_param->read_cache.error < 0)
-	  DBUG_RETURN(1);
 	if (sort_param->calc_checksum)
 	  info->checksum= (*info->s->calc_check_checksum)(info,
                                                           sort_param->record);
@@ -3593,6 +3612,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
                             sort_param->key+1,
                             llstr(sort_param->start_recpos,llbuff));
     try_next:
+      DBUG_ASSERT(param->error_printed || param->note_printed);
       pos=(sort_param->start_recpos+=MI_DYN_ALIGN_SIZE);
       searching=1;
     }
@@ -3664,6 +3684,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       DBUG_ASSERT(0);                           /* Impossible */
       break;
   }
+  DBUG_ASSERT(0);                               /* Impossible */
   DBUG_RETURN(1);                               /* Impossible */
 }
 
@@ -3722,7 +3743,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 	if (sort_info->buff_length < reclength)
 	{
 	  if (!(sort_info->buff=my_realloc(sort_info->buff, (uint) reclength,
-					   MYF(MY_FREE_ON_ERROR |
+					   MYF(MY_FREE_ON_ERROR | MY_WME |
 					       MY_ALLOW_ZERO_PTR))))
 	    DBUG_RETURN(1);
 	  sort_info->buff_length=reclength;

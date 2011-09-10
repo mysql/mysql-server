@@ -671,6 +671,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   case Item_func::GE_FUNC:
     break;
   case Item_func::BETWEEN:
+    if (((Item_func_between*) cond)->negated)
+      DBUG_RETURN(FALSE);
     between= 1;
     break;
   case Item_func::MULT_EQUAL_FUNC:

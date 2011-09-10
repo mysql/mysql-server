@@ -1273,6 +1273,15 @@ void THD::awake(THD::killed_state state_to_set)
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_thd_data);
 
+  if (global_system_variables.log_warnings > 3)
+  {
+    Security_context *sctx= security_ctx;
+    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                      thread_id,(db ? db : "unconnected"),
+                      sctx->user ? sctx->user : "unauthenticated",
+                      sctx->host_or_ip,
+                      "KILLED");
+  }
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
   {
@@ -3392,7 +3401,10 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
 
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
-  return(thd->killed);
+  if (thd->killed == THD::NOT_KILLED || thd->killed == THD::KILL_BAD_DATA ||
+      thd->killed == THD::KILL_SYSTEM_THREAD)
+    return 0;
+  return thd->killed;
 }
 
 

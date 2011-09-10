@@ -1403,9 +1403,14 @@ int ha_rollback_trans(THD *thd, bool all)
     slave SQL thread, it would not stop the thread but just be printed in
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
+
+    We don't have to test for thd->killed == THD::KILL_SYSTEM_THREAD as
+    it doesn't matter if a warning is pushed to a system thread or not:
+    No one will see it...
   */
   if (is_real_trans && thd->transaction.all.modified_non_trans_table &&
-      !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
+      !thd->slave_thread && thd->killed != THD::KILL_CONNECTION &&
+      thd->killed != THD::KILL_SERVER)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));

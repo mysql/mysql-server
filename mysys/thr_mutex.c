@@ -836,6 +836,7 @@ static void print_deadlock_warning(safe_mutex_t *new_mutex,
                         mutex_root->file, mutex_root->line));
   }
   fflush(stderr);
+  DBUG_ASSERT(my_assert_on_error == 0);
   DBUG_VOID_RETURN;
 }
 
