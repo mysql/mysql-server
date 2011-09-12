@@ -21,7 +21,7 @@ my $found_perl_source = my_find_file($basedir,
 my $F = IO::File->new("$vardir/tmp/have_memcache_result.inc", "w") or die;
 
 if ($found_perl_source eq '') {
-  print $F "--skip Could not find NDB Memcache API;\n";
+  print $F "--skip Could not find NDB Memcache API\n";
 }
 $F->close();
 
