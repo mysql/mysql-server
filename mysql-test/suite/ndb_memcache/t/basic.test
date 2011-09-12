@@ -4,6 +4,8 @@
 # wait for it to become ready, set a value, and then retreive that 
 # value using mysql
 
+--source suite/ndb_memcache/include/have_memcache.inc
+
 --perl
 
 use strict;

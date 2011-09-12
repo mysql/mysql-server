@@ -1,3 +1,5 @@
+--source suite/ndb_memcache/include/have_memcache.inc
+
 # Basic data type tests for 
 # TINYINT    tt018
 # SMALLINT   tt019

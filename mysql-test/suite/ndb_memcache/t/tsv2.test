@@ -2,6 +2,9 @@
 # This test exposes a bug where parts of a previous longer value can be
 # appended to the (shorter) value of a subsequent request.
 
+--source suite/ndb_memcache/include/have_memcache.inc
+
+
 --perl
 
 use strict;
