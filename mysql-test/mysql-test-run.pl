@@ -3037,7 +3037,7 @@ sub memcached_start {
     $ndb_opt_string = $ndb_opt_string . ";" . $options;
   }
 
-  $found_perl_source ne "" or mtr_error("Failed to find memcached_path.pl");
+  $found_perl_source ne "" or return;
   $found_so ne "" or mtr_error("Failed to find ndb_engine.so");  
   require "$found_perl_source";
   if(! memcached_is_available()) 
