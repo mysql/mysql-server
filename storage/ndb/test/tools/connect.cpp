@@ -71,14 +71,19 @@ int main(int argc, char** argv){
     Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
     if(con.connect(12, 5, 1) != 0)
     {
-      ndbout << "Unable to connect to management server." << endl;
+      ndbout << "Unable to connect to management server."
+             << "loop: " << i << "(of " << _loop << ")"
+             << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
     int res = con.wait_until_ready(30,30);
     if (res < 0 || (_wait_all && res != 0))
     {
-      ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+      ndbout
+        << "nodeid: " << con.node_id()
+        << "loop: " << i << "(of " << _loop << ")"
+        << " - Cluster nodes not ready in 30 seconds." << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
