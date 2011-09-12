@@ -177,6 +177,7 @@ ELSE()
   IF (HAVE_JDK)
     ADD_SUBDIRECTORY(clusterj)
   ENDIF()
+  ADD_SUBDIRECTORY(memcache)
 
 ENDIF()
 
@@ -229,3 +230,4 @@ ELSE()
     ENDIF()
   ENDIF()
 ENDIF()
+
