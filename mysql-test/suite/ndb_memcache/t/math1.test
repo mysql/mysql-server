@@ -1,4 +1,6 @@
 
+--source suite/ndb_memcache/include/have_memcache.inc
+
 
 # Test that numeric value is stored in both the string_value column
 # and the math_value column

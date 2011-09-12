@@ -1,4 +1,6 @@
 
+--source suite/ndb_memcache/include/have_memcache.inc
+
 
 # Set a math value, then test INCR and DECR
 

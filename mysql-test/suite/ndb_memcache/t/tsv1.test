@@ -1,3 +1,6 @@
+
+--source suite/ndb_memcache/include/have_memcache.inc
+
 # Test reading & writing tab-separated values
 
 --perl
