@@ -77,7 +77,6 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
 	assert(pair2.call_count==1);
     }
 
-
     // now verify that message with lesser (older) msn is rejected
     msn.msn = msn.msn - 10;
     BRT_MSG_S cmd3 = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
@@ -90,16 +89,16 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
 	assert(pair2.call_count==2);
     }
 
-
-    
-
     // dont forget to dirty the node
     leafnode->dirty = 1;
 }
 
 static void 
 populate_leaf(BRT brt, BRTNODE leafnode, int k, int v) {
-    append_leaf(brt, leafnode, &k, sizeof k, &v, sizeof v);
+    char vbuf[32]; // store v in a buffer large enough to dereference unaligned int's
+    memset(vbuf, 0, sizeof vbuf);
+    memcpy(vbuf, &v, sizeof v);
+    append_leaf(brt, leafnode, &k, sizeof k, vbuf, sizeof v);
 }
 
 static void 
