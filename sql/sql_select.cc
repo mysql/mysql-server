@@ -158,12 +158,7 @@ static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
-#ifdef MCP_WL4784
 static int join_read_next(READ_RECORD *info);
-#else
-// Magnus, this function exists in 5.5-cluster
-static int join_read_next(READ_RECORD *info);
-#endif
 static int join_init_quick_read_record(JOIN_TAB *tab);
 static int test_if_quick_select(JOIN_TAB *tab);
 static int join_materialize_table(JOIN_TAB *tab);
@@ -19877,6 +19872,7 @@ join_read_last_key(JOIN_TAB *tab)
 static int
 join_no_more_records(READ_RECORD *info)
 {
+#ifndef MCP_WL4784
   /**
    * When a pushed join completes, and its results did not only depend on
    * the key of this root operations: ('tab->ref.key_buff')
@@ -19888,6 +19884,7 @@ join_no_more_records(READ_RECORD *info)
   {
     info->table->status= STATUS_GARBAGE;
   }
+#endif
   return -1;
 }
 
