@@ -1,3 +1,8 @@
+2011-09-12	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#12601439 CONSISTENT READ FAILURE IN COLUMN PREFIX INDEX
+
 2011-09-08	The InnoDB Team
 
 	* btr/btr0cur.c, include/page0page.h, include/row0upd.ic:
