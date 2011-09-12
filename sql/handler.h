@@ -812,7 +812,8 @@ struct handlerton
                                  const char *name);
 
    int (*make_pushed_join)(handlerton *hton, THD* thd, 
-                           AQP::Join_plan* plan);
+                           AQP::Join_plan* plan,
+                           uint* pushed);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -2324,7 +2325,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 
 /* Build pushed joins in handlers implementing this feature */
-int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan);
+int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan, uint* pushed);
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);
