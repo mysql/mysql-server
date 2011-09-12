@@ -27,6 +27,8 @@ class Item;
 class Item_field;
 class Item_equal_iterator;
 
+#include "sql_list.h"
+
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of 
   query plans without accessing mysqld internal classes (JOIN_TAB, SQL_SELECT 
@@ -56,7 +58,7 @@ namespace AQP
     sequence of n table access operations that will execute as a nested loop 
     join.
   */
-  class Join_plan
+  class Join_plan : public Sql_alloc
   {
     friend class Equal_set_iterator;
     friend class Table_access;
@@ -109,7 +111,7 @@ namespace AQP
     SELECT * FROM T1, T2, T3 WHERE T1.b = T2.a AND T2.a = T3.a
     then there would be such a set of {T1.b, T2.a, T3.a}.
   */
-  class Equal_set_iterator
+  class Equal_set_iterator : public Sql_alloc
   {
   public:
     explicit Equal_set_iterator(Item_equal& item_equal)
@@ -177,7 +179,7 @@ namespace AQP
     owned by a Join_plan object, such that the life time of the Table_access 
     object ends when the life time of the owning Join_plan object ends.
    */
-  class Table_access
+  class Table_access : public Sql_alloc
   {
     friend class Join_plan;
     friend inline bool equal(const Table_access*, const Table_access*);
