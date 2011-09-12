@@ -12719,6 +12719,7 @@ join_read_last_key(JOIN_TAB *tab)
 static int
 join_no_more_records(READ_RECORD *info)
 {
+#ifndef MCP_WL4784
   /**
    * When a pushed join completes, and its results did not only depend on
    * the key of this root operations: ('tab->ref.key_buff')
@@ -12730,6 +12731,7 @@ join_no_more_records(READ_RECORD *info)
   {
     info->table->status= STATUS_GARBAGE;
   }
+#endif
   return -1;
 }
 
