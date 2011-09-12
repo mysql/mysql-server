@@ -820,7 +820,7 @@ SHOW_VAR ndb_status_index_stat_variables[]= {
 };
 
 #ifndef NO_PUSHED_JOIN
-static int ndbcluster_make_pushed_join(handlerton *, THD*,AQP::Join_plan*);
+static int ndbcluster_make_pushed_join(handlerton *, THD*,AQP::Join_plan*, uint*);
 #endif
 
 /*
@@ -15323,10 +15323,12 @@ ha_ndbcluster::read_multi_range_fetch_next()
 static
 int ndbcluster_make_pushed_join(handlerton *hton,
                                 THD* thd,
-                                AQP::Join_plan* plan)
+                                AQP::Join_plan* plan,
+                                uint* pushed)
 {
   DBUG_ENTER("ndbcluster_make_pushed_join");
   (void)ha_ndb_ext; // prevents compiler warning.
+  *pushed= 0;
 
   if (THDVAR(thd, join_pushdown))
   {
@@ -15363,6 +15365,7 @@ int ndbcluster_make_pushed_join(handlerton *hton,
           handler->print_error(error, MYF(0));
           DBUG_RETURN(error);
         }
+        *pushed= handler->number_of_pushed_joins();
       }
     }
   }
