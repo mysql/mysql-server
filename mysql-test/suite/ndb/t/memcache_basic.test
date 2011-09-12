@@ -1,0 +1,26 @@
+
+# Test the fundamental ability to connect to a memcached server,
+# wait for it to become ready, set a value, and then retreive that 
+# value using mysql
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $mc = My::Memcache->new();
+my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
+
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+else {
+  $mc->set("test_key_1", 1511);
+}
+
+EOF
+
+SELECT string_value from ndbmemcache.demo_table where mkey='test_key_1';

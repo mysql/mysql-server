@@ -1,0 +1,61 @@
+# Basic test of online reconfiguration
+
+
+-- perl 
+# Wait for the server to be ready
+use lib "lib/";
+use My::Memcache;
+
+my $mc = My::Memcache->new();
+my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
+my $r = $mc->connect("localhost",$port);
+die unless($r);
+
+EOF
+
+# 
+# Now change the configuration
+#
+
+USE ndbmemcache;
+CREATE TABLE reconf_test_table like demo_table;
+UPDATE containers 
+  SET db_table = "reconf_test_table" WHERE db_table = "demo_table";
+DROP TABLE demo_table;
+
+# Touch the timestamp column to trigger online reconfiguration:
+UPDATE memcache_server_roles set update_timestamp = NOW();
+
+
+# 
+#  Now run a basic test
+# 
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+my $mc = My::Memcache->new();
+my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
+my $r = $mc->connect("localhost",$port);
+
+my $cf_gen = $mc->wait_for_reconf(2);
+
+if($cf_gen > 0) {
+  $r = $mc->set("test_key_1", 1515);
+  print "SET result: $r \n";
+}
+
+EOF
+
+SELECT mkey, string_value from ndbmemcache.reconf_test_table;
+
+#
+# Now clean up the config changes for the next test 
+# 
+RENAME TABLE reconf_test_table TO demo_table ;
+UPDATE containers 
+  SET db_table = "demo_table" WHERE db_table = "reconf_test_table";
+
+
