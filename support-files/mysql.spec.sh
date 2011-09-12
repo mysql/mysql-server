@@ -140,14 +140,14 @@
     %endif
   %else
     %if %(test -f /etc/oracle-release && echo 1 || echo 0)
-      %define elver %(rpm -qf --qf '%%{version}\\n' /etc/enterprise-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+      %define elver %(rpm -qf --qf '%%{version}\\n' /etc/oracle-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
       %if "%elver" == "6"
         %define distro_description      Oracle Linux 6
         %define distro_releasetag       el6
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
-        %{error:Oracle Linux %{oelver} is unsupported}
+        %{error:Oracle Linux %{elver} is unsupported}
       %endif
     %else
       %if %(test -f /etc/redhat-release && echo 1 || echo 0)
