@@ -384,14 +384,14 @@ public:
   /**
     Get the SID for a given SIDNO.
 
-    The caller must hold the read lock on sid_lock before invoking
-    this function.
+    An assertion is raised if the caller does not hold a lock on
+    sid_lock, or if the SIDNO is not valid.
 
     @param sidno The SIDNO.
     @retval NULL The SIDNO does not exist in this map.
     @retval pointer Pointer to the SID.  The data is shared with this
     Sid_map, so should not be modified.  It is safe to read the data
-    even if this Sid_map is modified, but not if this Sid_map is
+    even after this Sid_map is modified, but not if this Sid_map is
     destroyed.
   */
   const rpl_sid *sidno_to_sid(rpl_sidno sidno) const
@@ -1662,8 +1662,8 @@ struct Ugid_specification
 struct Subgroup
 {
   enum_subgroup_type type;
-  rpl_gno gno;
   rpl_sidno sidno;
+  rpl_gno gno;
   rpl_binlog_no binlog_no;
   rpl_binlog_pos binlog_pos;
   rpl_binlog_pos binlog_length;
@@ -2041,17 +2041,77 @@ private:
 };
 
 
-class Group_log : Rot_file
+class Group_log
 {
 public:
-  Group_log(const char *filename) : Rot_file(filename) {}
+  Group_log(const char *filename) : rot_file(filename) {}
+
+  int write_subgroup(const Subgroup *subgroup);
+  class Read_iterator
+  {
+  public:
+    Read_iterator(Group_set group_set);
+    int read(Subroup *subgroup);
+  private:
+    my_off_t offset;
+    Read_state read_state;
+  };
+
+private:
+  class Read_state
+  {
+    rpl_lgid lgid;
+  };
+  Read_state read_state;
+  Rot_file group_log_file;
+  static const int write_buf_size= 0x10000;
+  uchar write_buf[WRITE_BUF_SIZE];
+  uchar *write_buf_pos;
 };
 
 
-int write_compact_unsigned(File fd, ulonglong n, myf my_flags);
-int read_compact_unsigned(File fd, ulonglong *out, myf my_flags);
-int write_compact_signed(File fd, longlong n, myf my_flags);
-int read_compact_signed(File fd, longlong *out, myf my_flags);
+/**
+  Auxiliary class for reading and writing compact-encoded numbers to
+  file.
+*/
+class Compact_encoding
+{
+public:
+  /**
+    Write a compact-encoded unsigned integer to the given file.
+
+    @param fd File to write to.
+    @param n Number to write.
+    @param myf MYF() flags.
+
+    @return On success, returns number of bytes written (1...10).  On
+    failure, returns a number <= 0.
+  */
+  static int write_unsigned(File fd, ulonglong n, myf my_flags);
+  /**
+    Read a compact-encoded unsigned integer from the given file.
+    
+    @param fd File to write to.
+    @param out Number will be stored in this parameter.
+    @param myf MYF() flags.
+
+    @return On success, returns the number of bytes read (1...10).  On
+    read error, returns the negative number of bytes read, (-10...0).
+    If the number is malformed, returns -0x10000 - number of bytes
+    read.
+  */
+  static int read_unsigned(File fd, ulonglong *out, myf my_flags);
+  /**
+    Write a compact-encoded signed integer to the given file.
+    @see write_unsigned.
+  */
+  static int write_signed(File fd, longlong n, myf my_flags);
+  /**
+    Read a compact-encoded signed integer from the given file.
+    @see read_unsigned.
+  */
+  static int read_signed(File fd, longlong *out, myf my_flags);
+};
 
 
 #endif /* HAVE_UGID */
