@@ -4529,6 +4529,182 @@ int runTestUnlockScan(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+#include <NdbMgmd.hpp>
+
+class NodeIdReservations {
+  bool m_ids[MAX_NODES];
+  NdbMutex m_mutex;
+public:
+  void lock(unsigned id)
+  {
+    assert(id < NDB_ARRAY_SIZE(m_ids));
+    NdbMutex_Lock(&m_mutex);
+    //ndbout  << "locking nodeid: " << id << endl;
+    if (m_ids[id])
+    {
+      //already locked!
+      g_err << "Nodeid " << id << " is already locked! Crashing!" << endl;
+      abort();
+    }
+    m_ids[id] = true;
+    NdbMutex_Unlock(&m_mutex);
+  }
+
+  void unlock(unsigned id)
+  {
+    assert(id < NDB_ARRAY_SIZE(m_ids));
+    NdbMutex_Lock(&m_mutex);
+    //ndbout  << "unlocking nodeid: " << id << endl;
+    if (!m_ids[id])
+    {
+      //already unlocked!
+      abort();
+    }
+    m_ids[id] = false;
+    NdbMutex_Unlock(&m_mutex);
+  }
+
+  NodeIdReservations() {
+    bzero(m_ids, sizeof(m_ids));
+    NdbMutex_Init(&m_mutex);
+  }
+
+  class Reserve {
+    unsigned m_id;
+    NodeIdReservations& m_res;
+
+    Reserve(); // Not impl.
+    Reserve(const Reserve&); // Not impl.
+  public:
+    Reserve(NodeIdReservations& res, unsigned id) :
+        m_id(id), m_res(res) {
+      m_res.lock(m_id);
+    }
+    ~Reserve(){
+      m_res.unlock(m_id);
+    }
+  };
+};
+
+NodeIdReservations g_reservations;
+
+
+int runNdbClusterConnectInit(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Find number of unconnected API nodes slot to use for test
+  Uint32 api_nodes = 0;
+  {
+    NdbMgmd mgmd;
+
+    if (!mgmd.connect())
+      return NDBT_FAILED;
+
+    ndb_mgm_node_type
+      node_types[2] = { NDB_MGM_NODE_TYPE_API,
+                        NDB_MGM_NODE_TYPE_UNKNOWN };
+
+    ndb_mgm_cluster_state *cs = ndb_mgm_get_status2(mgmd.handle(), node_types);
+    if (cs == NULL)
+    {
+      printf("ndb_mgm_get_status2 failed, error: %d - %s\n",
+             ndb_mgm_get_latest_error(mgmd.handle()),
+             ndb_mgm_get_latest_error_msg(mgmd.handle()));
+      return NDBT_FAILED;
+    }
+
+    for(int i = 0; i < cs->no_of_nodes; i++ )
+    {
+      ndb_mgm_node_state *ns = cs->node_states + i;
+      assert(ns->node_type == NDB_MGM_NODE_TYPE_API);
+      if (ns->node_status == NDB_MGM_NODE_STATUS_CONNECTED)
+      {
+        // Node is already connected, don't use in test
+        continue;
+      }
+      api_nodes++;
+    }
+    free(cs);
+  }
+
+  if (api_nodes <= 1)
+  {
+    ndbout << "Too few API node slots available, failing test" << endl;
+    return NDBT_FAILED;
+  }
+  // Don't try to use nodeid allocated by main cluster connection
+  api_nodes--;
+
+  ndbout << "Found " << api_nodes << " unconnected API nodes" << endl;
+  ctx->setProperty("API_NODES", api_nodes);
+  return NDBT_OK;
+}
+
+
+int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const Uint32 api_nodes = ctx->getProperty("API_NODES");
+  const Uint32 step_no = step->getStepNo();
+  if (step_no > api_nodes)
+  {
+    // Don't run with more threads than API node slots
+    return NDBT_OK;
+  }
+
+  // Get connectstring from main connection
+  char constr[256];
+  if(!ctx->m_cluster_connection.get_connectstring(constr,
+                                                  sizeof(constr)))
+  {
+    g_err << "Too short buffer for connectstring" << endl;
+    return NDBT_FAILED;
+  }
+
+  Uint32 l = 0;
+  const Uint32 loops = ctx->getNumLoops();
+  while (l < loops)
+  {
+    g_info << "loop: " << l << endl;
+    Ndb_cluster_connection con(constr);
+
+    const int retries = 12;
+    const int retry_delay = 5;
+    const int verbose = 1;
+    if (con.connect(retries, retry_delay, verbose) != 0)
+    {
+      g_err << "Ndb_cluster_connection.connect failed" << endl;
+      return NDBT_FAILED;
+    }
+
+    // Check that the connection got a unique nodeid
+    NodeIdReservations::Reserve res(g_reservations, con.node_id());
+
+    const int timeout = 30;
+    const int timeout_after_first_alive = 30;
+    if (con.wait_until_ready(timeout, timeout_after_first_alive) != 0)
+    {
+      g_err << "Cluster connection was not ready, nodeid: "
+            << con.node_id() << endl;
+      return NDBT_FAILED;
+    }
+
+    // Create and init Ndb object
+    Ndb ndb(&con, "TEST_DB");
+    if (ndb.init() != 0)
+    {
+      ERR(ndb.getNdbError());
+      return NDBT_FAILED;
+    }
+
+    const int max_sleep = 25;
+    NdbSleep_MilliSleep(10 + rand() % max_sleep);
+
+    l++;
+  }
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -4746,6 +4922,13 @@ TESTCASE("UnlockScan",
   STEP(runTestUnlockScan);
   FINALIZER(runClearTable);
 }
+TESTCASE("NdbClusterConnect",
+         "Make sure that every Ndb_cluster_connection get a unique nodeid")
+{
+  INITIALIZER(runNdbClusterConnectInit);
+  STEPS(runNdbClusterConnect, MAX_NODES);
+}
+
 NDBT_TESTSUITE_END(testNdbApi);
 
 int main(int argc, const char** argv){
