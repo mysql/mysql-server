@@ -950,7 +950,7 @@ int Gcalc_scan_iterator::intersection_scan()
             /* The superfluous intersection should be close to the current. */
             DBUG_ASSERT(fabs(cur_isc->x-m_cur_intersection->x) +
                         fabs(cur_isc->y-m_cur_intersection->y) <
-                        INTERSECTION_ZERO);
+                         0.00000000001);
             isc->next= isc->next->next;
             free_item(cur_isc);
           }
