@@ -72,7 +72,7 @@ int main(int argc, char** argv){
     if(con.connect(12, 5, 1) != 0)
     {
       ndbout << "Unable to connect to management server."
-             << "loop: " << i << "(of " << _loop << ")"
+             << "loop: " << i << "(of " << opt_loop << ")"
              << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
@@ -82,7 +82,7 @@ int main(int argc, char** argv){
     {
       ndbout
         << "nodeid: " << con.node_id()
-        << "loop: " << i << "(of " << _loop << ")"
+        << "loop: " << i << "(of " << opt_loop << ")"
         << " - Cluster nodes not ready in 30 seconds." << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
