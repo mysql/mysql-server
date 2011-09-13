@@ -98,13 +98,13 @@ testMgm_SOURCES = testMgm.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
-testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
+testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include/debugger
 testMgmd_SOURCES = testMgmd.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
 	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
 testMgmd_LDFLAGS = -static
-testMgmd_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
+testMgmd_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include/debugger
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNativeDefault_SOURCES = testNativeDefault.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
