@@ -683,7 +683,8 @@ int Gcalc_scan_iterator::normal_scan()
 
 #define INTERSECTION_ZERO 0.000000000001
 
-int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
+int Gcalc_scan_iterator::add_intersection(int n_row,
+                                          const point *a, const point *b,
 		                          Gcalc_dyn_list::Item ***p_hook)
 {
   intersection *isc= new_intersection();
@@ -693,6 +694,7 @@ int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
   m_n_intersections++;
   **p_hook= isc;
   *p_hook= &isc->next;
+  isc->n_row= n_row;
   isc->thread_a= a->thread;
   isc->thread_b= b->thread;
 
@@ -703,13 +705,22 @@ int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
 
   if (!a0->horiz_dir && !b0->horiz_dir)
   {
-    double dk= a0->dx_dy - b0->dx_dy;
-    double dy= (b0->x - a0->x)/dk;
+    double b0_x= a0->next_pi->x - a0->pi->x;
+    double b0_y= a0->next_pi->y - a0->pi->y;
+    double b1_x= b0->next_pi->x - b0->pi->x;
+    double b1_y= b0->next_pi->y - b0->pi->y;
+    double b1xb0= b1_x * b0_y - b1_y * b0_x;
+    double t= (a0->pi->x - b0->pi->x) * b0_y - (a0->pi->y - b0->pi->y) * b0_x;
+    if (fabs(b1xb0) < INTERSECTION_ZERO)
+    {
+      isc->y= current_state->y;
+      isc->x= a0->x;
+      return 0;
+    }
 
-    if (fabs(dk) < INTERSECTION_ZERO)
-      dy= 0.0;
-    isc->y= current_state->y + dy;
-    isc->x= a0->x + dy*a0->dx_dy;
+    t/= b1xb0;
+    isc->x= b0->pi->x + b1_x*t;
+    isc->y= b0->pi->y + b1_y*t;
     return 0;
   }
   isc->y= next_state->y;
@@ -720,13 +731,13 @@ int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
 
 int Gcalc_scan_iterator::find_intersections()
 {
-  point *sp1= next_state->slice;
   Gcalc_dyn_list::Item **hook;
 
   m_n_intersections= 0;
   {
     /* Set links between slicepoints */
     point *sp0= current_state->slice;
+    point *sp1= next_state->slice;
     for (; sp1; sp0= sp0->get_next(),sp1= sp1->get_next())
     {
       DBUG_ASSERT(!sp0->is_bottom());
@@ -737,30 +748,34 @@ int Gcalc_scan_iterator::find_intersections()
 
   hook= (Gcalc_dyn_list::Item **)&m_intersections;
   bool intersections_found;
+  int n_row= 0;
 
-  point *last_possible_isc= NULL;
   do
   {
     point **pprev_s1= &next_state->slice;
     intersections_found= false;
-    sp1= next_state->slice->get_next();
-    point *cur_possible_isc= NULL;
-    for (; sp1 != last_possible_isc;
-	 pprev_s1= (point **)(&(*pprev_s1)->next), sp1= sp1->get_next())
+    n_row++;
+    for (;;)
     {
       point *prev_s1= *pprev_s1;
-      if (prev_s1->x <= sp1->x)
-	continue;
+      point *s1= prev_s1->get_next();
+      if (!s1)
+        break;
+      if (prev_s1->x <= s1->x)
+      {
+        pprev_s1= (point **) &prev_s1->next;
+        continue;
+      }
       intersections_found= true;
-      if (add_intersection(prev_s1, sp1, &hook))
+      if (add_intersection(n_row, prev_s1, s1, &hook))
 	return 1;
-      *pprev_s1= sp1;
-      prev_s1->next= sp1->next;
-      sp1->next= prev_s1;
-      sp1= prev_s1;
-      cur_possible_isc= sp1;
-    }
-    last_possible_isc= cur_possible_isc;
+      *pprev_s1= s1;
+      prev_s1->next= s1->next;
+      s1->next= prev_s1;
+      pprev_s1= (point **) &prev_s1->next;
+      if (!*pprev_s1)
+        break;
+    };
   } while (intersections_found);
 
   *hook= NULL;
@@ -772,7 +787,13 @@ static int compare_intersections(const void *e0, const void *e1)
 {
   Gcalc_scan_iterator::intersection *i0= (Gcalc_scan_iterator::intersection *)e0;
   Gcalc_scan_iterator::intersection *i1= (Gcalc_scan_iterator::intersection *)e1;
-  if (i0->y != i1->y)
+
+  if (fabs(i0->y - i1->y) > 0.00000000000001)
+    return i0->y > i1->y;
+
+  if (i0->n_row != i1->n_row)
+    return i0->n_row > i1->n_row;
+  if (!coord_eq(i0->y, i1->y))
     return i0->y > i1->y;
   return i0->x > i1->x;
 }
@@ -810,7 +831,8 @@ int Gcalc_scan_iterator::intersection_scan()
 {
   point *sp0, *sp1;
   Gcalc_dyn_list::Item **hook;
-  intersection *next_intersection;
+  intersection *next_intersection= NULL;
+  int met_equal= 0;
 
   if (m_cur_intersection != m_intersections)
   {
@@ -860,7 +882,6 @@ int Gcalc_scan_iterator::intersection_scan()
 
   next_state->y= m_cur_intersection->y;
 
-found_equal_intersection:
   sp0= current_state->slice;
   hook= (Gcalc_dyn_list::Item **) &next_state->slice;
   sp1= next_state->slice;
@@ -872,6 +893,10 @@ found_equal_intersection:
     if (sp0->thread == m_cur_intersection->thread_a ||
         sp0->thread == m_cur_intersection->thread_b)
     {
+#ifdef REACTIVATE_THIS
+      DBUG_ASSERT(sp0->thread != m_cur_intersection->thread_a ||
+        sp0->get_next()->thread == m_cur_intersection->thread_b);
+#endif /*REACTIVATE_THIS*/
       sp1->copy_core(sp0);
       sp1->x= m_cur_intersection->x;
       sp1->event= scev_intersection;
@@ -888,6 +913,7 @@ found_equal_intersection:
       {
         sp1->event= scev_intersection;
         mark_event_position1(sp1, hook);
+        met_equal= 1;
       }
       else
         sp1->event= scev_none;
@@ -900,13 +926,64 @@ found_equal_intersection:
     *hook= NULL;
   }
 
-  next_intersection= m_cur_intersection->get_next();
-  if (next_intersection &&
-      coord_eq(next_intersection->x, m_cur_intersection->x) &&
-      coord_eq(next_intersection->y, m_cur_intersection->y))
+  if (met_equal)
   {
-    m_cur_intersection= next_intersection;
-    goto found_equal_intersection;
+    /* Remove superfluous intersections. */
+    /* Double operations can produce unexact result, so it's needed. */
+    for (sp0= next_state->event_position;
+        sp0 != *next_state->event_end_hook;
+        sp0= sp0->get_next())
+    {
+      for (sp1= sp0->get_next();
+          sp1 != *next_state->event_end_hook;
+          sp1= sp1->get_next())
+      {
+        intersection *isc= m_cur_intersection;
+        while (isc->get_next())
+        {
+          intersection *cur_isc= isc->get_next();
+          if ((cur_isc->thread_a == sp0->thread &&
+                cur_isc->thread_b == sp1->thread) ||
+              (cur_isc->thread_a == sp1->thread &&
+               cur_isc->thread_b == sp0->thread))
+          {
+            /* The superfluous intersection should be close to the current. */
+            DBUG_ASSERT(fabs(cur_isc->x-m_cur_intersection->x) +
+                        fabs(cur_isc->y-m_cur_intersection->y) <
+                        INTERSECTION_ZERO);
+            isc->next= isc->next->next;
+            free_item(cur_isc);
+          }
+          else
+            isc= isc->get_next();
+        }
+      }
+    }
+  }
+
+  for (next_intersection= m_cur_intersection->get_next();
+       next_intersection &&
+         coord_eq(next_intersection->x, m_cur_intersection->x) &&
+         coord_eq(next_intersection->y, m_cur_intersection->y);
+       next_intersection= next_intersection->get_next())
+  {
+    /* Handle equal intersections. We only need to set proper events */
+    sp0= current_state->slice;
+    hook= (Gcalc_dyn_list::Item **) &next_state->slice;
+    sp1= next_state->slice;
+    next_state->clear_event_position();
+
+    for (; sp0;
+        hook= &sp1->next, sp1= sp1->get_next(), sp0= sp0->get_next())
+    {
+      if (sp0->thread == next_intersection->thread_a ||
+          sp0->thread == next_intersection->thread_b ||
+          sp1->event == scev_intersection)
+      {
+        sp1->event= scev_intersection;
+        mark_event_position1(sp1, hook);
+      }
+    }
   }
   m_cur_intersection= next_intersection;
 

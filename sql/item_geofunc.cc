@@ -1789,6 +1789,14 @@ double Item_func_distance::val_real()
   if (g2->store_shapes(&trn) || func.alloc_states())
     goto mem_error;
 
+  if (obj2_si == 0 || func.get_nshapes() == obj2_si)
+  {
+    distance= 0.0;
+    null_value= 1;
+    goto exit;
+  }
+
+
   collector.prepare_operation();
   scan_it.init(&collector);
 

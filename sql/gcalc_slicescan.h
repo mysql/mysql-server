@@ -303,6 +303,7 @@ public:
   class intersection : public Gcalc_dyn_list::Item
   {
   public:
+    int n_row;
     sc_thread_id thread_a;
     sc_thread_id thread_b;
     double x;
@@ -371,7 +372,7 @@ private:
   void sort_intersections();
   int handle_intersections();
   int insert_top_point();
-  int add_intersection(const point *a, const point *b,
+  int add_intersection(int n_row, const point *a, const point *b,
 		       Gcalc_dyn_list::Item ***p_hook);
   int find_intersections();
 
