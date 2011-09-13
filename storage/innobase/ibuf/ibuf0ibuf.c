@@ -1687,11 +1687,11 @@ ibuf_add_free_page(
 
 	mutex_enter(&ibuf_mutex);
 
+	root = ibuf_tree_root_get(ibuf_data, space, &mtr);
+
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TREE_NODE_NEW);
 #endif /* UNIV_SYNC_DEBUG */
-
-	root = ibuf_tree_root_get(ibuf_data, space, &mtr);
 
 	/* Add the page to the free list and update the ibuf size data */
 
