@@ -853,8 +853,8 @@ int Gcalc_operation_reducer::add_single_point(const Gcalc_heap::Info *p,
   else
   {
     rp->intersection_point= true;
-    rp->x= si->get_y();
-    rp->y= si->get_events()->x;
+    rp->y= si->get_y();
+    rp->x= si->get_events()->x;
   }
   return 0;
 }
