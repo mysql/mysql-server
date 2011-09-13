@@ -20,6 +20,7 @@
 #include "NdbMgmd.hpp"
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
+#include "../../src/mgmapi/mgmapi_internal.h"
 #include <InputStream.hpp>
 #include <signaldata/EventReport.hpp>
 #include <NdbRestarter.hpp>
@@ -639,7 +640,6 @@ done:
   return result;
 }
 
-#include <mgmapi_internal.h>
 
 int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
 {

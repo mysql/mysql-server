@@ -18,7 +18,7 @@
 #define NDB_MGMD_HPP
 
 #include <mgmapi.h>
-#include <mgmapi_internal.h>
+#include "../../src/mgmapi/mgmapi_internal.h"
 
 #include <BaseString.hpp>
 #include <Properties.hpp>
