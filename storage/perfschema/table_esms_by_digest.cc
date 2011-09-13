@@ -213,17 +213,14 @@ void table_esms_by_digest::reset_position(void)
 
 int table_esms_by_digest::rnd_next(void)
 {
-  PFS_stage_class *stage_class;
-
-  if (global_instr_class_stages_array == NULL)
-    return HA_ERR_END_OF_FILE;
+  PFS_statements_digest_stat* digest_stat;
 
   m_pos.set_at(&m_next_pos);
+  digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
-  stage_class= find_stage_class(m_pos.m_index);
-  if (stage_class)
+  if(digest_stat->m_digest[0] != '\0')
   {
-    make_row(/*TBD*/);
+    make_row(digest_stat);
     m_next_pos.set_after(&m_pos);
     return 0;
   }
@@ -234,17 +231,14 @@ int table_esms_by_digest::rnd_next(void)
 int
 table_esms_by_digest::rnd_pos(const void *pos)
 {
-  PFS_stage_class *stage_class;
+  PFS_statements_digest_stat* digest_stat;
 
   set_position(pos);
+  digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
-  if (global_instr_class_stages_array == NULL)
-    return HA_ERR_END_OF_FILE;
-
-  stage_class=find_stage_class(m_pos.m_index);
-  if (stage_class)
+  if(digest_stat->m_digest[0] != '\0')
   {
-    make_row(/*TBD*/);
+    make_row(digest_stat);
     return 0;
   }
 
@@ -252,14 +246,15 @@ table_esms_by_digest::rnd_pos(const void *pos)
 }
 
 
-void table_esms_by_digest::make_row(/*TBD*/)
+void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
 {
-  /* TBD */
+  m_row_exists= false;
+  m_row.m_digest.make_row(digest_stat);
   m_row_exists= true;
 }
 
 int table_esms_by_digest
-::read_row_values(TABLE *table, unsigned char *, Field **fields,
+::read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                   bool read_all)
 {
   Field *f;
@@ -272,6 +267,7 @@ int table_esms_by_digest
      in the table.
   */
   DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
   {
@@ -279,7 +275,12 @@ int table_esms_by_digest
     {
       switch(f->field_index)
       {
-      default: /* TBD */
+      case 0: /* DIGEST */
+      case 1: /* DIGEST_TEXT */
+        m_row.m_digest.set_field(f->field_index, f);
+        break;
+      default: /* 1, ... COUNT/SUM/MIN/AVG/MAX */
+        m_row.m_stat.set_field(f->field_index - 2, f);
         break;
       }
     }

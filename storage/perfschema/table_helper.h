@@ -21,6 +21,7 @@
 #include "pfs_timer.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
+#include "pfs_digest.h"
 
 struct PFS_host;
 struct PFS_user;
@@ -105,6 +106,24 @@ struct PFS_account_row
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_account *pfs);
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
+/** Row fragment for columns DIGEST, DIGEST_TEXT. */
+struct PFS_digest_row
+{
+  /** Column DIGEST. */
+  char m_digest[COL_DIGEST_SIZE];
+  /** Length in bytes of @c m_digest. */
+  uint m_digest_length;
+  /** Column DIGEST_TEXT. */
+  char m_digest_text[COL_DIGEST_TEXT_SIZE];
+  /** Length in bytes of @c m_digest_text. */
+  uint m_digest_text_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(PFS_statements_digest_stat*);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
 };

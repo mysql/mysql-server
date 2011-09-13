@@ -25,13 +25,16 @@
 
 extern bool flag_statements_digest;
 
-/** A statement stat record based on digest. */
+/** A statement digest stat record. */
 struct PFS_statements_digest_stat
 {
-  /* TBD */
-  char digest[COL_DIGEST_SIZE];
-  char digest_text[COL_DIGEST_TEXT_SIZE];
+  char m_digest[COL_DIGEST_SIZE];
+  unsigned int m_digest_length;
+  char m_digest_text[COL_DIGEST_TEXT_SIZE];
+  unsigned int m_digest_text_length;
 };
+
+extern PFS_statements_digest_stat *statements_digest_stat_array;
 
 void insert_statement_digest(char*,char*);
 
