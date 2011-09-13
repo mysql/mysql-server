@@ -66,15 +66,25 @@ void cleanup_digest(void)
 void insert_statement_digest(char* digest, char* digest_text)
 {
   /* Lookup LF_HASH for the computed DIGEST. */
-
+  //TODO
   /* If stmt digest already exists, update stat and return */
+  //TODO
   
-  /* if statement digest doesn't exist, add a new record in the stat array */
-  memcpy(statements_digest_stat_array[digest_index].digest, digest,
+  /* 
+     If statement digest doesn't exist, add a new record in the 
+     digest stat array. 
+  */
+  memcpy(statements_digest_stat_array[digest_index].m_digest, digest,
          COL_DIGEST_SIZE);
-  memcpy(statements_digest_stat_array[digest_index].digest_text, digest_text,
+  statements_digest_stat_array[digest_index].m_digest_length=
+         strlen(digest);
+
+  memcpy(statements_digest_stat_array[digest_index].m_digest_text, digest_text,
          COL_DIGEST_TEXT_SIZE);
-  /* Rounding Buffer. Overwrite first entry if last all slots are full. */
+  statements_digest_stat_array[digest_index].m_digest_text_length=
+         strlen(digest_text);
+
+  /* Rounding Buffer. Overwrite first entry if all slots are full. */
   digest_index= (digest_index+1)%statements_digest_size;
 }
  

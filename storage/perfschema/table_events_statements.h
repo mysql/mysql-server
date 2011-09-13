@@ -24,6 +24,7 @@
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_events_statements.h"
+#include "table_helper.h"
 
 struct PFS_thread;
 
@@ -61,10 +62,8 @@ struct row_events_statements
   uint m_source_length;
   /** Column SQL_TEXT. */
   char m_sqltext[COL_INFO_SIZE];
-  /** Column DIGEST. */
-  char m_digest[COL_DIGEST_SIZE];
-  /** Column DIGEST_TEXT. */
-  char m_digest_text[COL_DIGEST_TEXT_SIZE];
+  /** Column DIGEST and DIGEST_TEXT. */
+  struct PFS_digest_row m_digest;
   /** Length in bytes of @c m_info. */
   uint m_sqltext_length;
   /** Column CURRENT_SCHEMA. */

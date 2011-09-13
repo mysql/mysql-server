@@ -101,6 +101,47 @@ void PFS_account_row::set_field(uint index, Field *f)
   }
 }
 
+int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
+{
+  m_digest_length= pfs->m_digest_length;
+  if (m_digest_length > sizeof(m_digest))
+    return 1;
+  if (m_digest_length > 0)
+    memcpy(m_digest, pfs->m_digest, sizeof(m_digest));
+
+  m_digest_text_length= pfs->m_digest_text_length;
+  if (m_digest_text_length > sizeof(m_digest_text))
+    return 1;
+  if (m_digest_text_length > 0)
+    memcpy(m_digest_text, pfs->m_digest_text, sizeof(m_digest_text));
+
+  return 0;
+}
+
+void PFS_digest_row::set_field(uint index, Field *f)
+{
+  switch (index)
+  {
+    case 0: /* DIGEST */
+      if (m_digest_length > 0)
+        PFS_engine_table::set_field_varchar_utf8(f, m_digest,
+                                                 m_digest_length);
+      else
+        f->set_null();
+      break;
+    case 1: /* DIGEST_TEXT */
+      if (m_digest_text_length > 0)
+        PFS_engine_table::set_field_longtext_utf8(f, m_digest_text,
+                                                  m_digest_text_length);
+      else
+        f->set_null();
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+  }
+}
+
 int PFS_object_row::make_row(PFS_table_share *pfs)
 {
   m_object_type= pfs->get_object_type();

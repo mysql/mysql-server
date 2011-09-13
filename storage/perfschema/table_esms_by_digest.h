@@ -22,6 +22,7 @@
 */
 
 #include "table_helper.h"
+#include "pfs_digest.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -35,12 +36,7 @@
 struct row_esms_by_digest
 {
   /** Columns TBD. Adding few dummy as of now. */
-   
-  /** Column DIGEST. */
-  char m_digest[COL_DIGEST_SIZE];
-
-  /** Column DIGEST_TEXT. */
-  char m_digest_text[COL_DIGEST_TEXT_SIZE];
+  PFS_digest_row m_digest;
 
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
   PFS_statement_stat_row m_stat;
@@ -72,7 +68,7 @@ public:
   {}
 
 protected:
-  void make_row(/*TBD*/);
+  void make_row(PFS_statements_digest_stat*);
 
 private:
   /** Table share lock. */

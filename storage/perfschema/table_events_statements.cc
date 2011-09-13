@@ -433,10 +433,22 @@ int table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 9: /* DIGEST */
         /* TBD */
+        /* 
+           if(m_row.m_digest.m_digest_length > 0)
+            set_field_varchar_utf8(f, m_row.m_digest.m_digest,
+                                   m_row.m_digest.m_digest_length);
+         else
+        */
           f->set_null();
         break;
       case 10: /* DIGEST_TEXT */
         /* TBD */
+        /* 
+         if(m_row.m_digest.m_digest_text_length > 0)
+            set_field_longtext_utf8(f, m_row.m_digest.m_digest_text,
+                                    m_row.m_digest.m_digest_text_length);
+         else
+        */
           f->set_null();
         break;
       case 11: /* CURRENT_SCHEMA */
