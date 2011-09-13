@@ -2214,12 +2214,12 @@ ibuf_add_free_page(void)
 
 		mutex_enter(&ibuf_mutex);
 
+		root = ibuf_tree_root_get(&mtr);
+
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
 
 		page = buf_block_get_frame(block);
 	}
-
-	root = ibuf_tree_root_get(&mtr);
 
 	/* Add the page to the free list and update the ibuf size data */
 
