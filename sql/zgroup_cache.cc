@@ -382,6 +382,14 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
   GROUP_STATUS_THROW(write_to_log_prepare(trx_group_cache,
                                           offset_after_last_statement,
                                           &last_non_dummy_subgroup));
+
+  int n_subgroups= get_n_subgroups();
+  for (int i= 0; i < n_subgroups; i++)
+  {
+    Cached_subgroup *cs= get_unsafe_pointer(i);
+    group_log->write_subgroup(cs);
+  }
+
   DBUG_RETURN(GS_SUCCESS);
 }
 

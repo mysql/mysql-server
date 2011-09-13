@@ -45,6 +45,69 @@ Sid_map::~Sid_map()
 }
 
 
+int Sid_map::open(const char *base_filename)
+{
+  size_t len= strlen(base_filename);
+  DBUG_ASSERT(get_max_sidno() == 0);
+  DBUG_ASSERT(strlen(filename) + strlen("-sids") < FN_REFLEN);
+  memcpy(filename, base_filename, len);
+  strcpy(filename + len, "-sids");
+
+  fd= my_open(file_name, O_RDWR | O_CREAT | O_BINARY, MYF(MY_WME));
+  uchar sid_buf[Uuid::BYTE_LENGTH];
+  int pos= 0;
+  rpl_sidno sidno= 0;
+  uchar type_code;
+  rpl_sid sid;
+  while (true)
+  {
+    if (my_read(fd, &type_code, 1, MYF(0)) != 1)
+      goto truncate;
+    if (type == 0)
+    {
+      // type code 0: 16-byte uuid
+      if (my_read(fd, sid_buf, Uuid::BYTE_LENGTH, MYF(0)) < Uuid::BYTE_LENGTH)
+        goto truncate;
+      sid.copy_from(sid_buf);
+      sidno++;
+      if (add_node(sidno, &sid) != GS_SUCCESS)
+        goto error;
+      pos+= 1 + Uuid::BYTE_LENGTH;
+    }
+    else
+    {
+      // unknown type code
+      if ((type & 1) == 0)
+        // even type code: fatal
+        goto error;
+      else
+      {
+        // odd type code: ignorable
+        ulonglong skip_len;
+        ret= read_compact_unsigned(fd, &skip_len, MYF(MY_WME));
+        if (ret < 0 && ret > -0x10000)
+          goto truncate;
+        else if (ret <= -0x10000)
+          goto error;
+        /// @todo: if file is truncated in middle of block, truncate file
+        if (my_seek(fd, n, SEEK_CUR, MYF(MY_WME)) != 0)
+          goto error;
+      }
+    }
+  }
+
+truncate:
+  if (my_chsize(fd, pos, 0, MYF(MY_WME)) != 0)  // 1 on error, 0 on success
+    goto error;
+  DBUG_RETURN(0);
+
+error:
+  my_close(fd);
+  fd= -1;
+  DBUG_RETURN(1);
+}
+
+
 rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _flush)
 {
   DBUG_ENTER("Sid_map::add_permanent");
@@ -65,11 +128,22 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _flush)
     DBUG_RETURN(node->sidno);
   }
 
+  rpl_sidno sidno= get_max_sidno() + 1;
+  enum_group_status status= add_node(sidno, sid);
+  rpl_sidno ret= (status == GS_SUCCESS) ? sidno : (rpl_sidno)status;
+
+  sid_lock->unlock();
+  sid_lock->rdlock();
+  DBUG_RETURN(ret);
+}
+
+
+enum_group_status Sid_map::add_node(rpl_sidno sidno, rpl_sid *sid)
+{
   enum_group_status status= GS_ERROR_OUT_OF_MEMORY;
   node= (Node *)malloc(sizeof(Node));
   if (node != NULL)
   {
-    rpl_sidno sidno= get_max_sidno() + 1;
     node->sidno= sidno;
     node->sid= *sid;
     if (insert_dynamic(&_sidno_to_sid, &node) == 0)
@@ -100,10 +174,7 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _flush)
               prev_sorted_p= sorted_p;
             }
             memcpy(prev_sorted_p, &sidno, sizeof(rpl_sidno));
-            sid_lock->unlock();
-            sid_lock->rdlock();
-            sid_lock->assert_some_rdlock();
-            DBUG_RETURN(sidno);
+            DBUG_RETURN(GS_SUCCESS);
           }
           my_hash_delete(&_sid_to_sidno, (uchar *)node);
         }
@@ -113,9 +184,7 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _flush)
     }
     free(node);
   }
-  sid_lock->unlock();
-  sid_lock->rdlock();
-  DBUG_RETURN((rpl_sidno)status);
+  DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
 }
 
 

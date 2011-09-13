@@ -17,7 +17,7 @@
 #include "my_base.h"
 
 
-int write_compact_unsigned(File fd, ulonglong n, myf my_flags)
+int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
 {
   DBUG_ENTER("write_compact_unsigned");
   uchar buf[10];
@@ -40,7 +40,7 @@ int write_compact_unsigned(File fd, ulonglong n, myf my_flags)
 }
 
 
-int read_compact_unsigned(File fd, ulonglong *out, myf my_flags)
+int Compact_encoding::read_unsigned(File fd, ulonglong *out, myf my_flags)
 {
   DBUG_ENTER("read_compact_unsigned");
   // read first byte
@@ -78,7 +78,7 @@ int read_compact_unsigned(File fd, ulonglong *out, myf my_flags)
     DBUG_RETURN(-(1 + n_read_bytes));
   ulonglong o= uint8korr(buf);
   if (o > (1 << (64 - (8 - len))))
-    DBUG_RETURN(-(0x10001 + len + extra_byte * 8));
+    DBUG_RETURN(-(0x10001 + len + extra_byte + extra_byte * 8));
   o <<= (8 - len);
   o |= b >> len;
   *out= o;
@@ -86,14 +86,14 @@ int read_compact_unsigned(File fd, ulonglong *out, myf my_flags)
 }
 
 
-int write_compact_signed(File fd, longlong n, myf my_flags)
+int Compact_encoding::write_signed(File fd, longlong n, myf my_flags)
 {
   return write_compact_unsigned(fd, n >= 0 ? 2 * (ulonglong)n :
                                 1 + 2 * (ulonglong)-(n + 1), my_flags);
 }
 
 
-int read_compact_signed(File fd, longlong *out, myf my_flags)
+int Compact_encoding::read_signed(File fd, longlong *out, myf my_flags)
 {
   ulonglong o;
   int ret= read_compact_unsigned(fd, &o, my_flags);
