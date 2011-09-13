@@ -6353,6 +6353,11 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     jam();
     error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
   }
+  else if (req.nodeType == NodeInfo::API && nodePtr.p->phase != ZAPI_INACTIVE)
+  {
+    jam();
+    error = AllocNodeIdRef::NodeReserved;
+  }
 #if 0
   /**
    * For now only make "time/secret" based reservation on master
