@@ -313,31 +313,21 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_END()
 };
 
-struct PurgeStruct
-{
-  NodeBitmask free_nodes;/* free nodes as reported
-			  * by ndbd in apiRegReqConf
-			  */
-  BaseString *str;
-  NDB_TICKS tick;
-};
-
 extern int g_errorInsert;
 #define ERROR_INSERTED(x) (g_errorInsert == x || m_errorInsert == x)
 
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
 
 MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
-  : SocketServer::Session(sock), m_mgmsrv(mgm), m_name("unknown:0")
+  : SocketServer::Session(sock), m_mgmsrv(mgm),
+    m_session_id(session_id), m_name("unknown:0")
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
   m_input = new SocketInputStream(sock, SOCKET_TIMEOUT);
   m_output = new BufferedSockOutputStream(sock, SOCKET_TIMEOUT);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
-  m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
   m_stopSelf= 0;
   m_ctx= NULL;
-  m_session_id= session_id;
   m_mutex= NdbMutex_Create();
   m_errorInsert= 0;
 
@@ -359,8 +349,6 @@ MgmApiSession::~MgmApiSession()
     delete m_output;
   if (m_parser)
     delete m_parser;
-  if (m_allocated_resources)
-    delete m_allocated_resources;
   if(my_socket_valid(m_socket))
   {
     NDB_CLOSE_SOCKET(m_socket);
@@ -473,38 +461,38 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 			  const class Properties &args)
 {
   Uint32 version, nodeid= 0, nodetype= 0xff;
-  Uint32 timeout= 20;  // default seconds timeout
-  const char * transporter;
-  const char * user;
-  const char * password;
-  const char * public_key;
+  Uint32 timeout= 20;  // timeout in seconds
   const char * endian= NULL;
   const char * name= NULL;
   Uint32 log_event= 1;
-  bool log_event_version;
-  union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
   args.get("nodetype", &nodetype);
-  args.get("transporter", &transporter);
+  // transporter
   args.get("nodeid", &nodeid);
-  args.get("user", &user);
-  args.get("password", &password);
-  args.get("public key", &public_key);
+  // user
+  // password
+  // public key
   args.get("endian", &endian);
   args.get("name", &name);
   args.get("timeout", &timeout);
   /* for backwards compatability keep track if client uses new protocol */
-  log_event_version= args.get("log_event", &log_event);
+  const bool log_event_version= args.get("log_event", &log_event);
 
   m_output->println("get nodeid reply");
 
-  endian_check.l = 1;
-  if(endian 
-     && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
-    m_output->println("result: Node does not have the same endianness as the management server.");
-    m_output->println("%s", "");
-    return;
+  // Check that client says it's using same endian
+  {
+    union { long l; char c[sizeof(long)]; } endian_check;
+    endian_check.l = 1;
+    if (endian &&
+        strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0)
+    {
+      m_output->println("result: Node does not have the same "
+                        "endianness as the management server.");
+      m_output->println("%s", "");
+      return;
+    }
   }
 
   bool compatible;
@@ -523,14 +511,17 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   }
 
   struct sockaddr_in addr;
-  SOCKET_SIZE_TYPE addrlen= sizeof(addr);
-  int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
-  if (r != 0 ) {
-    m_output->println("result: getpeername(" MY_SOCKET_FORMAT   \
-                      ") failed, err= %d",
-                      MY_SOCKET_FORMAT_VALUE(m_socket), r);
-    m_output->println("%s", "");
-    return;
+  {
+    SOCKET_SIZE_TYPE addrlen= sizeof(addr);
+    int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
+    if (r != 0 )
+    {
+      m_output->println("result: getpeername(" MY_SOCKET_FORMAT \
+                        ") failed, err= %d",
+                        MY_SOCKET_FORMAT_VALUE(m_socket), r);
+      m_output->println("%s", "");
+      return;
+    }
   }
 
   /* Check nodeid parameter */
@@ -542,62 +533,27 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   }
 
   NodeId tmp= nodeid;
-  if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
-    BaseString error_string;
-    int error_code;
-    NDB_TICKS tick= 0;
-    /* only report error on second attempt as not to clog the cluster log */
-    while (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
-                                   (struct sockaddr*)&addr, &addrlen,
-                                   error_code, error_string,
-                                   tick == 0 ? 0 : log_event,
-                                   timeout))
-    {
-      /* NDB_MGM_ALLOCID_CONFIG_MISMATCH is a non retriable error */
-      if (tick == 0 && error_code != NDB_MGM_ALLOCID_CONFIG_MISMATCH)
-      {
-        // attempt to free any timed out reservations
-        tick= NdbTick_CurrentMillisecond();
-        struct PurgeStruct ps;
-        m_mgmsrv.get_connected_nodes(ps.free_nodes);
-        // invert connected_nodes to get free nodes
-        ps.free_nodes.bitXORC(NodeBitmask());
-        ps.str= 0;
-        ps.tick= tick;
-        m_mgmsrv.get_socket_server()->
-          foreachSession(stop_session_if_timed_out,&ps);
-	m_mgmsrv.get_socket_server()->checkSessions();
-        error_string = "";
-        continue;
-      }
-      const char *alias;
-      const char *str;
-      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)
-						nodetype, &str);
-      m_output->println("result: %s", error_string.c_str());
-      /* only use error_code protocol if client knows about it */
-      if (log_event_version)
-        m_output->println("error_code: %d", error_code);
-      m_output->println("%s", "");
-      return;
-    }
-  }    
-  
-#if 0
-  if (!compatible){
-    m_output->println(cmd);
-    m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
-		      NDB_VERSION, version);
+  BaseString error_string;
+  int error_code;
+  if (!m_mgmsrv.alloc_node_id(tmp,
+                              (ndb_mgm_node_type)nodetype,
+                              (struct sockaddr*)&addr,
+                              error_code, error_string,
+                              log_event,
+                              timeout))
+  {
+    m_output->println("result: %s", error_string.c_str());
+    /* only use error_code in reply if client knows about it */
+    if (log_event_version)
+      m_output->println("error_code: %d", error_code);
     m_output->println("%s", "");
     return;
   }
-#endif
-  
+
   m_output->println("nodeid: %u", tmp);
   m_output->println("result: Ok");
   m_output->println("%s", "");
-  m_allocated_resources->reserve_node(tmp, timeout*1000);
-  
+
   if (name)
     g_eventLogger->info("Node %d: %s", tmp, name);
 
@@ -796,12 +752,8 @@ MgmApiSession::bye(Parser<MgmApiSession>::Context &,
 
 void
 MgmApiSession::endSession(Parser<MgmApiSession>::Context &,
-                          Properties const &) {
-  if(m_allocated_resources)
-    delete m_allocated_resources;
-
-  m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
-
+                          Properties const &)
+{
   SLEEP_ERROR_INSERTED(4);
   m_output->println("end session reply");
 }
@@ -1733,48 +1685,14 @@ done:
   }
 }
 
-void
-MgmApiSession::stop_session_if_not_connected(SocketServer::Session *_s, void *data)
-{
-  MgmApiSession *s= (MgmApiSession *)_s;
-  struct PurgeStruct &ps= *(struct PurgeStruct *)data;
-  if (s->m_allocated_resources->is_reserved(ps.free_nodes))
-  {
-    if (ps.str)
-      ps.str->appfmt(" %d", s->m_allocated_resources->get_nodeid());
-    s->stopSession();
-  }
-}
-
-void
-MgmApiSession::stop_session_if_timed_out(SocketServer::Session *_s, void *data)
-{
-  MgmApiSession *s= (MgmApiSession *)_s;
-  struct PurgeStruct &ps= *(struct PurgeStruct *)data;
-  if (s->m_allocated_resources->is_reserved(ps.free_nodes) &&
-      s->m_allocated_resources->is_timed_out(ps.tick))
-  {
-    s->stopSession();
-  }
-}
 
 void
 MgmApiSession::purge_stale_sessions(Parser_t::Context &ctx,
 				    const class Properties &args)
 {
-  struct PurgeStruct ps;
-  BaseString str;
-  ps.str = &str;
-
-  m_mgmsrv.get_connected_nodes(ps.free_nodes);
-  ps.free_nodes.bitXORC(NodeBitmask()); // invert connected_nodes to get free nodes
-
-  m_mgmsrv.get_socket_server()->foreachSession(stop_session_if_not_connected,&ps);
   m_mgmsrv.get_socket_server()->checkSessions();
 
   m_output->println("purge stale sessions reply");
-  if (str.length() > 0)
-    m_output->println("purged:%s",str.c_str());
   m_output->println("result: Ok");
   m_output->println("%s", "");
 }
@@ -1932,7 +1850,6 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   lister->m_output->println("session: %llu",id);
   lister->m_output->println("session.%llu.m_stopSelf: %d",id,s->m_stopSelf);
   lister->m_output->println("session.%llu.m_stop: %d",id,s->m_stop);
-  lister->m_output->println("session.%llu.allocated.nodeid: %d",id,s->m_allocated_resources->get_nodeid());
   if(s->m_ctx)
   {
     int l= strlen(s->m_ctx->m_tokenBuffer);
@@ -2003,7 +1920,6 @@ MgmApiSession::get_session(SocketServer::Session *_s, void *data)
   p->l->m_output->println("id: %llu",s->m_session_id);
   p->l->m_output->println("m_stopSelf: %d",s->m_stopSelf);
   p->l->m_output->println("m_stop: %d",s->m_stop);
-  p->l->m_output->println("nodeid: %d",s->m_allocated_resources->get_nodeid());
   if(s->m_ctx)
   {
     int l= strlen(s->m_ctx->m_tokenBuffer);
