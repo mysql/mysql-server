@@ -63,13 +63,7 @@ Created 12/19/1997 Heikki Tuuri
 
 /* Number of rows fetched, after which to start prefetching; MySQL interface
 has another parameter */
-/* The prefetch code in the internal SQL is disabled because it has probably
-never been used and has been found to contain a memory leak and a bug of
-accessing uninitialized memory. Some simple performance tests show that
-disabling it makes no difference in performance. It will be removed, but
-until the removal happens we disable it by setting SEL_PREFETCH_LIMIT to a
-high value. */
-#define SEL_PREFETCH_LIMIT	1000000000
+#define SEL_PREFETCH_LIMIT	1
 
 /* When a select has accessed about this many pages, it returns control back
 to que_run_threads: this is to allow canceling runaway queries */
@@ -508,7 +502,7 @@ sel_col_prefetch_buf_alloc(
 		sel_buf = column->prefetch_buf + i;
 
 		sel_buf->data = NULL;
-
+		sel_buf->len = 0;
 		sel_buf->val_buf_size = 0;
 	}
 }
@@ -533,6 +527,8 @@ sel_col_prefetch_buf_free(
 			mem_free(sel_buf->data);
 		}
 	}
+
+	mem_free(prefetch_buf);
 }
 
 /*********************************************************************//**
