@@ -50,6 +50,10 @@
 // To force usage of SCAN_NEXTREQ even for small scans resultsets
 static const bool testNextReq = false;
 
+// Use double buffered ResultSets, may later change 
+// to be more adaptive based on query type
+static const bool useDoubleBuffers = false;
+
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_TupleNotFound = 626;
 static const int Err_MemoryAlloc = 4000;
@@ -208,6 +212,8 @@ public:
    */
   void prepareNextReceiveSet();
 
+  bool hasRequestedMore() const;
+
   /**
    * Prepare for reading another batch of results.
    */
@@ -300,9 +306,16 @@ private:
   NdbResultStream* m_resultStreams;
 
   /**
-   * Number of available prefetched ResultSets which are completely 
-   * received. Will be made available for reading by calling 
-   * ::grabNextResultSet()
+   * Number of requested (pre-)fetches which has either not completed 
+   * from datanodes yet, or which are completed, but not consumed.
+   * (Which implies they are also counted in m_availResultSets)
+   */
+  Uint32 m_pendingRequests;
+
+  /**
+   * Number of available 'm_pendingRequests' ( <= m_pendingRequests)
+   * which has been completely received. Will be made available
+   * for reading by calling ::grabNextResultSet() 
    */
   Uint32 m_availResultSets;   // Need mutex
 
@@ -573,9 +586,9 @@ private:
 
   /**
    * ResultSets are received into and read from this stream,
-   * intended to be extended into double buffered ResultSet later.
+   * possibly doublebuffered,
    */
-  NdbResultSet m_resultSets[1];
+  NdbResultSet m_resultSets[2];
   Uint32 m_read;  // We read from m_resultSets[m_read]
   Uint32 m_recv;  // We receive into m_resultSets[m_recv]
 
@@ -721,7 +734,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
        ? Is_Inner_Join : 0))),
   m_receiver(operation.getQuery().getNdbTransaction().getNdb()),
   m_resultSets(), m_read(0xffffffff), m_recv(0),
-  m_iterState(Iter_notStarted),
+  m_iterState(Iter_finished),
   m_currentRow(tupleNotFound),
   m_maxRows(0),
   m_tupleSet(NULL)
@@ -750,11 +763,16 @@ NdbResultStream::prepare()
     m_tupleSet = 
       new (query.getTupleSetAlloc().allocObjMem(m_maxRows)) 
       TupleSet[m_maxRows];
+
+    // Scan results may be doublebuffered
+    m_resultSets[0].init(query, m_maxRows, rowSize); 
+    m_resultSets[1].init(query, m_maxRows, rowSize);
   }
   else
+  {
     m_maxRows = 1;
-
-  m_resultSets[0].init(query, m_maxRows, rowSize);
+    m_resultSets[0].init(query, m_maxRows, rowSize);
+  }
 
   m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, false, &m_operation);
   m_receiver.do_setup_ndbrecord(
@@ -903,8 +921,9 @@ NdbResultStream::prepareNextReceiveSet()
 {
   assert (isScanQuery());
 
-  m_iterState = Iter_notStarted;
-  m_currentRow = tupleNotFound;
+  m_recv = (m_recv+1) % 2;  // Receive into next ResultSet
+  assert(m_recv != m_read);
+
   m_resultSets[m_recv].prepareReceive(m_receiver);
 
   /**
@@ -921,6 +940,7 @@ NdbResultStream::prepareNextReceiveSet()
 
 /**
  * Make preparations for another batch of result to be read:
+ *  - Advance to next NdbResultSet. (or reuse last)
  *  - Fill in parent/child result correlations in m_tupleSet[]
  *  - ... or reset m_tupleSet[] if we reuse the previous.
  *  - Apply inner/outer join filtering to remove non qualifying 
@@ -932,20 +952,20 @@ NdbResultStream::prepareResultSet(Uint32 remainingScans)
   bool isComplete = isSubScanComplete(remainingScans); //Childs with more rows
   assert(isComplete || isScanResult());                //Lookups always 'complete'
 
-   m_read = m_recv;
-   NdbResultSet& readResult = m_resultSets[m_read];
+  /**
+   * Prepare NdbResultSet for reading - either the next
+   * 'new' received from datanodes or reuse the last as has been 
+   * determined by ::prepareNextReceiveSet()
+   */
+  const bool newResults = (m_read != m_recv);
+  m_read = m_recv;
+  NdbResultSet& readResult = m_resultSets[m_read];
 
   // Set correct buffer and #rows received by this ResultSet.
   readResult.prepareRead(m_receiver);
 
-  /**
-   * Prepare NdbResultSet for reading - either the next received
-   * from datanodes or reuse the last as has been determined by 
-   * ::prepareNextReceiveSet()
-   */
   if (m_tupleSet!=NULL)
   {
-    const bool newResults = (m_iterState!=Iter_finished);
     if (newResults)
     {
       buildResultCorrelations();
@@ -1137,6 +1157,7 @@ NdbRootFragment::NdbRootFragment():
   m_query(NULL),
   m_fragNo(voidFragNo),
   m_resultStreams(NULL),
+  m_pendingRequests(0),
   m_availResultSets(0),
   m_outstandingResults(0),
   m_confReceived(false),
@@ -1208,9 +1229,20 @@ void NdbRootFragment::clear(NdbRootFragment* rootFrags, Uint32 noOfFrags)
   {
     for (Uint32 fragNo = 0; fragNo < noOfFrags; fragNo++)
     {
+      rootFrags[fragNo].m_pendingRequests = 0;
       rootFrags[fragNo].m_availResultSets = 0;
     }
   }
+}
+
+/**
+ * Check if there has been requested more ResultSets from
+ * this fragment which has not been consumed yet.
+ * (This is also a candicate check for ::hasReceivedMore())
+ */
+bool NdbRootFragment::hasRequestedMore() const
+{
+  return (m_pendingRequests > 0);
 }
 
 /**
@@ -1219,7 +1251,7 @@ void NdbRootFragment::clear(NdbRootFragment* rootFrags, Uint32 noOfFrags)
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
  */
-void NdbRootFragment::setReceivedMore()
+void NdbRootFragment::setReceivedMore()        // Need mutex
 {
   assert(m_availResultSets==0);
   m_availResultSets++;
@@ -1232,7 +1264,7 @@ void NdbRootFragment::setReceivedMore()
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
  */
-bool NdbRootFragment::hasReceivedMore() const
+bool NdbRootFragment::hasReceivedMore() const  // Need mutex
 {
   return (m_availResultSets > 0);
 }
@@ -1241,7 +1273,6 @@ void NdbRootFragment::prepareNextReceiveSet()
 {
   assert(m_fragNo!=voidFragNo);
   assert(m_outstandingResults == 0);
-  assert(m_confReceived);
 
   for (unsigned opNo=0; opNo<m_query->getNoOfOperations(); opNo++) 
   {
@@ -1256,6 +1287,7 @@ void NdbRootFragment::prepareNextReceiveSet()
     }
   }
   m_confReceived = false;
+  m_pendingRequests++;
 }
 
 /**
@@ -1264,10 +1296,13 @@ void NdbRootFragment::prepareNextReceiveSet()
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
  */
-void NdbRootFragment::grabNextResultSet()
+void NdbRootFragment::grabNextResultSet()  // Need mutex
 {
   assert(m_availResultSets>0);
   m_availResultSets--;
+
+  assert(m_pendingRequests>0);
+  m_pendingRequests--;
 
   NdbResultStream& rootStream = getResultStream(0);
   rootStream.prepareResultSet(m_remainingScans);  
@@ -2274,7 +2309,6 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
     }
     else
     {
-      assert(rootFrag->isFragBatchComplete());
       rootFrag->getResultStream(0).nextResult();   // Consume current
       m_applFrags.reorganize();                    // Calculate new current
       // Reorg. may update 'current' RootFragment
@@ -2300,7 +2334,6 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
 
     if (rootFrag!=NULL)
     {
-      assert(rootFrag->isFragBatchComplete());
       getRoot().fetchRow(rootFrag->getResultStream(0));
       return NdbQuery::NextResult_gotRow;
     }
@@ -2716,7 +2749,7 @@ NdbQueryImpl::prepareSend()
     totalBuffSize += sizeof(Uint32); // Overflow check
   }
 
-  m_rowBufferAlloc.init(m_rootFragCount * totalBuffSize);
+  m_rowBufferAlloc.init(2 * m_rootFragCount * totalBuffSize);
   if (getQueryDef().isScanQuery())
   {
     Uint32 totalRows = 0;
@@ -2724,7 +2757,7 @@ NdbQueryImpl::prepareSend()
     {
       totalRows += getQueryOperation(i).getMaxBatchRows();
     }
-    error = m_tupleSetAlloc.init(m_rootFragCount * totalRows);
+    error = m_tupleSetAlloc.init(2 * m_rootFragCount * totalRows);
     if (unlikely(error != 0))
     {
       setErrorCode(error);
@@ -2981,6 +3014,11 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
   Uint32 tTableId = rootTable->m_id;
   Uint32 tSchemaVersion = rootTable->m_version;
+
+  for (Uint32 i=0; i<m_rootFragCount; i++)
+  {
+    m_rootFrags[i].prepareNextReceiveSet();
+  }
 
   if (rootDef.isScanOperation())
   {
@@ -3420,7 +3458,8 @@ NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_capacity(0),
   m_activeFragCount(0),
   m_fetchMoreFragCount(0),
-  m_finalFragCount(0),
+  m_finalFragReceivedCount(0),
+  m_finalFragConsumedCount(0),
   m_ordering(NdbQueryOptions::ScanOrdering_void),
   m_keyRecord(NULL),
   m_resultRecord(NULL),
@@ -3486,7 +3525,7 @@ NdbQueryImpl::OrderedFragSet::getCurrent() const
      * Must have tuples for each (non-completed) fragment when doing ordered
      * scan.
      */
-    if (unlikely(m_activeFragCount+m_finalFragCount < m_capacity))
+    if (unlikely(m_activeFragCount+m_finalFragConsumedCount < m_capacity))
     {
       return NULL;
     }
@@ -3519,23 +3558,38 @@ NdbQueryImpl::OrderedFragSet::reorganize()
   // Remove the current fragment if the batch has been emptied.
   if (frag->isEmpty())
   {
-    if (frag->finalBatchReceived())
+    /**
+     * MT-note: Although ::finalBatchReceived() normally requires mutex,
+     * its safe to call it here wo/ mutex as:
+     *
+     *  - 'not hasRequestedMore()' guaranty that there can't be any
+     *     receiver thread simultaneously accessing the mutex protected members.
+     *  -  As this fragment has already been added to (the mutex protected)
+     *     class OrderedFragSet, we know that the mutex has been
+     *     previously set for this 'frag'. This would have resolved
+     *     any cache coherency problems related to mt'ed access to
+     *     'frag->finalBatchReceived()'.
+     */
+    if (!frag->hasRequestedMore() && frag->finalBatchReceived())
     {
-      m_finalFragCount++;
+      assert(m_finalFragReceivedCount > m_finalFragConsumedCount);
+      m_finalFragConsumedCount++;
     }
-    else
+
+    /**
+     * Without doublebuffering we can't 'fetchMore' for fragments until 
+     * the current ResultSet has been consumed bu application.
+     * (Compared to how ::prepareMoreResults() immediately 'fetchMore')
+     */  
+    else if (!useDoubleBuffers)
     {
       m_fetchMoreFrags[m_fetchMoreFragCount++] = frag;
     }
     m_activeFragCount--;
-    assert(m_activeFragCount + m_fetchMoreFragCount + m_finalFragCount 
-           <= m_capacity);
-
-    return;  // Remaining m_activeFrags[] are sorted
   }
 
-  // Reorder fragments if this is a sorted scan.
-  if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
+  // Reorder fragments if add'ed nonEmpty fragment to a sorted scan.
+  else if (m_ordering!=NdbQueryOptions::ScanOrdering_unordered)
   {
     /** 
      * This is a sorted scan. There are more data to be read from 
@@ -3578,43 +3632,82 @@ NdbQueryImpl::OrderedFragSet::reorganize()
     }
     assert(verifySortOrder());
   }
-  assert(m_activeFragCount + m_fetchMoreFragCount + m_finalFragCount 
-         <= m_capacity);
+  assert(m_activeFragCount+m_finalFragConsumedCount    <= m_capacity);
+  assert(m_fetchMoreFragCount+m_finalFragReceivedCount <= m_capacity);
 } // OrderedFragSet::reorganize()
 
 void 
 NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
 {
-  assert(m_activeFragCount+m_finalFragCount < m_capacity);
+  assert(m_activeFragCount+m_finalFragConsumedCount < m_capacity);
 
   m_activeFrags[m_activeFragCount++] = &frag;  // Add avail fragment
   reorganize();                                // Move into position
 } // OrderedFragSet::add()
 
+/**
+ * Scan rootFrags[] for fragments which has received a ResultSet batch.
+ * Add these to m_applFrags (Require mutex protection)
+ */
 void 
 NdbQueryImpl::OrderedFragSet::prepareMoreResults(NdbRootFragment rootFrags[], Uint32 cnt) 
 {
   for (Uint32 fragNo = 0; fragNo < cnt; fragNo++)
   {
     NdbRootFragment& rootFrag = rootFrags[fragNo];
-    if (rootFrag.hasReceivedMore())   // Another ResultSet is available
+    if (rootFrag.isEmpty() &&         // Current ResultSet is empty
+        rootFrag.hasReceivedMore())   // Another ResultSet is available
     {
+      if (rootFrag.finalBatchReceived())
+      {
+        m_finalFragReceivedCount++;
+      }
+      /**
+       * When doublebuffered fetch is active:
+       * Received fragment is a candidates for immediate prefetch.
+       */
+      else if (useDoubleBuffers)
+      {
+        m_fetchMoreFrags[m_fetchMoreFragCount++] = &rootFrag;
+      } // useDoubleBuffers
+
       rootFrag.grabNextResultSet();   // Get new ResultSet.
       add(rootFrag);                  // Make avail. to appl. thread
     }
   } // for all 'rootFrags[]'
 
-  assert(m_activeFragCount + m_fetchMoreFragCount + m_finalFragCount 
-         <= m_capacity);
+  assert(m_activeFragCount+m_finalFragConsumedCount    <= m_capacity);
+  assert(m_fetchMoreFragCount+m_finalFragReceivedCount <= m_capacity);
 } // OrderedFragSet::prepareMoreResults()
 
+/**
+ * Determine if a ::sendFetchMore() should be requested at this point.
+ */
 Uint32 
 NdbQueryImpl::OrderedFragSet::getFetchMore(NdbRootFragment** &frags)
 {
-  const int cnt = m_fetchMoreFragCount;
-  frags = m_fetchMoreFrags;
-  m_fetchMoreFragCount = 0;
-  return cnt;
+  /**
+   * Decides (pre-)fetch strategy:
+   *
+   *  1) No doublebuffered ResultSets: Immediately request prefetch.
+   *     (This is fetches related to 'isEmpty' fragments)
+   *  2) If ordered ResultSets; Immediately request prefetch.
+   *     (Need rows from all fragments to do sort-merge)
+   *  3) When unordered, reduce #NEXTREQs to TC by avoid prefetch
+   *     until there are pending request to all datanodes having more
+   *     ResultSets
+   */
+  if (m_fetchMoreFragCount > 0 &&
+      (!useDoubleBuffers  ||                                         // 1)
+       m_ordering != NdbQueryOptions::ScanOrdering_unordered ||      // 2)
+       m_fetchMoreFragCount+m_finalFragReceivedCount >= m_capacity)) // 3)
+  {
+    const int cnt = m_fetchMoreFragCount;
+    frags = m_fetchMoreFrags;
+    m_fetchMoreFragCount = 0;
+    return cnt;
+  }
+  return 0;
 }
 
 bool 

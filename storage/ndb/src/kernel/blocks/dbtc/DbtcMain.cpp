@@ -5757,6 +5757,16 @@ Dbtc::sendFireTrigReq(Signal* signal,
     regApiPtr.p->apiConnectstate = CS_WAIT_FIRE_TRIG_REQ;
     ndbrequire(pass < 255);
     regApiPtr.p->m_pre_commit_pass = (Uint8)(pass + 1);
+
+    /**
+     * Check if we are already finished...
+     */
+    if (regApiPtr.p->lqhkeyreqrec == regApiPtr.p->lqhkeyconfrec &&
+        regApiPtr.p->pendingTriggers == 0)
+    {
+      jam();
+      lqhKeyConf_checkTransactionState(signal, regApiPtr);
+    }
     return;
   }
   else
@@ -7511,7 +7521,11 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
 	<< " - exec: "
         << tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG)
 	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]
-	<< " code: " << errCode);
+	<< " code: " << errCode
+        << " lqhkeyreqrec: " << apiConnectptr.p->lqhkeyreqrec
+        << " lqhkeyconfrec: " << apiConnectptr.p->lqhkeyconfrec
+        << " pendingTriggers: " << apiConnectptr.p->pendingTriggers
+        );
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec &&
