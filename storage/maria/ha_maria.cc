@@ -3391,7 +3391,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   *engine_data= 0;
 
   if (file->s->now_transactional && file->s->have_versioning)
-    return (file->trn->trid >= file->s->state.last_change_trn);
+    DBUG_RETURN(file->trn->trid >= file->s->state.last_change_trn);
 
   /*
     If a concurrent INSERT has happened just before the currently processed

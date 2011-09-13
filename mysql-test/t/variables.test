@@ -36,6 +36,7 @@ set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
 set @my_delay_key_write           =@@global.delay_key_write;
 set @my_join_buffer_size          =@@global.join_buffer_size;
+set @my_log_warnings               =@@global.log_warnings;
 # case insensitivity tests (new in 5.0)
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
@@ -843,6 +844,7 @@ set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        = default;
 set global delay_key_write           =@my_delay_key_write;
 set global join_buffer_size          =@my_join_buffer_size;
+set global log_warnings              =@my_log_warnings;
 
 #
 # Bug#28580 Repeatation of status variables
