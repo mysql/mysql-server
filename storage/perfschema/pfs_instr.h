@@ -268,6 +268,8 @@ struct PFS_socket : public PFS_instr
   - "wait/lock/table/sql/handler"
   are implemented by calling code in a storage engine,
   that can cause nested waits (file io, mutex, ...)
+  Because of partitioned tables, a table io event (on the whole table)
+  can contain a nested table io event (on a partition).
   Because of additional debug instrumentation,
   waiting on what looks like a "mutex" (safe_mutex, innodb sync0sync, ...)
   can cause nested waits to be recorded.
@@ -278,7 +280,7 @@ struct PFS_socket : public PFS_instr
   The max depth of the event stack must be sufficient
   for these low level details to be visible.
 */
-#define WAIT_STACK_LOGICAL_SIZE 4
+#define WAIT_STACK_LOGICAL_SIZE 5
 /**
   @def WAIT_STACK_BOTTOM
   Maximum number dummy waits records.
