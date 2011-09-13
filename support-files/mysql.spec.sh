@@ -535,7 +535,7 @@ install -m 644 "%{malloc_lib_source}" \
 
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
-rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+# This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1153,6 +1153,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Sep 13 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- "make_win_bin_dist" and its manual are dropped, cmake does it different.
+
 * Tue Aug 30 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Add the manual page for "mysql_plugin" to the server package.
