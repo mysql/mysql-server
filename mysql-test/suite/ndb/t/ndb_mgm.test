@@ -50,6 +50,9 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_mgm_show
   FIELDS TERMINATED BY '\n';
 --remove_file $dump_file
 
+# Remove Windows line feeds
+UPDATE ndb_mgm_show SET a = TRIM(TRAILING "\r" FROM a);
+
 # Show the two data nodes
 --replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
 SELECT a as 'ndbd(s)' FROM ndb_mgm_show
