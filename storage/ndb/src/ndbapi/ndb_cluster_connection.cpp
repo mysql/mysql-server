@@ -382,6 +382,11 @@ Ndb_cluster_connection_impl(const char * connect_string,
       of order.  Same applies for regular ndbapi user.
     */
     g_eventLogger->setRepeatFrequency(0);
+
+#ifdef VM_TRACE
+    ndb_print_state_mutex= NdbMutex_Create();
+#endif
+
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -394,10 +399,6 @@ Ndb_cluster_connection_impl(const char * connect_string,
   /* Clear global stats baseline */
   memset(globalApiStatsBaseline, 0, sizeof(globalApiStatsBaseline));
 
-#ifdef VM_TRACE
-  if (ndb_print_state_mutex == NULL)
-    ndb_print_state_mutex= NdbMutex_Create();
-#endif
   m_config_retriever=
     new ConfigRetriever(connect_string, force_api_nodeid,
                         NDB_VERSION, NDB_MGM_NODE_TYPE_API);
@@ -475,18 +476,17 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     delete m_config_retriever;
     m_config_retriever= NULL;
   }
-#ifdef VM_TRACE
-  if (ndb_print_state_mutex != NULL)
-  {
-    NdbMutex_Destroy(ndb_print_state_mutex);
-    ndb_print_state_mutex= NULL;
-  }
-#endif
 
   NdbMutex_Lock(g_ndb_connection_mutex);
   if(--g_ndb_connection_count == 0)
   {
     NdbColumnImpl::destory_pseudo_columns();
+
+#ifdef VM_TRACE
+    NdbMutex_Destroy(ndb_print_state_mutex);
+    ndb_print_state_mutex= NULL;
+#endif
+
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -834,7 +834,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       DBUG_RETURN(1); // mgmt server not up yet
     }
 
-    Uint32 nodeId = m_config_retriever->allocNodeId(4/*retries*/,
+    Uint32 nodeId = m_config_retriever->allocNodeId(10/*retries*/,
                                                     3/*delay*/);
     if(nodeId == 0)
       break;
