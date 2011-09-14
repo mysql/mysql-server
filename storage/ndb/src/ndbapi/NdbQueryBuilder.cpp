@@ -53,6 +53,7 @@ static const bool doPrintQueryTree = false;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_MemoryAlloc = 4000;
+static const int Err_UnknownColumn = 4004;
 static const int Err_FinaliseNotCalled = 4519;
 
 static void
@@ -181,6 +182,7 @@ protected:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error);
 
   virtual const NdbQueryLookupOperationDef& getInterface() const
@@ -213,8 +215,9 @@ private:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error)
-    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,error)
+    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,id,error)
   {}
 
   virtual NdbQueryOperationDef::Type getType() const
@@ -242,8 +245,10 @@ private:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error)
-    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,error),
+    // Add 1 to 'id' since index lookup is serialized as two operations.
+    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,id+1,error),
     m_index(index)
   {}
 
@@ -276,8 +281,9 @@ private:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error)
-    : NdbQueryScanOperationDefImpl(table,options,ident,ix,error),
+    : NdbQueryScanOperationDefImpl(table,options,ident,ix,id,error),
       m_interface(*this) 
   {}
 
@@ -805,11 +811,11 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   NdbQueryOperationDefImpl& parentImpl = parent->getImpl();
 
   // Parent should be a OperationDef contained in this query builder context
-  returnErrIf(!m_impl.contains(&parentImpl), QRY_UNKONWN_PARENT);
+  returnErrIf(!m_impl.contains(&parentImpl), QRY_UNKNOWN_PARENT);
 
   // 'attr' should refer a column from the underlying table in parent:
   const NdbColumnImpl* column = parentImpl.getTable().getColumn(attr);
-  returnErrIf(column==0, QRY_UNKNOWN_COLUMN); // Unknown column
+  returnErrIf(column==0, Err_UnknownColumn); // Unknown column
 
   // Locate refered parrent column in parent operations SPJ projection list;
   // Add if not already present
@@ -825,6 +831,21 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
     (m_impl.addOperand(new NdbLinkedOperandImpl(parentImpl,colIx)));
 }
 
+// Check if there is at least one linked operand.
+static bool hasLinkedOperand(const NdbQueryOperand* const keys[])
+{
+  int i = 0;
+  while (keys[i] != NULL)
+  {
+    if (keys[i]->getImpl().getKind() == NdbQueryOperandImpl::Linked)
+    {
+      return true;
+    }
+    i++;
+  }
+  return false;
+}
+
 const NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
@@ -836,6 +857,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
     return NULL;
 
   returnErrIf(table==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+  // All operations but the first one must depend on some other operation.
+  returnErrIf(m_impl.m_operations.size() > 0 && !hasLinkedOperand(keys),
+              QRY_UNKNOWN_PARENT);
 
   const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
 
@@ -859,6 +883,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
                                        m_impl.m_operations.size(),
+                                       m_impl.getNextId(),
                                        error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -895,7 +920,11 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 
   if (m_impl.hasError())
     return NULL;
+
   returnErrIf(table==0 || index==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+  // All operations but the first one must depend on some other operation.
+  returnErrIf(m_impl.m_operations.size() > 0 && !hasLinkedOperand(keys),
+              QRY_UNKNOWN_PARENT);
 
   const NdbIndexImpl& indexImpl = NdbIndexImpl::getImpl(*index);
   const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
@@ -928,6 +957,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
                                        m_impl.m_operations.size(),
+                                       m_impl.getNextId(),
                                        error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -955,6 +985,12 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   if (m_impl.hasError())
     return NULL;
   returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
+  /**
+   * A table scan does not depend on other operations, since there cannot be
+   * linked operands in a scan filter. Therefore, it must be the first
+   * operation.
+   */
+  returnErrIf(m_impl.m_operations.size() > 0, QRY_UNKNOWN_PARENT);
 
   int error = 0;
   NdbQueryTableScanOperationDefImpl* op =
@@ -962,6 +998,7 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
                                           m_impl.m_operations.size(),
+                                          m_impl.getNextId(),
                                           error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -982,6 +1019,33 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     return NULL;
   // Required non-NULL arguments
   returnErrIf(table==0 || index==0, QRY_REQ_ARG_IS_NULL);
+
+  if (m_impl.m_operations.size() > 0)
+  {
+    // All operations but the first one must depend on some other operation.
+    returnErrIf(bound == NULL ||
+                (!hasLinkedOperand(bound->m_low) &&
+                 !hasLinkedOperand(bound->m_high)),
+                QRY_UNKNOWN_PARENT);
+
+    // Scan with root lookup operation has not been implemented.
+    returnErrIf(!m_impl.m_operations[0]->isScanOperation(),
+                QRY_WRONG_OPERATION_TYPE);
+
+    // If the root is a sorted scan, we should not add another scan.
+    const NdbQueryOptions::ScanOrdering rootOrder =
+      m_impl.m_operations[0]->getOrdering();
+    returnErrIf(rootOrder == NdbQueryOptions::ScanOrdering_ascending ||
+                rootOrder == NdbQueryOptions::ScanOrdering_descending,
+                QRY_MULTIPLE_SCAN_SORTED);
+
+    // A child scan should not be sorted.
+    const NdbQueryOptions::ScanOrdering order =
+      options->getImpl().getOrdering();
+    returnErrIf(order == NdbQueryOptions::ScanOrdering_ascending ||
+                order == NdbQueryOptions::ScanOrdering_descending,
+                QRY_MULTIPLE_SCAN_SORTED);
+  }
 
   const NdbIndexImpl& indexImpl = NdbIndexImpl::getImpl(*index);
   const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
@@ -1004,6 +1068,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
                                           m_impl.m_operations.size(),
+                                          m_impl.getNextId(),
                                           error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -1080,10 +1145,7 @@ void NdbQueryBuilderImpl::setErrorCode(int aErrorCode)
 { 
   DBUG_ASSERT(aErrorCode != 0);
   m_error.code = aErrorCode;
-  if (aErrorCode == Err_MemoryAlloc)
-  {
-    m_hasError = true;
-  }
+  m_hasError = true;
 }
 
 bool 
@@ -1100,10 +1162,15 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
 const NdbQueryDefImpl*
 NdbQueryBuilderImpl::prepare()
 {
-  const bool sorted =
-    m_operations.size() > 0 &&
-    m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
-    m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_void;
+  if (hasError())
+  {
+    return NULL;
+  }
+  if (m_operations.size() == 0)
+  {
+    setErrorCode(QRY_HAS_ZERO_OPERATIONS);
+    return NULL;
+  }
 
   int error;
   NdbQueryDefImpl* def = new NdbQueryDefImpl(m_operations, m_operands, error);
@@ -1115,16 +1182,6 @@ NdbQueryBuilderImpl::prepare()
   if(unlikely(error!=0)){
     delete def;
     setErrorCode(error);
-    return NULL;
-  }
-
-  /* Check if query is sorted and has multiple scan operations. This 
-   * combination is not implemented.
-   */
-  if (sorted && def->getQueryType() == NdbQueryDef::MultiScanQuery)
-  {
-    delete def;
-    setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
     return NULL;
   }
 
@@ -1194,26 +1251,22 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
     return;
   }
 
-  Uint32 nodeId = 0;
-
   /* Grab first word, such that serialization of operation 0 will start from 
    * offset 1, leaving space for the length field to be updated later
    */
   m_serializedDef.append(0); 
   for(Uint32 i = 0; i<m_operations.size(); i++){
     NdbQueryOperationDefImpl* op =  m_operations[i];
-    op->assignQueryOperationId(nodeId);
     error = op->serializeOperation(m_serializedDef);
     if(unlikely(error != 0)){
       return;
     }
   }
-  assert (nodeId >= m_operations.size());
 
   // Set length and number of nodes in tree.
   Uint32 cntLen;
   QueryTree::setCntLen(cntLen, 
-		       nodeId,
+		       m_operations[m_operations.size()-1]->getQueryOperationId()+1,
 		       m_serializedDef.getSize());
   m_serializedDef.put(0,cntLen);
 
@@ -1579,8 +1632,9 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error)
-  : NdbQueryOperationDefImpl(table,options,ident,ix,error),
+  : NdbQueryOperationDefImpl(table,options,ident,ix,id,error),
    m_interface(*this)
 {
   int i;
@@ -1601,8 +1655,9 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error)
-  : NdbQueryScanOperationDefImpl(table,options,ident,ix,error),
+  : NdbQueryScanOperationDefImpl(table,options,ident,ix,id,error),
   m_interface(*this), 
   m_index(index)
 {
@@ -1841,12 +1896,13 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
                                      Uint32      ix,
+                                     Uint32      id,
                                      int& error)
   :m_isPrepared(false), 
    m_diskInChildProjection(false), 
    m_table(table), 
    m_ident(ident), 
-   m_ix(ix), m_id(ix),
+   m_ix(ix), m_id(id),
    m_options(options),
    m_parent(NULL), 
    m_children(), 
@@ -1857,6 +1913,11 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
   {
     // Heap allocation in Vector() must have failed.
     error = Err_MemoryAlloc;
+    return;
+  }
+  if (unlikely(m_id >= NDB_SPJ_MAX_TREE_NODES))
+  {
+    error = QRY_DEFINITION_TOO_LARGE;
     return;
   }
   if (m_options.m_parent != NULL)
@@ -2690,8 +2751,9 @@ NdbQueryScanOperationDefImpl::NdbQueryScanOperationDefImpl (
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error)
-  : NdbQueryOperationDefImpl(table,options,ident,ix,error)
+  : NdbQueryOperationDefImpl(table,options,ident,ix,id,error)
 {}
 
 int
