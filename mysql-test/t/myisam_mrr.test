@@ -218,6 +218,47 @@ where
 
 set join_cache_level= @save_join_cache_level;
 set join_buffer_size= @save_join_buffer_size;
-set optimizer_switch= @myisam_mrr_tmp;
 drop table t1;
 
+
+--echo #
+--echo # BUG#730133: Wrong result with jkl = 7, BKA, ICP in maria-5.3 + compound index
+--echo #
+set @tmp_730133_jcl= @@join_cache_level;
+set join_cache_level = 7;
+
+set @tmp_730133_os= @@optimizer_switch;
+set optimizer_switch= 'join_cache_hashed=off,join_cache_bka=on,index_condition_pushdown=on,optimize_join_buffer_size=on';
+
+CREATE TABLE t1 (f1 int, f2 int, f3 int, f4 int, f5 int, KEY (f4,f3));
+INSERT IGNORE INTO t1 VALUES ('2','9','5','0','0'),('4','7','0','0','0'),
+  ('6','97','190','0','0'),('7','3','6','0','0'),('11','101','186','0','0'),
+  ('14','194','226','0','0'),('15','148','133','0','0'),
+  ('16','9','6','0','0'),('17','9','3','0','0'),('18','1','8','0','0'),
+  ('19','1','5','0','0'),('20','5','7','0','0');
+
+explain
+SELECT COUNT(alias2.f2) 
+FROM 
+  t1 STRAIGHT_JOIN 
+  t1 AS alias3 STRAIGHT_JOIN 
+  t1 AS alias2 FORCE KEY (f4) 
+WHERE 
+  alias2.f4=alias3.f5  AND 
+  alias2.f3 > alias3.f1;
+
+SELECT COUNT(alias2.f2) 
+FROM 
+  t1 STRAIGHT_JOIN 
+  t1 AS alias3 STRAIGHT_JOIN 
+  t1 AS alias2 FORCE KEY (f4) 
+WHERE 
+  alias2.f4=alias3.f5  AND 
+  alias2.f3 > alias3.f1;
+
+set @@join_cache_level= @tmp_730133_jcl;
+set @@optimizer_switch= @tmp_730133_os;
+drop table t1;
+
+## This must be last line in the file:
+set optimizer_switch= @myisam_mrr_tmp;

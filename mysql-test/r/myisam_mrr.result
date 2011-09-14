@@ -509,5 +509,44 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	table3	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.table2.col_varchar_key	3	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 set join_cache_level= @save_join_cache_level;
 set join_buffer_size= @save_join_buffer_size;
-set optimizer_switch= @myisam_mrr_tmp;
 drop table t1;
+#
+# BUG#730133: Wrong result with jkl = 7, BKA, ICP in maria-5.3 + compound index
+#
+set @tmp_730133_jcl= @@join_cache_level;
+set join_cache_level = 7;
+set @tmp_730133_os= @@optimizer_switch;
+set optimizer_switch= 'join_cache_hashed=off,join_cache_bka=on,index_condition_pushdown=on,optimize_join_buffer_size=on';
+CREATE TABLE t1 (f1 int, f2 int, f3 int, f4 int, f5 int, KEY (f4,f3));
+INSERT IGNORE INTO t1 VALUES ('2','9','5','0','0'),('4','7','0','0','0'),
+('6','97','190','0','0'),('7','3','6','0','0'),('11','101','186','0','0'),
+('14','194','226','0','0'),('15','148','133','0','0'),
+('16','9','6','0','0'),('17','9','3','0','0'),('18','1','8','0','0'),
+('19','1','5','0','0'),('20','5','7','0','0');
+explain
+SELECT COUNT(alias2.f2) 
+FROM 
+t1 STRAIGHT_JOIN 
+t1 AS alias3 STRAIGHT_JOIN 
+t1 AS alias2 FORCE KEY (f4) 
+WHERE 
+alias2.f4=alias3.f5  AND 
+alias2.f3 > alias3.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	f4	10	NULL	12	Using index
+1	SIMPLE	alias3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	alias2	ref	f4	f4	5	test.alias3.f5	2	Using index condition(BKA); Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
+SELECT COUNT(alias2.f2) 
+FROM 
+t1 STRAIGHT_JOIN 
+t1 AS alias3 STRAIGHT_JOIN 
+t1 AS alias2 FORCE KEY (f4) 
+WHERE 
+alias2.f4=alias3.f5  AND 
+alias2.f3 > alias3.f1;
+COUNT(alias2.f2)
+768
+set @@join_cache_level= @tmp_730133_jcl;
+set @@optimizer_switch= @tmp_730133_os;
+drop table t1;
+set optimizer_switch= @myisam_mrr_tmp;
