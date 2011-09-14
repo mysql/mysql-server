@@ -1893,11 +1893,7 @@ NdbQueryImpl*
 NdbQueryImpl::buildQuery(NdbTransaction& trans, 
                          const NdbQueryDefImpl& queryDef)
 {
-  if (queryDef.getNoOfOperations()==0) {
-    trans.setErrorCode(QRY_HAS_ZERO_OPERATIONS);
-    return NULL;
-  }
-
+  assert(queryDef.getNoOfOperations() > 0);
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
@@ -2001,24 +1997,33 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
                        const NdbIndexScanOperation::IndexBound *bound)
 {
   m_prunability = Prune_Unknown;
-  if (unlikely(bound==NULL))
+  if (unlikely(key_record == NULL || bound==NULL))
     return QRY_REQ_ARG_IS_NULL;
 
-  assert (getRoot().getQueryOperationDef().getType() 
-          == NdbQueryOperationDef::OrderedIndexScan);
+  if (unlikely(getRoot().getQueryOperationDef().getType()
+               != NdbQueryOperationDef::OrderedIndexScan))
+  {
+    return QRY_WRONG_OPERATION_TYPE;
+  }
+
+  assert(m_state >= Defined);
+  if (m_state != Defined)
+  {
+    return QRY_ILLEGAL_STATE;
+  }
+
   int startPos = m_keyInfo.getSize();
 
   // We don't handle both NdbQueryIndexBound defined in ::scanIndex()
   // in combination with a later ::setBound(NdbIndexScanOperation::IndexBound)
 //assert (m_bound.lowKeys==0 && m_bound.highKeys==0);
 
-  if (unlikely(bound->range_no > NdbIndexScanOperation::MaxRangeNo))
+  if (unlikely(bound->range_no != m_num_bounds ||
+               bound->range_no > NdbIndexScanOperation::MaxRangeNo))
   {
  // setErrorCodeAbort(4286);
     return Err_InvalidRangeNo;
   }
-  assert (bound->range_no == m_num_bounds);
-  m_num_bounds++;
 
   Uint32 key_count= bound->low_key_count;
   Uint32 common_key_count= key_count;
@@ -2126,8 +2131,7 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
   ndbout << endl;
 #endif
 
-  assert(m_state<=Defined);
-  m_state = Defined;
+  m_num_bounds++;
   return 0;
 } // NdbQueryImpl::setBound()
 
@@ -2560,24 +2564,6 @@ NdbQueryImpl::setErrorCode(int aErrorCode)
   case Err_TupleNotFound:
     // Simple or dirty read failed due to node failure. Transaction will be aborted.
   case Err_SimpleDirtyReadFailed:
-    /** 
-     * Theses are application errorsthat means that a give method invocation fails,
-     * but there is no need to abort the transaction.
-     */
-  case Err_FunctionNotImplemented:
-  case Err_UnknownColumn:
-  case Err_WrongFieldLength:
-  case Err_InvalidRangeNo:
-  case Err_DifferentTabForKeyRecAndAttrRec:
-  case Err_KeyIsNULL:
-  case QRY_REQ_ARG_IS_NULL:
-  case QRY_PARAMETER_HAS_WRONG_TYPE:
-  case QRY_RESULT_ROW_ALREADY_DEFINED:
-  case QRY_CHAR_OPERAND_TRUNCATED:
-  case QRY_WRONG_OPERATION_TYPE:
-  case QRY_SEQUENTIAL_SCAN_SORTED:
-  case QRY_SCAN_ORDER_ALREADY_SET:
-  case QRY_MULTIPLE_SCAN_SORTED:
     m_transaction.setOperationErrorCode(aErrorCode);
     break;
 
@@ -3922,6 +3908,10 @@ NdbQueryOperationImpl::getValue(
                             const char* anAttrName,
                             char* resultBuffer)
 {
+  if (unlikely(anAttrName == NULL)) {
+    getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
+    return NULL;
+  }
   const NdbColumnImpl* const column 
     = m_operationDef.getTable().getColumn(anAttrName);
   if(unlikely(column==NULL)){
@@ -4520,7 +4510,15 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     }
   }
 
-  if (m_ndbRecord!=NULL || m_firstRecAttr!=NULL)
+  if (m_ndbRecord==NULL && m_firstRecAttr==NULL)
+  {
+    // Leaf operations with empty projections are not supported.
+    if (getNoOfChildOperations() == 0)
+    {
+      return QRY_EMPTY_PROJECTION;
+    }
+  }
+  else
   {
     requestInfo |= DABits::PI_ATTR_LIST;
     const int error = serializeProject(attrInfo);
@@ -4683,8 +4681,8 @@ serializeConstOp(const NdbConstOperandImpl& constOp,
       break;
 
     case NdbDictionary::Column::ArrayTypeShortVar:
-      if (unlikely(len > 0xFF))
-        return QRY_CHAR_OPERAND_TRUNCATED;
+      // Such errors should have been caught in convert2ColumnType().
+      assert(len <= 0xFF);
       shortLen[0] = (unsigned char)len;
       buffer.appendBytes(shortLen, 1);
       buffer.appendBytes(constOp.getAddr(), len);
@@ -4692,8 +4690,8 @@ serializeConstOp(const NdbConstOperandImpl& constOp,
       break;
 
     case NdbDictionary::Column::ArrayTypeMediumVar:
-      if (unlikely(len > 0xFFFF))
-        return QRY_CHAR_OPERAND_TRUNCATED;
+      // Such errors should have been caught in convert2ColumnType().
+      assert(len <= 0xFFFF);
       shortLen[0] = (unsigned char)(len & 0xFF);
       shortLen[1] = (unsigned char)(len >> 8);
       buffer.appendBytes(shortLen, 2);
