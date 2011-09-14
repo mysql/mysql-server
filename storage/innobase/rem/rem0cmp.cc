@@ -914,7 +914,7 @@ cmp_rec_rec_with_match(
 		ulint	mtype;
 		ulint	prtype;
 
-		if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+		if (dict_index_is_univ(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
 			prtype = 0;

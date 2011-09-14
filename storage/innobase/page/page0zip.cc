@@ -645,7 +645,7 @@ page_zip_dir_encode(
 		}
 
 		info_bits = rec_get_info_bits(rec, TRUE);
-		if (UNIV_UNLIKELY(info_bits & REC_INFO_DELETED_FLAG)) {
+		if (info_bits & REC_INFO_DELETED_FLAG) {
 			info_bits &= ~REC_INFO_DELETED_FLAG;
 			offs |= PAGE_ZIP_DIR_SLOT_DEL;
 		}
@@ -1097,7 +1097,7 @@ page_zip_compress_clust(
 		/* Check if there are any externally stored columns.
 		For each externally stored column, store the
 		BTR_EXTERN_FIELD_REF separately. */
-		if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
+		if (rec_offs_any_extern(offsets)) {
 			ut_ad(dict_index_is_clust(index));
 
 			err = page_zip_compress_clust_ext(
@@ -1761,7 +1761,7 @@ page_zip_set_extra_bytes(
 	for (i = 0; i < n; i++) {
 		offs = page_zip_dir_get(page_zip, i);
 
-		if (UNIV_UNLIKELY(offs & PAGE_ZIP_DIR_SLOT_DEL)) {
+		if (offs & PAGE_ZIP_DIR_SLOT_DEL) {
 			info_bits |= REC_INFO_DELETED_FLAG;
 		}
 		if (UNIV_UNLIKELY(offs & PAGE_ZIP_DIR_SLOT_OWNED)) {
@@ -2643,7 +2643,7 @@ page_zip_decompress_clust(
 		For each externally stored column, restore the
 		BTR_EXTERN_FIELD_REF separately. */
 
-		if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
+		if (rec_offs_any_extern(offsets)) {
 			if (UNIV_UNLIKELY
 			    (!page_zip_decompress_clust_ext(
 				    d_stream, rec, offsets, trx_id_col))) {
@@ -4308,7 +4308,7 @@ page_zip_dir_add_slot(
 	if (!page_is_leaf(page_zip->data)) {
 		ut_ad(!page_zip->n_blobs);
 		stored = dir - n_dense * REC_NODE_PTR_SIZE;
-	} else if (UNIV_UNLIKELY(is_clustered)) {
+	} else if (is_clustered) {
 		/* Move the BLOB pointer array backwards to make space for the
 		roll_ptr and trx_id columns and the dense directory slot. */
 		byte*	externs;
@@ -4510,7 +4510,7 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
+	if (!page_zip_compress(page_zip, page, index, mtr)) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);

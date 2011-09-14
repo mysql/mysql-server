@@ -75,7 +75,7 @@ row_build_index_entry(
 	entry_len = dict_index_get_n_fields(index);
 	entry = dtuple_create(heap, entry_len);
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
 		/* There may only be externally stored columns
 		in a clustered index B-tree of a user table. */
@@ -124,7 +124,7 @@ row_build_index_entry(
 		stored off-page. */
 		ut_ad(col->ord_part);
 
-		if (UNIV_LIKELY_NULL(ext)) {
+		if (ext) {
 			/* See if the column is stored externally. */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);

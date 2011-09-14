@@ -2074,6 +2074,7 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -2161,6 +2162,7 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -2265,6 +2267,7 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -2398,6 +2401,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -2511,6 +2515,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -2603,6 +2608,7 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   {
     if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
     {
+      DBUG_ASSERT(0);
       locker_lost++;
       return NULL;
     }
@@ -2674,6 +2680,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -2774,6 +2781,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -2869,6 +2877,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }
@@ -3132,6 +3141,7 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
     {
       if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
+        DBUG_ASSERT(0);
         locker_lost++;
         return NULL;
       }

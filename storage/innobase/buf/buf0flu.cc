@@ -342,7 +342,7 @@ buf_flush_insert_into_flush_list(
 	{
 		ulint	zip_size = buf_block_get_zip_size(block);
 
-		if (UNIV_UNLIKELY(zip_size)) {
+		if (zip_size) {
 			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
 		} else {
 			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
@@ -402,7 +402,7 @@ buf_flush_insert_sorted_into_flush_list(
 	{
 		ulint	zip_size = buf_block_get_zip_size(block);
 
-		if (UNIV_UNLIKELY(zip_size)) {
+		if (zip_size) {
 			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
 		} else {
 			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
@@ -818,7 +818,7 @@ buf_flush_write_block_to_datafile(
 	ut_a(block);
 	ut_a(buf_page_in_file(&block->page));
 
-	if (UNIV_LIKELY_NULL(block->page.zip.data)) {
+	if (block->page.zip.data) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		       FALSE, buf_page_get_space(&block->page),
 		       buf_page_get_zip_size(&block->page),
@@ -1024,7 +1024,7 @@ try_again:
 
 	zip_size = buf_page_get_zip_size(bpage);
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		UNIV_MEM_ASSERT_RW(bpage->zip.data, zip_size);
 		/* Copy the compressed page and clear the rest. */
 		memcpy(trx_doublewrite->write_buf
