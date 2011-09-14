@@ -160,6 +160,25 @@ after_--enable_abort_on_error
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064...
+garbage;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 2;
+select 3;
+3
+3
+select 5;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 7;
+7
+7
+mysqltest: At line 1: End of line junk detected: "OCNE"
+connect  con1,localhost,root,,;
+select 5 from t1;
+lower
+case
+name
+abc
+xyz
 hello
 hello
 ;;;;;;;;

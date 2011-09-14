@@ -383,6 +383,54 @@ select 3 from t1 ;
 --error 1
 --exec echo "disable_abort_on_error; enable_abort_on_error; error 1064; select 3 from t1; select 3 from t1;" | $MYSQL_TEST  2>&1
 
+# ----------------------------------------------------------------------------
+# Test --enable and --disable with ONCE
+# ----------------------------------------------------------------------------
+
+--disable_abort_on_error ONCE
+garbage;
+--disable_abort_on_error ONCE
+--remove_file DoesNotExist
+
+--disable_result_log
+select 2;
+--enable_result_log ONCE
+select 3;
+select 5;
+--enable_result_log
+
+# ----------------------------------------------------------------------------
+# Test cumulative ONCE
+# ----------------------------------------------------------------------------
+
+--disable_abort_on_error ONCE
+--disable_query_log ONCE
+select 3 from t1;
+select 7;
+
+--error 1
+--exec echo "--disable_info OCNE" | $MYSQL_TEST 2>&1
+
+--enable_connect_log ONCE
+connect (con1,localhost,root,,);
+connection default;
+disconnect con1;
+
+# ----------------------------------------------------------------------------
+# Test ONCE can be combined with --error or modifiers like lowercase
+# ----------------------------------------------------------------------------
+
+--disable_result_log ONCE
+--error ER_NO_SUCH_TABLE
+select 5 from t1;
+
+--disable_query_log ONCE
+--lowercase_result
+select "CASE" as "LOWER";
+
+--sorted_result
+--disable_query_log ONCE
+select "xyz" as name union select "abc" as name order by name desc;
 
 # ----------------------------------------------------------------------------
 # Test comments
@@ -952,10 +1000,9 @@ while ($outer)
     --source $MYSQLTEST_VARDIR/tmp/sourced.inc
     --error ER_NO_SUCH_TABLE
     SELECT * from nowhere;
-    --disable_abort_on_error
+    --disable_abort_on_error ONCE
 # Statement giving a different error, to make sure we don't mask it
     SELECT * FROM nowhere else;
-    --enable_abort_on_error
   }
   dec $outer;
   inc $ifval;
@@ -2506,10 +2553,9 @@ INSERT INTO t1 SELECT f1 - 64 FROM t1;
 INSERT INTO t1 SELECT f1 - 128 FROM t1;
 INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
---disable_result_log
+--disable_result_log ONCE
 --sorted_result
 SELECT * FROM t1;
---enable_result_log
 DROP TABLE t1;
 
 # ----------------------------------------------------------------------------
@@ -2557,11 +2603,9 @@ SELECT 0 as "WILL NOT lower case ÄËÐ";
 --exec $MYSQL_TEST --help 2>&1 > /dev/null
 --exec $MYSQL_TEST --version 2>&1 > /dev/null
 --enable_query_log
---disable_abort_on_error
+--disable_abort_on_error ONCE
 --error 1
 --exec $MYSQL_TEST a b c 2>&1 > /dev/null
---enable_abort_on_error
---enable_query_log
 
 # ----------------------------------------------------------------------------
 # test for query_get_value
