@@ -15,7 +15,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
        ) {
   /* Do nothing */
-  printf("FLUSH: %d\n", (int)k.b);
+  if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
   //usleep (5*1024*1024);
 }
 
