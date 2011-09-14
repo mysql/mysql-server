@@ -27,8 +27,7 @@
 #define QRY_CHAR_OPERAND_TRUNCATED 4804
 #define QRY_NUM_OPERAND_RANGE 4805
 #define QRY_MULTIPLE_PARENTS 4806
-#define QRY_UNKONWN_PARENT 4807
-#define QRY_UNKNOWN_COLUMN 4808
+#define QRY_UNKNOWN_PARENT 4807
 #define QRY_UNRELATED_INDEX 4809
 #define QRY_WRONG_INDEX_TYPE 4810
 #define QRY_OPERAND_ALREADY_BOUND 4811
@@ -44,6 +43,7 @@
 #define QRY_CHAR_PARAMETER_TRUNCATED 4823
 #define QRY_MULTIPLE_SCAN_SORTED 4824
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
+#define QRY_EMPTY_PROJECTION 4826
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -274,6 +274,9 @@ public:
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
 
+  NdbQueryOptions::ScanOrdering getOrdering() const
+  { return m_scanOrder; }
+
 private:
   NdbQueryOptions::MatchType     m_matchType;
   NdbQueryOptions::ScanOrdering  m_scanOrder;
@@ -342,12 +345,6 @@ public:
 
   const NdbInterpretedCode* getInterpretedCode() const
   { return m_options.m_interpretedCode; }
-
-  Uint32 assignQueryOperationId(Uint32& nodeId)
-  { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
-    m_id = nodeId++;
-    return m_id;
-  }
 
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
@@ -418,6 +415,7 @@ protected:
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
                                      Uint32 ix,
+                                     Uint32 id,
                                      int& error);
 public:
   // Get the ordinal position of this operation within the query def.
@@ -475,7 +473,7 @@ private:
   const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
   const Uint32 m_ix;         // Index of this operation within operation array
-  Uint32       m_id;         // Operation id when materialized into queryTree.
+  const Uint32 m_id;         // Operation id when materialized into queryTree.
                              // If op has index, index id is 'm_id-1'.
 
   // Optional (or default) options specified when building query:
@@ -505,6 +503,7 @@ public:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error);
 
   virtual bool isScanOperation() const
@@ -563,6 +562,7 @@ private:
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
                            Uint32      ix,
+                           Uint32      id,
                            int& error);
 
   // Append pattern for creating a single bound value to serialized code 
@@ -665,6 +665,13 @@ private:
   int takeOwnership(NdbQueryOperationDefImpl*);
 
   bool contains(const NdbQueryOperationDefImpl*);
+
+  // Get interal operation number of the next operation.
+  Uint32 getNextId() const
+  { 
+    return m_operations.size() == 0 ? 0 :
+      m_operations[m_operations.size()-1]->getQueryOperationId()+1; 
+  }
 
   NdbQueryBuilder m_interface;
   NdbError m_error;
