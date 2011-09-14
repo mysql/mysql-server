@@ -52,7 +52,7 @@ static const bool testNextReq = false;
 
 // Use double buffered ResultSets, may later change 
 // to be more adaptive based on query type
-static const bool useDoubleBuffers = false;
+static const bool useDoubleBuffers = true;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_TupleNotFound = 626;
