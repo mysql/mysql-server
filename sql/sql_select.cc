@@ -1732,10 +1732,13 @@ make_pushed_join(THD *thd, JOIN *join)
 
   // Let handler extract whatever it might implement of pushed joins
   AQP::Join_plan plan(join);
+  uint pushed;
 
-  const int error= ha_make_pushed_joins(thd, &plan);
+  const int error= ha_make_pushed_joins(thd, &plan, &pushed);
   if (unlikely(error))
     return error;
+  if (pushed==0)
+    return 0;          // Didn't push anything
 
   // Set up table accessors for child operations of pushed joins
   for (uint i=join->const_tables ; i < join->tables ; i++)
