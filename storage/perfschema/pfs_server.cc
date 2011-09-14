@@ -97,7 +97,8 @@ initialize_performance_schema(const PFS_global_param *param)
       init_user_hash() ||
       init_account(param) ||
       init_account_hash() ||
-      init_digest(param->m_digest_sizing))
+      init_digest(param->m_digest_sizing) ||
+      init_digest_hash())
   {
     /*
       The performance schema initialization failed.

@@ -4868,11 +4868,17 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
             digest.m_md5[12], digest.m_md5[13], digest.m_md5[14],
             digest.m_md5[15]);
 
-    /* 
-      Populate PFS_statements_digest_stat with this information. 
-      TODO: create DIGEST_TEXT from tokens and pass it.
+    /*
+      TODO: create DIGEST_TEXT from tokens and pass it to 
+            insert_statement_digest() below. Hard coded to 
+            "DIGEST_TEXT" as of now.
     */
-    insert_statement_digest(digest_str, (char*)"DIGEST_TEXT");
+
+    /* 
+      Populate PFS_statements_digest_stat with computed digest information.
+    */
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    insert_statement_digest(pfs_thread, digest_str, (char*)"DIGEST_TEXT");
   }
   else if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
   {
@@ -4885,10 +4891,6 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
   {
     /*
       Add this token to digest storage.
-    */
-    /* 
-       TODO If I un comment following code, few test cases in performance
-       schema starts crashing. Need to investigate this.
     */
     digest_storage->m_token_array[digest_storage->m_token_count]= token;
     digest_storage->m_token_count++;
