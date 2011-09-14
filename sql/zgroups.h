@@ -105,6 +105,12 @@ rpl_gno parse_gno(const char **s);
 int format_gno(char *s, rpl_gno gno);
 
 
+/**
+  Represents the owner of a group.
+
+  This is a POD.  It has to be a POD because it is a member of
+  Owned_groups::Node which is stored in a HASH.
+*/
 struct Rpl_owner_id
 {
   int owner_type;
@@ -126,7 +132,8 @@ struct Rpl_owner_id
 /**
   Represents a UUID.
 
-  This is a POD.
+  This is a POD.  It has to be a POD because it is a member of
+  Sid_map::Node which is stored in both HASH and DYNAMIC_ARRAY.
 */
 struct Uuid
 {
@@ -167,13 +174,27 @@ struct Uuid
   }
 #endif
   /**
+    Write this UUID to the given file.
+    @param fd File descriptor to write to.
+    @param my_flags Flags passed to my_write.
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status write(File fd, myf my_flags) const;
+  /**
+    Read this UUID from the given file.
+    @param fd File descriptor to read from.
+    @param my_flags Flags passed to my_write.
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status read(File fd, myf my_flags);
+  /**
     Returns true if the given string contains a valid UUID, false otherwise.
   */
   static bool is_valid(const char *string);
   unsigned char bytes[16];
-  static const int TEXT_LENGTH= 36;
-  static const int BYTE_LENGTH= 16;
-  static const int BIT_LENGTH= 128;
+  static const size_t TEXT_LENGTH= 36;
+  static const size_t BYTE_LENGTH= 16;
+  static const size_t BIT_LENGTH= 128;
 private:
   static const int NUMBER_OF_SECTIONS= 5;
   static const int bytes_per_section[NUMBER_OF_SECTIONS];
@@ -331,6 +352,17 @@ public:
   /// Destroy this Sid_map.
   ~Sid_map();
   /**
+    Open the disk file.
+    @param base_filename The base of the filename, i.e., without "-sids".
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status open(const char *base_filename);
+  /**
+    Close the disk file.
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status close();
+  /**
     Permanently add the given SID to this map if it does not already
     exist.
 
@@ -340,7 +372,7 @@ public:
     the write lock, and take the read lock again.
 
     @param sid The SID.
-    @param flush Flush changes to disk.
+    @param _sync If true, the sid_map will be synced.
     @retval SIDNO The SIDNO for the SID (a new SIDNO if the SID did
     not exist, an existing if it did exist).
     @retval GS_ERROR_IO or GS_ERROR_OUT_OF_MEMORY if there is an error.
@@ -351,17 +383,14 @@ public:
     problem, we may add add_temporary(), which would only store the
     sid in memory, and return a negative sidno.
   */
-  rpl_sidno add_permanent(const rpl_sid *sid, bool flush= 1);
+  rpl_sidno add_permanent(const rpl_sid *sid, bool _sync= true);
   /**
-    Write changes to disk.
-
-    This is only meaningful if add_permanent(sid, 0) has been
-    called.
+    Sync changes on disk.
 
     @retval GS_SUCCESS success.
     @retval GS_ERROR_IO error.
   */
-  enum_group_status flush();
+  enum_group_status sync();
   /**
     Get the SIDNO for a given SID
 
@@ -434,6 +463,26 @@ private:
     rpl_sid sid;
   };
 
+  /**
+    Create a Node from the given SIDNO and SID and add it to
+    _sidno_to_sid, _sid_to_sidno, and _sorted.
+
+    @param sidno The SIDNO to add.
+    @param sid The SID to add.
+    @param _sync If true, sync the file.
+  */
+  enum_group_status add_node(rpl_sidno sidno, const rpl_sid *sid);
+  /**
+    Write changes to disk.
+
+    This is only meaningful if add_permanent(sid, 0) has been
+    called.
+
+    @retval GS_SUCCESS success.
+    @retval GS_ERROR_IO error.
+  */
+  enum_group_status write_to_disk(rpl_sidno sidno, const rpl_sid *sid);
+
   /// Read-write lock that protects updates to the number of SIDNOs.
   mutable Checkable_rwlock *sid_lock;
 
@@ -454,6 +503,13 @@ private:
     @see Sid_map::get_sorted_sidno.
   */
   DYNAMIC_ARRAY _sorted;
+  /**
+  */
+  char filename[FN_REFLEN];
+  /**
+    File descriptor for the backing file.
+  */
+  File fd;
 };
 
 
@@ -1908,7 +1964,7 @@ private:
 
 
 /**
-  Represents a bidirectional map between binlog filenames and
+  Represents a bidirectional map between binlog file names and
   binlog_no.
 */
 class Binlog_map
@@ -1958,7 +2014,7 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
 class Atom_file
 {
 public:
-  Atom_file(const char *file_name);
+  Atom_file(const char *filename);
   int open(bool write);
   int close();
   bool is_open() const { return fd != -1; }
@@ -1984,8 +2040,8 @@ private:
   int commit(my_off_t offset, my_off_t length);
   int recover();
   static const char *OVERWRITE_FILE_SUFFIX;
-  char file_name[FN_REFLEN];
-  char overwrite_file_name[FN_REFLEN];
+  char filename[FN_REFLEN];
+  char overwrite_filename[FN_REFLEN];
   File fd;
   bool writable;
   File ofd;
@@ -1996,7 +2052,7 @@ private:
 class Rot_file
 {
 public:
-  Rot_file(const char *file_name);
+  Rot_file(const char *filename);
   int open(bool write);
   int close();
   my_off_t append(my_off_t length, const uchar *data)
@@ -2021,7 +2077,7 @@ public:
   ~Rot_file();
 private:
   int header_length;
-  char file_name[FN_REFLEN];
+  char filename[FN_REFLEN];
   File fd;
   my_off_t rotation_limit;
   bool writable;
@@ -2033,7 +2089,7 @@ private:
     int index;
   };
   enum enum_state { CLOSED, OPEN_READ, OPEN_READ_WRITE };
-  char file_name[FN_REFLEN];
+  char filename[FN_REFLEN];
   int fd;
   enum_state state;
   my_off_t limit;
@@ -2043,28 +2099,30 @@ private:
 
 class Group_log
 {
+private:
+  class Read_state
+  {
+    rpl_lgid lgid;
+  };
+
 public:
-  Group_log(const char *filename) : rot_file(filename) {}
+  Group_log(const char *filename) : group_log_file(filename) {}
 
   int write_subgroup(const Subgroup *subgroup);
   class Read_iterator
   {
   public:
     Read_iterator(Group_set group_set);
-    int read(Subroup *subgroup);
+    int read(Subgroup *subgroup);
   private:
     my_off_t offset;
     Read_state read_state;
   };
 
 private:
-  class Read_state
-  {
-    rpl_lgid lgid;
-  };
   Read_state read_state;
   Rot_file group_log_file;
-  static const int write_buf_size= 0x10000;
+  static const int WRITE_BUF_SIZE= 0x10000;
   uchar write_buf[WRITE_BUF_SIZE];
   uchar *write_buf_pos;
 };

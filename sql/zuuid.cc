@@ -19,9 +19,9 @@
 #ifdef HAVE_UGID
 
 
-const int Uuid::TEXT_LENGTH;
-const int Uuid::BYTE_LENGTH;
-const int Uuid::BIT_LENGTH;
+const size_t Uuid::TEXT_LENGTH;
+const size_t Uuid::BYTE_LENGTH;
+const size_t Uuid::BIT_LENGTH;
 const int Uuid::bytes_per_section[Uuid::NUMBER_OF_SECTIONS]=
 { 4, 2, 2, 2, 6 };
 const int Uuid::hex_to_byte[]=
@@ -45,16 +45,6 @@ const int Uuid::hex_to_byte[]=
 };
 
 
-/**
-  Parses the given string, which should be on the form:
-
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX,
-    where each X is a hex digit
-
-  Stores the given UUID in this Uuid object.
-
-  @return GS_SUCCESS or GS_PARSE_ERROR
-*/
 enum_group_status Uuid::parse(const char *s)
 {
   DBUG_ENTER("Uuid::parse");
@@ -86,15 +76,6 @@ enum_group_status Uuid::parse(const char *s)
 }
 
 
-/**
-  Validates that the given string is a correct UUID, i.e.:
-
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX,
-    where each X is a hex digit
-
-  @retval true the string represents a correct UUID.
-  @retval false the string does not represent a correct UUID.
- */
 bool Uuid::is_valid(const char *s)
 {
   DBUG_ENTER("Uuid::is_valid");
@@ -121,14 +102,6 @@ bool Uuid::is_valid(const char *s)
 }
 
 
-/**
-   Stores this Uuid in the given buffer, NULL-terminated.
-
-  The buffer should have space for at least Uuid::TEXT_LENGTH + 1
-  characters.
-
-  @return Pointer to the end of the buffer, i.e., &buf[Uuid::TEXT_LENGTH]
-*/
 int Uuid::to_string(char *buf) const
 {
   DBUG_ENTER("Uuid::to_string");
@@ -153,6 +126,24 @@ int Uuid::to_string(char *buf) const
   }
   *buf= '\0';
   DBUG_RETURN(TEXT_LENGTH);
+}
+
+
+enum_group_status Uuid::write(File fd, myf my_flags) const
+{
+  DBUG_ENTER("Uuid::write(File, myf)");
+  if (my_write(fd, bytes, Uuid::BYTE_LENGTH, my_flags) < Uuid::BYTE_LENGTH)
+    DBUG_RETURN(GS_ERROR_IO);
+  DBUG_RETURN(GS_SUCCESS);
+}
+
+
+enum_group_status Uuid::read(File fd, myf my_flags)
+{
+  DBUG_ENTER("Uuid::read(File, myf)");
+  if (my_read(fd, bytes, Uuid::BYTE_LENGTH, my_flags) < Uuid::BYTE_LENGTH)
+    DBUG_RETURN(GS_ERROR_IO);
+  DBUG_RETURN(GS_SUCCESS);
 }
 
 

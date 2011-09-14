@@ -14,12 +14,12 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "my_base.h"
+#include "zgroups.h"
 
 
 int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
 {
-  DBUG_ENTER("write_compact_unsigned");
+  DBUG_ENTER("Compact_encoding::write_unsigned");
   uchar buf[10];
   // len is the total number of bytes to write
   int len= 16;
@@ -42,7 +42,7 @@ int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
 
 int Compact_encoding::read_unsigned(File fd, ulonglong *out, myf my_flags)
 {
-  DBUG_ENTER("read_compact_unsigned");
+  DBUG_ENTER("Compact_encoding::read_unsigned");
   // read first byte
   uchar b;
   if (my_read(fd, &b, 1, my_flags) != 1)
@@ -88,15 +88,15 @@ int Compact_encoding::read_unsigned(File fd, ulonglong *out, myf my_flags)
 
 int Compact_encoding::write_signed(File fd, longlong n, myf my_flags)
 {
-  return write_compact_unsigned(fd, n >= 0 ? 2 * (ulonglong)n :
-                                1 + 2 * (ulonglong)-(n + 1), my_flags);
+  return write_unsigned(fd, n >= 0 ? 2 * (ulonglong)n :
+                        1 + 2 * (ulonglong)-(n + 1), my_flags);
 }
 
 
 int Compact_encoding::read_signed(File fd, longlong *out, myf my_flags)
 {
   ulonglong o;
-  int ret= read_compact_unsigned(fd, &o, my_flags);
+  int ret= read_unsigned(fd, &o, my_flags);
   if (ret <= 0)
     return ret;
   if (o & 1)

@@ -22,16 +22,16 @@
 const char *Atom_file::OVERWRITE_FILE_SUFFIX= ".overwrite";
 
 
-Atom_file::Atom_file(const char *file_name_arg)
+Atom_file::Atom_file(const char *filename_arg)
   : fd(-1), ofd(-1)
 {
   DBUG_ENTER("Atom_file::Atom_file");
 
-  size_t len= strlen(file_name_arg);
-  DBUG_ASSERT(len + sizeof(OVERWRITE_FILE_SUFFIX) < sizeof(file_name_arg));
-  memcpy(file_name, file_name_arg, len + 1);
-  memcpy(overwrite_file_name, file_name_arg, len);
-  memcpy(overwrite_file_name + len, OVERWRITE_FILE_SUFFIX, sizeof(OVERWRITE_FILE_SUFFIX + 1));
+  size_t len= strlen(filename_arg);
+  DBUG_ASSERT(len + sizeof(OVERWRITE_FILE_SUFFIX) < sizeof(filename_arg));
+  memcpy(filename, filename_arg, len + 1);
+  memcpy(overwrite_filename, filename_arg, len);
+  memcpy(overwrite_filename + len, OVERWRITE_FILE_SUFFIX, sizeof(OVERWRITE_FILE_SUFFIX + 1));
 
   DBUG_VOID_RETURN;
 }
@@ -44,7 +44,7 @@ int Atom_file::open(bool writable_arg)
 
   // open file
   writable= writable_arg;
-  fd= my_open(file_name, (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
+  fd= my_open(filename, (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
               MYF(MY_WME));
   if (fd < 0)
     DBUG_RETURN(1);
@@ -65,7 +65,7 @@ int Atom_file::recover()
   DBUG_ENTER("Atom_file::recover()");
 
   // open file
-  ofd= my_open(overwrite_file_name, O_RDONLY | O_BINARY, MYF(MY_WME));
+  ofd= my_open(overwrite_filename, O_RDONLY | O_BINARY, MYF(MY_WME));
   if (ofd < 0)
   {
     if (my_errno == ENOENT)
@@ -139,7 +139,7 @@ int Atom_file::commit(my_off_t offset, my_off_t length)
     ofd= -1;
 
     if (my_chsize(fd, offset, 0, MYF(MY_WME)) ||
-        my_delete(overwrite_file_name, MYF(MY_WME)))
+        my_delete(overwrite_filename, MYF(MY_WME)))
       DBUG_RETURN(1);
   }
   else
@@ -161,7 +161,7 @@ int Atom_file::rollback()
     if (my_close(ofd, MYF(MY_WME)))
       DBUG_RETURN(1);
     ofd= -1;
-    if (my_delete(overwrite_file_name, MYF(MY_WME)))
+    if (my_delete(overwrite_filename, MYF(MY_WME)))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -210,7 +210,7 @@ int Atom_file::truncate_and_append(my_off_t offset, my_off_t length,
                                    const uchar *data)
 {
   DBUG_ENTER("Atom_file::truncate_and_append");
-  File ofd= my_open(overwrite_file_name, O_WRONLY | O_BINARY | O_CREAT | O_EXCL,
+  File ofd= my_open(overwrite_filename, O_WRONLY | O_BINARY | O_CREAT | O_EXCL,
                     MYF(MY_WME));
   if (ofd < 0)
     DBUG_RETURN(1);
@@ -232,12 +232,12 @@ int Atom_file::truncate_and_append(my_off_t offset, my_off_t length,
         my_chsize(fd, offset + length, 0, MYF(MY_WME)) == 0 &&
         my_sync(fd, MYF(MY_WME)) == 0)
     {
-      DBUG_RETURN(my_delete(overwrite_file_name, MYF(MY_WME)));
+      DBUG_RETURN(my_delete(overwrite_filename, MYF(MY_WME)));
     }
   }
   else
     my_close(ofd, MYF(MY_WME));
-  my_delete(overwrite_file_name, MYF(MY_WME));
+  my_delete(overwrite_filename, MYF(MY_WME));
   DBUG_RETURN(1);
 }
 

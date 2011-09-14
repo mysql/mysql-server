@@ -190,7 +190,10 @@ public:
   int init_sid_map();
 #endif
 
-  int open(const char *opt_name);
+private:
+  int open(const char *opt_name) { return open_binlog(opt_name); }
+public:
+  int open_binlog(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
@@ -228,13 +231,13 @@ public:
   void init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
-  bool open(const char *log_name,
-            enum_log_type log_type,
-            const char *new_name,
-	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg, ulong max_size,
-            bool null_created,
-            bool need_mutex);
+  bool open_binlog(const char *log_name,
+                   enum_log_type log_type,
+                   const char *new_name,
+                   enum cache_type io_cache_type_arg,
+                   bool no_auto_events_arg, ulong max_size,
+                   bool null_created,
+                   bool need_mutex);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
@@ -345,8 +348,8 @@ bool trans_cannot_safely_rollback(const THD* thd);
 bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
-File open_binlog(IO_CACHE *log, const char *log_file_name,
-                 const char **errmsg);
+File open_binlog_file(IO_CACHE *log, const char *log_file_name,
+                      const char **errmsg);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);

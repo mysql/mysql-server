@@ -4043,7 +4043,7 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
     offset= rli->get_group_relay_log_pos();
     for (int checking= 0 ; not_reached_commit; checking++)
     {
-      if ((file= open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
+      if ((file= open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       {
         error= TRUE;
         sql_print_error("%s", errmsg);
@@ -5980,8 +5980,8 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
   DBUG_ASSERT(rli->cur_log_fd == -1);
 
   IO_CACHE *cur_log = rli->cur_log=&rli->cache_buf;
-  if ((rli->cur_log_fd=open_binlog(cur_log,rli->get_event_relay_log_name(),
-                                   errmsg)) <0)
+  if ((rli->cur_log_fd=open_binlog_file(cur_log,rli->get_event_relay_log_name(),
+                                        errmsg)) <0)
     DBUG_RETURN(0);
   /*
     We want to start exactly where we was before:
@@ -6481,9 +6481,9 @@ static Log_event* next_event(Relay_log_info* rli)
         sql_print_information("next log '%s' is not active",
                               rli->linfo.log_file_name);
 #endif
-      // open_binlog() will check the magic header
-      if ((rli->cur_log_fd=open_binlog(cur_log,rli->linfo.log_file_name,
-                                       &errmsg)) <0)
+      // open_binlog_file() will check the magic header
+      if ((rli->cur_log_fd=open_binlog_file(cur_log,rli->linfo.log_file_name,
+                                            &errmsg)) <0)
         goto err;
     }
     else

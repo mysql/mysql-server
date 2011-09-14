@@ -1156,10 +1156,10 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 }
 
 
-File open_binlog(IO_CACHE *log, const char *log_file_name, const char **errmsg)
+File open_binlog_file(IO_CACHE *log, const char *log_file_name, const char **errmsg)
 {
   File file;
-  DBUG_ENTER("open_binlog");
+  DBUG_ENTER("open_binlog_file");
 
   if ((file= mysql_file_open(key_file_binlog,
                              log_file_name, O_RDONLY | O_BINARY | O_SHARE,
@@ -1517,7 +1517,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     thd->current_linfo = &linfo;
     mysql_mutex_unlock(&LOCK_thread_count);
 
-    if ((file=open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
+    if ((file=open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
 
     /*
@@ -1528,7 +1528,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     mysql_mutex_lock(log_lock);
 
     /*
-      open_binlog() sought to position 4.
+      open_binlog_file() sought to position 4.
       Read the first event in case it's a Format_description_log_event, to
       know the format. If there's no such event, we are 3.23 or 4.x. This
       code, like before, can't read 3.23 binlogs.
@@ -1843,19 +1843,19 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
     1	error
 */
 
-bool MYSQL_BIN_LOG::open(const char *log_name,
-                         enum_log_type log_type_arg,
-                         const char *new_name,
-                         enum cache_type io_cache_type_arg,
-                         bool no_auto_events_arg,
-                         ulong max_size_arg,
-                         bool null_created_arg,
-                         bool need_mutex)
+bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
+                                enum_log_type log_type_arg,
+                                const char *new_name,
+                                enum cache_type io_cache_type_arg,
+                                bool no_auto_events_arg,
+                                ulong max_size_arg,
+                                bool null_created_arg,
+                                bool need_mutex)
 {
   File file= -1;
 
-  DBUG_ENTER("MYSQL_BIN_LOG::open");
-  DBUG_PRINT("enter",("log_type: %d",(int) log_type_arg));
+  DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, enum_log_type, ...)");
+  DBUG_PRINT("enter",("log_type: %d name: %s",(int) log_type_arg, log_name));
 
   if (init_and_set_log_file_name(log_name, new_name, log_type_arg,
                                  io_cache_type_arg))
@@ -1892,6 +1892,8 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   }
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
 #endif
+
+  sid_map.open();
 
   write_error= 0;
 
@@ -2506,7 +2508,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0, FALSE))
-    if ((error= open(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE)))
+    if ((error= open_binlog(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE)))
       goto err;
   my_free((void *) save_name);
 
@@ -3460,8 +3462,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   {
     /* reopen the binary log file. */
     file_to_open= new_name_ptr;
-    error= open(old_name, log_type, new_name_ptr, io_cache_type,
-                no_auto_events, max_size, 1, FALSE);
+    error= open_binlog(old_name, log_type, new_name_ptr, io_cache_type,
+                       no_auto_events, max_size, 1, FALSE);
   }
 
   /* handle reopening errors */
@@ -4552,7 +4554,7 @@ void MYSQL_BIN_LOG::signal_update()
   but let's check the behaviour of tc_log_page_waits first!
 */
 
-int MYSQL_BIN_LOG::open(const char *opt_name)
+int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
 {
   LOG_INFO log_info;
   int      error= 1;
@@ -4574,7 +4576,7 @@ int MYSQL_BIN_LOG::open(const char *opt_name)
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
-    open(opt_name, LOG_BIN, 0, WRITE_CACHE, 0, max_binlog_size, 0, TRUE);
+    open_binlog(opt_name, LOG_BIN, 0, WRITE_CACHE, 0, max_binlog_size, 0, TRUE);
     cleanup();
     return 1;
   }
@@ -4613,7 +4615,7 @@ int MYSQL_BIN_LOG::open(const char *opt_name)
       goto err;
     }
 
-    if ((file= open_binlog(&log, log_name, &errmsg)) < 0)
+    if ((file= open_binlog_file(&log, log_name, &errmsg)) < 0)
     {
       sql_print_error("%s", errmsg);
       goto err;

@@ -19,11 +19,11 @@
 #ifdef HAVE_UGID
 
 
-Rot_file::Rot_file(const char *_file_name)
+Rot_file::Rot_file(const char *_filename)
   : fd(-1)
 {
-  DBUG_ASSERT(strlen(_file_name) < sizeof(file_name));
-  strcpy(file_name, _file_name);
+  DBUG_ASSERT(strlen(_filename) < sizeof(filename));
+  strcpy(filename, _filename);
 }
 
 
@@ -31,18 +31,18 @@ int Rot_file::open(bool write)
 {
   DBUG_ENTER("Rot_file::open");
 
-  fd= my_open(file_name, (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
+  fd= my_open(filename, (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
               MYF(MY_WME));
   if (fd < 0)
     // @todo: my_error /sven
     DBUG_RETURN(1);
 
   ulonglong offset;
-  header_length= read_compact_unsigned(fd, &offset, MYF(0));
+  header_length= Compact_encoding::read_unsigned(fd, &offset, MYF(0));
   if (header_length == 0)
   {
     // file was empty: write the header
-    if (write_compact_unsigned(fd, 1, MYF(MY_WME)) <= 0)
+    if (Compact_encoding::write_unsigned(fd, 1, MYF(MY_WME)) <= 0)
       DBUG_RETURN(1);
     header_length= 1;
   }

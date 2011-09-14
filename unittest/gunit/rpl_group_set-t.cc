@@ -310,7 +310,7 @@ TEST_F(GroupTest, Sid_map)
   // Add a random SID until we have N_SID SIDs in the map.
   lock.rdlock();
   while (sm.get_max_sidno() < N_SIDS)
-    sm.add_permanent(&sids[rand() % N_SIDS]);
+    ASSERT_LE(1, sm.add_permanent(&sids[rand() % N_SIDS])) << errtext;
 
   // Check that all N_SID SIDs are in the map, and that
   // get_sorted_sidno() has the correct order.  This implies that no
