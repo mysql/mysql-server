@@ -135,6 +135,10 @@ select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1000...
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ is empty
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'nonsense' at line 1
+ is empty
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 1064 as "after_--enable_abort_on_error" ;
@@ -143,6 +147,9 @@ after_--enable_abort_on_error
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064...
+ is empty
+ is empty
+"Yes it's empty"
 hello
 hello
 ;;;;;;;;
@@ -315,7 +322,7 @@ insert into t1 values ('$dollar');
 $dollar
 `select 42`
 drop table t1;
-mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
+mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": 
@@ -813,7 +820,7 @@ mysqltest: At line 1: Could not find column 'column_not_exists' in the result of
 mysqltest: At line 1: Query 'SET @A = 1' didn't return a result set
 mysqltest: At line 1: Could not find column '1 AS B' in the result of 'SELECT 1 AS A'
 value= No such row
-mysqltest: At line 1: Error running query 'SHOW COLNS FROM t1': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+mysqltest: At line 1: query 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
 
 Field Type Null Key Default Extra
 a int(11) YES -><- NULL 
