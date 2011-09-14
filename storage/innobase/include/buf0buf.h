@@ -702,8 +702,9 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size);	/*!< in: compressed page size, or
+	ulint		zip_size)	/*!< in: compressed page size, or
 					0 for uncompressed pages */
+	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Decompress a block.
 @return	TRUE if successful */
@@ -1066,7 +1067,7 @@ buf_block_get_zip_size(
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
-	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
+	((block)->page.zip.data ? &(block)->page.zip : NULL)
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Gets the block to whose frame the pointer is pointing to.

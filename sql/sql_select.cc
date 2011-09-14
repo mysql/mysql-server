@@ -11389,6 +11389,12 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
        @see subselect_single_select_engine::exec()
        @see TABLE_REF::cond_guards
        @see setup_join_buffering
+    5. The join type is not CONST or SYSTEM. The reason for excluding
+       these join types, is that these are optimized to only read the
+       record once from the storage engine and later re-use it. In a
+       join where a pushed index condition evaluates fields from
+       tables earlier in the join sequence, the pushed condition would
+       only be evaluated the first time the record value was needed.
   */
   if (tab->condition() &&
       tab->table->file->index_flags(keyno, 0, 1) &
@@ -11396,7 +11402,8 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
       tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
-      !tab->has_guarded_conds())
+      !tab->has_guarded_conds() &&
+      tab->type != JT_CONST && tab->type != JT_SYSTEM)
   {
     DBUG_EXECUTE("where", print_where(tab->condition(), "full cond",
                  QT_ORDINARY););
@@ -19468,6 +19475,8 @@ join_read_const(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
+  DBUG_ENTER("join_read_const");
+
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     table->status= 0;
@@ -19486,8 +19495,11 @@ join_read_const(JOIN_TAB *tab)
       mark_as_null_row(tab->table);
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-	return report_error(table, error);
-      return -1;
+      {
+        const int ret= report_error(table, error);
+        DBUG_RETURN(ret);
+      }
+      DBUG_RETURN(-1);
     }
     store_record(table,record[1]);
   }
@@ -19497,7 +19509,7 @@ join_read_const(JOIN_TAB *tab)
     restore_record(table,record[1]);			// restore old record
   }
   table->null_row=0;
-  return table->status ? -1 : 0;
+  DBUG_RETURN(table->status ? -1 : 0);
 }
 
 
