@@ -330,6 +330,7 @@ public:
   {}
 
 private:
+  friend class NdbQueryBuilder;
   friend class NdbQueryIndexScanOperationDefImpl;
   const NdbQueryOperand* const *m_low;  // 'Pointer to array of pointers', NULL terminated
   const bool m_lowInclusive;

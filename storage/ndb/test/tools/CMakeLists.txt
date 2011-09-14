@@ -33,6 +33,7 @@ ADD_EXECUTABLE(copy_tab copy_tab.cpp)
 ADD_EXECUTABLE(create_index create_index.cpp)
 ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
 ADD_EXECUTABLE(hugoJoin hugoJoin.cpp)
+ADD_EXECUTABLE(ndb_connect connect.cpp)
 
 SET(BINS
     hugoFill
@@ -49,7 +50,8 @@ SET(BINS
     copy_tab
     create_index
     ndb_cpcc
-    hugoJoin)
+    hugoJoin
+    ndb_connect)
 
 FOREACH(B ${BINS})
   TARGET_LINK_LIBRARIES(${B} ndbNDBT)
