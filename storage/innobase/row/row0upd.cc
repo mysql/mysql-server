@@ -347,7 +347,7 @@ row_upd_rec_sys_fields_in_recovery(
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_write_trx_id_and_roll_ptr(
 			page_zip, rec, offsets, pos, trx_id, roll_ptr);
 	} else {
@@ -543,7 +543,7 @@ row_upd_rec_in_place(
 #endif /* UNIV_BLOB_DEBUG */
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_write_rec(page_zip, rec, index, offsets, 0);
 	}
 }
@@ -893,8 +893,8 @@ row_upd_build_difference_binary(
 			goto skip_compare;
 		}
 
-		if (UNIV_UNLIKELY(!dfield_is_ext(dfield)
-				  != !rec_offs_nth_extern(offsets, i))
+		if (!dfield_is_ext(dfield)
+		    != !rec_offs_nth_extern(offsets, i)
 		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
@@ -1298,7 +1298,7 @@ row_upd_changes_ord_field_binary_func(
 		if (UNIV_LIKELY(ind_field->prefix_len == 0)
 		    || dfield_is_null(dfield)) {
 			/* do nothing special */
-		} else if (UNIV_LIKELY_NULL(ext)) {
+		} else if (ext) {
 			/* Silence a compiler warning without
 			silencing a Valgrind error. */
 			dfield_len = 0;

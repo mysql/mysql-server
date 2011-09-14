@@ -1251,7 +1251,7 @@ btr_cur_optimistic_insert(
 		rec_size = rec_get_converted_size(index, entry, n_ext);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		/* Estimate the free space of an empty compressed page.
 		Subtract one byte for the encoded heap_no in the
 		modification log. */
@@ -1359,7 +1359,7 @@ fail_err:
 					     n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			if (UNIV_LIKELY(zip_size != 0)) {
+			if (zip_size != 0) {
 
 				goto fail;
 			}
@@ -1848,6 +1848,7 @@ btr_cur_update_in_place(
 	roll_ptr_t	roll_ptr	= 0;
 	trx_t*		trx;
 	ulint		was_delete_marked;
+	ibool		is_hashed;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1872,7 +1873,7 @@ btr_cur_update_in_place(
 	page_zip = buf_block_get_page_zip(block);
 
 	/* Check that enough space is available on the compressed page. */
-	if (UNIV_LIKELY_NULL(page_zip)
+	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
 					 rec_offs_size(offsets), FALSE, mtr)) {
 		return(DB_ZIP_OVERFLOW);
@@ -1889,7 +1890,21 @@ btr_cur_update_in_place(
 		return(err);
 	}
 
-	if (block->is_hashed) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+		row_upd_rec_sys_fields(rec, NULL,
+				       index, offsets, trx, roll_ptr);
+	}
+
+	was_delete_marked = rec_get_deleted_flag(
+		rec, page_is_comp(buf_block_get_frame(block)));
+
+	is_hashed = block->is_hashed;
+
+	if (is_hashed) {
+		/* TO DO: Can we skip this if none of the fields
+		index->search_info->curr_n_fields
+		are being updated? */
+
 		/* The function row_upd_changes_ord_field_binary works only
 		if the update vector was built for a clustered index, we must
 		NOT call it if index is secondary */
@@ -1905,17 +1920,9 @@ btr_cur_update_in_place(
 		rw_lock_x_lock(&btr_search_latch);
 	}
 
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
-		row_upd_rec_sys_fields(rec, NULL,
-				       index, offsets, trx, roll_ptr);
-	}
-
-	was_delete_marked = rec_get_deleted_flag(
-		rec, page_is_comp(buf_block_get_frame(block)));
-
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
-	if (block->is_hashed) {
+	if (is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
 
@@ -2057,7 +2064,7 @@ any_extern:
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (UNIV_LIKELY_NULL(page_zip)
+	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
 					 new_rec_size, TRUE, mtr)) {
 		err = DB_ZIP_OVERFLOW;
@@ -2357,7 +2364,7 @@ btr_cur_pessimistic_update(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		ut_ad(page_is_comp(page));
 		if (page_zip_rec_needs_ext(
 			    rec_get_converted_size(index, new_entry, n_ext),
@@ -2641,7 +2648,8 @@ btr_cur_parse_del_mark_set_clust_rec(
 
 		/* We do not need to reserve btr_search_latch, as the page
 		is only being recovered, and there cannot be a hash index to
-		it. */
+		it. Besides, these fields are being updated in place
+		and the adaptive hash index does not depend on them. */
 
 		btr_rec_set_deleted_flag(rec, page_zip, val);
 
@@ -2721,9 +2729,9 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	if (block->is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
+	/* The btr_search_latch is not needed here, because
+	the adaptive hash index does not depend on the delete-mark
+	and the delete-mark is being updated in place. */
 
 	page_zip = buf_block_get_page_zip(block);
 
@@ -2735,10 +2743,6 @@ btr_cur_del_mark_set_clust_rec(
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_rec_sys_fields(rec, page_zip,
 				       index, offsets, trx, roll_ptr);
-	}
-
-	if (block->is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
 	}
 
 	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
@@ -2816,7 +2820,8 @@ btr_cur_parse_del_mark_set_sec_rec(
 
 		/* We do not need to reserve btr_search_latch, as the page
 		is only being recovered, and there cannot be a hash index to
-		it. */
+		it. Besides, the delete-mark flag is being updated in place
+		and the adaptive hash index does not depend on it. */
 
 		btr_rec_set_deleted_flag(rec, page_zip, val);
 	}
@@ -2864,15 +2869,10 @@ btr_cur_del_mark_set_sec_rec(
 	ut_ad(!!page_rec_is_comp(rec)
 	      == dict_table_is_comp(cursor->index->table));
 
-	if (block->is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
-
+	/* We do not need to reserve btr_search_latch, as the
+	delete-mark flag is being updated in place and the adaptive
+	hash index does not depend on it. */
 	btr_rec_set_deleted_flag(rec, buf_block_get_page_zip(block), val);
-
-	if (block->is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
-	}
 
 	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 
@@ -2894,8 +2894,11 @@ btr_cur_set_deleted_flag_for_ibuf(
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	/* We do not need to reserve btr_search_latch, as the page has just
-	been read to the buffer pool and there cannot be a hash index to it. */
+	/* We do not need to reserve btr_search_latch, as the page
+	has just been read to the buffer pool and there cannot be
+	a hash index to it.  Besides, the delete-mark flag is being
+	updated in place and the adaptive hash index does not depend
+	on it. */
 
 	btr_rec_set_deleted_flag(rec, page_zip, val);
 
@@ -3917,7 +3920,7 @@ btr_cur_set_ownership_of_extern_field(
 		byte_val = byte_val | BTR_EXTERN_OWNER_FLAG;
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 		page_zip_write_blob_ptr(page_zip, rec, index, offsets, i, mtr);
 	} else if (UNIV_LIKELY(mtr != NULL)) {
@@ -4234,7 +4237,7 @@ btr_store_big_rec_extern_fields_func(
 		alloc_mtr = &mtr;
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		int	err;
 
 		/* Zlib deflate needs 128 kilobytes for the default
@@ -4289,7 +4292,7 @@ btr_store_big_rec_extern_fields_func(
 
 		prev_page_no = FIL_NULL;
 
-		if (UNIV_LIKELY_NULL(page_zip)) {
+		if (page_zip) {
 			int	err = deflateReset(&c_stream);
 			ut_a(err == Z_OK);
 
@@ -4315,7 +4318,7 @@ btr_store_big_rec_extern_fields_func(
 
 				mtr_commit(&mtr);
 
-				if (UNIV_LIKELY_NULL(page_zip)) {
+				if (page_zip) {
 					deflateEnd(&c_stream);
 					mem_heap_free(heap);
 				}
@@ -4337,7 +4340,7 @@ btr_store_big_rec_extern_fields_func(
 							SYNC_EXTERN_STORAGE);
 				prev_page = buf_block_get_frame(prev_block);
 
-				if (UNIV_LIKELY_NULL(page_zip)) {
+				if (page_zip) {
 					mlog_write_ulint(
 						prev_page + FIL_PAGE_NEXT,
 						page_no, MLOG_4BYTES, &mtr);
@@ -4354,7 +4357,7 @@ btr_store_big_rec_extern_fields_func(
 
 			}
 
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				int		err;
 				page_zip_des_t*	blob_page_zip;
 
@@ -4577,7 +4580,7 @@ next_zip_page:
 		}
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		deflateEnd(&c_stream);
 		mem_heap_free(heap);
 	}
@@ -4802,7 +4805,7 @@ btr_free_externally_stored_field(
 
 			btr_page_free_low(index, ext_block, 0, &mtr);
 
-			if (UNIV_LIKELY(page_zip != NULL)) {
+			if (page_zip != NULL) {
 				mach_write_to_4(field_ref + BTR_EXTERN_PAGE_NO,
 						next_page_no);
 				mach_write_to_4(field_ref + BTR_EXTERN_LEN + 4,
@@ -5165,7 +5168,7 @@ btr_copy_externally_stored_field_prefix_low(
 		return(0);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		return(btr_copy_zblob_prefix(buf, len, zip_size,
 					     space_id, page_no, offset));
 	} else {

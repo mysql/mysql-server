@@ -31,7 +31,6 @@ rpl.rpl_row_ignorable_event              # Sven: BUG#12765441
 rpl.rpl_row_sp011  @solaris              # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 rpl.rpl_seconds_behind_master            # BUG#11765124 2010-11-24 luis fails sporadically on pb2
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
-rpl.rpl_spec_variables                   # BUG#11755836 2009-10-27 jasonh rpl_spec_variables fails on PB2 hpux
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 sys_vars.wait_timeout_func                    # Bug#11750645 2010-04-26 alik wait_timeout_func fails

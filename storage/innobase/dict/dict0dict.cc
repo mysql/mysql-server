@@ -1707,7 +1707,7 @@ dict_index_too_big_for_undo(
 		+ 10 + FIL_PAGE_DATA_END /* trx_undo_left() */
 		+ 2/* pointer to previous undo log record */;
 
-	if (UNIV_UNLIKELY(!clust_index)) {
+	if (!clust_index) {
 		ut_a(dict_index_is_clust(new_index));
 		clust_index = new_index;
 	}
@@ -2012,7 +2012,7 @@ too_big:
 		return(DB_TOO_BIG_RECORD);
 	}
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		n_ord = new_index->n_fields;
 	} else {
 		n_ord = new_index->n_uniq;
@@ -2105,7 +2105,7 @@ undo_size_ok:
 		       dict_index_is_ibuf(index)
 		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
 
-	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
+	if (!dict_index_is_univ(new_index)) {
 
 		new_index->stat_n_diff_key_vals =
 			static_cast<ib_uint64_t*>(mem_heap_alloc(
@@ -2368,7 +2368,7 @@ dict_index_copy_types(
 {
 	ulint		i;
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		dtuple_set_types_binary(tuple, n_fields);
 
 		return;
@@ -2447,7 +2447,7 @@ dict_index_build_internal_clust(
 	/* Copy the fields of index */
 	dict_index_copy(new_index, index, table, 0, index->n_fields);
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		/* No fixed number of fields determines an entry uniquely */
 
 		new_index->n_uniq = REC_MAX_N_FIELDS;
@@ -2588,7 +2588,7 @@ dict_index_build_internal_non_clust(
 
 	ut_ad(clust_index);
 	ut_ad(dict_index_is_clust(clust_index));
-	ut_ad(!(clust_index->type & DICT_UNIVERSAL));
+	ut_ad(!dict_index_is_univ(clust_index));
 
 	/* Create a new index */
 	new_index = dict_mem_index_create(
@@ -4555,7 +4555,7 @@ dict_index_build_node_ptr(
 	byte*		buf;
 	ulint		n_unique;
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		/* In a universal index tree, we take the whole record as
 		the node pointer if the record is on the leaf level,
 		on non-leaf levels we remove the last field, which
@@ -4622,7 +4622,7 @@ dict_index_copy_rec_order_prefix(
 
 	UNIV_PREFETCH_R(rec);
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		ut_a(!dict_table_is_comp(index->table));
 		n = rec_get_n_fields_old(rec);
 	} else {
