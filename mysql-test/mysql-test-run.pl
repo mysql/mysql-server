@@ -2130,6 +2130,12 @@ sub environment_setup {
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
 
+  my $exe_mysqld= find_mysqld($basedir);
+  $ENV{'MYSQLD'}= $exe_mysqld;
+  my $extra_opts= join (" ", @opt_extra_mysqld_opt);
+  $ENV{'MYSQLD_CMD'}= "$exe_mysqld --defaults-group-suffix=.1 ".
+    "--defaults-file=$path_config_file $extra_opts";
+
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in
   # some versions, test using it should be skipped
