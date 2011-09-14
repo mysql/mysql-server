@@ -8315,29 +8315,33 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
 }
 
 
-/*
-  prepare tables and check access for the view tables
+/**
+  Prepare tables and check access for the view tables.
 
-  SYNOPSIS
-    setup_tables_and_check_view_access()
-    thd		  Thread handler
-    context       name resolution contest to setup table list there
-    from_clause   Top-level list of table references in the FROM clause
-    tables	  Table list (select_lex->table_list)
-    conds	  Condition of current SELECT (can be changed by VIEW)
-    leaves        List of join table leaves list (select_lex->leaf_tables)
-    refresh       It is onle refresh for subquery
-    select_insert It is SELECT ... INSERT command
-    want_access   what access is needed
+  @param thd                Thread context.
+  @param context            Name resolution contest to setup table list
+                            there.
+  @param from_clause        Top-level list of table references in the
+                            FROM clause.
+  @param tables             Table list (select_lex->table_list).
+  @param leaves[in/out]     List of join table leaves list
+                            (select_lex->leaf_tables).
+  @param select_insert      It is SELECT ... INSERT command/
+  @param want_access_first  What access is requested of the first leaf.
+  @param want_access        What access is requested on the rest of leaves.
 
-  NOTE
-    a wrapper for check_tables that will also check the resulting
-    table leaves list for access to all the tables that belong to a view
+  @note A wrapper for check_tables that will also check the resulting
+        table leaves list for access to all the tables that belong to
+        a view.
 
-  RETURN
-    FALSE ok;  In this case *map will include the chosen index
-    TRUE  error
+  @note Beware that it can't properly check privileges in cases when
+        table being changed is not the first table in the list of leaf
+        tables (for example, for multi-UPDATE).
+
+  @retval FALSE - Success.
+  @retval TRUE  - Error.
 */
+
 bool setup_tables_and_check_access(THD *thd, 
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause,
