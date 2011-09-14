@@ -400,8 +400,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
     /*
       Open the relay log and set cur_log to point at this one
     */
-    if ((cur_log_fd=open_binlog(&cache_buf,
-                                linfo.log_file_name,errmsg)) < 0)
+    if ((cur_log_fd=open_binlog_file(&cache_buf,
+                                     linfo.log_file_name,errmsg)) < 0)
       goto err;
     cur_log = &cache_buf;
   }
@@ -1346,9 +1346,9 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       but a destructor will take care of that
     */
     if (relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
-        relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
-                       (max_relay_log_size ? max_relay_log_size :
-                        max_binlog_size), 1, TRUE))
+        relay_log.open_binlog(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
+                              (max_relay_log_size ? max_relay_log_size :
+                               max_binlog_size), 1, TRUE))
     {
       sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);

@@ -4452,8 +4452,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                                        WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
+  if (opt_bin_log && mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
+                                               WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
     unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
@@ -4896,7 +4896,9 @@ int mysqld_main(int argc, char **argv)
 
     /*
       Add server_uuid to the sid_map.  This must be done after
-      server_uuid has been initialized in init_server_auto_options.
+      server_uuid has been initialized in init_server_auto_options and
+      after the binary log (and sid_map file) has been initialized in
+      init_server_components().
 
       No error message is needed: init_sid_map() prints a message.
     */

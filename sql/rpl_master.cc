@@ -722,7 +722,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   thd->current_linfo = &linfo;
   mysql_mutex_unlock(&LOCK_thread_count);
 
-  if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
+  if ((file=open_binlog_file(&log, log_file_name, &errmsg)) < 0)
   {
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     goto err;
@@ -1234,7 +1234,7 @@ impossible position";
         position.  If the binlog is 5.0, the next event we are going to
         read and send is Format_description_log_event.
       */
-      if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
+      if ((file=open_binlog_file(&log, log_file_name, &errmsg)) < 0 ||
 	  fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
                             &errmsg, current_checksum_alg))
       {
