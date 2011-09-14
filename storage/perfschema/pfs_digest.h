@@ -22,8 +22,24 @@
 */
 
 #include "pfs_column_types.h"
+#include "my_global.h"
+#include "lf.h"
+#include "pfs_instr.h"
 
 extern bool flag_statements_digest;
+
+struct PFS_digest_key
+{
+  /**
+    Hash search key.
+    This has to be a string for LF_HASH,
+    the format is "<digest><0x00>"
+  */
+  char m_hash_key[COL_DIGEST_SIZE + 1];
+  unsigned int m_key_length;
+};
+
+
 
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
@@ -32,15 +48,23 @@ struct PFS_statements_digest_stat
   unsigned int m_digest_length;
   char m_digest_text[COL_DIGEST_TEXT_SIZE];
   unsigned int m_digest_text_length;
+  
+  PFS_digest_key m_key;
 };
 
-extern PFS_statements_digest_stat *statements_digest_stat_array;
 
-void insert_statement_digest(char*,char*);
 
 int init_digest(unsigned int digest_sizing);
 void cleanup_digest();
 
+int init_digest_hash(void);
+void cleanup_digest_hash(void);
+void insert_statement_digest(PFS_thread*,char*, char*);
+
+
 void reset_esms_by_digest();
+
+/* Exposing the data directly, for iterators. */
+extern PFS_statements_digest_stat *statements_digest_stat_array;
 
 #endif
