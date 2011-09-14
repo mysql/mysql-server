@@ -16996,7 +16996,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
   DBUG_RETURN(0);
 }
 
-int ha_ndbcluster::alter_table_abort(THD *thd, TABLE *table,
+int ha_ndbcluster::alter_table_abort(THD *thd,
                                      HA_ALTER_INFO *alter_info,
                                      HA_ALTER_FLAGS *alter_flags)
 {
