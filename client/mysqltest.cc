@@ -121,6 +121,41 @@ static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 
+/* Info on properties that can be set with --enable_X and --disable_X */
+
+struct property {
+  my_bool *var;			/* Actual variable */
+  my_bool set;			/* Has been set for ONE command */
+  my_bool old;			/* If set, thus is the old value */
+  my_bool reverse;		/* Varible is true if disabled */
+  const char *env_name;		/* Env. variable name */
+};
+
+static struct property prop_list[] = {
+  { &abort_on_error, 0, 1, 0, "$ENABLED_ABORT_ON_ERROR" },
+  { &disable_connect_log, 0, 1, 1, "$ENABLED_CONNECT_LOG" },
+  { &disable_info, 0, 1, 1, "$ENABLED_INFO" },
+  { &display_metadata, 0, 0, 0, "$ENABLED_METADATA" },
+  { &ps_protocol, 0, 0, 0, "$ENABLED_PS_PROTOCOL" },
+  { &disable_query_log, 0, 0, 1, "$ENABLED_QUERY_LOG" },
+  { &disable_result_log, 0, 0, 1, "$ENABLED_RESULT_LOG" },
+  { &disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS" }
+};
+
+static my_bool once_property= FALSE;
+
+enum enum_prop {
+  P_ABORT= 0,
+  P_CONNECT,
+  P_INFO,
+  P_META,
+  P_PS,
+  P_QUERY,
+  P_RESULT,
+  P_WARN,
+  P_MAX
+};
+
 static uint start_lineno= 0; /* Start line of current command */
 static uint my_end_arg= 0;
 
@@ -721,6 +756,7 @@ void handle_error(struct st_command*,
                   unsigned int err_errno, const char *err_error,
                   const char *err_sqlstate, DYNAMIC_STRING *ds);
 void handle_no_error(struct st_command*);
+void revert_properties();
 
 #ifdef EMBEDDED_LIBRARY
 
@@ -1183,6 +1219,7 @@ void handle_command_error(struct st_command *command, uint error)
     {
       DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
                           command->first_word_len, command->query, error));
+      revert_properties();
       DBUG_VOID_RETURN;
     }
     if (command->expected_errors.count > 0)
@@ -1197,6 +1234,7 @@ void handle_command_error(struct st_command *command, uint error)
         command->first_word_len, command->query,
         command->expected_errors.err[0].code.errnum);
   }
+  revert_properties();
   DBUG_VOID_RETURN;
 }
 
@@ -2274,6 +2312,50 @@ void var_set_errno(int sql_errno)
 {
   var_set_int("$mysql_errno", sql_errno);
   var_set_string("$mysql_errname", get_errname_from_code(sql_errno));
+}
+
+/* Functions to handle --disable and --enable properties */
+
+void set_once_property(enum_prop prop, my_bool val)
+{
+  property &pr= prop_list[prop];
+  pr.set= 1;
+  pr.old= *pr.var;
+  *pr.var= val;
+  var_set_int(pr.env_name, (val != pr.reverse));
+  once_property= TRUE;
+}
+
+void set_property(st_command *command, enum_prop prop, my_bool val)
+{
+  char* p= command->first_argument;
+  if (p && !strcmp (p, "ONCE")) 
+  {
+    command->last_argument= p + 4;
+    set_once_property(prop, val);
+    return;
+  }
+  property &pr= prop_list[prop];
+  *pr.var= val;
+  pr.set= 0;
+  var_set_int(pr.env_name, (val != pr.reverse));
+}
+
+void revert_properties()
+{
+  if (! once_property)
+    return;
+  for (int i= 0; i < (int) P_MAX; i++) 
+  {
+    property &pr= prop_list[i];
+    if (pr.set) 
+    {
+      *pr.var= pr.old;
+      pr.set= 0;
+      var_set_int(pr.env_name, (pr.old != pr.reverse));
+    }
+  }
+  once_property=FALSE;
 }
 
 
@@ -4402,6 +4484,7 @@ void do_let(struct st_command *command)
   var_set(var_name, var_name_end, let_rhs_expr.str,
           (let_rhs_expr.str + let_rhs_expr.length));
   dynstr_free(&let_rhs_expr);
+  revert_properties();
   DBUG_VOID_RETURN;
 }
 
@@ -7342,6 +7425,7 @@ void handle_error(struct st_command *command,
         dynstr_append(ds,"Got one of the listed errors\n");
     }
     /* OK */
+    revert_properties();
     DBUG_VOID_RETURN;
   }
 
@@ -7369,6 +7453,7 @@ void handle_error(struct st_command *command,
 	  command->expected_errors.err[0].code.sqlstate);
   }
 
+  revert_properties();
   DBUG_VOID_RETURN;
 }
 
@@ -7403,6 +7488,7 @@ void handle_no_error(struct st_command *command)
         command->query, command->expected_errors.err[0].code.sqlstate);
   }
 
+  revert_properties();
   DBUG_VOID_RETURN;
 }
 
@@ -8556,60 +8642,46 @@ int main(int argc, char **argv)
       case Q_DIRTY_CLOSE:
 	do_close_connection(command); break;
       case Q_ENABLE_QUERY_LOG:
-        disable_query_log= 0;
-        var_set_int("$ENABLED_QUERY_LOG", 1);
+        set_property(command, P_QUERY, 0);
         break;
       case Q_DISABLE_QUERY_LOG:
-        disable_query_log= 1;
-        var_set_int("$ENABLED_QUERY_LOG", 0);
+        set_property(command, P_QUERY, 1);
         break;
       case Q_ENABLE_ABORT_ON_ERROR:
-        abort_on_error= 1;
-        var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
+        set_property(command, P_ABORT, 1);
         break;
       case Q_DISABLE_ABORT_ON_ERROR:
-        abort_on_error= 0;
-        var_set_int("$ENABLED_ABORT_ON_ERROR", 0);
+        set_property(command, P_ABORT, 0);
         break;
       case Q_ENABLE_RESULT_LOG:
-        disable_result_log= 0;
-        var_set_int("$ENABLED_RESULT_LOG", 1);
+        set_property(command, P_RESULT, 0);
         break;
       case Q_DISABLE_RESULT_LOG:
-        disable_result_log=1;
-        var_set_int("$ENABLED_RESULT_LOG", 0);
+        set_property(command, P_RESULT, 1);
         break;
       case Q_ENABLE_CONNECT_LOG:
-        disable_connect_log=0;
-        var_set_int("$ENABLED_CONNECT_LOG", 1);
+        set_property(command, P_CONNECT, 0);
         break;
       case Q_DISABLE_CONNECT_LOG:
-        disable_connect_log=1;
-        var_set_int("$ENABLED_CONNECT_LOG", 0);
+        set_property(command, P_CONNECT, 1);
         break;
       case Q_ENABLE_WARNINGS:
-        disable_warnings= 0;
-        var_set_int("$ENABLED_WARNINGS", 1);
+        set_property(command, P_WARN, 0);
         break;
       case Q_DISABLE_WARNINGS:
-        disable_warnings= 1;
-        var_set_int("$ENABLED_WARNINGS", 0);
+        set_property(command, P_WARN, 1);
         break;
       case Q_ENABLE_INFO:
-        disable_info= 0;
-        var_set_int("$ENABLED_INFO", 1);
+        set_property(command, P_INFO, 0);
         break;
       case Q_DISABLE_INFO:
-        disable_info= 1;
-        var_set_int("$ENABLED_INFO", 0);
+        set_property(command, P_INFO, 1);
         break;
       case Q_ENABLE_METADATA:
-        display_metadata= 1;
-        var_set_int("$ENABLED_METADATA", 1);
+        set_property(command, P_META, 1);
         break;
       case Q_DISABLE_METADATA:
-        display_metadata= 0;
-        var_set_int("$ENABLED_METADATA", 0);
+        set_property(command, P_META, 0);
         break;
       case Q_SOURCE: do_source(command); break;
       case Q_SLEEP: do_sleep(command, 0); break;
@@ -8838,12 +8910,12 @@ int main(int argc, char **argv)
 	do_set_charset(command);
 	break;
       case Q_DISABLE_PS_PROTOCOL:
-        ps_protocol_enabled= 0;
+        set_property(command, P_PS, 0);
         /* Close any open statements */
         close_statements();
         break;
       case Q_ENABLE_PS_PROTOCOL:
-        ps_protocol_enabled= ps_protocol;
+        set_property(command, P_PS, 1);
         break;
       case Q_DISABLE_RECONNECT:
         set_reconnect(&cur_con->mysql, 0);

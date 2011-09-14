@@ -655,8 +655,9 @@ sub run_test_server ($$$) {
 			 my $core_file= $File::Find::name;
 			 my $core_name= basename($core_file);
 
-			 if ($core_name =~ /^core/ or  # Starting with core
-			     (IS_WINDOWS and $core_name =~ /\.dmp$/)){
+			 # Name beginning with core, not ending in .gz
+			 if (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
+			     or (IS_WINDOWS and $core_name =~ /\.dmp$/)){
                                                        # Ending with .dmp
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
