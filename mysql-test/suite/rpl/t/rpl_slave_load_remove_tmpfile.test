@@ -22,7 +22,6 @@
 --source include/have_debug.inc
 --source include/master-slave.inc
 --source include/not_embedded.inc
---source include/not_var_link.inc
 
 ##########################################################################
 #                            Loading data
@@ -52,7 +51,11 @@ connection slave;
 #  - Last_Errno     29 (File not found)
 # Unix like OS: 
 #  - Last_Errno      13 (Can't stat file)
---let $slave_sql_errno= 29, 13
+#  - Last_Errno     1290 (When datadir was set to a symlink when the load 
+#                         data file is removed the server won't be able to 
+#                         resolve the realpath, ending up stating that we 
+#                         have a mismatch)
+--let $slave_sql_errno= 29, 13, 1290
 --source include/wait_for_slave_sql_error.inc
 
 ##########################################################################
