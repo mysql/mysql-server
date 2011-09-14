@@ -7,7 +7,7 @@ insert into t1(b) values (1);
 insert into t1(b) values (2);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 commit;
-include/wait_for_slave_sql_error.inc [errno=29, 13]
+include/wait_for_slave_sql_error.inc [errno=29, 13, 1290]
 drop table t1;
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc

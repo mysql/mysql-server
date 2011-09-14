@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -579,7 +579,7 @@ dtuple_convert_big_rec(
 	ulint		local_len;
 	ulint		local_prefix_len;
 
-	if (UNIV_UNLIKELY(!dict_index_is_clust(index))) {
+	if (!dict_index_is_clust(index)) {
 		return(NULL);
 	}
 
