@@ -5774,11 +5774,15 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
     }
-    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
-    assert(m_rows_changed >= ignore_count);
-    assert(m_rows_updated >= ignore_count);
-    m_rows_changed-= ignore_count;
-    m_rows_updated-= ignore_count;
+    THD *thd= table->in_use;
+    if (!thd->slave_thread)
+    {
+      DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
+      assert(m_rows_changed >= ignore_count);
+      assert(m_rows_updated >= ignore_count);
+      m_rows_changed-= ignore_count;
+      m_rows_updated-= ignore_count;
+    }
     DBUG_RETURN(0);
   }
 
@@ -5814,10 +5818,14 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
-  assert(m_rows_changed >= ignore_count);
-  assert(m_rows_updated >= ignore_count);
-  m_rows_changed-= ignore_count;
-  m_rows_updated-= ignore_count;
+  THD *thd= table->in_use;
+  if (!thd->slave_thread)
+  {
+    assert(m_rows_changed >= ignore_count);
+    assert(m_rows_updated >= ignore_count);
+    m_rows_changed-= ignore_count;
+    m_rows_updated-= ignore_count;
+  }
   DBUG_RETURN(0);
 }
 
@@ -6136,10 +6144,13 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   m_rows_changed++;
   m_rows_updated++;
 
-  assert(m_rows_changed >= ignore_count);
-  assert(m_rows_updated >= ignore_count);
-  m_rows_changed-= ignore_count;
-  m_rows_updated-= ignore_count;
+  if (!thd->slave_thread)
+  {
+    assert(m_rows_changed >= ignore_count);
+    assert(m_rows_updated >= ignore_count);
+    m_rows_changed-= ignore_count;
+    m_rows_updated-= ignore_count;
+  }
 
   DBUG_RETURN(0);
 }
@@ -6193,9 +6204,13 @@ int ha_ndbcluster::end_bulk_delete()
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
     }
-    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
-    assert(m_rows_deleted >= ignore_count);
-    m_rows_deleted-= ignore_count;
+    THD *thd= table->in_use;
+    if (!thd->slave_thread)
+    {
+      DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
+      assert(m_rows_deleted >= ignore_count);
+      m_rows_deleted-= ignore_count;
+    }
     DBUG_RETURN(0);
   }
 
@@ -6231,9 +6246,13 @@ int ha_ndbcluster::end_bulk_delete()
     DBUG_RETURN(ndb_err(trans));
   }
 
-  assert(m_rows_deleted >= ignore_count);
-  m_rows_deleted-= ignore_count;
-  no_uncommitted_rows_update(ignore_count);
+  THD *thd= table->in_use;
+  if (!thd->slave_thread)
+  {
+    assert(m_rows_deleted >= ignore_count);
+    m_rows_deleted-= ignore_count;
+    no_uncommitted_rows_update(ignore_count);
+  }
   DBUG_RETURN(0);
 }
 
@@ -6438,9 +6457,12 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   }
   if (!primary_key_update)
   {
-    assert(m_rows_deleted >= ignore_count);
-    m_rows_deleted-= ignore_count;
-    no_uncommitted_rows_update(ignore_count);
+    if (!thd->slave_thread)
+    {
+      assert(m_rows_deleted >= ignore_count);
+      m_rows_deleted-= ignore_count;
+      no_uncommitted_rows_update(ignore_count);
+    }
   }
   DBUG_RETURN(0);
 }
