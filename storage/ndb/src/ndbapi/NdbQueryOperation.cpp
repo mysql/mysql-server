@@ -76,7 +76,7 @@ static const int Err_InterpretedCodeWrongTab = 4524;
 static const Uint16 tupleNotFound = 0xffff;
 
 /** Set to true to trace incomming signals.*/
-const bool traceSignals = false;
+static const bool traceSignals = false;
 
 enum
 {
@@ -4921,8 +4921,8 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
 
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" 
-           << ", operation no: " << getQueryOperationDef().getQueryOperationIx()
            << ", fragment no: " << rootFrag->getFragNo()
+           << ", operation no: " << getQueryOperationDef().getQueryOperationIx()
            << endl;
   }
 
@@ -4936,7 +4936,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
     ret = m_queryImpl.handleBatchComplete(*rootFrag);
   }
 
-  if (traceSignals) {
+  if (false && traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI(): returns:" << ret
            << ", *this=" << *this <<  endl;
   }
@@ -5016,10 +5016,6 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
                                         Uint32 nodeMask,
                                         NdbReceiver* receiver)
 {
-  if (traceSignals) {
-    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF(rows: " << rowCount
-           << " nodeMask: H'" << hex << nodeMask << ")" << endl;
-  }
   assert((tcPtrI==RNIL && nodeMask==0) || 
          (tcPtrI!=RNIL && nodeMask!=0));
   assert(checkMagicNumber());
@@ -5042,8 +5038,11 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   rootFrag->incrOutstandingResults(rowCount);
 
   if(traceSignals){
-    ndbout << "  resultStream {" << rootFrag->getResultStream(*this)
-           << "} fragNo" << rootFrag->getFragNo()
+    ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF"
+           << " fragment no: " << rootFrag->getFragNo()
+           << " rows " << rowCount
+           << " nodeMask: H'" << hex << nodeMask << ")"
+           << " tcPtrI " << tcPtrI
            << endl;
   }
 
@@ -5053,7 +5052,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     /* This fragment is now complete */
     ret = m_queryImpl.handleBatchComplete(*rootFrag);
   }
-  if (traceSignals) {
+  if (false && traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
            << ", tcPtrI=" << tcPtrI << " rowCount=" << rowCount 
            << " *this=" << *this << endl;
