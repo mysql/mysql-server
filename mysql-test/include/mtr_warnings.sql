@@ -119,6 +119,7 @@ INSERT INTO global_suppressions VALUES
  ("NDB Binlog:"),
  ("NDB: failed to setup table"),
  ("NDB: only row based binary logging"),
+ ("You need to use --log-bin to make --binlog-format work"),
  ("Neither --relay-log nor --relay-log-index were used"),
  ("Query partially completed"),
  ("Slave I.O thread aborted while waiting for relay log"),
