@@ -735,6 +735,12 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
     DBUG_RETURN(false);
   }
 
+  if (nodeId == getOwnNodeId())
+  {
+    DBUG_RETURN(m_config_manager->get_packed_config(NDB_MGM_NODE_TYPE_API,
+                                                    &buf64, error));
+  }
+
   if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB)
   {
     error.assfmt("Node %d is not a data node. ", nodeId);
@@ -3529,8 +3535,26 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   {
     // Fatal error
     error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
-    error_string.appfmt("Id %d is already allocated by this ndb_mgmd",
-                        nodeid);
+    if (type != NDB_MGM_NODE_TYPE_MGM)
+    {
+      /**
+       * be backwards compatile wrt error messages
+       */
+      BaseString type_string, type_c_string;
+      const char *alias, *str;
+      alias= ndb_mgm_get_node_type_alias_string(type, &str);
+      type_string.assfmt("%s(%s)", alias, str);
+      alias= ndb_mgm_get_node_type_alias_string(NDB_MGM_NODE_TYPE_MGM, &str);
+      type_c_string.assfmt("%s(%s)", alias, str);
+      error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
+                          nodeid, type_c_string.c_str(),
+                          type_string.c_str());
+    }
+    else
+    {
+      error_string.appfmt("Id %d is already allocated by this ndb_mgmd",
+                          nodeid);
+    }
     return false;
   }
 
