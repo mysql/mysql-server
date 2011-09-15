@@ -26,12 +26,12 @@
 #    A new row with EVENT_NAME "client_connection" shows up
 #    is tested in 0 and 4.5.
 # 2. Impact of disconnect
-#    A row with EVENT_NAME "client_connection" disappears up
-#    is tested in 0. and 1.2.
+#    A row with EVENT_NAME "client_connection" disappears
+#    is tested in 0. and 2.
 # 3. Disabling the instrumentation for some thread causes that the
 #    counter for this thread become static is tested in 4.3.
 #    Nearby the beginning of this test and somewhere in the middle.
-# 4. TRUNCATE table resets the counter is tested nearby the beginning.
+# 4. TRUNCATE table resets the counters is tested in 5.
 # 5. Consistency within a row like MIN_* <= AVG_* <= MAX_*
 #    -> include/socket_summary_check.inc which is called at
 #       various places
@@ -45,11 +45,12 @@
 #    - Connects                   in 4.5
 #
 
-# Embedded server does not supprt the performance_schema.
+# Embedded server does not support the performance_schema.
 --source include/not_embedded.inc
 
 # Windows platforms only
 --source include/windows.inc
+--source include/have_perfschema.inc
 
 # The values in the performance_schema tables depend on how much communication
 # happens per SQL statement within our MTR tests. And there is a significant
@@ -459,74 +460,9 @@ WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin
      AND EVENT_NAME LIKE '%client_connection';
 }
 
---echo # 1.2 Check the impact of TRUNCATE on socket_summary_by_instance.
---echo #     It must reset all counters.
-#=======================================================================
-# We did a Connect and executed some statements within our new default session.
-# This specific history must have caused that none of the counters within
-# the client_connection for this session is 0.
-#
-# C_STAR TIMER_WAIT C_READ TIMER_READ BYTES_READ C_WRITE TIMER_WRITE BYTES_WRITE C_MISC TIMER_MISC
-#     26   98238140     15   14874860        645       5    47217170         178      6   36146110
-#
-# Ensure that the counters are <> 0 so that TRUNCATE has a visible effect.
-let $my_rules=
-COUNT_STAR  > 0 AND SUM_TIMER_WAIT  > 0
-AND
-COUNT_READ  > 0 AND SUM_TIMER_READ  > 0 AND SUM_NUMBER_OF_BYTES_READ  > 0
-AND
-COUNT_WRITE > 0 AND SUM_TIMER_WRITE > 0 AND SUM_NUMBER_OF_BYTES_WRITE > 0
-AND
-COUNT_MISC  > 0 AND SUM_TIMER_MISC  > 0;
-if(`SELECT COUNT(*) FROM performance_schema.socket_summary_by_instance
-    WHERE NOT ( $my_rules )
-      AND OBJECT_INSTANCE_BEGIN = @default_object_instance_begin`)
-{
-   --enable_query_log
-   --enable_result_log
-   --echo # The statistics looks suspicious.
-   --echo # We expect
-   --echo #    $my_rules
-   --echo #
-   eval
-   SELECT
-      COUNT_STAR,  SUM_TIMER_WAIT,
-      COUNT_READ,  SUM_TIMER_READ,  SUM_NUMBER_OF_BYTES_READ,
-      COUNT_WRITE, SUM_TIMER_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
-      COUNT_MISC,  SUM_TIMER_MISC
-   FROM performance_schema.socket_summary_by_instance
-   WHERE OBJECT_INSTANCE_BEGIN = @default_object_instance_begin;
-}
 TRUNCATE TABLE performance_schema.socket_summary_by_instance;
-let $my_rules=
-COUNT_STAR  = 0 AND SUM_TIMER_WAIT  = 0
-AND
-COUNT_READ  = 0 AND SUM_TIMER_READ  = 0 AND SUM_NUMBER_OF_BYTES_READ  = 0
-AND
-COUNT_WRITE = 0 AND SUM_TIMER_WRITE = 0 AND SUM_NUMBER_OF_BYTES_WRITE = 0
-AND
-COUNT_MISC  = 0 AND SUM_TIMER_MISC  = 0;
-if(`SELECT COUNT(*) FROM performance_schema.socket_summary_by_instance
-    WHERE NOT ( $my_rules )
-      AND OBJECT_INSTANCE_BEGIN = @default_object_instance_begin`)
-{
-   --enable_query_log
-   --enable_result_log
-   --echo # The statistics looks suspicious.
-   --echo # We expect
-   --echo #    $my_rules
-   --echo #
-   eval
-   SELECT
-      COUNT_STAR, SUM_TIMER_WAIT,
-      COUNT_READ,SUM_TIMER_READ,SUM_NUMBER_OF_BYTES_READ,
-      COUNT_WRITE,SUM_TIMER_WRITE,SUM_NUMBER_OF_BYTES_WRITE,
-      COUNT_MISC,SUM_TIMER_MISC
-   FROM performance_schema.socket_summary_by_instance
-   WHERE OBJECT_INSTANCE_BEGIN = @default_object_instance_begin;
-}
 
---echo # 1.3 Check the base line
+--echo # 1.2 Check the base line
 #===============================
 eval $truncate;
 --source ../include/socket_summary_check.inc
@@ -1702,6 +1638,42 @@ if(`SELECT NOT ($my_rules)
    let $print_details= 1;
 }
 
+--echo # 5. Check the impact of TRUNCATE on socket_summary_by_instance.
+--echo #    It must reset all counters.
+#=======================================================================
+# We do not need to check if the majority of counters is <> 0 because if
+# we ever hit such a bad state than a lot of the preceding checks would
+# have already failed and reported this.
+TRUNCATE TABLE performance_schema.socket_summary_by_instance;
+let $my_rules=
+COUNT_STAR  = 0 AND SUM_TIMER_WAIT  = 0
+AND
+COUNT_READ  = 0 AND SUM_TIMER_READ  = 0 AND SUM_NUMBER_OF_BYTES_READ  = 0
+AND
+COUNT_WRITE = 0 AND SUM_TIMER_WRITE = 0 AND SUM_NUMBER_OF_BYTES_WRITE = 0
+AND
+COUNT_MISC  = 0 AND SUM_TIMER_MISC  = 0;
+if(`SELECT COUNT(*) FROM performance_schema.socket_summary_by_instance
+    WHERE NOT ( $my_rules )
+      AND OBJECT_INSTANCE_BEGIN = @default_object_instance_begin`)
+{
+   --enable_query_log
+   --enable_result_log
+   --echo # The statistics looks suspicious.
+   --echo # We expect
+   --echo #    $my_rules
+   --echo #
+   eval
+   SELECT
+      COUNT_STAR, SUM_TIMER_WAIT,
+      COUNT_READ,SUM_TIMER_READ,SUM_NUMBER_OF_BYTES_READ,
+      COUNT_WRITE,SUM_TIMER_WRITE,SUM_NUMBER_OF_BYTES_WRITE,
+      COUNT_MISC,SUM_TIMER_MISC
+   FROM performance_schema.socket_summary_by_instance
+   WHERE OBJECT_INSTANCE_BEGIN = @default_object_instance_begin;
+}
+
+
 if($print_details)
 {
    --enable_query_log
@@ -1710,7 +1682,6 @@ if($print_details)
    --echo # Dump detailed differences after - before statement execution
    --echo # 1. The statement executing connection and hopefully noone else
    SELECT @default_object_instance_begin;
-   # SELECT EVENT_NAME,
    SELECT EVENT_NAME, OBJECT_INSTANCE_BEGIN,
           COUNT_READ,  SUM_NUMBER_OF_BYTES_READ,
           COUNT_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
@@ -1750,7 +1721,7 @@ if($print_details)
    --horizontal_results
 }
 
---echo # 5. Cleanup
+--echo # 6. Cleanup
 #==================
 # Cleanup
 --disable_query_log
