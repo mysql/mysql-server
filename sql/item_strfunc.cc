@@ -3067,7 +3067,10 @@ String *Item_func_conv::val_str(String *str)
 
   if (!(ptr= longlong2str(dec, ans, to_base)) ||
       str->copy(ans, (uint32) (ptr - ans), default_charset()))
-    return make_empty_result();
+  {
+    null_value= 1;
+    return NULL;
+  }
   return str;
 }
 
