@@ -5055,7 +5055,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans;
   uint32 part_id;
-  int error;
+  int error= 0;
   NdbOperation::SetValueSpec sets[3];
   Uint32 num_sets= 0;
   DBUG_ENTER("ha_ndbcluster::ndb_write_row");
@@ -5091,10 +5091,25 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     
     if (!peek_res) 
     {
-      DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+      error= HA_ERR_FOUND_DUPP_KEY;
     }
-    if (peek_res != HA_ERR_KEY_NOT_FOUND)
-      DBUG_RETURN(peek_res);
+    else if (peek_res != HA_ERR_KEY_NOT_FOUND)
+    {
+      error= peek_res;
+    }
+    if (error)
+    {
+      if ((has_auto_increment) && (m_skip_auto_increment))
+      {
+        int ret_val;
+        if ((ret_val= set_auto_inc(thd, table->next_number_field)))
+        {
+          DBUG_RETURN(ret_val);
+        }
+      }
+      m_skip_auto_increment= TRUE;
+      DBUG_RETURN(error);
+    }
   }
 
   bool uses_blobs= uses_blob_value(table->write_set);
