@@ -136,7 +136,7 @@ static struct property prop_list[] = {
   { &disable_connect_log, 0, 1, 1, "$ENABLED_CONNECT_LOG" },
   { &disable_info, 0, 1, 1, "$ENABLED_INFO" },
   { &display_metadata, 0, 0, 0, "$ENABLED_METADATA" },
-  { &ps_protocol, 0, 0, 0, "$ENABLED_PS_PROTOCOL" },
+  { &ps_protocol_enabled, 0, 0, 0, "$ENABLED_PS_PROTOCOL" },
   { &disable_query_log, 0, 0, 1, "$ENABLED_QUERY_LOG" },
   { &disable_result_log, 0, 0, 1, "$ENABLED_RESULT_LOG" },
   { &disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS" }
@@ -7519,6 +7519,9 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
 
+  /* Remember disable_result_log since handle_no_error() may reset it */
+  my_bool dis_res= disable_result_log;
+  
   /*
     Init a new stmt if it's not already one created for this connection
   */
@@ -7614,7 +7617,7 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
   /* If we got here the statement was both executed and read successfully */
   handle_no_error(command);
-  if (!disable_result_log)
+  if (!dis_res)
   {
     /*
       Not all statements creates a result set. If there is one we can
@@ -8915,7 +8918,7 @@ int main(int argc, char **argv)
         close_statements();
         break;
       case Q_ENABLE_PS_PROTOCOL:
-        set_property(command, P_PS, 1);
+        set_property(command, P_PS, ps_protocol);
         break;
       case Q_DISABLE_RECONNECT:
         set_reconnect(&cur_con->mysql, 0);
