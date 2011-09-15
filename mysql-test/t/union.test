@@ -1156,4 +1156,45 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 DROP TABLE t1,t2;
 
 
+--echo #
+--echo # Bug#11765255 58201:
+--echo # VALGRIND/CRASH WHEN ORDERING BY MULTIPLE AGGREGATE FUNCTIONS
+--echo #
+
+let $my_stmt=
+select 1 as foo
+union
+select 2
+union
+select 3
+union
+select 4
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+;
+
+eval $my_stmt;
+
+eval prepare stmt1 from '$my_stmt';
+execute stmt1;
+execute stmt1;
+
+let $my_stmt=
+select 1 as foo
+union
+select 2
+union
+select 3
+union
+(select 4)
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+;
+
+eval $my_stmt;
+
+eval prepare stmt1 from '$my_stmt';
+execute stmt1;
+execute stmt1;
+
+deallocate prepare stmt1;
+
 --echo End of 5.1 tests
