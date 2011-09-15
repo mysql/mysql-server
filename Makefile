@@ -57,6 +57,29 @@ summarize: check
 
 check: $(CHECKS)
 
+.PHONY: fastbuild fastbuildtests fastcheck fastchecknewbrt fastcheckydb fastcheckonlyfail fastcheckonlyfailnewbrt fastcheckonlyfailydb
+fastbuild:
+	$(MAKE) -s -k -C linux
+	$(MAKE) -s -k -C newbrt local
+	$(MAKE) -s -k -C src local
+	$(MAKE) -s -k -C utils
+
+fastbuildtests: fastbuild
+	$(MAKE) -s -k -C newbrt/tests
+	$(MAKE) -s -k -C src/tests tests.tdb
+
+fastcheck: fastchecknewbrt fastcheckydb
+fastchecknewbrt: fastbuildtests
+	$(MAKE) -s -k -C newbrt/tests fastcheck
+fastcheckydb: fastbuildtests
+	$(MAKE) -s -k -C src/tests fastcheck.tdb
+
+fastcheckonlyfail: fastcheckonlyfailnewbrt fastcheckonlyfailydb
+fastcheckonlyfailnewbrt: fastbuildtests
+	$(MAKE) -s -k -C newbrt/tests fastcheckonlyfail
+fastcheckonlyfailydb: fastbuildtests
+	$(MAKE) -s -k -C src/tests fastcheckonlyfail.tdb
+
 clean: $(patsubst %,%.dir.clean,$(SRCDIRS)) cleanlib
 cleanlib:
 	rm -rf lib/*.$(SOEXT) lib/*.$(AEXT) lib/*.bundle
