@@ -45,7 +45,6 @@ use File::Basename;
   my $plugindir_ini= "$ENV{PLUGIN_DIR}/daemon_example.ini";
   my $notfound= "";
   open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/mysqld.inc") or die;
-  print FILE "let \$MYSQLD= $mysqld;\n";
   print FILE "let \$MYSQLD_BASEDIR= $mysqld_basedir;\n";
   print FILE "let \$MYSQL_MY_PRINT_DEFAULTS_BASEDIR= $my_print_defaults_basedir;\n";
   if ((!-e $daemonexample_ini) || (!-r $daemonexample_ini))
