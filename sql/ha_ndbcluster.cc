@@ -5473,7 +5473,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans;
   uint32 part_id;
-  int error;
+  int error= 0;
   NdbOperation::SetValueSpec sets[3];
   Uint32 num_sets= 0;
   DBUG_ENTER("ha_ndbcluster::ndb_write_row");
@@ -5509,10 +5509,25 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     
     if (!peek_res) 
     {
-      DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+      error= HA_ERR_FOUND_DUPP_KEY;
     }
-    if (peek_res != HA_ERR_KEY_NOT_FOUND)
-      DBUG_RETURN(peek_res);
+    else if (peek_res != HA_ERR_KEY_NOT_FOUND)
+    {
+      error= peek_res;
+    }
+    if (error)
+    {
+      if ((has_auto_increment) && (m_skip_auto_increment))
+      {
+        int ret_val;
+        if ((ret_val= set_auto_inc(thd, table->next_number_field)))
+        {
+          DBUG_RETURN(ret_val);
+        }
+      }
+      m_skip_auto_increment= TRUE;
+      DBUG_RETURN(error);
+    }
   }
 
   bool uses_blobs= uses_blob_value(table->write_set);
@@ -6177,11 +6192,15 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
     }
-    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
-    assert(m_rows_changed >= ignore_count);
-    assert(m_rows_updated >= ignore_count);
-    m_rows_changed-= ignore_count;
-    m_rows_updated-= ignore_count;
+    THD *thd= table->in_use;
+    if (!thd->slave_thread)
+    {
+      DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
+      assert(m_rows_changed >= ignore_count);
+      assert(m_rows_updated >= ignore_count);
+      m_rows_changed-= ignore_count;
+      m_rows_updated-= ignore_count;
+    }
     DBUG_RETURN(0);
   }
 
@@ -6217,10 +6236,14 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
-  assert(m_rows_changed >= ignore_count);
-  assert(m_rows_updated >= ignore_count);
-  m_rows_changed-= ignore_count;
-  m_rows_updated-= ignore_count;
+  THD *thd= table->in_use;
+  if (!thd->slave_thread)
+  {
+    assert(m_rows_changed >= ignore_count);
+    assert(m_rows_updated >= ignore_count);
+    m_rows_changed-= ignore_count;
+    m_rows_updated-= ignore_count;
+  }
   DBUG_RETURN(0);
 }
 
@@ -6539,10 +6562,13 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   m_rows_changed++;
   m_rows_updated++;
 
-  assert(m_rows_changed >= ignore_count);
-  assert(m_rows_updated >= ignore_count);
-  m_rows_changed-= ignore_count;
-  m_rows_updated-= ignore_count;
+  if (!thd->slave_thread)
+  {
+    assert(m_rows_changed >= ignore_count);
+    assert(m_rows_updated >= ignore_count);
+    m_rows_changed-= ignore_count;
+    m_rows_updated-= ignore_count;
+  }
 
   DBUG_RETURN(0);
 }
@@ -6596,9 +6622,13 @@ int ha_ndbcluster::end_bulk_delete()
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
     }
-    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
-    assert(m_rows_deleted >= ignore_count);
-    m_rows_deleted-= ignore_count;
+    THD *thd= table->in_use;
+    if (!thd->slave_thread)
+    {
+      DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
+      assert(m_rows_deleted >= ignore_count);
+      m_rows_deleted-= ignore_count;
+    }
     DBUG_RETURN(0);
   }
 
@@ -6634,9 +6664,13 @@ int ha_ndbcluster::end_bulk_delete()
     DBUG_RETURN(ndb_err(trans));
   }
 
-  assert(m_rows_deleted >= ignore_count);
-  m_rows_deleted-= ignore_count;
-  no_uncommitted_rows_update(ignore_count);
+  THD *thd= table->in_use;
+  if (!thd->slave_thread)
+  {
+    assert(m_rows_deleted >= ignore_count);
+    m_rows_deleted-= ignore_count;
+    no_uncommitted_rows_update(ignore_count);
+  }
   DBUG_RETURN(0);
 }
 
@@ -6841,9 +6875,12 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   }
   if (!primary_key_update)
   {
-    assert(m_rows_deleted >= ignore_count);
-    m_rows_deleted-= ignore_count;
-    no_uncommitted_rows_update(ignore_count);
+    if (!thd->slave_thread)
+    {
+      assert(m_rows_deleted >= ignore_count);
+      m_rows_deleted-= ignore_count;
+      no_uncommitted_rows_update(ignore_count);
+    }
   }
   DBUG_RETURN(0);
 }
