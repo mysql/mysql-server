@@ -1538,6 +1538,12 @@ void clean_up(bool print_message)
   my_free(const_cast<char*>(relay_log_basename));
   my_free(const_cast<char*>(relay_log_index));
 #endif
+#ifdef HAVE_UGID
+  my_free(const_cast<char*>(group_log_files_filename));
+  my_free(const_cast<char*>(group_log_filename));
+  my_free(const_cast<char*>(group_log_init_state_filename));
+  my_free(const_cast<char*>(sid_map_filename));
+#endif
   free_list(opt_plugin_load_list_ptr);
 
   /*
@@ -4294,6 +4300,16 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                         opt_bin_logname ? "" : "-bin");
     log_bin_index=
       rpl_make_log_name(opt_binlog_index_name, log_bin_basename, ".index");
+#ifdef HAVE_UGID
+    group_log_files_filename=
+      rpl_make_log_name(NULL, log_bin_basename, "-files");
+    group_log_filename=
+      rpl_make_log_name(NULL, log_bin_basename, "-grp");
+    group_log_init_state_filename=
+      rpl_make_log_name(NULL, log_bin_basename, "-init");
+    sid_map_filename=
+      rpl_make_log_name(NULL, log_bin_basename, "-sids");
+#endif
     if (log_bin_basename == NULL || log_bin_index == NULL)
     {
       sql_print_error("Unable to create replication path names:"
@@ -4902,7 +4918,10 @@ int mysqld_main(int argc, char **argv)
 
       No error message is needed: init_sid_map() prints a message.
     */
-    if (mysql_bin_log.init_sid_map())
+    mysql_bin_log.sid_lock.rdlock();
+    int ret= mysql_bin_log.init_sid_map();
+    mysql_bin_log.sid_lock.unlock();
+    if (ret)
       unireg_abort(1);
   }
 

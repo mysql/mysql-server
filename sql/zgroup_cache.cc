@@ -171,7 +171,6 @@ Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
                                             const Group_set *group_set)
 {
   DBUG_ENTER("Group_cache::add_dummy_subgroups_if_missing(Group_log_state *, Group_set *)");
-  //printf("Group_cache::add_dummy_subgroups_if_missing(Group_log_state *, Group_set *)");
   /*
     @todo: This algorithm is
     O(n_groups_in_cache*n_groups_in_group_set) because contains_group
@@ -186,11 +185,9 @@ Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
   Group_set::Group_iterator git(group_set);
   Group g= git.get();
   while (g.sidno) {
-    //printf("adding if missing: %d %lld\n", g.sidno, g.gno);
     GROUP_STATUS_THROW(add_dummy_subgroup_if_missing(gls, g.sidno, g.gno));
     git.next();
     g= git.get();
-    //printf("next group: %d %lld\n", g.sidno, g.gno);
   }
   DBUG_RETURN(GS_SUCCESS);
 }
@@ -335,7 +332,6 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
     numbers have been generated for automatic subgroups.
   */
   {
-    int n_subgroups= get_n_subgroups();
     for (int i= 0; i < n_subgroups; i++)
     {
       Cached_subgroup *cs= get_unsafe_pointer(i);
@@ -354,6 +350,7 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
   if (offset_after_last_statement != -1)
 #endif
   {
+    *last_non_dummy_subgroup= NULL;
     for (int i= n_subgroups - 1; i >= 0; i--)
     {
       Cached_subgroup *cs= get_unsafe_pointer(i);

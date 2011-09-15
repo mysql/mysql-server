@@ -26,8 +26,10 @@
 
 void Group_log_state::clear()
 {
+  DBUG_ENTER("Group_log_state::clear()");
   sid_lock->rdlock();
   rpl_sidno max_sidno= sid_map->get_max_sidno();
+  DBUG_PRINT("info", ("max_sidno=%d", max_sidno));
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     sid_locks.lock(sidno);
 
@@ -37,6 +39,7 @@ void Group_log_state::clear()
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     sid_locks.unlock(sidno);
   sid_lock->unlock();
+  DBUG_VOID_RETURN;
 }
 
 
