@@ -273,31 +273,6 @@ set @@session.optimizer_switch          = @old_optimizer_switch,
 @@session.engine_condition_pushdown = @old_engine_condition_pushdown;
 DROP TABLE t1;
 #
-# BUG#45863 "Assertion failed: (fixed == 0), function fix_fields(),
-#            file item.cc, line 4448"
-#
-DROP TABLE IF EXISTS C, BB;
-CREATE TABLE C (
-varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO C VALUES
-('k'),('a'),(''),('u'),('e'),('v'),('i'),
-('t'),('u'),('f'),('u'),('m'),('j'),('f'),
-('v'),('j'),('g'),('e'),('h'),('z');
-CREATE TABLE BB (
-varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO BB VALUES ('i'),('t');
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
-FROM BB);
-ERROR 21000: Operand should contain 2 column(s)
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
-FROM BB);
-ERROR 42S22: Unknown column 'OUTR' in 'IN/ALL/ANY subquery'
-DROP TABLE C,BB;
-#
 # During work with BUG#45863 I had problems with a query that was
 # optimized differently in regular and prepared mode.
 # Because there was a bug in one of the selected strategies, I became
