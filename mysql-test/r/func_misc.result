@@ -333,6 +333,13 @@ select NAME_CONST('_id',1234) as id;
 id
 1234
 End of 5.0 tests
+SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('a', -(1 AND 2)) OR 1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('a', -(1)) OR 1;
+NAME_CONST('a', -(1)) OR 1
+1
 select connection_id() > 0;
 connection_id() > 0
 1
