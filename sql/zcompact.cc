@@ -17,10 +17,11 @@
 #include "zgroups.h"
 
 
-int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
+const int Compact_encoding::MAX_ENCODED_LENGTH;
+
+
+int Compact_encoding::get_encoded_length(ulonglong n)
 {
-  DBUG_ENTER("Compact_encoding::write_unsigned");
-  uchar buf[10];
   // len is the total number of bytes to write
   int len= 16;
   if (n & 0x00FFFFFFFfffffffLL) // 56 bits set
@@ -31,10 +32,27 @@ int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
     len-= 2;
   if (n & 0x7f01fc07f01fc07fLL) //  7 bits set
     len--;
+  return len;
+}
+
+
+int Compact_encoding::write_unsigned(ulonglong n, uchar *buf)
+{
+  DBUG_ENTER("Compact_encoding::write_unsigned(ulonglong , char *)");
+  int len= get_encoded_length(n);
   if (len > 8)
     int2store(buf + 8, (uint)(n >> (64 - len)));
   n= (n << len) + (1 << (len - 1));
   int8store(buf, n);
+  DBUG_RETURN(len);
+}
+
+
+int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
+{
+  DBUG_ENTER("Compact_encoding::write_unsigned");
+  uchar buf[10];
+  int len= write_unsigned(n, buf);
   int ret= my_write(fd, buf, len, my_flags);
   DBUG_RETURN(ret);
 }

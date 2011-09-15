@@ -66,7 +66,8 @@ enum enum_group_status
   GS_SUCCESS= 0,
   GS_ERROR_OUT_OF_MEMORY= -1,
   GS_ERROR_PARSE= -2,
-  GS_ERROR_IO= -3
+  GS_ERROR_IO= -3,
+  GS_END_OF_FILE= -4
 };
 
 /**
@@ -352,6 +353,12 @@ public:
   /// Destroy this Sid_map.
   ~Sid_map();
   /**
+    Clears this Sid_map (for RESET MASTER)
+
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status clear();
+  /**
     Open the disk file.
     @param base_filename The base of the filename, i.e., without "-sids".
     @return GS_SUCCESS or GS_ERROR_IO
@@ -362,6 +369,13 @@ public:
     @return GS_SUCCESS or GS_ERROR_IO
   */
   enum_group_status close();
+  /**
+    Sync changes on disk.
+
+    @retval GS_SUCCESS success.
+    @retval GS_ERROR_IO error.
+  */
+  enum_group_status sync();
   /**
     Permanently add the given SID to this map if it does not already
     exist.
@@ -384,13 +398,6 @@ public:
     sid in memory, and return a negative sidno.
   */
   rpl_sidno add_permanent(const rpl_sid *sid, bool _sync= true);
-  /**
-    Sync changes on disk.
-
-    @retval GS_SUCCESS success.
-    @retval GS_ERROR_IO error.
-  */
-  enum_group_status sync();
   /**
     Get the SIDNO for a given SID
 
@@ -462,6 +469,11 @@ private:
     rpl_sidno sidno;
     rpl_sid sid;
   };
+
+  /**
+    Return true iff open() has been (successfully) called.
+  */
+  bool is_open() { return fd != -1; }
 
   /**
     Create a Node from the given SIDNO and SID and add it to
@@ -1654,7 +1666,7 @@ private:
 */
 enum enum_subgroup_type
 {
-  NORMAL_SUBGROUP, ANONYMOUS_SUBGROUP, DUMMY_SUBGROUP
+  NORMAL_SUBGROUP= 0, ANONYMOUS_SUBGROUP= 1, DUMMY_SUBGROUP= 2
 };
 
 
@@ -2049,12 +2061,42 @@ private:
 };
 
 
+/**
+  Class that implements a file with fifo-like characteristics:
+
+   - The front-end looks like a single file where you can append,
+     pread, truncate, and purge.  The append, pread, and truncate
+     operations are as for normal files.  The purge operation removes
+     the beginning of the file, but leaves the remainder of the file
+     at the same logical position.  E.g., if the first 1000 bytes are
+     purged, then it becomes invalid to pread from position 999, while
+     a read from position 1000 returns the same data as it would have
+     done before the purge.
+
+   - The back-end is a sequence of files with hexadecimal file name
+     suffixes.  The purge operation removes the first few such files,
+     until the file that contains the first position after the purge.
+*/
 class Rot_file
 {
 public:
-  Rot_file(const char *filename);
-  int open(bool write);
-  int close();
+  /// Create a new Rot_file that is not open.
+  Rot_file() : fd(-1) {}
+  /**
+    Open the Rot_file.
+
+    @param filename Base name for rotfiles.
+    @param write If true, this Rot_file is writable.
+  */
+  enum_group_status open(const char *filename, bool writable);
+  /// Close the Rot_file.
+  enum_group_status close();
+  /**
+    Append data to the end of this Rot_file.
+    @param length Number of bytes to write.
+    @param data Data to write.
+    @return Number of bytes written, or negative on error.
+  */
   my_off_t append(my_off_t length, const uchar *data)
   {
     DBUG_ENTER("Rot_file::append");
@@ -2062,30 +2104,108 @@ public:
     my_off_t ret= my_write(fd, data, length, MYF(MY_WME));
     DBUG_RETURN(ret);
   }
-  my_off_t pread(my_off_t offset, my_off_t length, uchar *buffer) const;
+  /**
+    Iterator class that sequentially reads from the file.
+
+    @todo In the future, when we have implemented real, rotatable
+    files, each iterator object blocks the parent Rot_file from
+    purging the underlying file.  It also forces the underlying file
+    to stay open until the iterator object iterates to the next file
+    or is closed. /sven
+  */
+  class Reader
+  {
+  public:
+    /**
+      Create a new Reader for the given Rot_file.
+      @param rot_file The parent Rot_file.
+      @param pos The initial read position. 
+    */
+    Reader(Rot_file *_rot_file, my_off_t pos) : rot_file(_rot_file)
+    { seek(pos); }
+    ~Reader() {};
+    /**
+      Read at the current position in this file.
+      @param length Number of bytes to read.
+      @param[out] buffer Output buffer, must have space for length bytes.
+      @return Number of bytes read, or -1 on error.
+    */
+    my_off_t read(my_off_t length, uchar *buffer)
+    {
+      DBUG_ENTER("Rot_file::Reader::read(my_off_t, uchar *)");
+      my_off_t ret= my_pread(rot_file->fd, buffer, length,
+                             rot_file->header_length + offset, MYF(MY_WME));
+      if (ret > 0)
+        offset+= ret;
+      DBUG_RETURN(ret);
+    }
+    /**
+      Seek to the given position.
+      @param pos The new read position.
+    */
+    void seek(my_off_t pos) { offset= pos; }
+    /// Return the current read position.
+    my_off_t tell() { return offset; }
+  private:
+    my_off_t offset;
+    Rot_file *rot_file;
+  };
+  /**
+    Set the limit at which files will be rotated.
+
+    This does not retroactively change the limit of already existing
+    files.  It only affects subsequenct calls to append().
+
+    @param limit The new limit.
+  */
   void set_rotation_limit(my_off_t limit) { rotation_limit= limit; }
+  /// Return the limit previously set by set_rotation_limit().
   my_off_t get_rotation_limit() const { return rotation_limit; }
-  int purge(my_off_t offset);
-  int truncate(my_off_t offset);
-  int sync()
+  /**
+    Remove back-end files up to the given position.
+    @param offset The first valid position in the file after this call.
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status purge(my_off_t offset);
+  /**
+    Truncate the end of the file.
+    @param offset The position of the next byte to be read.
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status truncate(my_off_t offset);
+  /**
+    Sync any pending data.
+    @return GS_SUCCESS or GS_ERROR_IO
+  */
+  enum_group_status sync()
   {
     DBUG_ASSERT(is_writable());
-    return my_sync(fd, MYF(MY_WME));
+    return my_sync(fd, MYF(MY_WME)) == 0 ? GS_SUCCESS : GS_ERROR_IO;
   }
-  bool is_writable() const { return writable; }
+  /// Return true iff this file is open and was opened in read mode.
+  bool is_writable() const { return is_open() && writable; }
+  /// Return true iff this file is open.
   bool is_open() const { return fd != -1; }
+  /**
+    Destroy this Rot_file object.  The file must be closed before this
+    function is called.
+  */
   ~Rot_file();
 private:
+  /// Number of bytes of this file's header (fake implementation)
   int header_length;
+  /// Filename of this file (fake implementation)
   char filename[FN_REFLEN];
+  /// File descripto of this file (fake implementation)
   File fd;
   my_off_t rotation_limit;
   bool writable;
 /*
   struct Sub_file
   {
-    int fd;
+    File fd;
     my_off_t offset;
+    my_off_t header_length;
     int index;
   };
   enum enum_state { CLOSED, OPEN_READ, OPEN_READ_WRITE };
@@ -2100,31 +2220,98 @@ private:
 class Group_log
 {
 private:
-  class Read_state
+  /**
+    State needed to encode/decode a sub-group.
+  */
+  struct Read_state
   {
     rpl_lgid lgid;
+    /// Constants used to encode groups.
+    static const int TINY_SUBGROUP_MAX= 246, TINY_SUBGROUP_MIN= -123;
+    static const int NORMAL_SUBGROUP_MIN= 247,
+      NORMAL_SUBGROUP_SIDNO_BIT= 0, NORMAL_SUBGROUP_GNO_BIT= 1,
+      NORMAL_SUBGROUP_BINLOG_LENGTH_BIT= 2;
+    static const int SPECIAL_TYPE= 255;
+    static const int DUMMY_SUBGRUOP_MAX= 15;
+    static const int ANONYMOUS_SUBGROUP_COMMIT= 16,
+      ANONYMOUS_SUBGROUP_NO_COMMIT= 17;
+    static const int BINLOG_ROTATE= 18;
+    static const int BINLOG_OFFSET_AFTER_LAST_STATEMENT= 19;
+    static const int BINLOG_GAP= 20;
+    static const int FLIP_OWNER= 21, SET_OWNER= 22;
+    static const int FULL_SUBGROUP= 26;
+    static const my_off_t FULL_SUBGROUP_SIZE=
+      1 + 1 + 4 + 8 + 8 + 8 + 8 + 8 + 1 + 1;
   };
 
 public:
-  Group_log(const char *filename) : group_log_file(filename) {}
+  Group_log(Sid_map *sid_map) : group_log_file() {}
+  enum_group_status open(const char *filename);
+  enum_group_status write_subgroup(const Subgroup *subgroup);
 
-  int write_subgroup(const Subgroup *subgroup);
-  class Read_iterator
+  /**
+    Iterator class that sequentially reads groups from the log.
+  */
+  class Reader
   {
   public:
-    Read_iterator(Group_set group_set);
-    int read(Subgroup *subgroup);
+    /**
+      Construct a new Reader object, capable of reading this Group_log.
+
+      @param group_log The group log to read from.  
+      @param group_set Group_set to start from.  When reading
+      sub-groups, SIDs will be stored using the Sid_map of this
+      Group_set.
+      @param binlog_no binlog to start from.
+      @param binlog_pos position to start from in binlog.
+    */
+    Reader(Group_log *group_log, const Group_set *group_set,
+           rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
+           enum_group_status *status);
+    /**
+      Read the next subgroup from this Group_log.
+      @param[out] subgroup Subgroup object where the subgroup will be stored.
+      @return GS_SUCCESS or GS_ERROR_IO or GS_END_OF_FILE.
+    */
+    enum_group_status read_subgroup(Subgroup *subgroup);
+    /// Destroy this Reader.
+    ~Reader();
   private:
+    /**
+      Unconditionally read subgroup from file.
+
+      This is different from read_subgroup(), because read_subgroup()
+      will re-use the subgroup from peeked_subgroup if has_peeked is
+      true.
+    */
+    enum_group_status do_read_subgroup(Subgroup *subgroup);
+    /// Sid_map to use in returned Sub_groups.
+    Sid_map *sid_map;
+    /// Reader object from which we read raw bytes.
+    Rot_file::Reader rot_file_reader;
+    /// Current offset in Group_log.
     my_off_t offset;
+    /// State needed to decode groups.
     Read_state read_state;
+    /// Max size required by any subgroup.
+    static const int READ_BUF_SIZE= 256;
+    /// Internal buffer to decode subgroups. 
+    uchar read_buf[READ_BUF_SIZE];
+    /// Next subgroup in the group log.
+    Subgroup peeked_subgroup;
+    /// true iff peeked_subgroup contains anything meaningful.
+    bool has_peeked;
   };
 
 private:
-  Read_state read_state;
+  /// Rot_file to which groups will be written.
   Rot_file group_log_file;
-  static const int WRITE_BUF_SIZE= 0x10000;
+  /// State needed to encode groups.
+  Read_state read_state;
+  /// Max size required by any subgroup.
+  static const int WRITE_BUF_SIZE= 256;
+  /// Internal buffer to encode subgroups.
   uchar write_buf[WRITE_BUF_SIZE];
-  uchar *write_buf_pos;
 };
 
 
@@ -2135,6 +2322,20 @@ private:
 class Compact_encoding
 {
 public:
+  static const int MAX_ENCODED_LENGTH= 10;
+  /**
+    Compute the number of bytes needed to encode the given number.
+    @param n The number
+    @return The number of bytes needed to encode n.
+  */
+  static int get_encoded_length(ulonglong n);
+  /**
+    Write a compact-encoded unsigned integer to the given buffer.
+    @param n The number to write.
+    @param buf The buffer to use.
+    @return The number of bytes used.
+  */
+  static int write_unsigned(ulonglong n, uchar *buf);
   /**
     Write a compact-encoded unsigned integer to the given file.
 

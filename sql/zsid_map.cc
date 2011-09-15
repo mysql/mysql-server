@@ -45,14 +45,32 @@ Sid_map::~Sid_map()
 }
 
 
-enum_group_status Sid_map::open(const char *base_filename)
+enum_group_status Sid_map::clear()
+{
+  DBUG_ENTER("Sid_map::clear");
+  my_hash_free(&_sid_to_sidno);
+  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
+               offsetof(Node, sid.bytes), Uuid::BYTE_LENGTH, NULL,
+               my_free, 0);
+  reset_dynamic(&_sidno_to_sid);
+  reset_dynamic(&_sorted);
+  if (my_chsize(fd, 0, 0, MYF(MY_WME)) != 0)  // 1 on error, 0 on success
+  {
+    close();
+    DBUG_RETURN(GS_ERROR_IO);
+  }
+  DBUG_RETURN(GS_SUCCESS);
+}
+
+
+enum_group_status Sid_map::open(const char *_filename)
 {
   DBUG_ENTER("Sid_map::open(const char *)");
-  size_t len= strlen(base_filename);
+  if (is_open())
+    DBUG_RETURN(GS_SUCCESS);
   DBUG_ASSERT(get_max_sidno() == 0);
-  DBUG_ASSERT(strlen(base_filename) + strlen("-sids") < FN_REFLEN);
-  memcpy(filename, base_filename, len);
-  strcpy(filename + len, "-sids");
+  strcpy(filename, _filename);
+  DBUG_ASSERT(strlen(_filename) < FN_REFLEN);
 
   fd= my_open(filename, O_RDWR | O_CREAT | O_BINARY, MYF(MY_WME));
   int pos= 0;
@@ -111,19 +129,25 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
 {
   DBUG_ENTER("Sid_map::add_permanent");
   sid_lock->assert_some_rdlock();
+  DBUG_PRINT("sven", ("sven-1"));
   Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                      rpl_sid::BYTE_LENGTH);
+  DBUG_PRINT("sven", ("sven-2"));
   if (node != NULL)
     DBUG_RETURN(node->sidno);
 
+  DBUG_PRINT("sven", ("sven-3"));
   if (fd == -1)
     DBUG_RETURN((rpl_sidno)GS_ERROR_IO);
+  DBUG_PRINT("sven", ("sven-4"));
 
   sid_lock->unlock();
   sid_lock->wrlock();
+  DBUG_PRINT("sven", ("sven-5"));
   rpl_sidno sidno;
   node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                rpl_sid::BYTE_LENGTH);
+  DBUG_PRINT("sven", ("sven-6"));
   if (node != NULL)
     sidno= node->sidno;
   else

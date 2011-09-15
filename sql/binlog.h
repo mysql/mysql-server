@@ -228,7 +228,7 @@ public:
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
   void set_need_start_event() { need_start_event = 1; }
-  void init(bool no_auto_events_arg, ulong max_size);
+  int init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
   bool open_binlog(const char *log_name,
@@ -359,5 +359,11 @@ void check_binlog_stmt_cache_size(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
+#ifdef HAVE_UGID
+extern const char *group_log_files_filename;
+extern const char *group_log_filename;
+extern const char *group_log_init_state_filename;
+extern const char *sid_map_filename;
+#endif
 
 #endif /* BINLOG_H_INCLUDED */

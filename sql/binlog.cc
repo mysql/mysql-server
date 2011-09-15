@@ -31,6 +31,12 @@ static handlerton *binlog_hton;
 
 const char *log_bin_index= 0;
 const char *log_bin_basename= 0;
+#ifdef HAVE_UGID
+const char *group_log_files_filename;
+const char *group_log_filename;
+const char *group_log_init_state_filename;
+const char *sid_map_filename;
+#endif
 
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
@@ -1658,7 +1664,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    description_event_for_exec(0), description_event_for_queue(0)
 #ifdef HAVE_UGID
   , sid_map(&sid_lock), group_log_state(&sid_lock, &sid_map),
-   group_log("")
+   group_log(&sid_map)
 #endif
 {
   /*
@@ -1679,7 +1685,6 @@ int MYSQL_BIN_LOG::init_sid_map()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_sid_map()");
   int ret= 0;
-  sid_lock.rdlock();
   rpl_sid server_uuid_sid;
 #ifndef NO_DBUG
   DBUG_ASSERT(server_uuid_sid.parse(server_uuid) == GS_SUCCESS);
@@ -1697,8 +1702,9 @@ int MYSQL_BIN_LOG::init_sid_map()
       DBUG_ASSERT(0);
     ret= 1;
   }
-  sid_lock.unlock();
   server_uuid_sidno= sidno;
+  if (ret == 0 && group_log_state.ensure_sidno() != GS_SUCCESS)
+    ret= 1;
   DBUG_RETURN(ret);
 }
 #endif
@@ -1724,13 +1730,16 @@ void MYSQL_BIN_LOG::cleanup()
 
 
 /* Init binlog-specific vars */
-void MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
+int MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init");
   no_auto_events= no_auto_events_arg;
   max_size= max_size_arg;
   DBUG_PRINT("info",("max_size: %lu", max_size));
-  DBUG_VOID_RETURN;
+  sid_lock.rdlock();
+  int ret= (group_log_state.ensure_sidno() != GS_SUCCESS) ? 1 : 0;
+  sid_lock.unlock();
+  DBUG_RETURN(ret);
 }
 
 
@@ -1893,7 +1902,14 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
 #endif
 
-  sid_map.open();
+  sid_lock.rdlock();
+  if (sid_map.open(sid_map_filename) != GS_SUCCESS ||
+      group_log.open(group_log_filename) != GS_SUCCESS)
+  {
+    sid_lock.unlock();
+    DBUG_RETURN(1);
+  }
+  sid_lock.unlock();
 
   write_error= 0;
 
@@ -1910,7 +1926,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     DBUG_RETURN(1);                            /* all warnings issued */
   }
 
-  init(no_auto_events_arg, max_size_arg);
+  if (init(no_auto_events_arg, max_size_arg) != 0)
+    DBUG_RETURN(1);
 
   open_count++;
 
@@ -2507,12 +2524,19 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
   if (!thd->slave_thread)
     need_start_event=1;
+
+#ifdef HAVE_UGID
+  group_log_state.clear();
+  if (sid_map.clear() != GS_SUCCESS ||
+      init_sid_map() != 0 ||
+      group_log_state.ensure_sidno() != GS_SUCCESS)
+    goto err;
+#endif
+
   if (!open_index_file(index_file_name, 0, FALSE))
     if ((error= open_binlog(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE)))
       goto err;
   my_free((void *) save_name);
-
-  group_log_state.clear();
 
 err:
   if (error == 1)

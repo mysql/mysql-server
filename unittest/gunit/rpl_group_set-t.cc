@@ -38,7 +38,7 @@ public:
 
   void SetUp()
   {
-    seed= (int)time(NULL);
+    seed= 1315993962;//(int)time(NULL);
     srand(seed);
     for (int i= 0; i < 16; i++)
       sids[i].parse(uuids[i]);
@@ -47,11 +47,17 @@ public:
     errtext_stack_pos= 0;
     errtext_stack[0]= 0;
     append_errtext(__LINE__, "seed=%d", seed);
+    my_delete("sid-map-0", MYF(0));
+    my_delete("sid-map-1", MYF(0));
+    my_delete("sid-map-2", MYF(0));
   }
 
 
   void TearDown()
   {
+    my_delete("sid-map-0", MYF(0));
+    my_delete("sid-map-1", MYF(0));
+    my_delete("sid-map-2", MYF(0));
   }
 
 
@@ -307,8 +313,10 @@ TEST_F(GroupTest, Sid_map)
   Checkable_rwlock lock;
   Sid_map sm(&lock);
 
-  // Add a random SID until we have N_SID SIDs in the map.
   lock.rdlock();
+  ASSERT_EQ(GS_SUCCESS, sm.open("sid-map-0"));
+
+  // Add a random SID until we have N_SID SIDs in the map.
   while (sm.get_max_sidno() < N_SIDS)
     ASSERT_LE(1, sm.add_permanent(&sids[rand() % N_SIDS])) << errtext;
 
@@ -486,12 +494,15 @@ TEST_F(GroupTest, Group_containers)
   Sid_map **sid_maps= new Sid_map*[2];
   sid_maps[0]= &mysql_bin_log.sid_map;
   sid_maps[1]= new Sid_map(&lock);
+
+  lock.rdlock();
+  ASSERT_EQ(GS_SUCCESS, sid_maps[0]->open("sid-map-1"));
+  ASSERT_EQ(GS_SUCCESS, sid_maps[1]->open("sid-map-2"));
   /*
     Make sid_maps[0] and sid_maps[1] different: sid_maps[0] is
     generated in order; sid_maps[1] is generated in the order that
     SIDS are inserted in the Group_set.
   */
-  lock.rdlock();
   for (int i= 0; i < N_SIDS; i++)
     ASSERT_LE(1, sid_maps[0]->add_permanent(&sids[i])) << errtext;
 
