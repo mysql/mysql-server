@@ -62,6 +62,7 @@ fastbuild:
 	$(MAKE) -s -k -C linux
 	$(MAKE) -s -k -C newbrt local
 	$(MAKE) -s -k -C src local
+	$(MAKE) -s -k -C utils
 
 fastbuildtests: fastbuild
 	$(MAKE) -s -k -C newbrt/tests
