@@ -59,7 +59,8 @@ void cleanup_digest();
 
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
-void insert_statement_digest(PFS_thread*,char*, char*);
+PFS_statements_digest_stat* search_insert_statement_digest(PFS_thread*,
+                                                           char*, char*);
 
 
 void reset_esms_by_digest();

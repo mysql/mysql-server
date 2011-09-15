@@ -4829,7 +4829,7 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
   /*
     Set digest_locker_state's digest storage pointer.
   */
-  state->m_digest_storage= digest_storage;
+  state->m_statement= pfs;
 
   return reinterpret_cast<PSI_digest_locker*> (state);
 }
@@ -4839,10 +4839,15 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
                                 char *yytext, 
                                 int yylen)
 {
-  PSI_digest_locker_state *state= reinterpret_cast<PSI_digest_locker_state*> (locker);
+  PSI_digest_locker_state *state;
+  PFS_events_statements   *pfs;
+  PFS_digest_storage      *digest_storage;
+
+  state= reinterpret_cast<PSI_digest_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
-  
-  PFS_digest_storage *digest_storage= reinterpret_cast<PFS_digest_storage *>(state->m_digest_storage);
+
+  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
+  digest_storage= &pfs->m_digest_storage;
 
   /* 
    Token 403 is END_OF_INPUT. Once it is recieved, it means all token in 
@@ -4855,7 +4860,8 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
     /* 
       Calculate MD5 Hash of the tokens recieved.
     */
-    MY_MD5_HASH(digest.m_md5, (unsigned char *)digest_storage, (uint) sizeof(PFS_digest_storage));
+    MY_MD5_HASH(digest.m_md5, (unsigned char *)digest_storage,
+                (uint) sizeof(PFS_digest_storage));
     /* 
       Write MD5 hash value in a string to be used as DIGEST for the statement.
     */
@@ -4878,7 +4884,10 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
       Populate PFS_statements_digest_stat with computed digest information.
     */
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    insert_statement_digest(pfs_thread, digest_str, (char*)"DIGEST_TEXT");
+    pfs->statement_digest_stat_ptr= 
+                           search_insert_statement_digest(pfs_thread,
+                                                          digest_str,
+                                                          (char*)"DIGEST_TEXT");
   }
   else if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
   {
@@ -4899,10 +4908,15 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
 
 static void digest_end_v1(PSI_digest_locker *locker)
 {
-  PSI_digest_locker_state *state= reinterpret_cast<PSI_digest_locker_state*> (locker);
+  PSI_digest_locker_state *state;
+  PFS_events_statements   *pfs;
+  PFS_digest_storage      *digest_storage;
+
+  state= reinterpret_cast<PSI_digest_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
   
-  PFS_digest_storage *digest_storage= reinterpret_cast<PFS_digest_storage*>(state->m_digest_storage);
+  pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
+  digest_storage= &pfs->m_digest_storage;
   
   /* reset token count to 0 */
   digest_storage->m_token_count= 0;

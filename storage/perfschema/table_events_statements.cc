@@ -360,8 +360,23 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_sort_scan= statement->m_sort_scan;
   m_row.m_no_index_used= statement->m_no_index_used;
   m_row.m_no_good_index_used= statement->m_no_good_index_used;
+  /* 
+    Filling up statement digest information.
+  */
+  if(statement->statement_digest_stat_ptr)
+  { 
+    memcpy(m_row.m_digest.m_digest,
+           statement->statement_digest_stat_ptr->m_digest,
+           COL_DIGEST_SIZE);
+    m_row.m_digest.m_digest_length=
+           statement->statement_digest_stat_ptr->m_digest_length;
 
-  /* TBD for DIGEST and DIGEST_TEXT. */
+    memcpy(m_row.m_digest.m_digest_text,
+           statement->statement_digest_stat_ptr->m_digest_text,
+           COL_DIGEST_TEXT_SIZE);
+    m_row.m_digest.m_digest_text_length=
+           statement->statement_digest_stat_ptr->m_digest_text_length;
+  }
 
   m_row_exists= true;
   return;
@@ -432,23 +447,17 @@ int table_events_statements_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 9: /* DIGEST */
-        /* TBD */
-        /* 
            if(m_row.m_digest.m_digest_length > 0)
             set_field_varchar_utf8(f, m_row.m_digest.m_digest,
                                    m_row.m_digest.m_digest_length);
          else
-        */
           f->set_null();
         break;
       case 10: /* DIGEST_TEXT */
-        /* TBD */
-        /* 
          if(m_row.m_digest.m_digest_text_length > 0)
             set_field_longtext_utf8(f, m_row.m_digest.m_digest_text,
                                     m_row.m_digest.m_digest_text_length);
          else
-        */
           f->set_null();
         break;
       case 11: /* CURRENT_SCHEMA */
