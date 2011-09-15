@@ -520,3 +520,19 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=32000000 DEFAULT CHARSET=latin1
 drop table t1;
+CREATE TABLE t1 (
+id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+data binary(16) NOT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY uk_t1_data (data)
+) ENGINE = NDB;
+INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
+SELECT id FROM t1;
+id
+1
+DELETE from t1;
+INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
+SELECT id from t1;
+id
+3
+DROP TABLE t1;

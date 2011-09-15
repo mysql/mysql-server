@@ -36,17 +36,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
@@ -719,17 +711,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
@@ -1402,17 +1386,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
@@ -2085,17 +2061,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
