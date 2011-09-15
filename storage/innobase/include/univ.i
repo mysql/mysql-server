@@ -265,7 +265,9 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #else
 # define UNIV_INTERN
 #endif
-#if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+#if defined(INNODB_COMPILER_HINTS)      \
+    && defined __GNUC__                 \
+    && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
 /** Starting with GCC 4.3, the "cold" attribute is used to inform the
 compiler that a function is unlikely executed.  The function is
 optimized for size rather than speed and on many targets it is placed
@@ -484,7 +486,8 @@ contains the sum of the following flag and the locally stored len. */
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
 /* Some macros to improve branch prediction and reduce cache misses */
-#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#if defined(INNODB_COMPILER_HINTS) \
+    && defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
 /* Tell the compiler that 'expr' probably evaluates to 'constant'. */
 # define UNIV_EXPECT(expr,constant) __builtin_expect(expr, constant)
 /* Tell the compiler that a pointer is likely to be NULL */
@@ -495,19 +498,30 @@ it is read. */
 /* Minimize cache-miss latency by moving data at addr into a cache before
 it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
+
 /* Sun Studio includes sun_prefetch.h as of version 5.9 */
 #elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
        || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
+
 # include <sun_prefetch.h>
+
 #if __SUNPRO_C >= 0x550
 # undef UNIV_INTERN
 # define UNIV_INTERN __hidden
 #endif /* __SUNPRO_C >= 0x550 */
-/* Use sun_prefetch when compile with Sun Studio */
+
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
-# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
-# define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
+
+# if defined(INNODB_COMPILER_HINTS)
+/* Use sun_prefetch when compile with Sun Studio */
+#  define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
+#  define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
+# else
+#  define UNIV_PREFETCH_R(addr) ((void) 0)
+#  define UNIV_PREFETCH_RW(addr) ((void) 0)
+# endif /* INNODB_COMPILER_HINTS */
+
 #else
 /* Dummy versions of the macros */
 # define UNIV_EXPECT(expr,value) (expr)
@@ -515,6 +529,7 @@ it is read or written. */
 # define UNIV_PREFETCH_R(addr) ((void) 0)
 # define UNIV_PREFETCH_RW(addr) ((void) 0)
 #endif
+
 /* Tell the compiler that cond is likely to hold */
 #define UNIV_LIKELY(cond) UNIV_EXPECT(cond, TRUE)
 /* Tell the compiler that cond is unlikely to hold */

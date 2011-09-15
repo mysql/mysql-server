@@ -41,7 +41,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "fil0fil.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
-#include "buf0checksum.h"
 #include "lock0lock.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
@@ -53,6 +52,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "page0zip.h"
 #include "srv0mon.h"
+#include "buf0checksum.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -463,7 +463,7 @@ buf_page_is_corrupted(
 	ulint		checksum_field2;
 	ib_uint32_t	crc32;
 
-	if (UNIV_LIKELY(!zip_size)
+	if (!zip_size
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
 		      read_buf + UNIV_PAGE_SIZE
 		      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
@@ -509,7 +509,7 @@ buf_page_is_corrupted(
 		return(FALSE);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		return(!page_zip_verify_checksum(read_buf, zip_size));
 	}
 
@@ -1796,34 +1796,6 @@ buf_page_set_accessed_make_young(
 }
 
 /********************************************************************//**
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-UNIV_INTERN
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: page number */
-{
-	buf_block_t*	block;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
-	rw_lock_t*	hash_lock;
-
-	block = buf_block_hash_get_s_locked(buf_pool, space, offset,
-					    &hash_lock);
-
-	if (block) {
-		if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
-			ut_ad(!buf_pool_watch_is_sentinel(buf_pool,
-							  &block->page));
-			block->check_index_page_at_flush = FALSE;
-		}
-
-		rw_lock_s_unlock(hash_lock);
-	}
-}
-
-/********************************************************************//**
 Returns the current state of is_hashed of a page. FALSE if the page is
 not in the pool. NOTE that this operation does not fix the page in the
 pool if it is found there.
@@ -2006,7 +1978,7 @@ lookup:
 
 	ut_ad(buf_page_hash_lock_held_s(buf_pool, bpage));
 
-	if (UNIV_UNLIKELY(!bpage->zip.data)) {
+	if (!bpage->zip.data) {
 		/* There is no compressed page. */
 err_exit:
 		rw_lock_s_unlock(hash_lock);
@@ -3213,19 +3185,20 @@ buf_page_init_low(
 
 /********************************************************************//**
 Inits a page to the buffer buf_pool. */
-static
+static __attribute__((nonnull))
 void
 buf_page_init(
 /*==========*/
+	buf_pool_t*	buf_pool,/*!< in/out: buffer pool */
 	ulint		space,	/*!< in: space id */
 	ulint		offset,	/*!< in: offset of the page within space
 				in units of a page */
 	ulint		fold,	/*!< in: buf_page_address_fold(space,offset) */
-	buf_block_t*	block)	/*!< in: block to init */
+	buf_block_t*	block)	/*!< in/out: block to init */
 {
 	buf_page_t*	hash_page;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
+	ut_ad(buf_pool == buf_pool_get(space, offset));
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	ut_ad(mutex_own(&(block->mutex)));
@@ -3348,8 +3321,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	if (zip_size && UNIV_LIKELY(!unzip)
-	    && UNIV_LIKELY(!recv_recovery_is_on())) {
+	if (zip_size && !unzip && !recv_recovery_is_on()) {
 		block = NULL;
 	} else {
 		block = buf_LRU_get_free_block(buf_pool);
@@ -3395,7 +3367,7 @@ err_exit:
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-		buf_page_init(space, offset, fold, block);
+		buf_page_init(buf_pool, space, offset, fold, block);
 		rw_lock_x_unlock(hash_lock);
 
 		/* The block must be put to the LRU list, to the old blocks */
@@ -3413,7 +3385,7 @@ err_exit:
 		rw_lock_x_lock_gen(&block->lock, BUF_IO_READ);
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-		if (UNIV_UNLIKELY(zip_size)) {
+		if (zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
 
 			/* buf_pool->mutex may be released and
@@ -3618,7 +3590,7 @@ buf_page_create(
 
 	mutex_enter(&block->mutex);
 
-	buf_page_init(space, offset, fold, block);
+	buf_page_init(buf_pool, space, offset, fold, block);
 
 	rw_lock_x_unlock(hash_lock);
 

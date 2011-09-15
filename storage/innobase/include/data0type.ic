@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -261,8 +261,8 @@ dtype_get_pad_char(
 	switch (mtype) {
 	case DATA_FIXBINARY:
 	case DATA_BINARY:
-		if (UNIV_UNLIKELY(dtype_get_charset_coll(prtype)
-				  == DATA_MYSQL_BINARY_CHARSET_COLL)) {
+		if (dtype_get_charset_coll(prtype)
+		    == DATA_MYSQL_BINARY_CHARSET_COLL) {
 			/* Starting from 5.0.18, do not pad
 			VARBINARY or BINARY columns. */
 			return(ULINT_UNDEFINED);
