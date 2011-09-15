@@ -1,5 +1,8 @@
 --source include/have_federated_plugin.inc
 
+# Uninstall will not uninstall if ps has been used
+--disable_ps_protocol
+
 connect (master,localhost,root,,test,$MASTER_MYPORT,);
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,);
 
