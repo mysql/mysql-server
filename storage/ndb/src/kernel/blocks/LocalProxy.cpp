@@ -95,6 +95,10 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
 
   // GSN_SYNC_PATH_REQ
   addRecSignal(GSN_SYNC_PATH_REQ, &LocalProxy::execSYNC_PATH_REQ, true);
+
+  // GSN_API_FAILREQ
+  addRecSignal(GSN_API_FAILREQ, &LocalProxy::execAPI_FAILREQ);
+  addRecSignal(GSN_API_FAILCONF, &LocalProxy::execAPI_FAILCONF);
 }
 
 LocalProxy::~LocalProxy()
@@ -315,6 +319,26 @@ LocalProxy::loadWorkers()
     } else {
       add_extra_worker_thr_map(number(), instanceNo);
     }
+  }
+}
+
+void
+LocalProxy::tc_loadWorkers()
+{
+  c_workers = globalData.ndbMtTcThreads;
+  c_lqhWorkers = globalData.ndbMtTcThreads;
+  c_extraWorkers = 0;
+
+  Uint32 i;
+  for (i = 0; i < c_workers; i++) {
+    jam();
+    Uint32 instanceNo = workerInstance(i);
+
+    SimulatedBlock* worker = newWorker(instanceNo);
+    ndbrequire(worker->instance() == instanceNo);
+    ndbrequire(this->getInstance(instanceNo) == worker);
+    c_worker[i] = worker;
+    add_tc_worker_thr_map(number(), instanceNo);
   }
 }
 
@@ -1334,6 +1358,53 @@ LocalProxy::execSYNC_PATH_REQ(Signal* signal)
                signal->getLength(),
                JobBufferLevel(req->prio));
   }
+}
+
+// GSN_API_FAILREQ
+
+void
+LocalProxy::execAPI_FAILREQ(Signal* signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  Ss_API_FAILREQ& ss = ssSeize<Ss_API_FAILREQ>(nodeId);
+
+  ss.m_ref = signal->theData[1];
+  sendREQ(signal, ss);
+}
+
+void
+LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 ssId, SectionHandle*)
+{
+  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(ssId);
+
+  signal->theData[0] = ssId;
+  signal->theData[1] = reference();
+  sendSignal(workerRef(ss.m_worker), GSN_API_FAILREQ,
+             signal, 2, JBB);
+}
+
+void
+LocalProxy::execAPI_FAILCONF(Signal* signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(nodeId);
+  recvCONF(signal, ss);
+}
+
+void
+LocalProxy::sendAPI_FAILCONF(Signal* signal, Uint32 ssId)
+{
+  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(ssId);
+
+  if (!lastReply(ss))
+    return;
+
+  signal->theData[0] = ssId;
+  signal->theData[1] = reference();
+  sendSignal(ss.m_ref, GSN_API_FAILCONF,
+             signal, 2, JBB);
+
+  ssRelease<Ss_API_FAILREQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(LocalProxy)

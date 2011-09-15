@@ -74,13 +74,16 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 
 #define MAX_BLOCK_INSTANCES (1 + MAX_NDBMT_LQH_WORKERS + 1) //main+lqh+extra
 #define NUM_MAIN_THREADS 2 // except receiver
-#define MAX_THREADS (NUM_MAIN_THREADS + MAX_NDBMT_LQH_THREADS + 1)
+#define MAX_THREADS (NUM_MAIN_THREADS +       \
+                     MAX_NDBMT_LQH_THREADS +  \
+                     MAX_NDBMT_TC_THREADS + 1)
 
 /* If this is too small it crashes before first signal. */
 #define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
 
 static Uint32 num_lqh_workers = 0;
 static Uint32 num_lqh_threads = 0;
+static Uint32 num_tc_threads = 0;
 static Uint32 num_threads = 0;
 static Uint32 receiver_thread_no = 0;
 
@@ -2629,6 +2632,15 @@ add_lqh_worker_thr_map(Uint32 block, Uint32 instance)
   add_thr_map(block, instance, thr_no);
 }
 
+void
+add_tc_worker_thr_map(Uint32 block, Uint32 instance)
+{
+  require(instance != 0);
+  Uint32 i = instance - 1;
+  Uint32 thr_no = NUM_MAIN_THREADS + num_lqh_threads + i;
+  add_thr_map(block, instance, thr_no);
+}
+
 /* Extra workers run`in proxy thread. */
 void
 add_extra_worker_thr_map(Uint32 block, Uint32 instance)
@@ -3485,7 +3497,8 @@ ThreadConfig::init()
 {
   num_lqh_workers = globalData.ndbMtLqhWorkers;
   num_lqh_threads = globalData.ndbMtLqhThreads;
-  num_threads = NUM_MAIN_THREADS + num_lqh_threads + 1;
+  num_tc_threads = globalData.ndbMtTcThreads;
+  num_threads = NUM_MAIN_THREADS + num_tc_threads + num_lqh_threads + 1;
   require(num_threads <= MAX_THREADS);
   receiver_thread_no = num_threads - 1;
 
