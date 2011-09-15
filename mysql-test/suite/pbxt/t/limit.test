@@ -15,7 +15,7 @@ update t1 set b=2 where b=1 limit 2;
 select * from t1 order by a; # PBXT: required for consistent result
 update t1 set b=4 where b=1;
 select * from t1 order by a; # PBXT: required for consistent result
-delete from t1 where b=2 limit 1;
+delete from t1 where b=2 order by a limit 1;
 select * from t1 order by a; # PBXT: required for consistent result
 delete from t1 limit 1;
 select * from t1 order by a; # PBXT: required for consistent result
