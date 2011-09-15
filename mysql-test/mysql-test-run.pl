@@ -181,6 +181,8 @@ our @opt_combinations;
 our @opt_extra_mysqld_opt;
 our @opt_mysqld_envs;
 
+my $opt_stress;
+
 my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
@@ -423,8 +425,8 @@ sub main {
   }
   $ENV{MTR_PARALLEL} = $opt_parallel;
 
-  if ($opt_parallel > 1 && $opt_start_exit) {
-    mtr_warning("Parallel and --start-and-exit cannot be combined\n" .
+  if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress)) {
+    mtr_warning("Parallel cannot be used with --start-and-exit or --stress\n" .
                "Setting parallel to 1");
     $opt_parallel= 1;
   }
@@ -1174,6 +1176,7 @@ sub command_line_setup {
 	     'report-times'             => \$opt_report_times,
 	     'result-file'              => \$opt_resfile,
 	     'unit-tests!'              => \$opt_ctest,
+	     'stress=s'                 => \$opt_stress,
 
              'help|h'                   => \$opt_usage,
 	     # list-options is internal, not listed in help
@@ -1625,6 +1628,22 @@ sub command_line_setup {
   if ($opt_wait_all && ! $start_only)
   {
     mtr_error("--wait-all can only be used with --start options");
+  }
+
+  # --------------------------------------------------------------------------
+  # Gather stress-test options and modify behavior
+  # --------------------------------------------------------------------------
+
+  if ($opt_stress)
+  {
+    $opt_stress=~ s/,/ /g;
+    $opt_user_args= 1;
+    mtr_error("--stress cannot be combined with named ordinary suites or tests")
+      if $opt_suites || @opt_cases;
+    $opt_suites="stress";
+    @opt_cases= ("wrapper");
+    $ENV{MST_OPTIONS}= $opt_stress;
+    $opt_ctest= 0;
   }
 
   # --------------------------------------------------------------------------
@@ -6128,6 +6147,8 @@ Misc options
   nounit-tests          Do not run unit tests. Normally run if configured
                         and if not running named tests/suites
   unit-tests            Run unit tests even if they would otherwise not be run
+  stress=ARGS           Run stress test, providing options to
+                        mysql-stress-test.pl. Options are separated by comma.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.
