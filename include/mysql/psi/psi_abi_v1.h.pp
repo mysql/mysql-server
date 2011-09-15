@@ -214,7 +214,7 @@ struct PSI_table_locker_state_v1
 struct PSI_digest_locker_state_v1
 {
   uint m_token_count; 
-  void *m_digest_storage;
+  void *m_statement;
 };
 struct PSI_statement_locker_state_v1
 {

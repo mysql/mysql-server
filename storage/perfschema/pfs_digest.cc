@@ -73,7 +73,7 @@ static uchar *digest_hash_get_key(const uchar *entry, size_t *length,
   const PFS_statements_digest_stat * const *typed_entry;
   const PFS_statements_digest_stat *digest;
   const void *result;
-  typed_entry= reinterpret_cast<const PFS_statements_digest_stat* const *> (entry);
+  typed_entry= reinterpret_cast<const PFS_statements_digest_stat*const*>(entry);
   DBUG_ASSERT(typed_entry != NULL);
   digest= *typed_entry;
   DBUG_ASSERT(digest != NULL);
@@ -92,8 +92,9 @@ int init_digest_hash(void)
 {
   if (! digest_hash_inited)
   {
-    lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat*), LF_HASH_UNIQUE,
-                 0, 0, digest_hash_get_key, &my_charset_bin);
+    lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat*),
+                 LF_HASH_UNIQUE, 0, 0, digest_hash_get_key,
+                 &my_charset_bin);
     digest_hash_inited= true;
   }
   return 0;
@@ -137,13 +138,16 @@ static void set_digest_key(PFS_digest_key *key,
 }
 
 
-void insert_statement_digest(PFS_thread* thread, char* digest, char* digest_text)
+PFS_statements_digest_stat* 
+search_insert_statement_digest(PFS_thread* thread,
+                               char* digest,
+                               char* digest_text)
 {
   /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
   if (unlikely(pins == NULL))
   {
-    return;
+    return NULL;
   }
  
   /* make new digest key. */
@@ -164,7 +168,9 @@ void insert_statement_digest(PFS_thread* thread, char* digest, char* digest_text
        digest stat array. 
     */
     //printf("\n Doesn't Exist. Adding new entry. \n");
-    PFS_statements_digest_stat *pfs= &statements_digest_stat_array[digest_index];
+    PFS_statements_digest_stat *pfs;
+
+    pfs= &statements_digest_stat_array[digest_index];
     
     /* Set digest. */
     memcpy(pfs->m_digest, digest, COL_DIGEST_SIZE);
@@ -188,8 +194,9 @@ void insert_statement_digest(PFS_thread* thread, char* digest, char* digest_text
     if (res > 0)
     {
       /* ERROR CONDITION */
-      return;
+      return NULL;
     }
+    return pfs;
   }
   else if (entry && (entry != MY_ERRPTR))
   {
@@ -200,8 +207,10 @@ void insert_statement_digest(PFS_thread* thread, char* digest, char* digest_text
     PFS_statements_digest_stat *pfs;
     pfs= *entry;
     lf_hash_search_unpin(pins);
-    return;
+    return pfs;
   }
+
+  return NULL;
 }
  
 void reset_esms_by_digest()

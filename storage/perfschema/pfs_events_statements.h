@@ -101,6 +101,8 @@ struct PFS_events_statements : public PFS_events
   
   /** digest storage */
   PFS_digest_storage m_digest_storage; 
+  /** statement digest stat */
+  struct PFS_statements_digest_stat* statement_digest_stat_ptr;
 };
 
 void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);
