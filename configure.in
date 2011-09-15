@@ -18,7 +18,7 @@ dnl When merging new MySQL releases, update the version number to match the
 dnl MySQL version number.
 dnl
 dnl Note: the following line must be parseable by win/configure.js:GetVersion()
-AC_INIT([MariaDB Server], [5.3.1-MariaDB-beta], [], [mysql])
+AC_INIT([MariaDB Server], [5.3.2-MariaDB-beta], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM

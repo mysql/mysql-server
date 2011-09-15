@@ -1142,7 +1142,7 @@ static void close_connections(void)
                           tmp->thread_id,
                           (tmp->main_security_ctx.user ?
                            tmp->main_security_ctx.user : ""));
-      close_connection(tmp,0,0);
+      close_connection(tmp,ER_SERVER_SHUTDOWN,0);
     }
 #endif
     DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
@@ -5283,7 +5283,7 @@ void create_thread_to_handle_connection(THD *thd)
                   ER(ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff);
       (void) pthread_mutex_lock(&LOCK_thread_count);
-      close_connection(thd,0,0);
+      close_connection(thd,ER_OUT_OF_RESOURCES,0);
       delete thd;
       (void) pthread_mutex_unlock(&LOCK_thread_count);
       return;
@@ -6592,7 +6592,7 @@ each time the SQL thread starts.",
    "log and this option just turns on --log-bin instead.",
    &opt_update_logname, &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-warnings", 'W', "Log some not critical warnings to the general log file.  Value can be between 0-6; The higher value, the more warnings",
+  {"log-warnings", 'W', "Log some not critical warnings to the general log file.  Value can be between 0-11; The higher value, the more warnings",
    &global_system_variables.log_warnings,
    &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
