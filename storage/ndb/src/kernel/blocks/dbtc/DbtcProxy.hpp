@@ -29,6 +29,7 @@
 #include <signaldata/CreateIndxImpl.hpp>
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropIndxImpl.hpp>
+#include <signaldata/AbortAll.hpp>
 
 class DbtcProxy : public LocalProxy {
 public:
@@ -36,6 +37,7 @@ public:
   virtual ~DbtcProxy();
   BLOCK_DEFINES(DbtcProxy);
 
+  virtual void loadWorkers() { tc_loadWorkers(); }
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
@@ -229,24 +231,6 @@ protected:
   void execGCP_TCFINISHED(Signal*);
   void sendGCP_TCFINISHED(Signal*, Uint32 ssId);
 
-  // GSN_API_FAILREQ
-  struct Ss_API_FAILREQ : SsParallel {
-    Uint32 m_ref; //
-    Ss_API_FAILREQ() {
-      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendAPI_FAILREQ;
-      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendAPI_FAILCONF;
-    }
-    enum { poolSize = MAX_NDB_NODES };
-    static SsPool<Ss_API_FAILREQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_API_FAILREQ;
-    }
-  };
-  SsPool<Ss_API_FAILREQ> c_ss_API_FAILREQ;
-  void execAPI_FAILREQ(Signal*);
-  void sendAPI_FAILREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execAPI_FAILCONF(Signal*);
-  void sendAPI_FAILCONF(Signal*, Uint32 ssId);
-
   // GSN_CREATE_INDX_IMPL_REQ
   struct Ss_CREATE_INDX_IMPL_REQ : SsParallel {
     CreateIndxImplReq m_req;
@@ -307,6 +291,25 @@ protected:
 
   // GSN_TAKE_OVERTCCONF
   void execTAKE_OVERTCCONF(Signal*);
+
+  // GSN_ABORT_ALL_REQ
+  struct Ss_ABORT_ALL_REQ : SsParallel {
+    AbortAllReq m_req;
+    Ss_ABORT_ALL_REQ() {
+      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendABORT_ALL_REQ;
+      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendABORT_ALL_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_ABORT_ALL_REQ>& pool(LocalProxy* proxy) {
+      return ((DbtcProxy*)proxy)->c_ss_ABORT_ALL_REQ;
+    }
+  };
+  SsPool<Ss_ABORT_ALL_REQ> c_ss_ABORT_ALL_REQ;
+  void execABORT_ALL_REQ(Signal*);
+  void sendABORT_ALL_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execABORT_ALL_REF(Signal*);
+  void execABORT_ALL_CONF(Signal*);
+  void sendABORT_ALL_CONF(Signal*, Uint32 ssId);
 };
 
 #endif
