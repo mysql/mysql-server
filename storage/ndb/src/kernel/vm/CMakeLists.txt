@@ -17,7 +17,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbkernel STATIC
+ADD_CONVENIENCE_LIBRARY(ndbkernel
     VMSignal.cpp
     Emulator.cpp
     Configuration.cpp
@@ -41,7 +41,7 @@ ADD_LIBRARY(ndbkernel STATIC
     mt_thr_config.cpp
 )
 
-ADD_LIBRARY(ndbsched STATIC
+ADD_CONVENIENCE_LIBRARY(ndbsched
     TimeQueue.cpp
     ThreadConfig.cpp
     FastScheduler.cpp
@@ -53,7 +53,7 @@ ADD_LIBRARY(ndbsched STATIC
 )
 
 IF(NDB_BUILD_NDBMTD)
-  ADD_LIBRARY(ndbsched_mt STATIC
+  ADD_CONVENIENCE_LIBRARY(ndbsched_mt
     SimulatedBlock_mt.cpp
     TransporterCallback_mt.cpp
     LongSignal_mt.cpp
