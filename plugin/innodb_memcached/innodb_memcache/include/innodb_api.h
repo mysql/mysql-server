@@ -30,6 +30,84 @@ Created 03/15/2011      Jimmy Yang
 #include "innodb_engine.h"
 #include "assert.h"
 
+/**********************************************************************//**
+Creates a THD object.
+@return a pointer to the THD object, NULL if failed */
+extern
+void*
+handler_create_thd(void);
+/*====================*/
+
+/**********************************************************************//**
+Creates a table object with specified database name and table name.
+@return a pointer to the TABLE object, NULL if does not exist */
+extern
+void*
+handler_open_table(
+/*===============*/
+	void*		thd,		/*!< in: thread */
+	const char*	db_name,	/*!< in: database name */
+	const char*	table_name,	/*!< in: table name */
+	int		lock_mode);	/*!< in: lock mode */
+
+/**********************************************************************//**
+Wrapper of function binlog_log_row() to binlog an operation on a row */
+extern
+void
+handler_binlog_row(
+/*===============*/
+	void*		my_table);	/*!< in: table metadata */
+
+/**********************************************************************//**
+Flush binlog from cache to binlog file */
+extern
+void
+handler_binlog_flush(
+/*=================*/
+	void*		my_thd,		/*!< in: THD* */
+	void*		my_table);	/*!< in: Table metadata */
+
+/**********************************************************************//**
+Reset TABLE->record[0] */
+extern
+void
+handler_rec_init(
+/*=============*/
+	void*		table);		/*!< in/out: TABLE structure */
+
+/**********************************************************************//**
+Set up a char based field in TABLE->record[0] */
+extern
+void
+handler_rec_setup_str(
+/*==================*/
+	void*		my_table,       /*!< in/out: TABLE structure */
+	int		field_id,	/*!< in: Field ID for the field */
+	const char*	str,		/*!< in: string to set */
+	int		len);		/*!< in: length of string */
+
+/**********************************************************************//**
+Set up an integer field in TABLE->record[0] */
+extern
+void
+handler_rec_setup_int(
+/*==============*/
+	void*		my_table,	/*!< in/out: TABLE structure */
+	int		field_id,	/*!< in: Field ID for the field */
+	int		value,		/*!< in: value to set */
+	bool		unsigned_flag);	/*!< in: whether it is unsigned */
+
+/**********************************************************************//**
+Unlock a table and commit the transaction
+return 0 if fail to commit the transaction */
+int
+handler_unlock_table(
+/*=================*/
+	void*		my_thd,		/*!< in: thread */
+	void*		my_table,	/*!< in: Table metadata */
+	int		my_lock_mode);	/*!< in: lock mode */
+
+
 typedef struct mci_column {
 	char*		m_str;
 	int		m_len;
@@ -56,7 +134,6 @@ typedef struct mci_items {
 	int		mci_add_num;
 } mci_item_t;
 
-
 /*************************************************************//**
 Register InnoDB Callback functions */
 void
@@ -72,6 +149,8 @@ innodb_api_begin(
 	innodb_engine_t*engine,		/*!< in: InnoDB Memcached engine */
 	const char*	dbname,		/*!< in: database name */
 	const char*	name,		/*!< in: table name */
+	innodb_conn_data_t* conn_data,
+					/*!< in: connnection specific data */
 	ib_trx_t	ib_trx,		/*!< in: transaction */
 	ib_crsr_t*	crsr,		/*!< out: innodb cursor */
 	ib_crsr_t*	idx_crsr,	/*!< out: innodb index cursor */
@@ -212,6 +291,12 @@ ib_err_t
 innodb_cb_trx_commit(
 /*=================*/
 	ib_trx_t	ib_trx);
+
+ib_err_t
+innodb_cb_close_thd(
+/*=================*/
+	void*		thd);
+
 
 ib_err_t
 innodb_cb_cursor_new_trx(

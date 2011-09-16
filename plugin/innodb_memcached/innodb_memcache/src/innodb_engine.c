@@ -70,7 +70,8 @@ create_instance(
 	ENGINE_HANDLE**		handle )
 {
   
-	ENGINE_ERROR_CODE e;
+	ENGINE_ERROR_CODE	e;
+	struct innodb_engine*	innodb_eng;
 
 	SERVER_HANDLE_V1 *api = get_server_api();
 
@@ -78,7 +79,7 @@ create_instance(
 		return ENGINE_ENOTSUP;
 	}
 
-	struct innodb_engine *innodb_eng = malloc(sizeof(struct innodb_engine)); 
+	innodb_eng = malloc(sizeof(struct innodb_engine)); 
 	if(innodb_eng == NULL) {
 		return ENGINE_ENOMEM;
 	}
@@ -167,6 +168,8 @@ innodb_initialize(
 					? my_eng_config->eng_w_batch_size
 					: CONN_NUM_WRITE_COMMIT);
 
+	innodb_eng->enable_binlog = false;
+
 	UT_LIST_INIT(innodb_eng->conn_data);
 	pthread_mutex_init(&innodb_eng->conn_mutex, NULL);
 
@@ -180,6 +183,8 @@ innodb_initialize(
 
 	return(return_status);
 }
+
+extern void handler_close_thd(void*);
 
 static
 int
@@ -242,6 +247,17 @@ innodb_conn_clean(
 
 			if (conn_data->c_trx) {
 				innodb_cb_trx_commit(conn_data->c_trx);
+			}
+
+			if (conn_data->mysql_tbl) {
+				assert(conn_data->thd);
+				/* handler_unlock_table(conn_data->thd,
+						     conn_data->mysql_tbl,
+						     -3); */
+			}
+
+			if (conn_data->thd) {
+				innodb_cb_close_thd(conn_data->thd);
 			}
 
 			free(conn_data);
@@ -346,6 +362,7 @@ innodb_conn_init(
 		err = innodb_api_begin(engine,
 				       meta_info->m_item[META_DB].m_str,
 				       meta_info->m_item[META_TABLE].m_str,
+				       conn_data,
 				       conn_data->c_r_trx, &conn_data->c_r_crsr,
 				       &conn_data->c_r_idx_crsr,
 				       IB_LOCK_IS);
@@ -358,6 +375,7 @@ innodb_conn_init(
 				engine,
 				meta_info->m_item[META_DB].m_str,
 				meta_info->m_item[META_TABLE].m_str,
+				conn_data,
 				conn_data->c_trx, &conn_data->c_crsr,
 				&conn_data->c_idx_crsr, lock_mode);
 		}
@@ -376,6 +394,7 @@ innodb_conn_init(
 					engine,
 					meta_info->m_item[META_DB].m_str,
 					meta_info->m_item[META_TABLE].m_str,
+					conn_data,
 					conn_data->c_trx,
 					&conn_data->c_crsr,
 					&conn_data->c_idx_crsr, lock_mode);
@@ -818,11 +837,13 @@ innodb_get_item_info(
 	const item* 		item, 
 	item_info*		item_info)
 {
+	hash_item*	it;
+
 	if (item_info->nvalue < 1) {
 	return false;
 	}
 	/* Use a hash item */
-	hash_item *it = (hash_item*) item;
+	it = (hash_item*) item;
 	item_info->cas = hash_item_get_cas(it);
 	item_info->exptime = it->exptime;
 	item_info->nbytes = it->nbytes;

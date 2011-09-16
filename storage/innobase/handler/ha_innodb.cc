@@ -402,7 +402,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_open_table_by_name,
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,
-	(ib_cb_t) ib_cursor_open_index_using_name
+	(ib_cb_t) ib_cursor_open_index_using_name,
+	(ib_cb_t) ib_close_thd
 };
 	
 /** "GEN_CLUST_INDEX" is the name reserved for Innodb default
@@ -3313,6 +3314,18 @@ innobase_close_connection(
 	DBUG_RETURN(0);
 }
 
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return	0 or error number */
+UNIV_INTERN
+int
+innobase_close_thd(
+/*===============*/
+	void*		thd)	/*!< in: handle to the MySQL thread of the user
+				whose resources should be free'd */
+{
+	return(innobase_close_connection(innodb_hton_ptr, (THD*) thd));
+}
 
 /*************************************************************************//**
 ** InnoDB database tables

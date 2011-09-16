@@ -43,6 +43,7 @@ SET(INNODB_ENGINE_SOURCES
 		src/innodb_engine.c
 		src/innodb_api.c
 		src/embedded_default_engine.c
+		src/handler_api.cc
 		cache-src/assoc.c
 		cache-src/items.c
 		cache-src/slabs.c)

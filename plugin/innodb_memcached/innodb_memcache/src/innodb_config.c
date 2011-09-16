@@ -147,7 +147,7 @@ innodb_read_cache_policy(
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
-			       INNODB_CACHE_POLICIES, ib_trx,
+			       INNODB_CACHE_POLICIES, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);	
 
 	if (err != DB_SUCCESS) {
@@ -253,7 +253,7 @@ innodb_read_config_option(
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
-			       INNODB_CONFIG_OPTIONS, ib_trx,
+			       INNODB_CONFIG_OPTIONS, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);	
 
 	if (err != DB_SUCCESS) {
@@ -338,7 +338,7 @@ innodb_config_container(
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
-			       INNODB_META_CONTAINER_TABLE, ib_trx,
+			       INNODB_META_CONTAINER_TABLE, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);	
 
 	if (err != DB_SUCCESS) {

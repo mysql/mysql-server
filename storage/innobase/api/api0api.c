@@ -3618,3 +3618,17 @@ ib_table_truncate(
         return(trunc_err);
 }
 
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return 0 or error number */
+UNIV_INTERN
+ib_err_t
+ib_close_thd(
+/*=========*/
+	void*		thd)	/*!< in: handle to the MySQL thread of the user
+				whose resources should be free'd */
+{
+	innobase_close_thd(thd);
+
+	return(DB_SUCCESS);
+}
