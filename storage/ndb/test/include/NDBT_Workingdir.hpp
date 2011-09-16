@@ -22,7 +22,6 @@
 
 #include <NdbDir.hpp>
 #include <BaseString.hpp>
-#include <NdbProcess.hpp>
 
 class NDBT_Workingdir
 {
