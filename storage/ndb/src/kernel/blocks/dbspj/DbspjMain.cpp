@@ -5054,8 +5054,8 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
      * in the other direction is more costly).
      */
     Int32 parallelism = 
-      static_cast<Int32>(MIN(data.m_parallelismStat.getMean()
-                             - 2 * data.m_parallelismStat.getStdDev(),
+      static_cast<Int32>(MIN(round(data.m_parallelismStat.getMean()
+                                   - 2 * data.m_parallelismStat.getStdDev()),
                              org->batch_size_rows));
 
     if (parallelism < 1)
@@ -5077,6 +5077,7 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
       parallelism = (data.m_fragCount - data.m_frags_complete) / roundTrips;
     }
 
+    ndbassert(parallelism <= data.m_fragCount - data.m_frags_complete);
     data.m_parallelism = static_cast<Uint32>(parallelism);
 
 #ifdef DEBUG_SCAN_FRAGREQ
@@ -5466,12 +5467,14 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
       if (data.m_totalRows > 0)
       {
         parallelism = MIN(parallelism,
-                          double(org->batch_size_rows) / data.m_totalRows);
+                          double(org->batch_size_rows) * data.m_fragCount
+                          / data.m_totalRows);
       }
       if (data.m_totalBytes > 0)
       {
         parallelism = MIN(parallelism,
-                          double(org->batch_size_bytes) / data.m_totalBytes);
+                          double(org->batch_size_bytes) * data.m_fragCount
+                          / data.m_totalBytes);
       }
       data.m_parallelismStat.update(parallelism);
     }
@@ -7395,6 +7398,18 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
   ndbinfo_send_scan_conf(signal, req, rl);
 } // Dbspj::execDBINFO_SCANREQ(Signal *signal)
 
+
+/**
+ * Incremental calculation of standard deviation:
+ *
+ * Suppose that the data set is x1, x2,..., xn then for each xn
+ * we can find an updated mean (M) and square of sums (S) as:
+ *
+ * M(1) = x(1), M(k) = M(k-1) + (x(k) - M(k-1)) / k
+ * S(1) = 0, S(k) = S(k-1) + (x(k) - M(k-1)) * (x(k) - M(k))
+ *
+ * Source: http://mathcentral.uregina.ca/QQ/database/QQ.09.02/carlos1.html
+ */
 void Dbspj::IncrementalStatistics::update(double sample)
 {
   // Prevent wrap-around
