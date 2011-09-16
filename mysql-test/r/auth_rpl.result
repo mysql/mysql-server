@@ -7,7 +7,10 @@ CREATE USER 'plug_user' IDENTIFIED WITH 'test_plugin_server' AS 'plug_user';
 GRANT REPLICATION SLAVE ON *.* TO plug_user;
 FLUSH PRIVILEGES;
 [connection slave]
-CHANGE MASTER TO MASTER_USER= 'plug_user';
+CHANGE MASTER TO 
+MASTER_USER=     'plug_user',
+MASTER_PASSWORD= 'plug_user',
+MASTER_RETRY_COUNT= 0;
 include/start_slave.inc
 # Slave in-sync with master now.
 SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug_user';
