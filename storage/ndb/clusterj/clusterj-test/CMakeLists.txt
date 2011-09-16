@@ -18,6 +18,11 @@ SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model)
 
+SET ( BROKEN_JAVAC
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java)
+
 SET ( JAVA_SOURCES "")
 FOREACH(D ${JAVA_SOURCE_DIRS})
   FILE(GLOB tmp ${D}/*.java)
@@ -38,4 +43,5 @@ CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   MANIFEST manifest.mf
   DEPENDENCIES clusterj.jar
   EXTRA_FILES src/main/resources/META-INF
-              src/main/resources/schema.sql)
+              src/main/resources/schema.sql
+  BROKEN_JAVAC ${BROKEN_JAVAC})
