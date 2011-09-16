@@ -27,7 +27,9 @@ FLUSH PRIVILEGES;
 --connection slave
 --echo [connection slave]
 --let $master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
-CHANGE MASTER TO MASTER_USER= 'plug_user';
+CHANGE MASTER TO 
+  MASTER_USER=     'plug_user',
+  MASTER_PASSWORD= 'plug_user';
 
 #
 # Start slave with new replication account - this should trigger connection
