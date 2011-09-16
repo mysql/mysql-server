@@ -1469,6 +1469,7 @@ struct TABLE_LIST
                      (lock_type >= TL_WRITE_ALLOW_WRITE) ?
                      MDL_SHARED_WRITE : MDL_SHARED_READ,
                      MDL_TRANSACTION);
+    callback_func= 0;
   }
 
   /*
