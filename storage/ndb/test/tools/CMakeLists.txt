@@ -31,7 +31,6 @@ ADD_EXECUTABLE(restart restart.cpp)
 ADD_EXECUTABLE(verify_index verify_index.cpp)
 ADD_EXECUTABLE(copy_tab copy_tab.cpp)
 ADD_EXECUTABLE(create_index create_index.cpp)
-ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
 ADD_EXECUTABLE(hugoJoin hugoJoin.cpp)
 ADD_EXECUTABLE(ndb_connect connect.cpp)
 
@@ -49,7 +48,6 @@ SET(BINS
     verify_index
     copy_tab
     create_index
-    ndb_cpcc
     hugoJoin
     ndb_connect)
 
@@ -59,3 +57,9 @@ FOREACH(B ${BINS})
 ENDFOREACH()
 
 INSTALL(TARGETS ${BINS} DESTINATION bin)
+
+ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
+TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_cpcc ndbclient_static)
+INSTALL(TARGETS ndb_cpcc DESTINATION bin)
+

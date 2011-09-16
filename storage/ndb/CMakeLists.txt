@@ -207,7 +207,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
   # Old plugin support on Windows only
   INCLUDE(${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-  SET(NDBCLUSTER_LIBS ndbclient)
+  SET(NDBCLUSTER_LIBS ndbclient_static)
   MYSQL_STORAGE_ENGINE(NDBCLUSTER)
 ELSE()
   # New plugin support, cross-platform
@@ -220,13 +220,13 @@ ELSE()
 
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
     ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
-    LINK_LIBRARIES ndbclient)
+    LINK_LIBRARIES ndbclient_static)
 
   IF (NOT MCP_BUG58158)
     IF(WITH_EMBEDDED_SERVER)
       # Kludge libndbclient into variable used when creating libmysqld
       SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
-	ndbclient CACHE INTERNAL "" FORCE)
+	ndbclient_static CACHE INTERNAL "" FORCE)
     ENDIF()
   ENDIF()
 ENDIF()
