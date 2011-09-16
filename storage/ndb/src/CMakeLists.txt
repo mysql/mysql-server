@@ -38,7 +38,7 @@ SET(NDBCLIENT_LIBS
                 ndbgeneral
                 ndbconf)
 
-MERGE_LIBRARIES(ndbclient STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
+MERGE_LIBRARIES(ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
 
 #
 # Do a shared libd
