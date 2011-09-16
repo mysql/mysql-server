@@ -15539,7 +15539,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     c_diverify_queue[0].m_ref = calcTcBlockRef(getOwnNodeId());
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
-      if (c_diverify_queue_cnt > 1)
+      if (globalData.ndbMtTcThreads > 0)
       {
         c_diverify_queue[i].m_ref = numberToRef(DBTC, i + 1, 0);
       }

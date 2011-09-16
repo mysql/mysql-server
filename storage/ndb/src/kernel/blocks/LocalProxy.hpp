@@ -68,6 +68,7 @@ protected:
 
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
   virtual void loadWorkers();
+  virtual void tc_loadWorkers();
 
   // get worker block by index (not by instance)
 
@@ -589,6 +590,24 @@ protected:
   SsPool<Ss_SYNC_REQ> c_ss_SYNC_REQ;
 
   void execSYNC_PATH_REQ(Signal*);
+
+  // GSN_API_FAILREQ
+  struct Ss_API_FAILREQ : SsParallel {
+    Uint32 m_ref; //
+    Ss_API_FAILREQ() {
+      m_sendREQ = (SsFUNCREQ)&LocalProxy::sendAPI_FAILREQ;
+      m_sendCONF = (SsFUNCREP)&LocalProxy::sendAPI_FAILCONF;
+    }
+    enum { poolSize = MAX_NODES };
+    static SsPool<Ss_API_FAILREQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_API_FAILREQ;
+    }
+  };
+  SsPool<Ss_API_FAILREQ> c_ss_API_FAILREQ;
+  void execAPI_FAILREQ(Signal*);
+  void sendAPI_FAILREQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execAPI_FAILCONF(Signal*);
+  void sendAPI_FAILCONF(Signal*, Uint32 ssId);
 };
 
 #endif

@@ -44,6 +44,12 @@ add_extra_worker_thr_map(Uint32, Uint32)
 }
 
 void
+add_tc_worker_thr_map(Uint32, Uint32)
+{
+  assert(false);
+}
+
+void
 finalize_thr_map()
 {
   assert(false);

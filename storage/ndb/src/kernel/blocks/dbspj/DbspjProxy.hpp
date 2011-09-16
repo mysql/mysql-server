@@ -24,6 +24,7 @@ public:
   virtual ~DbspjProxy();
   BLOCK_DEFINES(DbspjProxy);
 
+  virtual void loadWorkers() { tc_loadWorkers(); }
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 

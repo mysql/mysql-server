@@ -74,6 +74,7 @@ struct GlobalData {
   bool       isNdbMtLqh; // ndbd multithreaded, LQH workers
   Uint32     ndbMtLqhWorkers;
   Uint32     ndbMtLqhThreads;
+  Uint32     ndbMtTcThreads;
   
   GlobalData(){ 
     theSignalId = 0; 
@@ -83,6 +84,7 @@ struct GlobalData {
     isNdbMtLqh = false;
     ndbMtLqhWorkers = 0;
     ndbMtLqhThreads = 0;
+    ndbMtTcThreads = 0;
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
 #endif
