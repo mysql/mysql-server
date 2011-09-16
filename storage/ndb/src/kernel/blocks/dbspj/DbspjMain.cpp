@@ -5054,8 +5054,9 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
      * in the other direction is more costly).
      */
     Int32 parallelism = 
-      static_cast<Int32>(MIN(round(data.m_parallelismStat.getMean()
-                                   - 2 * data.m_parallelismStat.getStdDev()),
+      static_cast<Int32>(MIN(data.m_parallelismStat.getMean()
+                             // Add 0.5 to get proper rounding.
+                             - 2 * data.m_parallelismStat.getStdDev() + 0.5,
                              org->batch_size_rows));
 
     if (parallelism < 1)
