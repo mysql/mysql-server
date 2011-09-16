@@ -1749,6 +1749,16 @@ ib_table_truncate(
 	ib_id_t*	table_id);	/*!< out: new table id */
 
 /*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return 0 or error number */
+
+ib_err_t
+ib_close_thd(
+/*=========*/
+	void*		thd);	/*!< in: handle to the MySQL thread of the user
+				whose resources should be free'd */
+
+/*****************************************************************//**
 Check whether the table name conforms to our requirements. Currently
 we only do a simple check for the presence of a '/'.
 @return DB_SUCCESS or err code */

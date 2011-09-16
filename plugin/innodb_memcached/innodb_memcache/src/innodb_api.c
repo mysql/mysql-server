@@ -70,7 +70,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_open_table_by_name,
 	(ib_cb_t*) &ib_cb_col_get_name,
 	(ib_cb_t*) &ib_cb_table_truncate,
-	(ib_cb_t*) &ib_cb_cursor_open_index_using_name
+	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
+	(ib_cb_t*) &ib_cb_close_thd
 };
 
 /*************************************************************//**
@@ -100,6 +101,7 @@ innodb_api_begin(
 	innodb_engine_t*engine,		/*!< in: InnoDB Memcached engine */
 	const char*	dbname,		/*!< in: database name */
 	const char*	name,		/*!< in: table name */
+	innodb_conn_data_t* conn_data,	/*!< in: connnection specific data */
 	ib_trx_t	ib_trx,		/*!< in: transaction */
 	ib_crsr_t*	crsr,		/*!< in/out: innodb cursor */
 	ib_crsr_t*	idx_crsr,	/*!< in/out: innodb index cursor */
@@ -138,6 +140,16 @@ innodb_api_begin(
 					idx_crsr, &index_type, &index_id);
 
 				ib_cb_cursor_lock(*idx_crsr, lock_mode);
+			}
+			if (conn_data && engine->enable_binlog) {
+				if (!conn_data->thd) {
+					conn_data->thd = handler_create_thd();
+				}
+				if (!conn_data->mysql_tbl) {
+					conn_data->mysql_tbl = handler_open_table(
+						conn_data->thd,
+						dbname, name, -2);
+				}
 			}
 		}
 	} else {
@@ -241,13 +253,17 @@ innodb_api_write_int(
 	return(DB_SUCCESS);
 }
 
+/*************************************************************//**
+Fetch data from a read tuple and instantiate a mci_item
+@return TRUE if successful */
 static
 bool
 innodb_api_fill_mci(
 /*================*/
-	ib_tpl_t	read_tpl,
-	int		col_id,
-	mci_column_t*	mci_item)
+	ib_tpl_t	read_tpl,	/*!< in: Read tuple */
+	int		col_id,		/*!< in: Column ID for the column to
+					read */
+	mci_column_t*	mci_item)	/*!< out: item to fill */
 {
 	ib_ulint_t      data_len;
 	ib_col_meta_t   col_meta;
@@ -275,10 +291,10 @@ static
 ib_err_t
 innodb_api_fill_value(
 /*==================*/
-	meta_info_t*	meta_info, 
-	mci_item_t*	item,		/*!< in: result */
-	ib_tpl_t	read_tpl,
-	int		col_id)
+	meta_info_t*	meta_info, 	/*!< in: Metadata */
+	mci_item_t*	item,		/*!< out: result */
+	ib_tpl_t	read_tpl,	/*!< in: read tuple */
+	int		col_id)		/*!< in: column Id */
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
@@ -318,7 +334,8 @@ innodb_api_search(
 	const char*		key,	/*!< in: key to search */
 	int			len,	/*!< in: key length */
 	mci_item_t*		item,	/*!< in: result */
-	ib_tpl_t*		r_tpl,	/*!< in: tpl for other DML operations */
+	ib_tpl_t*		r_tpl,	/*!< in: tpl for other DML
+					operations */
 	bool			sel_only) /*!< in: for select only */
 {
 	ib_tpl_t        key_tpl;
@@ -484,7 +501,7 @@ mci_get_time(void)
 }
 
 /*************************************************************//**
-Insert a row
+Insert a record with multiple columns
 @return DB_SUCCESS if successful otherwise, error code */
 static
 ib_err_t
@@ -538,7 +555,8 @@ innodb_api_set_tpl(
 	uint64_t	cas,		/*!< in: cas */
 	uint64_t	exp,		/*!< in: expiration */
 	uint64_t	flag,		/*!< in: flag */
-	int		col_to_set)	/*!< in: column to set */
+	int		col_to_set,	/*!< in: column to set */
+	void*		table)
 {
 	ib_err_t	err = DB_ERROR;
 
@@ -548,6 +566,13 @@ innodb_api_set_tpl(
 
 	err = ib_cb_col_set_value(tpl, col_info[META_KEY].m_field_id,
 				  key, key_len);
+
+	if (table) {
+		handler_rec_init(table);
+		handler_rec_setup_str(
+			table, col_info[META_KEY].m_field_id, key, key_len);
+	}
+
 	assert(err == DB_SUCCESS);
 
 	if (meta_info->m_num_add > 0) {
@@ -564,6 +589,11 @@ innodb_api_set_tpl(
 	} else {
 		err = ib_cb_col_set_value(tpl, col_info[META_VALUE].m_field_id,
 					  value, value_len);
+		if (table) {
+			handler_rec_setup_str(
+				table, col_info[META_VALUE].m_field_id,
+				value, value_len);
+		}
 	}
 
 	assert(err == DB_SUCCESS);
@@ -623,12 +653,23 @@ innodb_api_insert(
 
 	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
 				 key + len, val_len,
-				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
+				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
+				 cursor_data->mysql_tbl);
 
 	err = ib_cb_insert_row(cursor_data->c_crsr, tpl);
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
+
+		if (cursor_data->mysql_tbl) {
+			handler_binlog_row(cursor_data->mysql_tbl);
+			handler_binlog_flush(cursor_data->thd,
+					     cursor_data->mysql_tbl);
+			handler_unlock_table(cursor_data->thd,
+					     cursor_data->mysql_tbl,
+					     -3);
+		}
+
 	} else {
 		ib_cb_trx_rollback(cursor_data->c_trx);
 		cursor_data->c_trx = NULL;
@@ -678,7 +719,8 @@ innodb_api_update(
 
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
 				 len, key + len, val_len,
-				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
+				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
+				 NULL);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 
@@ -797,7 +839,7 @@ innodb_api_link(
 
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
 				 key, len, append_buf, total_len,
-				 new_cas, exp, flags, column_used);
+				 new_cas, exp, flags, column_used, NULL);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 
@@ -924,7 +966,7 @@ create_new_value:
 				 *cas,
 				 result.mci_item[MCI_COL_EXP].m_digit,
 				 result.mci_item[MCI_COL_FLAG].m_digit,
-				 column_used);
+				 column_used, NULL);
 
 	assert(err == DB_SUCCESS);
 
@@ -1145,6 +1187,14 @@ innodb_cb_trx_commit(
 	ib_trx_t	ib_trx)
 {
 	return(ib_cb_trx_commit(ib_trx));
+}
+
+ib_err_t
+innodb_cb_close_thd(
+/*=================*/
+	void*		thd)
+{
+	return(ib_cb_close_thd(thd));
 }
 
 ib_trx_t

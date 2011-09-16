@@ -305,4 +305,13 @@ UNIV_INTERN
 ulint
 innobase_get_table_cache_size(void);
 /*===============================*/
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return 0 or error number */
+UNIV_INTERN
+int
+innobase_close_thd(
+/*===============*/
+	void*		thd);		/*!< in: MySQL thread handle for
+					which to close the connection */
 #endif

@@ -1,5 +1,5 @@
-#ifndef NDBMEMCACHE_NDB_ENGINE_H
-#define NDBMEMCACHE_NDB_ENGINE_H
+#ifndef INNODB_ENGINE_H
+#define INNODB_ENGINE_H
 
 #include "config.h"
 
@@ -123,6 +123,8 @@ struct innodb_conn_data {
 					write/update/delete */
 	uint64_t	c_w_count_commit;/*!< number of updates since
 					last commit */
+	void*		thd;		/*!< MySQL THD, used for binlog */
+	void*		mysql_tbl;	/*!< MySQL TABLE, used for binlog */
 	UT_LIST_NODE_T(innodb_conn_data_t) c_list; /*!< list ptr */
 };
 
@@ -146,6 +148,7 @@ typedef struct innodb_engine {
 
 	bool		initialized;
 	bool		connected;
+	bool		enable_binlog;
 
 	meta_info_t	meta_info;
 
@@ -155,5 +158,17 @@ typedef struct innodb_engine {
 	uint64_t	r_batch_size;
 	uint64_t	w_batch_size;	
 } innodb_engine_t;
+
+/**********************************************************************//**
+Unlock a table and commit the transaction
+return 0 if fail to commit the transaction */
+extern
+int
+handler_unlock_table(
+/*=================*/
+	void*           my_thd,         /*!< in: thread */
+	void*           my_table,       /*!< in: Table metadata */
+	int             my_lock_mode);   /*!< in: lock mode */
+
 
 #endif
