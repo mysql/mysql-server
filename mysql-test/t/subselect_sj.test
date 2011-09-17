@@ -1722,5 +1722,18 @@ drop table t1,t2, t3;
 set optimizer_switch=@tmp_830993;
 set join_buffer_size= @tmp_830993_jbs;
 
+--echo #
+--echo # BUG##849717: Crash in Item_func::fix_fields on second execution of a prepared statement with semijoin
+--echo #
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int, b int) ;
+
+PREPARE st1 FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.a != 0 AND ('j','r') IN ( SELECT b,a FROM t3)";
+EXECUTE st1;
+EXECUTE st1;
+
+DROP TABLE t1, t2, t3;
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;
