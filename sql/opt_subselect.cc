@@ -886,12 +886,6 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
     in_subq->substitution= NULL;
-#if 0
-    /* 
-      Don't do the following, because the simplify_join() call is after this
-      call, and that call will save to prep_wher/prep_on_expr.
-    */
-
     /*
       If this is a prepared statement, repeat the above operation for
       prep_where (or prep_on_expr). Subquery-to-semijoin conversion is 
@@ -902,12 +896,15 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
       tree= (in_subq->emb_on_expr_nest == NO_JOIN_NEST)?
              &join->select_lex->prep_where : 
              &(in_subq->emb_on_expr_nest->prep_on_expr);
-
-      if (replace_where_subcondition(join, tree, replace_me, substitute, 
+      /* 
+        prep_on_expr/ prep_where may be NULL in some cases. 
+        If that is the case, do nothing - simplify_joins() will copy 
+        ON/WHERE expression into prep_on_expr/prep_where.
+      */
+      if (*tree && replace_where_subcondition(join, tree, replace_me, substitute, 
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
-#endif
     /*
       Revert to the IN->EXISTS strategy in the rare case when the subquery could
       not be flattened.
