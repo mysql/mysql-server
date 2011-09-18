@@ -43,8 +43,9 @@ void Group_log_state::clear()
 }
 
 
-enum_group_status
-Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
+enum_return_status
+Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno,
+                                   const THD *thd)
 {
   DBUG_ENTER("Group_log_state::acquire_ownership");
   //ended_groups.ensure_sidno(sidno);
@@ -53,18 +54,18 @@ Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno, const THD *thd)
   DBUG_PRINT("info", ("acquire ownership of group %d:%lld", sidno, gno));
   Rpl_owner_id owner;
   owner.copy_from(thd);
-  enum_group_status ret= owned_groups.add(sidno, gno, owner);
-  DBUG_RETURN(ret);
+  PROPAGATE_REPORTED_ERROR(owned_groups.add(sidno, gno, owner));
+  RETURN_OK;
 }
 
 
-enum_group_status Group_log_state::end_group(rpl_sidno sidno, rpl_gno gno)
+enum_return_status Group_log_state::end_group(rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Group_log_state::end_group");
   DBUG_PRINT("info", ("ending group %d:%lld", sidno, gno));
   owned_groups.remove(sidno, gno);
-  enum_group_status ret= ended_groups._add(sidno, gno);
-  DBUG_RETURN(ret);
+  PROPAGATE_REPORTED_ERROR(ended_groups._add(sidno, gno));
+  RETURN_OK;
 }
 
 
@@ -141,7 +142,7 @@ void Group_log_state::broadcast_sidnos(const Group_set *gs)
 }
 
 
-enum_group_status Group_log_state::ensure_sidno()
+enum_return_status Group_log_state::ensure_sidno()
 {
   DBUG_ENTER("Group_log_state::ensure_sidno");
   sid_lock->assert_some_rdlock();
@@ -153,14 +154,14 @@ enum_group_status Group_log_state::ensure_sidno()
     // condition after the calls.
     do
     {
-      GROUP_STATUS_THROW(ended_groups.ensure_sidno(sidno));
-      GROUP_STATUS_THROW(owned_groups.ensure_sidno(sidno));
-      GROUP_STATUS_THROW(sid_locks.ensure_index(sidno));
+      PROPAGATE_REPORTED_ERROR(ended_groups.ensure_sidno(sidno));
+      PROPAGATE_REPORTED_ERROR(owned_groups.ensure_sidno(sidno));
+      PROPAGATE_REPORTED_ERROR(sid_locks.ensure_index(sidno));
     } while (ended_groups.get_max_sidno() < sidno ||
              owned_groups.get_max_sidno() < sidno ||
              sid_locks.get_max_index() < sidno);
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 

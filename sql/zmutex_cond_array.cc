@@ -64,7 +64,7 @@ void Mutex_cond_array::enter_cond(THD *thd, int n, PSI_stage_info *stage,
 }
 
 
-enum_group_status Mutex_cond_array::ensure_index(int n)
+enum_return_status Mutex_cond_array::ensure_index(int n)
 {
   DBUG_ENTER("Mutex_cond_array::ensure_index");
   global_lock->assert_some_rdlock();
@@ -91,11 +91,12 @@ enum_group_status Mutex_cond_array::ensure_index(int n)
     global_lock->unlock();
     global_lock->rdlock();
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 error:
   global_lock->unlock();
   global_lock->rdlock();
-  DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  RETURN_REPORTED_ERROR;
 }
 
 

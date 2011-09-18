@@ -1820,7 +1820,7 @@ public:
     DBUG_ENTER("Sys_var_ugid::session_update");
     mysql_bin_log.sid_lock.rdlock();
     bool ret= (((Ugid_specification *)session_var_ptr(thd))->
-               parse(var->save_result.string_value.str) != GS_SUCCESS);
+               parse(var->save_result.string_value.str) != 0);
     mysql_bin_log.sid_lock.unlock();
     DBUG_RETURN(ret);
   }
@@ -1927,14 +1927,10 @@ public:
         gs->clear();
       // Add specified set of groups to Group_set.
       mysql_bin_log.sid_lock.rdlock();
-      enum_group_status ret= gs->add(value);
+      int ret= gs->add(value);
       mysql_bin_log.sid_lock.unlock();
-      if (ret != GS_SUCCESS)
+      if (ret != 0)
       {
-        if (ret == GS_ERROR_OUT_OF_MEMORY)
-          my_error(ER_OUT_OF_RESOURCES, MYF(0));
-        else
-          DBUG_ASSERT(ret == GS_ERROR_PARSE);
         gsn->set_null();
         DBUG_RETURN(true);
       }
@@ -2047,7 +2043,7 @@ public:
                          flag_enum flag_arg)
     : Sys_var_charptr_func(name_arg, comment, flag_arg) {}
 
-  typedef enum_group_status (*Group_set_getter)(THD *, Group_set *);
+  typedef enum_return_status (*Group_set_getter)(THD *, Group_set *);
 
   static uchar *get_string_from_group_set(THD *thd,
                                           Group_set_getter get_group_set)
@@ -2060,20 +2056,20 @@ public:
     Group_set::Interval ivs[10];
     gs.add_interval_memory(10, ivs);
     mysql_bin_log.sid_lock.rdlock();
-    enum_group_status ret= get_group_set(thd, &gs);
-    if (ret == GS_ERROR_OUT_OF_MEMORY)
-      goto out_of_memory;
-    DBUG_ASSERT(ret == GS_SUCCESS);
+    if (get_group_set(thd, &gs) != RETURN_STATUS_OK)
+      goto error;
     // allocate string and print to it
     buf= (char *)thd->alloc(gs.get_string_length() + 1);
     if (buf == NULL)
-      goto out_of_memory;
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      goto error;
+    }
     gs.to_string(buf);
     mysql_bin_log.sid_lock.unlock();
     DBUG_RETURN((uchar *)buf);
-  out_of_memory:
+  error:
     mysql_bin_log.sid_lock.unlock();
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(NULL);
   }
 };
@@ -2094,23 +2090,28 @@ public:
     mysql_bin_log.sid_lock.rdlock();
     const Group_set *gs= mysql_bin_log.group_log_state.get_ended_groups();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
-    if (buf)
+    if (buf == NULL)
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    else
       gs->to_string(buf);
     mysql_bin_log.sid_lock.unlock();
     DBUG_RETURN((uchar *)buf);
   }
 
 private:
-  static enum_group_status get_ended_groups_from_caches(THD *thd, Group_set *gs)
+  static enum_return_status get_ended_groups_from_caches(THD *thd,
+                                                         Group_set *gs)
   {
-    DBUG_ENTER("get_partial_groups_from_caches");
+    DBUG_ENTER("get_ended_groups_from_caches");
     if (opt_bin_log)
     {
       thd->binlog_setup_trx_data();
-      GROUP_STATUS_THROW(thd->get_group_cache(true)->get_ended_groups(gs));
-      GROUP_STATUS_THROW(thd->get_group_cache(false)->get_ended_groups(gs));
+      PROPAGATE_REPORTED_ERROR(thd->get_group_cache(true)->
+                               get_ended_groups(gs));
+      PROPAGATE_REPORTED_ERROR(thd->get_group_cache(false)->
+                               get_ended_groups(gs));
     }
-    DBUG_RETURN(GS_SUCCESS);
+    RETURN_OK;
   }
 
 public:
@@ -2131,21 +2132,26 @@ public:
     : Sys_var_group_set_func(name_arg, comment_arg, SESSION) {}
 
 private:
-  static enum_group_status get_partial_groups_from_group_log_state(THD *thd, Group_set *gs)
+  static enum_return_status get_partial_groups_from_group_log_state(THD *thd, Group_set *gs)
   {
-    return mysql_bin_log.group_log_state.get_owned_groups()->get_partial_groups(gs);
+    DBUG_ENTER("get_partial_groups_from_group_log_state");
+    PROPAGATE_REPORTED_ERROR(mysql_bin_log.group_log_state.get_owned_groups()->
+                             get_partial_groups(gs));
+    RETURN_OK;
   }
 
-  static enum_group_status get_partial_groups_from_caches(THD *thd, Group_set *gs)
+  static enum_return_status get_partial_groups_from_caches(THD *thd, Group_set *gs)
   {
     DBUG_ENTER("get_partial_groups_from_caches");
     if (opt_bin_log)
     {
       thd->binlog_setup_trx_data();
-      GROUP_STATUS_THROW(thd->get_group_cache(true)->get_partial_groups(gs));
-      GROUP_STATUS_THROW(thd->get_group_cache(false)->get_partial_groups(gs));
+      PROPAGATE_REPORTED_ERROR(thd->get_group_cache(true)->
+                               get_partial_groups(gs));
+      PROPAGATE_REPORTED_ERROR(thd->get_group_cache(false)->
+                               get_partial_groups(gs));
     }
-    DBUG_RETURN(GS_SUCCESS);
+    RETURN_OK;
   }
 
 public:

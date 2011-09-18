@@ -140,11 +140,9 @@ ugid_acquire_group_ownerships(THD *thd, Checkable_rwlock *lock,
       Rpl_owner_id owner= gls->get_owner(g.sidno, g.gno);
       if (owner.is_none())
       {
-        if (gls->acquire_ownership(g.sidno, g.gno, thd) != GS_SUCCESS)
-        {
-          ret= 1;
+        ret= gls->acquire_ownership(g.sidno, g.gno, thd);
+        if (ret != 0)
           break;
-        }
       }
       else
         // in the previous loop, we waited for all groups owned
@@ -260,11 +258,8 @@ ugid_before_statement_begin_master_super_group(
 
   if (!thd->variables.ugid_has_ongoing_super_group)
   {
-    if (gls->ensure_sidno() != GS_SUCCESS)
-    {
-      my_error(ER_OUT_OF_RESOURCES, MYF(0), ER(ER_OUT_OF_RESOURCES));
+    if (gls->ensure_sidno() != 0)
       DBUG_RETURN(UGID_STATEMENT_CANCEL);
-    }
 
     if (ugid_next_list != NULL)
     {
@@ -389,10 +384,9 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
   DBUG_ENTER("ugid_flush_group_cache");
   lock->rdlock();
   gc->generate_automatic_gno(thd, gls);
-  if (gc->write_to_log(trx_cache, offset_after_last_statement) != GS_SUCCESS)
-    DBUG_RETURN(1);
-  if (gc->update_group_log_state(thd, gls) != GS_SUCCESS)
-    DBUG_RETURN(1);
+  PROPAGATE_REPORTED_ERROR_INT(gc->write_to_log(trx_cache,
+                                                offset_after_last_statement));
+  PROPAGATE_REPORTED_ERROR_INT(gc->update_group_log_state(thd, gls));
   lock->unlock();
   gc->clear();
   DBUG_RETURN(0);
@@ -403,7 +397,7 @@ int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
                                 Group_log_state *gls, Group_cache *trx_cache)
 {
   DBUG_ENTER("ugid_before_flush_trx_cache");
-  enum_group_status ret= GS_SUCCESS;
+  enum_return_status ret= RETURN_STATUS_OK;
 
   if (thd->variables.ugid_end)
   {
@@ -423,11 +417,10 @@ int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
           ret= trx_cache->add_dummy_subgroup(ugid_next->group.sidno,
                                              ugid_next->group.gno, true);
         lock->unlock();
+        PROPAGATE_REPORTED_ERROR_INT(ret);
       }
     }
   }
-  if (ret != GS_SUCCESS)
-    DBUG_RETURN(1); /// @todo generate error in log /sven
 
   /*printf("ugid_before_flush_trx_cache commit=%d\n",
          thd->variables.ugid_commit);
@@ -467,9 +460,7 @@ int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
       }
     }
   }
-  if (ret != GS_SUCCESS)
-    DBUG_RETURN(1); /// @todo generate error in log /sven
-
+  PROPAGATE_REPORTED_ERROR_INT(ret);
   DBUG_RETURN(0);
 }
 

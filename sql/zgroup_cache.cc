@@ -45,7 +45,7 @@ void Group_cache::clear()
 }
 
 
-enum_group_status Group_cache::add_subgroup(const Cached_subgroup *group)
+enum_return_status Group_cache::add_subgroup(const Cached_subgroup *group)
 {
   DBUG_ENTER("Group_cache::add_subgroup(Cached_Subgroup *)");
 
@@ -64,7 +64,7 @@ enum_group_status Group_cache::add_subgroup(const Cached_subgroup *group)
       prev->group_end= group->group_end;
       if (prev->type == DUMMY_SUBGROUP && group->type == NORMAL_SUBGROUP)
         prev->type= NORMAL_SUBGROUP;
-      DBUG_RETURN(GS_SUCCESS);
+      RETURN_OK;
     }
   }
 
@@ -73,7 +73,10 @@ enum_group_status Group_cache::add_subgroup(const Cached_subgroup *group)
 
   // if sub-group could not be merged with previous sub-group, append it
   if (insert_dynamic(&subgroups, group) != 0)
-    DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    RETURN_REPORTED_ERROR;
+  }
 
   // Update the internal status of this Group_cache (see comment above
   // definition of enum_group_cache_type).
@@ -89,12 +92,12 @@ enum_group_status Group_cache::add_subgroup(const Cached_subgroup *group)
       */
     }
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_cache::add_logged_subgroup(const THD *thd,
-                                                   my_off_t length)
+enum_return_status
+Group_cache::add_logged_subgroup(const THD *thd, my_off_t length)
 {
   DBUG_ENTER("Group_cache::add_logged_subgroup(THD *, my_off_t)");
   const Ugid_specification *spec= &thd->variables.ugid_next;
@@ -110,8 +113,8 @@ enum_group_status Group_cache::add_logged_subgroup(const THD *thd,
     };
   if (type == Ugid_specification::AUTOMATIC && spec->group.sidno == 0)
     cs.sidno= mysql_bin_log.server_uuid_sidno;
-  enum_group_status ret= add_subgroup(&cs);
-  DBUG_RETURN(ret);
+  PROPAGATE_REPORTED_ERROR(add_subgroup(&cs));
+  RETURN_OK;
 }
 
 
@@ -142,7 +145,7 @@ bool Group_cache::group_is_ended(rpl_sidno sidno, rpl_gno gno) const
 }
 
 
-enum_group_status
+enum_return_status
 Group_cache::add_dummy_subgroup(rpl_sidno sidno, rpl_gno gno, bool group_end)
 {
   DBUG_ENTER("Group_cache::add_dummy_subgroup");
@@ -150,23 +153,24 @@ Group_cache::add_dummy_subgroup(rpl_sidno sidno, rpl_gno gno, bool group_end)
     {
       DUMMY_SUBGROUP, sidno, gno, 0/*binlog_length*/, group_end
     };
-  DBUG_RETURN(add_subgroup(&cs));
+  PROPAGATE_REPORTED_ERROR(add_subgroup(&cs));
+  RETURN_OK;
 }
 
 
-enum_group_status
+enum_return_status
 Group_cache::add_dummy_subgroup_if_missing(const Group_log_state *gls,
                                            rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Group_cache::add_dummy_subgroup_if_missing(Group_log_state *, rpl_sidno, rpl_gno)");
   if (!gls->is_ended(sidno, gno) && !gls->is_partial(sidno, gno) &&
       !contains_group(sidno, gno))
-    DBUG_RETURN(add_dummy_subgroup(sidno, gno, false));
-  DBUG_RETURN(GS_SUCCESS);
+    PROPAGATE_REPORTED_ERROR(add_dummy_subgroup(sidno, gno, false));
+  RETURN_OK;
 }
 
 
-enum_group_status
+enum_return_status
 Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
                                             const Group_set *group_set)
 {
@@ -185,15 +189,16 @@ Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
   Group_set::Group_iterator git(group_set);
   Group g= git.get();
   while (g.sidno) {
-    GROUP_STATUS_THROW(add_dummy_subgroup_if_missing(gls, g.sidno, g.gno));
+    PROPAGATE_REPORTED_ERROR(add_dummy_subgroup_if_missing(gls,
+                                                           g.sidno, g.gno));
     git.next();
     g= git.get();
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status
+enum_return_status
 Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
 {
   DBUG_ENTER("Group_cache::update_group_log_state");
@@ -212,7 +217,7 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
       gls->lock_sidno(lock_sidno);
   }
 
-  enum_group_status ret= GS_SUCCESS;
+  enum_return_status ret= RETURN_STATUS_OK;
   bool updated= false;
 
 /*
@@ -235,7 +240,7 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
       {
         updated= true;
         ret= gls->end_group(cs->sidno, cs->gno);
-        if (ret != GS_SUCCESS)
+        if (ret != RETURN_STATUS_OK)
           break;
       }
       else if (!gls->mark_partial(cs->sidno, cs->gno))
@@ -255,7 +260,7 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
       gls->broadcast_sidno(lock_sidno);
     gls->unlock_sidno(lock_sidno);
   }
-  DBUG_RETURN(ret);
+  RETURN_STATUS(ret);
 }
 
 
@@ -293,7 +298,7 @@ void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
 }
 
 
-enum_group_status
+enum_return_status
 Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
                                   rpl_binlog_pos offset_after_last_statement,
                                   Cached_subgroup **last_non_dummy_subgroup)
@@ -318,10 +323,9 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
       {
         cs->group_end= false;
         if (!trx_group_cache->group_is_ended(cs->sidno, cs->gno))
-        {
-          GROUP_STATUS_THROW(trx_group_cache->
-                             add_dummy_subgroup(cs->sidno, cs->gno, true));
-        }
+          PROPAGATE_REPORTED_ERROR(trx_group_cache->
+                                   add_dummy_subgroup(cs->sidno, cs->gno,
+                                                      true));
       }
     }
   }
@@ -366,19 +370,19 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
                  offset_after_last_statement == -1));
   }
 
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status
+enum_return_status
 Group_cache::write_to_log(Group_cache *trx_group_cache,
                           rpl_binlog_pos offset_after_last_statement)
 {
   DBUG_ENTER("Group_cache::write_to_log");
   Cached_subgroup *last_non_dummy_subgroup;
-  GROUP_STATUS_THROW(write_to_log_prepare(trx_group_cache,
-                                          offset_after_last_statement,
-                                          &last_non_dummy_subgroup));
+  PROPAGATE_REPORTED_ERROR(write_to_log_prepare(trx_group_cache,
+                                                offset_after_last_statement,
+                                                &last_non_dummy_subgroup));
 
 /*
   int n_subgroups= get_n_subgroups();
@@ -388,40 +392,40 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
     group_log->write_subgroup(cs);
   }
 */
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_cache::get_ended_groups(Group_set *gs) const
+enum_return_status Group_cache::get_ended_groups(Group_set *gs) const
 {
   DBUG_ENTER("Group_cache::get_groups");
   int n_subgroups= get_n_subgroups();
-  GROUP_STATUS_THROW(gs->ensure_sidno(gs->get_sid_map()->get_max_sidno()));
+  PROPAGATE_REPORTED_ERROR(gs->ensure_sidno(gs->get_sid_map()->get_max_sidno()));
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
     if (cs->group_end)
-      GROUP_STATUS_THROW(gs->_add(cs->sidno, cs->gno));
+      PROPAGATE_REPORTED_ERROR(gs->_add(cs->sidno, cs->gno));
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_cache::get_partial_groups(Group_set *gs) const
+enum_return_status Group_cache::get_partial_groups(Group_set *gs) const
 {
   DBUG_ENTER("Group_cache::get_groups");
   Sid_map *sid_map= gs->get_sid_map();
-  GROUP_STATUS_THROW(gs->ensure_sidno(sid_map->get_max_sidno()));
+  PROPAGATE_REPORTED_ERROR(gs->ensure_sidno(sid_map->get_max_sidno()));
   Group_set ended_groups(sid_map);
-  GROUP_STATUS_THROW(get_ended_groups(&ended_groups));
+  PROPAGATE_REPORTED_ERROR(get_ended_groups(&ended_groups));
   int n_subgroups= get_n_subgroups();
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
     if (!ended_groups.contains_group(cs->sidno, cs->gno))
-      GROUP_STATUS_THROW(gs->_add(cs->sidno, cs->gno));
+      PROPAGATE_REPORTED_ERROR(gs->_add(cs->sidno, cs->gno));
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 

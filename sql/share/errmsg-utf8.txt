@@ -6561,4 +6561,10 @@ ER_UGID_END_REQUIRES_UGID_COMMIT_WHEN_UGID_NEXT_LIST_IS_NULL
   eng "When UGID_NEXT_LIST = NULL and UGID_NEXT has the form UUID:NUMBER, UGID_END cannot be set if UGID_COMMIT is not set."
 
 ER_MALFORMED_GROUP_SET_SPECIFICATION
-  eng "Malformed group set specification %s."
+  eng "Malformed group set specification '%.200s'."
+
+ER_MALFORMED_GROUP_SPECIFICATION
+  eng "Malformed group specification '%.200s'."
+
+ER_FILE_FORMAT
+  eng "File '%s' has an unknown format, it may be corrupt."

@@ -14,78 +14,102 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "zgroups.h"
+#include "mysqld_error.h"
 
 
 #ifdef HAVE_UGID
 
 
-enum_group_status Rot_file::open(const char *_filename, bool _writable)
+enum_return_status Rot_file::open(const char *_filename, bool writable)
 {
   DBUG_ENTER("Rot_file::open");
 
-  writable= _writable;
-  DBUG_ASSERT(strlen(_filename) < sizeof(filename));
-  strcpy(filename, _filename);
+  _is_writable= writable;
 
-  DBUG_PRINT("info", ("filename=%s writable=%d", filename, writable));
+  size_t filename_length= strlen(_filename);
+  DBUG_ASSERT(filename_length < sizeof(base_filename));
+  memcpy(base_filename, _filename, filename_length + 1);
+  memcpy(sub_file.filename, _filename, filename_length);
+  memcpy(sub_file.filename + filename_length, "-00.0", 6);
 
-  fd= my_open(filename, (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
-              MYF(MY_WME));
-  if (fd < 0)
-    // @todo: my_error /sven
-    DBUG_RETURN(GS_ERROR_IO);
+  DBUG_PRINT("info", ("base_filename='%s' sub_file.filename='%s' writable=%d",
+                      base_filename, sub_file.filename, writable));
+
+  sub_file.fd= my_open(sub_file.filename,
+                       (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
+                       MYF(MY_WME));
+  if (sub_file.fd < 0)
+  {
+    my_error(ER_FILE_NOT_FOUND, MYF(0), sub_file.filename, errno);
+    RETURN_REPORTED_ERROR;
+  }
 
   ulonglong offset;
-  header_length= Compact_encoding::read_unsigned(fd, &offset, MYF(0));
-  if (header_length == 0)
+  int ret= Compact_encoding::read_unsigned(sub_file.fd, &offset, MYF(0));
+  DBUG_PRINT("info", ("rotfile %s header length %d offset %lld",
+                      sub_file.filename, ret, offset));
+  if (ret <= 0)
   {
-    // file was empty: write the header
-    if (Compact_encoding::write_unsigned(fd, 1, MYF(MY_WME)) <= 0)
-      DBUG_RETURN(GS_ERROR_IO);
-    header_length= 1;
+    if (offset == 0)
+    {
+      // IO error: generate message
+      my_error(ER_ERROR_ON_READ, MYF(0), sub_file.filename, errno);
+      RETURN_REPORTED_ERROR;
+    }
+    else if (ret == 0 && offset == 1)
+    {
+      // file was empty: write the header
+      offset= 0;
+      if (Compact_encoding::write_unsigned(sub_file.fd, offset,
+                                           MYF(MY_WME)) <= 0)
+        RETURN_REPORTED_ERROR;
+      sub_file.header_length= 1;
+    }
+    else 
+    {
+      // file format error
+      my_error(ER_FILE_FORMAT, MYF(0), sub_file.filename);
+      close();
+      RETURN_REPORTED_ERROR;
+    }
   }
-  else if (offset != 0)
-  {
-    // @todo: my_error("unknown format") /sven
-    close();
-    DBUG_RETURN(GS_ERROR_PARSE);
-  }
+  else
+    sub_file.header_length= ret;
 
-  DBUG_RETURN(GS_SUCCESS);
+  _is_open= true;
+  RETURN_OK;
 }
 
 
-enum_group_status Rot_file::close()
+enum_return_status Rot_file::close()
 {
   DBUG_ENTER("Rot_file::close");
-  if (my_close(fd, MYF(MY_WME)) == 0)
-  {
-    fd= 0;
-    DBUG_RETURN(GS_SUCCESS);
-  }
-  DBUG_RETURN(GS_ERROR_IO);
+  if (my_close(sub_file.fd, MYF(MY_WME)) != 0)
+    RETURN_REPORTED_ERROR;
+  sub_file.fd= -1;
+  RETURN_OK;
 }
 
 
-enum_group_status Rot_file::purge(my_off_t offset)
+enum_return_status Rot_file::purge(my_off_t offset)
 {
   DBUG_ASSERT(0);  // @todo: implement /sven
   DBUG_ENTER("Rot_file::purge");
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Rot_file::truncate(my_off_t offset)
+enum_return_status Rot_file::truncate(my_off_t offset)
 {
   DBUG_ASSERT(0); // @todo: implement /sven
   DBUG_ENTER("Rot_file::truncate");
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
 Rot_file::~Rot_file()
 {
-  DBUG_ASSERT(!is_open());
+  //DBUG_ASSERT(!is_open());
 }
 
 

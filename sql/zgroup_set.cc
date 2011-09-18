@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include "mysqld.h"
 #include "my_dbug.h"
+#include "mysqld_error.h"
 
 
 const int Group_set::CHUNK_GROW_SIZE;
@@ -49,14 +50,14 @@ Group_set::Group_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 
 
 Group_set::Group_set(Sid_map *_sid_map, const char *text,
-                     enum_group_status *status, Checkable_rwlock *_sid_lock)
+                     enum_return_status *status, Checkable_rwlock *_sid_lock)
 {
   init(_sid_map, _sid_lock);
   *status= add(text);
 }
 
 
-Group_set::Group_set(Group_set *other, enum_group_status *status)
+Group_set::Group_set(Group_set *other, enum_return_status *status)
 {
   init(other->sid_map, other->sid_lock);
   *status= add(other);
@@ -73,7 +74,6 @@ void Group_set::init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
   chunks= NULL;
   free_intervals= NULL;
   my_init_dynamic_array(&intervals, sizeof(Interval *), 0, 8);
-  //GROUP_STATUS_THROW(ensure_sidno(sid_map->get_max_sidno()));
 #ifndef NO_DBUG
   n_chunks= 0;
 #endif
@@ -100,7 +100,7 @@ Group_set::~Group_set()
 }
 
 
-enum_group_status Group_set::ensure_sidno(rpl_sidno sidno)
+enum_return_status Group_set::ensure_sidno(rpl_sidno sidno)
 {
   DBUG_ENTER("Group_set::ensure_sidno");
   if (sid_lock != NULL)
@@ -123,20 +123,25 @@ enum_group_status Group_set::ensure_sidno(rpl_sidno sidno)
       {
         sid_lock->unlock();
         sid_lock->rdlock();
-        DBUG_RETURN(GS_SUCCESS);
+        RETURN_OK;
       }
     }
-    allocate_dynamic(&intervals, sid_map->get_max_sidno());
+    if (allocate_dynamic(&intervals, sid_map->get_max_sidno()))
+      goto error;
     Interval *null_p= NULL;
     for (rpl_sidno i= max_sidno; i < sidno; i++)
-      insert_dynamic(&intervals, &null_p);
+      if (insert_dynamic(&intervals, &null_p))
+        goto error;
     if (sid_lock != NULL)
     {
       sid_lock->unlock();
       sid_lock->rdlock();
     }
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
+error:
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  RETURN_REPORTED_ERROR;
 }
 
 
@@ -154,7 +159,7 @@ void Group_set::add_interval_memory(int n_ivs, Interval *ivs)
 }
 
 
-enum_group_status Group_set::create_new_chunk(int size)
+enum_return_status Group_set::create_new_chunk(int size)
 {
   DBUG_ENTER("Group_set::create_new_chunk");
   // allocate the new chunk. one element is already pre-allocated, so
@@ -163,7 +168,10 @@ enum_group_status Group_set::create_new_chunk(int size)
     (Interval_chunk *)malloc(sizeof(Interval_chunk) +
                              sizeof(Interval) * (size - 1));
   if (new_chunk == NULL)
-    DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    RETURN_REPORTED_ERROR;
+  }
   // store the chunk in the list of chunks
   new_chunk->next= chunks;
   chunks= new_chunk;
@@ -172,19 +180,19 @@ enum_group_status Group_set::create_new_chunk(int size)
 #endif
   // add the intervals in the chunk to the list of free intervals
   add_interval_memory(size, new_chunk->intervals);
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_set::get_free_interval(Interval **out)
+enum_return_status Group_set::get_free_interval(Interval **out)
 {
   DBUG_ENTER("Group_set::get_free_interval");
   Interval_iterator ivit(this);
   if (ivit.get() == NULL)
-    GROUP_STATUS_THROW(create_new_chunk(CHUNK_GROW_SIZE));
+    PROPAGATE_REPORTED_ERROR(create_new_chunk(CHUNK_GROW_SIZE));
   *out= ivit.get();
   ivit.set((*out)->next);
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
@@ -228,8 +236,8 @@ void Group_set::clear()
 }
 
 
-enum_group_status Group_set::add(Interval_iterator *ivitp,
-                                 rpl_gno start, rpl_gno end)
+enum_return_status Group_set::add(Interval_iterator *ivitp,
+                                  rpl_gno start, rpl_gno end)
 {
   DBUG_ENTER("Group_set::add(Interval_iterator*, rpl_gno, rpl_gno)");
   DBUG_ASSERT(start < end);
@@ -260,7 +268,7 @@ enum_group_status Group_set::add(Interval_iterator *ivitp,
       if (iv->end < end)
         iv->end= end;
       *ivitp= ivit;
-      DBUG_RETURN(GS_SUCCESS);
+      RETURN_OK;
     }
     ivit.next();
   }
@@ -271,16 +279,17 @@ enum_group_status Group_set::add(Interval_iterator *ivitp,
     insert it at the current position.
   */
   Interval *new_iv;
-  GROUP_STATUS_THROW(get_free_interval(&new_iv));
+  PROPAGATE_REPORTED_ERROR(get_free_interval(&new_iv));
   new_iv->start= start;
   new_iv->end= end;
   ivit.insert(new_iv);
   *ivitp= ivit;
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)
+enum_return_status Group_set::remove(Interval_iterator *ivitp,
+                                     rpl_gno start, rpl_gno end)
 {
   DBUG_ENTER("Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end)");
   DBUG_ASSERT(start < end);
@@ -307,7 +316,7 @@ enum_group_status Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl
     {
       // iv cuts also the end of the removed interval: split iv in two
       Interval *new_iv;
-      GROUP_STATUS_THROW(get_free_interval(&new_iv));
+      PROPAGATE_REPORTED_ERROR(get_free_interval(&new_iv));
       new_iv->start= end;
       new_iv->end= iv->end;
       iv->end= start;
@@ -346,7 +355,7 @@ enum_group_status Group_set::remove(Interval_iterator *ivitp, rpl_gno start, rpl
 
 ok:
   *ivitp= ivit;
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
@@ -367,7 +376,7 @@ int format_gno(char *s, rpl_gno gno)
 }
 
 
-enum_group_status Group_set::add(const char *text)
+enum_return_status Group_set::add(const char *text)
 {
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Group_set::add(const char*)");
@@ -377,7 +386,7 @@ enum_group_status Group_set::add(const char *text)
 
   SKIP_WHITESPACE();
   if (*s == 0)
-    DBUG_RETURN(GS_SUCCESS);
+    RETURN_OK;
 
   DBUG_PRINT("info", ("'%s' not empty", s));
   // Allocate space for all intervals at once, if nothing is allocated.
@@ -406,16 +415,17 @@ enum_group_status Group_set::add(const char *text)
 
     // We allow empty group sets containing only commas.
     if (*s == 0)
-      DBUG_RETURN(GS_SUCCESS);
+      RETURN_OK;
 
     // Parse SID.
     rpl_sid sid;
-    GROUP_STATUS_THROW(sid.parse(s));
+    if (sid.parse(s) != 0)
+      goto parse_error;
     s += rpl_sid::TEXT_LENGTH;
     rpl_sidno sidno= sid_map->add_permanent(&sid, 0);
     if (sidno <= 0)
-      DBUG_RETURN((enum_group_status)sidno);
-    GROUP_STATUS_THROW(ensure_sidno(sidno));
+      RETURN_REPORTED_ERROR;
+    PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
     SKIP_WHITESPACE();
 
     // Iterate over intervals.
@@ -428,7 +438,7 @@ enum_group_status Group_set::add(const char *text)
       // Read start of interval.
       rpl_gno start= parse_gno(&s);
       if (start == 0)
-        DBUG_RETURN(GS_ERROR_PARSE);
+        goto parse_error;
       SKIP_WHITESPACE();
 
       // Read end of interval.
@@ -438,7 +448,7 @@ enum_group_status Group_set::add(const char *text)
         s++;
         end= parse_gno(&s);
         if (end == 0)
-          DBUG_RETURN(GS_ERROR_PARSE);
+          goto parse_error;
         end++;
         SKIP_WHITESPACE();
       }
@@ -451,16 +461,19 @@ enum_group_status Group_set::add(const char *text)
       Interval *current= ivit.get();
       if (current == NULL || start < current->start)
         ivit.init(this, sidno);
-      GROUP_STATUS_THROW(add(&ivit, start, end));
+      PROPAGATE_REPORTED_ERROR(add(&ivit, start, end));
     }
 
     // Must be end of string or comma. (Commas are consumed and
     // end-of-loop is detected at the beginning of the loop.)
     if (*s != ',' && *s != 0)
-      DBUG_RETURN(GS_ERROR_PARSE);
+      goto parse_error;
   }
   DBUG_ASSERT(0);
-  DBUG_RETURN(GS_ERROR_PARSE);
+
+parse_error:
+  my_error(ER_MALFORMED_GROUP_SET_SPECIFICATION, MYF(0), text);
+  RETURN_REPORTED_ERROR;
 }
 
 
@@ -514,7 +527,8 @@ bool Group_set::is_valid(const char *text)
 }
 
 
-enum_group_status Group_set::add(rpl_sidno sidno, Const_interval_iterator other_ivit)
+enum_return_status Group_set::add(rpl_sidno sidno,
+                                  Const_interval_iterator other_ivit)
 {
   DBUG_ENTER("Group_set::add(rpl_sidno, Interval_iterator)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
@@ -522,14 +536,15 @@ enum_group_status Group_set::add(rpl_sidno sidno, Const_interval_iterator other_
   Interval_iterator ivit(this, sidno);
   while ((iv= other_ivit.get()) != NULL)
   {
-    GROUP_STATUS_THROW(add(&ivit, iv->start, iv->end));
+    PROPAGATE_REPORTED_ERROR(add(&ivit, iv->start, iv->end));
     other_ivit.next();
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_set::remove(rpl_sidno sidno, Const_interval_iterator other_ivit)
+enum_return_status Group_set::remove(rpl_sidno sidno,
+                                     Const_interval_iterator other_ivit)
 {
   DBUG_ENTER("Group_set::remove(rpl_sidno, Interval_iterator)");
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
@@ -537,22 +552,23 @@ enum_group_status Group_set::remove(rpl_sidno sidno, Const_interval_iterator oth
   Interval_iterator ivit(this, sidno);
   while ((iv= other_ivit.get()) != NULL)
   {
-    GROUP_STATUS_THROW(remove(&ivit, iv->start, iv->end));
+    PROPAGATE_REPORTED_ERROR(remove(&ivit, iv->start, iv->end));
     other_ivit.next();
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_set::add(const Group_set *other)
+enum_return_status Group_set::add(const Group_set *other)
 {
   DBUG_ENTER("Group_set::add(Group_set *)");
   rpl_sidno max_other_sidno= other->get_max_sidno();
   if (other->sid_map == sid_map)
   {
-    GROUP_STATUS_THROW(ensure_sidno(max_other_sidno));
+    PROPAGATE_REPORTED_ERROR(ensure_sidno(max_other_sidno));
     for (rpl_sidno sidno= 1; sidno <= max_other_sidno; sidno++)
-      GROUP_STATUS_THROW(add(sidno, Const_interval_iterator(other, sidno)));
+      PROPAGATE_REPORTED_ERROR(add(sidno,
+                                   Const_interval_iterator(other, sidno)));
   }
   else
   {
@@ -565,18 +581,18 @@ enum_group_status Group_set::add(const Group_set *other)
       {
         const rpl_sid *sid= other_sid_map->sidno_to_sid(other_sidno);
         rpl_sidno this_sidno= sid_map->add_permanent(sid);
-        if (this_sidno == 0)/// @todo: can also be io error /sven
-          DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
-        GROUP_STATUS_THROW(ensure_sidno(this_sidno));
-        GROUP_STATUS_THROW(add(this_sidno, other_ivit));
+        if (this_sidno <= 0)
+          RETURN_REPORTED_ERROR;
+        PROPAGATE_REPORTED_ERROR(ensure_sidno(this_sidno));
+        PROPAGATE_REPORTED_ERROR(add(this_sidno, other_ivit));
       }
     }
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Group_set::remove(const Group_set *other)
+enum_return_status Group_set::remove(const Group_set *other)
 {
   DBUG_ENTER("Group_set::add(Group_set *)");
   rpl_sidno max_other_sidno= other->get_max_sidno();
@@ -584,7 +600,8 @@ enum_group_status Group_set::remove(const Group_set *other)
   {
     rpl_sidno max_sidno= min(max_other_sidno, get_max_sidno());
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
-      GROUP_STATUS_THROW(remove(sidno, Const_interval_iterator(other, sidno)));
+      PROPAGATE_REPORTED_ERROR(remove(sidno,
+                                      Const_interval_iterator(other, sidno)));
   }
   else
   {
@@ -598,11 +615,11 @@ enum_group_status Group_set::remove(const Group_set *other)
         const rpl_sid *sid= other_sid_map->sidno_to_sid(other_sidno);
         rpl_sidno this_sidno= sid_map->sid_to_sidno(sid);
         if (this_sidno != 0)
-          GROUP_STATUS_THROW(remove(this_sidno, other_ivit));
+          PROPAGATE_REPORTED_ERROR(remove(this_sidno, other_ivit));
       }
     }
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 

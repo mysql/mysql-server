@@ -19,48 +19,44 @@
 #ifdef HAVE_UGID
 
 
+#include "mysqld_error.h"
+
+
 const char *Atom_file::OVERWRITE_FILE_SUFFIX= ".overwrite";
 
 
-Atom_file::Atom_file(const char *filename_arg)
-  : fd(-1), ofd(-1)
-{
-  DBUG_ENTER("Atom_file::Atom_file");
-
-  size_t len= strlen(filename_arg);
-  DBUG_ASSERT(len + sizeof(OVERWRITE_FILE_SUFFIX) < sizeof(filename_arg));
-  memcpy(filename, filename_arg, len + 1);
-  memcpy(overwrite_filename, filename_arg, len);
-  memcpy(overwrite_filename + len, OVERWRITE_FILE_SUFFIX, sizeof(OVERWRITE_FILE_SUFFIX + 1));
-
-  DBUG_VOID_RETURN;
-}
-
-
-int Atom_file::open(bool writable_arg)
+enum_return_status Atom_file::open(const char *filename_arg, bool writable_arg)
 {
   DBUG_ENTER("Atom_file::open(bool)");
   DBUG_ASSERT(!is_open());
+
+  // generate filename
+  size_t len= strlen(filename_arg);
+  DBUG_ASSERT(len + sizeof(OVERWRITE_FILE_SUFFIX) < sizeof(filename));
+  memcpy(filename, filename_arg, len + 1);
+  memcpy(overwrite_filename, filename_arg, len);
+  memcpy(overwrite_filename + len, OVERWRITE_FILE_SUFFIX,
+         sizeof(OVERWRITE_FILE_SUFFIX + 1));
 
   // open file
   writable= writable_arg;
   fd= my_open(filename, (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
               MYF(MY_WME));
   if (fd < 0)
-    DBUG_RETURN(1);
+    RETURN_REPORTED_ERROR;
 
-  if (recover())
+  if (recover() != 0)
   {
     my_close(fd, MYF(MY_WME));
     fd= -1;
-    DBUG_RETURN(1);
+    RETURN_REPORTED_ERROR;
   }
 
-  DBUG_RETURN(0);
+  RETURN_OK;
 }
 
 
-int Atom_file::recover()
+enum_return_status Atom_file::recover()
 {
   DBUG_ENTER("Atom_file::recover()");
 
@@ -71,10 +67,10 @@ int Atom_file::recover()
     if (my_errno == ENOENT)
       // file did not exist: Atom_file was in a clean state and no
       // recovery needed.
-      DBUG_RETURN(0);
+      RETURN_OK;
     else
       // other error.
-      DBUG_RETURN(1);
+      RETURN_REPORTED_ERROR;
   }
 
   // check if file is empty
@@ -95,8 +91,11 @@ int Atom_file::recover()
     // file is partial
     DBUG_RETURN(rollback());
   if (b != 1 || stat.st_size < 9)
+  {
     // file has invalid value or header is incomplete
+    my_error(ER_FILE_FORMAT, MYF(0), overwrite_filename);
     goto error_close;
+  }
 
   // read offset
   uchar buf[8];
@@ -109,11 +108,11 @@ int Atom_file::recover()
 error_close:
   if (my_close(ofd, MYF(MY_WME)) == 0)
     ofd= -1;
-  DBUG_RETURN(1);
+  RETURN_REPORTED_ERROR;
 }
 
 
-int Atom_file::commit(my_off_t offset, my_off_t length)
+enum_return_status Atom_file::commit(my_off_t offset, my_off_t length)
 {
   DBUG_ENTER("Atom_file::commit");
 
@@ -135,46 +134,47 @@ int Atom_file::commit(my_off_t offset, my_off_t length)
     }
 
     if (my_close(ofd, MYF(MY_WME)))
-      DBUG_RETURN(1);
+      RETURN_REPORTED_ERROR;
     ofd= -1;
 
     if (my_chsize(fd, offset, 0, MYF(MY_WME)) ||
         my_delete(overwrite_filename, MYF(MY_WME)))
-      DBUG_RETURN(1);
+      RETURN_REPORTED_ERROR;
   }
   else
     overwrite_offset= offset;
-  DBUG_RETURN(0);
+  RETURN_OK;
 
 error_close:
   if (my_close(ofd, MYF(MY_WME)) == 0)
     ofd= -1;
-  DBUG_RETURN(1);
+  RETURN_REPORTED_ERROR;
 }
 
 
-int Atom_file::rollback()
+enum_return_status Atom_file::rollback()
 {
   DBUG_ENTER("Atom_file::rollback");
   if (writable)
   {
     if (my_close(ofd, MYF(MY_WME)))
-      DBUG_RETURN(1);
+      RETURN_REPORTED_ERROR;
     ofd= -1;
     if (my_delete(overwrite_filename, MYF(MY_WME)))
-      DBUG_RETURN(1);
+      RETURN_REPORTED_ERROR;
   }
-  DBUG_RETURN(0);
+  RETURN_OK;
 }
 
 
-int Atom_file::close()
+enum_return_status Atom_file::close()
 {
   DBUG_ENTER("Atom_file::close()");
   DBUG_ASSERT(is_open());
   int ret= my_close(fd, MYF(MY_WME));
-  ret= my_close(ofd, MYF(MY_WME)) || ret;
-  DBUG_RETURN(ret);
+  if (my_close(ofd, MYF(MY_WME)) || ret)
+    RETURN_REPORTED_ERROR;
+  RETURN_OK;
 }
 
 
@@ -206,14 +206,15 @@ size_t Atom_file::pread(my_off_t offset, my_off_t length, uchar *buffer) const
 }
 
 
-int Atom_file::truncate_and_append(my_off_t offset, my_off_t length,
-                                   const uchar *data)
+enum_return_status
+Atom_file::truncate_and_append(my_off_t offset, my_off_t length,
+                               const uchar *data)
 {
   DBUG_ENTER("Atom_file::truncate_and_append");
   File ofd= my_open(overwrite_filename, O_WRONLY | O_BINARY | O_CREAT | O_EXCL,
                     MYF(MY_WME));
   if (ofd < 0)
-    DBUG_RETURN(1);
+    RETURN_REPORTED_ERROR;
   uchar buf[9];
   buf[0]= 0;
   int8store(buf + 1, offset);
@@ -232,13 +233,15 @@ int Atom_file::truncate_and_append(my_off_t offset, my_off_t length,
         my_chsize(fd, offset + length, 0, MYF(MY_WME)) == 0 &&
         my_sync(fd, MYF(MY_WME)) == 0)
     {
-      DBUG_RETURN(my_delete(overwrite_filename, MYF(MY_WME)));
+      if (my_delete(overwrite_filename, MYF(MY_WME)) != 0)
+        RETURN_REPORTED_ERROR;
+      RETURN_OK;
     }
   }
   else
     my_close(ofd, MYF(MY_WME));
   my_delete(overwrite_filename, MYF(MY_WME));
-  DBUG_RETURN(1);
+  RETURN_REPORTED_ERROR;
 }
 
 
