@@ -16,25 +16,7 @@
 # Identify support for atomic operations
 IF(NOT MSVC)
 
-  CHECK_C_SOURCE_RUNS(
-    "int main() {
-      volatile int foo= -10; 
-      volatile int bar= 10;
-      /* operation returns 0 and foo should be 0 */
-      if (!__sync_fetch_and_add(&foo, bar) || foo)
-        return -1;
-      bar= __sync_lock_test_and_set(&foo, bar);
-      /* Now bar is the return value 0 and foo is set to 10 */
-      if (bar || foo != 10)
-        return -1;
-      __sync_val_compare_and_swap(&bar, foo, 15);
-      /* CAS should have failed and bar is still 0 */
-      if (bar)
-        return -1;
-      return 0;
-    }"
-    HAVE_GCC_ATOMIC_BUILTINS
-  )
+# HAVE_GCC_ATOMIC_BUILTINS is already checked by CMake somewhere else
 
   CHECK_C_SOURCE_RUNS(
     "#include <libkern/OSAtomic.h>

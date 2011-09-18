@@ -36,6 +36,9 @@ include_directories(${NDB_SOURCE_DIR}/src/ndbjtie/mysql)
 include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
 
+# Paths to libraries
+link_directories(${NDB_SOURCE_DIR}/src ${NDB_SOURCE_DIR}/src/common/util)
+
 # Source files for this module 
 set(NDB_MEMCACHE_SOURCE_FILES
     src/ClusterConnectionPool.cc
@@ -147,7 +150,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
 
 # Build the library used by the unit tests
 add_library(ndbmemcache SHARED ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndbmemcache ndbclient ${MEMCACHED_UTILITIES_LIBRARY})
+target_link_libraries(ndbmemcache ndbclient ndbgeneral ${MEMCACHED_UTILITIES_LIBRARY})
 set_target_properties(ndbmemcache PROPERTIES LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
 add_subdirectory(unit)
