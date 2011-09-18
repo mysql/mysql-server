@@ -19,19 +19,22 @@
 #ifdef HAVE_UGID
 
 
+#include "mysqld_error.h"
+
+
 int const Group::MAX_TEXT_LENGTH;
 
 
-enum_group_status Group::parse(Sid_map *sid_map, const char *text)
+enum_return_status Group::parse(Sid_map *sid_map, const char *text)
 {
   DBUG_ENTER("Group::parse");
   rpl_sid sid;
 
   // parse sid
-  GROUP_STATUS_THROW(sid.parse(text));
+  PROPAGATE_REPORTED_ERROR(sid.parse(text));
   sidno= sid_map->add_permanent(&sid);
-  if (sidno < 0)
-    DBUG_RETURN((enum_group_status)sidno);
+  if (sidno <= 0)
+    RETURN_REPORTED_ERROR;
   text += Uuid::TEXT_LENGTH;
 
   // parse colon
@@ -42,9 +45,10 @@ enum_group_status Group::parse(Sid_map *sid_map, const char *text)
     // parse gno
     gno= parse_gno(&text);
     if (gno > 0 && *text == 0)
-      DBUG_RETURN(GS_SUCCESS);
+      RETURN_OK;
   }
-  DBUG_RETURN(GS_ERROR_PARSE);
+  my_error(ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text);
+  RETURN_REPORTED_ERROR;
 }
 
 

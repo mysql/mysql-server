@@ -17,11 +17,19 @@
 #include "zgroups.h"
 
 
+#ifdef HAVE_UGID
+
+
+#include "mysqld_error.h"
+
+
 const int Compact_encoding::MAX_ENCODED_LENGTH;
 
 
-int Compact_encoding::get_encoded_length(ulonglong n)
+int Compact_encoding::get_unsigned_encoded_length(ulonglong n)
 {
+  if (n == 0)
+    return 1;
   // len is the total number of bytes to write
   int len= 16;
   if (n & 0x00FFFFFFFfffffffLL) // 56 bits set
@@ -39,7 +47,8 @@ int Compact_encoding::get_encoded_length(ulonglong n)
 int Compact_encoding::write_unsigned(ulonglong n, uchar *buf)
 {
   DBUG_ENTER("Compact_encoding::write_unsigned(ulonglong , char *)");
-  int len= get_encoded_length(n);
+  int len= get_unsigned_encoded_length(n);
+  DBUG_PRINT("info", ("encoded-length=%u\n", len));
   if (len > 8)
     int2store(buf + 8, (uint)(n >> (64 - len)));
   n= (n << len) + (1 << (len - 1));
@@ -54,7 +63,7 @@ int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
   uchar buf[10];
   int len= write_unsigned(n, buf);
   int ret= my_write(fd, buf, len, my_flags);
-  DBUG_RETURN(ret);
+  DBUG_RETURN(ret != len ? -ret : ret);
 }
 
 
@@ -63,25 +72,42 @@ int Compact_encoding::read_unsigned(File fd, ulonglong *out, myf my_flags)
   DBUG_ENTER("Compact_encoding::read_unsigned");
   // read first byte
   uchar b;
-  if (my_read(fd, &b, 1, my_flags) != 1)
+  size_t ret= my_read(fd, &b, 1, my_flags);
+  if (ret != 1)
+  {
+    *out= (ret == 0 ? 1 : 0);
     DBUG_RETURN(0);
+  }
   if (b & 1)
   {
     *out= b >> 1;
     DBUG_RETURN(1);
   }
   // read second byte if needed
-  int extra_byte= 0;
+  uint extra_byte= 0;
   if (b == 0)
   {
-    if (my_read(fd, &b, 1, my_flags) != 1)
+    ret= my_read(fd, &b, 1, my_flags);
+    if (ret != 1)
+    {
+      *out= (ret == 0 ? 1 : 0); // 0 = IO error; 1 = file truncated
+      if (my_flags & MY_WME)
+        my_error(ER_ERROR_ON_READ, MYF(0), my_filename(fd), my_errno);
       DBUG_RETURN(-1);
+    }
+    // one of the two lowest bits must be set in order for the number
+    // to be termiated after the 64th bit.
     if (!(b & 3))
-      DBUG_RETURN(-0x10001);
+    {
+      *out= 2; // 2 = file format error
+      if (my_flags & MY_WME)
+        my_error(ER_FILE_FORMAT, MYF(0), my_filename(fd));
+      DBUG_RETURN(-1);
+    }
     extra_byte= 1;
   }
-  // set len to the position of the least significant 1-bit in b (range 1..8)
-  int len= 8;
+  // set len to the position of the least significant 1-bit in b (range 0..7)
+  uint len= 7;
   if (b & 0x0f)
     len-= 4;
   if (b & 0x33)
@@ -90,24 +116,34 @@ int Compact_encoding::read_unsigned(File fd, ulonglong *out, myf my_flags)
     len--;
   // read len bytes
   uchar buf[8]= {0, 0, 0, 0, 0, 0, 0, 0};
-  int n_read_bytes;
-  n_read_bytes= my_read(fd, buf, len + extra_byte * 8, my_flags);
-  if (n_read_bytes != len + extra_byte * 8)
-    DBUG_RETURN(-(1 + n_read_bytes));
+  ret= my_read(fd, buf, len + extra_byte * 7, my_flags);
+  if (ret != len + extra_byte * 7)
+  {
+    *out= (ret < len + extra_byte * 7 ? 1 : 0);
+    if (my_flags & MY_WME)
+      my_error(ER_ERROR_ON_READ, MYF(0), my_filename(fd), my_errno);
+    DBUG_RETURN(-(1 + extra_byte + ret));
+  }
   ulonglong o= uint8korr(buf);
-  if (o > (1 << (64 - (8 - len))))
-    DBUG_RETURN(-(0x10001 + len + extra_byte + extra_byte * 8));
-  o <<= (8 - len);
-  o |= b >> len;
+  // check that the result will fit in 64 bits
+  if (o >= (1 << (64 - (7 - len))))
+  {
+    *out= 2; // 2 = file format error
+    if (my_flags & MY_WME)
+      my_error(ER_FILE_FORMAT, MYF(0), my_filename(fd));
+    DBUG_RETURN(-(1 + extra_byte + len + extra_byte * 7));
+  }
+  // put the high bits of b in the low bits of o
+  o <<= (7 - len);
+  o |= b >> (len + 1);
   *out= o;
-  return 1 + extra_byte + len + extra_byte * 8;
+  return 1 + extra_byte + len + extra_byte * 7;
 }
 
 
 int Compact_encoding::write_signed(File fd, longlong n, myf my_flags)
 {
-  return write_unsigned(fd, n >= 0 ? 2 * (ulonglong)n :
-                        1 + 2 * (ulonglong)-(n + 1), my_flags);
+  return write_unsigned(fd, signed_to_unsigned(n), my_flags);
 }
 
 
@@ -117,10 +153,9 @@ int Compact_encoding::read_signed(File fd, longlong *out, myf my_flags)
   int ret= read_unsigned(fd, &o, my_flags);
   if (ret <= 0)
     return ret;
-  if (o & 1)
-    *out= o >> 1;
-  else
-    *out= -1 - (longlong)(o >> 1);
+  *out= unsigned_to_signed(o);
   return ret;
 }
 
+
+#endif /* ifdef HAVE_UGID */

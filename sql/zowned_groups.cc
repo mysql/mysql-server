@@ -15,10 +15,13 @@
 
 
 #include "zgroups.h"
-#include "hash.h"
 
 
 #ifdef HAVE_UGID
+
+
+#include "mysqld_error.h"
+#include "hash.h"
 
 
 Owned_groups::Owned_groups(Checkable_rwlock *_sid_lock)
@@ -52,7 +55,7 @@ Owned_groups::~Owned_groups()
 }
 
 
-enum_group_status Owned_groups::ensure_sidno(rpl_sidno sidno)
+enum_return_status Owned_groups::ensure_sidno(rpl_sidno sidno)
 {
   DBUG_ENTER("Owned_groups::ensure_sidno");
   sid_lock->assert_some_rdlock();
@@ -79,11 +82,12 @@ enum_group_status Owned_groups::ensure_sidno(rpl_sidno sidno)
     sid_lock->unlock();
     sid_lock->rdlock();
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 error:
   sid_lock->unlock();
   sid_lock->rdlock();
-  return GS_ERROR_OUT_OF_MEMORY;
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  RETURN_REPORTED_ERROR;
 }
 
 
@@ -104,15 +108,15 @@ void Owned_groups::clear()
 }
 
 
-enum_group_status Owned_groups::add(rpl_sidno sidno, rpl_gno gno,
-                                    Rpl_owner_id owner)
+enum_return_status
+Owned_groups::add(rpl_sidno sidno, rpl_gno gno, Rpl_owner_id owner)
 {
   DBUG_ENTER("Owned_groups::add");
   DBUG_ASSERT(!contains_group(sidno, gno));
   DBUG_ASSERT(sidno <= get_max_sidno());
   Node *n= (Node *)malloc(sizeof(Node));
   if (n == NULL)
-    DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
+    goto error;
   n->gno= gno;
   n->owner= owner;
   n->is_partial= false;
@@ -124,9 +128,12 @@ enum_group_status Owned_groups::add(rpl_sidno sidno, rpl_gno gno,
   if (my_hash_insert(get_hash(sidno), (const uchar *)n))
   {
     free(n);
-    DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
+    goto error;
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
+error:
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  RETURN_REPORTED_ERROR;
 }
 
 
@@ -199,11 +206,11 @@ bool Owned_groups::is_partial(rpl_sidno sidno, rpl_gno gno) const
 }
 
 
-enum_group_status Owned_groups::get_partial_groups(Group_set *gs) const
+enum_return_status Owned_groups::get_partial_groups(Group_set *gs) const
 {
   DBUG_ENTER("Owned_groups::get_partial_groups");
   rpl_sidno max_sidno= get_max_sidno();
-  GROUP_STATUS_THROW(gs->ensure_sidno(max_sidno));
+  PROPAGATE_REPORTED_ERROR(gs->ensure_sidno(max_sidno));
   for (int sidno= 1; sidno <= max_sidno; sidno++)
   {
     HASH *hash= get_hash(sidno);
@@ -212,10 +219,10 @@ enum_group_status Owned_groups::get_partial_groups(Group_set *gs) const
     {
       Node *node= (Node *)my_hash_element(hash, i);
       if (node->is_partial)
-        GROUP_STATUS_THROW(gs->_add(sidno, node->gno));
+        PROPAGATE_REPORTED_ERROR(gs->_add(sidno, node->gno));
     }
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 

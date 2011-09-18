@@ -55,32 +55,160 @@ typedef int64 rpl_binlog_pos;
 typedef int64 rpl_lgid;
 
 /**
-  General 'return value type' for functions that can fail.
-
-  The numerical values should be zero or negative: this allows us to
-  store them in rpl_sidno and rpl_gno while reserving positive values
-  for correct SIDs and GNOs.
+  Return value from functions that read from disk.
 */
-enum enum_group_status
+enum enum_read_status
 {
-  GS_SUCCESS= 0,
-  GS_ERROR_OUT_OF_MEMORY= -1,
-  GS_ERROR_PARSE= -2,
-  GS_ERROR_IO= -3,
-  GS_END_OF_FILE= -4
+  /// Success
+  READ_OK,
+  /**
+    The file position was at end of file before the read. my_error
+    has NOT been called.
+  */
+  READ_EOF,
+  /**
+    End of file was reached in the middle of the read. my_error has
+    NOT been called.
+  */
+  READ_TRUNCATED,
+  /**
+    An error occurred when reading - either IO error or wrong file format.
+    my_error has been called.
+  */  
+  READ_ERROR_IO,
+  /**
+    Some error not related to the file occurred (e.g., out of memory).
+    my_error has been called.
+  */
+  READ_ERROR_OTHER
 };
 
 /**
-  Given a value of type enum_group_status: if the value is GS_SUCCESS, do nothing; otherwise return the value. This is used to propagate errors to the caller.
+  Generic return type for many functions.
+
+  This is used in conjuction with the macros below for functions where
+  the return status either indicates "success" or "failure".  It
+  provides the following features:
+
+   - The macros can be used to conveniently propagate errors from
+     called functions back to the caller.
+
+   - If a function is expected to print an error using my_error before
+     it returns an error status, then the macros assert that my_error
+     has been called.
+
+   - Does a DBUG_PRINT before returning failure.
 */
-#define GROUP_STATUS_THROW(VAL)                                         \
+enum enum_return_status
+{
+  /// The function completed successfully.
+  RETURN_STATUS_OK= 0,
+  /// The function completed with error but did not report it.
+  RETURN_STATUS_UNREPORTED_ERROR= 1,
+  /// The function completed with error and has called my_error.
+  RETURN_STATUS_REPORTED_ERROR= 2
+};
+
+/**
+  Lowest level macro to return an enum_return_status value.
+  @param STATUS The status to return.
+  @param ACTION A text that describes what we are doing: either
+  "Returning" or "Propagating" (used in DBUG_PRINT macros)
+  @param STATUS_NAME The stringified version of the STATUS (used in
+  DBUG_PRINT macros).
+  @param CONVERT_TO_INT If true, the return value is converted to an
+  int: if STATUS == RETURN_STATUS_OK, 0 is returned; otherwise 1 is
+  returned.
+  @param ALLOW_UNREPORTED If false, the macro asserts that STATUS is
+  not RETURN_STATUS_UNREPORTED_ERROR.
+*/
+#ifdef NO_DBUG
+#define __DO_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
+  DBUG_RETURN(STATUS)
+#define __DO_RETURN_INT(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
+  DBUG_RETURN(STATUS == RETURN_STATUS_OK ? 0 : 1)
+#else
+extern void check_return_status(enum_return_status status,
+                                const char *action, const char *status_name);
+#define __DO_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
+  check_return_status(STATUS, ACTION, STATUS_NAME);                     \
+  DBUG_ASSERT(ALLOW_UNREPORTED || STATUS != RETURN_STATUS_UNREPORTED_ERROR); \
+  DBUG_RETURN(STATUS)
+#define __DO_RETURN_INT(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
+  check_return_status(STATUS, ACTION, STATUS_NAME);                     \
+  DBUG_ASSERT(ALLOW_UNREPORTED || STATUS != RETURN_STATUS_UNREPORTED_ERROR); \
+  DBUG_RETURN(STATUS == RETURN_STATUS_OK ? 0 : 1)
+#endif
+/**
+  Low-level macro that checks if STATUS is RETURN_STATUS_OK; if it is
+  not, then STATUS is returned.
+  @see __DO_RETURN_STATUS
+*/
+#define __PROPAGATE_ERROR(STATUS, ALLOW_UNREPORTED)                     \
   do                                                                    \
   {                                                                     \
-    enum_group_status _group_status_throw_val= VAL;                     \
-    if ( _group_status_throw_val != GS_SUCCESS)                         \
-      DBUG_RETURN(_group_status_throw_val);                             \
+    enum_return_status __propagate_error_status= STATUS;                \
+    if (__propagate_error_status != RETURN_STATUS_OK) {                 \
+      __DO_RETURN_STATUS(__propagate_error_status, "Propagating", #STATUS, \
+                         ALLOW_UNREPORTED);                             \
+    }                                                                   \
   } while (0)
-
+/**
+  Low-level macro that checks if STATUS is RETURN_STATUS_OK; if it is
+  not, then 1 is returned.
+  @see __DO_RETURN_STATUS
+*/
+#define __PROPAGATE_ERROR_INT(STATUS, ALLOW_UNREPORTED)                 \
+  do                                                                    \
+  {                                                                     \
+    enum_return_status __propagate_error_int_status= STATUS;            \
+    if (__propagate_error_int_status != RETURN_STATUS_OK) {             \
+      __DO_RETURN_INT(__propagate_error_int_status, "Propagating", #STATUS, \
+                      ALLOW_UNREPORTED);                                \
+    }                                                                   \
+  } while (0)
+/// Low-level macro that returns STATUS. @see __DO_RETURN_STATUS
+#define __RETURN_STATUS(STATUS, ALLOW_UNREPORTED)                       \
+  do                                                                    \
+  {                                                                     \
+    enum_return_status __return_status_status= STATUS;                  \
+    __DO_RETURN_STATUS(__return_status_status, "Returning", #STATUS,    \
+                       ALLOW_UNREPORTED);                               \
+  } while (0)
+/**
+  If STATUS (of type enum_return_status) returns RETURN_STATUS_OK,
+  does nothing; otherwise, does a DBUG_PRINT and returns STATUS.
+*/
+#define PROPAGATE_ERROR(STATUS) __PROPAGATE_ERROR(STATUS, true)
+/**
+  If STATUS (of type enum_return_status) returns RETURN_STATUS_OK,
+  does nothing; otherwise asserts that STATUS ==
+  RETURN_STATUS_REPORTED_ERROR, does a DBUG_PRINT, and returns STATUS.
+*/
+#define PROPAGATE_REPORTED_ERROR(STATUS) __PROPAGATE_ERROR(STATUS, false)
+/**
+  If STATUS (of type enum_return_status) returns RETURN_STATUS_OK,
+  does nothing; otherwise asserts that STATUS ==
+  RETURN_STATUS_REPORTED_ERROR, does a DBUG_PRINT, and returns 1.
+*/
+#define PROPAGATE_REPORTED_ERROR_INT(STATUS) __PROPAGATE_ERROR_INT(STATUS, false)
+/**
+  If STATUS returns something else than RETURN_STATUS_OK, does a
+  DBUG_PRINT.  Then, returns STATUS.
+*/
+#define RETURN_STATUS(STATUS) __RETURN_STATUS(STATUS, true)
+/**
+  Asserts that STATUS is not RETURN_STATUS_UNREPORTED_ERROR.  Then, if
+  STATUS is RETURN_STATUS_REPORTED_ERROR, does a DBUG_PRINT.  Then,
+  returns STATUS.
+*/
+#define RETURN_REPORTED_STATUS(STATUS) __RETURN_STATUS(STATUS, false)
+/// Returns RETURN_STATUS_OK.
+#define RETURN_OK DBUG_RETURN(RETURN_STATUS_OK)
+/// Does a DBUG_PRINT and returns RETURN_STATUS_REPORTED_ERROR.
+#define RETURN_REPORTED_ERROR RETURN_STATUS(RETURN_STATUS_REPORTED_ERROR)
+/// Does a DBUG_PRINT and returns RETURN_STATUS_UNREPORTED_ERROR.
+#define RETURN_UNREPORTED_ERROR RETURN_STATUS(RETURN_STATUS_UNREPORTED_ERROR)
 
 const rpl_gno MAX_GNO= LONGLONG_MAX;
 const rpl_sidno ANONYMOUS_SIDNO= 0;
@@ -141,8 +269,9 @@ struct Uuid
   /**
     Stores the UUID represented by a string on the form
     XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXX in this object.
+    @return RETURN_STATUS_OK or RETURN_STATUS_UNREPORTED_ERROR.
   */
-  enum_group_status parse(const char *string);
+  enum_return_status parse(const char *string);
   /**
     Copies the given 16-byte data to this UUID.
   */
@@ -178,16 +307,17 @@ struct Uuid
     Write this UUID to the given file.
     @param fd File descriptor to write to.
     @param my_flags Flags passed to my_write.
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return RETURN_STATUS_OK, RETURN_STATUS_REPORTED_ERROR, or
+    RETURN_STATUS_UNREPORTED_ERROR.
   */
-  enum_group_status write(File fd, myf my_flags) const;
+  enum_return_status write(File fd, myf my_flags) const;
   /**
     Read this UUID from the given file.
     @param fd File descriptor to read from.
     @param my_flags Flags passed to my_write.
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return READ_OK, READ_ERROR_IO, READ_EOF, or READ_TRUNCATED.
   */
-  enum_group_status read(File fd, myf my_flags);
+  enum_read_status read(File fd, myf my_flags);
   /**
     Returns true if the given string contains a valid UUID, false otherwise.
   */
@@ -355,27 +485,26 @@ public:
   /**
     Clears this Sid_map (for RESET MASTER)
 
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return 0 Success.
+    @return 1 Error.  This function calls my_error internally.
   */
-  enum_group_status clear();
+  int clear();
   /**
-    Open the disk file.
+    Open the disk file if it is not already open.
     @param base_filename The base of the filename, i.e., without "-sids".
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status open(const char *base_filename);
+  enum_return_status open(const char *base_filename);
   /**
     Close the disk file.
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status close();
+  enum_return_status close();
   /**
     Sync changes on disk.
-
-    @retval GS_SUCCESS success.
-    @retval GS_ERROR_IO error.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status sync();
+  enum_return_status sync();
   /**
     Permanently add the given SID to this map if it does not already
     exist.
@@ -389,7 +518,7 @@ public:
     @param _sync If true, the sid_map will be synced.
     @retval SIDNO The SIDNO for the SID (a new SIDNO if the SID did
     not exist, an existing if it did exist).
-    @retval GS_ERROR_IO or GS_ERROR_OUT_OF_MEMORY if there is an error.
+    @retval negative Error. This function calls my_error.
 
     @note The SID is stored on disk forever.  This is needed if the
     SID is written to the binary log.  If the SID will not be written
@@ -482,18 +611,16 @@ private:
     @param sidno The SIDNO to add.
     @param sid The SID to add.
     @param _sync If true, sync the file.
+
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add_node(rpl_sidno sidno, const rpl_sid *sid);
+  enum_return_status add_node(rpl_sidno sidno, const rpl_sid *sid);
   /**
     Write changes to disk.
 
-    This is only meaningful if add_permanent(sid, 0) has been
-    called.
-
-    @retval GS_SUCCESS success.
-    @retval GS_ERROR_IO error.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status write_to_disk(rpl_sidno sidno, const rpl_sid *sid);
+  enum_return_status write_to_disk(rpl_sidno sidno, const rpl_sid *sid);
 
   /// Read-write lock that protects updates to the number of SIDNOs.
   mutable Checkable_rwlock *sid_lock;
@@ -616,9 +743,9 @@ public:
     short period when the lock is not held at all.
 
     @param n The index.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_OK or RETURN_REPORTED_ERROR
   */
-  enum_group_status ensure_index(int n);
+  enum_return_status ensure_index(int n);
 private:
   /// A mutex/cond pair.
   struct Mutex_cond
@@ -656,9 +783,9 @@ struct Group
     Parses the given string and stores in this Group.
 
     @param text The text to parse
-    @return GS_SUCCESS or GS_ERROR_PARSE
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status parse(Sid_map *sid_map, const char *text);
+  enum_return_status parse(Sid_map *sid_map, const char *text);
 
 #ifndef NO_DBUG
   void print(const Sid_map *sid_map) const
@@ -715,7 +842,7 @@ public:
     temporarily upgraded to a write lock and then degraded again;
     there will be a short period when the lock is not held at all.
   */
-  Group_set(Sid_map *sid_map, const char *text, enum_group_status *status,
+  Group_set(Sid_map *sid_map, const char *text, enum_return_status *status,
             Checkable_rwlock *sid_lock= NULL);
   /**
     Constructs a new Group_set that shares the same sid_map and
@@ -724,8 +851,8 @@ public:
     @param other The Group_set to copy.
     @param status Will be set to GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
   */
-  Group_set(Group_set *other, enum_group_status *status);
-  //Group_set(Sid_map *sid_map, Group_set *relative_to, Sid_map *sid_map_enc, const unsigned char *encoded, int length, enum_group_status *status);
+  Group_set(Group_set *other, enum_return_status *status);
+  //Group_set(Sid_map *sid_map, Group_set *relative_to, Sid_map *sid_map_enc, const unsigned char *encoded, int length, enum_return_status *status);
   /// Destroy this Group_set.
   ~Group_set();
   //static int encode(Group_set *relative_to, Sid_map *sid_map_enc, unsigned char *buf);
@@ -744,9 +871,9 @@ public:
 
     @param sidno SIDNO of the group to add.
     @param gno GNO of the group to add.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status _add(rpl_sidno sidno, rpl_gno gno)
+  enum_return_status _add(rpl_sidno sidno, rpl_gno gno)
   {
     Interval_iterator ivit(this, sidno);
     return add(&ivit, gno, gno + 1);
@@ -761,16 +888,16 @@ public:
     period when the lock is not held at all.
 
     @param other The group set to add.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add(const Group_set *other);
+  enum_return_status add(const Group_set *other);
   /**
     Removes all groups in the given Group_set from this Group_set.
 
     @param other The group set to remove.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status remove(const Group_set *other);
+  enum_return_status remove(const Group_set *other);
   /**
     Adds the set of groups represented by the given string to this Group_set.
 
@@ -789,9 +916,9 @@ public:
     short period when the lock is not held at all.
 
     @param text The string to parse.
-    @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add(const char *text);
+  enum_return_status add(const char *text);
   /**
     Decodes a Group_set from the given string.
 
@@ -819,9 +946,9 @@ public:
     there will be a short period when the lock is not held at all.
 
     @param sidno The SIDNO.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status ensure_sidno(rpl_sidno sidno);
+  enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Group_set is equal to the other Group_set.
   bool equals(const Group_set *other) const;
   /// Returns true if this Group_set is a subset of the other Group_set.
@@ -1156,9 +1283,9 @@ private:
     @param sidno The SIDNO to which intervals will be added.
     @param ivit Iterator over the intervals to add. This is typically
     an iterator over some other Group_set.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add(rpl_sidno sidno, Const_interval_iterator ivit);
+  enum_return_status add(rpl_sidno sidno, Const_interval_iterator ivit);
   /**
     Removes a list of intervals to the given SIDNO.
 
@@ -1167,9 +1294,9 @@ private:
     @param sidno The SIDNO from which intervals will be removed.
     @param ivit Iterator over the intervals to remove. This is typically
     an iterator over some other Group_set.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status remove(rpl_sidno sidno, Const_interval_iterator ivit);
+  enum_return_status remove(rpl_sidno sidno, Const_interval_iterator ivit);
   /**
     Adds the interval (start, end) to the given Interval_iterator.
 
@@ -1181,9 +1308,9 @@ private:
     contains start and end.
     @param start The first GNO in the interval.
     @param end The first GNO after the interval.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
+  enum_return_status add(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
   /**
     Removes the interval (start, end) from the given
     Interval_iterator. This is the lowest-level function that removes
@@ -1198,17 +1325,18 @@ private:
     after end.
     @param start The first GNO in the interval.
     @param end The first GNO after the interval.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status remove(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
+  enum_return_status remove(Interval_iterator *ivitp,
+                            rpl_gno start, rpl_gno end);
   /**
     Allocates a new chunk of Intervals and adds them to the list of
     unused intervals.
 
     @param size The number of intervals in this chunk
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status create_new_chunk(int size);
+  enum_return_status create_new_chunk(int size);
   /**
     Returns a fresh new Interval object.
 
@@ -1217,9 +1345,9 @@ private:
     no free intervals, it calls create_new_chunk.
 
     @param out The resulting Interval* will be stored here.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status get_free_interval(Interval **out);
+  enum_return_status get_free_interval(Interval **out);
   /**
     Puts the given interval in the list of free intervals.  Does not
     unlink it from its place in any other list.
@@ -1353,10 +1481,9 @@ public:
     @param sidno The SIDNO of the group to add.
     @param gno The GNO of the group to add.
     @param owner_id The Owner_id of the group to add.
-
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add(rpl_sidno sidno, rpl_gno gno, Rpl_owner_id owner_id);
+  enum_return_status add(rpl_sidno sidno, rpl_gno gno, Rpl_owner_id owner_id);
   /**
     Returns the owner of the given group.
 
@@ -1420,10 +1547,9 @@ public:
     not held at all.
 
     @param sidno The SIDNO.
-
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status ensure_sidno(rpl_sidno sidno);
+  enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns the maximal sidno that this Owned_groups currently has space for.
   rpl_sidno get_max_sidno() const
   {
@@ -1434,9 +1560,9 @@ public:
     Adds all partial groups in this Owned_groups object to the given Group_set.
 
     @param gs Group_set that will be updated.
-    @return GS_SUCCESS or GS_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status get_partial_groups(Group_set *gs) const;
+  enum_return_status get_partial_groups(Group_set *gs) const;
 
 private:
   /// Represents one owned group.
@@ -1578,21 +1704,19 @@ public:
     @param sidno The group's SIDNO.
     @param gno The group's GNO.
     @param owner The thread that will own the group.
-
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status acquire_ownership(rpl_sidno sidno, rpl_gno gno,
-                                      const THD *thd);
+  enum_return_status acquire_ownership(rpl_sidno sidno, rpl_gno gno,
+                                       const THD *thd);
   /**
     Ends the given group, i.e., moves it from the set of 'owned
     groups' to the set of 'ended groups'.
 
     @param sidno The group's SIDNO.
     @param gno The group's GNO.
-
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status end_group(rpl_sidno sidno, rpl_gno gno);
+  enum_return_status end_group(rpl_sidno sidno, rpl_gno gno);
   /**
     Allocates a GNO for an automatically numbered group.
 
@@ -1635,9 +1759,9 @@ public:
     a write lock and then degraded to a read lock again; there will be
     a short period when the lock is not held at all.
 
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status ensure_sidno();
+  enum_return_status ensure_sidno();
   /// Return a pointer to the Group_set that contains the ended groups.
   const Group_set *get_ended_groups() { return &ended_groups; }
   /// Return a pointer to the Owned_groups that contains the owned groups.
@@ -1692,9 +1816,9 @@ struct Ugid_specification
     Parses the given string and stores in this Ugid_specification.
 
     @param text The text to parse
-    @return GS_SUCCESS or GS_ERROR_PARSE
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status parse(const char *text);
+  enum_return_status parse(const char *text);
   static const int MAX_TEXT_LENGTH= Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Writes this Ugid_specification to the given string buffer.
@@ -1767,18 +1891,20 @@ public:
 
     @param thd The THD object from which we read session variables.
     @param binlog_length Length of group in binary log.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add_logged_subgroup(const THD *thd,
-                                        my_off_t binlog_length);
+  enum_return_status add_logged_subgroup(const THD *thd,
+                                         my_off_t binlog_length);
   /**
     Adds a dummy group with the given SIDNO, GNO, and GROUP_END to this cache.
 
     @param sidno The SIDNO of the group.
     @param gno The GNO of the group.
     @param group_end The GROUP_END of the group.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add_dummy_subgroup(rpl_sidno sidno, rpl_gno gno,
-                                       bool group_end);
+  enum_return_status add_dummy_subgroup(rpl_sidno sidno, rpl_gno gno,
+                                        bool group_end);
   /**
     Add the given group to this cache, unended, unless the cache or
     the Group_log_state already contains it.
@@ -1787,10 +1913,11 @@ public:
     unlogged or not.
     @param sidno The SIDNO of the group to add.
     @param gno The GNO of the group to add.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add_dummy_subgroup_if_missing(const Group_log_state *gls,
-                                                  rpl_sidno sidno, rpl_gno gno);
+  enum_return_status
+    add_dummy_subgroup_if_missing(const Group_log_state *gls,
+                                  rpl_sidno sidno, rpl_gno gno);
   /**
     Add all groups in the given Group_set to this cache, unended,
     except groups that exist in this cache or in the Group_log_state.
@@ -1798,20 +1925,21 @@ public:
     @param gls Group_log_state, used to determine if the group is
     unlogged or not.
     @param group_set The set of groups to possibly add.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add_dummy_subgroups_if_missing(const Group_log_state *gls,
-                                                   const Group_set *group_set);
+  enum_return_status
+    add_dummy_subgroups_if_missing(const Group_log_state *gls,
+                                   const Group_set *group_set);
   /**
     Update the binary log's Group_log_state to the state after this
     cache has been flushed.
 
     @param thd The THD that this Group_log_state belongs to.
     @param gls The binary log's Group_log_state
-    @return GS_SUCCESS OR GS_ERROR_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status update_group_log_state(const THD *thd,
-                                           Group_log_state *gls) const;
+  enum_return_status
+    update_group_log_state(const THD *thd, Group_log_state *gls) const;
   /**
     Writes all sub-groups in the cache to the group log.
 
@@ -1826,9 +1954,10 @@ public:
     is appended to trx_group_cache.  This operation is necessary to
     prevent sub-groups of the group from being logged after ended
     sub-groups of the group.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status write_to_log(Group_cache *trx_group_cache,
-                                 rpl_binlog_pos offset_after_last_statement);
+  enum_return_status write_to_log(Group_cache *trx_group_cache,
+                                  rpl_binlog_pos offset_after_last_statement);
   /**
     Generates GNO for all groups that are committed for the first time
     in this Group_cache.
@@ -1870,16 +1999,16 @@ public:
     is not held at all.
 
     @param gs The Group_set to which groups are added.
-    @return GS_SUCCESS or GS_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status get_partial_groups(Group_set *gs) const;
+  enum_return_status get_partial_groups(Group_set *gs) const;
   /**
     Add all groups that exist and are ended in this Group_cache to the given Group_set.
 
     @param gs The Group_set to which groups are added.
-    @return GS_SUCCESS or GS_OUT_OF_MEMORY
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status get_ended_groups(Group_set *gs) const;
+  enum_return_status get_ended_groups(Group_set *gs) const;
 
 #ifndef NO_DBUG
   void get_string(Sid_map *sm, char *buf)
@@ -1953,17 +2082,18 @@ private:
     last existing sub-group in the cache if they are compatible.
 
     @param subgroup The subgroup to add.
-    @return GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status add_subgroup(const Cached_subgroup *subgroup);
+  enum_return_status add_subgroup(const Cached_subgroup *subgroup);
   /**
     Prepare the cache to be written to the group log.
 
     @todo The group log is not yet implemented. /Sven
 
     @param trx_group_cache @see write_to_log.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status
+  enum_return_status
     write_to_log_prepare(Group_cache *trx_group_cache,
                          rpl_binlog_pos offset_after_last_statement,
                          Cached_subgroup **last_non_dummy_subgroup);
@@ -2023,14 +2153,48 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
                            rpl_binlog_pos offset_after_last_statement);
 
 
+/**
+  File class that supports the following operations:
+
+   - pread: read from given position in file
+   - append: append data to end of file
+   - truncate_and_append: atomically truncate the file and then append
+     data to the end of it
+
+  This class does not have any built-in concurrency control; the
+  truncate_and_append operation is only atomic in the sense that it is
+  crash-safe.
+
+  To achieve crash-safeness, this class uses a second file internally
+  (not visible to the user of the class).
+*/
 class Atom_file
 {
 public:
-  Atom_file(const char *filename);
-  int open(bool write);
-  int close();
+  Atom_file() : fd(-1), ofd(-1) {}
+  /**
+    Open the given file.
+    @param write If true, the file will be writable, and it will be
+    recovered if the 'overwrite' file exists.  Otherwise it is
+    read-only and the 'overwrite' file will not be touched.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status open(const char *filename, bool write);
+  /**
+    Close the current file.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status close();
+  /// Return true iff this file has been (successfully) opened by open().
   bool is_open() const { return fd != -1; }
+  /// Return true iff this file is open and writable.
   bool is_writable() const { return fd != -1 && writable; }
+  /**
+    Non-atomically append the given data to the end of this Atom_file.
+    @param length The number of bytes to write.
+    @param data The bytes to write.
+    @return The number of bytes written.  This function calls my_error on error.
+  */
   size_t append(my_off_t length, const uchar *data)
   {
     DBUG_ENTER("Atom_file::append");
@@ -2038,25 +2202,73 @@ public:
     my_off_t ret= my_write(fd, data, length, MYF(MY_WME));
     DBUG_RETURN(ret);
   }
+  /**
+    Read data from a given position in the file.
+    @param offset The offset to start reading from.
+    @param length The number of bytes to read.
+    @param buffer Buffer to save data in.
+    @return The number of bytes read. This function calls my_error on error.
+  */
   size_t pread(my_off_t offset, my_off_t length, uchar *buffer) const;
-  int truncate_and_append(my_off_t offset, my_off_t length, const uchar *data);
-  int sync()
+  /**
+    Atomically truncate the file to the given offset, then append data
+    at the end.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status truncate_and_append(my_off_t offset, my_off_t length,
+                                         const uchar *data);
+  /**
+    Sync the file to disk.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status sync()
   {
+    DBUG_ENTER("Atom_file::sync()");
     DBUG_ASSERT(is_writable());
-    return my_sync(fd, MYF(MY_WME));
+    if (my_sync(fd, MYF(MY_WME)))
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
   }
+  /// Destroy this Atom_file.
   ~Atom_file() { DBUG_ASSERT(!is_open()); }
 private:
   static const int HEADER_LENGTH= 9;
-  int rollback();
-  int commit(my_off_t offset, my_off_t length);
-  int recover();
+  /**
+    Close and remove the 'overwrite' file.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status rollback();
+  /**
+    Copy the 'overwrite' file to the given position of the main file,
+    then truncate the main file.
+    The 'overwrite' file is supposed to be open and positioned after the header.
+    @param offset Offset in main file to write to.
+    @param length The length of the 'overwrite' file, minus the header.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status commit(my_off_t offset, my_off_t length);
+  /**
+    Perform 'recovery' when the file is opened.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status recover();
+  /// Suffix of 'overwrite' file: contains the string ".overwrite".
   static const char *OVERWRITE_FILE_SUFFIX;
+  /// Name of main file.
   char filename[FN_REFLEN];
+  /// Name of 'overwrite' file.
   char overwrite_filename[FN_REFLEN];
+  /// File descriptor of main file.
   File fd;
+  /// True if this Atom_file has been open in writable mode.
   bool writable;
+  /// File descriptor of 'overwrite' file.
   File ofd;
+  /**
+    If this file is read-only, but the 'overwrite' file existed when
+    the file was opened, then this caches the position in the main
+    file where the 'overwrite' file starts.
+  */
   my_off_t overwrite_offset;
 };
 
@@ -2081,27 +2293,33 @@ class Rot_file
 {
 public:
   /// Create a new Rot_file that is not open.
-  Rot_file() : fd(-1) {}
+  Rot_file() { sub_file.fd= -1; }
   /**
     Open the Rot_file.
 
-    @param filename Base name for rotfiles.
+    @param filename Base name for the files.
     @param write If true, this Rot_file is writable.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status open(const char *filename, bool writable);
-  /// Close the Rot_file.
-  enum_group_status close();
+  enum_return_status open(const char *filename, bool writable);
+  /**
+    Close the Rot_file.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status close();
   /**
     Append data to the end of this Rot_file.
     @param length Number of bytes to write.
     @param data Data to write.
-    @return Number of bytes written, or negative on error.
+    @return Number of bytes written, or MY_FILE_ERROR on IO error.  This
+    function calls my_error on error or if too few bytes were written.
   */
   my_off_t append(my_off_t length, const uchar *data)
   {
     DBUG_ENTER("Rot_file::append");
     DBUG_ASSERT(is_writable());
-    my_off_t ret= my_write(fd, data, length, MYF(MY_WME));
+    my_off_t ret= my_write(sub_file.fd, data, length,
+                           MYF(MY_WME | MY_WAIT_IF_FULL));
     DBUG_RETURN(ret);
   }
   /**
@@ -2128,14 +2346,16 @@ public:
       Read at the current position in this file.
       @param length Number of bytes to read.
       @param[out] buffer Output buffer, must have space for length bytes.
-      @return Number of bytes read, or -1 on error.
+      @return Number of bytes read, or MY_FILE_ERROR on error.  This
+      function calls my_error on error if my_flags specifies that it
+      should.
     */
-    my_off_t read(my_off_t length, uchar *buffer)
+    size_t read(my_off_t length, uchar *buffer, myf my_flags)
     {
       DBUG_ENTER("Rot_file::Reader::read(my_off_t, uchar *)");
-      my_off_t ret= my_pread(rot_file->fd, buffer, length,
-                             rot_file->header_length + offset, MYF(MY_WME));
-      if (ret > 0)
+      size_t ret= my_pread(rot_file->sub_file.fd, buffer, length,
+                           rot_file->sub_file.header_length + offset, my_flags);
+      if (ret != MY_FILE_ERROR)
         offset+= ret;
       DBUG_RETURN(ret);
     }
@@ -2146,6 +2366,9 @@ public:
     void seek(my_off_t pos) { offset= pos; }
     /// Return the current read position.
     my_off_t tell() { return offset; }
+    /// Return the current filename.
+    const char *get_current_filename() const
+    { return rot_file->sub_file.filename; }
   private:
     my_off_t offset;
     Rot_file *rot_file;
@@ -2164,50 +2387,70 @@ public:
   /**
     Remove back-end files up to the given position.
     @param offset The first valid position in the file after this call.
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status purge(my_off_t offset);
+  enum_return_status purge(my_off_t offset);
   /**
     Truncate the end of the file.
     @param offset The position of the next byte to be read.
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status truncate(my_off_t offset);
+  enum_return_status truncate(my_off_t offset);
   /**
     Sync any pending data.
-    @return GS_SUCCESS or GS_ERROR_IO
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_group_status sync()
+  enum_return_status sync()
   {
+    DBUG_ENTER("Rot_file::sync");
     DBUG_ASSERT(is_writable());
-    return my_sync(fd, MYF(MY_WME)) == 0 ? GS_SUCCESS : GS_ERROR_IO;
+    if (my_sync(sub_file.fd, MYF(MY_WME)) != 0)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
   }
   /// Return true iff this file is open and was opened in read mode.
-  bool is_writable() const { return is_open() && writable; }
+  bool is_writable() const { return is_open() && _is_writable; }
   /// Return true iff this file is open.
-  bool is_open() const { return fd != -1; }
+  bool is_open() const { return _is_open; }
   /**
     Destroy this Rot_file object.  The file must be closed before this
     function is called.
   */
   ~Rot_file();
+  /// Return real filename of the last file (the one being written).
+  const char *get_last_filename() const { return sub_file.filename; }
 private:
   /// Number of bytes of this file's header (fake implementation)
   int header_length;
-  /// Filename of this file (fake implementation)
-  char filename[FN_REFLEN];
-  /// File descripto of this file (fake implementation)
-  File fd;
+  /// Base filename, the logical filename specified by the constructor.
+  char base_filename[FN_REFLEN];
   my_off_t rotation_limit;
-  bool writable;
-/*
+  bool _is_writable;
+  bool _is_open;
   struct Sub_file
   {
+    /// File descriptor.
     File fd;
-    my_off_t offset;
+    /// Length of the header.
     my_off_t header_length;
-    int index;
+    /// Filename of the real file.
+    char filename[FN_REFLEN];
+    /// Offset (to be implemented)
+    //my_off_t offset;
+    /// Number of this file (to be implemented)
+    //int index;
+    /**
+      Number of Reader objects that access this file, plus 1 if this
+      is the last file and the Rotfile is writable.
+    */
+    //int ref_count;
   };
+  /**
+    The one and only file in this fake implementation.  The final
+    version should have a DYNAMIC_ARRAY of files.
+  */
+  Sub_file sub_file;
+/*
   enum enum_state { CLOSED, OPEN_READ, OPEN_READ_WRITE };
   char filename[FN_REFLEN];
   int fd;
@@ -2226,6 +2469,7 @@ private:
   struct Read_state
   {
     rpl_lgid lgid;
+    my_off_t offset;
     /// Constants used to encode groups.
     static const int TINY_SUBGROUP_MAX= 246, TINY_SUBGROUP_MIN= -123;
     static const int NORMAL_SUBGROUP_MIN= 247,
@@ -2245,9 +2489,20 @@ private:
   };
 
 public:
-  Group_log(Sid_map *sid_map) : group_log_file() {}
-  enum_group_status open(const char *filename);
-  enum_group_status write_subgroup(const Subgroup *subgroup);
+  Group_log(Sid_map *_sid_map) : sid_map(_sid_map), group_log_file() {}
+  /**
+    Open the disk file.
+    @param filename Name of file to open.
+    @retval 0 Success.
+    @retval 1 Error. This function calls my_error.
+  */
+  int open(const char *filename);
+  /**
+    Writes the given Subgroup to the log.
+    @param Subgroup Subgroup to write.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status write_subgroup(const Subgroup *subgroup);
 
   /**
     Iterator class that sequentially reads groups from the log.
@@ -2264,18 +2519,24 @@ public:
       Group_set.
       @param binlog_no binlog to start from.
       @param binlog_pos position to start from in binlog.
+      @param status Will be set to 0 on success, 1 on error. This
+      function calls my_error.
     */
     Reader(Group_log *group_log, const Group_set *group_set,
            rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
-           enum_group_status *status);
+           enum_read_status *status);
     /**
       Read the next subgroup from this Group_log.
       @param[out] subgroup Subgroup object where the subgroup will be stored.
-      @return GS_SUCCESS or GS_ERROR_IO or GS_END_OF_FILE.
+      @retval READ_EOF End of file.
+      @retval READ_SUCCES Ok.
+      @retval READ_ERROR IO error. This function calls my_error.
     */
-    enum_group_status read_subgroup(Subgroup *subgroup);
+    enum_read_status read_subgroup(Subgroup *subgroup);
     /// Destroy this Reader.
     ~Reader();
+    const char *get_current_filename() const
+    { return rot_file_reader.get_current_filename(); }
   private:
     /**
       Unconditionally read subgroup from file.
@@ -2284,13 +2545,14 @@ public:
       will re-use the subgroup from peeked_subgroup if has_peeked is
       true.
     */
-    enum_group_status do_read_subgroup(Subgroup *subgroup);
+    enum_read_status do_read_subgroup(Subgroup *subgroup);
+
     /// Sid_map to use in returned Sub_groups.
-    Sid_map *sid_map;
+    Sid_map *output_sid_map;
+    /// Sid_map used by Sub_groups in the log.
+    Group_log *group_log;
     /// Reader object from which we read raw bytes.
     Rot_file::Reader rot_file_reader;
-    /// Current offset in Group_log.
-    my_off_t offset;
     /// State needed to decode groups.
     Read_state read_state;
     /// Max size required by any subgroup.
@@ -2303,7 +2565,13 @@ public:
     bool has_peeked;
   };
 
+  Sid_map *get_sid_map() const { return sid_map; }
+
 private:
+  /// Lock protecting the Sid_map.
+  mutable Checkable_rwlock *rwlock;
+  /// Sid_map used for this log.
+  Sid_map *sid_map;
   /// Rot_file to which groups will be written.
   Rot_file group_log_file;
   /// State needed to encode groups.
@@ -2328,7 +2596,7 @@ public:
     @param n The number
     @return The number of bytes needed to encode n.
   */
-  static int get_encoded_length(ulonglong n);
+  static int get_unsigned_encoded_length(ulonglong n);
   /**
     Write a compact-encoded unsigned integer to the given buffer.
     @param n The number to write.
@@ -2344,22 +2612,38 @@ public:
     @param myf MYF() flags.
 
     @return On success, returns number of bytes written (1...10).  On
-    failure, returns a number <= 0.
+    failure, returns the negative number of bytes written (-9..0).
   */
   static int write_unsigned(File fd, ulonglong n, myf my_flags);
   /**
     Read a compact-encoded unsigned integer from the given file.
     
     @param fd File to write to.
-    @param out Number will be stored in this parameter.
-    @param myf MYF() flags.
-
+    @param out[out] On success, the number is stored in *out.
+    On failure, the reason is stored in *out:
+     - On IO error, *out is set to 0.
+     - If the file ended abruptly in the middle of the number, *out is set to 1.
+     - If the file format was not valid, *out is set to 2.
+    @param myf MYF() flags passed to my_read() and used by this
+    function.  In particular, this function generates an error in all
+    error cases if MY_WME is set.
     @return On success, returns the number of bytes read (1...10).  On
-    read error, returns the negative number of bytes read, (-10...0).
-    If the number is malformed, returns -0x10000 - number of bytes
-    read.
+    error, returns the negative number of bytes read (-10...0).
   */
   static int read_unsigned(File fd, ulonglong *out, myf my_flags);
+  /**
+    Compute the number of bytes needed to encode the given number.
+    @param n The number
+    @return The number of bytes needed to encode n.
+  */
+  static int get_signed_encoded_length(longlong n)
+  { return get_unsigned_encoded_length(signed_to_unsigned(n)); }
+  /// Encode a signed number as unsigned.
+  static ulonglong signed_to_unsigned(longlong n)
+  { return n >= 0 ? 2 * (ulonglong)n : 1 + 2 * (ulonglong)-(n + 1); }
+  /// Decode a signed number from an unsigned.
+  static longlong unsigned_to_signed(ulonglong n)
+  { return (n & 1) ? n >> 1 : -1 - (longlong)(n >> 1); }
   /**
     Write a compact-encoded signed integer to the given file.
     @see write_unsigned.

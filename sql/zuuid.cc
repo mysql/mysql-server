@@ -45,7 +45,7 @@ const int Uuid::hex_to_byte[]=
 };
 
 
-enum_group_status Uuid::parse(const char *s)
+enum_return_status Uuid::parse(const char *s)
 {
   DBUG_ENTER("Uuid::parse");
   unsigned char *u= bytes;
@@ -55,24 +55,24 @@ enum_group_status Uuid::parse(const char *s)
     if (i > 0)
     {
       if (*ss != '-')
-        DBUG_RETURN(GS_ERROR_PARSE);
+        RETURN_UNREPORTED_ERROR;
       ss++;
     }
     for (int j= 0; j < bytes_per_section[i]; j++)
     {
       int hi= hex_to_byte[*ss];
       if (hi == -1)
-        DBUG_RETURN(GS_ERROR_PARSE);
+        RETURN_UNREPORTED_ERROR;
       ss++;
       int lo= hex_to_byte[*ss];
       if (lo == -1)
-        DBUG_RETURN(GS_ERROR_PARSE);
+        RETURN_UNREPORTED_ERROR;
       ss++;
       *u= (hi << 4) + lo;
       u++;
     }
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
@@ -129,21 +129,31 @@ int Uuid::to_string(char *buf) const
 }
 
 
-enum_group_status Uuid::write(File fd, myf my_flags) const
+enum_return_status Uuid::write(File fd, myf my_flags) const
 {
   DBUG_ENTER("Uuid::write(File, myf)");
-  if (my_write(fd, bytes, Uuid::BYTE_LENGTH, my_flags) < Uuid::BYTE_LENGTH)
-    DBUG_RETURN(GS_ERROR_IO);
-  DBUG_RETURN(GS_SUCCESS);
+  if (my_write(fd, bytes, Uuid::BYTE_LENGTH, my_flags) != Uuid::BYTE_LENGTH)
+  {
+    if ((my_flags & MY_WME) != 0)
+      RETURN_REPORTED_ERROR;
+    else
+      RETURN_UNREPORTED_ERROR;
+  }
+  RETURN_OK;
 }
 
 
-enum_group_status Uuid::read(File fd, myf my_flags)
+enum_read_status Uuid::read(File fd, myf my_flags)
 {
   DBUG_ENTER("Uuid::read(File, myf)");
-  if (my_read(fd, bytes, Uuid::BYTE_LENGTH, my_flags) < Uuid::BYTE_LENGTH)
-    DBUG_RETURN(GS_ERROR_IO);
-  DBUG_RETURN(GS_SUCCESS);
+  size_t read_bytes= my_read(fd, bytes, Uuid::BYTE_LENGTH, my_flags);
+  if (read_bytes == 0)
+    DBUG_RETURN(READ_EOF);
+  if (read_bytes < Uuid::BYTE_LENGTH)
+    DBUG_RETURN(READ_TRUNCATED);
+  if (read_bytes == MY_FILE_ERROR)
+    DBUG_RETURN(READ_ERROR_IO);
+  DBUG_RETURN(READ_OK);
 }
 
 

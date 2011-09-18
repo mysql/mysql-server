@@ -15,10 +15,13 @@
 
 
 #include "zgroups.h"
-#include "hash.h"
 
 
 #ifdef HAVE_UGID
+
+
+#include "hash.h"
+#include "mysqld_error.h"
 
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
@@ -45,7 +48,7 @@ Sid_map::~Sid_map()
 }
 
 
-enum_group_status Sid_map::clear()
+int Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
   my_hash_free(&_sid_to_sidno);
@@ -57,17 +60,17 @@ enum_group_status Sid_map::clear()
   if (my_chsize(fd, 0, 0, MYF(MY_WME)) != 0)  // 1 on error, 0 on success
   {
     close();
-    DBUG_RETURN(GS_ERROR_IO);
+    DBUG_RETURN(1);
   }
-  DBUG_RETURN(GS_SUCCESS);
+  DBUG_RETURN(0);
 }
 
 
-enum_group_status Sid_map::open(const char *_filename)
+enum_return_status Sid_map::open(const char *_filename)
 {
   DBUG_ENTER("Sid_map::open(const char *)");
   if (is_open())
-    DBUG_RETURN(GS_SUCCESS);
+    RETURN_OK;
   DBUG_ASSERT(get_max_sidno() == 0);
   strcpy(filename, _filename);
   DBUG_ASSERT(strlen(_filename) < FN_REFLEN);
@@ -80,33 +83,56 @@ enum_group_status Sid_map::open(const char *_filename)
   // read each block in the file
   while (true)
   {
-    if (my_read(fd, &type_code, 1, MYF(0)) != 1)
-      goto truncate;
+    size_t read_bytes= my_read(fd, &type_code, 1, MYF(0));
+    if (read_bytes == 0)
+      RETURN_OK;
+    if (read_bytes == MY_FILE_ERROR)
+    {
+      my_error(ER_ERROR_ON_READ, MYF(0), filename, errno);
+      goto error;
+    }
+    DBUG_ASSERT(read_bytes == 1);
     if (type_code == 0)
     {
       // type code 0: 16-byte uuid
-      if (sid.read(fd, MYF(0)) != GS_SUCCESS)
-        goto truncate;
-      sidno++;
-      if (add_node(sidno, &sid) != GS_SUCCESS)
+      enum_read_status read_status= sid.read(fd, MYF(0));
+      if (read_status == READ_ERROR_IO)
+      {
+        my_error(ER_ERROR_ON_READ, MYF(0), filename, errno);
         goto error;
+      }
+      if (read_status == READ_EOF || read_status == READ_TRUNCATED)
+        goto truncate;
+      DBUG_ASSERT(read_status == READ_OK);
+      sidno++;
+      if (add_node(sidno, &sid) != 0)
+      {
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+        goto error;
+      }
       pos+= 1 + Uuid::BYTE_LENGTH;
     }
     else
     {
       // unknown type code
       if ((type_code & 1) == 0)
+      {
+        my_error(ER_FILE_FORMAT, MYF(0));
         // even type code: fatal
         goto error;
+      }
       else
       {
         // odd type code: ignorable
         ulonglong skip_len;
         int ret= Compact_encoding::read_unsigned(fd, &skip_len, MYF(MY_WME));
-        if (ret < 0 && ret > -0x10000)
-          goto truncate;
-        else if (ret <= -0x10000)
-          goto error;
+        if (ret <= 0)
+        {
+          if (skip_len == 1)
+            goto truncate;
+          else
+            goto error;
+        }
         /// @todo: if file is truncated in middle of block, truncate file
         if (my_seek(fd, skip_len, SEEK_CUR, MYF(MY_WME)) != 0)
           goto error;
@@ -117,11 +143,11 @@ enum_group_status Sid_map::open(const char *_filename)
 truncate:
   if (my_chsize(fd, pos, 0, MYF(MY_WME)) != 0)  // 1 on error, 0 on success
     goto error;
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 
 error:
   close();
-  DBUG_RETURN(GS_ERROR_IO);
+  RETURN_REPORTED_ERROR;
 }
 
 
@@ -129,34 +155,28 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
 {
   DBUG_ENTER("Sid_map::add_permanent");
   sid_lock->assert_some_rdlock();
-  DBUG_PRINT("sven", ("sven-1"));
   Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                      rpl_sid::BYTE_LENGTH);
-  DBUG_PRINT("sven", ("sven-2"));
   if (node != NULL)
     DBUG_RETURN(node->sidno);
 
-  DBUG_PRINT("sven", ("sven-3"));
   if (fd == -1)
-    DBUG_RETURN((rpl_sidno)GS_ERROR_IO);
-  DBUG_PRINT("sven", ("sven-4"));
+    DBUG_RETURN(-1);
 
   sid_lock->unlock();
   sid_lock->wrlock();
-  DBUG_PRINT("sven", ("sven-5"));
   rpl_sidno sidno;
   node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                rpl_sid::BYTE_LENGTH);
-  DBUG_PRINT("sven", ("sven-6"));
   if (node != NULL)
     sidno= node->sidno;
   else
   {
     sidno= get_max_sidno() + 1;
-    if (add_node(sidno, sid) != GS_SUCCESS ||
-        write_to_disk(sidno, sid) != GS_SUCCESS ||
-        (_sync && sync() != GS_SUCCESS))
-      sidno= (rpl_sidno)GS_ERROR_IO;
+    if (add_node(sidno, sid) != 0 ||
+        write_to_disk(sidno, sid) != 0 ||
+        (_sync && sync() != 0))
+      sidno= -1;
   }
 
   sid_lock->unlock();
@@ -165,27 +185,30 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
 }
 
 
-enum_group_status Sid_map::write_to_disk(rpl_sidno sidno, const rpl_sid *sid)
+enum_return_status Sid_map::write_to_disk(rpl_sidno sidno, const rpl_sid *sid)
 {
   DBUG_ENTER("Sid_map::write_to_disk");
   sid_lock->assert_some_lock();
   if (fd == -1)
-    DBUG_RETURN(GS_ERROR_IO);
+  {
+    my_error(ER_ERROR_ON_WRITE, MYF(0));
+    RETURN_REPORTED_ERROR;
+  }
   uchar type_code= 0;
   my_off_t old_pos= my_tell(fd, MYF(MY_WME));
-  if (my_write(fd, &type_code, 1, MYF(MY_WME)) != 1)
-    DBUG_RETURN(GS_ERROR_IO);
-  if (sid->write(fd, MYF(MY_WME)) != GS_SUCCESS)
+  if (my_write(fd, &type_code, 1, MYF(MY_WME | MY_WAIT_IF_FULL)) != 1)
+    RETURN_REPORTED_ERROR;
+  if (sid->write(fd, MYF(MY_WME | MY_WAIT_IF_FULL)) != 0)
   {
     if (my_chsize(fd, old_pos, 0, MYF(MY_WME)) != 0)
       close(); // fatal error, sid file is corrupt
-    DBUG_RETURN(GS_ERROR_IO);
+    RETURN_REPORTED_ERROR;
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
+enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
 {
   DBUG_ENTER("Sid_map::add_node(rpl_sidno, const rpl_sid *)");
   sid_lock->assert_some_lock();
@@ -219,7 +242,7 @@ enum_group_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
             prev_sorted_p= sorted_p;
           }
           memcpy(prev_sorted_p, &sidno, sizeof(rpl_sidno));
-          DBUG_RETURN(GS_SUCCESS);
+          RETURN_OK;
         }
         pop_dynamic(&_sorted);
       }
@@ -227,28 +250,31 @@ enum_group_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
     }
     free(node);
   }
-  DBUG_RETURN(GS_ERROR_OUT_OF_MEMORY);
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  RETURN_REPORTED_ERROR;
 }
 
 
-enum_group_status Sid_map::sync()
+enum_return_status Sid_map::sync()
 {
   DBUG_ENTER("Sid_map::flush()");
   if (my_sync(fd, MYF(MY_WME)) != 0)
   {
     close(); // this is a fatal error, file may be corrupt
-    DBUG_RETURN(GS_ERROR_IO);
+    RETURN_REPORTED_ERROR;
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 }
 
 
-enum_group_status Sid_map::close()
+enum_return_status Sid_map::close()
 {
   DBUG_ENTER("Sid_map::close()");
   int ret= my_close(fd, MYF(MY_WME));
   fd= -1;
-  DBUG_RETURN(ret == 0 ? GS_SUCCESS : GS_ERROR_IO);
+  if (ret != 0)
+    RETURN_REPORTED_ERROR;
+  RETURN_OK;
 }
 
 

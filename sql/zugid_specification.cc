@@ -24,7 +24,7 @@
 const int Ugid_specification::MAX_TEXT_LENGTH;
 
 
-enum_group_status Ugid_specification::parse(const char *text)
+enum_return_status Ugid_specification::parse(const char *text)
 {
   DBUG_ENTER("Ugid_specification::parse");
   if (text == NULL || strcmp(text, "AUTOMATIC") == 0)
@@ -41,10 +41,14 @@ enum_group_status Ugid_specification::parse(const char *text)
   }
   else
   {
-    GROUP_STATUS_THROW(group.parse(&mysql_bin_log.sid_map, text));
+    if (group.parse(&mysql_bin_log.sid_map, text) != 0)
+    {
+      my_error(ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text);
+      RETURN_REPORTED_ERROR;
+    }
     type= UGID;
   }
-  DBUG_RETURN(GS_SUCCESS);
+  RETURN_OK;
 };
 
 

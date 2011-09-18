@@ -70,6 +70,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/zrot_file.cc
   ../sql/zuuid.cc
   ../sql/zgroup.cc
+  ../sql/zreturn.cc
   ../sql/zgroup_log.cc
   ../sql/zowner_id.cc
   ../sql/zsid_map.cc

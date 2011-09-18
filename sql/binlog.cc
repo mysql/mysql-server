@@ -560,11 +560,11 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
   DBUG_ENTER("write_event_to_cache");
   IO_CACHE *file= &cache_data->cache_log;
   my_off_t start_pos= my_b_tell(file);
-  if (ev->write(file))
+  if (ev->write(file) != 0)
     DBUG_RETURN(1);
-  if (cache_data->group_cache.
-      add_logged_subgroup(thd, my_b_tell(file) - start_pos) != GS_SUCCESS)
-    DBUG_RETURN(1);
+  PROPAGATE_REPORTED_ERROR_INT(
+    cache_data->group_cache.add_logged_subgroup(thd,
+                                                my_b_tell(file) - start_pos));
   DBUG_RETURN(0);
 }
 
@@ -1684,28 +1684,18 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
 int MYSQL_BIN_LOG::init_sid_map()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_sid_map()");
-  int ret= 0;
   rpl_sid server_uuid_sid;
 #ifndef NO_DBUG
-  DBUG_ASSERT(server_uuid_sid.parse(server_uuid) == GS_SUCCESS);
+  DBUG_ASSERT(server_uuid_sid.parse(server_uuid) == 0);
 #else
   server_uuid_sid.parse(server_uuid);
 #endif
   rpl_sidno sidno= sid_map.add_permanent(&server_uuid_sid);
-  if (sidno < 1)
-  {
-    if (sidno == GS_ERROR_OUT_OF_MEMORY)
-      sql_print_error("Out of memory when adding @@server_id to the binary log's SID-map.");
-    else if (sidno == GS_ERROR_IO)
-      sql_print_error("IO error when adding @@server_id to the binary log's SID-map.");
-    else
-      DBUG_ASSERT(0);
-    ret= 1;
-  }
+  if (sidno <= 0)
+    DBUG_RETURN(1);
   server_uuid_sidno= sidno;
-  if (ret == 0 && group_log_state.ensure_sidno() != GS_SUCCESS)
-    ret= 1;
-  DBUG_RETURN(ret);
+  PROPAGATE_REPORTED_ERROR_INT(group_log_state.ensure_sidno());
+  DBUG_RETURN(0);
 }
 #endif
 
@@ -1737,7 +1727,7 @@ int MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
   max_size= max_size_arg;
   DBUG_PRINT("info",("max_size: %lu", max_size));
   sid_lock.rdlock();
-  int ret= (group_log_state.ensure_sidno() != GS_SUCCESS) ? 1 : 0;
+  int ret= group_log_state.ensure_sidno();
   sid_lock.unlock();
   DBUG_RETURN(ret);
 }
@@ -1869,7 +1859,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   if (init_and_set_log_file_name(log_name, new_name, log_type_arg,
                                  io_cache_type_arg))
   {
-    sql_print_error("MSYQL_BIN_LOG::open failed to generate new file name.");
+    sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
   }
 
@@ -1896,15 +1886,15 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       }
     });
 
-    sql_print_error("MSYQL_BIN_LOG::open failed to sync the index file.");
+    sql_print_error("MYSQL_BIN_LOG::open failed to sync the index file.");
     DBUG_RETURN(1);
   }
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
 #endif
 
   sid_lock.rdlock();
-  if (sid_map.open(sid_map_filename) != GS_SUCCESS ||
-      group_log.open(group_log_filename) != GS_SUCCESS)
+  if (sid_map.open(sid_map_filename) != 0 ||
+      group_log.open(group_log_filename) != 0)
   {
     sid_lock.unlock();
     DBUG_RETURN(1);
@@ -2438,6 +2428,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
 
+  DBUG_PRINT("info", ("sven-1"));
   sid_lock.rdlock();
 
   /* Save variables so that we can reopen the log */
@@ -2525,20 +2516,26 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
 
+  DBUG_PRINT("info", ("sven-2"));
+
 #ifdef HAVE_UGID
   group_log_state.clear();
-  if (sid_map.clear() != GS_SUCCESS ||
+  if (sid_map.clear() != 0 ||
       init_sid_map() != 0 ||
-      group_log_state.ensure_sidno() != GS_SUCCESS)
+      group_log_state.ensure_sidno() != 0)
     goto err;
 #endif
+
+  DBUG_PRINT("info", ("sven-3"));
 
   if (!open_index_file(index_file_name, 0, FALSE))
     if ((error= open_binlog(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE)))
       goto err;
   my_free((void *) save_name);
+  DBUG_PRINT("info", ("sven-4"));
 
 err:
+  DBUG_PRINT("info", ("sven-5"));
   if (error == 1)
     name= const_cast<char*>(save_name);
   sid_lock.unlock();

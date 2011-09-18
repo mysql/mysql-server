@@ -4053,7 +4053,7 @@ String *Item_func_group_subtract::val_str_ascii(String *str)
   DBUG_ENTER("Item_func_group_subtract::val_str_ascii");
   String *str1, *str2;
   const char *charp1, *charp2;
-  enum_group_status status;
+  enum_return_status status;
   // get first set
   if (!args[0]->null_value && !args[1]->null_value &&
       (str1= args[0]->val_str_ascii(str)) != NULL &&
@@ -4062,15 +4062,15 @@ String *Item_func_group_subtract::val_str_ascii(String *str)
     mysql_bin_log.sid_lock.rdlock();
     Group_set set1(&mysql_bin_log.sid_map, charp1, &status);
     // get second set
-    if (status == GS_SUCCESS &&
+    if (status == RETURN_STATUS_OK &&
         (str2= args[1]->val_str_ascii(str)) != NULL &&
         (charp2= str2->c_ptr_safe()) != NULL)
     {
       Group_set set2(&mysql_bin_log.sid_map, charp2, &status);
       int length;
       // subtract, save result, return result
-      if (status == GS_SUCCESS &&
-          set1.remove(&set2) == GS_SUCCESS &&
+      if (status == RETURN_STATUS_OK &&
+          set1.remove(&set2) == 0 &&
           !str->realloc((length= set1.get_string_length()) + 1))
       {
         set1.to_string((char *)str->ptr());
