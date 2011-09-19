@@ -93,8 +93,7 @@ This file contains the implementation of error and warnings related
   (#6) The statements SHOW WARNINGS and SHOW ERRORS display the content of
   the warning list.
 
-  (#7) The GET DIAGNOSTICS statement (planned, not implemented yet) will
-  also read the content of:
+  (#7) The GET DIAGNOSTICS statement reads the content of:
   - the top level statement condition area (when executed in a query),
   - a sub statement (when executed in a stored program)
   and return the data stored in a Sql_condition.
@@ -145,7 +144,7 @@ This file contains the implementation of error and warnings related
 
   (#6) (SHOW WARNINGS) produces data in the 'error_message_charset_info' CHARSET
 
-  (#7) (GET DIAGNOSTICS) is not implemented.
+  (#7) (GET DIAGNOSTICS) is implemented.
 
   (#8) (RESIGNAL) produces data internally in UTF8 (see #3)
 
@@ -166,9 +165,6 @@ This file contains the implementation of error and warnings related
     In practice, this means changing the type of the message text to
     '<UTF8 String 128 class> Sql_condition::m_message_text', and is a direct
     consequence of WL#751.
-
-  - Implement (#9) (GET DIAGNOSTICS).
-    See WL#2111 (Stored Procedures: Implement GET DIAGNOSTICS)
 */
 
 Sql_condition::Sql_condition()
