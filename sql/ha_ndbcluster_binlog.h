@@ -248,6 +248,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
 int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
+void ndbcluster_mark_share_dropped(NDB_SHARE*);
 inline NDB_SHARE *get_share(const char *key,
                             TABLE *table,
                             bool create_if_not_exists= TRUE,
