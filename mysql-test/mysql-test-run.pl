@@ -3855,6 +3855,11 @@ sub extract_server_log ($$) {
       else
       {
 	push(@lines, $line);
+	if (scalar(@lines) > 1000000) {
+	  $Ferr = undef;
+	  mtr_warning("Too much log from test, bailing out from extracting");
+	  return ();
+	}
       }
     }
     else
