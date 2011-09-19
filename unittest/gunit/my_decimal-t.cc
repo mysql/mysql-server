@@ -221,7 +221,36 @@ TEST_F(DecimalTest, Modulo)
       << " got xxx:" << buff_x
       ;
   }
+}
 
+
+TEST_F(DecimalTest, BinaryConversion)
+{
+  const int prec= 60;
+  const int scale= 0;
+  EXPECT_EQ(E_DEC_OK, chars_2_decimal("000000000", &d1));
+  int binary_size= my_decimal_get_binary_size(prec, scale);
+  uchar *bin= new uchar[binary_size];
+
+  // Convert to binary, and back.
+  EXPECT_EQ(E_DEC_OK, my_decimal2binary(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                        &d1, bin, prec, scale));
+  EXPECT_EQ(E_DEC_OK, binary2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                        bin, &d2, prec, scale));
+  EXPECT_GT(d2.precision(), 0U);
+  EXPECT_EQ(0, my_decimal_cmp(&d1, &d2));
+
+  // 0.0 * 0.0
+  my_decimal product;
+  EXPECT_EQ(E_DEC_OK, my_decimal_mul(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                     &product, &d2, &d2));
+  // 0.0 * (-0.0)
+  my_decimal neg_prod;
+  my_decimal d3(d2);
+  d3.sign(true);
+  EXPECT_EQ(E_DEC_OK, my_decimal_mul(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                                     &neg_prod, &d2, &d3));
+  delete[] bin;
 }
 
 }

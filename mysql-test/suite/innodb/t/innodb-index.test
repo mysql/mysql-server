@@ -478,6 +478,19 @@ DELETE FROM t1;
 -- sleep 10
 DROP TABLE t1;
 
+# Bug#12547647 UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
+CREATE TABLE bug12547647(
+a INT NOT NULL, b BLOB NOT NULL, c TEXT,
+PRIMARY KEY (b(10), a), INDEX (c(767)), INDEX(b(767))
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+INSERT INTO bug12547647 VALUES (5,repeat('khdfo5AlOq',1900),repeat('g',7751));
+COMMIT;
+# The following used to cause infinite undo log allocation.
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE bug12547647 SET c = REPEAT('b',16928);
+DROP TABLE bug12547647;
+
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
 eval set global innodb_file_format_max=$format;

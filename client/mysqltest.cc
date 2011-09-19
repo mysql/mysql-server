@@ -503,6 +503,7 @@ void str_to_file(const char *fname, char *str, int size);
 void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 void fix_win_paths(const char *val, int len);
+const char *get_errname_from_code (uint error_code);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -2272,6 +2273,7 @@ void var_set_int(const char* name, int value)
 void var_set_errno(int sql_errno)
 {
   var_set_int("$mysql_errno", sql_errno);
+  var_set_string("$mysql_errname", get_errname_from_code(sql_errno));
 }
 
 
@@ -4646,8 +4648,7 @@ void do_shutdown_server(struct st_command *command)
 }
 
 
-#if MYSQL_VERSION_ID >= 50000
-/* List of error names to error codes, available from 5.0 */
+/* List of error names to error codes */
 typedef struct
 {
   const char *name;
@@ -4657,6 +4658,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
+  { "<No error>", -1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -4687,16 +4689,28 @@ uint get_errcode_from_name(char *error_name, char *error_end)
     die("Unknown SQL error name '%s'", error_name);
   DBUG_RETURN(0);
 }
-#else
-uint get_errcode_from_name(char *error_name __attribute__((unused)),
-                           char *error_end __attribute__((unused)))
+
+const char *get_errname_from_code (uint error_code)
 {
-  abort_not_in_this_version();
-  return 0; /* Never reached */
-}
-#endif
+   st_error *e= global_error_names;
 
+   DBUG_ENTER("get_errname_from_code");
+   DBUG_PRINT("enter", ("error_code: %d", error_code));
 
+   if (! error_code)
+   {
+     DBUG_RETURN("");
+   }
+   for (; e->name; e++)
+   {
+     if (e->code == error_code)
+     {
+       DBUG_RETURN(e->name);
+     }
+   }
+   /* Apparently, errors without known names may occur */
+   DBUG_RETURN("<Unknown>");
+} 
 
 void do_get_errcodes(struct st_command *command)
 {
@@ -8688,11 +8702,6 @@ int main(int argc, char **argv)
         /* Check for special property for this query */
         display_result_vertically|= (command->type == Q_QUERY_VERTICAL);
 
-	if (save_file[0])
-	{
-	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
-	  save_file[0]= 0;
-	}
         /*
           We run EXPLAIN _before_ the query. If query is UPDATE/DELETE is
           matters: a DELETE may delete rows, and then EXPLAIN DELETE will
@@ -8700,6 +8709,12 @@ int main(int argc, char **argv)
           interesting, EXPLAIN is now first.
         */
 	run_explain(cur_con, command, flags);
+	/* Check for 'require' */
+	if (*save_file)
+	{
+	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
+	  *save_file= 0;
+	}
 	run_query(cur_con, command, flags);
 	display_opt_trace(cur_con, command, flags);
 	command_executed++;
