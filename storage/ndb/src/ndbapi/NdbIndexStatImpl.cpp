@@ -1339,12 +1339,26 @@ NdbIndexStatImpl::Cache::swap_entry(uint pos1, uint pos2)
 }
 
 inline double
-NdbIndexStatImpl::Cache::get_rir(uint pos) const
+NdbIndexStatImpl::Cache::get_rir1(uint pos) const
 {
   const Uint8* ptr = get_valueptr(pos);
   Uint32 n;
   memcpy(&n, &ptr[0], 4);
-  double x = (double)m_fragCount * (double)n;
+  double x = (double)n;
+  return x;
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_rir1(uint pos1, uint pos2) const
+{
+  assert(pos2 > pos1);
+  return get_rir1(pos2) - get_rir1(pos1);
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_rir(uint pos) const
+{
+  double x = (double)m_fragCount * get_rir1(pos);
   return x;
 }
 
@@ -1356,21 +1370,52 @@ NdbIndexStatImpl::Cache::get_rir(uint pos1, uint pos2) const
 }
 
 inline double
-NdbIndexStatImpl::Cache::get_unq(uint pos, uint k) const
+NdbIndexStatImpl::Cache::get_unq1(uint pos, uint k) const
 {
   assert(k < m_keyAttrs);
   const Uint8* ptr = get_valueptr(pos);
   Uint32 n;
   memcpy(&n, &ptr[4 + k * 4], 4);
-  double x = (double)m_fragCount * (double)n;
+  double x = (double)n;
+  return x;
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_unq1(uint pos1, uint pos2, uint k) const
+{
+  assert(pos2 > pos1);
+  return get_unq1(pos2, k) - get_unq1(pos1, k);
+}
+
+static inline double
+get_unqfactor(uint p, double r, double u)
+{
+  double ONE = (double)1.0;
+  double d = (double)p;
+  double f = ONE + (d - ONE) * ::pow(u / r, d - ONE);
+  return f;
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_unq(uint pos, uint k) const
+{
+  uint p = m_fragCount;
+  double r = get_rir1(pos);
+  double u = get_unq1(pos, k);
+  double f = get_unqfactor(p, r, u);
+  double x = f * u;
   return x;
 }
 
 inline double
 NdbIndexStatImpl::Cache::get_unq(uint pos1, uint pos2, uint k) const
 {
-  assert(pos2 > pos1);
-  return get_unq(pos2, k) - get_unq(pos1, k);
+  uint p = m_fragCount;
+  double r = get_rir1(pos1, pos2);
+  double u = get_unq1(pos1, pos2, k);
+  double f = get_unqfactor(p, r, u);
+  double x = f * u;
+  return x;
 }
 
 inline double
