@@ -1390,3 +1390,15 @@ RESET QUERY CACHE;
 
 COMMIT;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#12977203: SERVER CRASH ON A DERIVED TABLE WITH QUERY CACHE ENABLED
+--echo #
+SET @qc= @@query_cache_size;
+SET GLOBAL query_cache_size=1355776;
+CREATE TABLE t1 (f1 blob);
+SELECT COUNT(*) FROM (SELECT * FROM t1 ) tt;
+DROP TABLE t1;
+SET GLOBAL query_cache_size= @qc;
+--echo #
+
