@@ -197,8 +197,12 @@ public:
     // for sort
     void swap_entry(uint pos1, uint pos2);
     // get stats values primitives
+    double get_rir1(uint pos) const;
+    double get_rir1(uint pos1, uint pos2) const;
     double get_rir(uint pos) const;
     double get_rir(uint pos1, uint pos2) const;
+    double get_unq1(uint pos, uint k) const;
+    double get_unq1(uint pos1, uint pos2, uint k) const;
     double get_unq(uint pos, uint k) const;
     double get_unq(uint pos1, uint pos2, uint k) const;
     double get_rpk(uint pos, uint k) const;
