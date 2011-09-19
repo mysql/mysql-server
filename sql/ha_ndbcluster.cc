@@ -438,6 +438,7 @@ pthread_mutex_t ndbcluster_mutex;
 
 /// Table lock handling
 HASH ndbcluster_open_tables;
+HASH ndbcluster_dropped_tables;
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)));
@@ -11088,7 +11089,7 @@ do_drop:
       /*
         The share kept by the server has not been freed, free it
       */
-      share->state= NSS_DROPPED;
+      ndbcluster_mark_share_dropped(share);
       /* ndb_share reference create free */
       DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                                share->key, share->use_count));
@@ -12726,6 +12727,8 @@ static int ndbcluster_init(void *p)
 
   (void) my_hash_init(&ndbcluster_open_tables,table_alias_charset,32,0,0,
                       (my_hash_get_key) ndbcluster_get_key,0,0);
+  (void) my_hash_init(&ndbcluster_dropped_tables,table_alias_charset,32,0,0,
+                      (my_hash_get_key) ndbcluster_get_key,0,0);
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
   {
@@ -12739,6 +12742,7 @@ static int ndbcluster_init(void *p)
   {
     DBUG_PRINT("error", ("Could not create ndb utility thread"));
     my_hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_dropped_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
@@ -12757,6 +12761,7 @@ static int ndbcluster_init(void *p)
   {
     DBUG_PRINT("error", ("ndb utility thread exited prematurely"));
     my_hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_dropped_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_thread);
@@ -12771,6 +12776,7 @@ static int ndbcluster_init(void *p)
   {
     DBUG_PRINT("error", ("Could not create ndb index statistics thread"));
     my_hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_dropped_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
@@ -12791,6 +12797,7 @@ static int ndbcluster_init(void *p)
   {
     DBUG_PRINT("error", ("ndb index statistics thread exited prematurely"));
     my_hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_dropped_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
@@ -13701,7 +13708,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   */
   if (share->state != NSS_DROPPED)
   {
-    share->state= NSS_DROPPED;
+    ndbcluster_mark_share_dropped(share);
     /* ndb_share reference create free */
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                              share->key, share->use_count));
@@ -14007,7 +14014,16 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 
   ndb_index_stat_free(*share);
 
-  my_hash_delete(&ndbcluster_open_tables, (uchar*) *share);
+  bool found= false;
+  if ((* share)->state == NSS_DROPPED)
+  {
+    found= my_hash_delete(&ndbcluster_dropped_tables, (uchar*) *share) == 0;
+  }
+  else
+  {
+    found= my_hash_delete(&ndbcluster_open_tables, (uchar*) *share) == 0;
+  }
+  assert(found);
   thr_lock_delete(&(*share)->lock);
   pthread_mutex_destroy(&(*share)->mutex);
 
@@ -14055,6 +14071,24 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     pthread_mutex_unlock(&ndbcluster_mutex);
 }
 
+void
+ndbcluster_mark_share_dropped(NDB_SHARE* share)
+{
+  share->state= NSS_DROPPED;
+  if (my_hash_delete(&ndbcluster_open_tables, (uchar*) share) == 0)
+  {
+    my_hash_insert(&ndbcluster_dropped_tables, (uchar*) share);
+  }
+  else
+  {
+    assert(false);
+  }
+  if (opt_ndb_extra_logging > 9)
+  {
+    sql_print_information ("ndbcluster_mark_share_dropped: %s use_count: %u",
+                           share->key, share->use_count);
+  }
+}
 
 struct ndb_table_statistics_row {
   Uint64 rows;
@@ -18051,15 +18085,28 @@ static
 void
 dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
 {
-  sql_print_information("dbug_check_shares");
+  sql_print_information("dbug_check_shares open:");
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
   {
-    NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
+    NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
     sql_print_information("  %s.%s: state: %s(%u) use_count: %u",
                           share->db, share->table_name,
                           get_share_state_string(share->state),
                           (unsigned)share->state,
                           share->use_count);
+    DBUG_ASSERT(share->state != NSS_DROPPED);
+  }
+
+  sql_print_information("dbug_check_shares dropped:");
+  for (uint i= 0; i < ndbcluster_dropped_tables.records; i++)
+  {
+    NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_dropped_tables,i);
+    sql_print_information("  %s.%s: state: %s(%u) use_count: %u",
+                          share->db, share->table_name,
+                          get_share_state_string(share->state),
+                          (unsigned)share->state,
+                          share->use_count);
+    DBUG_ASSERT(share->state == NSS_DROPPED);
   }
 
   /**
@@ -18067,7 +18114,16 @@ dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
    */
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
   {
-    NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
+    NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
+    DBUG_ASSERT(strcmp(share->db, "mysql") == 0);
+  }
+
+  /**
+   * Only shares in mysql database may be open...
+   */
+  for (uint i= 0; i < ndbcluster_dropped_tables.records; i++)
+  {
+    NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_dropped_tables,i);
     DBUG_ASSERT(strcmp(share->db, "mysql") == 0);
   }
 }
