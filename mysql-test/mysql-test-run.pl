@@ -224,10 +224,13 @@ our %gprof_dirs;
 our $glob_debugger= 0;
 our $opt_gdb;
 our $opt_client_gdb;
+my $opt_boot_gdb;
 our $opt_dbx;
 our $opt_client_dbx;
+my $opt_boot_dbx;
 our $opt_ddd;
 our $opt_client_ddd;
+my $opt_boot_ddd;
 our $opt_manual_gdb;
 our $opt_manual_dbx;
 our $opt_manual_ddd;
@@ -1100,14 +1103,17 @@ sub command_line_setup {
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
+	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
              'manual-ddd'               => \$opt_manual_ddd,
+	     'boot-ddd'                 => \$opt_boot_ddd,
              'dbx'                      => \$opt_dbx,
 	     'client-dbx'               => \$opt_client_dbx,
 	     'manual-dbx'               => \$opt_manual_dbx,
 	     'debugger=s'               => \$opt_debugger,
+	     'boot-dbx'                 => \$opt_boot_dbx,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-client:s'          => \$opt_strace_client,
              'max-save-core=i'          => \$opt_max_save_core,
@@ -3258,6 +3264,19 @@ sub mysql_install_db {
   # Create the bootstrap.sql file
   # ----------------------------------------------------------------------
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
+
+  if ($opt_boot_gdb) {
+    gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
+		  $bootstrap_sql_file);
+  }
+  if ($opt_boot_dbx) {
+    dbx_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
+		  $bootstrap_sql_file);
+  }
+  if ($opt_boot_ddd) {
+    ddd_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
+		  $bootstrap_sql_file);
+  }
 
   my $path_sql= my_find_file($install_basedir,
 			     ["mysql", "sql/share", "share/mysql",
@@ -5581,19 +5600,21 @@ sub gdb_arguments {
   my $args= shift;
   my $exe=  shift;
   my $type= shift;
+  my $input= shift;
 
-  # Write $args to gdb init file
-  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  my $runline= $input ? "run $str < $input" : "run $str";
+
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
-	     "set args $str\n" .
 	     "break main\n" .
-	     "run");
+	     $runline);
 
   if ( $opt_manual_gdb )
   {
@@ -5632,20 +5653,22 @@ sub ddd_arguments {
   my $args= shift;
   my $exe=  shift;
   my $type= shift;
+  my $input= shift;
 
-  # Write $args to ddd init file
-  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  my $runline= $input ? "run $str < $input" : "run $str";
+
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
 	     "file $$exe\n" .
-	     "set args $str\n" .
 	     "break main\n" .
-	     "run");
+	     $runline);
 
   if ( $opt_manual_ddd )
   {
@@ -5681,14 +5704,16 @@ sub dbx_arguments {
   my $args= shift;
   my $exe=  shift;
   my $type= shift;
+  my $input= shift;
 
   # Put $args into a single string
   my $str= join " ", @$$args;
+  my $runline= $input ? "run $str < $input" : "run $str";
 
   if ( $opt_manual_dbx ) {
     print "\nTo start dbx for $type, type in another window:\n";
     print "cd $glob_mysql_test_dir; dbx -c \"stop in main; " .
-          "run $str\" $$exe\n";
+          "$runline\" $$exe\n";
 
     # Indicate the exe should not be started
     $$exe= undef;
@@ -5707,7 +5732,7 @@ sub dbx_arguments {
 
   mtr_add_arg($$args, "dbx");
   mtr_add_arg($$args, "-c");
-  mtr_add_arg($$args, "stop in main; run $str");
+  mtr_add_arg($$args, "stop in main; $runline");
   mtr_add_arg($$args, "$$exe");
 
   $$exe= "xterm";
