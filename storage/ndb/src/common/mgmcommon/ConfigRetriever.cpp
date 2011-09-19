@@ -366,34 +366,48 @@ ConfigRetriever::setNodeId(Uint32 nodeid)
 }
 
 Uint32
+ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds,
+                             int verbose, int& error)
+{
+  if (!m_handle)
+  {
+    setError(CR_ERROR, "management server handle not initialized");
+    return 0;  // Error
+  }
+
+  while (1)
+  {
+    if (ndb_mgm_is_connected(m_handle) == 1 ||
+        ndb_mgm_connect(m_handle, 0, 0, verbose) == 0)
+    {
+      int res =
+        ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type,
+                             no_retries == 0 /* only log last retry */);
+      if (res >= 0)
+        return (Uint32)res; // Sucess!!
+    }
+
+    error = ndb_mgm_get_latest_error(m_handle);
+    if (no_retries == 0 ||                        /* No more retries */
+        error == NDB_MGM_ALLOCID_CONFIG_MISMATCH) /* Fatal error */
+    {
+      break;
+    }
+    no_retries--;
+    NdbSleep_SecSleep(retry_delay_in_seconds);
+  }
+  BaseString tmp;
+  tmp.assfmt("%s: %s",
+             ndb_mgm_get_latest_error_msg(m_handle),
+             ndb_mgm_get_latest_error_desc(m_handle));
+  setError(CR_ERROR, tmp.c_str());
+  return 0; // Error
+}
+
+
+Uint32
 ConfigRetriever::allocNodeId(int no_retries, int retry_delay_in_seconds)
 {
-  int res;
-  if(m_handle != 0)
-  {
-    while (1)
-    {
-      if(!ndb_mgm_is_connected(m_handle))
-	if(!ndb_mgm_connect(m_handle, 0, 0, 0))
-	  goto next;
-
-      res= ndb_mgm_alloc_nodeid(m_handle, m_version, m_node_type,
-                                no_retries == 0 /* only log last retry */);
-      if(res >= 0)
-	return (Uint32)res;
-
-  next:
-      int error = ndb_mgm_get_latest_error(m_handle);
-      if (no_retries == 0 || error == NDB_MGM_ALLOCID_CONFIG_MISMATCH)
-	break;
-      no_retries--;
-      NdbSleep_SecSleep(retry_delay_in_seconds);
-    }
-    BaseString tmp(ndb_mgm_get_latest_error_msg(m_handle));
-    tmp.append(" : ");
-    tmp.append(ndb_mgm_get_latest_error_desc(m_handle));
-    setError(CR_ERROR, tmp.c_str());
-  } else
-    setError(CR_ERROR, "management server handle not initialized");    
-  return 0;
+  int error;
+  return allocNodeId(no_retries, retry_delay_in_seconds, 0, error);
 }
