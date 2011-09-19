@@ -822,22 +822,38 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       DBUG_PRINT("exit", ("no m_config_retriever, ret: -1"));
       DBUG_RETURN(-1);
     }
-    if (m_config_retriever->do_connect(no_retries,
-                                       retry_delay_in_seconds,
-                                       verbose))
+
+    // the allocNodeId function will connect if not connected
+    int alloc_error;
+    Uint32 nodeId = m_config_retriever->allocNodeId(no_retries,
+                                                   retry_delay_in_seconds,
+                                                   verbose, alloc_error);
+    if (!nodeId)
     {
-      char buf[1024];
-      m_latest_error = 1;
-      m_latest_error_msg.assfmt("Connect using '%s' timed out",
-                                get_connectstring(buf, sizeof(buf)));
-      DBUG_PRINT("exit", ("mgmt server not up yet, ret: 1"));
-      DBUG_RETURN(1); // mgmt server not up yet
+      // Failed to allocate nodeid from mgmt server, find out
+      // the cause and set proper error message
+
+      if (!m_config_retriever->is_connected())
+      {
+        // Could not connect to mgmt server
+        m_latest_error = alloc_error;
+        m_latest_error_msg.assfmt("%s", m_config_retriever->getErrorString());
+        DBUG_RETURN(1); // Recoverable error
+      }
+
+      if (alloc_error == NDB_MGM_ALLOCID_ERROR)
+      {
+        // A nodeid for this node was found in config, but it was not
+        // free right now. Retry later and it might be free.
+        m_latest_error = alloc_error;
+        m_latest_error_msg.assfmt("%s", m_config_retriever->getErrorString());
+        DBUG_RETURN(1); // Recoverable error
+      }
+
+      // Fatal error, use default error
+      break;
     }
 
-    Uint32 nodeId = m_config_retriever->allocNodeId(10/*retries*/,
-                                                    3/*delay*/);
-    if(nodeId == 0)
-      break;
     ndb_mgm_configuration * props = m_config_retriever->getConfig(nodeId);
     if(props == 0)
       break;
