@@ -123,7 +123,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
                
 # Build the module
 add_library(ndb_engine MODULE ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndb_engine ndbclient)
+target_link_libraries(ndb_engine ndbclient ndbgeneral)
 
 # Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
