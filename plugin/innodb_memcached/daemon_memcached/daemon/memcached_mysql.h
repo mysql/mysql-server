@@ -15,6 +15,7 @@ struct memcached_context
 	void*		m_innodb_api_cb;
 	unsigned int	m_r_batch_size;
 	unsigned int	m_w_batch_size;
+	bool		m_enable_binlog;
 }; 
 
 typedef struct memcached_context        memcached_context_t;
