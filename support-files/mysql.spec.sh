@@ -1154,9 +1154,9 @@ echo "====="                                     >> $STATUS_HISTORY
 * Tue Sep 13 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - Add support for Oracle Linux 6 and Red Hat Enterprise Linux 6.  Due to
-  changes in RPM behaviour ($RPM_BUILD_ROOT is removed prior to %install)
-  this necessitated a move of the libmygcc.a installation from %build to
-  %install, which is probably where it belonged in the first place.
+  changes in RPM behaviour ($RPM_BUILD_ROOT is removed prior to install)
+  this necessitated a move of the libmygcc.a installation to the install
+  phase, which is probably where it belonged in the first place.
 
 * Tue Sep 13 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
