@@ -1,4 +1,5 @@
 --source include/have_optimizer_trace.inc
+--source include/have_64bit.inc
 
 if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
             + $VIEW_PROTOCOL > 0`)
