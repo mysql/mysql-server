@@ -141,6 +141,7 @@ typedef struct eng_config_info {
 	void*		cb_ptr;
 	unsigned int	eng_r_batch_size;
 	unsigned int	eng_w_batch_size;
+	bool		enable_binlog;
 } eng_config_info_t;
 
 /*** initialize ***/
@@ -168,7 +169,7 @@ innodb_initialize(
 					? my_eng_config->eng_w_batch_size
 					: CONN_NUM_WRITE_COMMIT);
 
-	innodb_eng->enable_binlog = false;
+	innodb_eng->enable_binlog = my_eng_config->enable_binlog;
 
 	UT_LIST_INIT(innodb_eng->conn_data);
 	pthread_mutex_init(&innodb_eng->conn_mutex, NULL);

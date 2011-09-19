@@ -38,6 +38,7 @@ static char*	mci_eng_lib_path = NULL;
 static char*	mci_memcached_option = NULL;
 static unsigned int mci_r_batch_size = 1048576;
 static unsigned int mci_w_batch_size = 32;
+static my_bool	mci_enable_binlog = false;
 
 static MYSQL_SYSVAR_STR(engine_lib_name, mci_engine_library,
 			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
@@ -62,12 +63,18 @@ static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
 			 "write batch commit size", 0, 0, 32,
 			 1, 1048576, 0);
 
+static MYSQL_SYSVAR_BOOL(enable_binlog, mci_enable_binlog,
+			 PLUGIN_VAR_READONLY,
+			 "whether to enable binlog",
+			 NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var *daemon_memcached_sys_var[] = {
 	MYSQL_SYSVAR(engine_lib_name),
 	MYSQL_SYSVAR(engine_lib_path),
 	MYSQL_SYSVAR(option),
 	MYSQL_SYSVAR(r_batch_size),
 	MYSQL_SYSVAR(w_batch_size),
+	MYSQL_SYSVAR(enable_binlog),
 	0
 };
 
@@ -120,6 +127,7 @@ static int daemon_memcached_plugin_init(void *p)
 	con->memcached_conf.m_innodb_api_cb = plugin->data;
 	con->memcached_conf.m_r_batch_size = mci_r_batch_size;
 	con->memcached_conf.m_w_batch_size = mci_w_batch_size;
+	con->memcached_conf.m_enable_binlog = mci_enable_binlog;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
