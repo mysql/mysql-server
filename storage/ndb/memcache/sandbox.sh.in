@@ -121,9 +121,9 @@ memcached_is_running() {
 }
 
 test_pid() {
-  test -f sandbox/$1  || return -1
+  test -f sandbox/$1  || return 1
   SERVERPID=`cat $HOME_BASE/sandbox/$1`
-  ps -p "$SERVERPID" > /dev/null || return -1
+  ps -p "$SERVERPID" > /dev/null || return 1
   return 0
 }
 
