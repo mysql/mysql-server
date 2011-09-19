@@ -2685,6 +2685,7 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
 {
   DBUG_ENTER("ndb_mgm_alloc_nodeid");
   CHECK_HANDLE(handle, 0);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_alloc_nodeid");
   CHECK_CONNECTED(handle, 0);
   union { long l; char c[sizeof(long)]; } endian_check;
 
