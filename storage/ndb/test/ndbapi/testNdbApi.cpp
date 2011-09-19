@@ -4705,6 +4705,113 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+static bool
+check_connect_no_such_host()
+{
+  for (int i = 0; i < 3; i++)
+  {
+    const char* no_such_host = "no_such_host:1186";
+    Ndb_cluster_connection con(no_such_host);
+
+    const int verbose = 1;
+    int res = con.connect(i, i, verbose);
+    if (res != 1)
+    {
+      g_err << "Ndb_cluster_connection.connect(" << i << "," << i
+            << ", 1) to '" << no_such_host << "' returned " << res
+            << " instead of expected 1" << endl;
+      return false;
+    }
+    g_info << "Ndb_cluster_connection.connect(" << i << "," << i
+           << ", 1) to '" << no_such_host << "' returned " << res
+           << " and message '" << con.get_latest_error_msg() << "'"<< endl;
+  }
+  return true;
+}
+
+
+static bool
+check_connect_until_no_more_nodeid(const char* constr)
+{
+  bool result = true;
+  Vector<Ndb_cluster_connection*> connections;
+  while(true)
+  {
+    Ndb_cluster_connection* con = new Ndb_cluster_connection(constr);
+    if (!con)
+    {
+      g_err << "Failed to create another Ndb_cluster_connection" << endl;
+      result = false;
+      break;
+    }
+    connections.push_back(con);
+    g_info << "connections: " << connections.size() << endl;
+
+    const int verbose = 1;
+    int res = con->connect(0, 0, verbose);
+    if (res != 0)
+    {
+      g_info << "Ndb_cluster_connection.connect(0,0,1) returned " << res
+             << " and error message set to : '" << con->get_latest_error_msg()
+             << "'" << endl;
+
+      if (res != 1)
+      {
+        // The error returned should be 1
+        g_err << "Unexpected return code " << res << " returned" << endl;
+        result = false;
+      }
+      else if (strstr(con->get_latest_error_msg(),
+                      "No free node id found for mysqld(API)") == NULL)
+      {
+        // The error message should end with "No free node id
+        // found for mysqld(API)" since this host is configured in the config
+        g_err << "Unexpected error message " << con->get_latest_error_msg()
+              << " returned" << endl;
+        result = false;
+      }
+      else
+      {
+        ndbout << "check_connect_until_no_more_nodeid OK!" << endl;
+      }
+      break;
+    }
+  }
+
+  while(connections.size())
+  {
+    Ndb_cluster_connection* con = connections[0];
+    g_info << "releasing connection, size: " << connections.size() << endl;
+    delete con;
+    connections.erase(0);
+  }
+  assert(connections.size() == 0);
+
+  return result;
+}
+
+
+int runNdbClusterConnectionConnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Get connectstring from main connection
+  char constr[256];
+  if(!ctx->m_cluster_connection.get_connectstring(constr,
+                                                  sizeof(constr)))
+  {
+    g_err << "Too short buffer for connectstring" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (!check_connect_no_such_host() ||
+      !check_connect_until_no_more_nodeid(constr))
+  {
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -4928,6 +5035,11 @@ TESTCASE("NdbClusterConnect",
   INITIALIZER(runNdbClusterConnectInit);
   STEPS(runNdbClusterConnect, MAX_NODES);
 }
+TESTCASE("NdbClusterConnectionConnect",
+         "Test Ndb_cluster_connection::connect()")
+{
+  INITIALIZER(runNdbClusterConnectionConnect);
+}
 
 NDBT_TESTSUITE_END(testNdbApi);
 
@@ -4940,3 +5052,4 @@ int main(int argc, const char** argv){
 
 template class Vector<Ndb*>;
 template class Vector<NdbConnection*>;
+template class Vector<Ndb_cluster_connection*>;
