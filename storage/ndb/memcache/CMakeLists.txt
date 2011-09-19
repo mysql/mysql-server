@@ -123,7 +123,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
                
 # Build the module
 add_library(ndb_engine MODULE ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndb_engine ndbclient ndbgeneral)
+target_link_libraries(ndb_engine ndbclient_static ndbgeneral)
 
 # Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
@@ -150,7 +150,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
 
 # Build the library used by the unit tests
 add_library(ndbmemcache SHARED ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndbmemcache ndbclient ndbgeneral ${MEMCACHED_UTILITIES_LIBRARY})
+target_link_libraries(ndbmemcache ndbclient_static ndbgeneral ${MEMCACHED_UTILITIES_LIBRARY})
 set_target_properties(ndbmemcache PROPERTIES LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
 add_subdirectory(unit)
