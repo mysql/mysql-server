@@ -47,6 +47,7 @@ Created 10/25/1995 Heikki Tuuri
 # include "sync0sync.h"
 # include "os0sync.h"
 #else /* !UNIV_HOTBACKUP */
+# include "srv0srv.h"
 static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
 

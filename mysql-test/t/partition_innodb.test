@@ -39,7 +39,8 @@ DROP TABLE t1;
 --echo #            SELECT is not detected
 --echo #
 
-SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
+SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 SET GLOBAL innodb_thread_concurrency = 1;
 
 CREATE TABLE t1
@@ -88,6 +89,7 @@ COMMIT;
 --connection default
 
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
 DROP TABLE t1;
 
 

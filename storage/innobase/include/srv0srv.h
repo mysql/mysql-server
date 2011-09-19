@@ -49,25 +49,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "que0types.h"
 #include "trx0types.h"
 #include "srv0conc.h"
-
-/** Alternatives for srv_checksum_algorithm, which can be changed by
-setting innodb_checksum_algorithm */
-enum srv_checksum_algorithm_enum {
-	SRV_CHECKSUM_ALGORITHM_CRC32,		/*!< Write crc32, allow crc32,
-						innodb or none when reading */
-	SRV_CHECKSUM_ALGORITHM_STRICT_CRC32,	/*!< Write crc32, allow crc32
-						when reading */
-	SRV_CHECKSUM_ALGORITHM_INNODB,		/*!< Write innodb, allow crc32,
-						innodb or none when reading */
-	SRV_CHECKSUM_ALGORITHM_STRICT_INNODB,	/*!< Write innodb, allow
-						innodb when reading */
-	SRV_CHECKSUM_ALGORITHM_NONE,		/*!< Write none, allow crc32,
-						innodb or none when reading */
-	SRV_CHECKSUM_ALGORITHM_STRICT_NONE,	/*!< Write none, allow none
-						when reading */
-};
-
-typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
+#include "buf0checksum.h"
 
 extern const char*	srv_main_thread_op_info;
 
@@ -125,31 +107,18 @@ extern FILE*	srv_misc_tmpfile;
 
 extern char*	srv_data_home;
 
-/** Server undo tablespaces directory, can be absolute path. */
-extern char*	srv_undo_dir;
-
-/** Number of undo tablespaces to use. */
-extern ulong	srv_undo_tablespaces;
-
-/* The number of undo segments to use */
-extern ulong	srv_undo_logs;
-
 #ifdef UNIV_LOG_ARCHIVE
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-#ifndef UNIV_HOTBACKUP
 extern my_bool	srv_file_per_table;
 /** Sleep delay for threads waiting to enter InnoDB. In micro-seconds. */
 extern	ulong	srv_thread_sleep_delay;
 #if defined(HAVE_ATOMIC_BUILTINS)
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
 extern	ulong	srv_adaptive_max_sleep_delay;
-#endif /* HAVE_ATOMIC_BUILTINS */
-#else
-extern ibool	srv_file_per_table;
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 /** The file format to use on new *.ibd files. */
@@ -169,8 +138,18 @@ Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
 #ifdef __WIN__
 extern ibool	srv_use_native_conditions;
-#endif
+#endif /* __WIN__ */
 #endif /* !UNIV_HOTBACKUP */
+
+/** Server undo tablespaces directory, can be absolute path. */
+extern char*	srv_undo_dir;
+
+/** Number of undo tablespaces to use. */
+extern ulong	srv_undo_tablespaces;
+
+/* The number of undo segments to use */
+extern ulong	srv_undo_logs;
+
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;

@@ -302,8 +302,7 @@ void end_read_record(READ_RECORD *info)
     my_free_lock(info->cache);
     info->cache=0;
   }
-  if (info->table &&
-      (info->table->s->tmp_table != INTERNAL_TMP_TABLE || info->table->created))
+  if (info->table && info->table->created)
   {
     filesort_free_buffers(info->table,0);
     (void) info->table->file->extra(HA_EXTRA_NO_CACHE);

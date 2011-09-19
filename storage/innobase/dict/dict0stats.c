@@ -2797,7 +2797,7 @@ test_dict_stats_save()
 	enum db_err	ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = TEST_DATABASE_NAME "/" TEST_TABLE_NAME;
+	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	table.stat_n_rows = TEST_N_ROWS;
 	table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
 	table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
@@ -2961,7 +2961,7 @@ test_dict_stats_fetch_from_ps()
 	enum db_err	ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = TEST_DATABASE_NAME "/" TEST_TABLE_NAME;
+	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	UT_LIST_INIT(table.indexes);
 	UT_LIST_ADD_LAST(indexes, table.indexes, &index1);
 	UT_LIST_ADD_LAST(indexes, table.indexes, &index2);

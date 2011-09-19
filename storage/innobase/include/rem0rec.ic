@@ -572,7 +572,7 @@ rec_set_n_owned_new(
 {
 	rec_set_bit_field_1(rec, n_owned, REC_NEW_N_OWNED,
 			    REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
-	if (UNIV_LIKELY_NULL(page_zip)
+	if (page_zip
 	    && UNIV_LIKELY(rec_get_status(rec)
 			   != REC_STATUS_SUPREMUM)) {
 		page_zip_rec_set_owned(page_zip, rec, n_owned);
@@ -685,15 +685,13 @@ rec_get_deleted_flag(
 	ulint		comp)	/*!< in: nonzero=compact page format */
 {
 	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
-		return(UNIV_UNLIKELY(
-			       rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
-						   REC_INFO_DELETED_FLAG,
-						   REC_INFO_BITS_SHIFT)));
+		return(rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
+					   REC_INFO_DELETED_FLAG,
+					   REC_INFO_BITS_SHIFT));
 	} else {
-		return(UNIV_UNLIKELY(
-			       rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
-						   REC_INFO_DELETED_FLAG,
-						   REC_INFO_BITS_SHIFT)));
+		return(rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
+					   REC_INFO_DELETED_FLAG,
+					   REC_INFO_BITS_SHIFT));
 	}
 }
 
@@ -741,7 +739,7 @@ rec_set_deleted_flag_new(
 
 	rec_set_info_bits_new(rec, val);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_rec_set_deleted(page_zip, rec, flag);
 	}
 }
@@ -1041,7 +1039,7 @@ rec_get_nth_field_offs(
 	ut_ad(n < rec_offs_n_fields(offsets));
 	ut_ad(len);
 
-	if (UNIV_UNLIKELY(n == 0)) {
+	if (n == 0) {
 		offs = 0;
 	} else {
 		offs = rec_offs_base(offsets)[n] & REC_OFFS_MASK;
@@ -1085,7 +1083,7 @@ rec_offs_any_extern(
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
-	return(UNIV_UNLIKELY(*rec_offs_base(offsets) & REC_OFFS_EXTERNAL));
+	return(*rec_offs_base(offsets) & REC_OFFS_EXTERNAL);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
@@ -1138,8 +1136,7 @@ rec_offs_nth_extern(
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
-	return(UNIV_UNLIKELY(rec_offs_base(offsets)[1 + n]
-			     & REC_OFFS_EXTERNAL));
+	return(rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL);
 }
 
 /******************************************************//**
@@ -1154,8 +1151,7 @@ rec_offs_nth_sql_null(
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
-	return(UNIV_UNLIKELY(rec_offs_base(offsets)[1 + n]
-			     & REC_OFFS_SQL_NULL));
+	return(rec_offs_base(offsets)[1 + n] & REC_OFFS_SQL_NULL);
 }
 
 /******************************************************//**
@@ -1394,7 +1390,7 @@ rec_set_nth_field(
 	ut_ad(rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	if (UNIV_UNLIKELY(len == UNIV_SQL_NULL)) {
+	if (len == UNIV_SQL_NULL) {
 		if (!rec_offs_nth_sql_null(offsets, n)) {
 			ut_a(!rec_offs_comp(offsets));
 			rec_set_nth_field_sql_null(rec, n);
@@ -1596,7 +1592,7 @@ rec_get_converted_size(
 	ut_ad(dtuple);
 	ut_ad(dtuple_check_typed(dtuple));
 
-	ut_ad(index->type & DICT_UNIVERSAL
+	ut_ad(dict_index_is_univ(index)
 	      || dtuple_get_n_fields(dtuple)
 	      == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
 		   == REC_STATUS_NODE_PTR)
