@@ -30,12 +30,12 @@
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
-#include "sql_test.h"                           // TEST_filesort
 #include "opt_range.h"                          // SQL_SELECT
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "sql_select.h"
 #include "debug_sync.h"
+#include "opt_trace.h"
 
 	/* functions defined in this file */
 
@@ -65,7 +65,8 @@ static SORT_ADDON_FIELD *get_addon_fields(ulong max_length_for_sort_data,
                                           uint sortlength, uint *plength);
 static void unpack_addon_fields(struct st_sort_addon_field *addon_field,
                                 uchar *buff);
-static bool check_if_pq_applicable(Sort_param *param, FILESORT_INFO *info,
+static bool check_if_pq_applicable(Opt_trace_context *trace,
+                                   Sort_param *param, FILESORT_INFO *info,
                                    TABLE *table,
                                    ha_rows records, ulong memory_available);
 
@@ -99,6 +100,32 @@ void Sort_param::init_for_filesort(uint sortlen, TABLE *table,
   }
   rec_length= sort_length + addon_length;
   max_rows= maxrows;
+}
+
+
+static void trace_filesort_information(Opt_trace_context *trace,
+                                       const SORT_FIELD *sortorder,
+                                       uint s_length)
+{
+  if (!trace->is_started())
+    return;
+
+  Opt_trace_array trace_filesort(trace, "filesort_information");
+  for (; s_length-- ; sortorder++)
+  {
+    Opt_trace_object oto(trace);
+    oto.add_alnum("direction", sortorder->reverse ? "desc" : "asc");
+
+    if (sortorder->field)
+    {
+      if (sortorder->field->table_name)
+        oto.add_utf8_table(sortorder->field->table);
+      oto.add_alnum("field", sortorder->field->field_name ?
+                    sortorder->field->field_name : "tmp_table_column");
+    }
+    else
+      oto.add("expression", sortorder->item);
+  }
 }
 
 
@@ -151,9 +178,16 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   Sort_param param;
   bool multi_byte_charset;
   Bounded_queue<uchar, uchar> pq;
+  Opt_trace_context * const trace= &thd->opt_trace;
 
   DBUG_ENTER("filesort");
-  DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length););
+  /*
+    We need a nameless wrapper, since we may be inside the "steps" of
+    "join_execution".
+  */
+  Opt_trace_object trace_wrapper(trace);
+  trace_filesort_information(trace, sortorder, s_length);
+
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
@@ -211,8 +245,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       !(param.tmp_buffer= (char*) my_malloc(param.sort_length,MYF(MY_WME))))
     goto err;
 
-  if (param.max_rows != HA_POS_ERROR &&
-      check_if_pq_applicable(&param, &table_sort,
+  if (check_if_pq_applicable(trace, &param, &table_sort,
                              table, num_rows, memory_available))
   {
     DBUG_PRINT("info", ("filesort PQ is applicable"));
@@ -267,14 +300,26 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   param.sort_form= table;
   param.end=(param.local_sortorder=sortorder)+s_length;
-  num_rows= find_all_keys(&param, select, sort_keys, &buffpek_pointers,
-                          &tempfile, 
-                          pq.is_initialized() ? &pq : NULL,
-                          found_rows);
-  if (num_rows == HA_POS_ERROR)
-    goto err;
+  // New scope, because subquery execution must be traced within an array.
+  {
+    Opt_trace_array ota(trace, "filesort_execution");
+    num_rows= find_all_keys(&param, select, sort_keys, &buffpek_pointers,
+                            &tempfile, 
+                            pq.is_initialized() ? &pq : NULL,
+                            found_rows);
+    if (num_rows == HA_POS_ERROR)
+      goto err;
+  }
 
   maxbuffer= (uint) (my_b_tell(&buffpek_pointers)/sizeof(*buffpek));
+
+  Opt_trace_object(trace, "filesort_summary")
+    .add("records", num_rows)
+    .add("number_of_tmp_files", maxbuffer)
+    .add_alnum("sort_mode",
+               param.addon_field ?
+               "<sort_key, additional_fields>" : "<sort_key, rowid>");
+
   if (maxbuffer == 0)			// The whole set is in memory
   {
     if (save_index(&param, sort_keys, (uint) num_rows, &table_sort))
@@ -1127,6 +1172,7 @@ static bool save_index(Sort_param *param, uchar **sort_keys, uint count,
   ordered result set. If it is, then allocates buffer for required amount of
   records
 
+  @param trace            Current trace context.
   @param param            Sort parameters.
   @param filesort_info    Filesort information.
   @param table            Table to sort.
@@ -1151,7 +1197,8 @@ static bool save_index(Sort_param *param, uchar **sort_keys, uint count,
     false - PQ will be slower than merge-sort, or there is not enough memory.
 */
 
-bool check_if_pq_applicable(Sort_param *param,
+bool check_if_pq_applicable(Opt_trace_context *trace,
+                            Sort_param *param,
                             FILESORT_INFO *filesort_info,
                             TABLE *table, ha_rows num_rows,
                             ulong memory_available)
@@ -1164,15 +1211,25 @@ bool check_if_pq_applicable(Sort_param *param,
   */
   const double PQ_slowness= 3.0;
 
+  Opt_trace_object trace_filesort(trace,
+                                  "filesort_priority_queue_optimization");
   if (param->max_rows == HA_POS_ERROR)
   {
-    DBUG_PRINT("info", ("No LIMIT"));
+    trace_filesort
+      .add("usable", false)
+      .add_alnum("cause", "not applicable (no LIMIT)");
     DBUG_RETURN(false);
   }
 
+  trace_filesort
+    .add("limit", param->max_rows)
+    .add("records_estimate", num_rows)
+    .add("record_size", param->rec_length)
+    .add("memory_available", memory_available);
+
   if (param->max_rows + 2 >= UINT_MAX)
   {
-    DBUG_PRINT("info", ("Too large LIMIT"));
+    trace_filesort.add("usable", false).add_alnum("cause", "limit too large");
     DBUG_RETURN(false);
   }
 
@@ -1188,11 +1245,14 @@ bool check_if_pq_applicable(Sort_param *param,
     {
       make_char_array(filesort_info,
                       param->max_keys_per_buffer, param->rec_length);
+      trace_filesort.add("chosen", true);
       DBUG_RETURN(filesort_info->sort_keys != NULL);
     }
     else
     {
       // PQ will be slower.
+      trace_filesort.add("chosen", false)
+        .add_alnum("cause", "quicksort_is_cheaper");
       DBUG_RETURN(false);
     }
   }
@@ -1202,6 +1262,7 @@ bool check_if_pq_applicable(Sort_param *param,
   {
     make_char_array(filesort_info,
                     param->max_keys_per_buffer, param->rec_length);
+    trace_filesort.add("chosen", true);
     DBUG_RETURN(filesort_info->sort_keys != NULL);
   }
 
@@ -1212,13 +1273,21 @@ bool check_if_pq_applicable(Sort_param *param,
       param->sort_length + param->ref_length + sizeof(char*);
     num_available_keys= memory_available / row_length;
 
+    Opt_trace_object trace_addon(trace, "strip_additional_fields");
+    trace_addon.add("record_size", row_length);
+
     // Can we fit all the keys in memory?
-    if (param->max_keys_per_buffer < num_available_keys)
+    if (param->max_keys_per_buffer >= num_available_keys)
+    {
+      trace_addon.add("chosen", false).add_alnum("cause", "not_enough_space");
+    }
+    else
     {
       const double sort_merge_cost=
         get_merge_many_buffs_cost_fast(num_rows,
                                        num_available_keys,
                                        row_length);
+      trace_addon.add("sort_merge_cost", sort_merge_cost);
       /*
         PQ has cost:
         (insert + qsort) * log(queue size) * ROWID_COMPARE_COST +
@@ -1234,10 +1303,15 @@ bool check_if_pq_applicable(Sort_param *param,
       const double pq_io_cost=
         param->max_rows * table->file->scan_time() / 2.0;
       const double pq_cost= pq_cpu_cost + pq_io_cost;
+      trace_addon.add("priority_queue_cost", pq_cost);
 
       if (sort_merge_cost < pq_cost)
+      {
+        trace_addon.add("chosen", false);
         DBUG_RETURN(false);
+      }
 
+      trace_addon.add("chosen", true);
       make_char_array(filesort_info,
                       param->max_keys_per_buffer,
                       param->sort_length + param->ref_length);
