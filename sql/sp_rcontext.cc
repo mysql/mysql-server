@@ -235,18 +235,26 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     Diagnostics_area::Sql_condition_iterator it= da->sql_conditions();
     const Sql_condition *c;
 
-    while (!found_handler && (c= it++))
+    // Here we need to find the last warning/note from the stack.
+    // In MySQL most substantial warning is the last one.
+    // (We could have used a reverse iterator here if one existed)
+
+    while ((c= it++))
     {
       if (c->get_level() == Sql_condition::WARN_LEVEL_WARN ||
           c->get_level() == Sql_condition::WARN_LEVEL_NOTE)
       {
-        found_handler= cur_spi->m_ctx->find_handler(c->get_sqlstate(),
-                                                    c->get_sql_errno(),
-                                                    c->get_level());
+        const sp_handler *handler=
+          cur_spi->m_ctx->find_handler(c->get_sqlstate(),
+                                       c->get_sql_errno(),
+                                       c->get_level());
+        if (handler)
+        {
+          found_handler= handler;
+          found_condition= c;
+        }
       }
     }
-    if (found_handler)
-      found_condition= c;
   }
 
   if (!found_handler)
