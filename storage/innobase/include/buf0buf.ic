@@ -170,7 +170,7 @@ buf_page_peek_if_too_old(
 {
 	buf_pool_t*		buf_pool = buf_pool_from_bpage(bpage);
 
-	if (UNIV_UNLIKELY(buf_pool->freed_page_clock == 0)) {
+	if (buf_pool->freed_page_clock == 0) {
 		/* If eviction has not started yet, do not update the
 		statistics or move blocks in the LRU list.  This is
 		either the warm-up phase or an in-memory workload. */

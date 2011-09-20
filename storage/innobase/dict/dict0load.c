@@ -191,11 +191,9 @@ dict_print(void)
 	while (rec) {
 		const char* err_msg;
 
-		err_msg = dict_process_sys_tables_rec(
+		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
 			heap, rec, &table, DICT_TABLE_LOAD_FROM_CACHE
-			| DICT_TABLE_UPDATE_STATS);
-
-		mtr_commit(&mtr);
+			| DICT_TABLE_UPDATE_STATS, &mtr);
 
 		if (!err_msg) {
 			dict_table_print_low(table);
@@ -310,15 +308,17 @@ both monitor table output and information schema innodb_sys_tables output.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
-dict_process_sys_tables_rec(
-/*========================*/
+dict_process_sys_tables_rec_and_mtr_commit(
+/*=======================================*/
 	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_TABLES record */
 	dict_table_t**	table,		/*!< out: dict_table_t to fill */
-	dict_table_info_t status)	/*!< in: status bit controls
+	dict_table_info_t status,	/*!< in: status bit controls
 					options such as whether we shall
 					look for dict_table_t from cache
 					first */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction,
+					will be committed */
 {
 	ulint		len;
 	const char*	field;
@@ -329,12 +329,18 @@ dict_process_sys_tables_rec(
 
 	ut_a(!rec_get_deleted_flag(rec, 0));
 
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
+
 	/* Get the table name */
 	table_name = mem_heap_strdupl(heap, field, len);
 
 	/* If DICT_TABLE_LOAD_FROM_CACHE is set, first check
-	whether there is cached dict_table_t struct first */
+	whether there is cached dict_table_t struct */
 	if (status & DICT_TABLE_LOAD_FROM_CACHE) {
+
+		/* Commit before load the table again */
+		mtr_commit(mtr);
+
 		*table = dict_table_get_low(table_name);
 
 		if (!(*table)) {
@@ -342,6 +348,7 @@ dict_process_sys_tables_rec(
 		}
 	} else {
 		err_msg = dict_load_table_low(table_name, rec, table);
+		mtr_commit(mtr);
 	}
 
 	if (err_msg) {
