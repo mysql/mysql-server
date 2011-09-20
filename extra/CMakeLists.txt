@@ -80,7 +80,7 @@ IF(UNIX)
 ENDIF()
 
 # Support for bundled libevent and memcache
-option(WITH_MEMCACHE "Build memcache interface for MySQL Cluster" ON)
+# WITH_MEMCACHE is declared in storage/ndb/CMakeLists.txt
 option(WITH_LIBEVENT "Use bundled libevent for building memcached" ON)
 
 if(WITH_MEMCACHE) 
