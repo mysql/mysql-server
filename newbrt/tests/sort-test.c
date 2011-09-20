@@ -40,6 +40,18 @@ zero_array_test(void)
 }
 
 static void
+dup_array_test(int nelts)
+{
+    int *MALLOC_N(nelts, a);
+    for (int i = 0; i < nelts; ++i) {
+        a[i] = 1;
+    }
+    mergesort_r(a, nelts, sizeof a[0], &MAGIC_EXTRA, int_cmp);
+    check_int_array(a, nelts);
+    toku_free(a);
+}
+
+static void
 already_sorted_test(int nelts)
 {
     int *MALLOC_N(nelts, a);
@@ -67,13 +79,17 @@ int
 test_main(int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__)))
 {
     zero_array_test();
-    already_sorted_test(10);
-    already_sorted_test(1000);
-    already_sorted_test(10001);
-    already_sorted_test(10000000);
     random_array_test(10);
     random_array_test(1000);
     random_array_test(10001);
     random_array_test(10000000);
+    dup_array_test(10);
+    dup_array_test(1000);
+    dup_array_test(10001);
+    dup_array_test(10000000);
+    already_sorted_test(10);
+    already_sorted_test(1000);
+    already_sorted_test(10001);
+    already_sorted_test(10000000);
     return 0;
 }
