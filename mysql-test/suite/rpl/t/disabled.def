@@ -15,3 +15,4 @@ rpl_spec_variables        : BUG#11755836 2009-10-27 jasonh rpl_spec_variables fa
 rpl_get_master_version_and_clock : Bug#11766137 Jan 05 2011 joro Valgrind warnings rpl_get_master_version_and_clock
 rpl_row_until : BUG#59543 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
 rpl_stm_until : BUG#59543 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
+rpl_empty_master_host : bug#13003111 valgrind warning
