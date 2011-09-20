@@ -1258,8 +1258,7 @@ sync_thread_add_level(
 		break;
 	case SYNC_IBUF_INDEX_TREE:
 		if (sync_thread_levels_contain(array, SYNC_FSP)) {
-			ut_a(sync_thread_levels_g(
-				     array, SYNC_FSP_PAGE - 1, TRUE));
+			ut_a(sync_thread_levels_g(array, level - 1, TRUE));
 		} else {
 			ut_a(sync_thread_levels_g(
 				     array, SYNC_IBUF_TREE_NODE - 1, TRUE));
