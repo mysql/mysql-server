@@ -498,7 +498,6 @@ public:
     const Uint32 internalOpNo = m_operation.getQueryOperationDef().getQueryOperationId();
 
     const bool complete = !((remainingScans >> internalOpNo) & 1);
-    assert(complete || isScanResult());    // Lookups should always be 'complete'
     return complete; 
   }
 
@@ -919,10 +918,11 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
 void
 NdbResultStream::prepareNextReceiveSet()
 {
-  assert (isScanQuery());
-
-  m_recv = (m_recv+1) % 2;  // Receive into next ResultSet
-  assert(m_recv != m_read);
+  if (isScanQuery())          // Doublebuffered ResultSet[] if isScanQuery()
+  {
+    m_recv = (m_recv+1) % 2;  // Receive into next ResultSet
+    assert(m_recv != m_read);
+  }
 
   m_resultSets[m_recv].prepareReceive(m_receiver);
 
@@ -950,7 +950,6 @@ bool
 NdbResultStream::prepareResultSet(Uint32 remainingScans)
 {
   bool isComplete = isSubScanComplete(remainingScans); //Childs with more rows
-  assert(isComplete || isScanResult());                //Lookups always 'complete'
 
   /**
    * Prepare NdbResultSet for reading - either the next
@@ -1161,7 +1160,7 @@ NdbRootFragment::NdbRootFragment():
   m_availResultSets(0),
   m_outstandingResults(0),
   m_confReceived(false),
-  m_remainingScans(0),
+  m_remainingScans(0xffffffff),
   m_idMapHead(-1),
   m_idMapNext(-1)
 {
