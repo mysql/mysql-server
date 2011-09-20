@@ -854,7 +854,7 @@ btr_page_create(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	btr_blob_dbg_assert_empty(index, buf_block_get_page_no(block));
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_create_zip(block, index, level, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
@@ -1290,7 +1290,7 @@ btr_node_ptr_set_child_page_no(
 
 	ut_ad(len == REC_NODE_PTR_SIZE);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_write_node_ptr(page_zip, rec,
 					rec_offs_data_size(offsets),
 					page_no, mtr);
@@ -1560,7 +1560,7 @@ btr_create(
 	/* Create a new index page on the allocated segment page */
 	page_zip = buf_block_get_page_zip(block);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page = page_create_zip(block, index, 0, mtr);
 	} else {
 		page = page_create(block, mtr,
@@ -1772,7 +1772,7 @@ btr_page_reorganize_low(
 		ut_ad(max_trx_id != 0 || recovery);
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)
+	if (page_zip
 	    && UNIV_UNLIKELY
 	    (!page_zip_compress(page_zip, page, index, NULL))) {
 
@@ -1917,7 +1917,7 @@ btr_page_empty(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_create_zip(block, index, level, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
@@ -2237,7 +2237,7 @@ btr_page_get_split_rec(
 	free_space  = page_get_free_space_of_empty(page_is_comp(page));
 
 	page_zip = btr_cur_get_page_zip(cursor);
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		/* Estimate the free space of an empty compressed page. */
 		ulint	free_space_zip = page_zip_empty_size(
 			cursor->index->n_fields,
@@ -2888,7 +2888,7 @@ insert_empty:
 	}
 
 #ifdef UNIV_ZIP_DEBUG
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		ut_a(page_zip_validate(page_zip, page));
 		ut_a(page_zip_validate(new_page_zip, new_page));
 	}
@@ -3461,7 +3461,7 @@ err_exit:
 
 	merge_page_zip = buf_block_get_page_zip(merge_block);
 #ifdef UNIV_ZIP_DEBUG
-	if (UNIV_LIKELY_NULL(merge_page_zip)) {
+	if (merge_page_zip) {
 		const page_zip_des_t*	page_zip
 			= buf_block_get_page_zip(block);
 		ut_a(page_zip);
@@ -3497,7 +3497,7 @@ err_exit:
 		byte		fil_page_prev[4];
 #endif /* UNIV_BTR_DEBUG */
 
-		if (UNIV_LIKELY_NULL(merge_page_zip)) {
+		if (merge_page_zip) {
 			/* The function page_zip_compress(), which will be
 			invoked by page_copy_rec_list_end() below,
 			requires that FIL_PAGE_PREV be FIL_NULL.
@@ -3528,7 +3528,7 @@ err_exit:
 		btr_search_drop_page_hash_index(block);
 
 #ifdef UNIV_BTR_DEBUG
-		if (UNIV_LIKELY_NULL(merge_page_zip)) {
+		if (merge_page_zip) {
 			/* Restore FIL_PAGE_PREV in order to avoid an assertion
 			failure in btr_level_list_remove(), which will set
 			the field again to FIL_NULL.  Even though this makes
@@ -3831,7 +3831,7 @@ btr_print_size(
 	fputs("INFO OF THE NON-LEAF PAGE SEGMENT\n", stderr);
 	fseg_print(seg, &mtr);
 
-	if (!(index->type & DICT_UNIVERSAL)) {
+	if (!dict_index_is_univ(index)) {
 
 		seg = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 
@@ -4025,7 +4025,7 @@ btr_index_rec_validate(
 
 	page = page_align(rec);
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		/* The insert buffer index tree can contain records from any
 		other index: we cannot check the number of fields or
 		their length */

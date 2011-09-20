@@ -5231,6 +5231,27 @@ trace
       "join_execution": {
         "select#": 1,
         "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "database": "",
+                "table": "",
+                "field": "a"
+              }
+            ] /* filesort_information */,
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            } /* filesort_priority_queue_optimization */,
+            "filesort_execution": [
+            ] /* filesort_execution */,
+            "filesort_summary": {
+              "records": 2,
+              "number_of_tmp_files": 0,
+              "sort_mode": "<sort_key, rowid>"
+            } /* filesort_summary */
+          }
         ] /* steps */
       } /* join_execution */
     }
