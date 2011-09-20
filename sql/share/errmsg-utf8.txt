@@ -6417,3 +6417,6 @@ ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
 
 ER_INDEX_CORRUPT
   eng "Index %s is corrupted"
+
+ER_UNDO_RECORD_TOO_BIG
+  eng "Undo log record is too big."

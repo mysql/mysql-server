@@ -684,7 +684,6 @@ or row lock! */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
-#define SYNC_THR_LOCAL		133
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130
 
