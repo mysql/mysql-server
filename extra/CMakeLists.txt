@@ -79,6 +79,10 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
 ENDIF()
 
+# Support for bundled libevent and memcache
+option(WITH_MEMCACHE "Build memcache interface for MySQL Cluster" ON)
+option(WITH_LIBEVENT "Use bundled libevent for building memcached" ON)
+
 if(WITH_MEMCACHE) 
   add_subdirectory(memcached)
   
@@ -87,5 +91,4 @@ if(WITH_MEMCACHE)
     add_dependencies(memcached event)
   endif()
 endif()
-
 

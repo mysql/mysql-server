@@ -13,11 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-include(CheckIncludeFile) 
-option(WITH_MEMCACHE "Build memcache interface for MySQL Cluster" ON)
 
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
-
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
                     ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
