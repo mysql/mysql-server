@@ -347,6 +347,10 @@ int Gcalc_result_receiver::add_point(double x, double y)
   buffer.q_append(prev_y);
   prev_x= x;
   prev_y= y;
+#ifndef NO_TESTING
+  if (n_points == 53)
+    printf("xxx\n");
+#endif /*NO_TESTING*/
   return 0;
 }
 
@@ -488,6 +492,9 @@ int Gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_positio
 
 Gcalc_operation_reducer::Gcalc_operation_reducer(size_t blk_size) :
   Gcalc_dyn_list(blk_size, sizeof(res_point)),
+#ifndef DBUG_OFF
+  n_res_points(0),
+#endif /*DBUG_OFF*/
   m_res_hook((Gcalc_dyn_list::Item **)&m_result),
   m_first_active_thread(NULL)
 {}
@@ -514,9 +521,73 @@ Gcalc_operation_reducer(Gcalc_function *fn, modes mode, size_t blk_size) :
 }
 
 
-inline int Gcalc_operation_reducer::continue_range(active_thread *t,
-						const Gcalc_heap::Info *p,
-                                                int horiz_dir, double dx_dy)
+void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
+{
+  if ((intersection_point= si->intersection_step()))
+    ii= si->get_cur_ii();
+  else
+    pi= si->get_cur_pi();
+}
+
+#ifndef NO_TESTING
+void call_checkpoint(int d)
+{
+  printf("%d\n", d);
+}
+#endif /*NO_TESTING*/
+
+Gcalc_operation_reducer::res_point *
+  Gcalc_operation_reducer::add_res_point(Gcalc_function::shape_type type)
+{
+  res_point *result= (res_point *)new_item();
+  *m_res_hook= result;
+  result->prev_hook= m_res_hook;
+  m_res_hook= &result->next;
+  result->type= type;
+#ifndef DBUG_OFF
+  result->point_n= n_res_points++;
+#endif /*DBUG_OFF*/
+#ifndef NO_TESTING
+  if (result->point_n == 74)
+    call_checkpoint(74);
+#endif /*NO_TESTING*/
+  return result;
+}
+
+int Gcalc_operation_reducer::add_line(int incoming, active_thread *t,
+    const Gcalc_scan_iterator::point *p)
+{
+  line *l= new_line();
+  if (!l)
+    return 1;
+  l->incoming= incoming;
+  l->t= t;
+  l->p= p;
+  *m_lines_hook= l;
+  m_lines_hook= &l->next;
+  return 0;
+}
+
+
+int Gcalc_operation_reducer::add_poly_border(int incoming,
+    active_thread *t, int prev_state, const Gcalc_scan_iterator::point *p)
+{
+  poly_border *b= new_poly_border();
+  if (!b)
+    return 1;
+  b->incoming= incoming;
+  b->t= t;
+  b->prev_state= prev_state;
+  b->p= p;
+  *m_poly_borders_hook= b;
+  m_poly_borders_hook= &b->next;
+  return 0;
+}
+
+
+int Gcalc_operation_reducer::continue_range(active_thread *t,
+                                            const Gcalc_heap::Info *p,
+                                            const Gcalc_heap::Info *p_next)
 {
   res_point *rp= add_res_point(t->rp->type);
   if (!rp)
@@ -527,15 +598,14 @@ inline int Gcalc_operation_reducer::continue_range(active_thread *t,
   rp->intersection_point= false;
   rp->pi= p;
   t->rp= rp;
-  t->horiz_dir= horiz_dir;
-  t->dx_dy= dx_dy;
+  t->p1= p;
+  t->p2= p_next;
   return 0;
 }
 
 
 inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
-						  double x, double y,
-                                                  int horiz_dir, double dx_dy)
+			            const Gcalc_heap::Intersection_info *ii)
 {
   res_point *rp= add_res_point(t->rp->type);
   if (!rp)
@@ -544,11 +614,8 @@ inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
   rp->down= t->rp;
   t->rp->up= rp;
   rp->intersection_point= true;
-  rp->x= x;
-  rp->y= y;
+  rp->ii= ii;
   t->rp= rp;
-  t->horiz_dir= horiz_dir;
-  t->dx_dy= dx_dy;
   return 0;
 }
 
@@ -573,6 +640,9 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
 }
 
 
+#ifndef NO_TESTING
+int ca_counter= 0;
+#endif /*NO_TESTING*/
 int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
 {
   Gcalc_point_iterator pi(si);
@@ -587,8 +657,16 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   active_thread *bottom_threads= NULL;
   active_thread *eq_thread, *point_thread;;
 
+#ifndef NO_TESTING
+  if (ca_counter == 11522)
+    call_checkpoint(89);
+#endif /*NO_TESTING*/
   m_fn->clear_state();
   /* Walk to the event, remembering what is needed. */
+#ifndef NO_TESTING
+  if (si->get_event_position() == pi.point())
+    printf("yyy\n");
+#endif /*NO_TESTING*/
   for (; pi.point() != si->get_event_position();
        ++pi, cur_t_hook= (active_thread **) &(*cur_t_hook)->next)
   {
@@ -612,13 +690,13 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       case scev_point:
       {
         if (cur_t->enabled() &&
-            continue_range(cur_t, events->pi, events->horiz_dir, events->dx_dy))
+            continue_range(cur_t, events->pi, events->next_pi))
           return 1;
         break;
       }
       case scev_end:
       {
-        if (cur_t->enabled() && end_line(cur_t, events->pi, si))
+        if (cur_t->enabled() && end_line(cur_t, si))
           return 1;
         *cur_t_hook= cur_t->get_next();
         free_item(cur_t);
@@ -635,8 +713,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
         else if (cur_t->enabled() || cur_t->get_next()->enabled())
         {
           /* Rare case when edges of a polygon coincide */
-          if (end_line(cur_t->enabled() ? cur_t : cur_t->get_next(),
-                       events->pi, si))
+          if (end_line(cur_t->enabled() ? cur_t : cur_t->get_next(), si))
             return 1;
         }
         *cur_t_hook= cur_t->get_next()->get_next();
@@ -647,6 +724,9 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       default:
         DBUG_ASSERT(0);
     }
+#ifndef NO_TESTING
+    goto testing;
+#endif /*NO_TESTING*/
     return 0;
   }
 
@@ -773,7 +853,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     for (events= si->get_events(); events; events= events->get_next())
       m_fn->set_on_state(events->get_shape());
 
-    return m_fn->count() ? add_single_point(event_point, si) : 0;
+    return m_fn->count() ? add_single_point(si) : 0;
   }
 
   if (m_poly_borders)
@@ -783,6 +863,10 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     {
       poly_border *pb1, *pb2;
       pb1= m_poly_borders;
+#ifndef NO_TESTING
+      if (!m_poly_borders->next)
+        call_checkpoint(3);
+#endif /*NO_TESTING*/
       DBUG_ASSERT(m_poly_borders->next);
 
       pb2= get_pair_border(pb1);
@@ -790,8 +874,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       m_poly_borders= pb1->get_next();
       if (connect_threads(pb1->incoming, pb2->incoming,
                           pb1->t, pb2->t, pb1->p, pb2->p,
-                          prev_range, event_point, si,
-                          Gcalc_function::shape_polygon))
+                          prev_range, si, Gcalc_function::shape_polygon))
         return 1;
 
       free_item(pb1);
@@ -809,8 +892,8 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     {
       if (connect_threads(m_lines->incoming, m_lines->get_next()->incoming,
                           m_lines->t, m_lines->get_next()->t,
-                          m_lines->p, m_lines->get_next()->p, NULL,
-                          event_point, si, Gcalc_function::shape_line))
+                          m_lines->p, m_lines->get_next()->p,
+                          NULL, si, Gcalc_function::shape_line))
         return 1;
     }
     else
@@ -819,11 +902,11 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       {
         if (cur_line->incoming)
         {
-          if (end_line(cur_line->t, event_point, si))
+          if (end_line(cur_line->t, si))
             return 1;
         }
         else
-          start_line(cur_line->t, cur_line->p, event_point, si);
+          start_line(cur_line->t, cur_line->p, si);
       }
     }
     free_list(m_lines);
@@ -834,28 +917,56 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   if (bottom_threads)
     free_list(bottom_threads);
 
+#ifndef NO_TESTING
+testing:
+  {
+    Gcalc_point_iterator x_pi(si);
+    active_thread **x_cur_t_hook= &m_first_active_thread;
+    int x_prev_state= 0;
+    m_fn->save_states();
+    m_fn->clear_state();
+    if (ca_counter == /*11552*/90)
+      call_checkpoint(10);
+    for (; x_pi.point(); ++x_pi)
+    {
+      active_thread *cur_t= *x_cur_t_hook;
+      if (cur_t->enabled() &&
+          cur_t->rp->type == Gcalc_function::shape_polygon)
+        x_prev_state^= 1;
+      int ppb= m_fn->count();
+      if (m_fn->get_shape_kind(x_pi.get_shape()) == Gcalc_function::shape_polygon)
+        m_fn->invert_state(x_pi.get_shape());
+      int ppa= m_fn->count();
+      if (ppa != x_prev_state)
+      {
+        if (x_pi.point()->cmp_dx_dy(x_pi.point()->get_next()) != 0)
+          call_checkpoint(21);
+      }
+      if (cur_t->enabled())
+      {
+        if (m_fn->get_shape_kind(x_pi.get_shape()) == Gcalc_function::shape_polygon)
+          if (ppa == ppb)
+            call_checkpoint(22);
+        else
+          if (ppa != 0 && ppb != 0)
+            call_checkpoint(23);
+      }
+      x_cur_t_hook= (active_thread **) &(*x_cur_t_hook)->next;
+    }
+    m_fn->restore_states();
+  }
+#endif /*NO_TESTING*/
   return 0;
 }
 
 
-int Gcalc_operation_reducer::add_single_point(const Gcalc_heap::Info *p,
-                                              const Gcalc_scan_iterator *si)
+int Gcalc_operation_reducer::add_single_point(const Gcalc_scan_iterator *si)
 {
   res_point *rp= add_res_point(Gcalc_function::shape_point);
   if (!rp)
     return 1;
   rp->glue= rp->up= rp->down= NULL;
-  if (p)
-  {
-    rp->intersection_point= false;
-    rp->pi= p;
-  }
-  else
-  {
-    rp->intersection_point= true;
-    rp->y= si->get_y();
-    rp->x= si->get_events()->x;
-  }
+  rp->set(si);
   return 0;
 }
 
@@ -912,7 +1023,7 @@ int Gcalc_operation_reducer::connect_threads(
     int incoming_a, int incoming_b,
     active_thread *ta, active_thread *tb,
     const Gcalc_scan_iterator::point *pa, const Gcalc_scan_iterator::point *pb,
-    active_thread *prev_range, const Gcalc_heap::Info *ev_p,
+    active_thread *prev_range,
     const Gcalc_scan_iterator *si, Gcalc_function::shape_type s_t)
 {
   if (incoming_a && incoming_b)
@@ -929,18 +1040,8 @@ int Gcalc_operation_reducer::connect_threads(
     rpa->up= rpb->up= NULL;
     ta->rp->up= rpa;
     tb->rp->up= rpb;
-    if (ev_p)
-    {
-      rpa->intersection_point= rpb->intersection_point= false;
-      rpa->pi= rpb->pi= ev_p;
-    }
-    else
-    {
-      rpa->intersection_point= rpb->intersection_point= true;
-      rpa->x= rpb->x= si->get_events()->x;
-      rpa->y= rpb->y= si->get_y();
-    }
-
+    rpa->set(si);
+    rpb->set(si);
     ta->rp= tb->rp= NULL;
     return 0;
   }
@@ -953,35 +1054,30 @@ int Gcalc_operation_reducer::connect_threads(
       return 1;
     rp0->glue= rp1;
     rp1->glue= rp0;
-    if (ev_p)
-    {
-      rp0->intersection_point= rp1->intersection_point= false;
-      rp0->pi= rp1->pi= ev_p;
-    }
-    else
-    {
-      rp0->intersection_point= rp1->intersection_point= true;
-      rp0->x= rp1->x= si->get_events()->x;
-      rp0->y= rp1->y= si->get_y();
-    }
+    rp0->set(si);
+    rp1->set(si);
     rp0->down= rp1->down= NULL;
     ta->rp= rp0;
     tb->rp= rp1;
-    ta->horiz_dir= pa->horiz_dir;
-    ta->dx_dy= pa->dx_dy;
+    ta->p1= pa->pi;
+    ta->p2= pa->next_pi;
 
-    tb->horiz_dir= pb->horiz_dir;
-    tb->dx_dy= pb->dx_dy;
+    tb->p1= pb->pi;
+    tb->p2= pb->next_pi;
 
     if (prev_range)
     {
       rp0->outer_poly= prev_range->thread_start;
       tb->thread_start= prev_range->thread_start;
+      /* Chack if needed */
+      ta->thread_start= prev_range->thread_start;
     }
     else
     {
       rp0->outer_poly= 0;
       ta->thread_start= rp0;
+      /* Chack if needed */
+      tb->thread_start= rp0;
     }
     return 0;
   }
@@ -991,20 +1087,18 @@ int Gcalc_operation_reducer::connect_threads(
   tb->rp= ta->rp;
   tb->thread_start= ta->thread_start;
   if (Gcalc_scan_iterator::point::
-      compare_dx_dy(ta->horiz_dir, ta->dx_dy,
-                    pb->horiz_dir, pb->dx_dy) != 0)
+      cmp_dx_dy(ta->p1, ta->p2, pb->pi, pb->next_pi) != 0)
   {
-    if (ev_p ? continue_range(tb, ev_p, pb->horiz_dir, pb->dx_dy):
-               continue_i_range(tb,
-                                si->get_events()->x, si->get_y(),
-                                pb->horiz_dir, pb->dx_dy))
+    if (si->intersection_step() ?
+          continue_i_range(tb, si->get_cur_ii()) :
+          continue_range(tb, si->get_cur_pi(), pb->next_pi))
+#ifdef TMP_BLOCK
+          continue_range(tb, si->get_cur_pi())
+#endif /*TMP_BLOCK*/
       return 1;
   }
-  else
-  {
-    tb->horiz_dir= pb->horiz_dir;
-    tb->dx_dy= pb->dx_dy;
-  }
+  tb->p1= pb->pi;
+  tb->p2= pb->next_pi;
 
   return 0;
 }
@@ -1012,33 +1106,21 @@ int Gcalc_operation_reducer::connect_threads(
 
 int Gcalc_operation_reducer::start_line(active_thread *t,
                                         const Gcalc_scan_iterator::point *p,
-                                        const Gcalc_heap::Info *ev_p,
                                         const Gcalc_scan_iterator *si)
 {
   res_point *rp= add_res_point(Gcalc_function::shape_line);
   if (!rp)
     return 1;
   rp->glue= rp->down= NULL;
-  if (ev_p)
-  {
-    rp->intersection_point= false;
-    rp->pi= ev_p;
-  }
-  else
-  {
-    rp->intersection_point= true;
-    rp->x= si->get_events()->x;
-    rp->y= si->get_y();
-  }
+  rp->set(si);
   t->rp= rp;
-  t->horiz_dir= p->horiz_dir;
-  t->dx_dy= p->dx_dy;
+  t->p1= p->pi;
+  t->p2= p->next_pi;
   return 0;
 }
 
 
 int Gcalc_operation_reducer::end_line(active_thread *t,
-                                      const Gcalc_heap::Info *ev_p,
                                       const Gcalc_scan_iterator *si)
 {
   DBUG_ASSERT(t->rp->type == Gcalc_function::shape_line);
@@ -1047,17 +1129,7 @@ int Gcalc_operation_reducer::end_line(active_thread *t,
     return 1;
   rp->glue= rp->up= NULL;
   rp->down= t->rp;
-  if (ev_p)
-  {
-    rp->intersection_point= false;
-    rp->pi= ev_p;
-  }
-  else
-  {
-    rp->intersection_point= true;
-    rp->x= si->get_events()->x;
-    rp->y= si->get_y();
-  }
+  rp->set(si);
   t->rp->up= rp;
   t->rp= NULL;
 
@@ -1071,6 +1143,11 @@ int Gcalc_operation_reducer::count_all(Gcalc_heap *hp)
   si.init(hp);
   while (si.more_points())
   {
+#ifndef NO_TESTING
+    printf("Point %d\n", ++ca_counter);
+    if (ca_counter == 12)
+      call_checkpoint(10);
+#endif /*NO_TESTING*/
     if (si.step())
       return 1;
     if (count_slice(&si))
@@ -1094,8 +1171,9 @@ inline int Gcalc_operation_reducer::get_single_result(res_point *res,
 {
   if (res->intersection_point)
   {
-    if (storage->single_point(float_to_coord(res->x),
-			      float_to_coord(res->y)))
+    double x, y;
+    res->ii->calc_xy(&x, &y);
+    if (storage->single_point(x,y))
       return 1;
   }
   else
@@ -1105,6 +1183,9 @@ inline int Gcalc_operation_reducer::get_single_result(res_point *res,
   return 0;
 }
 
+#ifndef NO_TESTING
+int pc_counter= 0;
+#endif /*NO_TESTING*/
 
 int Gcalc_operation_reducer::get_result_thread(res_point *cur,
                                                Gcalc_result_receiver *storage,
@@ -1116,12 +1197,16 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
   double x, y;
   while (cur)
   {
+#ifndef NO_TESTING
+    ++pc_counter;
+    if (pc_counter == 79)
+      call_checkpoint(79);
+#endif /*NO_TESTING*/
     if (!glue_step)
     {
       if (cur->intersection_point)
       {
-        x= float_to_coord(cur->x);
-        y= float_to_coord(cur->y);
+        cur->ii->calc_xy(&x, &y);
       }
       else
       {

@@ -59,8 +59,11 @@ public:
   }
   inline void free_list(Item *list, Item **hook)
   {
-    *hook= m_free;
-    m_free= list;
+    if (*hook != list)
+    {
+      *hook= m_free;
+      m_free= list;
+    }
   }
 
   void free_list(Item *list)
@@ -91,6 +94,79 @@ protected:
   }
 };
 
+/* Internal Gcalc coordinates to provide the precise calculations */
+
+#define DIG_BASE     1000000000
+typedef int32 coord_digit_t;
+typedef long long coord2;
+
+#define C_SCALE 1e13
+#define COORD_BASE 2
+#ifndef DBUG_OFF
+//#define GCALC_CHECK_WITH_FLOAT
+#define NO_TESTING
+#else
+#define NO_TESTING
+#endif /*DBUG_OFF*/
+
+class Gcalc_internal_coord
+{
+public:
+  coord_digit_t *digits;
+  int sign;
+  int n_digits;
+  void set_zero();
+  int is_zero() const;
+#ifdef GCALC_CHECK_WITH_FLOAT
+  long double get_double() const;
+#endif /*GCALC_CHECK_WITH_FLOAT*/
+};
+
+
+class Gcalc_coord1 : public Gcalc_internal_coord
+{
+  coord_digit_t c[COORD_BASE];
+public:
+  void init()
+  {
+    n_digits= COORD_BASE;
+    digits= c;
+  }
+  int set_double(double d);
+  void copy(const Gcalc_coord1 *from);
+};
+
+
+class Gcalc_coord2 : public Gcalc_internal_coord
+{
+  coord_digit_t c[COORD_BASE*2];
+public:
+  void init()
+  {
+    n_digits= COORD_BASE*2;
+    digits= c;
+  }
+};
+
+
+void gcalc_mul_coord(Gcalc_internal_coord *result,
+                     const Gcalc_internal_coord *a,
+                     const Gcalc_internal_coord *b);
+
+void gcalc_add_coord(Gcalc_internal_coord *result,
+                     const Gcalc_internal_coord *a,
+                     const Gcalc_internal_coord *b);
+
+void gcalc_sub_coord(Gcalc_internal_coord *result,
+                     const Gcalc_internal_coord *a,
+                     const Gcalc_internal_coord *b);
+
+int gcalc_cmp_coord(const Gcalc_internal_coord *a,
+                    const Gcalc_internal_coord *b);
+
+/* Internal coordinates declarations end. */
+
+
 typedef uint gcalc_shape_info;
 
 /*
@@ -114,27 +190,34 @@ public:
     Info *left;
     Info *right;
     double x,y;
+    Gcalc_coord1 ix, iy;
 
     inline bool is_bottom() const { return !left; }
     inline Info *get_next() { return (Info *)next; }
     inline const Info *get_next() const { return (const Info *)next; }
   };
+  class Intersection_info : public Gcalc_dyn_list::Item
+  {
+  public:
+    /* Line p1-p2 supposed to intersect line p3-p4 */
+    const Info *p1;
+    const Info *p2;
+    const Info *p3;
+    const Info *p4;
+    void calc_xy(double *x, double *y) const;
+#ifdef GCALC_CHECK_WITH_FLOAT
+    void calc_xy_ld(long double *x, long double *y) const;
+#endif /*GCALC_CHECK_WITH_FLOAT*/
+  };
 
   Gcalc_heap(size_t blk_size=8192) :
-    Gcalc_dyn_list(blk_size, sizeof(Info)), m_hook(&m_first), m_n_points(0) {}
-  Info *new_point_info(double x, double y, gcalc_shape_info shape)
-  {
-    Info *result= (Info *)new_item();
-    if (!result)
-      return NULL;
-    *m_hook= result;
-    m_hook= &result->next;
-    m_n_points++;
-    result->x= x;
-    result->y= y;
-    result->shape= shape;
-    return result;
-  }
+    Gcalc_dyn_list(blk_size, sizeof(Info)),
+    m_hook(&m_first), m_n_points(0),
+    m_intersection_hook((Gcalc_dyn_list::Item **) &m_first_intersection)
+  {}
+  Info *new_point_info(double x, double y, gcalc_shape_info shape);
+  Intersection_info *new_intersection(const Info *p1, const Info *p2,
+                                      const Info *p3, const Info *p4);
   void prepare_operation();
   inline bool ready() const { return m_hook == NULL; }
   Info *get_first() { return (Info *)m_first; }
@@ -145,6 +228,8 @@ private:
   Gcalc_dyn_list::Item *m_first;
   Gcalc_dyn_list::Item **m_hook;
   int m_n_points;
+  Intersection_info *m_first_intersection;
+  Gcalc_dyn_list::Item **m_intersection_hook;
 };
 
 
@@ -263,9 +348,13 @@ public:
   class point : public Gcalc_dyn_list::Item
   {
   public:
+#ifdef TMP_BLOCK
     double x;
     double dx_dy;
     int horiz_dir;
+#endif /*TMP_BLOCK*/
+    Gcalc_coord1 dx;
+    Gcalc_coord1 dy;
     Gcalc_heap::Info *pi;
     Gcalc_heap::Info *next_pi;
     sc_thread_id thread;
@@ -273,22 +362,32 @@ public:
     const point *intersection_link;
     Gcalc_scan_events event;
 #ifdef TO_REMOVE
-    const point *event_pair;
     point *next_link;
 #endif /*TO_REMOVE*/
 
     inline const point *c_get_next() const
       { return (const point *)next; }
-    inline bool is_bottom() const { return pi->is_bottom(); }
+    inline bool is_bottom() const { return !next_pi; }
     gcalc_shape_info get_shape() const { return pi->shape; }
     inline point *get_next() { return (point *)next; }
     inline const point *get_next() const { return (const point *)next; }
     /* copies all but 'next' 'x' and 'precursor' */
-    void copy_core(point *from);
+    void copy_core(const point *from);
+    void copy_all(const point *from);
     /* Compare the dx_dy parameters regarding the horiz_dir */
     /* returns -1 if less, 0 if equal, 1 if bigger          */
-    static int compare_dx_dy(int horiz_dir_a, double dx_dy_a,
-                             int horiz_dir_b, double dx_dy_b);
+#ifdef TMP_BLOCK
+    static int cmp_dx_dy(int horiz_dir_a, double dx_dy_a,
+                         int horiz_dir_b, double dx_dy_b);
+#endif /*TMP_BLOCK*/
+    static int cmp_dx_dy(const Gcalc_coord1 *dx_a,
+                         const Gcalc_coord1 *dy_a,
+                         const Gcalc_coord1 *dx_b,
+                         const Gcalc_coord1 *dy_b);
+    static int cmp_dx_dy(const Gcalc_heap::Info *p1,
+                         const Gcalc_heap::Info *p2,
+                         const Gcalc_heap::Info *p3,
+                         const Gcalc_heap::Info *p4);
     int cmp_dx_dy(const point *p) const;
     int simple_event() const
     {
@@ -298,6 +397,9 @@ public:
 #ifndef DBUG_OFF
     void dbug_print();
 #endif /*DBUG_OFF*/
+#ifdef GCALC_CHECK_WITH_FLOAT
+    void calc_x(long double *x, long double y, long double ix) const;
+#endif /*GCALC_CHECK_WITH_FLOAT*/
   };
 
   class intersection : public Gcalc_dyn_list::Item
@@ -306,8 +408,11 @@ public:
     int n_row;
     sc_thread_id thread_a;
     sc_thread_id thread_b;
+#ifdef TMP_BLOCK
     double x;
     double y;
+#endif /*TMP_BLOCK*/
+    const Gcalc_heap::Intersection_info *ii;
     inline intersection *get_next() { return (intersection *)next; }
   };
 
@@ -318,7 +423,15 @@ public:
     point *event_position;
     Gcalc_dyn_list::Item **event_position_hook;
     Gcalc_dyn_list::Item **event_end_hook;
+    int intersection_scan;
+    union
+    {
+      const Gcalc_heap::Info *pi;
+      const Gcalc_heap::Intersection_info *isc;
+    };
+#ifdef TMP_BLOCK
     double y;
+#endif /*TMP_BLOCK*/
     slice_state() : slice(NULL) {}
     void clear_event_position()
     {
@@ -350,10 +463,24 @@ public:
     { return (point *) *current_state->event_end_hook; }
   inline const point *get_b_slice() const { return current_state->slice; }
   inline const point *get_t_slice() const { return next_state->slice; }
-  inline double get_h() const { return current_state->y - next_state->y; }
-  inline double get_y() const { return current_state->y; }
+  double get_h() const;
+  double get_y() const;
+  double get_event_x() const;
+  double get_sp_x(const point *sp) const;
+  int intersection_step() const { return current_state->intersection_scan; }
+  const Gcalc_heap::Info *get_cur_pi() const
+  {
+    DBUG_ASSERT(!intersection_step());
+    return current_state->pi;
+  }
+  const Gcalc_heap::Intersection_info *get_cur_ii() const
+  {
+    DBUG_ASSERT(intersection_step());
+    return current_state->isc;
+  }
 
 private:
+  Gcalc_heap *m_heap;
   Gcalc_heap::Info *m_cur_pi;
   slice_state state0, state1, state_s;
   slice_state *current_state;
@@ -382,7 +509,10 @@ private:
   }
   point *new_slice_point()
   {
-    return (point *)new_item();
+    point *new_point= (point *)new_item();
+    new_point->dx.init();
+    new_point->dy.init();
+    return new_point;
   }
   point *new_slice(point *example);
   int arrange_event();
@@ -450,7 +580,6 @@ public:
   inline const Gcalc_scan_iterator::point *point() const { return sp; }
   inline const Gcalc_heap::Info *get_pi() const { return sp->pi; }
   inline gcalc_shape_info get_shape() const { return sp->get_shape(); }
-  inline double get_x() const { return sp->x; }
   inline void restart(const Gcalc_scan_iterator *scan_i)
   { sp= scan_i->get_b_slice(); }
 };

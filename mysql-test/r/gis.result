@@ -850,7 +850,7 @@ mbroverlaps
 down,left,right,up
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrtouches   FROM t1 a1 JOIN t1 a2 ON MBRTouches(    a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrtouches
-big,center,down,down2,left,left2,right,right2,small,up,up2
+down2,left2,right2,up2
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrwithin    FROM t1 a1 JOIN t1 a2 ON MBRWithin(     a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrwithin
 big,center
@@ -871,7 +871,7 @@ overlaps
 down,left,right,up
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS touches      FROM t1 a1 JOIN t1 a2 ON Touches(       a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 touches
-big,center,down,down2,left,left2,right,right2,small,up,up2
+down2,left2,right2,up2
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS within       FROM t1 a1 JOIN t1 a2 ON Within(        a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 within
 big,center

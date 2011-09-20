@@ -867,7 +867,8 @@ int Item_func_spatial_rel::func_touches()
       if (cur_func)
       {
         area= scan_it.get_h() *
-              ((ti.rb()->x - ti.lb()->x) + (ti.rt()->x - ti.lt()->x));
+              ((scan_it.get_sp_x(ti.rb()) - scan_it.get_sp_x(ti.lb())) +
+               (scan_it.get_sp_x(ti.rt()) - scan_it.get_sp_x(ti.lt())));
         if (area > GIS_ZERO)
         {
           result= 0;

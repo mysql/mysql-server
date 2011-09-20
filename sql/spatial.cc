@@ -2230,6 +2230,8 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, const char **end) const
     return 1;
   n_objects= uint4korr(data);
   data+= 4;
+  if (n_objects == 0)
+    return 1;
 
   while (n_objects--)
   {
