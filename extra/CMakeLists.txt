@@ -79,3 +79,6 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
 ENDIF()
 
+ADD_SUBDIRECTORY(libevent)
+ADD_SUBDIRECTORY(memcached)
+
