@@ -515,10 +515,22 @@ bool Sql_cmd_resignal::execute(THD *thd)
   {
     query_cache_abort(&thd->query_cache_tls);
 
-    /* Make room for 2 conditions. */
-    da->reserve_space(thd, 2);
+    /* Keep handled conditions. */
+    da->unmark_sql_conditions_from_removal();
 
-    da->push_warning(thd, &signaled_err);
+    /* Check if the old condition still exists. */
+    if (da->has_sql_condition(signaled->message, strlen(signaled->message)))
+    {
+      /* Make room for the new RESIGNAL condition. */
+      da->reserve_space(thd, 1);
+    }
+    else
+    {
+      /* Make room for old condition + the new RESIGNAL condition. */
+      da->reserve_space(thd, 2);
+
+      da->push_warning(thd, &signaled_err);
+    }
   }
 
   DBUG_RETURN(raise_condition(thd, &signaled_err));

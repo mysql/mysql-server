@@ -262,8 +262,11 @@ public:
                             Query_arena *backup_arena);
 
   /// Remove latest call frame from the handler call stack.
+  ///
+  /// @param da Diagnostics area containing handled conditions.
+  ///
   /// @return continue instruction pointer of the removed handler.
-  uint exit_handler();
+  uint exit_handler(Diagnostics_area *da);
 
   /////////////////////////////////////////////////////////////////////////
   // Cursors.

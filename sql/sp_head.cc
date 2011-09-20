@@ -1422,6 +1422,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       */
       da->opt_clear_warning_info(thd->query_id);
       da->copy_sql_conditions_from_wi(thd, &sp_wi);
+      da->remove_marked_sql_conditions();
     }
   }
 
@@ -3530,7 +3531,7 @@ sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hreturn::execute");
 
-  uint continue_ip= thd->spcont->exit_handler();
+  uint continue_ip= thd->spcont->exit_handler(thd->get_stmt_da());
 
   *nextp= m_dest ? m_dest : continue_ip;
 
