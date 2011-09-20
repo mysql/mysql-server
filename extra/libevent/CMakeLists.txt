@@ -18,6 +18,11 @@ ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/compat/sys)
 
+# libevent cannot currently be built with -Werror
+IF(CMAKE_C_FLAGS)
+  STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+ENDIF()
+
 SET(LIBEVENT_CORE_SOURCES
                 event.h
                 event-internal.h
