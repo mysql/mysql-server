@@ -1,0 +1,24 @@
+include/master-slave.inc
+[connection master]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+CREATE USER 'plug_user' IDENTIFIED WITH 'test_plugin_server' AS 'plug_user';
+GRANT REPLICATION SLAVE ON *.* TO plug_user;
+FLUSH PRIVILEGES;
+[connection slave]
+CHANGE MASTER TO 
+MASTER_USER=     'plug_user',
+MASTER_PASSWORD= 'plug_user';
+include/start_slave.inc
+# Slave in-sync with master now.
+SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug_user';
+user	plugin	authentication_string
+plug_user	test_plugin_server	plug_user
+# Cleanup (on slave).
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER='root';
+DROP USER 'plug_user';
+# Cleanup (on master).
+DROP USER 'plug_user';
+include/rpl_end.inc

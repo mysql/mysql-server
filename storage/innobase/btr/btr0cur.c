@@ -1845,6 +1845,7 @@ btr_cur_update_in_place(
 	roll_ptr_t	roll_ptr	= 0;
 	trx_t*		trx;
 	ulint		was_delete_marked;
+	ibool		is_hashed;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1886,7 +1887,21 @@ btr_cur_update_in_place(
 		return(err);
 	}
 
-	if (block->is_hashed) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+		row_upd_rec_sys_fields(rec, NULL,
+				       index, offsets, trx, roll_ptr);
+	}
+
+	was_delete_marked = rec_get_deleted_flag(
+		rec, page_is_comp(buf_block_get_frame(block)));
+
+	is_hashed = block->is_hashed;
+
+	if (is_hashed) {
+		/* TO DO: Can we skip this if none of the fields
+		index->search_info->curr_n_fields
+		are being updated? */
+
 		/* The function row_upd_changes_ord_field_binary works only
 		if the update vector was built for a clustered index, we must
 		NOT call it if index is secondary */
@@ -1902,17 +1917,9 @@ btr_cur_update_in_place(
 		rw_lock_x_lock(&btr_search_latch);
 	}
 
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
-		row_upd_rec_sys_fields(rec, NULL,
-				       index, offsets, trx, roll_ptr);
-	}
-
-	was_delete_marked = rec_get_deleted_flag(
-		rec, page_is_comp(buf_block_get_frame(block)));
-
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
-	if (block->is_hashed) {
+	if (is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
 
@@ -2638,7 +2645,8 @@ btr_cur_parse_del_mark_set_clust_rec(
 
 		/* We do not need to reserve btr_search_latch, as the page
 		is only being recovered, and there cannot be a hash index to
-		it. */
+		it. Besides, these fields are being updated in place
+		and the adaptive hash index does not depend on them. */
 
 		btr_rec_set_deleted_flag(rec, page_zip, val);
 
@@ -2718,9 +2726,9 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	if (block->is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
+	/* The btr_search_latch is not needed here, because
+	the adaptive hash index does not depend on the delete-mark
+	and the delete-mark is being updated in place. */
 
 	page_zip = buf_block_get_page_zip(block);
 
@@ -2732,10 +2740,6 @@ btr_cur_del_mark_set_clust_rec(
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_rec_sys_fields(rec, page_zip,
 				       index, offsets, trx, roll_ptr);
-	}
-
-	if (block->is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
 	}
 
 	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
@@ -2813,7 +2817,8 @@ btr_cur_parse_del_mark_set_sec_rec(
 
 		/* We do not need to reserve btr_search_latch, as the page
 		is only being recovered, and there cannot be a hash index to
-		it. */
+		it. Besides, the delete-mark flag is being updated in place
+		and the adaptive hash index does not depend on it. */
 
 		btr_rec_set_deleted_flag(rec, page_zip, val);
 	}
@@ -2861,15 +2866,10 @@ btr_cur_del_mark_set_sec_rec(
 	ut_ad(!!page_rec_is_comp(rec)
 	      == dict_table_is_comp(cursor->index->table));
 
-	if (block->is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
-
+	/* We do not need to reserve btr_search_latch, as the
+	delete-mark flag is being updated in place and the adaptive
+	hash index does not depend on it. */
 	btr_rec_set_deleted_flag(rec, buf_block_get_page_zip(block), val);
-
-	if (block->is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
-	}
 
 	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 
@@ -2891,8 +2891,11 @@ btr_cur_set_deleted_flag_for_ibuf(
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	/* We do not need to reserve btr_search_latch, as the page has just
-	been read to the buffer pool and there cannot be a hash index to it. */
+	/* We do not need to reserve btr_search_latch, as the page
+	has just been read to the buffer pool and there cannot be
+	a hash index to it.  Besides, the delete-mark flag is being
+	updated in place and the adaptive hash index does not depend
+	on it. */
 
 	btr_rec_set_deleted_flag(rec, page_zip, val);
 
