@@ -1,3 +1,24 @@
+2011-09-12	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#12601439 CONSISTENT READ FAILURE IN COLUMN PREFIX INDEX
+
+2011-09-08	The InnoDB Team
+
+	* btr/btr0cur.c, include/page0page.h, include/row0upd.ic:
+	Fix Bug#12948130 UNNECESSARY X-LOCKING OF ADAPTIVE HASH INDEX
+
+2011-09-06	The InnoDB Team
+
+	* buf/buf0buddy.c:
+	Fix Bug#12950803 62294: BUF_BUDDY_RELOCATE CALLS GETTIMEOFDAY
+	WHILE HOLDING BUFFER POOL MUTEX
+
+2011-09-06	The InnoDB Team
+
+	* include/trx0undo.h, trx/trx0rec.c, trx/trx0undo.c:
+	Fix Bug#12547647 UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
+
 2011-08-29	The InnoDB Team
 
 	* btr/btr0btr.c, btr/btr0cur.c, fsp/fsp0fsp.c,
@@ -6,11 +27,6 @@
 	row/row0ins.c, row/row0row.c, row/row0upd.c, trx/trx0undo.c:
 	Fix Bug#12704861 Corruption after a crash during BLOB update
 	and other regressions from the fix of Bug#12612184
-
-2011-08-23	The InnoDB Team
-
-	* include/trx0undo.h, trx/trx0rec.c, trx/trx0undo.c:
-	Fix Bug#12547647 UPDATE LOGGING COULD EXCEED LOG PAGE SIZE
 
 2011-08-15	The InnoDB Team
 
