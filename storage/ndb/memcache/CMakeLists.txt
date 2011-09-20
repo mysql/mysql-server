@@ -125,6 +125,12 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
 add_library(ndb_engine MODULE ${NDB_MEMCACHE_SOURCE_FILES})
 target_link_libraries(ndb_engine ndbclient_static ndbgeneral)
 
+add_dependencies(ndb_engine ndbclient_static ndbgeneral)
+# If we are using the bundled memcache, it is a dependency:
+if(WITH_MEMCACHE)
+  add_dependencies(ndb_engine memcached)
+endif()
+
 # Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
   set(FINAL_LINK_FLAGS "-flat_namespace -undefined suppress -bind_at_load")

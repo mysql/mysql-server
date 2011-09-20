@@ -11,7 +11,6 @@ if(WITH_MEMCACHE)
   set(MEMCACHED_ROOT_DIR ${CMAKE_SOURCE_DIR}/extra/memcached)
   set(MEMCACHED_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/memcached/include)
   set(MEMCACHED_UTILITIES_LIBRARY memcached_utilities)
-
 else()   
 
   # Find an installed memcached

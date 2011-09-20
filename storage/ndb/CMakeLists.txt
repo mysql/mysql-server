@@ -123,6 +123,9 @@ ELSE()
   OPTION(WITH_NDB_DEBUG
     "Disable special ndb debug features" OFF)
 
+  OPTION(WITH_MEMCACHE 
+    "Build bundled memcached" ON)
+
   SET(NDB_CCFLAGS "")
   IF(DEFINED WITH_NDB_CCFLAGS)
     SET(NDB_CCFLAGS "${WITH_NDB_CCFLAGS}")
