@@ -12426,7 +12426,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
             if (!tab->loosescan_match_tab)
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
-	    tab->type=JT_NEXT;		// Read with index_first / index_next
+            tab->type=JT_INDEX_SCAN;      // Read with index_first / index_next
 	  }
 	}
         if (tab->select && tab->select->quick &&
@@ -12434,7 +12434,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
           push_index_cond(tab, tab->select->quick->index, icp_other_tables_ok);
       }
       trace_refine_table.add_alnum("scan_type",
-                                   tab->type == JT_NEXT ? "index" : "table");
+                                   tab->type == JT_INDEX_SCAN ?
+                                   "index" : "table");
       break;
     case JT_FT:
       break;
@@ -12442,7 +12443,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
       break;					/* purecov: deadcode */
     case JT_UNKNOWN:
-    case JT_MAYBE_REF:
       abort();					/* purecov: deadcode */
     }
     // Materialize derived tables prior to accessing them.
@@ -21687,7 +21687,7 @@ check_reverse_order:
         tab->index= best_key;
         tab->read_first_record= order_direction > 0 ?
                                 join_read_first:join_read_last;
-        tab->type=JT_NEXT;           // Read with index_first(), index_next()
+        tab->type=JT_INDEX_SCAN;       // Read with index_first(), index_next()
 
         if (table->covering_keys.is_set(best_key))
           table->set_keyread(TRUE);
@@ -21746,7 +21746,7 @@ check_reverse_order:
           save_quick= 0;                // make_reverse() consumed it
         select->set_quick(tmp);
       }
-      else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
+      else if (tab->type != JT_INDEX_SCAN && tab->type != JT_REF_OR_NULL &&
                tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
       {
         /*
