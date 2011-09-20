@@ -81,3 +81,7 @@ ADD_LIBRARY(event STATIC ${LIBEVENT_CORE_SOURCES}
                          ${LIBEVENT_EVPORT_SOURCES} 
                          ${LIBEVENT_KQUEUE_SOURCES})
 
+if(LIBRT) 
+  target_link_libraries(event rt)
+endif()
+
