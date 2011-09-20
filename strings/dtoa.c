@@ -46,7 +46,7 @@
      see if it is possible to get rid of malloc().
      this constant is sufficient to avoid malloc() on all inputs I have tried.
 */
-#define DTOA_BUFF_SIZE (420 * sizeof(void *))
+#define DTOA_BUFF_SIZE (460 * sizeof(void *))
 
 /* Magic value returned by dtoa() to indicate overflow */
 #define DTOA_OVERFLOW 9999
@@ -659,6 +659,7 @@ typedef struct Stack_alloc
 static Bigint *Balloc(int k, Stack_alloc *alloc)
 {
   Bigint *rv;
+  DBUG_ASSERT(k <= Kmax);
   if (k <= Kmax &&  alloc->freelist[k])
   {
     rv= alloc->freelist[k];
@@ -1005,7 +1006,7 @@ static Bigint p5_a[]=
 
 static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
 {
-  Bigint *b1, *p5, *p51;
+  Bigint *b1, *p5, *p51=NULL;
   int i;
   static int p05[3]= { 5, 25, 125 };
 
@@ -1037,6 +1038,8 @@ static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc)
       p5= p51;
     }
   }
+  if (p51)
+    Bfree(p51, alloc);
   return b;
 }
 
