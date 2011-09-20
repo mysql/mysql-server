@@ -71,7 +71,8 @@ IF(HAVE_WORKING_KQUEUE)
         SET(LIBEVENT_KQUEUE_SOURCES kqueue.c)
 ENDIF()
 
-ADD_LIBRARY(event STATIC ${LIBEVENT_CORE_SOURCES} 
+ADD_CONVENIENCE_LIBRARY(event 
+                         ${LIBEVENT_CORE_SOURCES} 
                          ${LIBEVENT_EXTRA_SOURCES} 
                          ${LIBEVENT_SIGNAL_SOURCES} 
                          ${LIBEVENT_POLL_SOURCES} 

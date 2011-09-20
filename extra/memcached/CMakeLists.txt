@@ -38,7 +38,7 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
                 utilities/genhash_int.h
                 utilities/util.c)
 
-ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
+ADD_CONVENIENCE_LIBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
 
 
 SET(MEMCACHED_SOURCES
@@ -60,7 +60,11 @@ SET(MEMCACHED_SOURCES
 
 add_executable(memcached ${MEMCACHED_SOURCES})
 
-target_link_libraries(memcached event memcached_utilities dl)
+target_link_libraries(memcached event memcached_utilities)
+
+if(LIBDL)
+  target_link_libraries(memcached dl)
+endif()
 
 if(LIBM) 
   target_link_libraries(memcached m)
