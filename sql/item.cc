@@ -4648,6 +4648,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     if (!outer_fixed && cached_table && cached_table->select_lex &&
         context->select_lex &&
         cached_table->select_lex != context->select_lex &&
+        !context->select_lex->is_merged_child_of(cached_table->select_lex) &&
         is_outer_table(cached_table, context->select_lex))
     {
       int ret;
