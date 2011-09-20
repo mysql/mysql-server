@@ -139,43 +139,62 @@
       %endif
     %endif
   %else
-    %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-      %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-      %if "%rhelver" == "4"
-        %define distro_description      Red Hat Enterprise Linux 4
-        %define distro_releasetag       rhel4
-        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+    %if %(test -f /etc/oracle-release && echo 1 || echo 0)
+      %define elver %(rpm -qf --qf '%%{version}\\n' /etc/oracle-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+      %if "%elver" == "6"
+        %define distro_description      Oracle Linux 6
+        %define distro_releasetag       el6
+        %define distro_buildreq         gcc-c++ ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
-        %if "%rhelver" == "5"
-          %define distro_description    Red Hat Enterprise Linux 5
-          %define distro_releasetag     rhel5
-          %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-          %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
-        %else
-          %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
-        %endif
+        %{error:Oracle Linux %{elver} is unsupported}
       %endif
     %else
-      %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-        %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
-        %if "%susever" == "10"
-          %define distro_description    SUSE Linux Enterprise Server 10
-          %define distro_releasetag     sles10
-          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-          %define distro_requires       aaa_base coreutils grep procps pwdutils
+      %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+        %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+        %if "%rhelver" == "4"
+          %define distro_description      Red Hat Enterprise Linux 4
+          %define distro_releasetag       rhel4
+          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+          %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
         %else
-          %if "%susever" == "11"
-            %define distro_description  SUSE Linux Enterprise Server 11
-            %define distro_releasetag   sles11
-            %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-            %define distro_requires     aaa_base coreutils grep procps pwdutils
+          %if "%rhelver" == "5"
+            %define distro_description    Red Hat Enterprise Linux 5
+            %define distro_releasetag     rhel5
+            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+            %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
           %else
-            %{error:SuSE %{susever} is unsupported}
+            %if "%rhelver" == "6"
+              %define distro_description    Red Hat Enterprise Linux 6
+              %define distro_releasetag     rhel6
+              %define distro_buildreq       gcc-c++ ncurses-devel perl readline-devel time zlib-devel
+              %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
+            %else
+              %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
+            %endif
           %endif
         %endif
       %else
-        %{error:Unsupported distribution}
+        %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+          %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+          %if "%susever" == "10"
+            %define distro_description    SUSE Linux Enterprise Server 10
+            %define distro_releasetag     sles10
+            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+            %define distro_requires       aaa_base coreutils grep procps pwdutils
+          %else
+            %if "%susever" == "11"
+              %define distro_description  SUSE Linux Enterprise Server 11
+              %define distro_releasetag   sles11
+              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+              %define distro_requires     aaa_base coreutils grep procps pwdutils
+            %else
+              %{error:SuSE %{susever} is unsupported}
+            %endif
+          %endif
+        %else
+          %{error:Unsupported distribution}
+        %endif
       %endif
     %endif
   %endif
@@ -444,25 +463,6 @@ mkdir release
   make ${MAKE_JFLAG} VERBOSE=1
 )
 
-# Use the build root for temporary storage of the shared libraries.
-RBR=$RPM_BUILD_ROOT
-
-# Clean up the BuildRoot first
-[ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
-
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
-# needs to be during build phase as $CC is not set during install.
-if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    mkdir -p $RBR%{_libdir}/mysql
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-  fi
-fi
-
 ##############################################################################
 %install
 
@@ -483,6 +483,23 @@ install -d $RBR%{_sbindir}
 (
   cd $MBD/release
   make DESTDIR=$RBR install
+)
+
+# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  Do
+# this in a sub-shell to ensure we don't pollute the install environment
+# with compiler bits.
+(
+  PATH=${MYSQL_BUILD_PATH:-$PATH}
+  CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
+  CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
+  if "${CC}" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1; then
+    libgcc=`${CC} ${CFLAGS} --print-libgcc-file`
+    if [ -f ${libgcc} ]; then
+      mkdir -p $RBR%{_libdir}/mysql
+      install -m 644 ${libgcc} $RBR%{_libdir}/mysql/libmygcc.a
+      echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
+    fi
+  fi
 )
 
 # FIXME: at some point we should stop doing this and just install everything
@@ -516,7 +533,7 @@ install -m 644 "%{malloc_lib_source}" \
 
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
-rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+# This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -970,6 +987,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqldumpslow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_secure_installation.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_setpermission.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
@@ -996,11 +1014,11 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_install_db
+%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
-%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -1133,6 +1151,21 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Sep 13 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- Add support for Oracle Linux 6 and Red Hat Enterprise Linux 6.  Due to
+  changes in RPM behaviour ($RPM_BUILD_ROOT is removed prior to install)
+  this necessitated a move of the libmygcc.a installation to the install
+  phase, which is probably where it belonged in the first place.
+
+* Tue Sep 13 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- "make_win_bin_dist" and its manual are dropped, cmake does it different.
+
+* Tue Aug 30 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Add the manual page for "mysql_plugin" to the server package.
+
 * Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Null-upmerge the fix of bug#37165: This spec file is not affected.
