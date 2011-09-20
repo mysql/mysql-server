@@ -6447,11 +6447,25 @@ find_field_in_tables(THD *thd, Item_ident *item,
       {
         SELECT_LEX *current_sel= thd->lex->current_select;
         SELECT_LEX *last_select= table_ref->select_lex;
+        bool all_merged= TRUE;
+        for (SELECT_LEX *sl= current_sel; sl && sl!=last_select;
+             sl=sl->outer_select())
+        {
+          Item *subs= sl->master_unit()->item;
+          if (subs->type() == Item::SUBSELECT_ITEM && 
+             ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+             ((Item_in_subselect*)subs)->in_strategy & SUBS_SEMI_JOIN)
+          {
+            continue;
+          }
+          all_merged= FALSE;
+          break;
+        }
         /*
           If the field was an outer referencee, mark all selects using this
           sub query as dependent on the outer query
         */
-        if (current_sel != last_select)
+        if (!all_merged && current_sel != last_select)
         {
           mark_select_range_as_dependent(thd, last_select, current_sel,
                                          found, *ref, item);

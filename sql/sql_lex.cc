@@ -3622,6 +3622,47 @@ bool st_select_lex::save_prep_leaf_tables(THD *thd)
 }
 
 
+/*
+  Return true if this select_lex has been converted into a semi-join nest
+  within 'ancestor'.
+
+  We need a loop to check this because there could be several nested
+  subselects, like
+
+    SELECT ... FROM grand_parent 
+      WHERE expr1 IN (SELECT ... FROM parent 
+                        WHERE expr2 IN ( SELECT ... FROM child)
+
+  which were converted into:
+  
+    SELECT ... 
+    FROM grand_parent SEMI_JOIN (parent JOIN child) 
+    WHERE 
+      expr1 AND expr2
+
+  In this case, both parent and child selects were merged into the parent.
+*/
+
+bool st_select_lex::is_merged_child_of(st_select_lex *ancestor)
+{
+  bool all_merged= TRUE;
+  for (SELECT_LEX *sl= this; sl && sl!=ancestor;
+       sl=sl->outer_select())
+  {
+    Item *subs= sl->master_unit()->item;
+    if (subs && subs->type() == Item::SUBSELECT_ITEM && 
+       ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+       ((Item_in_subselect*)subs)->in_strategy & SUBS_SEMI_JOIN)
+    {
+      continue;
+    }
+    all_merged= FALSE;
+    break;
+  }
+  return all_merged;
+}
+
+
 /**
   A routine used by the parser to decide whether we are specifying a full
   partitioning or if only partitions to add or to split.
