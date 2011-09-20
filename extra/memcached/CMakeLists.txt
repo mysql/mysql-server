@@ -16,66 +16,64 @@
 include(CheckIncludeFile) 
 option(WITH_MEMCACHE "Build memcache interface for MySQL Cluster" ON)
 
-if(WITH_MEMCACHE) 
-  INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
-                      ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
-                      ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
-                      ${CMAKE_CURRENT_SOURCE_DIR}/daemon                                    
-                      ${CMAKE_CURRENT_SOURCE_DIR}/../libevent)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
+                    ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
+                    ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
+                    ${CMAKE_CURRENT_SOURCE_DIR}/daemon                                    
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../libevent)
 
-  IF(${CMAKE_COMPILER_IS_GNUCC})
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
-  ENDIF()
-
-
-  SET(LIBMEMCACHED_UTILITIES_SOURCES
-                  include/memcached/config_parser.h
-                  include/memcached/genhash.h
-                  include/memcached/util.h
-                  utilities/config_parser.c
-                  utilities/engine_loader.c
-                  utilities/engine_loader.h
-                  utilities/extension_loggers.c
-                  utilities/genhash.c
-                  utilities/genhash_int.h
-                  utilities/util.c)
-
-  ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
+IF(${CMAKE_COMPILER_IS_GNUCC})
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+ENDIF()
 
 
-  SET(MEMCACHED_SOURCES
-                  daemon/cache.h
-                  daemon/cache.c
-                  config_static.h
-                  daemon/daemon.c
-                  daemon/hash.c
-                  daemon/hash.h
-                  daemon/memcached.c
-                  daemon/memcached.h
-                  daemon/sasl_defs.h
-                  daemon/stats.c
-                  daemon/stats.h
-                  daemon/thread.c
-                  daemon/topkeys.c
-                  daemon/topkeys.h
-                  trace.h)
+SET(LIBMEMCACHED_UTILITIES_SOURCES
+                include/memcached/config_parser.h
+                include/memcached/genhash.h
+                include/memcached/util.h
+                utilities/config_parser.c
+                utilities/engine_loader.c
+                utilities/engine_loader.h
+                utilities/extension_loggers.c
+                utilities/genhash.c
+                utilities/genhash_int.h
+                utilities/util.c)
 
-  add_executable(memcached ${MEMCACHED_SOURCES})
+ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
 
-  target_link_libraries(memcached event memcached_utilities)
- 
-  CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
-  CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
-  CHECK_INCLUDE_FILE("sysexits.h"      HAVE_SYSEXITS_H)
-  CHECK_INCLUDE_FILE("netdb.h"         HAVE_NETDB_H)
-  CHECK_INCLUDE_FILE("sys/uio.h"       HAVE_SYS_UIO_H)
-  CHECK_INCLUDE_FILE("netinet/tcp.h"   HAVE_NETINET_TCP_H)
-  CHECK_INCLUDE_FILE("signal.h"        HAVE_SIGIGNORE)
- 
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in 
-                 ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
 
-ENDIF(WITH_MEMCACHE)
+SET(MEMCACHED_SOURCES
+                daemon/cache.h
+                daemon/cache.c
+                config_static.h
+                daemon/daemon.c
+                daemon/hash.c
+                daemon/hash.h
+                daemon/memcached.c
+                daemon/memcached.h
+                daemon/sasl_defs.h
+                daemon/stats.c
+                daemon/stats.h
+                daemon/thread.c
+                daemon/topkeys.c
+                daemon/topkeys.h
+                trace.h)
+
+add_executable(memcached ${MEMCACHED_SOURCES})
+
+target_link_libraries(memcached event memcached_utilities)
+
+CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
+CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
+CHECK_INCLUDE_FILE("sysexits.h"      HAVE_SYSEXITS_H)
+CHECK_INCLUDE_FILE("netdb.h"         HAVE_NETDB_H)
+CHECK_INCLUDE_FILE("sys/uio.h"       HAVE_SYS_UIO_H)
+CHECK_INCLUDE_FILE("signal.h"        HAVE_SIGIGNORE)
+CHECK_INCLUDE_FILES(sys/types.h netinet/tcp.h HAVE_NETINET_TCP_H)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in 
+               ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
+
 
