@@ -4054,10 +4054,10 @@ SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 vkey
 g
-v
+n
 t
 u
-n
+v
 DROP TABLE t0;
 # End of bug#46556
 
@@ -6594,5 +6594,43 @@ w
 -- Notice that Materialize-scan algorithm reports wrong result for this query.
 -- This problem will be filed as a separate bug and dealt with in WL#5561.
 DROP TABLE t1, t2;
-# End of the test for bug#12603183.
+# End of test for bug#12603183.
+#
+# Bug#12818569: Diff nr of rows returned when using IN/ALL+subquery
+#
+CREATE TABLE t1 (
+col_int_key INT NOT NULL,
+col_datetime_key DATETIME NOT NULL,
+col_varchar_key VARCHAR(1) NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_datetime_key(col_datetime_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(7,'2004-06-06 04:22:12','v'), (0,'2005-11-13 01:12:31','s'),
+(9,'2002-05-04 01:50:00','l'), (3,'2004-10-27 10:28:45','y'),
+(4,'2006-07-22 05:24:23','c'), (2,'2002-05-16 21:34:03','i'),
+(5,'2008-04-17 10:45:30','h'), (3,'2009-04-21 02:58:02','q'),
+(1,'2008-01-11 11:01:51','a'), (3,'1900-01-01 00:00:00','v'),
+(6,'2007-05-17 18:24:57','u'), (7,'2007-08-07 00:00:00','s'),
+(5,'2001-08-28 00:00:00','y'), (1,'2004-04-16 00:27:28','z'),
+(204,'2005-05-03 07:06:22','h'), (224,'2009-03-11 17:09:50','p'),
+(9,'2007-12-08 01:54:28','e'), (5,'2009-07-28 18:19:54','i'),
+(0,'2008-06-08 00:00:00','y'), (3,'2005-02-09 09:20:26','w');
+CREATE TABLE t2 (
+col_varchar_nokey VARCHAR(1) NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
+SELECT col_varchar_key
+FROM t1
+WHERE col_varchar_key IN (SELECT col_varchar_nokey
+FROM t2)
+ORDER BY col_datetime_key LIMIT 4;
+col_varchar_key
+v
+y
+v
+y
+DROP TABLE t1, t2;
+# End of test for bug#12818569.
 set optimizer_switch=default;

@@ -923,3 +923,58 @@ DROP FUNCTION func2;
 DROP TABLE t1;
 --echo #
 
+--echo #
+--echo # Bug#12909844: Missing type cast caused false assertion
+--echo #
+CREATE TABLE t1 ( fk INT) ENGINE=INNODB;
+CREATE TABLE t2 (
+f1 INT,  f2 INT,  f3 INT,  f4 INT,  f5 INT,  f6 INT,
+f7 INT,  f8 INT,  f9 INT,  f10 INT, f11 INT, f12 INT,
+f13 INT, f14 INT, f15 INT, f16 INT, f17 INT, f18 INT,
+f19 INT, f20 INT, f21 INT, f22 INT, f23 INT, f24 INT,
+f25 INT, f26 INT, f27 INT, f28 INT, f29 INT, f30 INT,
+f31 INT, f32 TEXT, fk INT) ENGINE=INNODB;
+SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
+  (SELECT * FROM t2 ) AS alias2 ON alias1.fk = alias2.fk;
+EXPLAIN 
+SELECT alias2.fk AS field1 FROM t1 AS alias1 JOIN
+  (SELECT * FROM t2 ) AS alias2 ON alias1.fk = alias2.fk;
+DROP TABLE t1, t2;
+--echo #
+
+--echo #
+--echo # Bug#12910039: Incorrect merge caused segmentation fault.
+--echo #
+CREATE TABLE t1 (f1 int) ENGINE=myisam;
+CREATE TABLE t2 (f1 text) ENGINE=innodb;
+SELECT 1 FROM (
+  ( SELECT * FROM ( SELECT * FROM t2 ) AS alias1 ) AS alias1,
+  ( SELECT * FROM t1 ) AS alias2 );
+DROP TABLE t1,t2;
+--echo #
+
+--echo #
+--echo # Bug#12910006: MRR initialization on a derived table caused crash.
+--echo #
+SET @save_switch= @@SESSION.optimizer_switch;
+SET @@SESSION.optimizer_switch="batch_key_access=on";
+
+CREATE TABLE t1 ( pk integer auto_increment,
+col_blob_key blob, primary key (pk)) ENGINE=innodb;
+
+CREATE TABLE t2 (col_tinytext tinytext null,
+pk integer auto_increment, col_text text,
+col_blob blob, primary key (pk)) ENGINE=innodb;
+
+SELECT alias1.col_text AS field1 ,
+       alias1.col_tinytext AS field2
+FROM t2 AS alias1
+  LEFT OUTER JOIN ( SELECT * FROM t1 ) AS alias2 ON alias1.pk = alias2.pk
+WHERE alias2.pk >=1  AND alias2.pk < 3
+ORDER BY field1,field2 ASC;
+
+SET @@SESSION.optimizer_switch= @save_switch;
+DROP TABLE t1, t2;
+
+--echo #
+

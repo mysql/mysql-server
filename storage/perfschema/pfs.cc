@@ -4395,67 +4395,67 @@ static void set_statement_rows_examined_v1(PSI_statement_locker *locker,
 }
 
 static void inc_statement_created_tmp_disk_tables_v1(PSI_statement_locker *locker,
-                                                    ulonglong count)
+                                                    ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_disk_tables, count);
 }
 
 static void inc_statement_created_tmp_tables_v1(PSI_statement_locker *locker,
-                                                ulonglong count)
+                                                ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_tables, count);
 }
 
 static void inc_statement_select_full_join_v1(PSI_statement_locker *locker,
-                                              ulonglong count)
+                                              ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_join, count);
 }
 
 static void inc_statement_select_full_range_join_v1(PSI_statement_locker *locker,
-                                                    ulonglong count)
+                                                    ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_range_join, count);
 }
 
 static void inc_statement_select_range_v1(PSI_statement_locker *locker,
-                                          ulonglong count)
+                                          ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range, count);
 }
 
 static void inc_statement_select_range_check_v1(PSI_statement_locker *locker,
-                                                ulonglong count)
+                                                ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range_check, count);
 }
 
 static void inc_statement_select_scan_v1(PSI_statement_locker *locker,
-                                         ulonglong count)
+                                         ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_select_scan, count);
 }
 
 static void inc_statement_sort_merge_passes_v1(PSI_statement_locker *locker,
-                                               ulonglong count)
+                                               ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_merge_passes, count);
 }
 
 static void inc_statement_sort_range_v1(PSI_statement_locker *locker,
-                                        ulonglong count)
+                                        ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_range, count);
 }
 
 static void inc_statement_sort_rows_v1(PSI_statement_locker *locker,
-                                       ulonglong count)
+                                       ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_rows, count);
 }
 
 static void inc_statement_sort_scan_v1(PSI_statement_locker *locker,
-                                       ulonglong count)
+                                       ulong count)
 {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_scan, count);
 }

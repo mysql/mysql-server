@@ -4262,10 +4262,10 @@ i_s_sys_tables_fill_table(
 
 		/* Create and populate a dict_table_t structure with
 		information from SYS_TABLES row */
-		err_msg = dict_process_sys_tables_rec(
-			heap, rec, &table_rec, DICT_TABLE_LOAD_FROM_RECORD);
+		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
+			heap, rec, &table_rec,
+			DICT_TABLE_LOAD_FROM_RECORD, &mtr);
 
-		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
 		if (!err_msg) {
@@ -4276,9 +4276,10 @@ i_s_sys_tables_fill_table(
 					    err_msg);
 		}
 
-		/* Since dict_process_sys_tables_rec() is called with
-		DICT_TABLE_LOAD_FROM_RECORD, the table_rec is created in
-		dict_process_sys_tables_rec(), we will need to free it */
+		/* Since dict_process_sys_tables_rec_and_mtr_commit()
+		is called with DICT_TABLE_LOAD_FROM_RECORD, the table_rec
+		is created in dict_process_sys_tables_rec(), we will
+		need to free it */
 		if (table_rec) {
 			dict_mem_table_free(table_rec);
 		}
@@ -4543,10 +4544,10 @@ i_s_sys_tables_fill_table_stats(
 
 		/* Fetch the dict_table_t structure corresponding to
 		this SYS_TABLES record */
-		err_msg = dict_process_sys_tables_rec(
-			heap, rec, &table_rec, DICT_TABLE_LOAD_FROM_CACHE);
+		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
+			heap, rec, &table_rec,
+			DICT_TABLE_LOAD_FROM_CACHE, &mtr);
 
-		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
 		if (!err_msg) {

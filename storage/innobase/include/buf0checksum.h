@@ -28,7 +28,7 @@ Created Aug 11, 2011 Vasil Dimov
 
 #include "univ.i"
 
-#include "srv0srv.h" /* srv_checksum_algorithm_t */
+#include "buf0types.h"
 
 /********************************************************************//**
 Calculates a page CRC32 which is stored to the page when it is written
@@ -74,5 +74,7 @@ const char*
 buf_checksum_algorithm_name(
 /*========================*/
 	srv_checksum_algorithm_t	algo);	/*!< in: algorithm */
+
+extern ulong	srv_checksum_algorithm;
 
 #endif /* buf0checksum_h */

@@ -500,67 +500,67 @@ static void set_statement_rows_examined_noop(PSI_statement_locker *locker,
 }
 
 static void inc_statement_created_tmp_disk_tables_noop(PSI_statement_locker *locker,
-                                                       ulonglong count)
+                                                       ulong count)
 {
   return;
 }
 
 static void inc_statement_created_tmp_tables_noop(PSI_statement_locker *locker,
-                                                  ulonglong count)
+                                                  ulong count)
 {
   return;
 }
 
 static void inc_statement_select_full_join_noop(PSI_statement_locker *locker,
-                                                ulonglong count)
+                                                ulong count)
 {
   return;
 }
 
 static void inc_statement_select_full_range_join_noop(PSI_statement_locker *locker,
-                                                      ulonglong count)
+                                                      ulong count)
 {
   return;
 }
 
 static void inc_statement_select_range_noop(PSI_statement_locker *locker,
-                                            ulonglong count)
+                                            ulong count)
 {
   return;
 }
 
 static void inc_statement_select_range_check_noop(PSI_statement_locker *locker,
-                                                  ulonglong count)
+                                                  ulong count)
 {
   return;
 }
 
 static void inc_statement_select_scan_noop(PSI_statement_locker *locker,
-                                           ulonglong count)
+                                           ulong count)
 {
   return;
 }
 
 static void inc_statement_sort_merge_passes_noop(PSI_statement_locker *locker,
-                                                 ulonglong count)
+                                                 ulong count)
 {
   return;
 }
 
 static void inc_statement_sort_range_noop(PSI_statement_locker *locker,
-                                          ulonglong count)
+                                          ulong count)
 {
   return;
 }
 
 static void inc_statement_sort_rows_noop(PSI_statement_locker *locker,
-                                         ulonglong count)
+                                         ulong count)
 {
   return;
 }
 
 static void inc_statement_sort_scan_noop(PSI_statement_locker *locker,
-                                         ulonglong count)
+                                         ulong count)
 {
   return;
 }
