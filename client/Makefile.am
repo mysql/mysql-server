@@ -51,6 +51,8 @@ bin_PROGRAMS =			mysql \
 				mysqltest \
 				mysql_upgrade
 
+noinst_PROGRAMS = 		async_example
+
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc \
 				completion_hash.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ \
@@ -95,6 +97,11 @@ mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 
 mysql_upgrade_SOURCES=          mysql_upgrade.c \
                                 $(top_srcdir)/mysys/my_getpagesize.c
+
+async_example_SOURCES=		async_example.c
+async_example_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
+				@CLIENT_EXTRA_LDFLAGS@ \
+				$(LIBMYSQLCLIENT_LA)
 
 # Fix for mit-threads
 DEFS =			-DMYSQL_CLIENT_NO_THREADS \

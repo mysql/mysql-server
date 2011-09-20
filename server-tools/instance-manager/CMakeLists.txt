@@ -26,7 +26,8 @@ ADD_EXECUTABLE(mysqlmanager buffer.cc command.cc commands.cc guardian.cc instanc
                             user_management_commands.cc ../../mysys/my_rnd.c
                             ../../sql/net_serv.cc ../../sql-common/pack.c ../../sql/password.c
                             ../../sql/sql_state.c ../../sql-common/client.c ../../libmysql/get_password.c
-                            ../../libmysql/errmsg.c ../../sql-common/client_plugin.c)
+                            ../../libmysql/errmsg.c ../../sql-common/client_plugin.c
+                            ../../sql-common/mysql_async.c)
 
 ADD_DEPENDENCIES(mysqlmanager GenError)
 TARGET_LINK_LIBRARIES(mysqlmanager debug dbug mysys strings taocrypt vio yassl zlib wsock32)

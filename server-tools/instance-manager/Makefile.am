@@ -47,6 +47,7 @@ libnet_a_LIBADD= $(top_builddir)/sql/password.$(OBJEXT) \
 	$(top_builddir)/sql/sql_state.$(OBJEXT) \
 	$(top_builddir)/sql/mini_client_errors.$(OBJEXT)\
 	$(top_builddir)/sql/client.$(OBJEXT) \
+	$(top_builddir)/sql/mysql_async.$(OBJEXT) \
 	$(top_builddir)/sql/client_plugin.$(OBJEXT)
 
 CLEANFILES= net_serv.cc client_settings.h

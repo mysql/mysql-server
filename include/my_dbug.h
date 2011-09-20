@@ -83,6 +83,8 @@ extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);
 extern FILE *_db_fp_(void);
 extern  void _db_flush_();
+extern void dbug_swap_code_state(void **code_state_store);
+extern void dbug_free_code_state(void **code_state_store);
 
 #ifdef __cplusplus
 

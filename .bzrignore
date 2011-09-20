@@ -350,6 +350,7 @@ client/ssl_test
 client/thimble
 client/thread_test
 client/tmp.diff
+client/async_example
 client_debug/*
 client_release/*
 client_test
@@ -681,6 +682,7 @@ libmysqld/unireg.cc
 libmysqld/discover_xt.cc
 libmysqld/ha_pbxt.cc
 libmysqld/myxt_xt.cc
+libmysqld/mysql_async.c
 libmysqltest/*.ds?
 libmysqltest/*.vcproj
 libmysqltest/mytest.c
@@ -1867,6 +1869,7 @@ tests/bug25714
 tests/client_test
 tests/connect_test
 tests/mysql_client_test
+tests/async_queries
 thr_insert_test/*
 thr_test/*
 thread_test
@@ -1952,6 +1955,7 @@ client/sql_list.cc
 client/sql_list.h
 libmysqld/client_plugin.c
 sql/client_plugin.c
+sql/mysql_async.c
 *.dgcov
 libmysqld/create_options.cc
 storage/pbxt/bin/xtstat

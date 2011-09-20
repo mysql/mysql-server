@@ -404,6 +404,27 @@ static CODE_STATE *code_state(void)
   return cs;
 }
 
+void
+dbug_swap_code_state(void **code_state_store)
+{
+  CODE_STATE *cs, **cs_ptr;
+
+  if (!(cs_ptr= (CODE_STATE**) my_thread_var_dbug()))
+    return;
+  cs= *cs_ptr;
+  *cs_ptr= *code_state_store;
+  *code_state_store= cs;
+}
+
+void dbug_free_code_state(void **code_state_store)
+{
+  if (*code_state_store)
+  {
+    free(*code_state_store);
+    *code_state_store= NULL;
+  }
+}
+
 #else /* !THREAD */
 
 static CODE_STATE static_code_state=
@@ -422,6 +443,35 @@ static CODE_STATE *code_state(void)
     init_done=TRUE;
   }
   return &static_code_state;
+}
+
+void
+dbug_swap_code_state(void **code_state_store)
+{
+  CODE_STATE temp, *cs;
+
+  if (!(cs= *code_state_store))
+  {
+    cs= (CODE_STATE *)DbugMalloc(sizeof(*cs));
+    cs->process= db_process ? db_process : "dbug";
+    cs->func="?func";
+    cs->file="?file";
+    cs->stack=&init_settings;
+    *code_state_store= cs;
+  }
+  memcpy(&temp, cs, sizeof(*cs));
+  memcpy(cs, &static_code_state, sizeof(*cs));
+  memcpy(&static_code_state, &temp, sizeof(*cs));
+}
+
+void
+dbug_free_code_state(void **code_state_store)
+{
+  if (*code_state_store)
+  {
+    free(*code_state_store);
+    *code_state_store= NULL;
+  }
 }
 
 #define pthread_mutex_lock(A) {}

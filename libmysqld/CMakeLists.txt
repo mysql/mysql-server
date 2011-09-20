@@ -104,6 +104,7 @@ SET(LIBMYSQLD_SOURCES  libmysqld.c emb_qcache.cc lib_sql.cc
            ../sql-common/my_user.c ../sql-common/pack.c
            ../sql/password.c ../sql/discover.cc ../sql/derror.cc 
            ../sql/field.cc ../sql/field_conv.cc ../sql-common/client_plugin.c
+           ../sql-common/mysql_async.c
            ../sql/filesort.cc ../sql/gstream.cc ../sql/ha_partition.cc 
            ../sql/handler.cc ../sql/hash_filo.cc ../sql/hostname.cc 
            ../sql/init.cc ../sql/item_buff.cc ../sql/item_cmpfunc.cc 

@@ -68,5 +68,8 @@ MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.c DESTINATION bin)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
 
+MYSQL_ADD_EXECUTABLE(async_example async_example.c)
+TARGET_LINK_LIBRARIES(async_example mysqlclient mysys zlib wsock32 dbug)
+
 
 MYSQL_ADD_EXECUTABLE(echo echo.c COMPONENT Test)

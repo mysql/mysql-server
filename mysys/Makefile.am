@@ -58,7 +58,7 @@ libmysys_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_compare.c my_netware.c my_largepage.c \
 			my_memmem.c stacktrace.c \
 			my_windac.c my_access.c base64.c my_libwrap.c \
-		        wqueue.c
+		        wqueue.c my_context.c
 libmysys_la_LDFLAGS =	$(AM_LDFLAGS) @WRAPLIBS@
 libmysys_la_LIBADD =	$(ZLIB_LIBS)
 

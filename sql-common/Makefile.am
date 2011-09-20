@@ -14,4 +14,5 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 ## Process this file with automake to create Makefile.in
-EXTRA_DIST = client.c pack.c my_time.c my_user.c client_plugin.c
+EXTRA_DIST = client.c pack.c my_time.c my_user.c client_plugin.c \
+	     mysql_async.c

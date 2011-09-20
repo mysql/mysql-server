@@ -36,6 +36,18 @@
 #include <my_handler.h>
 #include <sql_common.h>
 
+/*
+  If non_blocking_api_enabled is true, we will re-define all the blocking
+  API functions as wrappers that call the corresponding non-blocking API
+  and use poll()/select() to wait for them to complete. This way we can get
+  a good coverage testing of the non-blocking API as well.
+*/
+static my_bool non_blocking_api_enabled= 0;
+#if !defined(EMBEDDED_LIBRARY)
+#define WRAP_NONBLOCK_ENABLED non_blocking_api_enabled
+#include "nonblock-wrappers.h"
+#endif
+
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 #define MAX_KEY MAX_INDEXES
@@ -18614,6 +18626,10 @@ static struct my_option client_test_long_options[] =
 #endif
   {"vardir", 'v', "Data dir for tests.", (char**) &opt_vardir,
    (char**) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"non-blocking-api", 'n',
+   "Use the non-blocking client API for communication.",
+   &non_blocking_api_enabled, &non_blocking_api_enabled, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
    &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},

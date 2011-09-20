@@ -21,6 +21,7 @@
 */
 
 #include "vio_priv.h"
+#include "my_context.h"
 
 #ifdef HAVE_OPENSSL
 
@@ -90,11 +91,16 @@ report_errors(SSL* ssl)
 size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 {
   size_t r;
+  extern int my_ssl_read_async(struct mysql_async_context *b, SSL *ssl,
+                               void *buf, int size);
   DBUG_ENTER("vio_ssl_read");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
 		       vio->sd, (long) buf, (uint) size, (long) vio->ssl_arg));
 
-  r= SSL_read((SSL*) vio->ssl_arg, buf, size);
+  if (vio->async_context && vio->async_context->active)
+    r= my_ssl_read_async(vio->async_context, (SSL *)vio->ssl_arg, buf, size);
+  else
+    r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);
@@ -107,11 +113,16 @@ size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
 {
   size_t r;
+  extern int my_ssl_write_async(struct mysql_async_context *b, SSL *ssl,
+                                const void *buf, int size);
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd,
                        (long) buf, (uint) size));
 
-  r= SSL_write((SSL*) vio->ssl_arg, buf, size);
+  if (vio->async_context && vio->async_context->active)
+    r= my_ssl_write_async(vio->async_context, (SSL *)vio->ssl_arg, buf, size);
+  else
+    r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
     report_errors((SSL*) vio->ssl_arg);

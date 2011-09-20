@@ -60,6 +60,12 @@
 #define SIGNAL_FMT "signal %d"
 #endif
 
+static my_bool non_blocking_api_enabled= 0;
+#if !defined(EMBEDDED_LIBRARY)
+#define WRAP_NONBLOCK_ENABLED non_blocking_api_enabled
+#include "../tests/nonblock-wrappers.h"
+#endif
+
 /* Use cygwin for --exec and --system before 5.0 */
 #if MYSQL_VERSION_ID < 50000
 #define USE_CYGWIN
@@ -84,7 +90,7 @@ enum {
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
   OPT_MAX_CONNECT_RETRIES, OPT_MAX_CONNECTIONS,
   OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES,
-  OPT_GLOBAL_SUBST, OPT_MY_CONNECT_TIMEOUT
+  OPT_GLOBAL_SUBST, OPT_MY_CONNECT_TIMEOUT, OPT_NON_BLOCKING_API
 };
 
 static int record= 0, opt_sleep= -1;
@@ -305,6 +311,7 @@ enum enum_commands {
   Q_LOWERCASE,
   Q_START_TIMER, Q_END_TIMER,
   Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
+  Q_ENABLE_NON_BLOCKING_API, Q_DISABLE_NON_BLOCKING_API,
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
@@ -386,6 +393,8 @@ const char *command_names[]=
   "character_set",
   "disable_ps_protocol",
   "enable_ps_protocol",
+  "enable_non_blocking_api",
+  "disable_non_blocking_api",
   "disable_reconnect",
   "enable_reconnect",
   "if",
@@ -5235,7 +5244,10 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
-  my_bool con_pipe= 0, con_shm= 0;
+  my_bool con_pipe= 0;
+#ifdef HAVE_SMEM
+  my_bool con_shm= 0;
+#endif
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5324,7 +5336,11 @@ void do_connect(struct st_command *command)
     else if (length == 4 && !strncmp(con_options, "PIPE", 4))
       con_pipe= 1;
     else if (length == 3 && !strncmp(con_options, "SHM", 3))
+#ifdef HAVE_SMEM
       con_shm= 1;
+#else
+    { }
+#endif
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -6145,6 +6161,10 @@ static struct my_option my_long_options[] =
   {"ps-protocol", OPT_PS_PROTOCOL, 
    "Use prepared-statement protocol for communication.",
    &ps_protocol, &ps_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"non-blocking-api", OPT_NON_BLOCKING_API,
+   "Use the non-blocking client API for communication.",
+   &non_blocking_api_enabled, &non_blocking_api_enabled, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", &silent,
    &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -8130,6 +8150,7 @@ int main(int argc, char **argv)
   next_con= connections + 1;
   
   var_set_int("$PS_PROTOCOL", ps_protocol);
+  var_set_int("$NON_BLOCKING_API", non_blocking_api_enabled);
   var_set_int("$SP_PROTOCOL", sp_protocol);
   var_set_int("$VIEW_PROTOCOL", view_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
@@ -8537,6 +8558,12 @@ int main(int argc, char **argv)
         break;
       case Q_ENABLE_PS_PROTOCOL:
         ps_protocol_enabled= ps_protocol;
+        break;
+      case Q_DISABLE_NON_BLOCKING_API:
+        non_blocking_api_enabled= 0;
+        break;
+      case Q_ENABLE_NON_BLOCKING_API:
+        non_blocking_api_enabled= 1;
         break;
       case Q_DISABLE_RECONNECT:
         set_reconnect(cur_con->mysql, 0);

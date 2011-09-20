@@ -46,7 +46,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			atomic/rwlock.h atomic/x86-gcc.h \
 			atomic/generic-msvc.h \
                         atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-                        wqueue.h waiting_threads.h
+                        wqueue.h waiting_threads.h my_context.h
 
 EXTRA_DIST =            mysql.h.pp mysql/plugin_auth.h.pp mysql/client_plugin.h.pp CMakeLists.txt
 

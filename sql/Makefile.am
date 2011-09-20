@@ -127,7 +127,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_servers.cc event_parse_data.cc \
                         opt_table_elimination.cc create_options.cc
 
-nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c client_plugin.c
+nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c \
+			my_user.c client_plugin.c mysql_async.c
 
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
@@ -169,6 +170,8 @@ link_sources:
 	@LN_CP_F@ $(top_srcdir)/sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/client.c client.c
+	rm -f mysql_async.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/mysql_async.c mysql_async.c
 	rm -f client_plugin.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/client_plugin.c client_plugin.c
 	rm -f my_time.c

@@ -44,6 +44,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
                                 lf_alloc-pin.c lf_dynarray.c lf_hash.c
                                 my_atomic.c my_getncpus.c my_rnd.c
                                 my_uuid.c wqueue.c waiting_threads.c
+                                my_context.c
 )
 
 IF(NOT SOURCE_SUBLIBS)

@@ -26,9 +26,16 @@ extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
 extern const char	*not_error_sqlstate;
 
+
+struct mysql_async_context;
+
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
+};
+
+struct st_mysql_extension {
+  struct mysql_async_context *async_context;
 };
 
 typedef struct st_mysql_methods
@@ -101,6 +108,10 @@ int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
 struct st_mysql_client_plugin;
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
+
+/* Non-blocking client API. */
+void my_context_install_suspend_resume_hook(struct mysql_async_context *b,
+                                            void (*)(my_bool, void *), void *);
 
 #ifdef	__cplusplus
 }

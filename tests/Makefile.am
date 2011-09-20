@@ -24,6 +24,7 @@ else
 LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql/libmysqlclient.la
 endif
 
+noinst_HEADERS = nonblock-wrappers.h
 EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			function.res function.tst lock_test.pl lock_test.res \
 			export.pl big_record.pl \
@@ -36,6 +37,9 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 
 bin_PROGRAMS =		mysql_client_test
 noinst_PROGRAMS =	insert_test select_test thread_test bug25714
+if HAVE_LIBEVENT
+noinst_PROGRAMS +=	async_queries
+endif
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			$(openssl_includes)
@@ -51,6 +55,10 @@ insert_test_SOURCES=       insert_test.c
 select_test_SOURCES=       select_test.c
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
+
+async_queries_SOURCES=	async_queries.c
+async_queries_CFLAGS=	$(AM_CFLAGS) @libevent_includes@
+async_queries_LDADD=	$(LDADD) @libevent_libs@
 
 bug25714_SOURCES=          bug25714.c
 bug25714_DEPENDENCIES=     $(LIBRARIES) $(pkglib_LTLIBRARIES)
