@@ -60,7 +60,12 @@ SET(MEMCACHED_SOURCES
 
 add_executable(memcached ${MEMCACHED_SOURCES})
 
-target_link_libraries(memcached event memcached_utilities m dl)
+target_link_libraries(memcached event memcached_utilities dl)
+
+if(LIBM) 
+  target_link_libraries(memcached m)
+endif()
+
 
 CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
 CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
