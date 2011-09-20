@@ -23422,8 +23422,6 @@ CREATE TABLE res_t1(w CHAR, x CHAR);
 INSERT INTO res_t1 VALUES('a', 'b');
 INSERT INTO res_t1 VALUES('c', 'd');
 CALL h1();
-Warnings:
-Warning	1265	Data truncated for column 'x' at row 1
 SELECT @done, @x;
 @done	@x
 1	1
@@ -23446,8 +23444,6 @@ CREATE TABLE res_t1(w CHAR, x CHAR);
 INSERT INTO res_t1 VALUES('a', 'b');
 INSERT INTO res_t1 VALUES('c', 'd');
 CALL h1();
-Warnings:
-Warning	1265	Data truncated for column 'x' at row 1
 SELECT @done, @x;
 @done	@x
 1	1

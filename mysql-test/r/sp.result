@@ -7475,6 +7475,4 @@ END $
 SELECT f1();
 f1()
 1
-Warnings:
-Error	1305	FUNCTION test.f1 does not exist
 DROP FUNCTION f1;

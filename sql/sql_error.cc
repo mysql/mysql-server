@@ -548,6 +548,7 @@ void Warning_info::clear(ulonglong new_id)
 {
   id(new_id);
   m_warn_list.empty();
+  m_marked_sql_conditions.empty();
   free_root(&m_warn_root, MYF(0));
   memset(m_warn_count, 0, sizeof(m_warn_count));
   m_current_statement_warn_count= 0;
@@ -569,6 +570,9 @@ void Warning_info::append_warning_info(THD *thd, const Warning_info *source)
 
     if (src_error_condition && src_error_condition == err)
       set_error_condition(new_error);
+
+    if (source->is_marked_for_removal(err))
+      mark_condition_for_removal(new_error);
   }
 }
 
@@ -586,46 +590,65 @@ void Diagnostics_area::copy_non_errors_from_wi(THD *thd,
                                                const Warning_info *src_wi)
 {
   Sql_condition_iterator it(src_wi->m_warn_list);
-  const Sql_condition *err;
+  const Sql_condition *cond;
+  Warning_info *wi= get_warning_info();
 
-  while ((err= it++))
+  while ((cond= it++))
   {
-    if (err->get_level() != Sql_condition::WARN_LEVEL_ERROR)
-      push_warning(thd, err);
+    if (cond->get_level() == Sql_condition::WARN_LEVEL_ERROR)
+      continue;
+
+    Sql_condition *new_condition= wi->push_warning(thd, cond);
+
+    if (src_wi->is_marked_for_removal(cond))
+      wi->mark_condition_for_removal(new_condition);
   }
 }
 
 
-void Warning_info::remove_sql_condition(const Sql_condition *sql_condition)
+void Warning_info::mark_sql_conditions_for_removal()
 {
-  if (!sql_condition)
-    return;
-
   Sql_condition_list::Iterator it(m_warn_list);
-  Sql_condition *err;
-  bool found = false;
+  Sql_condition *cond;
 
-  while ((err= it++))
+  while ((cond= it++))
+    mark_condition_for_removal(cond);
+}
+
+
+void Warning_info::remove_marked_sql_conditions()
+{
+  List_iterator_fast<Sql_condition> it(m_marked_sql_conditions);
+  Sql_condition *cond;
+
+  while ((cond= it++))
   {
-    if (err == sql_condition)
-    {
-      m_warn_list.remove(err);
-      found= true;
-      break;
-    }
+    m_warn_list.remove(cond);
+    m_warn_count[cond->get_level()]--;
+    m_current_statement_warn_count--;
+    if (cond == m_error_condition)
+      m_error_condition= NULL;
   }
 
-  if (!found)
-    return;
-
-  m_warn_count[sql_condition->get_level()]--;
-  m_current_statement_warn_count--;
-
-  if (sql_condition == m_error_condition)
-    m_error_condition= NULL;
-
-  return;
+  m_marked_sql_conditions.empty();
 }
+
+
+bool Warning_info::is_marked_for_removal(const Sql_condition *cond) const
+{
+  List_iterator_fast<Sql_condition> it(
+    const_cast<List<Sql_condition>&> (m_marked_sql_conditions));
+  Sql_condition *c;
+
+  while ((c= it++))
+  {
+    if (c == cond)
+      return true;
+  }
+
+  return false;
+}
+
 
 void Warning_info::reserve_space(THD *thd, uint count)
 {

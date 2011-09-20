@@ -257,7 +257,9 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   //  - there is an SQL-handler for it.
 
   DBUG_ASSERT(found_condition);
-  da->remove_sql_condition(found_condition);
+
+  // Mark active conditions so that they can be deleted when the handler exits.
+  da->mark_sql_conditions_for_removal();
 
   sp_handler_entry *handler_entry= NULL;
   for (int i= 0; i < m_handlers.elements(); ++i)
@@ -303,12 +305,18 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 }
 
 
-uint sp_rcontext::exit_handler()
+uint sp_rcontext::exit_handler(Diagnostics_area *da)
 {
   DBUG_ENTER("sp_rcontext::exit_handler");
   DBUG_ASSERT(m_handler_call_stack.elements() > 0);
 
   Handler_call_frame *f= m_handler_call_stack.pop();
+
+  /*
+    Remove the SQL conditions that were present in DA when the
+    handler was activated.
+  */
+  da->remove_marked_sql_conditions();
 
   uint continue_ip= f->continue_ip;
 

@@ -2163,15 +2163,18 @@ CALL peter_p2() $$
 1
 1
 Level	Code	Message
+Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
 2
 2
 Level	Code	Message
 Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	1232	Variable 'sql_mode' can't be set to the value of 'NULL'
 3
 3
 Level	Code	Message
 Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
 Error	1232	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	9999	Variable 'sql_mode' can't be set to the value of 'NULL'
 ERROR 42000: Hi, I am a useless error message
 show warnings $$
 Level	Code	Message

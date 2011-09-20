@@ -1885,8 +1885,6 @@ END|
 CALL p1();
 exception
 exception
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '10 '
 DROP TABLE t1;
 DROP PROCEDURE p1;
 #
@@ -2603,3 +2601,177 @@ CORRECT: Inside H1
 
 DROP FUNCTION f1;
 DROP TABLE t1;
+
+# Check that handled SQL-conditions are properly cleared from DA.
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+DROP PROCEDURE IF EXISTS p5;
+CREATE TABLE t1(a CHAR, b CHAR, c CHAR);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT);
+
+# Check that SQL-conditions for which SQL-handler has been invoked,
+# are cleared from the Diagnostics Area. Note, there might be several
+# SQL-conditions, but SQL-handler must be invoked only once.
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLWARNING
+SELECT 'Warning caught' AS msg;
+# The INSERT below raises 3 SQL-conditions (warnings). The EXIT HANDLER
+# above must be invoked once (for one condition), but all three conditions
+# must be cleared from the Diagnostics Area.
+INSERT INTO t1 VALUES('qqqq', 'ww', 'eee');
+# The following INSERT will not be executed, because of the EXIT HANDLER.
+INSERT INTO t1 VALUES('zzz', 'xx', 'yyyy');
+END|
+
+CALL p1()|
+msg
+Warning caught
+
+SELECT * FROM t1|
+a	b	c
+q	w	e
+
+# Check that SQL-conditions for which SQL-handler has *not* been
+# invoked, are *still* cleared from the Diagnostics Area.
+
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+SELECT 'Warning 1292 caught' AS msg;
+# The following INSERT raises 6 SQL-warnings with code 1292,
+# and 3 SQL-warnings with code 1264. The CONTINUE HANDLER above must be
+# invoked once, and all nine SQL-warnings must be cleared from
+# the Diagnostics Area.
+INSERT INTO t2
+SELECT
+CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p2()|
+msg
+Warning 1292 caught
+
+# Check that if there are two equally ranked SQL-handlers to handle
+# SQL-conditions from SQL-statement, only one of them will be invoked.
+
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+SELECT 'Warning 1292 caught' AS msg;
+DECLARE CONTINUE HANDLER FOR 1264
+SELECT 'Warning 1264 caught' AS msg;
+# The following INSERT raises 6 SQL-warnings with code 1292,
+# and 3 SQL-warnings with code 1264. Only one of the CONTINUE HANDLERs above
+# must be called, and only once. The SQL Standard does not define, which one
+# should be invoked.
+INSERT INTO t2
+SELECT
+CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p3()|
+msg
+Warning 1292 caught
+
+# The same as p3, but 1264 comes first.
+
+CREATE PROCEDURE p4()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+SELECT 'Warning 1292 caught' AS msg;
+DECLARE CONTINUE HANDLER FOR 1264
+SELECT 'Warning 1264 caught' AS msg;
+# The following INSERT raises 4 SQL-warnings with code 1292,
+# and 3 SQL-warnings with code 1264. Only one of the CONTINUE HANDLERs above
+# must be called, and only once. The SQL Standard does not define, which one
+# should be invoked.
+INSERT INTO t2
+SELECT
+CAST(999999 AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p4()|
+msg
+Warning 1264 caught
+
+# Check that if a SQL-handler raised its own SQL-conditions, there are
+# preserved after handler exit.
+
+CREATE PROCEDURE p5()
+BEGIN
+DECLARE EXIT HANDLER FOR 1292
+BEGIN
+SELECT 'Handler for 1292 (1)' AS Msg;
+SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1234;
+SHOW WARNINGS;
+SELECT 'Handler for 1292 (2)' AS Msg;
+END;
+INSERT INTO t2
+SELECT
+CAST(999999 AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p5()|
+Msg
+Handler for 1292 (1)
+Level	Code	Message
+Warning	1234	Unhandled user-defined warning condition
+Msg
+Handler for 1292 (2)
+Warnings:
+Warning	1234	Unhandled user-defined warning condition
+
+# Check that SQL-conditions are available inside the handler, but
+# cleared after the handler exits.
+
+CREATE PROCEDURE p6()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+BEGIN
+SHOW WARNINGS;
+SELECT 'Handler for 1292' Msg;
+END;
+INSERT INTO t2
+SELECT
+CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p6()|
+Level	Code	Message
+Warning	1292	Truncated incorrect INTEGER value: '1 '
+Warning	1292	Truncated incorrect INTEGER value: '1999999  '
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '2 '
+Warning	1292	Truncated incorrect INTEGER value: '2999999  '
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '3 '
+Warning	1292	Truncated incorrect INTEGER value: '3999999  '
+Warning	1264	Out of range value for column 'c' at row 1
+Msg
+Handler for 1292
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+DROP TABLE t1;
+DROP TABLE t2;
