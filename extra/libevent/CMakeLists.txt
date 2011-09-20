@@ -15,75 +15,72 @@
 
 option(WITH_LIBEVENT "Use bundled libevent for building memcached" ON)
 
-if(WITH_LIBEVENT AND WITH_MEMCACHE) 
 
-  # Common defines and includes
 
-  ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
-                      ${CMAKE_CURRENT_SOURCE_DIR}/compat/sys)
+ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/compat/sys)
 
-  SET(LIBEVENT_CORE_SOURCES
-                  event.h
-                  event-internal.h
-                  evutil.h
-                  log.h
-                  event.c
-                  buffer.c
-                  evbuffer.c
-                  log.c
-                  signal.c
-                  evutil.c)
+SET(LIBEVENT_CORE_SOURCES
+                event.h
+                event-internal.h
+                evutil.h
+                log.h
+                event.c
+                buffer.c
+                evbuffer.c
+                log.c
+                signal.c
+                evutil.c)
 
-  SET(LIBEVENT_EXTRA_SOURCES
-                  event_tagging.c
-                  http.c
-                  evhttp.h
-                  http-internal.h
-                  evdns.c
-                  evdns.h
-                  evrpc.c
-                  evrpc.h
-                  evrpc-internal.h
-                  strlcpy.c
-                  strlcpy-internal.h)
+SET(LIBEVENT_EXTRA_SOURCES
+                event_tagging.c
+                http.c
+                evhttp.h
+                http-internal.h
+                evdns.c
+                evdns.h
+                evrpc.c
+                evrpc.h
+                evrpc-internal.h
+                strlcpy.c
+                strlcpy-internal.h)
 
-  IF(HAVE_SIGNAL_H)
-          SET(LIBEVENT_SIGNAL_SOURCES signal.c)
-  ENDIF()
-
-  IF(HAVE_POLL_H)
-          SET(LIBEVENT_POLL_SOURCES poll.c)
-  ENDIF()
-
-  IF(HAVE_SELECT)
-          SET(LIBEVENT_SELECT_SOURCE select.c)
-  ENDIF()
-
-  IF(HAVE_SYS_EPOLL_H)
-          SET(LIBEVENT_EPOLL_SOURCES epoll.c epoll_sub.c)
-  ENDIF()
-
-  IF(HAVE_SYS_DEVPOLL_H)
-          SET(LIBEVENT_DEVPOLL_SOURCES devpoll.c)
-  ENDIF()
-
-  IF(HAVE_EVENT_PORTS)
-          SET(LIBEVENT_EVPORT_SOURCES evport.c)
-  ENDIF()
-
-  IF(HAVE_WORKING_KQUEUE)
-          SET(LIBEVENT_KQUEUE_SOURCES kqueue.c)
-  ENDIF()
-
-  ADD_LIBRARY(event STATIC ${LIBEVENT_CORE_SOURCES} 
-                           ${LIBEVENT_EXTRA_SOURCES} 
-                           ${LIBEVENT_SIGNAL_SOURCES} 
-                           ${LIBEVENT_POLL_SOURCES} 
-                           ${LIBEVENT_SELECT_SOURCE} 
-                           ${LIBEVENT_EPOLL_SOURCES} 
-                           ${LIBEVENT_DEVPOLL_SOURCES} 
-                           ${LIBEVENT_EVPORT_SOURCES} 
-                           ${LIBEVENT_KQUEUE_SOURCES})
-
+IF(HAVE_SIGNAL_H)
+        SET(LIBEVENT_SIGNAL_SOURCES signal.c)
 ENDIF()
+
+IF(HAVE_POLL_H)
+        SET(LIBEVENT_POLL_SOURCES poll.c)
+ENDIF()
+
+IF(HAVE_SELECT)
+        SET(LIBEVENT_SELECT_SOURCE select.c)
+ENDIF()
+
+IF(HAVE_SYS_EPOLL_H)
+        SET(LIBEVENT_EPOLL_SOURCES epoll.c epoll_sub.c)
+ENDIF()
+
+IF(HAVE_SYS_DEVPOLL_H)
+        SET(LIBEVENT_DEVPOLL_SOURCES devpoll.c)
+ENDIF()
+
+IF(HAVE_EVENT_PORTS)
+        SET(LIBEVENT_EVPORT_SOURCES evport.c)
+ENDIF()
+
+IF(HAVE_WORKING_KQUEUE)
+        SET(LIBEVENT_KQUEUE_SOURCES kqueue.c)
+ENDIF()
+
+ADD_LIBRARY(event STATIC ${LIBEVENT_CORE_SOURCES} 
+                         ${LIBEVENT_EXTRA_SOURCES} 
+                         ${LIBEVENT_SIGNAL_SOURCES} 
+                         ${LIBEVENT_POLL_SOURCES} 
+                         ${LIBEVENT_SELECT_SOURCE} 
+                         ${LIBEVENT_EPOLL_SOURCES} 
+                         ${LIBEVENT_DEVPOLL_SOURCES} 
+                         ${LIBEVENT_EVPORT_SOURCES} 
+                         ${LIBEVENT_KQUEUE_SOURCES})
+
