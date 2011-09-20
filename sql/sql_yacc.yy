@@ -279,7 +279,7 @@ void case_stmt_action_case(LEX *lex)
     (Instruction 12 in the example)
   */
 
-  lex->spcont->push_label(EMPTY_STR, lex->sphead->instructions());
+  lex->spcont->push_label(current_thd, EMPTY_STR, lex->sphead->instructions());
 }
 
 /**
@@ -348,7 +348,7 @@ int case_stmt_action_when(LEX *lex, Item *when, bool simple)
   */
 
   return !test(i) ||
-         sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0)) ||
+         sp->push_backpatch(i, ctx->push_label(current_thd, EMPTY_STR, 0)) ||
          sp->add_cont_backpatch(i) ||
          sp->add_instr(i);
 }
@@ -2591,8 +2591,10 @@ sp_fdparam:
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            sp_variable *spvar= spc->add_variable($1,
-                                                  (enum enum_field_types)$3,
+
+            sp_variable *spvar= spc->add_variable(YYTHD,
+                                                  $1,
+                                                  (enum enum_field_types) $3,
                                                   sp_variable::MODE_IN);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
@@ -2628,9 +2630,10 @@ sp_pdparam:
               my_error(ER_SP_DUP_PARAM, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            sp_variable *spvar= spc->add_variable($3,
-                                                  (enum enum_field_types)$4,
-                                                  (sp_variable::enum_mode)$1);
+            sp_variable *spvar= spc->add_variable(YYTHD,
+                                                  $3,
+                                                  (enum enum_field_types) $4,
+                                                  (sp_variable::enum_mode) $1);
 
             if (lex->sphead->fill_field_definition(YYTHD, lex,
                                                    (enum enum_field_types) $4,
@@ -2766,24 +2769,24 @@ sp_decl:
               my_error(ER_SP_DUP_COND, MYF(0), $2.str);
               MYSQL_YYABORT;
             }
-            if(YYTHD->lex->spcont->add_condition($2, $5))
+            if(spc->add_condition(YYTHD, $2, $5))
               MYSQL_YYABORT;
             $$.vars= $$.hndlrs= $$.curs= 0;
             $$.conds= 1;
           }
         | DECLARE_SYM sp_handler_type HANDLER_SYM FOR_SYM
           {
+            THD *thd= YYTHD;
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
 
-            lex->spcont= lex->spcont->push_context(sp_pcontext::HANDLER_SCOPE);
+            sp_handler *h= lex->spcont->add_handler(thd,
+                                                    (sp_handler::enum_type) $2);
+
+            lex->spcont= lex->spcont->push_context(thd,
+                                                   sp_pcontext::HANDLER_SCOPE);
 
             sp_pcontext *ctx= lex->spcont;
-
-            sp_handler *h= new sp_handler((sp_handler::enum_type) $2);
-
-            ctx->parent_context()->add_handler(h);
-
             sp_instr_hpush_jump *i=
               new sp_instr_hpush_jump(sp->instructions(), ctx, h);
 
@@ -2795,7 +2798,7 @@ sp_decl:
                 sp->push_backpatch(i, ctx->last_label()))
               MYSQL_YYABORT;
 
-            if (sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0)))
+            if (sp->push_backpatch(i, ctx->push_label(thd, EMPTY_STR, 0)))
               MYSQL_YYABORT;
           }
           sp_hcond_list sp_proc_stmt
@@ -2919,7 +2922,7 @@ sp_cond:
               my_error(ER_WRONG_VALUE, MYF(0), "CONDITION", "0");
               MYSQL_YYABORT;
             }
-            $$= new sp_condition_value($1);
+            $$= new (YYTHD->mem_root) sp_condition_value($1);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -2942,7 +2945,7 @@ sqlstate:
               my_error(ER_SP_BAD_SQLSTATE, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            $$= new sp_condition_value($3.str);
+            $$= new (YYTHD->mem_root) sp_condition_value($3.str);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -2969,19 +2972,19 @@ sp_hcond:
           }
         | SQLWARNING_SYM /* SQLSTATEs 01??? */
           {
-            $$= new sp_condition_value(sp_condition_value::WARNING);
+            $$= new (YYTHD->mem_root) sp_condition_value(sp_condition_value::WARNING);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | not FOUND_SYM /* SQLSTATEs 02??? */
           {
-            $$= new sp_condition_value(sp_condition_value::NOT_FOUND);
+            $$= new (YYTHD->mem_root) sp_condition_value(sp_condition_value::NOT_FOUND);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | SQLEXCEPTION_SYM /* All other SQLSTATEs */
           {
-            $$= new sp_condition_value(sp_condition_value::EXCEPTION);
+            $$= new (YYTHD->mem_root) sp_condition_value(sp_condition_value::EXCEPTION);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -3155,7 +3158,10 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            spc->add_variable($1, (enum_field_types)0, sp_variable::MODE_IN);
+            spc->add_variable(YYTHD,
+                              $1,
+                              MYSQL_TYPE_DECIMAL,
+                              sp_variable::MODE_IN);
             $$= 1;
           }
         | sp_decl_idents ',' ident
@@ -3170,7 +3176,10 @@ sp_decl_idents:
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
-            spc->add_variable($3, (enum_field_types)0, sp_variable::MODE_IN);
+            spc->add_variable(YYTHD,
+                              $3,
+                              MYSQL_TYPE_DECIMAL,
+                              sp_variable::MODE_IN);
             $$= $1 + 1;
           }
         ;
@@ -3292,7 +3301,9 @@ sp_proc_stmt_unlabeled:
           { /* Unlabeled controls get a secret label. */
             LEX *lex= Lex;
 
-            lex->spcont->push_label(EMPTY_STR, lex->sphead->instructions());
+            lex->spcont->push_label(YYTHD,
+                                    EMPTY_STR,
+                                    lex->sphead->instructions());
           }
           sp_unlabeled_control
           {
@@ -3520,7 +3531,7 @@ sp_if:
             sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx,
                                                                $2, lex);
             if (i == NULL ||
-                sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0)) ||
+                sp->push_backpatch(i, ctx->push_label(YYTHD, EMPTY_STR, 0)) ||
                 sp->add_cont_backpatch(i) ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
@@ -3537,7 +3548,7 @@ sp_if:
                 sp->add_instr(i))
               MYSQL_YYABORT;
             sp->backpatch(ctx->pop_label());
-            sp->push_backpatch(i, ctx->push_label(EMPTY_STR, 0));
+            sp->push_backpatch(i, ctx->push_label(YYTHD, EMPTY_STR, 0));
           }
           sp_elseifs
           {
@@ -3688,7 +3699,7 @@ sp_labeled_control:
             }
             else
             {
-              lab= lex->spcont->push_label($1, lex->sphead->instructions());
+              lab= lex->spcont->push_label(YYTHD, $1, lex->sphead->instructions());
               lab->type= sp_label::ITERATION;
             }
           }
@@ -3727,7 +3738,7 @@ sp_labeled_block:
               MYSQL_YYABORT;
             }
 
-            lab= lex->spcont->push_label($1, lex->sphead->instructions());
+            lab= lex->spcont->push_label(YYTHD, $1, lex->sphead->instructions());
             lab->type= sp_label::BEGIN;
           }
           sp_block_content sp_opt_label
@@ -3750,7 +3761,7 @@ sp_unlabeled_block:
           { /* Unlabeled blocks get a secret label. */
             LEX *lex= Lex;
             uint ip= lex->sphead->instructions();
-            sp_label *lab= lex->spcont->push_label(EMPTY_STR, ip);
+            sp_label *lab= lex->spcont->push_label(YYTHD, EMPTY_STR, ip);
             lab->type= sp_label::BEGIN;
           }
           sp_block_content
@@ -3766,7 +3777,8 @@ sp_block_content:
               together. No [[NOT] ATOMIC] yet, and we need to figure out how
               make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
             LEX *lex= Lex;
-            lex->spcont= lex->spcont->push_context(sp_pcontext::REGULAR_SCOPE);
+            lex->spcont= lex->spcont->push_context(YYTHD,
+                                                   sp_pcontext::REGULAR_SCOPE);
           }
           sp_decls
           sp_proc_stmts

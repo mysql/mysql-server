@@ -270,17 +270,16 @@ public:
   sp_pcontext();
   ~sp_pcontext();
 
-  /**
-    Create and push a new context in the tree.
-    @param scope scope of the new parsing context
-    @return the node created
-  */
-  sp_pcontext *push_context(enum_scope scope);
 
-  /**
-    Pop a node from the parsing context tree.
-    @return the parent node
-  */
+  /// Create and push a new context in the tree.
+
+  /// @param thd   thread context.
+  /// @param scope scope of the new parsing context.
+  /// @return the node created.
+  sp_pcontext *push_context(THD *thd, enum_scope scope);
+
+  /// Pop a node from the parsing context tree.
+  /// @return the parent node.
   sp_pcontext *pop_context();
 
   sp_pcontext *parent_context() const
@@ -335,12 +334,14 @@ public:
 
   /// Add SP-variable to the parsing context.
   ///
+  /// @param thd  Thread context.
   /// @param name Name of the SP-variable.
   /// @param type Type of the SP-variable.
   /// @param mode Mode of the SP-variable.
   ///
   /// @return instance of newly added SP-variable.
-  sp_variable *add_variable(LEX_STRING name,
+  sp_variable *add_variable(THD *thd,
+                            LEX_STRING name,
                             enum enum_field_types type,
                             sp_variable::enum_mode mode);
 
@@ -404,7 +405,7 @@ public:
   // Labels.
   /////////////////////////////////////////////////////////////////////////
 
-  sp_label *push_label(LEX_STRING name, uint ip);
+  sp_label *push_label(THD *thd, LEX_STRING name, uint ip);
 
   sp_label *find_label(LEX_STRING name);
 
@@ -425,7 +426,7 @@ public:
   // Conditions.
   /////////////////////////////////////////////////////////////////////////
 
-  bool add_condition(LEX_STRING name, sp_condition_value *value);
+  bool add_condition(THD *thd, LEX_STRING name, sp_condition_value *value);
 
   /// See comment for find_variable() above.
   sp_condition_value *find_condition(LEX_STRING name,
@@ -435,8 +436,7 @@ public:
   // Handlers.
   /////////////////////////////////////////////////////////////////////////
 
-  void add_handler(sp_handler *handler)
-  { m_handlers.append(handler); }
+  sp_handler *add_handler(THD* thd, sp_handler::enum_type type);
 
   /// This is an auxilary parsing-time function to check if an SQL-handler
   /// exists in the current parsing context (current scope) for the given
@@ -465,7 +465,7 @@ public:
   /// @return a pointer to the found SQL-handler or NULL.
   sp_handler *find_handler(const char *sql_state,
                            uint sql_errno,
-                           Sql_condition::enum_warning_level level);
+                           Sql_condition::enum_warning_level level) const;
 
   /////////////////////////////////////////////////////////////////////////
   // Cursors.
@@ -486,11 +486,9 @@ public:
   { return m_cursor_offset + m_cursors.elements(); }
 
 private:
-  /**
-    Constructor for a tree node.
-    @param prev the parent parsing context
-    @param scope scope of this parsing context
-  */
+  /// Constructor for a tree node.
+  /// @param prev the parent parsing context
+  /// @param scope scope of this parsing context
   sp_pcontext(sp_pcontext *prev, enum_scope scope);
 
   void init(uint var_offset, uint cursor_offset, int num_case_expressions);
@@ -500,15 +498,13 @@ private:
   void operator=(sp_pcontext &);
 
 private:
-  /*
-    m_max_var_index -- number of variables (including all types of arguments)
-    in this context including all children contexts.
-
-    m_max_var_index >= m_vars.elements().
-
-    m_max_var_index of the root parsing context contains number of all
-    variables (including arguments) in all enclosed contexts.
-  */
+  /// m_max_var_index -- number of variables (including all types of arguments)
+  /// in this context including all children contexts.
+  ///
+  /// m_max_var_index >= m_vars.elements().
+  ///
+  /// m_max_var_index of the root parsing context contains number of all
+  /// variables (including arguments) in all enclosed contexts.
   uint m_max_var_index;
 
   /// The maximum sub context's framesizes.

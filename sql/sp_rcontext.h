@@ -81,7 +81,7 @@ private:
 private:
   /// This is an auxillary class to store entering instruction pointer for an
   /// SQL-handler.
-  class sp_handler_entry
+  class sp_handler_entry : public Sql_alloc
   {
   public:
     /// Handler definition (from parsing context).
@@ -115,7 +115,7 @@ public:
   /// standard SQL-condition processing (Diagnostics_area should contain an
   /// object for active SQL-condition, not just information stored in DA's
   /// fields).
-  class Sql_condition_info
+  class Sql_condition_info : public Sql_alloc
   {
   public:
     /// SQL error code.
@@ -133,25 +133,24 @@ public:
     /// The constructor.
     ///
     /// @param _sql_condition  The SQL condition.
-    Sql_condition_info(const Sql_condition *_sql_condition)
+    /// @param arena           Query arena for SP
+    Sql_condition_info(const Sql_condition *_sql_condition,
+                       Query_arena *arena)
       :sql_errno(_sql_condition->get_sql_errno()),
        level(_sql_condition->get_level())
     {
       memcpy(sql_state, _sql_condition->get_sqlstate(), SQLSTATE_LENGTH);
-      sql_state[SQLSTATE_LENGTH]= 0;
+      sql_state[SQLSTATE_LENGTH]= '\0';
 
-      message= my_strdup(_sql_condition->get_message_text(), MYF(0));
+      message= strdup_root(arena->mem_root, _sql_condition->get_message_text());
     }
-
-    ~Sql_condition_info()
-    { my_free(message); }
   };
 
 private:
   /// This class represents a call frame of SQL-handler (one invocation of a
   /// handler). Basically, it's needed to store continue instruction pointer for
   /// CONTINUE SQL-handlers.
-  class Handler_call_frame
+  class Handler_call_frame : public Sql_alloc
   {
   public:
     /// SQL-condition, triggered handler activation.
@@ -170,10 +169,7 @@ private:
      :sql_condition(_sql_condition),
       continue_ip(_continue_ip)
     { }
-
-    ~Handler_call_frame()
-    { delete sql_condition; }
-  };
+ };
 
 public:
   /// Arena used to (re) allocate items on. E.g. reallocate INOUT/OUT
@@ -219,7 +215,11 @@ public:
   ///
   /// @param handler  SQL-handler object.
   /// @param first_ip First instruction pointer of the handler.
-  void push_handler(sp_handler *handler_def, uint first_ip);
+  ///
+  /// @return error flag.
+  /// @retval false on success.
+  /// @retval true on error.
+  bool push_handler(sp_handler *handler, uint first_ip);
 
   /// Pop and delete given number of sp_handler_entry instances from the handler
   /// call stack.
@@ -242,8 +242,6 @@ public:
   /// @param ip[out]        Instruction pointer to the first handler
   ///                       instruction.
   /// @param cur_spi        Current SP instruction.
-  /// @param execute_arena  Current execution arena for SP.
-  /// @param backup_arena   Backup arena for SP.
   ///
   /// @retval true if an SQL-handler has been activated. That means, all of
   /// the following conditions are satisfied:
@@ -257,9 +255,7 @@ public:
   /// @retval false otherwise.
   bool handle_sql_condition(THD *thd,
                             uint *ip,
-                            const sp_instr *cur_spi,
-                            Query_arena *execute_arena,
-                            Query_arena *backup_arena);
+                            const sp_instr *cur_spi);
 
   /// Remove latest call frame from the handler call stack.
   ///
@@ -272,11 +268,15 @@ public:
   // Cursors.
   /////////////////////////////////////////////////////////////////////////
 
-  ///  Create a new sp_cursor instance and push it to the cursor stack.
+  /// Create a new sp_cursor instance and push it to the cursor stack.
   ///
-  ///  @param lex_keeper SP-instruction execution helper.
-  ///  @param i          Cursor-push instruction.
-  void push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
+  /// @param lex_keeper SP-instruction execution helper.
+  /// @param i          Cursor-push instruction.
+  ///
+  /// @return error flag.
+  /// @retval false on success.
+  /// @retval true on error.
+  bool push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
 
   /// Pop and delete given number of sp_cursor instance from the cursor stack.
   ///
@@ -340,7 +340,7 @@ private:
   ///
   /// @return error flag.
   /// @retval false on success.
-  /// @retval false on error.
+  /// @retval true on error.
   bool init_var_table(THD *thd);
 
   /// Create and initialize an Item-adapter (Item_field) for each SP-var field.
@@ -349,7 +349,7 @@ private:
   ///
   /// @return error flag.
   /// @retval false on success.
-  /// @retval false on error.
+  /// @retval true on error.
   bool init_var_items(THD *thd);
 
   /// Create an instance of appropriate Item_cache class depending on the

@@ -1344,7 +1344,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       killed during execution.
     */
     if (!thd->is_fatal_error && !thd->killed_errno() &&
-        ctx->handle_sql_condition(thd, &ip, i, &execute_arena, &backup_arena))
+        ctx->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;
     }
@@ -3431,11 +3431,11 @@ sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_hpush_jump::execute");
 
-  thd->spcont->push_handler(m_handler, m_ip + 1);
+  int ret= thd->spcont->push_handler(m_handler, m_ip + 1);
 
   *nextp= m_dest;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 
@@ -3591,19 +3591,11 @@ sp_instr_cpush::execute(THD *thd, uint *nextp)
   Query_arena backup_arena;
   DBUG_ENTER("sp_instr_cpush::execute");
 
-  /*
-    We should create cursors in the callers arena, as
-    it could be (and usually is) used in several instructions.
-  */
-  thd->set_n_backup_active_arena(thd->spcont->callers_arena, &backup_arena);
-
-  thd->spcont->push_cursor(&m_lex_keeper, this);
-
-  thd->restore_active_arena(thd->spcont->callers_arena, &backup_arena);
+  int ret= thd->spcont->push_cursor(&m_lex_keeper, this);
 
   *nextp= m_ip+1;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 
