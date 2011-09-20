@@ -31,11 +31,11 @@
 sp_rcontext::sp_rcontext(const sp_pcontext *root_parsing_ctx,
                          Field *return_value_fld,
                          bool in_sub_stmt)
-  :end_partial_result_set(FALSE),
+  :end_partial_result_set(false),
    m_root_parsing_ctx(root_parsing_ctx),
-   m_var_table(0),
+   m_var_table(NULL),
    m_return_value_fld(return_value_fld),
-   m_return_value_set(FALSE),
+   m_return_value_set(false),
    m_in_sub_stmt(in_sub_stmt),
    m_ccount(0)
 {
@@ -47,14 +47,9 @@ sp_rcontext::~sp_rcontext()
   if (m_var_table)
     free_blobs(m_var_table);
 
-  while (m_handlers.elements() > 0)
-    delete m_handlers.pop();
-
-  while (m_handler_call_stack.elements() > 0)
-    delete m_handler_call_stack.pop();
-
-  // Leave m_var_items, m_cstack and m_case_expr_holders untouched.
-  // They are allocated in THD's memory and will be freed accordingly.
+  // Leave m_handlers, m_handler_call_stack, m_var_items, m_cstack
+  // and m_case_expr_holders untouched.
+  // They are allocated in mem roots and will be freed accordingly.
 }
 
 
@@ -62,9 +57,9 @@ sp_rcontext *sp_rcontext::create(THD *thd,
                                  const sp_pcontext *root_parsing_ctx,
                                  Field *return_value_fld)
 {
-  sp_rcontext *ctx= new sp_rcontext(root_parsing_ctx,
-                                    return_value_fld,
-                                    thd->in_sub_stmt);
+  sp_rcontext *ctx= new (thd->mem_root) sp_rcontext(root_parsing_ctx,
+                                                    return_value_fld,
+                                                    thd->in_sub_stmt);
 
   if (!ctx)
     return NULL;
@@ -108,19 +103,19 @@ bool sp_rcontext::init_var_table(THD *thd)
   List<Create_field> field_def_lst;
 
   if (!m_root_parsing_ctx->max_var_index())
-    return FALSE;
+    return false;
 
   m_root_parsing_ctx->retrieve_field_definitions(&field_def_lst);
 
   DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
 
   if (!(m_var_table= create_virtual_tmp_table(thd, field_def_lst)))
-    return TRUE;
+    return true;
 
-  m_var_table->copy_blobs= TRUE;
+  m_var_table->copy_blobs= true;
   m_var_table->alias= "";
 
-  return FALSE;
+  return false;
 }
 
 
@@ -134,15 +129,15 @@ bool sp_rcontext::init_var_items(THD *thd)
     num_vars);
 
   if (!m_var_items.array())
-    return TRUE;
+    return true;
 
   for (uint idx = 0; idx < num_vars; ++idx)
   {
     if (!(m_var_items[idx]= new Item_field(m_var_table->field[idx])))
-      return TRUE;
+      return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -150,63 +145,69 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 {
   DBUG_ASSERT(m_return_value_fld);
 
-  m_return_value_set = TRUE;
+  m_return_value_set = true;
 
   return sp_eval_expr(thd, m_return_value_fld, return_value_item);
 }
 
 
-void sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
+bool sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper,
+                              sp_instr_cpush *i)
 {
-  DBUG_ENTER("sp_rcontext::push_cursor");
+  /*
+    We should create cursors in the callers arena, as
+    it could be (and usually is) used in several instructions.
+  */
+  sp_cursor *c= new (callers_arena->mem_root) sp_cursor(lex_keeper, i);
 
-  m_cstack[m_ccount++]= new sp_cursor(lex_keeper, i);
+  if (c == NULL)
+    return true;
 
-  DBUG_PRINT("info", ("m_ccount: %d", m_ccount));
-  DBUG_VOID_RETURN;
+  m_cstack[m_ccount++]= c;
+  return false;
 }
 
 
 void sp_rcontext::pop_cursors(uint count)
 {
-  DBUG_ENTER("sp_rcontext::pop_cursors");
+  DBUG_ASSERT(m_ccount >= count);
 
   while (count--)
     delete m_cstack[--m_ccount];
-
-  DBUG_PRINT("info", ("m_ccount: %d", m_ccount));
-  DBUG_VOID_RETURN;
 }
 
 
-void sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
+bool sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
 {
-  DBUG_ENTER("sp_rcontext::push_handler");
+  /*
+    We should create handler entries in the callers arena, as
+    they could be (and usually are) used in several instructions.
+  */
+  sp_handler_entry *he=
+    new (callers_arena->mem_root) sp_handler_entry(handler, first_ip);
 
-  m_handlers.append(new sp_handler_entry(handler, first_ip));
+  if (he == NULL)
+    return true;
 
-  DBUG_VOID_RETURN;
+  return m_handlers.append(he);
 }
 
 
 void sp_rcontext::pop_handlers(int count)
 {
-  DBUG_ENTER("sp_rcontext::pop_handlers");
   DBUG_ASSERT(m_handlers.elements() >= count);
 
   for (int i= 0; i < count; ++i)
-    delete m_handlers.pop();
-
-  DBUG_VOID_RETURN;
+    m_handlers.pop();
 }
 
 
 bool sp_rcontext::handle_sql_condition(THD *thd,
                                        uint *ip,
-                                       const sp_instr *cur_spi,
-                                       Query_arena *execute_arena,
-                                       Query_arena *backup_arena)
+                                       const sp_instr *cur_spi)
 {
+  DBUG_ENTER("sp_rcontext::handle_sql_condition");
+
   /*
     If this is a fatal sub-statement error, and this runtime
     context corresponds to a sub-statement, no CONTINUE/EXIT
@@ -214,7 +215,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     in the outer scope.
   */
   if (thd->is_fatal_sub_stmt_error && m_in_sub_stmt)
-    return false;
+    DBUG_RETURN(false);
 
   Diagnostics_area *da= thd->get_stmt_da();
   const sp_handler *found_handler= NULL;
@@ -258,7 +259,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   }
 
   if (!found_handler)
-    return false;
+    DBUG_RETURN(false);
 
   // At this point, we know that:
   //  - there is a pending SQL-condition (error or warning);
@@ -283,14 +284,8 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   DBUG_ASSERT(handler_entry);
 
-  uint continue_ip= 0;
-  if (handler_entry->handler->type == sp_handler::CONTINUE)
-  {
-    thd->restore_active_arena(execute_arena, backup_arena);
-    thd->set_n_backup_active_arena(execute_arena, backup_arena);
-
-    continue_ip= cur_spi->get_cont_dest();
-  }
+  uint continue_ip= handler_entry->handler->type == sp_handler::CONTINUE ?
+    cur_spi->get_cont_dest() : 0;
 
   /* End aborted result set. */
   if (end_partial_result_set)
@@ -302,14 +297,16 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
                                 // (e.g. "bad data").
 
   /* Add a frame to handler-call-stack. */
-  m_handler_call_stack.append(
-    new Handler_call_frame(
-      new Sql_condition_info(found_condition),
-      continue_ip));
+  Sql_condition_info *cond_info=
+    new (callers_arena->mem_root) Sql_condition_info(found_condition,
+                                                     callers_arena);
+  Handler_call_frame *frame=
+    new (callers_arena->mem_root) Handler_call_frame(cond_info, continue_ip);
+  m_handler_call_stack.append(frame);
 
   *ip= handler_entry->first_ip;
 
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -327,8 +324,6 @@ uint sp_rcontext::exit_handler(Diagnostics_area *da)
   da->remove_marked_sql_conditions();
 
   uint continue_ip= f->continue_ip;
-
-  delete f;
 
   DBUG_RETURN(continue_ip);
 }
@@ -442,7 +437,7 @@ int sp_cursor::close(THD *thd)
 void sp_cursor::destroy()
 {
   delete server_side_cursor;
-  server_side_cursor= 0;
+  server_side_cursor= NULL;
 }
 
 
@@ -519,7 +514,7 @@ bool sp_cursor::Select_fetch_into_spvars::send_data(List<Item> &items)
   for (; spvar= spvar_iter++, item= item_iter++; )
   {
     if (thd->spcont->set_variable(thd, spvar->offset, &item))
-      return TRUE;
+      return true;
   }
-  return FALSE;
+  return false;
 }

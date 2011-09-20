@@ -84,9 +84,9 @@ sp_pcontext::~sp_pcontext()
 }
 
 
-sp_pcontext *sp_pcontext::push_context(sp_pcontext::enum_scope scope)
+sp_pcontext *sp_pcontext::push_context(THD *thd, sp_pcontext::enum_scope scope)
 {
-  sp_pcontext *child= new sp_pcontext(this, scope);
+  sp_pcontext *child= new (thd->mem_root) sp_pcontext(this, scope);
 
   if (child)
     m_children.append(child);
@@ -179,11 +179,13 @@ sp_variable *sp_pcontext::find_variable(uint offset) const
 }
 
 
-sp_variable *sp_pcontext::add_variable(LEX_STRING name,
+sp_variable *sp_pcontext::add_variable(THD *thd,
+                                       LEX_STRING name,
                                        enum enum_field_types type,
                                        sp_variable::enum_mode mode)
 {
-  sp_variable *p= new sp_variable(name, type, mode, current_var_count());
+  sp_variable *p=
+    new (thd->mem_root) sp_variable(name, type,mode, current_var_count());
 
   if (!p)
     return NULL;
@@ -194,9 +196,10 @@ sp_variable *sp_pcontext::add_variable(LEX_STRING name,
 }
 
 
-sp_label *sp_pcontext::push_label(LEX_STRING name, uint ip)
+sp_label *sp_pcontext::push_label(THD *thd, LEX_STRING name, uint ip)
 {
-  sp_label *label= new sp_label(name, ip, sp_label::IMPLICIT, this);
+  sp_label *label=
+    new (thd->mem_root) sp_label(name, ip, sp_label::IMPLICIT, this);
 
   if (!label)
     return NULL;
@@ -232,9 +235,11 @@ sp_label *sp_pcontext::find_label(LEX_STRING name)
 }
 
 
-bool sp_pcontext::add_condition(LEX_STRING name, sp_condition_value *value)
+bool sp_pcontext::add_condition(THD *thd,
+                                LEX_STRING name,
+                                sp_condition_value *value)
 {
-  sp_condition *p= new sp_condition(name, value);
+  sp_condition *p= new (thd->mem_root) sp_condition(name, value);
 
   if (p == NULL)
     return true;
@@ -266,6 +271,18 @@ sp_condition_value *sp_pcontext::find_condition(LEX_STRING name,
 }
 
 
+sp_handler *sp_pcontext::add_handler(THD *thd,
+                                     sp_handler::enum_type type)
+{
+  sp_handler *h= new (thd->mem_root) sp_handler(type);
+
+  if (!h)
+    return NULL;
+
+  return m_handlers.append(h) ? NULL : h;
+}
+
+
 bool sp_pcontext::check_duplicate_handler(
   const sp_condition_value *cond_value) const
 {
@@ -287,9 +304,10 @@ bool sp_pcontext::check_duplicate_handler(
 }
 
 
-sp_handler *sp_pcontext::find_handler(const char *sql_state,
-                                      uint sql_errno,
-                                      Sql_condition::enum_warning_level level)
+sp_handler*
+sp_pcontext::find_handler(const char *sql_state,
+                          uint sql_errno,
+                          Sql_condition::enum_warning_level level) const
 {
   sp_handler *found_handler= NULL;
   sp_condition_value *found_cv= NULL;
@@ -384,7 +402,7 @@ sp_handler *sp_pcontext::find_handler(const char *sql_state,
   // declarations), which has REGULAR_SCOPE (i.e. which is regular BEGIN..END
   // block).
 
-  sp_pcontext *p= this;
+  const sp_pcontext *p= this;
 
   while (p && p->m_scope == HANDLER_SCOPE)
     p= p->m_parent;
