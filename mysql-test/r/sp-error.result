@@ -2682,7 +2682,7 @@ END|
 
 CALL p3()|
 msg
-Warning 1292 caught
+Warning 1264 caught
 
 # The same as p3, but 1264 comes first.
 
