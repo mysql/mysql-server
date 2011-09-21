@@ -178,6 +178,7 @@ Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
 {
   LEX_STRING name;
   Class_info *ci;
+  char next_sym;
 
   if (trs->get_next_word(&name))
   {
@@ -190,9 +191,13 @@ Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
   Geometry *result= (*ci->m_create_func)(buffer->data);
   wkt->q_append((char) wkb_ndr);
   wkt->q_append((uint32) result->get_class_info()->m_type_id);
-  if (trs->check_next_symbol('(') ||
+  if (!(next_sym= trs->next_symbol()))
+    return NULL;
+  if (!(next_sym= trs->next_symbol()))
+    return NULL;
+  if ((next_sym == '(' && trs->check_next_symbol('(')) ||
       result->init_from_wkt(trs, wkt) ||
-      trs->check_next_symbol(')'))
+      (next_sym == '(' && trs->check_next_symbol(')')))
     return NULL;
   if (init_stream)  
   {
@@ -200,6 +205,22 @@ Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
     result->shift_wkb_header();
   }
   return result;
+}
+
+
+int Geometry::as_wkt(String *wkt, const char **end)
+{
+  uint32 len= (uint) get_class_info()->m_name.length;
+  if (wkt->reserve(len + 2, 512))
+    return 1;
+  wkt->qs_append(get_class_info()->m_name.str, len);
+  if (get_class_info() != &geometrycollection_class)
+    wkt->qs_append('(');
+  if (get_data_as_wkt(wkt, end))
+    return 1;
+  if (get_class_info() != &geometrycollection_class)
+    wkt->qs_append(')');
+  return 0;
 }
 
 
@@ -2092,26 +2113,40 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 no_pos= wkb->length();
   Geometry_buffer buffer;
   Geometry *g;
+  char next_sym;
 
   if (wkb->reserve(4, 512))
     return 1;
   wkb->length(wkb->length()+4);			// Reserve space for points
 
-  if (trs->next_symbol() != ')')
-  {
-    for (;;)
-    {
-      if (!(g= create_from_wkt(&buffer, trs, wkb)))
-        return 1;
+  if (!(next_sym= trs->next_symbol()))
+    return 1;
 
-      if (g->get_class_info()->m_type_id == wkb_geometrycollection)
+  if (next_sym != ')')
+  {
+    LEX_STRING next_word;
+    if (trs->lookup_next_word(&next_word))
+      return 1;
+
+    if (next_word.length != 5 ||
+	(my_strnncoll(&my_charset_latin1,
+		      (const uchar*) "empty", 5,
+		      (const uchar*) next_word.str, 5) != 0))
+    {
+      for (;;)
       {
-        trs->set_error_msg("Unexpected GEOMETRYCOLLECTION");
-        return 1;
+        if (!(g= create_from_wkt(&buffer, trs, wkb)))
+          return 1;
+
+        if (g->get_class_info()->m_type_id == wkb_geometrycollection)
+        {
+          trs->set_error_msg("Unexpected GEOMETRYCOLLECTION");
+          return 1;
+        }
+        n_objects++;
+        if (trs->skip_char(','))			// Didn't find ','
+          break;
       }
-      n_objects++;
-      if (trs->skip_char(','))			// Didn't find ','
-        break;
     }
   }
 
@@ -2219,6 +2254,13 @@ bool Gis_geometry_collection::get_data_as_wkt(String *txt,
   n_objects= uint4korr(data);
   data+= 4;
 
+  if (n_objects == 0)
+  {
+    txt->append(STRING_WITH_LEN(" EMPTY"), 512);
+    goto exit;
+  }
+
+  txt->qs_append('(');
   while (n_objects--)
   {
     uint32 wkb_type;
@@ -2236,6 +2278,8 @@ bool Gis_geometry_collection::get_data_as_wkt(String *txt,
     if (n_objects && txt->append(STRING_WITH_LEN(","), 512))
       return 1;
   }
+  txt->qs_append(')');
+exit:
   *end= data;
   return 0;
 }

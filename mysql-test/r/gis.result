@@ -67,7 +67,8 @@ INSERT INTO gis_multi_polygon VALUES
 INSERT INTO gis_geometrycollection VALUES
 (120, GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
 (121, GeometryFromWKB(AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))))),
-(122, GeomFromText('GeometryCollection()'));
+(122, GeomFromText('GeometryCollection()')),
+(123, GeomFromText('GeometryCollection EMPTY'));
 INSERT into gis_geometry SELECT * FROM gis_point;
 INSERT into gis_geometry SELECT * FROM gis_line;
 INSERT into gis_geometry SELECT * FROM gis_polygon;
@@ -110,7 +111,8 @@ SELECT fid, AsText(g) FROM gis_geometrycollection;
 fid	AsText(g)
 120	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))
 121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
-122	GEOMETRYCOLLECTION()
+122	GEOMETRYCOLLECTION EMPTY
+123	GEOMETRYCOLLECTION EMPTY
 SELECT fid, AsText(g) FROM gis_geometry;
 fid	AsText(g)
 101	POINT(10 10)
@@ -134,7 +136,8 @@ fid	AsText(g)
 119	MULTIPOLYGON(((0 3,3 3,3 0,0 3)))
 120	GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))
 121	GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))
-122	GEOMETRYCOLLECTION()
+122	GEOMETRYCOLLECTION EMPTY
+123	GEOMETRYCOLLECTION EMPTY
 SELECT fid, Dimension(g) FROM gis_geometry;
 fid	Dimension(g)
 101	0
@@ -159,6 +162,7 @@ fid	Dimension(g)
 120	1
 121	1
 122	0
+123	0
 SELECT fid, GeometryType(g) FROM gis_geometry;
 fid	GeometryType(g)
 101	POINT
@@ -183,6 +187,7 @@ fid	GeometryType(g)
 120	GEOMETRYCOLLECTION
 121	GEOMETRYCOLLECTION
 122	GEOMETRYCOLLECTION
+123	GEOMETRYCOLLECTION
 SELECT fid, IsEmpty(g) FROM gis_geometry;
 fid	IsEmpty(g)
 101	0
@@ -207,6 +212,7 @@ fid	IsEmpty(g)
 120	0
 121	0
 122	0
+123	0
 SELECT fid, AsText(Envelope(g)) FROM gis_geometry;
 fid	AsText(Envelope(g))
 101	POLYGON((10 10,10 10,10 10,10 10,10 10))
@@ -231,9 +237,10 @@ fid	AsText(Envelope(g))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
 122	NULL
+123	NULL
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	22	100.00	
+1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	23	100.00	
 Warnings:
 Note	1003	select st_dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, X(g) FROM gis_point;
@@ -353,6 +360,7 @@ fid	NumGeometries(g)
 120	2
 121	2
 122	0
+123	0
 explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
@@ -378,11 +386,13 @@ fid	AsText(GeometryN(g, 2))
 120	LINESTRING(0 0,10 10)
 121	LINESTRING(3 6,7 9)
 122	NULL
+123	NULL
 SELECT fid, AsText(GeometryN(g, 1)) from gis_geometrycollection;
 fid	AsText(GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
 122	NULL
+123	NULL
 explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
@@ -397,20 +407,27 @@ first	second	w	c	o	e	d	t	i	r
 120	120	1	1	0	1	0	1	1	1
 120	121	0	0	1	0	0	0	1	0
 120	122	0	1	NULL	NULL	NULL	0	NULL	0
+120	123	0	1	NULL	NULL	NULL	0	NULL	0
 121	120	0	0	1	0	0	0	1	0
 121	121	1	1	0	1	0	1	1	1
 121	122	0	1	NULL	NULL	NULL	0	NULL	0
+121	123	0	1	NULL	NULL	NULL	0	NULL	0
 122	120	1	0	NULL	NULL	NULL	0	NULL	0
 122	121	1	0	NULL	NULL	NULL	0	NULL	0
 122	122	1	1	NULL	NULL	NULL	0	NULL	0
+122	123	1	1	NULL	NULL	NULL	0	NULL	0
+123	120	1	0	NULL	NULL	NULL	0	NULL	0
+123	121	1	0	NULL	NULL	NULL	0	NULL	0
+123	122	1	1	NULL	NULL	NULL	0	NULL	0
+123	123	1	1	NULL	NULL	NULL	0	NULL	0
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
-1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (flat, BNL join)
+1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,st_within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,st_contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
@@ -850,7 +867,7 @@ mbroverlaps
 down,left,right,up
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrtouches   FROM t1 a1 JOIN t1 a2 ON MBRTouches(    a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrtouches
-down2,left2,right2,up2
+big,down2,left,left2,right,right2,small,up2
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrwithin    FROM t1 a1 JOIN t1 a2 ON MBRWithin(     a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrwithin
 big,center
@@ -871,7 +888,7 @@ overlaps
 down,left,right,up
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS touches      FROM t1 a1 JOIN t1 a2 ON Touches(       a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 touches
-down2,left2,right2,up2
+big,down2,left,left2,right,right2,small,up2
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS within       FROM t1 a1 JOIN t1 a2 ON Within(        a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 within
 big,center

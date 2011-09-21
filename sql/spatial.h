@@ -286,18 +286,7 @@ public:
                                    const char *wkb, uint32 len, String *res);
   static int create_from_opresult(Geometry_buffer *g_buf,
                                   String *res, Gcalc_result_receiver &rr);
-  int as_wkt(String *wkt, const char **end)
-  {
-    uint32 len= (uint) get_class_info()->m_name.length;
-    if (wkt->reserve(len + 2, 512))
-      return 1;
-    wkt->qs_append(get_class_info()->m_name.str, len);
-    wkt->qs_append('(');
-    if (get_data_as_wkt(wkt, end))
-      return 1;
-    wkt->qs_append(')');
-    return 0;
-  }
+  int as_wkt(String *wkt, const char **end);
 
   inline void set_data_ptr(const char *data, uint32 data_len)
   {
