@@ -1442,7 +1442,6 @@ public:
 
    */
   uchar* binlog_row_event_extra_data;
-  uint8  get_binlog_row_event_extra_data_len() const;
   static bool binlog_row_event_extra_data_eq(const uchar* a,
                                              const uchar* b);
 #endif
@@ -1458,13 +1457,25 @@ public:
   int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        MY_BITMAP const* cols, size_t colcnt,
-                       const uchar *buf);
+                       const uchar *buf
+#ifndef MCP_WL5353
+                       ,const uchar* extra_row_info
+#endif
+                       );
   int binlog_delete_row(TABLE* table, bool is_transactional,
                         MY_BITMAP const* cols, size_t colcnt,
-                        const uchar *buf);
+                        const uchar *buf
+#ifndef MCP_WL5353
+                        ,const uchar* extra_row_info
+#endif
+                        );
   int binlog_update_row(TABLE* table, bool is_transactional,
                         MY_BITMAP const* cols, size_t colcnt,
-                        const uchar *old_data, const uchar *new_data);
+                        const uchar *old_data, const uchar *new_data
+#ifndef MCP_WL5353
+                        ,const uchar* extra_row_info
+#endif
+                        );
 
   void set_server_id(uint32 sid) { server_id = sid; }
 
@@ -1477,7 +1488,11 @@ public:
                                       size_t colcnt,
                                       size_t needed,
                                       bool is_transactional,
-				      RowsEventT* hint);
+				      RowsEventT* hint
+#ifndef MCP_WL5353
+                                      ,const uchar* extra_row_info
+#endif
+                                      );
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
   int binlog_flush_pending_rows_event(bool stmt_end);
