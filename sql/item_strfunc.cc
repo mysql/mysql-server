@@ -2421,7 +2421,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (isnan(nr))
+    if (isnan(nr) || my_isinf(nr))
       return str;
     str_length=str->length();
   }
@@ -2477,6 +2477,7 @@ String *Item_func_format::val_str_ascii(String *str)
       For short values without thousands (<1000)
       replace decimal point to localized value.
     */
+    DBUG_ASSERT(dec_length <= str_length);
     ((char*) str->ptr())[str_length - dec_length]= lc->decimal_point;
   }
   return str;

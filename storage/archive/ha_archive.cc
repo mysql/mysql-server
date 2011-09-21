@@ -1775,7 +1775,8 @@ mysql_declare_plugin(archive)
   0x0300 /* 3.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 
