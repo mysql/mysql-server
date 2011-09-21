@@ -17,13 +17,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (word char(20) not null)ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 show binlog events from <binlog_start> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -189,13 +189,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (word char(20) not null)ENGINE=InnoDB
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002' from <binlog_start>;
@@ -204,7 +204,7 @@ master-bin.000002	#	Query	#	#	use `test`; create table t3 (a int)ENGINE=InnoDB
 master-bin.000002	#	Query	#	#	use `test`; create table t2 (n int)ENGINE=InnoDB
 master-bin.000002	#	Query	#	#	BEGIN
 master-bin.000002	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000002	#	Xid	#	#	COMMIT /* XID */
 show binary logs;
 Log_name	File_size
@@ -219,13 +219,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; create table t1(n int not null auto_increment primary key)ENGINE=InnoDB
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	use `test`; drop table t1
 slave-bin.000001	#	Query	#	#	use `test`; create table t1 (word char(20) not null)ENGINE=InnoDB
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	use `test`; create table t3 (a int)ENGINE=InnoDB
 slave-bin.000001	#	Rotate	#	#	slave-bin.000002;pos=4
@@ -234,7 +234,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Query	#	#	use `test`; create table t2 (n int)ENGINE=InnoDB
 slave-bin.000002	#	Query	#	#	BEGIN
 slave-bin.000002	#	Table_map	#	#	table_id: # (test.t2)
-slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 slave-bin.000002	#	Xid	#	#	COMMIT /* XID */
 include/check_slave_is_running.inc
 show binlog events in 'slave-bin.000005' from 4;
@@ -252,11 +252,11 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; create table t1(a int auto_increment primary key, b int)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 select * from t1;
 a	b

@@ -49,8 +49,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t2)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 mysqld-bin.000001	#	Query	2	#	drop database mysqltest
 mysqld-bin.000001	#	Query	2	#	use `test`; create table t1 (a int primary key) engine=ndb
@@ -185,14 +185,14 @@ mysqld-bin.000001	#	Query	2	#	use `test`; create table t1 (a int key) engine=ndb
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 mysqld-bin.000001	#	Query	2	#	use `test`; rename table `test`.`t1` to `test`.`t2`
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t2)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 mysqld-bin.000001	#	Query	2	#	use `test`; drop table t2

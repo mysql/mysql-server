@@ -69,14 +69,14 @@ slave-bin.000001	#	Query	2	#	use `test`; CREATE TABLE t1 (a int key, b int) ENGI
 slave-bin.000001	#	Query	2	#	BEGIN
 slave-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
 slave-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-slave-bin.000001	#	Write_rows	2	#	table_id: #
-slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Write_rows_v1	2	#	table_id: #
+slave-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	2	#	COMMIT
 slave-bin.000001	#	Query	2	#	BEGIN
 slave-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
 slave-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-slave-bin.000001	#	Write_rows	2	#	table_id: #
-slave-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Write_rows_v1	2	#	table_id: #
+slave-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	2	#	COMMIT
 include/check_slave_is_running.inc
 SELECT * FROM t1 ORDER BY a;
@@ -99,8 +99,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 STOP SLAVE;
 DROP TABLE t1;
