@@ -160,14 +160,12 @@ bool Configuration::readConfiguration() {
   store_default_prefix();
   
   switch(config_version) {
-    case CONFIG_VER_UNSUPPORTED:
-      return false;
     case CONFIG_VER_1_1:
       return cfg_v1_1.read_configuration();
     case CONFIG_VER_1_0:
       return cfg_v1_0.read_configuration();
     default:
-      return cfg0.read_configuration();
+      return false;
   }
 }
 
@@ -305,8 +303,6 @@ config_ver_enum Configuration::get_supported_version() {
       return CONFIG_VER_UNSUPPORTED;      
     }
   }
-  DEBUG_PRINT("v0");
-  logger->log(LOG_WARNING, 0, "Reverting to default v0 configuration.\n");
   return CONFIG_VER_0;
 }  
 
@@ -377,51 +373,5 @@ int Configuration::waitForReconfSignal() {
   assert(reload_waiter != 0);
   
   return reload_waiter(primary_conn, server_role);
-}
-
-
-/*
- *******************  Config Readers **************************
-*/
-
-/*********** VERSION 0 METADATA *******************/
-/* For prototype only                             */
-bool config_v0::read_configuration() {
-  DEBUG_ENTER_METHOD("config_v0::read_configuration");
-
-  conf.onlineReloadFlag = 0;
-    
-  KeyPrefix pfx("");
-  pfx.table = new TableSpec("ndbmemcache.mc_backstore","mkey","string_value");
-
-  pfx.info.usable = 1;
-  pfx.info.cluster_id = 0;
-  pfx.info.use_ndb = 1;
-  
-  /* reads */
-  pfx.info.do_mc_read = 1;
-  pfx.info.do_db_read = 1;
-  
-  /* writes */
-  pfx.info.do_mc_write = 1;
-  pfx.info.do_db_write = 1;
-  
-  /* deletes */
-  pfx.info.do_mc_delete = 1;
-  pfx.info.do_db_delete = 1;
-  
-  /* expire/flush */
-  pfx.info.do_db_flush = 0;
-  
-  /* increment, decrement, cas */
-  pfx.info.has_math_col = 0;
-  pfx.info.has_cas_col = 0;
-  
-  pfx.info.prefix_id = 0;
-  
-  conf.storeConnection("", 300);    // connection 0
-  conf.storePrefix(pfx);            // prefix 0
-
-  return true;
 }
 

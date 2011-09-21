@@ -154,6 +154,15 @@ install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
         DESTINATION ${INSTALL_MYSQLSHAREDIR})
 
+### Install the memcache-api directory  ################
+install(DIRECTORY DESTINATION memcache-api)
+install(PROGRAMS sandbox.sh DESTINATION memcache-api)
+install(FILES README DESTINATION memcache-api)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
+        DESTINATION memcache-api)
+######################################################## 
+
+
 # Build the library used by the unit tests
 add_library(ndbmemcache SHARED ${NDB_MEMCACHE_SOURCE_FILES})
 target_link_libraries(ndbmemcache ndbclient_static ndbgeneral ${MEMCACHED_UTILITIES_LIBRARY})
