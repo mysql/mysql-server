@@ -83,24 +83,24 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -163,24 +163,24 @@ master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_1`
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -243,24 +243,24 @@ slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_log
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE bug_45756_slave_logged_2
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -308,48 +308,48 @@ slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_log
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_2`
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE bug_45756_slave_logged_3
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_1`
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -479,24 +479,24 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -559,24 +559,24 @@ master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_1`
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -639,24 +639,24 @@ slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_log
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE bug_45756_slave_logged_2
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -704,48 +704,48 @@ slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_log
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_2`
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE bug_45756_slave_logged_3
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_1`
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -875,24 +875,24 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -955,24 +955,24 @@ master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_1 
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_1)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_1`
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_2)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 master-bin.000001	#	Query	3	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 master-bin.000001	#	Query	3	#	BEGIN
 master-bin.000001	#	Table_map	3	#	table_id: # (test.bug45756_master_logged_3)
 master-bin.000001	#	Table_map	3	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	3	#	table_id: #
-master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	3	#	table_id: #
+master-bin.000001	#	Write_rows_v1	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 master-bin.000001	#	Query	3	#	use `test`; DROP TABLE bug45756_master_logged_3
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -1035,24 +1035,24 @@ slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_log
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; DROP TABLE bug_45756_slave_logged_2
 slave-master-bin.000001	#	Query	5	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	5	#	BEGIN
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	5	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	5	#	table_id: #
-slave-master-bin.000001	#	Write_rows	5	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	5	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	5	#	COMMIT
 slave-master-bin.000001	#	Query	5	#	use `test`; drop table `test`.`bug_45756_slave_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');
@@ -1100,48 +1100,48 @@ slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_log
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_1`
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; drop table `test`.`bug_45756_slave_logged_2`
 slave-master-bin.000001	#	Query	6	#	use `test`; CREATE TABLE bug_45756_slave_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug_45756_slave_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	6	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	6	#	use `test`; DROP TABLE bug_45756_slave_logged_3
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_1)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; DROP TABLE bug45756_master_logged_1
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_2 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_2)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_2`
 slave-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_3 (a int) engine = NDB
 slave-master-bin.000001	#	Query	6	#	BEGIN
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (test.bug45756_master_logged_3)
 slave-master-bin.000001	#	Table_map	6	#	table_id: # (mysql.ndb_apply_status)
-slave-master-bin.000001	#	Write_rows	6	#	table_id: #
-slave-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-master-bin.000001	#	Write_rows_v1	6	#	table_id: #
+slave-master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 slave-master-bin.000001	#	Query	6	#	COMMIT
 slave-master-bin.000001	#	Query	1	#	use `test`; drop table `test`.`bug45756_master_logged_3`
 select replace(right(txt, length(txt)-17), '\r', '') as binlog_entries from raw_binlog_rows where txt like '%server id%' and not (txt like '%Start%' or txt like '%Rotate%');

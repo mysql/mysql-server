@@ -3515,7 +3515,11 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        size_t colcnt,
                                        size_t needed,
                                        bool is_transactional,
-				       RowsEventT *hint __attribute__((unused)))
+				       RowsEventT *hint __attribute__((unused))
+#ifndef MCP_WL5353
+                                       ,const uchar* extra_row_info
+#endif
+                                       )
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
   /* Pre-conditions */
@@ -3549,21 +3553,24 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   if (!pending ||
       pending->server_id != serv_id || 
       pending->get_table_id() != table->s->table_map_id ||
-      pending->get_type_code() != type_code || 
+      pending->get_general_type_code() != type_code ||
       pending->get_data_size() + needed > opt_binlog_rows_event_max_size || 
       pending->get_width() != colcnt ||
       !bitmap_cmp(pending->get_cols(), cols)
 #ifndef MCP_WL5353
       ||
       !binlog_row_event_extra_data_eq(pending->get_extra_row_data(),
-                                      binlog_row_event_extra_data)
+                                      extra_row_info)
 #endif
       )
   {
     /* Create a new RowsEventT... */
     Rows_log_event* const
-	ev= new RowsEventT(this, table, table->s->table_map_id, cols,
-                           is_transactional);
+        ev= new RowsEventT(this, table, table->s->table_map_id, cols, is_transactional
+#ifndef MCP_WL5353
+                           , extra_row_info
+#endif
+                           );
     if (unlikely(!ev))
       DBUG_RETURN(NULL);
     ev->server_id= serv_id; // I don't like this, it's too easy to forget.
@@ -3590,17 +3597,29 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 template Rows_log_event*
 THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
 				       size_t, size_t, bool,
-				       Write_rows_log_event*);
+				       Write_rows_log_event*
+#ifndef MCP_WL5353
+                                       ,const uchar*
+#endif
+                                       );
 
 template Rows_log_event*
 THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
 				       size_t colcnt, size_t, bool,
-				       Delete_rows_log_event *);
+				       Delete_rows_log_event *
+#ifndef MCP_WL5353
+                                       ,const uchar*
+#endif
+                                       );
 
 template Rows_log_event* 
 THD::binlog_prepare_pending_rows_event(TABLE*, uint32, MY_BITMAP const*,
 				       size_t colcnt, size_t, bool,
-				       Update_rows_log_event *);
+				       Update_rows_log_event *
+#ifndef MCP_WL5353
+                                       ,const uchar*
+#endif
+                                       );
 #endif
 
 #ifdef NOT_USED
@@ -3792,7 +3811,11 @@ namespace {
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           MY_BITMAP const* cols, size_t colcnt, 
-                          uchar const *record) 
+                          uchar const *record
+#ifndef MCP_WL5353
+                          ,const uchar* extra_row_info
+#endif
+                          )
 { 
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
@@ -3811,7 +3834,11 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
                                       len, is_trans,
-                                      static_cast<Write_rows_log_event*>(0));
+                                      static_cast<Write_rows_log_event*>(0)
+#ifndef MCP_WL5353
+                                      ,extra_row_info
+#endif
+                                      );
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -3822,7 +3849,11 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
 int THD::binlog_update_row(TABLE* table, bool is_trans,
                            MY_BITMAP const* cols, size_t colcnt,
                            const uchar *before_record,
-                           const uchar *after_record)
+                           const uchar *after_record
+#ifndef MCP_WL5353
+                           ,const uchar *extra_row_info
+#endif
+                           )
 { 
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
@@ -3855,7 +3886,11 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
 				      before_size + after_size, is_trans,
-				      static_cast<Update_rows_log_event*>(0));
+				      static_cast<Update_rows_log_event*>(0)
+#ifndef MCP_WL5353
+                                      ,extra_row_info
+#endif
+                                      );
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -3867,7 +3902,11 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
 
 int THD::binlog_delete_row(TABLE* table, bool is_trans, 
                            MY_BITMAP const* cols, size_t colcnt,
-                           uchar const *record)
+                           uchar const *record
+#ifndef MCP_WL5353
+                           ,const uchar* extra_row_info
+#endif
+                           )
 { 
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
 
@@ -3886,7 +3925,11 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
 				      len, is_trans,
-				      static_cast<Delete_rows_log_event*>(0));
+				      static_cast<Delete_rows_log_event*>(0)
+#ifndef MCP_WL5353
+                                      ,extra_row_info
+#endif
+                                      );
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -4079,29 +4122,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
 #ifndef MCP_WL5353
 /**
-   get_binlog_row_event_extra_data_len
-
-   Returns the length in bytes of the current thread's
-   binlog row event extra data, if present.
-   The length is stored at some offset from the extra
-   data ptr.
-   Note that this length is the length of the whole extra
-   data structure, including the fixed length header
-   of size EXTRA_ROW_INFO_HDR_BYTES
-
-   @return
-     Length in bytes of the extra data.
-     Zero is valid.  Maximum is 255
-*/
-uint8
-THD::get_binlog_row_event_extra_data_len() const
-{
-  return (binlog_row_event_extra_data?
-          binlog_row_event_extra_data[EXTRA_ROW_INFO_LEN_OFFSET]:
-          0);
-};
-
-/**
    binlog_row_event_extra_data_eq
 
    Comparator for two binlog row event extra data
@@ -4132,8 +4152,7 @@ THD::binlog_row_event_extra_data_eq(const uchar* a,
            (memcmp(a, b,
                    a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
 }
-
-#endif  // #ifndef MCP_WL5353
+#endif
 
 bool Discrete_intervals_list::append(ulonglong start, ulonglong val,
                                  ulonglong incr)

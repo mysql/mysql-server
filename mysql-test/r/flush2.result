@@ -5,10 +5,12 @@ Variable_name	Value
 log_bin	OFF
 log_bin_trust_function_creators	ON
 log_bin_trust_routine_creators	ON
+log_bin_use_v1_row_events	ON
 flush logs;
 show variables like 'log_bin%';
 Variable_name	Value
 log_bin	OFF
 log_bin_trust_function_creators	ON
 log_bin_trust_routine_creators	ON
+log_bin_use_v1_row_events	ON
 set global expire_logs_days = 0;
