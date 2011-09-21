@@ -1,6 +1,7 @@
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
+--source include/have_binlog_row_v2.inc
 
 #
 # Test Binlog row extra data added as part of WL5353
