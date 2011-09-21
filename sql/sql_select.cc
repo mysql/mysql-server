@@ -117,8 +117,10 @@ static Item *build_equal_items(THD *thd, Item *cond,
 static Item* substitute_for_best_equal_field(Item *cond,
                                              COND_EQUAL *cond_equal,
                                              void *table_join_idx);
-static Item *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
-                            Item *conds, bool top, bool in_sj);
+static bool simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
+                           Item *conds, bool top, bool in_sj,
+                           Item **new_conds,
+                           uint *changelog= NULL);
 static void reset_nj_counters(List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
@@ -716,7 +718,10 @@ JOIN::prepare(TABLE_LIST *tables_init,
     We also have to wait for fix_fields() on HAVING, above.
     At this stage, we also have properly set up Item_ref-s.
   */
-  opt_trace_print_expanded_query(thd, select_lex);
+  {
+    Opt_trace_object trace_wrapper(trace);
+    opt_trace_print_expanded_query(thd, select_lex, &trace_wrapper);
+  }
 
   if (select_lex->master_unit()->item &&    // This is a subquery
                                             // Not normalizing a view
@@ -1988,7 +1993,13 @@ JOIN::optimize()
       thd->set_n_backup_active_arena(arena, &backup);
 
     /* Convert all outer joins to inner joins if possible */
-    conds= simplify_joins(this, join_list, conds, TRUE, FALSE);
+    if (simplify_joins(this, join_list, conds, TRUE, FALSE, &conds))
+    {
+      DBUG_PRINT("error",("Error from simplify_joins"));
+      thd->restore_active_arena(arena, &backup);
+      DBUG_RETURN(1);
+    }
+
     build_bitmap_for_nested_joins(join_list, 0);
 
     sel->prep_where=
@@ -4831,6 +4842,47 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   return len;
 }
 
+
+/**
+   Writes to the optimizer trace information about dependencies between
+   tables.
+   @param trace  optimizer trace
+   @param join_tabs  all JOIN_TABs of the join
+   @param table_count how many JOIN_TABs in the 'join_tabs' array
+*/
+static void trace_table_dependencies(Opt_trace_context * trace,
+                                     JOIN_TAB *join_tabs,
+                                     uint table_count)
+{
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_array trace_dep(trace, "table_dependencies");
+  for (uint i= 0 ; i < table_count ; i++)
+  {
+    const TABLE *table= join_tabs[i].table;
+    Opt_trace_object trace_one_table(trace);
+    trace_one_table.add_utf8_table(table).
+      add("record_may_be_null", table->maybe_null != 0);
+    DBUG_ASSERT(table->map < (1ULL << table_count));
+    for (uint j= 0; j < table_count; j++)
+    {
+      if (table->map & (1ULL << j))
+      {
+        trace_one_table.add("map_bit", j);
+        break;
+      }
+    }
+    Opt_trace_array depends_on(trace, "depends_on_map_bits");
+    // RAND_TABLE_BIT may be in join_tabs[i].dependent, so we test all 64 bits
+    compile_time_assert(sizeof(TABLE::map) <= 64);
+    for (uint j= 0; j < 64; j++)
+    {
+      if (join_tabs[i].dependent & (1ULL << j))
+        depends_on.add(j);
+    }
+  }
+}
+
+
 /**
   Calculate best possible join order and initialize the join structure.
 
@@ -5029,6 +5081,9 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       s->key_dependent= s->dependent;
     }
   }
+
+  if (unlikely(trace->is_started()))
+    trace_table_dependencies(trace, stat, table_count);
 
   if (conds || outer_join)
     if (update_ref_and_keys(thd, keyuse_array, stat, join->tables,
@@ -14609,15 +14664,34 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
   @param conds       conditions to add on expressions for converted joins
   @param top         true <=> conds is the where condition
   @param in_sj       TRUE <=> processing semi-join nest's children
-  @return
-    - The new condition, if success
-    - 0, otherwise
+  @param[out] new_conds New condition
+  @param changelog   Don't specify this parameter, it is reserved for
+                     recursive calls inside this function
+
+  @returns true for error, false for success
 */
 
-static Item *
+static bool
 simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
-               bool in_sj)
+               bool in_sj, Item **new_conds, uint *changelog)
 {
+
+  /*
+    Each type of change done by this function, or its recursive calls, is
+    tracked in a bitmap:
+  */
+  enum change
+  {
+    NONE= 0,
+    OUTER_JOIN_TO_INNER= 1 << 0,
+    JOIN_COND_TO_WHERE= 1 << 1,
+    PAREN_REMOVAL= 1 << 2,
+    SEMIJOIN= 1 << 3
+  };
+  uint changes= 0; // To keep track of changes.
+  if (changelog == NULL) // This is the top call.
+    changelog= &changes;
+
   TABLE_LIST *table;
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
@@ -14651,21 +14725,25 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
            the outer join is converted to an inner join and
            the corresponding on expression is added to E. 
 	*/ 
-        expr= simplify_joins(join, &nested_join->join_list,
-                             expr, FALSE, in_sj || table->sj_on_expr);
+        if (simplify_joins(join, &nested_join->join_list,
+                           expr, FALSE, in_sj || table->sj_on_expr,
+                           &expr, changelog))
+          DBUG_RETURN(true);
 
         if (!table->prep_on_expr || expr != table->on_expr)
         {
           DBUG_ASSERT(expr);
 
           table->on_expr= expr;
-          table->prep_on_expr= expr->copy_andor_structure(join->thd);
+          if (!(table->prep_on_expr= expr->copy_andor_structure(join->thd)))
+            DBUG_RETURN(true);
         }
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
-      conds= simplify_joins(join, &nested_join->join_list, conds, top, 
-                            in_sj || table->sj_on_expr);
+      if (simplify_joins(join, &nested_join->join_list, conds, top,
+                         in_sj || table->sj_on_expr, &conds, changelog))
+        DBUG_RETURN(true);
       used_tables= nested_join->used_tables;
       not_null_tables= nested_join->not_null_tables;  
     }
@@ -14690,17 +14768,24 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
         For some of the inner tables there are conjunctive predicates
         that reject nulls => the outer join can be replaced by an inner join.
       */
-      table->outer_join= 0;
+      if (table->outer_join)
+      {
+        *changelog|= OUTER_JOIN_TO_INNER;
+        table->outer_join= 0;
+      }
       if (table->on_expr)
       {
+        *changelog|= JOIN_COND_TO_WHERE;
         /* Add ON expression to the WHERE or upper-level ON condition. */
         if (conds)
         {
-          conds= and_conds(conds, table->on_expr);
+          if (!(conds= and_conds(conds, table->on_expr)))
+            DBUG_RETURN(true);
           conds->top_level_item();
           /* conds is always a new item as both cond and on_expr existed */
           DBUG_ASSERT(!conds->fixed);
-          conds->fix_fields(join->thd, &conds);
+          if (conds->fix_fields(join->thd, &conds))
+            DBUG_RETURN(true);
         }
         else
           conds= table->on_expr; 
@@ -14775,10 +14860,13 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
          If this is a semi-join that is not contained within another semi-join, 
          leave it intact (otherwise it is flattened)
        */
-      join->select_lex->sj_nests.push_back(table);
+      if (join->select_lex->sj_nests.push_back(table))
+        DBUG_RETURN(true);
+      *changelog|= SEMIJOIN;
     }
     else if (nested_join && !table->on_expr)
     {
+      *changelog|= PAREN_REMOVAL;
       TABLE_LIST *tbl;
       List_iterator<TABLE_LIST> it(nested_join->join_list);
       while ((tbl= it++))
@@ -14789,7 +14877,32 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
       li.replace(nested_join->join_list);
     }
   }
-  DBUG_RETURN(conds); 
+  *new_conds= conds;
+
+  if (changes)
+  {
+    Opt_trace_context * trace= &join->thd->opt_trace;
+    if (unlikely(trace->is_started()))
+    {
+      Opt_trace_object trace_wrapper(trace);
+      Opt_trace_object trace_object(trace, "transformations_to_nested_joins");
+      {
+        Opt_trace_array trace_changes(trace, "transformations");
+        if (changes & SEMIJOIN)
+          trace_changes.add_alnum("semijoin");
+        if (changes & OUTER_JOIN_TO_INNER)
+          trace_changes.add_alnum("outer_join_to_inner_join");
+        if (changes & JOIN_COND_TO_WHERE)
+          trace_changes.add_alnum("JOIN_condition_to_WHERE");
+        if (changes & PAREN_REMOVAL)
+          trace_changes.add_alnum("parenthesis_removal");
+      }
+      // the newly transformed query is worth printing
+      opt_trace_print_expanded_query(join->thd, join->select_lex,
+                                     &trace_object);
+    }
+  }
+  DBUG_RETURN(false);
 }
 
 
@@ -14970,8 +15083,6 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list)
 
 bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *next_tab)
 {
-  TABLE_LIST *next_emb= next_tab->table->pos_in_table_list->embedding;
-
   if (cur_embedding_map & ~next_tab->embedding_map)
   {
     /* 
@@ -14980,7 +15091,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *next_tab)
     */
     return true;
   }
-   
+  const TABLE_LIST *next_emb= next_tab->table->pos_in_table_list->embedding;
   /*
     Do update counters for "pairs of brackets" that we've left (marked as
     X,Y,Z in the above picture)
@@ -24232,6 +24343,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
   for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
+    // Print the join operator which relates this table to the previous one
     if (curr->outer_join)
     {
       /* MySQL converts right to left joins */
@@ -24239,12 +24351,12 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     }
     else if (curr->straight)
       str->append(STRING_WITH_LEN(" straight_join "));
-    else if (curr->sj_inner_tables)
+    else if (curr->sj_on_expr)
       str->append(STRING_WITH_LEN(" semi join "));
     else
       str->append(STRING_WITH_LEN(" join "));
-    curr->print(thd, str, query_type);
-    if (curr->on_expr)
+    curr->print(thd, str, query_type);          // Print table
+    if (curr->on_expr)                          // Print join condition
     {
       str->append(STRING_WITH_LEN(" on("));
       curr->on_expr->print(str, query_type);
@@ -24295,16 +24407,17 @@ static void print_join(THD *thd,
     *t--= tmp;
   }
 
-  /* 
+  /*
     If the first table is a semi-join nest, swap it with something that is
-    not a semi-join nest.
+    not a semi-join nest. This is necessary because "A SEMIJOIN B" is not the
+    same as "B SEMIJOIN A".
   */
-  if ((*table)->sj_inner_tables)
+  if ((*table)->sj_on_expr)
   {
     TABLE_LIST **end= table + non_const_tables;
     for (TABLE_LIST **t2= table; t2!=end; t2++)
     {
-      if (!(*t2)->sj_inner_tables)
+      if (!(*t2)->sj_on_expr)
       {
         TABLE_LIST *tmp= *t2;
         *t2= *table;

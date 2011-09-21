@@ -310,6 +310,18 @@ TRACE
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -465,6 +477,14 @@ TRACE
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t2`.`i` AS `i`,`test`.`t3`.`i` AS `i` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`i` = `test`.`t2`.`i`))) on((`test`.`t2`.`i` = `test`.`t1`.`i`)) where isnull(`test`.`t3`.`i`)"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "isnull(`test`.`t3`.`i`)",
@@ -483,6 +503,37 @@ TRACE
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": true,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t3",
+                "record_may_be_null": true,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                  0,
+                  1
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -652,6 +703,9 @@ f
 f
 f
 f
+Maps should say that t2 and t3 depend on t1
+(because of straight_join), they don't, this is
+bug#11766858 and bug#11752239
 select TRACE from information_schema.OPTIMIZER_TRACE;
 TRACE
 {
@@ -697,6 +751,15 @@ TRACE
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`f2` = `test`.`t2`.`f2`) and (`test`.`t3`.`f2` = `test`.`t2`.`f2`)) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `test`.`t1`.`f2`,min(`test`.`t1`.`f2`) from `test`.`t1` having (((<cache>('v') = `test`.`t1`.`f2`) or isnull(`test`.`t1`.`f2`)) and ((<cache>('i') = min(`test`.`t1`.`f2`)) or isnull(min(`test`.`t1`.`f2`))) and <is_not_null_test>(`test`.`t1`.`f2`) and <is_not_null_test>(min(`test`.`t1`.`f2`))))))) order by `test`.`t1`.`f2`"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "((`test`.`t3`.`f2` = `test`.`t2`.`f2`) and (`test`.`t3`.`f2` = `test`.`t2`.`f2`))",
@@ -735,6 +798,34 @@ TRACE
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t3",
+                "record_may_be_null": false,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -903,6 +994,18 @@ TRACE
                         } /* condition_processing */
                       },
                       {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
                         "records_estimation": [
                           {
                             "database": "test",
@@ -1061,6 +1164,18 @@ TRACE
               "select#": 2,
               "steps": [
                 {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
                   "records_estimation": [
                     {
                       "database": "test",
@@ -1132,6 +1247,18 @@ TRACE
                 }
               ] /* steps */
             } /* join_optimization */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "teeone",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "records_estimation": [
@@ -1482,6 +1609,18 @@ SET @a=(select count(a) from t1 where a>0)	{
                   } /* condition_processing */
                 },
                 {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
                   "ref_optimizer_key_uses": [
                   ] /* ref_optimizer_key_uses */
                 },
@@ -1595,6 +1734,18 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -1781,6 +1932,18 @@ call p1((select a from t1 limit 1))	{
               "select#": 2,
               "steps": [
                 {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
                   "records_estimation": [
                     {
                       "database": "test",
@@ -1922,6 +2085,18 @@ select concat(concat(_latin1'->',f1),_latin1'<-') from t1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -2140,6 +2315,45 @@ table3.col_varchar_10_utf8_key	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key` from `test`.`t3` `table1` left join `test`.`t1` `table2` on((`test`.`table1`.`col_int_key` < `test`.`table2`.`col_int_key`)) left join `test`.`t2` `table3` on((convert(`test`.`table2`.`col_varchar_10_latin1_key` using utf8) >= `test`.`table3`.`col_varchar_10_utf8_key`))"
+            } /* transformations_to_nested_joins */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "table1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "table2",
+                "record_may_be_null": true,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "table3",
+                "record_may_be_null": true,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                  0,
+                  1
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
@@ -2430,6 +2644,18 @@ from t0 where a in
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t0",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -2501,6 +2727,16 @@ from t0 where a in
               "select#": 2,
               "steps": [
                 {
+                  "transformations_to_nested_joins": {
+                    "transformations": [
+                      "outer_join_to_inner_join",
+                      "JOIN_condition_to_WHERE",
+                      "parenthesis_removal"
+                    ] /* transformations */,
+                    "expanded_query": "/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`)) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))"
+                  } /* transformations_to_nested_joins */
+                },
+                {
                   "condition_processing": {
                     "condition": "WHERE",
                     "original_condition": "((<cache>(`test`.`t0`.`a`) = (`test`.`t2`.`a` + `test`.`t3`.`a`)) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))",
@@ -2519,6 +2755,34 @@ from t0 where a in
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "record_may_be_null": true,
+                      "map_bit": 1,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t3",
+                      "record_may_be_null": true,
+                      "map_bit": 2,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -3038,6 +3302,15 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
               "select#": 2,
               "steps": [
                 {
+                  "transformations_to_nested_joins": {
+                    "transformations": [
+                      "JOIN_condition_to_WHERE",
+                      "parenthesis_removal"
+                    ] /* transformations */,
+                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`)) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+                  } /* transformations_to_nested_joins */
+                },
+                {
                   "condition_processing": {
                     "condition": "WHERE",
                     "original_condition": "((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))",
@@ -3056,6 +3329,34 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "record_may_be_null": false,
+                      "map_bit": 1,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t3",
+                      "record_may_be_null": false,
+                      "map_bit": 2,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -3275,6 +3576,18 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
             } /* join_optimization */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "tmp",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "",
@@ -3466,6 +3779,14 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select replace(`test`.`t3`.`_field_140`,'\\r','^M') AS `replace(t3._field_140, \"\\r\",\"^M\")`,`test`.`t3`.`t3_id` AS `t3_id`,min(`test`.`t3`.`_field_131`) AS `min(t3._field_131)`,min(`test`.`t3`.`_field_135`) AS `min(t3._field_135)`,min(`test`.`t3`.`_field_139`) AS `min(t3._field_139)`,min(`test`.`t3`.`_field_137`) AS `min(t3._field_137)`,min(`test`.`link_alias_142`.`_field_165`) AS `min(link_alias_142._field_165)`,min(`test`.`link_alias_133`.`_field_72`) AS `min(link_alias_133._field_72)`,min(`test`.`t3`.`_field_145`) AS `min(t3._field_145)`,min(`test`.`link_alias_148`.`_field_156`) AS `min(link_alias_148._field_156)`,replace(min(`test`.`t3`.`_field_140`),'\\r','^M') AS `replace(min(t3._field_140), \"\\r\",\"^M\")`,`test`.`t3`.`t3_id` AS `t3_id` from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`seq_0_id` = `test`.`t3`.`t3_id`)) left join `test`.`t7` `link_alias_142` on((`test`.`t4`.`seq_1_id` = `test`.`link_alias_142`.`t7_id`)) left join `test`.`t6` on((`test`.`t6`.`seq_0_id` = `test`.`t3`.`t3_id`)) left join `test`.`t1` `link_alias_133` on((`test`.`t6`.`seq_1_id` = `test`.`link_alias_133`.`t1_id`)) left join `test`.`t2` on((`test`.`t2`.`seq_0_id` = `test`.`t3`.`t3_id`)) left join `test`.`t5` `link_alias_148` on((`test`.`t2`.`seq_1_id` = `test`.`link_alias_148`.`t5_id`)) where (`test`.`t3`.`t3_id` = 1) group by `test`.`t3`.`t3_id` order by `test`.`link_alias_142`.`_field_166`,`test`.`t3`.`_field_139`,`test`.`link_alias_133`.`_field_72`,`test`.`t3`.`_field_135`,`test`.`link_alias_148`.`_field_156`"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(`test`.`t3`.`t3_id` = 1)",
@@ -3484,6 +3805,87 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t3",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t4",
+                "record_may_be_null": true,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "link_alias_142",
+                "record_may_be_null": true,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                  0,
+                  1
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": true,
+                "map_bit": 3,
+                "depends_on_map_bits": [
+                  0,
+                  1,
+                  2
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "link_alias_133",
+                "record_may_be_null": true,
+                "map_bit": 4,
+                "depends_on_map_bits": [
+                  0,
+                  1,
+                  2,
+                  3
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": true,
+                "map_bit": 5,
+                "depends_on_map_bits": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "link_alias_148",
+                "record_may_be_null": true,
+                "map_bit": 6,
+                "depends_on_map_bits": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -4218,6 +4620,15 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where (`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`)) group by `test`.`alias2`.`pk` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`))",
@@ -4236,6 +4647,27 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "alias1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "alias2",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
