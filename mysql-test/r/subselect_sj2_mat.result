@@ -760,6 +760,23 @@ LEFT JOIN t2 AS SQ4_alias3 ON SQ4_alias3.f10
 GROUP BY field2;
 field2
 drop table t1, t2, t3;
+#
+# BUG#849763: Wrong result with second execution of prepared statement with semijoin + view
+#
+CREATE TABLE t1 ( c varchar(1)) engine=innodb;
+INSERT INTO t1 VALUES ('r');
+CREATE TABLE t2 ( a integer, b varchar(1), c varchar(1)) engine=innodb;
+INSERT INTO t2 VALUES (1,'r','r');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+PREPARE st1 FROM 'SELECT * FROM t2 WHERE a = SOME (SELECT a FROM v1 WHERE v1.c = t2.c)';
+EXECUTE st1;
+a	b	c
+1	r	r
+EXECUTE st1;
+a	b	c
+1	r	r
+DROP VIEW v1;
+DROP TABLE t1, t2;
 set optimizer_switch=@subselect_sj2_tmp;
 set optimizer_switch=default;
 select @@optimizer_switch like '%materialization=on%';
