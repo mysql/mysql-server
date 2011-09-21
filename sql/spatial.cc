@@ -518,6 +518,14 @@ int Gis_point::area(double *ar, const char **end) const
 }
 
 
+int Gis_point::geom_length(double *len, const char **end) const
+{
+  *len= 0;
+  *end= m_data+ POINT_DATA_SIZE;
+  return 0;
+}
+
+
 int Gis_point::store_shapes(Gcalc_shape_transporter *trn) const
 {
   double x, y;
@@ -634,7 +642,7 @@ bool Gis_line_string::get_mbr(MBR *mbr, const char **end) const
 }
 
 
-int Gis_line_string::geom_length(double *len) const
+int Gis_line_string::geom_length(double *len, const char **end) const
 {
   uint32 n_points;
   double prev_x, prev_y;
@@ -659,6 +667,7 @@ int Gis_line_string::geom_length(double *len) const
     prev_x= x;
     prev_y= y;
   }
+  *end= data;
   return 0;
 }
 
@@ -1628,10 +1637,11 @@ int Gis_multi_line_string::geometry_n(uint32 num, String *result) const
 }
 
 
-int Gis_multi_line_string::geom_length(double *len) const
+int Gis_multi_line_string::geom_length(double *len, const char **end) const
 {
   uint32 n_line_strings;
   const char *data= m_data;
+  const char *line_end;
 
   if (no_data(data, 4))
     return 1;
@@ -1645,7 +1655,7 @@ int Gis_multi_line_string::geom_length(double *len) const
     Gis_line_string ls;
     data+= WKB_HEADER_SIZE;
     ls.set_data_ptr(data, (uint32) (m_data_end - data));
-    if (ls.geom_length(&ls_len))
+    if (ls.geom_length(&ls_len, &line_end))
       return 1;
     *len+= ls_len;
     /*
@@ -1654,6 +1664,7 @@ int Gis_multi_line_string::geom_length(double *len) const
     */
     data+= ls.get_data_size();
   }
+  *end= data;
   return 0;
 }
 
@@ -2319,7 +2330,7 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, const char **end) const
 }
 
 
-int Gis_geometry_collection::area(double *ar,  const char **end_of_data) const
+int Gis_geometry_collection::area(double *ar,  const char **end) const
 {
   uint32 n_objects;
   const char *data= m_data;
@@ -2351,8 +2362,46 @@ int Gis_geometry_collection::area(double *ar,  const char **end_of_data) const
       return 1;
     result+= *ar;
   }
-  *end_of_data= data;
+  *end= data;
   *ar= result;
+  return 0;
+}
+
+
+int Gis_geometry_collection::geom_length(double *len, const char **end) const
+{
+  uint32 n_objects;
+  const char *data= m_data;
+  Geometry_buffer buffer;
+  Geometry *geom;
+  double result;
+
+  if (no_data(data, 4))
+    return 1;
+  n_objects= uint4korr(data);
+  data+= 4;
+  if (n_objects == 0)
+    return 1;
+
+  result= 0.0;
+  while (n_objects--)
+  {
+    uint32 wkb_type;
+
+    if (no_data(data, WKB_HEADER_SIZE))
+      return 1;
+    wkb_type= uint4korr(data + 1);
+    data+= WKB_HEADER_SIZE;
+
+    if (!(geom= create_by_typeid(&buffer, wkb_type)))
+      return 1;
+    geom->set_data_ptr(data, (uint32) (m_data_end - data));
+    if (geom->geom_length(len, &data))
+      return 1;
+    result+= *len;
+  }
+  *end= data;
+  *len= result;
   return 0;
 }
 

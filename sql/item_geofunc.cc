@@ -1719,12 +1719,13 @@ double Item_func_glength::val_real()
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
   Geometry *geom;
+  const char *end;
 
   null_value= (!swkb || 
 	       !(geom= Geometry::construct(&buffer,
                                            swkb->ptr(),
                                            swkb->length())) ||
-	       geom->geom_length(&res));
+	       geom->geom_length(&res, &end));
   return res;
 }
 

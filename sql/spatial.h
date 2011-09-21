@@ -259,7 +259,7 @@ public:
   virtual bool dimension(uint32 *dim, const char **end) const=0;
   virtual int get_x(double *x) const { return -1; }
   virtual int get_y(double *y) const { return -1; }
-  virtual int geom_length(double *len) const  { return -1; }
+  virtual int geom_length(double *len, const char **end) const  { return -1; }
   virtual int area(double *ar, const char **end) const { return -1;}
   virtual int is_closed(int *closed) const { return -1; }
   virtual int num_interior_ring(uint32 *n_int_rings) const { return -1; }
@@ -364,6 +364,7 @@ public:
     return 0;
   }
 
+  int geom_length(double *len, const char **end) const;
   int area(double *ar, const char **end) const;
   bool dimension(uint32 *dim, const char **end) const
   {
@@ -388,7 +389,7 @@ public:
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  int geom_length(double *len) const;
+  int geom_length(double *len, const char **end) const;
   int area(double *ar, const char **end) const;
   int is_closed(int *closed) const;
   int num_points(uint32 *n_points) const;
@@ -477,7 +478,7 @@ public:
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
-  int geom_length(double *len) const;
+  int geom_length(double *len, const char **end) const;
   int is_closed(int *closed) const;
   bool dimension(uint32 *dim, const char **end) const
   {
@@ -532,6 +533,7 @@ public:
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int area(double *ar, const char **end) const;
+  int geom_length(double *len, const char **end) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
   bool dimension(uint32 *dim, const char **end) const;
