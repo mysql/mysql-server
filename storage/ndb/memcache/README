@@ -1,0 +1,94 @@
+-------------------------------------------------------------------------
+The Memcache API for MySQL Cluster -- October 2011 Release
+-------------------------------------------------------------------------
+
+
+Memcached is a high-performance data cache.  Memcached servers are often 
+expected to serve 100,000 operations per second or more.  
+
+The API is based on Memcached 1.6 from http://www.memcached.org/.
+It is designed to do everything memcached does, with similar performance, 
+and automatically persist data to MySQL Cluster.  
+
+The Memcache API is highly configurable. Multiple memcached servers can connect 
+to multiple clusters and access data from many different tables.  It supports a 
+large number of cache policies, based on the prefix of a memcache key.  Some 
+keys can be stored in local cache only, while other keys are written though 
+synchronously to the database but stored in cacne, and still other keys go 
+directly to the database without using a local cache at all.
+
+In the default configuration, all values will be persistently stored in 
+MySQL Cluster, except keys that begin with "mc:" or "t:" which are treated
+specially.
+
+-------------------------------------------------------------------------
+QUICK START
+-------------------------------------------------------------------------
+
+STARTING THE SERVER
+-------------------
+To create a simple sandbox to demonstrate MySQL Cluster with memcache, 
+run "sandbox.sh start", then continue reading.
+
+Alternately, if you have a running cluster (with room to add a new API node)
+and want to add a memcache server to it, there are two steps.
+ (1) Create the "ndbmemcache" configuration database
+     # mysql -u root < ndb_memcache_metadata.sql
+ (2) Start a memcached server
+     # ../bin/memcached -E ../lib/ndb_engine.so 
+
+It is not possible to start a memcached server until the configuration tables
+have been created.
+
+
+TESTING
+-------
+Once the server is running, if you have installed the libmemcached clients 
+(from http://libmemcached.org), you should be able to run "memcapable" and 
+see all tests pass.
+
+You can also test the installation using mysql-test-run.  From the mysql-test
+directory, run "mysql-test-run.pl --suite=ndb_memcache".  This is a preview 
+release, so test failures are still expected on some platforms.  
+
+If you see a test failure some other problem, please report it on the "Cluster" 
+forum at http://forums.mysql.com/
+
+
+RUN SOME CLIENT COMMANDS 
+--------------------------
+From another window, you can run any sort of memcached client using either the 
+text protocol or the binary protocol -- including plain "telnet".  
+
+$ telnet localhost 11211
+Escape character is '^]'.
+set key1 0 0 4
+abcd
+
+get key1
+
+delete key1
+
+
+-------------------------------------------------------------------------
+THE DEFAULT SERVER ROLE
+-------------------------------------------------------------------------
+
+In the default configuration, all keys except those beginning with "mc:" and
+"t:" are stored in the table called "demo_table" in the ndbmemcache schema.
+
+Keys beginning with "mc:" are stored only in local cache (their cache policy
+is "mc-only").
+
+Keys beginning with "t:" demonstrate using tab-separated values to store data
+in multiple database columns.  These values are stored in "demo_table_tabs". 
+
+
+-------------------------------------------------------------------------
+LIMITATIONS
+-------------------------------------------------------------------------
+
+In this preview release, all data types are supported except for TEXT and BLOB 
+types, and bitfields.  The lack of support for BLOB columns means that stored
+values are limited by the maximum size of a row in MySQL Cluster.  This row size 
+limit is 14,000 bytes.  
