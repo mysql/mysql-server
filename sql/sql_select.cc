@@ -11830,6 +11830,13 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
     }
 
     /*
+      Disable BKA for materializable derived tables/views as they aren't
+      instantiated yet.
+    */
+    if (tab->table->pos_in_table_list->uses_materialization())
+      goto no_join_cache;
+
+    /*
       Can't use BKA for subquery if dealing with a subquery that can
       turn a ref access into a "full scan on NULL key" table scan.
 

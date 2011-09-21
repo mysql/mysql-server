@@ -4054,10 +4054,10 @@ SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 vkey
 g
-v
+n
 t
 u
-n
+v
 DROP TABLE t0;
 # End of bug#46556
 

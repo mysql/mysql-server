@@ -5102,7 +5102,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   if (intersect_scans_best == intersect_scans)
   {
     trace_ror.add("chosen", false).
-      add("cause", "does_not_increase_selectivity");
+      add_alnum("cause", "does_not_increase_selectivity");
     DBUG_PRINT("info", ("None of scans increase selectivity"));
     DBUG_RETURN(NULL);
   }
