@@ -250,12 +250,19 @@ struct sql_ex_info
 #define FORMAT_DESCRIPTION_HEADER_LEN (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES)
 #define XID_HEADER_LEN         0
 #define BEGIN_LOAD_QUERY_HEADER_LEN APPEND_BLOCK_HEADER_LEN
+#ifndef MCP_WL5353
+#define ROWS_HEADER_LEN_V1     8
+#else
 #define ROWS_HEADER_LEN        8
+#endif
 #define TABLE_MAP_HEADER_LEN   8
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
+#ifndef MCP_WL5353
+#define ROWS_HEADER_LEN_V2    10
+#endif
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -396,6 +403,11 @@ struct sql_ex_info
 /* RW = "RoWs" */
 #define RW_MAPID_OFFSET    0
 #define RW_FLAGS_OFFSET    6
+#ifndef MCP_WL5353
+#define RW_VHLEN_OFFSET    8
+#define RW_V_TAG_LEN       1
+#define RW_V_EXTRAINFO_TAG 0
+#endif
 
 /* ELQ = "Execute Load Query" */
 #define ELQ_FILE_ID_OFFSET QUERY_HEADER_LEN
@@ -594,9 +606,15 @@ enum Log_event_type
   /*
     These event numbers are used from 5.1.16 and forward
    */
+#ifndef MCP_WL5353
+  WRITE_ROWS_EVENT_V1 = 23,
+  UPDATE_ROWS_EVENT_V1 = 24,
+  DELETE_ROWS_EVENT_V1 = 25,
+#else
   WRITE_ROWS_EVENT = 23,
   UPDATE_ROWS_EVENT = 24,
   DELETE_ROWS_EVENT = 25,
+#endif
 
   /*
     Something out of the ordinary happened on the master
@@ -609,6 +627,21 @@ enum Log_event_type
   */
   HEARTBEAT_LOG_EVENT= 27,
   
+#ifndef MCP_WL5353
+  /*
+    These event numbers are used in later releases (but not here)
+  */
+  IGNORABLE_LOG_EVENT= 28,
+  ROWS_QUERY_LOG_EVENT= 29,
+
+  /*
+     These event numbers are used in MySQL Cluster 5.1-telco-*
+  */
+  WRITE_ROWS_EVENT = 30,
+  UPDATE_ROWS_EVENT = 31,
+  DELETE_ROWS_EVENT = 32,
+#endif
+
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -3569,13 +3602,6 @@ public:
       values for all columns of the table.
      */
     COMPLETE_ROWS_F = (1U << 3)
-
-#ifndef MCP_WL5353
-    /**
-       Indicates that additional information was appended to the event.
-    */
-    ,EXTRA_ROW_EV_DATA_F = (1U << 4)
-#endif
   };
 
   typedef uint16 flag_set;
@@ -3592,7 +3618,12 @@ public:
   void clear_flags(flag_set flags_arg) { m_flags &= ~flags_arg; }
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+#ifndef MCP_WL5353
+  Log_event_type get_type_code() { return m_type; } /* Specific type (_V1 etc) */
+  virtual Log_event_type get_general_type_code() = 0; /* General type */
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   virtual void pack_info(Protocol *protocol);
 #endif
 
@@ -3650,7 +3681,12 @@ protected:
   */
 #ifdef MYSQL_SERVER
   Rows_log_event(THD*, TABLE*, ulong table_id, 
-		 MY_BITMAP const *cols, bool is_transactional);
+		 MY_BITMAP const *cols, bool is_transactional,
+                 Log_event_type event_type
+#ifndef MCP_WL5353
+                 ,const uchar* extra_row_info
+#endif
+                 );
 #endif
   Rows_log_event(const char *row_data, uint event_len, 
 		 Log_event_type event_type,
@@ -3692,6 +3728,8 @@ protected:
   flag_set m_flags;		/* Flags for row-level events */
 
 #ifndef MCP_WL5353
+  Log_event_type m_type;        /* Actual event type */
+
   uchar    *m_extra_row_data;   /* Pointer to extra row data if any */
                                 /* If non null, first byte is length */
 #endif
@@ -3799,15 +3837,26 @@ public:
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = WRITE_ROWS_EVENT
+#ifndef MCP_WL5353
+    ,TYPE_CODE_V1 = WRITE_ROWS_EVENT_V1
+#endif
   };
 
 #if defined(MYSQL_SERVER)
   Write_rows_log_event(THD*, TABLE*, ulong table_id, 
-		       MY_BITMAP const *cols, bool is_transactional);
+		       MY_BITMAP const *cols, bool is_transactional
+#ifndef MCP_WL5353
+                       ,const uchar* extra_row_info
+#endif
+                       );
 #endif
 #ifdef HAVE_REPLICATION
   Write_rows_log_event(const char *buf, uint event_len, 
-                       const Format_description_log_event *description_event);
+                       const Format_description_log_event *description_event
+#ifndef MCP_WL5353
+                       ,Log_event_type event_type
+#endif
+                       );
 #endif
 #if defined(MYSQL_SERVER) 
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -3819,12 +3868,20 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
-                                 cols, fields, after_record);
+                                 cols, fields, after_record
+#ifndef MCP_WL5353
+                                 , NULL
+#endif
+                                 );
   }
 #endif
 
 private:
+#ifndef MCP_WL5353
+  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
+#else
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+#endif
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -3857,17 +3914,28 @@ public:
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = UPDATE_ROWS_EVENT
+#ifndef MCP_WL5353
+    ,TYPE_CODE_V1 = UPDATE_ROWS_EVENT_V1
+#endif
   };
 
 #ifdef MYSQL_SERVER
   Update_rows_log_event(THD*, TABLE*, ulong table_id,
 			MY_BITMAP const *cols_bi,
 			MY_BITMAP const *cols_ai,
-                        bool is_transactional);
+                        bool is_transactional
+#ifndef MCP_WL5353
+                        ,const uchar* extra_row_info
+#endif
+                        );
 
   Update_rows_log_event(THD*, TABLE*, ulong table_id,
 			MY_BITMAP const *cols,
-                        bool is_transactional);
+                        bool is_transactional
+#ifndef MCP_WL5353
+                        ,const uchar* extra_row_info
+#endif
+                        );
 
   void init(MY_BITMAP const *cols);
 #endif
@@ -3876,7 +3944,11 @@ public:
 
 #ifdef HAVE_REPLICATION
   Update_rows_log_event(const char *buf, uint event_len, 
-			const Format_description_log_event *description_event);
+			const Format_description_log_event *description_event
+#ifndef MCP_WL5353
+                        ,Log_event_type event_type
+#endif
+                        );
 #endif
 
 #ifdef MYSQL_SERVER
@@ -3888,7 +3960,11 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_update_row(table, is_transactional,
-                                  cols, fields, before_record, after_record);
+                                  cols, fields, before_record, after_record
+#ifndef MCP_WL5353
+                                  , NULL
+#endif
+                                  );
   }
 #endif
 
@@ -3898,7 +3974,11 @@ public:
   }
 
 protected:
+#ifndef MCP_WL5353
+  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
+#else
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+#endif
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -3938,15 +4018,26 @@ public:
   {
     /* Support interface to THD::binlog_prepare_pending_rows_event */
     TYPE_CODE = DELETE_ROWS_EVENT
+#ifndef MCP_WL5353
+    ,TYPE_CODE_V1 = DELETE_ROWS_EVENT_V1
+#endif
   };
 
 #ifdef MYSQL_SERVER
   Delete_rows_log_event(THD*, TABLE*, ulong, 
-			MY_BITMAP const *cols, bool is_transactional);
+			MY_BITMAP const *cols, bool is_transactional
+#ifndef MCP_WL5353
+                        ,const uchar* extra_row_info
+#endif
+                        );
 #endif
 #ifdef HAVE_REPLICATION
   Delete_rows_log_event(const char *buf, uint event_len, 
-			const Format_description_log_event *description_event);
+			const Format_description_log_event *description_event
+#ifndef MCP_WL5353
+                        ,Log_event_type event_type
+#endif
+                        );
 #endif
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
@@ -3958,12 +4049,20 @@ public:
                                           __attribute__((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
-                                  cols, fields, before_record);
+                                  cols, fields, before_record
+#ifndef MCP_WL5353
+                                  , NULL
+#endif
+                                  );
   }
 #endif
   
 protected:
+#ifndef MCP_WL5353
+  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
+#else
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+#endif
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);

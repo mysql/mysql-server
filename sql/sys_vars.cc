@@ -930,6 +930,14 @@ static Sys_var_mybool Sys_trust_function_creators(
        GLOBAL_VAR(trust_function_creators),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+#ifndef MCP_WL5353
+static Sys_var_mybool Sys_log_bin_use_v1_row_events(
+       "log_bin_use_v1_row_events",
+       "Whether to use version 1 row events in the Binlog.",
+       READ_ONLY GLOBAL_VAR(log_bin_use_v1_row_events),
+       NO_CMD_LINE, DEFAULT(FALSE));
+#endif
+
 static Sys_var_charptr Sys_log_error(
        "log_error", "Error log file",
        READ_ONLY GLOBAL_VAR(log_error_file_ptr),
