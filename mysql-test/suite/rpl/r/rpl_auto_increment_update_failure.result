@@ -48,26 +48,26 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; update t1 set a = a + 5 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; update t3 set a = a + 5 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; delete from t1 where b = 1
@@ -76,20 +76,20 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; update t1 set a = a + 5 where b = 2
@@ -164,26 +164,26 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; update t1 set a = a + 5 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; update t3 set a = a + 5 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; delete from t1 where b = 1
@@ -192,20 +192,20 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; update t1 set a = a + 5 where b = 2
@@ -282,26 +282,26 @@ master-bin.000001	#	Query	#	#	use `test`; insert into t1(a,b) values(1,1),(2,1)
 master-bin.000001	#	Query	#	#	use `test`; insert into t3(a,b) values(1,1),(2,1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; delete from t1 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; delete from t3 where b = 1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -314,20 +314,20 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; delete from t1 where b = 2
@@ -398,26 +398,26 @@ master-bin.000001	#	Query	#	#	use `test`; insert into t1(a,b) values(1,1),(2,1)
 master-bin.000001	#	Query	#	#	use `test`; insert into t3(a,b) values(1,1),(2,1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; delete from t1 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; delete from t3 where b = 1
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -430,20 +430,20 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Update_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; delete from t1 where b = 2
@@ -516,26 +516,26 @@ master-bin.000001	#	Query	#	#	use `test`; update t1 set a = a + 5 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; update t3 set a = a + 5 where b = 1
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1(a,b) values(4,2)
@@ -552,20 +552,20 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
@@ -632,26 +632,26 @@ master-bin.000001	#	Query	#	#	use `test`; update t1 set a = a + 5 where b = 1
 master-bin.000001	#	Query	#	#	use `test`; update t3 set a = a + 5 where b = 1
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1(a,b) values(4,2)
@@ -668,20 +668,20 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t6)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Delete_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
@@ -721,38 +721,38 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave
@@ -788,38 +788,38 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: #
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 commit;
 #Test if the results are consistent on master and slave

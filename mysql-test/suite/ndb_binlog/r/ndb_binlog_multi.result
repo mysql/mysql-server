@@ -12,8 +12,8 @@ mysqld-bin.000001	#	Query	2	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY, b 
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t2)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 select * from t2 order by a;
 a	b
@@ -34,8 +34,8 @@ mysqld-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY, b 
 mysqld-bin.000001	#	Query	1	#	BEGIN
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	1	#	table_id: #
-mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	1	#	COMMIT
 mysqld-bin.000001	#	Query	1	#	use `test`; DROP TABLE t2
 SELECT inserts,updates,deletes,schemaops FROM 
@@ -52,8 +52,8 @@ mysqld-bin.000001	#	Query	2	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY) EN
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 SELECT @the_epoch2:=epoch,inserts,updates,deletes,schemaops FROM 
 mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
@@ -70,8 +70,8 @@ mysqld-bin.000001	#	Query	2	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY) EN
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.t1)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 mysqld-bin.000001	#	Query	2	#	use `test`; drop table t1
 SELECT inserts,updates,deletes,schemaops FROM

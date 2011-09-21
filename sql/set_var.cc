@@ -354,6 +354,11 @@ sys_trust_routine_creators(&vars, "log_bin_trust_routine_creators",
 static sys_var_bool_ptr       
 sys_trust_function_creators(&vars, "log_bin_trust_function_creators",
                             &trust_function_creators);
+#ifndef MCP_WL5353
+static sys_var_const    sys_log_bin_use_v1_row_events(&vars, "log_bin_use_v1_row_events",
+                                                      OPT_GLOBAL, SHOW_MY_BOOL,
+                                                      (uchar*) &log_bin_use_v1_row_events);
+#endif
 static sys_var_const    sys_log_error(&vars, "log_error",
                                       OPT_GLOBAL, SHOW_CHAR,
                                       (uchar*) log_error_file);
