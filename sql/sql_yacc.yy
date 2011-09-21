@@ -8871,7 +8871,7 @@ function_call_generic:
               version() (a vendor can specify any schema).
             */
 
-            if (!$1.str || check_db_name(&$1))
+            if (!$1.str || check_and_convert_db_name(&$1, FALSE))
             {
               my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
               MYSQL_YYABORT;
