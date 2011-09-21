@@ -8,6 +8,7 @@ scriptsdir=@INSTALL_SCRIPTDIR@
 memcachedir=@MEMCACHED_ROOT_DIR@
 sourcetree=@CMAKE_CURRENT_SOURCE_DIR@
 installtree=@CMAKE_BINARY_DIR@/memcache-api
+memcached_binary=@MEMCACHED_BIN_PATH@
 
 MYSQL_PREFIX=$prefix
 MYSQL_BIN=$prefix/$bindir
@@ -27,7 +28,11 @@ test_paths() {
   test_path $MYSQL_LIBEXEC ndbd
   test_path $MYSQL_LIBEXEC mysqld_safe
   test_path $MYSQL_SCRIPTS mysql_install_db
-  test_path $MEMCACHE_BASE/bin memcached
+  if [ ! -x $memcached_binary ] 
+    then 
+      echo "Cannot execute $memcached_binary"
+      exit
+  fi
 }
 
 test_path() {
@@ -141,7 +146,7 @@ load_metadata() {
 }
 
 start_memcached() {
-  $MEMCACHE_BASE/bin/memcached -d -v \
+    $memcached_binary -d -v \
     -P $HOME_BASE/sandbox/memcached.pid \
     -E $MYSQL_LIB/ndb_engine.so $1 $2
 }

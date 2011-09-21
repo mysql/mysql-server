@@ -11,6 +11,7 @@ if(WITH_MEMCACHE)
   set(MEMCACHED_ROOT_DIR ${CMAKE_SOURCE_DIR}/extra/memcached)
   set(MEMCACHED_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/memcached/include)
   set(MEMCACHED_UTILITIES_LIBRARY memcached_utilities)
+  set(MEMCACHED_BIN_PATH ${CMAKE_INSTALL_PREFIX}/${INSTALL_SBINDIR}/memcached)
 else()   
 
   # Find an installed memcached
@@ -35,6 +36,8 @@ else()
     HINTS  ${MEMCACHED_ROOT_DIR}
     PATH_SUFFIXES lib/memcached lib memcached/lib
   )
+  
+  set(MEMCACHED_BIN_PATH ${MEMCACHED_ROOT_DIR}/bin/memcached)
 endif()
 
 if(MEMCACHED_ROOT_DIR AND MEMCACHED_INCLUDE_DIR AND MEMCACHED_UTILITIES_LIBRARY) 
@@ -45,4 +48,5 @@ endif()
 
 mark_as_advanced(MEMCACHED_ROOT_DIR 
                  MEMCACHED_INCLUDE_DIR 
-                 MEMCACHED_UTILITIES_LIBRARY)
+                 MEMCACHED_UTILITIES_LIBRARY
+                 MEMCACHED_BIN_PATH)

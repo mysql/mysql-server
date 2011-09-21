@@ -31,14 +31,7 @@ sub memcached_is_available() {
 }
 
 sub get_memcached_exe_path() {
-  my $memcached_base = "@MEMCACHED_ROOT_DIR@";
-  if("@WITH_MEMCACHE@" eq "ON") {
-    # bundled in source tree:
-    return "$memcached_base/memcached";
-  }
-  else { 
-    return "$memcached_base/bin/memcached";
-  }
+  return "@MEMCACHED_BIN_PATH@";
 }
 
 1;
