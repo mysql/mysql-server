@@ -1946,6 +1946,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       trans_rollback_stmt(thd);
     }
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
 
@@ -1983,6 +1984,7 @@ end:
     DBUG_PRINT("info", ("%u: Aborting DDL transaction", __LINE__));
     trans_rollback_stmt(thd);
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
 
@@ -3864,6 +3866,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       trans_rollback_stmt(thd);
     }
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
 
@@ -4241,6 +4244,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       trans_rollback_stmt(thd);
     }
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
 
@@ -6656,8 +6660,10 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
                  ("%u: Commit DDL transaction failed: %d", __LINE__, err));
     }
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
+
 
   if (some_users_created)
     result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
@@ -6777,6 +6783,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
       trans_rollback_stmt(thd);
     }
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
 
@@ -6911,6 +6918,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       some_users_renamed= FALSE;
     }
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
 
@@ -7151,6 +7159,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       trans_rollback_stmt(thd);
     }
     assert(thd->transaction.stmt.is_empty());
+    thd->clear_current_stmt_binlog_format_row();
   }
 #endif
 
