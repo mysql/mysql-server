@@ -11023,7 +11023,8 @@ mysql_declare_plugin(ndbcluster)
   0x0100 /* 1.0 */,
   ndb_status_variables_export,/* status variables                */
   system_variables,           /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 
