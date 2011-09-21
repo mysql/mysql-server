@@ -106,6 +106,9 @@ CREATE TABLE IF NOT EXISTS slave_master_info (Master_id INTEGER UNSIGNED NOT NUL
 
 CREATE TABLE IF NOT EXISTS slave_worker_info (Master_id INTEGER UNSIGNED NOT NULL, Worker_id INTEGER UNSIGNED NOT NULL, Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Relay_log_pos BIGINT UNSIGNED NOT NULL, Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Master_log_pos BIGINT UNSIGNED NOT NULL, Checkpoint_relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Checkpoint_relay_log_pos BIGINT UNSIGNED NOT NULL, Checkpoint_master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Checkpoint_master_log_pos BIGINT UNSIGNED NOT NULL, Checkpoint_seqno INT UNSIGNED NOT NULL, Checkpoint_group_size INTEGER UNSIGNED NOT NULL, Checkpoint_group_bitmap BLOB NOT NULL, PRIMARY KEY(Master_id, Worker_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Worker Information';
 
+SET @sql_mode_orig=@@SESSION.sql_mode;
+SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+
 CREATE TABLE IF NOT EXISTS innodb_table_stats (
    database_name        VARCHAR(64) NOT NULL,
    table_name        VARCHAR(64) NOT NULL,
@@ -133,6 +136,8 @@ CREATE TABLE IF NOT EXISTS innodb_index_stats (
    FOREIGN KEY (database_name, table_name)
      REFERENCES innodb_table_stats (database_name, table_name)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8;
+
+SET SESSION sql_mode=@sql_mode_orig;
 
 --
 -- PERFORMANCE SCHEMA INSTALLATION
