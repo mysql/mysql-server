@@ -262,6 +262,18 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "where_subselect_19379",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -425,6 +437,18 @@ FROM t1
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "where_subselect_19033",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -474,6 +498,18 @@ FROM t1
                         } /* condition_processing */
                       },
                       {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
                         "ref_optimizer_key_uses": [
                         ] /* ref_optimizer_key_uses */
                       },
@@ -516,6 +552,18 @@ FROM t1
                               "join_optimization": {
                                 "select#": 3,
                                 "steps": [
+                                  {
+                                    "table_dependencies": [
+                                      {
+                                        "database": "test",
+                                        "table": "t2",
+                                        "record_may_be_null": false,
+                                        "map_bit": 0,
+                                        "depends_on_map_bits": [
+                                        ] /* depends_on_map_bits */
+                                      }
+                                    ] /* table_dependencies */
+                                  },
                                   {
                                     "records_estimation": [
                                       {
@@ -829,6 +877,18 @@ ON table2 .col_int_key = table1 .col_int_key
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "where_subselect_20070",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -903,6 +963,18 @@ ON table2 .col_int_key = table1 .col_int_key
                   "join_optimization": {
                     "select#": 2,
                     "steps": [
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
                       {
                         "records_estimation": [
                           {
@@ -988,6 +1060,15 @@ ON table2 .col_int_key = table1 .col_int_key
                     "select#": 3,
                     "steps": [
                       {
+                        "transformations_to_nested_joins": {
+                          "transformations": [
+                            "JOIN_condition_to_WHERE",
+                            "parenthesis_removal"
+                          ] /* transformations */,
+                          "expanded_query": "/* select#3 */ select `test`.`table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`) from `test`.`t1` `table1` join `test`.`t1` `table2` where ((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) and (`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`))"
+                        } /* transformations_to_nested_joins */
+                      },
+                      {
                         "condition_processing": {
                           "condition": "WHERE",
                           "original_condition": "((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) and (`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`))",
@@ -1015,6 +1096,18 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "join_optimization": {
                                           "select#": 4,
                                           "steps": [
+                                            {
+                                              "table_dependencies": [
+                                                {
+                                                  "database": "test",
+                                                  "table": "t1",
+                                                  "record_may_be_null": false,
+                                                  "map_bit": 0,
+                                                  "depends_on_map_bits": [
+                                                  ] /* depends_on_map_bits */
+                                                }
+                                              ] /* table_dependencies */
+                                            },
                                             {
                                               "records_estimation": [
                                                 {
@@ -1089,6 +1182,26 @@ ON table2 .col_int_key = table1 .col_int_key
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "table1",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          },
+                          {
+                            "database": "test",
+                            "table": "table2",
+                            "record_may_be_null": false,
+                            "map_bit": 1,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [

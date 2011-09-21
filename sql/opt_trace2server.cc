@@ -231,7 +231,8 @@ Opt_trace_start::~Opt_trace_start()
 }
 
 
-void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex)
+void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
+                                    Opt_trace_object *trace_object)
 
 {
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -258,7 +259,7 @@ void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex)
   */
   select_lex->print(thd, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
                                                QT_SHOW_SELECT_NUMBER));
-  Opt_trace_object(trace).add_utf8("expanded_query", str.ptr(), str.length());
+  trace_object->add_utf8("expanded_query", str.ptr(), str.length());
 }
 
 

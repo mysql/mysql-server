@@ -245,6 +245,18 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "where_subselect_19379",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -379,6 +391,18 @@ FROM t1
                           "select#": 3,
                           "steps": [
                             {
+                              "table_dependencies": [
+                                {
+                                  "database": "test",
+                                  "table": "t2",
+                                  "record_may_be_null": false,
+                                  "map_bit": 0,
+                                  "depends_on_map_bits": [
+                                  ] /* depends_on_map_bits */
+                                }
+                              ] /* table_dependencies */
+                            },
+                            {
                               "records_estimation": [
                                 {
                                   "database": "test",
@@ -426,6 +450,14 @@ FROM t1
             } /* transformation */
           },
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "semijoin"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`where_subselect_19033`.`field1` AS `field1` from `test`.`where_subselect_19033` semi join (`test`.`t1`) where (1 and (`test`.`where_subselect_19033`.`field1` = 7))"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(1 and (`test`.`where_subselect_19033`.`field1` = 7))",
@@ -446,6 +478,26 @@ FROM t1
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "where_subselect_19033",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -774,6 +826,16 @@ ON table2 .col_int_key = table1 .col_int_key
             } /* transformation */
           },
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "semijoin",
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`where_subselect_20070`.`field1` AS `field1`,`test`.`where_subselect_20070`.`( SELECT COUNT( col_int_key )\nFROM t1\n)` AS `( SELECT COUNT( col_int_key )\nFROM t1\n)` from `test`.`where_subselect_20070` semi join (`test`.`t1` `table1` join `test`.`t1` `table2`) where (1 and (`test`.`where_subselect_20070`.`field1` = `test`.`table2`.`col_int_key`) and ((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) and (`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`))"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(1 and (`test`.`where_subselect_20070`.`field1` = `test`.`table2`.`col_int_key`) and ((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) and (`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`))",
@@ -801,6 +863,18 @@ ON table2 .col_int_key = table1 .col_int_key
                             "join_optimization": {
                               "select#": 2,
                               "steps": [
+                                {
+                                  "table_dependencies": [
+                                    {
+                                      "database": "test",
+                                      "table": "t1",
+                                      "record_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
                                 {
                                   "records_estimation": [
                                     {
@@ -879,6 +953,18 @@ ON table2 .col_int_key = table1 .col_int_key
                               "select#": 4,
                               "steps": [
                                 {
+                                  "table_dependencies": [
+                                    {
+                                      "database": "test",
+                                      "table": "t1",
+                                      "record_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
+                                {
                                   "records_estimation": [
                                     {
                                       "database": "test",
@@ -952,6 +1038,34 @@ ON table2 .col_int_key = table1 .col_int_key
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "where_subselect_20070",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "table1",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "table2",
+                "record_may_be_null": false,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [

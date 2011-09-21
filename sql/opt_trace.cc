@@ -396,7 +396,28 @@ Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
 }
 
 
-Opt_trace_struct& Opt_trace_struct::do_add_utf8_table(TABLE *tab)
+Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
+{
+  DBUG_ASSERT(started);
+  char buf[2 + 16], *p_end= buf + sizeof(buf) - 1, *p= p_end;
+  for ( ; ; )
+  {
+    *p--= _dig_vec_lower[val & 15];
+    *p--= _dig_vec_lower[(val & 240) >> 4];
+    val>>= 8;
+    if (val == 0)
+      break;
+  }
+  *p--= 'x';
+  *p= '0';
+  const int len= p_end + 1 - p;
+  DBUG_PRINT("opt", ("%s: %.*s", key, len, p));
+  stmt->add(check_key(key), p, len, false, false);
+  return *this;
+}
+
+
+Opt_trace_struct& Opt_trace_struct::do_add_utf8_table(const TABLE *tab)
 {
   return
     do_add("database", tab->s->db.str, tab->s->db.length, true).

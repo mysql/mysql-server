@@ -78,6 +78,18 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -280,6 +292,18 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -415,6 +439,18 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -636,6 +672,18 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -844,6 +892,18 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -1077,6 +1137,18 @@ GROUP BY key2	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -1363,6 +1435,18 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
               {
                 "database": "test",
@@ -1582,6 +1666,18 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -1858,6 +1954,18 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -2009,6 +2117,18 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -2222,6 +2342,18 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -2423,6 +2555,18 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -2618,6 +2762,18 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -2835,6 +2991,27 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -3106,6 +3283,18 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
               {
                 "database": "test",
@@ -3356,6 +3545,18 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
               {
                 "database": "test",
@@ -3560,6 +3761,26 @@ EXPLAIN SELECT 1 FROM
                   } /* condition_processing */
                 },
                 {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 1,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
                   "ref_optimizer_key_uses": [
                   ] /* ref_optimizer_key_uses */
                 },
@@ -3759,6 +3980,18 @@ EXPLAIN SELECT 1 FROM
                 }
               ] /* steps */
             } /* join_execution */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "d2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "records_estimation": [
@@ -3866,6 +4099,26 @@ EXPLAIN SELECT 1 FROM
                   } /* condition_processing */
                 },
                 {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    },
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 1,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
                   "ref_optimizer_key_uses": [
                   ] /* ref_optimizer_key_uses */
                 },
@@ -4031,6 +4284,18 @@ EXPLAIN SELECT 1 FROM
                 }
               ] /* steps */
             } /* join_execution */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "d2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "records_estimation": [
@@ -4151,6 +4416,18 @@ SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -4222,6 +4499,18 @@ SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic)	{
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "records_estimation": [
@@ -4396,6 +4685,18 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -4644,6 +4945,18 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -4935,6 +5248,18 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
               {
                 "database": "test",
@@ -5191,6 +5516,18 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
               {
                 "database": "test",
@@ -5445,6 +5782,18 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [

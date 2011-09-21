@@ -40,6 +40,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -97,6 +109,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{
                             }
                           ]
                         }
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t6",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ]
+                          }
+                        ]
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -171,18 +195,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{
 select (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
 from information_schema.OPTIMIZER_TRACE;
 (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
-61.0893
+61.5635
 set optimizer_trace="one_line=on";
 SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5 ;
 RESULT
 NULL
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{"steps": [{"join_preparation": {"select#": 1,"steps": [{"join_preparation": {"select#": 2,"steps": [{"expanded_query": "/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)"}]}},{"expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)) AS `RESULT` from `test`.`t5`"}]}},{"join_optimization": {"select#": 1,"steps": [{"records_estimation": [{"database": "test","table": "t5","records": 1,"cost": 1,"table_type": "system"}]},{"attaching_conditions_to_tables": {"original_condition": null,"attached_conditions_computation": [],"attached_conditions_summary": []}},{"refine_plan": []}]}},{"join_execution": {"select#": 1,"steps": [{"subselect_execution": {"select#": 2,"steps": [{"join_optimization": {"select#": 2,"steps": [{"condition_processing": {"condition": "WHERE","original_condition": "(`test`.`t6`.`d` = NULL)","steps": [{"transformation": "equality_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "constant_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "trivial_condition_removal","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"}]}},{"ref_optimizer_key_uses": [{"database": "test","table": "t6","field": "d","equals": "NULL","null_rejecting": true}]},{"records_estimation": [{"database": "test","table": "t6","range_analysis": {"table_scan": {"records": 2,"cost": 4.5034},"potential_range_indices": [{"index": "d","usable": true,"key_parts": ["d"]}],"best_covering_index_scan": {"index": "d","cost": 1.4233,"chosen": true},"setup_range_conditions": [{"impossible_condition": {"cause": "comparison_with_null_always_false"}}],"impossible_range": true},"records": 0,"cause": "impossible_where_condition"}]}],"empty_result": {"cause": "no matching row in const table"}}},{"join_execution": {"select#": 2,"steps": []}}]}}]}}]}	0	0
+SELECT (SELECT 1 FROM t6 WHERE d = c) AS RESULT FROM t5	{"steps": [{"join_preparation": {"select#": 1,"steps": [{"join_preparation": {"select#": 2,"steps": [{"expanded_query": "/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)"}]}},{"expanded_query": "/* select#1 */ select (/* select#2 */ select 1 from `test`.`t6` where (`test`.`t6`.`d` = `test`.`t5`.`c`)) AS `RESULT` from `test`.`t5`"}]}},{"join_optimization": {"select#": 1,"steps": [{"table_dependencies": [{"database": "test","table": "t5","record_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"records_estimation": [{"database": "test","table": "t5","records": 1,"cost": 1,"table_type": "system"}]},{"attaching_conditions_to_tables": {"original_condition": null,"attached_conditions_computation": [],"attached_conditions_summary": []}},{"refine_plan": []}]}},{"join_execution": {"select#": 1,"steps": [{"subselect_execution": {"select#": 2,"steps": [{"join_optimization": {"select#": 2,"steps": [{"condition_processing": {"condition": "WHERE","original_condition": "(`test`.`t6`.`d` = NULL)","steps": [{"transformation": "equality_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "constant_propagation","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"},{"transformation": "trivial_condition_removal","resulting_condition": "multiple equal(NULL, `test`.`t6`.`d`)"}]}},{"table_dependencies": [{"database": "test","table": "t6","record_may_be_null": false,"map_bit": 0,"depends_on_map_bits": []}]},{"ref_optimizer_key_uses": [{"database": "test","table": "t6","field": "d","equals": "NULL","null_rejecting": true}]},{"records_estimation": [{"database": "test","table": "t6","range_analysis": {"table_scan": {"records": 2,"cost": 4.5034},"potential_range_indices": [{"index": "d","usable": true,"key_parts": ["d"]}],"best_covering_index_scan": {"index": "d","cost": 1.4233,"chosen": true},"setup_range_conditions": [{"impossible_condition": {"cause": "comparison_with_null_always_false"}}],"impossible_range": true},"records": 0,"cause": "impossible_where_condition"}]}],"empty_result": {"cause": "no matching row in const table"}}},{"join_execution": {"select#": 2,"steps": []}}]}}]}}]}	0	0
 select (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
 from information_schema.OPTIMIZER_TRACE;
 (1-length(replace(TRACE, " ", ""))/length(TRACE))*100
-5.9278
+5.7832
 set optimizer_trace="one_line=off,end_marker=on";
 EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -216,6 +240,18 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -270,6 +306,18 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t6",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -370,6 +418,18 @@ SELECT /* should be last */ (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESUL
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -427,6 +487,18 @@ SELECT /* should be last */ (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESUL
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t6",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -548,6 +620,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -605,6 +689,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t6",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -684,6 +780,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t6",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -768,6 +876,18 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                   "join_optimization": {
                     "select#": "fake",
                     "steps": [
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "",
+                            "table": "",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
                       {
                         "records_estimation": [
                           {
@@ -941,6 +1061,18 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -1064,6 +1196,18 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                     "select#": "fake",
                     "steps": [
                       {
+                        "table_dependencies": [
+                          {
+                            "database": "",
+                            "table": "",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
                         "records_estimation": [
                           {
                             "database": "",
@@ -1152,16 +1296,16 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-12554
-set optimizer_trace_max_mem_size=12800;
+13410
+set optimizer_trace_max_mem_size=13500;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
-0
+1
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
 c
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
 (@missing_bytes:=missing_bytes_beyond_max_mem_size)
-0
+27
 select (@query2:=QUERY)+NULL,(@trace2:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query2:=QUERY)+NULL	(@trace2:=TRACE)+NULL
 NULL	NULL
@@ -1169,7 +1313,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-12554	1	1
+13383	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -1278,6 +1422,18 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -1325,6 +1481,18 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t6",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -1543,6 +1711,18 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -1590,6 +1770,18 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t6",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -1795,6 +1987,18 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -1865,6 +2069,18 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
             "join_optimization": {
               "select#": 2,
               "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
                 {
                   "records_estimation": [
                     {
@@ -2005,6 +2221,18 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -2075,6 +2303,18 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
             "join_optimization": {
               "select#": 2,
               "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
                 {
                   "records_estimation": [
                     {
@@ -2233,6 +2473,18 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -2322,6 +2574,18 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -2485,6 +2749,18 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -2574,6 +2850,18 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -2679,6 +2967,26 @@ explain select * from t1,t2	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -2846,6 +3154,26 @@ explain select * from t1,t2	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -3034,6 +3362,18 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1_16",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -3123,6 +3463,18 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t2_16",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -3259,6 +3611,16 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "outer_join_to_inner_join",
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`c2` = 1) and (<cache>(`test`.`t2`.`c2`) = `test`.`t2`.`c2`)))) and (`test`.`t1`.`c1` = `test`.`t2`.`c2`))"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`c2` = 1) and (<cache>(`test`.`t2`.`c2`) = `test`.`t2`.`c2`)))) and (`test`.`t1`.`c1` = `test`.`t2`.`c2`))",
@@ -3283,6 +3645,26 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": true,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -3432,6 +3814,18 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t2",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -3591,6 +3985,18 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -3676,6 +4082,18 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -3768,6 +4186,18 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
       "join_optimization": {
         "select#": "fake",
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -3970,6 +4400,18 @@ concat(c1,'y') IN
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -4059,6 +4501,18 @@ concat(c1,'y') IN
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -4153,6 +4607,18 @@ concat(c1,'y') IN
                       }
                     ] /* steps */
                   } /* condition_processing */
+                },
+                {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
                 },
                 {
                   "ref_optimizer_key_uses": [
@@ -4256,6 +4722,26 @@ select * from t1,t2	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -4428,6 +4914,18 @@ trace
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t3",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -4530,6 +5028,18 @@ trace
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t3",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -4587,6 +5097,14 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = 500)) where isnull(`test`.`t2`.`a`)"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "isnull(`test`.`t2`.`a`)",
@@ -4605,6 +5123,27 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": true,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -4793,6 +5332,18 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -4902,6 +5453,18 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t2",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -5053,6 +5616,26 @@ trace
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -5438,6 +6021,18 @@ insert into t6 select * from t6 where d>7	{
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -5589,6 +6184,26 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -5756,6 +6371,26 @@ delete t6 from t5, t6 where d>7000	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t5",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -6096,6 +6731,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -6206,6 +6853,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -6316,6 +6975,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -6425,6 +7096,18 @@ select sum(data) into ret from t1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -6608,6 +7291,18 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -6701,6 +7396,18 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t2",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -6861,6 +7568,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -6971,6 +7690,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -7081,6 +7812,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -7190,6 +7933,18 @@ select sum(data) into ret from t1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -7297,6 +8052,18 @@ select d+1 into res from t6 where d= NAME_CONST('res',NULL)+1	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -7419,6 +8186,18 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -7577,6 +8356,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -7691,6 +8482,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -7805,6 +8608,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -7918,6 +8733,18 @@ select sum(data) into ret from t1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -8046,6 +8873,18 @@ select @trace;
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -8229,6 +9068,18 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
             } /* condition_processing */
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t6",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "ref_optimizer_key_uses": [
             ] /* ref_optimizer_key_uses */
           },
@@ -8322,6 +9173,18 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t2",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -8482,6 +9345,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -8592,6 +9467,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -8702,6 +9589,18 @@ select sum(data) into ret from t1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -8811,6 +9710,18 @@ select sum(data) into ret from t1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -8923,6 +9834,14 @@ explain select * from v1 where id="b"	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`data` AS `data` from `test`.`t1` where ((`test`.`t1`.`id` = 'b') and (`test`.`t1`.`id` < 'c'))"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "((`test`.`t1`.`id` = 'b') and (`test`.`t1`.`id` < 'c'))",
@@ -8941,6 +9860,18 @@ explain select * from v1 where id="b"	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -9106,6 +10037,18 @@ explain select * from v1 where id="b"	{
                   } /* condition_processing */
                 },
                 {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
                   "ref_optimizer_key_uses": [
                   ] /* ref_optimizer_key_uses */
                 },
@@ -9187,6 +10130,18 @@ explain select * from v1 where id="b"	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "v1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -9320,6 +10275,18 @@ VARIABLE_NAME="optimizer_trace"	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "information_schema",
+                "table": "session_variables",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -9463,6 +10430,18 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
       "join_optimization": {
         "select#": "fake",
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
           {
             "records_estimation": [
               {

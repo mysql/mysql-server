@@ -29,6 +29,18 @@ explain extended select '�����', _latin1'�����' from t1 limit 1	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -83,6 +95,18 @@ explain extended select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
           {
             "records_estimation": [
               {
@@ -170,6 +194,18 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
               "select#": 2,
               "steps": [
                 {
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "record_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
                   "records_estimation": [
                     {
                       "database": "test",
@@ -222,6 +258,18 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "v1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -313,6 +361,18 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [
@@ -478,6 +538,14 @@ select `col
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `test`.`t\n1\ta`.`col\n1\ta` AS `col\n1\ta` from `test`.`t\n1\ta` where (`test`.`t\n1\ta`.`col\n1\ta` < 6)"
+            } /* transformations_to_nested_joins */
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(`test`.`t\n1\ta`.`col\n1\ta` < 6)",
@@ -496,6 +564,18 @@ select `col
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t\n1\ta",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
           },
           {
             "ref_optimizer_key_uses": [

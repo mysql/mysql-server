@@ -40,6 +40,18 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -111,6 +123,18 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -209,6 +233,18 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
         "select#": 1,
         "steps": [
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
             "records_estimation": [
               {
                 "database": "test",
@@ -280,6 +316,18 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                             }
                           ] /* steps */
                         } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "record_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
                       },
                       {
                         "ref_optimizer_key_uses": [
@@ -395,6 +443,18 @@ t1.a= (SELECT a FROM t2 LIMIT 1)	{
                             "join_optimization": {
                               "select#": 2,
                               "steps": [
+                                {
+                                  "table_dependencies": [
+                                    {
+                                      "database": "test",
+                                      "table": "t2",
+                                      "record_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
                                 {
                                   "records_estimation": [
                                     {
@@ -546,6 +606,18 @@ WHERE NOT EXISTS
                                       }
                                     ] /* steps */
                                   } /* condition_processing */
+                                },
+                                {
+                                  "table_dependencies": [
+                                    {
+                                      "database": "test",
+                                      "table": "t2",
+                                      "record_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
                                 },
                                 {
                                   "ref_optimizer_key_uses": [
