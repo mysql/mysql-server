@@ -110,7 +110,7 @@ bool read_configuration(Configuration *cf) {
 
 
 /* This function has C linkage */
-bool get_config(const char *) {
+bool get_config() {
   return read_configuration(active_config);
 }
 
