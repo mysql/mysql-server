@@ -55,6 +55,6 @@ enum ExtraRowInfoFormat {
 #define EXTRA_ROW_INFO_HDR_BYTES 2
 #define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HDR_BYTES)
 
-#endif   // #ifndef MCP_WL5353
+#endif
 
 #endif /* RPL_CONSTANTS_H */

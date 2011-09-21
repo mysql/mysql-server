@@ -172,6 +172,9 @@ extern LEX_CSTRING reason_slave_blocked;
 extern ulong slave_trans_retries;
 extern uint  slave_net_timeout;
 extern uint max_user_connections;
+#ifndef MCP_WL5353
+extern my_bool log_bin_use_v1_row_events;
+#endif
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;

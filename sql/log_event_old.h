@@ -41,6 +41,9 @@
   but we keep them this way for now.  /Sven
 */
 
+#ifndef MCP_WL5353
+#define ROWS_HEADER_LEN ROWS_HEADER_LEN_V1
+#endif
 
 /**
   @class Old_rows_log_event
@@ -374,7 +377,11 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
-                                 cols, fields, after_record);
+                                 cols, fields, after_record
+#ifndef MCP_WL5353
+                                 , NULL
+#endif
+                                 );
   }
 #endif
 
@@ -450,7 +457,11 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_update_row(table, is_transactional,
-                                  cols, fields, before_record, after_record);
+                                  cols, fields, before_record, after_record
+#ifndef MCP_WL5353
+                                  , NULL
+#endif
+                                  );
   }
 #endif
 
@@ -525,7 +536,11 @@ public:
                                           __attribute__((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
-                                  cols, fields, before_record);
+                                  cols, fields, before_record
+#ifndef MCP_WL5353
+                                  , NULL
+#endif
+                                  );
   }
 #endif
   

@@ -493,6 +493,10 @@ ulong max_connections, max_connect_errors;
   mysql_send_long_data() call.
 */
 ulong max_long_data_size;
+#ifndef MCP_WL5353
+my_bool log_bin_use_v1_row_events= 0;
+#endif
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -5916,6 +5920,15 @@ struct my_option my_long_options[]=
    "File that holds the names for last binary log files.",
    &opt_binlog_index_name, &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef MCP_WL5353
+  {"log-bin-use-v1-row-events", 0,
+   "If equal to 1 then version 1 row events are written to a row based "
+   "binary log.  If equal to 0, then the latest version of events are "
+   "written.  "
+   "This option is useful during some upgrades.",
+   &log_bin_use_v1_row_events, &log_bin_use_v1_row_events, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"log-isam", OPT_ISAM_LOG, "Log all MyISAM changes to file.",
    &myisam_log_filename, &myisam_log_filename, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
