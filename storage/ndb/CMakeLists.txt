@@ -64,123 +64,106 @@ IF(CMAKE_CXX_FLAGS)
   STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 ENDIF()
 
-IF (MYSQL_VERSION_ID LESS 50500)
-  # Use same compiler defines as MySQL Server for debug compile
-  MESSAGE(STATUS "Setting same debug compile defines")
-  SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-  SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+
+NDB_CHECK_MYSQL_CLUSTER(${VERSION})
+
+INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
+
+INCLUDE_DIRECTORIES(
+  # MySQL Server includes
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_BINARY_DIR}/include
+
+  # NDB includes
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/util
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/portlib
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/debugger
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/transporter
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmcommon
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/logger
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+
+  # Util library includes
+  ${ZLIB_INCLUDE_DIR}
+  ${READLINE_INCLUDE_DIR})
+
+# The root of storage/ndb/
+SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+OPTION(WITH_NDB_TEST
+  "Include the NDB Cluster ndbapi test programs" OFF)
+IF(WITH_NDB_TEST)
+  MESSAGE(STATUS "Building NDB test programs")
 ENDIF()
 
-IF(SOURCE_SUBLIBS)
-  # Sourced by libmysqld/CMakeLists.txt in 5.1 only to get
-  # NDBCLUSTER_SOURCES and NDBCLUSTER_LIBS, don't configure
-  # again
+OPTION(WITH_NDB_BINLOG
+  "Disable NDB binlog" ON)
+
+OPTION(WITH_ERROR_INSERT
+  "Enable error injection in MySQL Cluster" OFF)
+
+OPTION(WITH_NDB_DEBUG
+  "Disable special ndb debug features" OFF)
+
+SET(NDB_CCFLAGS "")
+IF(DEFINED WITH_NDB_CCFLAGS)
+  SET(NDB_CCFLAGS "${WITH_NDB_CCFLAGS}")
+ENDIF() 
+
+IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
+  SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD -DACC_SAFE_QUEUE -DAPI_TRACE")
 ELSE()
-
-  NDB_CHECK_MYSQL_CLUSTER(${VERSION})
-
-  INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
-
-  INCLUDE_DIRECTORIES(
-    # MySQL Server includes
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_BINARY_DIR}/include
-
-    # NDB includes
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/util
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/portlib
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/debugger
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/transporter
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmcommon
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/logger
-    ${CMAKE_CURRENT_BINARY_DIR}/include
-
-    # Util library includes
-    ${ZLIB_INCLUDE_DIR}
-    ${READLINE_INCLUDE_DIR})
-
-  # The root of storage/ndb/
-  SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
-  OPTION(WITH_NDB_TEST
-    "Include the NDB Cluster ndbapi test programs" OFF)
-  IF(WITH_NDB_TEST)
-    MESSAGE(STATUS "Building NDB test programs")
+  IF(WITH_ERROR_INSERT)
+    SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DERROR_INSERT")
   ENDIF()
-
-  OPTION(WITH_NDB_BINLOG
-    "Disable NDB binlog" ON)
-
-  OPTION(WITH_ERROR_INSERT
-    "Enable error injection in MySQL Cluster" OFF)
-
-  OPTION(WITH_NDB_DEBUG
-    "Disable special ndb debug features" OFF)
-
-  SET(NDB_CCFLAGS "")
-  IF(DEFINED WITH_NDB_CCFLAGS)
-    SET(NDB_CCFLAGS "${WITH_NDB_CCFLAGS}")
-  ENDIF() 
-
-  IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
-    SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD -DACC_SAFE_QUEUE -DAPI_TRACE")
-  ELSE()
-    IF(WITH_ERROR_INSERT)
-      SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DERROR_INSERT")
-    ENDIF()
-    SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DNDEBUG")
-  ENDIF()
-
-  SET(NDB_CCFLAGS "${NDB_CCFLAGS} $ENV{NDB_EXTRA_FLAGS}") 
-  MESSAGE(STATUS "Using extra FLAGS for ndb: \"${NDB_CCFLAGS}\"") 
-
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NDB_CCFLAGS}")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
-
-  # Check for Java and JDK needed by ndbjtie and clusterj
-  INCLUDE(FindJava)
-  INCLUDE(FindJNI)
-  INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
-
-  IF(JAVA_COMPILE AND JAVA_ARCHIVE)
-    MESSAGE(STATUS "Found Java")
-    SET(HAVE_JAVA TRUE)
-  ELSE()
-    MESSAGE(STATUS "Could not find Java")
-    SET(HAVE_JAVA FALSE)
-  ENDIF()
-
-  IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
-    MESSAGE(STATUS "Found JDK")
-    SET(HAVE_JDK TRUE)
-  ELSE()
-    MESSAGE(STATUS "Could not find JDK")
-    SET(HAVE_JDK FALSE)
-  ENDIF()
-
-  SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
-    "Enable the classpath for MySQL Cluster Java Connector")
-
-  ADD_SUBDIRECTORY(include)
-  ADD_SUBDIRECTORY(src)
-  ADD_SUBDIRECTORY(tools)
-  ADD_SUBDIRECTORY(test)
-  IF(WITH_NDB_TEST)
-    ADD_SUBDIRECTORY(src/cw/cpcd)
-  ENDIF()
-  IF (HAVE_JDK)
-    ADD_SUBDIRECTORY(clusterj)
-  ENDIF()
-  ADD_SUBDIRECTORY(memcache)
-
+  SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DNDEBUG")
 ENDIF()
 
+SET(NDB_CCFLAGS "${NDB_CCFLAGS} $ENV{NDB_EXTRA_FLAGS}") 
+MESSAGE(STATUS "Using extra FLAGS for ndb: \"${NDB_CCFLAGS}\"") 
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NDB_CCFLAGS}")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
+
+# Check for Java and JDK needed by ndbjtie and clusterj
+INCLUDE(FindJava)
+INCLUDE(FindJNI)
+INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
+
+IF(JAVA_COMPILE AND JAVA_ARCHIVE)
+  MESSAGE(STATUS "Found Java")
+  SET(HAVE_JAVA TRUE)
+ELSE()
+  MESSAGE(STATUS "Could not find Java")
+  SET(HAVE_JAVA FALSE)
+ENDIF()
+
+IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
+  MESSAGE(STATUS "Found JDK")
+  SET(HAVE_JDK TRUE)
+ELSE()
+  MESSAGE(STATUS "Could not find JDK")
+  SET(HAVE_JDK FALSE)
+ENDIF()
+
+SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
+  "Enable the classpath for MySQL Cluster Java Connector")
+
+ADD_SUBDIRECTORY(include)
+ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(tools)
+ADD_SUBDIRECTORY(test)
+IF(WITH_NDB_TEST)
+  ADD_SUBDIRECTORY(src/cw/cpcd)
+ENDIF()
+IF (HAVE_JDK)
+  ADD_SUBDIRECTORY(clusterj)
+ENDIF()
+ADD_SUBDIRECTORY(memcache)
 
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
@@ -203,31 +186,21 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_conflict_trans.cc
 )
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
-
-IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-  # Old plugin support on Windows only
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-  SET(NDBCLUSTER_LIBS ndbclient_static)
-  MYSQL_STORAGE_ENGINE(NDBCLUSTER)
-ELSE()
-  # New plugin support, cross-platform
   
-  # NDB is DEFAULT plugin in MySQL Cluster
-  SET(is_default_plugin "")
-  IF(MYSQL_CLUSTER_VERSION)
-    SET(is_default_plugin "DEFAULT")
-  ENDIF()
-
-  MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
-    LINK_LIBRARIES ndbclient_static)
-
-  IF (NOT MCP_BUG58158)
-    IF(WITH_EMBEDDED_SERVER)
-      # Kludge libndbclient into variable used when creating libmysqld
-      SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
-	ndbclient_static CACHE INTERNAL "" FORCE)
-    ENDIF()
-  ENDIF()
+# NDB is DEFAULT plugin in MySQL Cluster
+SET(is_default_plugin "")
+IF(MYSQL_CLUSTER_VERSION)
+  SET(is_default_plugin "DEFAULT")
 ENDIF()
 
+MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
+  ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+  LINK_LIBRARIES ndbclient_static)
+
+IF (NOT MCP_BUG58158)
+  IF(WITH_EMBEDDED_SERVER)
+    # Kludge libndbclient into variable used when creating libmysqld
+    SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
+      ndbclient_static CACHE INTERNAL "" FORCE)
+  ENDIF()
+ENDIF()
