@@ -1888,7 +1888,6 @@ bool change_password(THD *thd, const char *host, const char *user,
                     native_password_plugin_name.str) &&
       my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     old_password_plugin_name.str))
-  {
     push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
   else
