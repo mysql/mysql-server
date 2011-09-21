@@ -41,6 +41,7 @@
 #define MY_UCA_NCHARS 256
 #define MY_UCA_CMASK  255
 #define MY_UCA_PSHIFT 8
+#define MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT 0xFFFF
 
 uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
@@ -20307,6 +20308,33 @@ my_strnxfrm_uca(const CHARSET_INFO *cs,
 
 
 
+/**
+  Helper function:
+  Find address of weights of the given character.
+  
+  @param weights  UCA weight array
+  @param lengths  UCA length array
+  @param ch       character Unicode code point
+  
+  @return Weight array
+    @retval  pointer to weight array for the given character,
+             or NULL if this page does not have implicit weights.
+*/
+
+static inline uint16 *
+my_char_weight_addr(CHARSET_INFO *cs, uint wc)
+{
+  uint page, ofst;
+  uchar *ucal= cs->sort_order;
+  uint16 **ucaw= cs->sort_order_big;
+
+  return wc > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT ? NULL :
+         (ucaw[page= (wc >> 8)] ?
+          ucaw[page] + (ofst= (wc & 0xFF)) * ucal[page] :
+          NULL);
+}
+
+
 /*
   This function compares if two characters are the same.
   The sign +1 or -1 does not matter. The only
@@ -20324,6 +20352,14 @@ static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
   /* Check if some of the characters does not have implicit weights */
   if (!weight1 || !weight2)
     return wc1 != wc2;
+
+  /* Quickly compare first weights */
+  if (weight1[0] != weight2[0])
+    return 1;
+
+  /* Thoroughly compare all weights */
+  length1= cs->sort_order[wc1 >> MY_UCA_PSHIFT];
+  length2= cs->sort_order[wc2 >> MY_UCA_PSHIFT];
   
   /* Quickly compare first weights */
   if (weight1[0] != weight2[0])

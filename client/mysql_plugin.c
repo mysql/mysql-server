@@ -846,12 +846,19 @@ static int process_options(int argc, char *argv[], char *operation)
   {
     i= (int)strlength(opt_basedir);
     if (opt_basedir[i-1] != FN_LIBCHAR || opt_basedir[i-1] != FN_LIBCHAR2)
+    {
+      char buff[FN_REFLEN];
+      
+      strncpy(buff, opt_basedir, sizeof(buff) - 1);
 #ifdef __WIN__
-      if (opt_basedir[i-1] != '/')
-        strcat(opt_basedir, "//");
+      strncat(buff, "/", sizeof(buff) - strlen(buff) - 1);
 #else
-      strcat(opt_basedir, FN_DIRSEP);
+      strncat(buff, FN_DIRSEP, sizeof(buff) - strlen(buff) - 1);
 #endif
+      buff[sizeof(buff) - 1]= 0;
+      my_delete(opt_basedir, MYF(0));
+      opt_basedir= my_strdup(buff, MYF(MY_FAE));
+    }
   }
   
   /*
@@ -1157,10 +1164,13 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
 
 #ifdef __WIN__
   char *format_str= 0;
-  char *verbose_str= "";
+  const char *verbose_str= NULL;
+   
   
   if (opt_verbose)
-    strcat(verbose_str, "--console");
+    verbose_str= "--console";
+  else
+    verbose_str= "";
   if (has_spaces(opt_datadir) || has_spaces(opt_basedir) ||
       has_spaces(bootstrap_file))
     format_str= "\"%s %s --bootstrap --datadir=%s --basedir=%s < %s\"";
