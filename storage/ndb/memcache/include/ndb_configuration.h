@@ -35,7 +35,7 @@
 DECLARE_FUNCTIONS_WITH_C_LINKAGE
 
 bool connect_to_primary_cluster(const char *connectstring, const char *role);
-bool get_config(const char *role);
+bool get_config();
 bool open_connections_to_all_clusters();
 bool prefetch_dictionary_objects();
 prefix_info_t get_prefix_info_for_key(int nkey, const char *key);

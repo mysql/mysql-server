@@ -180,18 +180,21 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   /* Connect to the Primary cluster */
   if(!(connect_to_primary_cluster(ndb_eng->startup_options.connectstring,
                                   ndb_eng->startup_options.server_role))) {
+     logger->log(LOG_WARNING, 0, "Could not connect to NDB.  Shutting down.\n");
      return ENGINE_FAILED;
   }
   ndb_eng->connected = true;
 
   /* Read configuration */
-  if(!(get_config(ndb_eng->startup_options.server_role)))
+  if(!(get_config())) {
+     logger->log(LOG_WARNING, 0, "Failed to read configuration -- shutting down.\n"
+                 "(Did you run ndb_memcache_metadata.sql?)\n");
      return ENGINE_FAILED;
+  }
 
   /* Connect to additional clusters */
   if(! open_connections_to_all_clusters()) {
-    logger->log(LOG_WARNING, NULL, 
-                "open_connections_to_all_clusters() failed \n");
+    logger->log(LOG_WARNING, 0, "open_connections_to_all_clusters() failed \n");
    return ENGINE_FAILED;
   }
   
