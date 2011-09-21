@@ -459,12 +459,12 @@ master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 116 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 115 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 114 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 113 )
-master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 112 )
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( <binlog_start> )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 111 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 110 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 109 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 108 )
-master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( <binlog_start> )
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 107 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 106 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 105 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 104 )
@@ -864,7 +864,7 @@ unique_checks	OFF
 # INSERT INTO t1 VALUES(2)
 # foreign_key_checks=1 and unique_checks=1
 # It should not change current session's variables, even error happens
-call mtr.add_suppression("Slave SQL.*Could not execute Write_rows event on table test.t1; Duplicate entry .2. for key .PRIMARY., Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Could not execute Write_rows_v1 event on table test.t1; Duplicate entry .2. for key .PRIMARY., Error_code: 1062");
 BINLOG '
 dfLtTBMBAAAAKQAAAKsBAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
 dfLtTBcBAAAAIgAAAM0BAAAAABcAAAAAAAEAAf/+AgAAAA==
