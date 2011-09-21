@@ -323,12 +323,20 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # and does not make slave to stop)
 if (`select @@binlog_format = 'ROW'`)
 {
-  --exec $MYSQL_BINLOG --start-position=525 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --let $V1_ROW_EVENTS= query_get_value("SELECT Variable_Value='ON' as v1 from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE Variable_Name LIKE 'log_bin_use_v1_row_events'", v1, 1)
+  --let $START_POS= 530
+  if (! $V1_ROW_EVENTS)
+  {
+    # There are two Row events before this pos, which are each 2 bytes larger with v2
+    # (534)
+    --let $START_POS= $START_POS + (2*2)
+  }
+  --exec $MYSQL_BINLOG --start-position=$START_POS $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 }
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --exec $MYSQL_BINLOG --start-position=556 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=561 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 }
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

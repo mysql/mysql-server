@@ -561,6 +561,9 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 uint  max_user_connections= 0;
+#ifndef MCP_WL5353
+my_bool log_bin_use_v1_row_events= 0;
+#endif
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -5852,6 +5855,9 @@ enum options_mysqld
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD
+#ifndef MCP_WL5353
+  ,OPT_LOG_BIN_USE_V1_ROW_EVENTS
+#endif
 };
 
 
@@ -6134,6 +6140,15 @@ each time the SQL thread starts.",
    "break, so you can safely set this to 1."
    ,&trust_function_creators, &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef MCP_WL5353
+  {"log-bin-use-v1-row-events", OPT_LOG_BIN_USE_V1_ROW_EVENTS,
+   "If equal to 1 then version 1 row events are written to a row based "
+   "binary log.  If equal to 0, then the latest version of events are "
+   "written.  "
+   "This option is useful during some upgrades.",
+   &log_bin_use_v1_row_events, &log_bin_use_v1_row_events, 0,
+   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif
   {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    &log_error_file_ptr, &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},

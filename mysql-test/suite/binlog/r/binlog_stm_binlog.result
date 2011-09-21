@@ -459,12 +459,12 @@ master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 116 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 115 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 114 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 113 )
-master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 112 )
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( <binlog_start> )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 111 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 110 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 109 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 108 )
-master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( <binlog_start> )
+master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 107 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 106 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 105 )
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values( 104 )
@@ -728,15 +728,15 @@ master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2,t3,tt1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; FLUSH TABLES
 insert delayed into t1 values (null),(null),(null),(null);
@@ -798,7 +798,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1)
 #	#	Query	1	#	BEGIN
 #	#	Table_map	1	#	table_id: # (test.t1)
-#	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+#	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 #	#	Query	1	#	COMMIT
 DROP TABLE t1;
 

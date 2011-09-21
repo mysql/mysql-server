@@ -54,8 +54,8 @@ engine ndb
 master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-master-bin.000001	#	Write_rows	1	#	table_id: #
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Write_rows_v1	1	#	table_id: #
+master-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
 drop table t1;
 alter tablespace ts1
