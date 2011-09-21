@@ -581,6 +581,5 @@ disconnect bug12818542_con2;
 
 DROP USER bug12818542@localhost;
 DROP USER bug12818542_dest@localhost;
->>>>>>> MERGE-SOURCE
 
 --echo End of 5.5 tests
