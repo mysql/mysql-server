@@ -375,6 +375,7 @@ public:
     return 0;
   }
 
+  int area(double *ar, const char **end) const;
   bool dimension(uint32 *dim, const char **end) const
   {
     *dim= 0;
@@ -399,6 +400,7 @@ public:
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int geom_length(double *len) const;
+  int area(double *ar, const char **end) const;
   int is_closed(int *closed) const;
   int num_points(uint32 *n_points) const;
   int start_point(String *point) const;
@@ -540,6 +542,7 @@ public:
   uint init_from_opresult(String *bin, const char *opres, uint res_len);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
+  int area(double *ar, const char **end) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
   bool dimension(uint32 *dim, const char **end) const;

@@ -2033,7 +2033,7 @@ double Gcalc_scan_iterator::get_h() const
 double Gcalc_scan_iterator::get_sp_x(const point *sp) const
 {
   double dy;
-  if (sp->event == scev_end | scev_two_ends | scev_point)
+  if (sp->event & (scev_end | scev_two_ends | scev_point))
     return sp->pi->x;
   dy= sp->next_pi->y - sp->pi->y;
   if (fabs(dy) < 1e-12)
