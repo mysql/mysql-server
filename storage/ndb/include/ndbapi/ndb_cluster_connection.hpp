@@ -117,7 +117,7 @@ public:
    *         1 = recoverable error,
    *        -1 = non-recoverable error
    */
-  int connect(int no_retries=0, int retry_delay_in_seconds=1, int verbose=0);
+  int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int start_connect_thread(int (*connect_callback)(void)= 0);
