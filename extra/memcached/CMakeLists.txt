@@ -25,6 +25,12 @@ IF(${CMAKE_COMPILER_IS_GNUCC})
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 ENDIF()
 
+# memcached cannot currently be built with -Werror; 
+# "ISO C90 forbids mixed declarations and code"
+IF(CMAKE_C_FLAGS)
+  STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+ENDIF()
+
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
                 include/memcached/config_parser.h
@@ -38,7 +44,7 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
                 utilities/genhash_int.h
                 utilities/util.c)
 
-ADD_CONVENIENCE_LIBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
+ADD_LIBRARY(memcached_utilities SHARED ${LIBMEMCACHED_UTILITIES_SOURCES})
 
 
 SET(MEMCACHED_SOURCES
