@@ -16,40 +16,50 @@
 #include <my_global.h>
 #include "common.h"
 
-/**
-  This option is set in win_auth_handshake_client() function 
-  in handshake_client.cc.
-
-  Values:
-  0 - no logging
-  1 - log error/warning/info messages
-  2 - also log debug messages
-
-  Note: No error or debug messages are logged in production code
-  (see logging macros in common.h).
-*/
-int opt_auth_win_client_log= 0;
-
 
 // Client-side logging function
 
 void error_log_vprint(error_log_level::type level,
                         const char *fmt, va_list args)
 {
-  if (0 == opt_auth_win_client_log)
-    return;
-
   const char *level_string= "";
+  int   log_level= get_log_level();
 
   switch (level)
   {
-  case error_log_level::INFO:    level_string= "Note"; break;
-  case error_log_level::WARNING: level_string= "Warning"; break;
-  case error_log_level::ERROR:   level_string= "ERROR"; break;
+  case error_log_level::INFO:    
+    if (3 > log_level)
+      return;
+    level_string= "Note"; 
+    break;
+  case error_log_level::WARNING: 
+    if (2 > log_level)
+      return;
+    level_string= "Warning"; 
+    break;
+  case error_log_level::ERROR:   
+    if (1 > log_level)
+      return;
+    level_string= "ERROR";
+    break;
   }
 
   fprintf(stderr, "Windows Authentication Plugin %s: ", level_string);
   vfprintf(stderr, fmt, args);
   fputc('\n', stderr);
   fflush(stderr);
+}
+
+
+// Trivial implementation of log-level setting storage.
+
+void set_log_level(unsigned int level)
+{
+  opt_auth_win_log_level= level;
+}
+
+
+unsigned int  get_log_level(void)
+{
+  return opt_auth_win_log_level;
 }
