@@ -15,4 +15,6 @@ struct kill {
 
 struct run {
 	string how = 1;
+	optional bytes some_bytes = 2;
+	bytes fixed_bytes[24] = 3;
 }

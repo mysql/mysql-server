@@ -446,7 +446,7 @@ class EntryBytes(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._length = length
-        self._ctype = 'uint32_t'
+        self._ctype = 'uint8_t'
 
     def GetDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s **);' % (
@@ -518,7 +518,6 @@ class EntryBytes(Entry):
     def CodeNew(self, name):
         code  = ['memset(%s->%s_data, 0, sizeof(%s->%s_data));' % (
             name, self._name, name, self._name)]
-        code.extend(Entry.CodeNew(self, name))
         return code
 
     def Verify(self):
@@ -1319,10 +1318,17 @@ def HeaderPreamble(name):
 
     pre += (
         '#define EVTAG_HAS(msg, member) ((msg)->member##_set == 1)\n'
+        '#ifdef __GNUC__\n'
         '#define EVTAG_ASSIGN(msg, member, args...) '
         '(*(msg)->base->member##_assign)(msg, ## args)\n'
         '#define EVTAG_GET(msg, member, args...) '
         '(*(msg)->base->member##_get)(msg, ## args)\n'
+        '#else\n'
+        '#define EVTAG_ASSIGN(msg, member, ...) '
+        '(*(msg)->base->member##_assign)(msg, ## __VA_ARGS__)\n'
+        '#define EVTAG_GET(msg, member, ...) '
+        '(*(msg)->base->member##_get)(msg, ## __VA_ARGS__)\n'
+        '#endif\n'
         '#define EVTAG_ADD(msg, member) (*(msg)->base->member##_add)(msg)\n'
         '#define EVTAG_LEN(msg, member) ((msg)->member##_length)\n'
         )

@@ -28,6 +28,7 @@
 #define _MIN_HEAP_H_
 
 #include "event.h"
+#include "evutil.h"
 
 typedef struct min_heap
 {
@@ -51,7 +52,7 @@ static inline void           min_heap_shift_down_(min_heap_t* s, unsigned hole_i
 
 int min_heap_elem_greater(struct event *a, struct event *b)
 {
-    return timercmp(&a->ev_timeout, &b->ev_timeout, >);
+    return evutil_timercmp(&a->ev_timeout, &b->ev_timeout, >);
 }
 
 void min_heap_ctor(min_heap_t* s) { s->p = 0; s->n = 0; s->a = 0; }
@@ -74,8 +75,8 @@ struct event* min_heap_pop(min_heap_t* s)
     if(s->n)
     {
         struct event* e = *s->p;
-        e->min_heap_idx = -1;
         min_heap_shift_down_(s, 0u, s->p[--s->n]);
+        e->min_heap_idx = -1;
         return e;
     }
     return 0;
@@ -85,7 +86,17 @@ int min_heap_erase(min_heap_t* s, struct event* e)
 {
     if(((unsigned int)-1) != e->min_heap_idx)
     {
-        min_heap_shift_down_(s, e->min_heap_idx, s->p[--s->n]);
+        struct event *last = s->p[--s->n];
+        unsigned parent = (e->min_heap_idx - 1) / 2;
+	/* we replace e with the last element in the heap.  We might need to
+	   shift it upward if it is less than its parent, or downward if it is
+	   greater than one or both its children. Since the children are known
+	   to be less than the parent, it can't need to shift both up and
+	   down. */
+        if (e->min_heap_idx > 0 && min_heap_elem_greater(s->p[parent], last))
+             min_heap_shift_up_(s, e->min_heap_idx, last);
+        else
+             min_heap_shift_down_(s, e->min_heap_idx, last);
         e->min_heap_idx = -1;
         return 0;
     }

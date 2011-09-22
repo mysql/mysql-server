@@ -137,7 +137,7 @@ check_selectop(struct selectop *sop)
 static int
 select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
-	int res, i;
+	int res, i, j;
 	struct selectop *sop = arg;
 
 	check_selectop(sop);
@@ -167,8 +167,12 @@ select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	event_debug(("%s: select reports %d", __func__, res));
 
 	check_selectop(sop);
-	for (i = 0; i <= sop->event_fds; ++i) {
+	i = random() % (sop->event_fds+1);
+	for (j = 0; j <= sop->event_fds; ++j) {
 		struct event *r_ev = NULL, *w_ev = NULL;
+		if (++i >= sop->event_fds+1)
+			i = 0;
+
 		res = 0;
 		if (FD_ISSET(i, sop->event_readset_out)) {
 			r_ev = sop->event_r_by_fd[i];
