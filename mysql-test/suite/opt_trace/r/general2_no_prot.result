@@ -391,7 +391,7 @@ TRACE
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -627,17 +627,17 @@ TRACE
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t3",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -935,12 +935,12 @@ TRACE
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -1039,7 +1039,7 @@ TRACE
                           {
                             "database": "test",
                             "table": "t1",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -1223,7 +1223,7 @@ TRACE
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -1294,7 +1294,7 @@ TRACE
               {
                 "database": "",
                 "table": "teeone",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -1658,7 +1658,7 @@ SET @a=(select count(a) from t1 where a>0)	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -1785,7 +1785,7 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -1942,7 +1942,7 @@ call p1((select a from t1 limit 1))	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -2096,7 +2096,7 @@ select concat(concat(_latin1'->',f1),_latin1'<-') from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -2466,12 +2466,12 @@ table3.col_varchar_10_utf8_key	{
               {
                 "database": "test",
                 "table": "table1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "table3",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -2658,7 +2658,7 @@ from t0 where a in
               {
                 "database": "test",
                 "table": "t0",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -3166,7 +3166,7 @@ from t0 where a in
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "index"
+                      "access_type": "index_scan"
                     },
                     {
                       "database": "test",
@@ -3586,7 +3586,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
               {
                 "database": "",
                 "table": "tmp",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -4778,7 +4778,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               {
                 "database": "test",
                 "table": "alias1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",

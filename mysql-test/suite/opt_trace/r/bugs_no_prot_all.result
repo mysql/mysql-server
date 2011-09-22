@@ -620,7 +620,7 @@ FROM t1
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -927,7 +927,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                     {
                                       "database": "test",
                                       "table": "t1",
-                                      "scan_type": "index"
+                                      "access_type": "index_scan"
                                     }
                                   ] /* refine_plan */
                                 }
@@ -1016,7 +1016,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                     {
                                       "database": "test",
                                       "table": "t1",
-                                      "scan_type": "index"
+                                      "access_type": "index_scan"
                                     }
                                   ] /* refine_plan */
                                 }
@@ -1860,7 +1860,7 @@ ON table2 .col_int_key = table1 .col_int_key
               {
                 "database": "test",
                 "table": "where_subselect_20070",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
@@ -1884,12 +1884,12 @@ ON table2 .col_int_key = table1 .col_int_key
                   ] /* evaluating_constant_semijoin_conditions */,
                   "resulting_condition": "((`test`.`where_subselect_20070`.`field1` = `sj-materialize`.`field1`) and (4 = `sj-materialize`.`( SELECT COUNT( col_int_key )\nFROM t1\n)`))"
                 } /* creating_semijoin_materialization_conditions */,
-                "scan_type": "index"
+                "access_type": "index_scan"
               },
               {
                 "database": "test",
                 "table": "table2",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }

@@ -944,7 +944,7 @@ ON table2 .col_int_key = table1 .col_int_key
               {
                 "database": "test",
                 "table": "where_subselect_20070",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -1027,7 +1027,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           {
                             "database": "test",
                             "table": "t1",
-                            "scan_type": "index"
+                            "access_type": "index_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -1160,7 +1160,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                                 {
                                                   "database": "test",
                                                   "table": "t1",
-                                                  "scan_type": "index"
+                                                  "access_type": "index_scan"
                                                 }
                                               ] /* refine_plan */
                                             }
