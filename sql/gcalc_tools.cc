@@ -43,7 +43,7 @@ gcalc_shape_info Gcalc_function::add_new_shape(uint32 shape_id,
   in prefix style.
 */
 
-void Gcalc_function::add_operation(op_type operation, uint32 n_operands)
+void Gcalc_function::add_operation(uint operation, uint32 n_operands)
 {
   uint32 op_code= (uint32 ) operation + n_operands;
   function_buffer.q_append(op_code);
@@ -84,6 +84,15 @@ int Gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
 }
 
 
+int Gcalc_function::repeat_expression(uint32 exp_pos)
+{
+  if (reserve_op_buffer(1))
+    return 1;
+  add_operation(op_repeat, exp_pos);
+  return 0;
+}
+
+
 /*
   Specify how many arguments we're going to have.
 */
@@ -109,42 +118,61 @@ int Gcalc_function::alloc_states()
   if (function_buffer.reserve((n_shapes+1) * 2 * sizeof(int)))
     return 1;
   i_states= (int *) (function_buffer.ptr() + ALIGN_SIZE(function_buffer.length()));
-  saved_i_states= i_states + (n_shapes + 1);
+  b_states= i_states + (n_shapes + 1);
   return 0;
 }
 
 
-void Gcalc_function::save_states()
+int Gcalc_function::count_internal(const char *cur_func, uint set_type,
+                                   const char **end)
 {
-  memcpy(saved_i_states, i_states, (n_shapes+1) * sizeof(int));
-}
-
-
-void Gcalc_function::restore_states()
-{
-  memcpy(i_states, saved_i_states, (n_shapes+1) * sizeof(int));
-}
-
-
-int Gcalc_function::count_internal()
-{
-  int c_op= uint4korr(cur_func);
+  uint c_op= uint4korr(cur_func);
   op_type next_func= (op_type) (c_op & op_any);
   int mask= (c_op & op_not) ? 1:0;
-  int n_ops= c_op & ~op_any;
+  uint n_ops= c_op & ~(op_any | op_not | v_mask);
+  uint n_shape= c_op & ~(op_any | op_not | v_mask); /* same as n_ops */
+  value v_state= (value) (c_op & v_mask);
   int result;
+  const char *sav_cur_func= cur_func;
 
   cur_func+= 4;
   if (next_func == op_shape)
-    return i_states[c_op & ~(op_any | op_not)] ^ mask;
+  {
+    if (set_type == 0)
+      result= i_states[n_shape] | b_states[n_shape];
+    else if (set_type == op_border)
+      result= b_states[n_shape];
+    else if (set_type == op_internals)
+      result= i_states[n_shape] && !b_states[n_shape];
+    goto exit;
+  }
+
+  if (next_func == op_false)
+  {
+    result= 0;
+    goto exit;
+  }
+
+  if (next_func == op_border || next_func == op_internals)
+  {
+    result= count_internal(cur_func, next_func, &cur_func);
+    goto exit;
+  }
+
+  if (next_func == op_repeat)
+  {
+    result= count_internal(function_buffer.ptr() + n_ops, set_type, 0);
+    goto exit;
+  }
+
   if (n_ops == 0)
     return mask;
 
-  result= count_internal();
+  result= count_internal(cur_func, set_type, &cur_func);
 
   while (--n_ops)
   {
-    int next_res= count_internal();
+    int next_res= count_internal(cur_func, set_type, &cur_func);
     switch (next_func)
     {
       case op_union:
@@ -159,15 +187,59 @@ int Gcalc_function::count_internal()
       case op_difference:
         result= result & !next_res;
         break;
-      case op_backdifference:
-        result= !result & next_res;
-        break;
       default:
         DBUG_ASSERT(FALSE);
     };
   }
 
-  return result ^ mask;
+exit:
+  result^= mask;
+  if (v_state != v_empty)
+  {
+    switch (v_state)
+    {
+      case v_find_t:
+        if (result)
+        {
+          c_op= (c_op & ~v_mask) | v_t_found;
+          int4store(sav_cur_func, c_op);
+        };
+        break;
+      case v_find_f:
+        if (!result)
+        {
+          c_op= (c_op & ~v_mask) | v_f_found;
+          int4store(sav_cur_func, c_op);
+        };
+        break;
+      case v_t_found:
+        result= 1;
+        break;
+      case v_f_found:
+        result= 0;
+        break;
+      default:
+        DBUG_ASSERT(0);
+    };
+  }
+  
+  if (end)
+    *end= cur_func;
+  return result;
+}
+
+
+void Gcalc_function::clear_i_states()
+{
+  for (uint i= 0; i < n_shapes; i++)
+    i_states[i]= 0;
+}
+
+
+void Gcalc_function::clear_b_states()
+{
+  for (uint i= 0; i < n_shapes; i++)
+    b_states[i]= 0;
 }
 
 
@@ -183,7 +255,7 @@ void Gcalc_function::reset()
 }
 
 
-int Gcalc_function::find_function(Gcalc_scan_iterator &scan_it)
+int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
 {
   const Gcalc_scan_iterator::point *eq_start, *cur_eq, *events;
 
@@ -194,31 +266,58 @@ int Gcalc_function::find_function(Gcalc_scan_iterator &scan_it)
     events= scan_it.get_events();
 
     /* these kinds of events don't change the function */
-    if (events->simple_event())
-      continue;
-
     Gcalc_point_iterator pit(&scan_it);
-    clear_state();
+    clear_b_states();
+    clear_i_states();
     /* Walk to the event, marking polygons we met */
     for (; pit.point() != scan_it.get_event_position(); ++pit)
     {
       gcalc_shape_info si= pit.point()->get_shape();
       if ((get_shape_kind(si) == Gcalc_function::shape_polygon))
-        invert_state(si);
+        invert_i_state(si);
     }
-    save_states();
+    if (events->simple_event())
+    {
+      if (events->event == scev_end)
+        set_b_state(events->get_shape());
+
+      if (count())
+        return 1;
+      clear_b_states();
+      continue;
+    }
+
     /* Check the status of the event point */
     for (; events; events= events->get_next())
-      set_on_state(events->get_shape());
+    {
+      gcalc_shape_info si= events->get_shape();
+      if (events->event == scev_thread ||
+          events->event == scev_end ||
+          (get_shape_kind(si) == Gcalc_function::shape_polygon))
+        set_b_state(si);
+      else if (get_shape_kind(si) == Gcalc_function::shape_line)
+        invert_i_state(si);
+    }
 
     if (count())
       return 1;
+
+    /* Set back states changed in the loop above. */
+    for (events= scan_it.get_events(); events; events= events->get_next())
+    {
+      gcalc_shape_info si= events->get_shape();
+      if (events->event == scev_thread ||
+          events->event == scev_end ||
+          (get_shape_kind(si) == Gcalc_function::shape_polygon))
+        clear_b_state(si);
+      else if (get_shape_kind(si) == Gcalc_function::shape_line)
+        invert_i_state(si);
+    }
 
     if (scan_it.get_event_position() == scan_it.get_event_end())
       continue;
 
     /* Check the status after the event */
-    restore_states();
     eq_start= pit.point();
     do
     {
@@ -226,18 +325,28 @@ int Gcalc_function::find_function(Gcalc_scan_iterator &scan_it)
       if (pit.point() != scan_it.get_event_end() &&
           eq_start->cmp_dx_dy(pit.point()) == 0)
         continue;
-      save_states();
       for (cur_eq= eq_start; cur_eq != pit.point();
           cur_eq= cur_eq->get_next())
-        set_on_state(cur_eq->get_shape());
+      {
+        gcalc_shape_info si= cur_eq->get_shape();
+        if (get_shape_kind(si) == Gcalc_function::shape_polygon)
+          set_b_state(si);
+        else
+          invert_i_state(si);
+      }
       if (count())
         return 1;
-      restore_states();
+
       for (cur_eq= eq_start; cur_eq != pit.point(); cur_eq= cur_eq->get_next())
       {
         gcalc_shape_info si= cur_eq->get_shape();
         if ((get_shape_kind(si) == Gcalc_function::shape_polygon))
-          invert_state(si);
+        {
+          clear_b_state(si);
+          invert_i_state(si);
+        }
+        else
+          invert_i_state(cur_eq->get_shape());
       }
       if (count())
         return 1;
@@ -309,6 +418,15 @@ int Gcalc_operation_transporter::start_collection(int n_objects)
   if (m_fn->reserve_shape_buffer(n_objects) || m_fn->reserve_op_buffer(1))
         return 1;
   m_fn->add_operation(Gcalc_function::op_union, n_objects);
+  return 0;
+}
+
+
+int Gcalc_operation_transporter::empty_shape()
+{
+  if (m_fn->reserve_op_buffer(1))
+        return 1;
+  m_fn->add_operation(Gcalc_function::op_false, 0);
   return 0;
 }
 
@@ -661,7 +779,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   if (ca_counter == 11522)
     call_checkpoint(89);
 #endif /*NO_TESTING*/
-  m_fn->clear_state();
+  m_fn->clear_i_states();
   /* Walk to the event, remembering what is needed. */
 #ifndef NO_TESTING
   if (si->get_event_position() == pi.point())
@@ -678,7 +796,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       prev_range= prev_state ? cur_t : 0;
     }
     if (m_fn->get_shape_kind(pi.get_shape()) == Gcalc_function::shape_polygon)
-      m_fn->invert_state(pi.get_shape());
+      m_fn->invert_i_state(pi.get_shape());
   }
 
   events= si->get_events();
@@ -800,6 +918,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
 
   eq_start= pi.point();
   eq_thread= point_thread= *starting_t_hook;
+  m_fn->clear_b_states();
   while (eq_start != si->get_event_end())
   {
     const Gcalc_scan_iterator::point *cur_eq;
@@ -812,17 +931,16 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
         eq_start->cmp_dx_dy(pi.point()) == 0)
       continue;
 
-    m_fn->save_states();
     for (cur_eq= eq_start; cur_eq != pi.point(); cur_eq= cur_eq->get_next())
-      m_fn->set_on_state(cur_eq->get_shape());
+      m_fn->set_b_state(cur_eq->get_shape());
     in_state= m_fn->count();
 
-    m_fn->restore_states();
+    m_fn->clear_b_states();
     for (cur_eq= eq_start; cur_eq != pi.point(); cur_eq= cur_eq->get_next())
     {
       gcalc_shape_info si= cur_eq->get_shape();
       if ((m_fn->get_shape_kind(si) == Gcalc_function::shape_polygon))
-        m_fn->invert_state(si);
+        m_fn->invert_i_state(si);
     }
     after_state= m_fn->count();
     if (prev_state != after_state)
@@ -844,14 +962,15 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   if (!sav_prev_state && !m_poly_borders && !m_lines)
   {
     /* Check if we need to add the event point itself */
-    m_fn->clear_state();
+    m_fn->clear_i_states();
+    /* b_states supposed to be clean already */
     for (pi.restart(si); pi.point() != si->get_event_position(); ++pi)
     {
       if (m_fn->get_shape_kind(pi.get_shape()) == Gcalc_function::shape_polygon)
-        m_fn->invert_state(pi.get_shape());
+        m_fn->invert_i_state(pi.get_shape());
     }
     for (events= si->get_events(); events; events= events->get_next())
-      m_fn->set_on_state(events->get_shape());
+      m_fn->set_b_state(events->get_shape());
 
     return m_fn->count() ? add_single_point(si) : 0;
   }

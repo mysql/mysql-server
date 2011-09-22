@@ -237,14 +237,6 @@ SELECT ST_NUMGEOMETRIES(ST_DIFFERENCE (
 ));
 
 
-#bug 841638 Assertion `!m_prev || m_prev->x != x || m_prev->y != y' failed in Gcalc_shape_transporter::int_add_point in maria-5.3-gis
-SELECT ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER (
-         ST_UNION (
-                MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 7 3 , 1 8 , 4 0 , 7 9 ) , ( 5 4 , 9 8 , 7 4 , 3 7 ) , ( 5 8 , 5 4 , 9 2 , 5 6 ) , ( 4 0 , 3 2 , 0 1 , 3 9 ) , ( 2 0 , 3 5 , 9 5 , 0 9 ) ) ' ) ,
-                MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 4 5 , 3 0 , 3 1 , 4 7 , 4 2 ) , ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ' )
-        ) , 1
-)));
-
 #bug 841745 ssertion `!sp0->is_bottom()' failed in Gcalc_scan_iterator::find_intersections in maria-5.3-gis
 SELECT ASTEXT(ST_DIFFERENCE (
         POLYGONFROMTEXT( ' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ' ) ,
@@ -279,10 +271,30 @@ SELECT ST_BUFFER (
  ) ;
 SELECT   ST_DISTANCE (     ST_DIFFERENCE (                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 5, 2 4, 3 4, 3 5) ) ) ' ) ,                                 MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) , ( ( 0 0 , 3 8 , 9 4 , 0 0 ) ) ) ' )                         ),                         MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( (3 5, 2 4, 2 5, 3 5) ) , ( (3 5, 2 5, 2 4, 3 4, 3 5) ) , ( ( 0 0 , 8 3 , 9 5 , 0 0 ) ) ) ' ) )  ;
 
-#bug 848901 Assertion `fabs(cur_isc->x-m_cur_intersection->x) + fabs(cur_isc->y-m_cur_intersection->y) < 0.000000000001' failed in Gcalc_scan_iterator::intersection_scan() in maria-5.3-gis
-
-SELECT ST_NUMGEOMETRIES( ST_SYMDIFFERENCE ( ST_SYMDIFFERENCE ( ST_INTERSECTION ( MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 6 4 , 3 7 , 9 4 , 3 8 ) , ( 2 2 , 2 9 , 1 2 , 9 8 ) ) ' ) , ST_SYMDIFFERENCE ( MULTIPOINTFROMTEXT( ' MULTIPOINT( 6 1 , 3 8 , 3 3 , 0 6 , 7 2 , 3 4 ) ' ) , ST_BUFFER ( ST_UNION ( MULTIPOLYGONFROMTEXT( ' MULTIPOLYGON( ( ( 2 2 , 6 2 , 1 3 , 2 2 , 2 2 ) ) ) ' ) , GEOMETRYFROMTEXT( ' MULTILINESTRING( ( 1 4 , 9 9 , 3 0 , 6 6 ) , ( 3 5 , 1 0 , 5 8 , 6 1 ) , ( 8 9 , 6 1 , 5 1 , 6 2 ) , ( 2 2 , 7 5 , 5 8 , 6 9 , 3 0 ) , ( 8 0 , 8 4 , 6 7 , 5 5 ) ) ' ) ) , NUMPOINTS( EXTERIORRING( POLYGONFROMTEXT( ' POLYGON( ( 0 0 , 2 1 , 8 2 , 0 0 ) ) ' ) ) ) ) ) ) , ST_INTERSECTION ( POLYGONFROMTEXT( ' POLYGON( ( 2 3, 5 7 , 3 7 , 4 1 , 0 5, 2 3 ) ) ' ) , MULTILINESTRINGFROMTEXT( ' MULTILINESTRING( ( 2 3 , 1 4 , 6 4 , 9 1 , 3 4 , 1 8 ) , ( 9 9 , 0 3 , 1 7 , 9 9 ) ) ' ) ) ) , POLYGONFROMTEXT( ' POLYGON( ( 1 3, 7 2 , 1 5 , 3 8 , 5 0, 1 3) ) ' ) ) ) ;
-
 #bug 848939 Wrong result with ST_INTERSECTION between linestrings and a polygon in 5.3-gis
 SELECT ASTEXT(ST_INTERSECTION( GEOMETRYFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(7 7,5.33333333333333 7),LINESTRING(5.33333333333333 7,0 7,5 8,5.33333333333333 7),LINESTRING(5.33333333333333 7,7 2,7 7),POLYGON((0 5,3 5,3 2,1 2,1 1,3 1,3 0,0 0,0 3,2 3,2 4,0 4,0 5)))'), geomETRYFROMTEXT(' MULTILINESTRING( ( 5 1 , 3 7 , 6 1 , 7 0 ) , ( 1 6 , 8 5 , 7 5 , 5 6 ) )') ));
+
+#bug 855485 ST_CROSSES returns different result than PostGIS for overlapping polygons
+
+SELECT ST_CROSSES( GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 4, 2 5, 3 5) ) ') , POLYGONFROMTEXT(' POLYGON((2 4,3 4,3 5,2 5,2 4)) '));
+
+#bug 855487 ST_WITHIN returns wrong result for partially overlapping polygons
+
+SELECT ST_WITHIN( POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 2 0 , 1 0, 2 4 , 0 4, 0 5) ) ') , POLYGONFROMTEXT(' POLYGON( (0 5, 3 5, 3 4, 1 4 , 1 3 , 3 3 , 3 0 , 0 0 , 0 5), ( 1 1 , 2 1 , 2 2 , 1 2 , 1 1 ) ) ') );
+
+#bug 855492 ST_WITHIN returns TRUE on point on the edge of a polygon
+
+SELECT ST_WITHIN( POINTFROMTEXT(' POINT(1 2 ) ') , MULTIPOLYGONFROMTEXT(' MULTIPOLYGON( ( (0 5, 3 5, 3 0, 0 0, 0 5), ( 1 1 , 2 1 , 2 4, 1 4, 1 1 ) ) ) '));
+
+#bug 855497 ST_ENVELOPE of GEOMETRYCOLLECTION EMPTY returns NULL and not GEOMETRYCOLLECTION EMPTY
+
+select ST_ASTEXT(envelope(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION EMPTY')));
+
+#bug 855503 ST_EQUALS reports TRUE between a POLYGON and a MULTILINESTRING
+
+SELECT ST_EQUALS( GEOMETRYFROMTEXT(' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') , GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') );
+
+#bug 855505 ST_TOUCHES reports TRUE for intersecting polygon and linestring
+
+SELECT ST_TOUCHES( GEOMETRYFROMTEXT(' LINESTRING( 1 1 , 1 4 , 5 0 , 8 3 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ') );
 

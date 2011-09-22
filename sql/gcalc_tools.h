@@ -43,23 +43,35 @@ class Gcalc_function
 private:
   String shapes_buffer;
   String function_buffer;
-  const char *cur_func;
   int *i_states;
-  int *saved_i_states;
+  int *b_states;
   uint32 cur_object_id;
   uint n_shapes;
-  int count_internal();
+  int count_internal(const char *cur_func, uint set_type,
+                     const char **end);
 public:
+  enum value
+  {
+    v_empty=   0x0000000,
+    v_find_t=  0x1000000,
+    v_find_f=  0x2000000,
+    v_t_found= 0x3000000,
+    v_f_found= 0x4000000,
+    v_mask=    0x7000000
+  };
   enum op_type
   {
-    op_shape= 0,
-    op_not= 0x80000000,
-    op_union= 0x10000000,
-    op_intersection= 0x20000000,
+    op_not=           0x80000000,
+    op_shape=         0x00000000,
+    op_union=         0x10000000,
+    op_intersection=  0x20000000,
     op_symdifference= 0x30000000,
-    op_difference= 0x40000000,
-    op_backdifference= 0x50000000,
-    op_any= 0x70000000
+    op_difference=    0x40000000,
+    op_repeat=        0x50000000,
+    op_border=        0x60000000,
+    op_internals=     0x70000000,
+    op_false=         0x08000000,
+    op_any=           0x78000000 /* The mask to get any of the operations */
   };
   enum shape_type
   {
@@ -75,10 +87,11 @@ public:
     Also adds the shape to the list of operands.
   */
   int single_shape_op(shape_type shape_kind, gcalc_shape_info *si);
-  void add_operation(op_type operation, uint32 n_operands);
+  void add_operation(uint operation, uint32 n_operands);
   void add_not_operation(op_type operation, uint32 n_operands);
-  uint32 get_next_operation_pos() { return function_buffer.length(); }
+  uint32 get_next_expression_pos() { return function_buffer.length(); }
   void add_operands_to_op(uint32 operation_pos, uint32 n_operands);
+  int repeat_expression(uint32 exp_pos);
   void set_cur_obj(uint32 cur_obj) { cur_object_id= cur_obj; }
   int reserve_shape_buffer(uint n_shapes);
   int reserve_op_buffer(uint n_ops);
@@ -90,20 +103,20 @@ public:
 
   void set_states(int *shape_states) { i_states= shape_states; }
   int alloc_states();
-  void invert_state(gcalc_shape_info shape) { i_states[shape]^= 1; }
-  void set_on_state(gcalc_shape_info shape) { i_states[shape]= 1; }
-  int get_state(gcalc_shape_info shape) { return i_states[shape]; }
-  void save_states();
-  void restore_states();
+  void invert_i_state(gcalc_shape_info shape) { i_states[shape]^= 1; }
+  void set_b_state(gcalc_shape_info shape) { b_states[shape]= 1; }
+  void clear_b_state(gcalc_shape_info shape) { b_states[shape]= 0; }
+  int get_state(gcalc_shape_info shape)
+    { return i_states[shape] | b_states[shape]; }
+  int get_i_state(gcalc_shape_info shape) { return i_states[shape]; }
+  int get_b_state(gcalc_shape_info shape) { return b_states[shape]; }
   int count()
-  {
-    cur_func= function_buffer.ptr();
-    return count_internal();
-  }
-  void clear_state() { bzero(i_states, n_shapes * sizeof(int)); }
+    { return count_internal(function_buffer.ptr(), 0, 0); }
+  void clear_i_states();
+  void clear_b_states();
   void reset();
 
-  int find_function(Gcalc_scan_iterator &scan_it);
+  int check_function(Gcalc_scan_iterator &scan_it);
 };
 
 
@@ -132,6 +145,7 @@ public:
   int complete_ring();
   int add_point(double x, double y);
   int start_collection(int n_objects);
+  int empty_shape();
 };
 
 

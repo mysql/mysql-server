@@ -2519,6 +2519,12 @@ int Gis_geometry_collection::store_shapes(Gcalc_shape_transporter *trn) const
   n_objects= uint4korr(data);
   data+= 4;
 
+  if (!n_objects)
+  {
+    trn->empty_shape();
+    return 0;
+  }
+
   if (trn->start_collection(n_objects))
     return 1;
 

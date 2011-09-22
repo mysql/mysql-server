@@ -660,6 +660,7 @@ static double distance_points(const Gcalc_heap::Info *a,
   Calculates the distance between objects.
 */
 
+#ifdef TMP_BLOCK
 static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
                          Gcalc_function *func, Gcalc_scan_iterator *scan_it)
 {
@@ -786,138 +787,10 @@ exit:
 mem_error:
   DBUG_RETURN(1);
 }
+#endif /*TMP_BLOCK*/
 
 
 #define GIS_ZERO 0.00000000001
-
-int Item_func_spatial_rel::func_touches()
-{
-  bool above_cur_point;
-  double x1, x2, y1, y2, ex, ey;
-  double distance, area;
-  int result= 0;
-  int cur_func= 0;
-
-  Gcalc_operation_transporter trn(&func, &collector);
-
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
-  int obj2_si;
-
-  DBUG_ENTER("Item_func_spatial_rel::func_touches");
-  DBUG_ASSERT(fixed == 1);
-
-  if ((null_value= (args[0]->null_value || args[1]->null_value ||
-          !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-          !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
-    goto mem_error;
-
-  if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
-      (g2->get_class_info()->m_type_id == Geometry::wkb_point))
-  {
-    if (((Gis_point *) g1)->get_xy(&x1, &y1) ||
-        ((Gis_point *) g2)->get_xy(&x2, &y2))
-      goto mem_error;
-    ex= x2 - x1;
-    ey= y2 - y1;
-    DBUG_RETURN((ex * ex + ey * ey) < GIS_ZERO);
-  }
-
-  if (func.reserve_op_buffer(1))
-    goto mem_error;
-  func.add_operation(Gcalc_function::op_intersection, 2);
-
-  if (g1->store_shapes(&trn))
-    goto mem_error;
-  obj2_si= func.get_nshapes();
-
-  if (g2->store_shapes(&trn) || func.alloc_states())
-    goto mem_error;
-
-  collector.prepare_operation();
-  scan_it.init(&collector);
-
-  if (calc_distance(&distance, &collector, obj2_si, &func, &scan_it))
-   goto mem_error;
-  if (distance > GIS_ZERO)
-    goto exit;
-
-  scan_it.reset();
-  scan_it.init(&collector);
-
-  above_cur_point= false;
-  distance= DBL_MAX;
-
-  while (scan_it.more_trapezoids())
-  {
-    if (scan_it.step())
-      goto mem_error;
-
-    func.clear_state();
-    for (Gcalc_trapezoid_iterator ti(&scan_it); ti.more(); ++ti)
-    {
-      gcalc_shape_info si= ti.lb()->get_shape();
-      if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
-      {
-        func.invert_state(si);
-        cur_func= func.count();
-      }
-      if (cur_func)
-      {
-        area= scan_it.get_h() *
-              ((scan_it.get_sp_x(ti.rb()) - scan_it.get_sp_x(ti.lb())) +
-               (scan_it.get_sp_x(ti.rt()) - scan_it.get_sp_x(ti.lt())));
-        if (area > GIS_ZERO)
-        {
-          result= 0;
-          goto exit;
-        }
-      }
-    }
-  }
-  result= 1;
-
-exit:
-  collector.reset();
-  func.reset();
-  scan_it.reset();
-  DBUG_RETURN(result);
-mem_error:
-  null_value= 1;
-  DBUG_RETURN(0);
-}
-
-
-int Item_func_spatial_rel::func_equals()
-{
-  Gcalc_heap::Info *pi_s1, *pi_s2;
-  Gcalc_heap::Info *cur_pi= collector.get_first();
-  double d;
-
-  if (!cur_pi)
-    return 1;
-
-  do {
-    pi_s1= cur_pi;
-    pi_s2= 0;
-    while ((cur_pi= cur_pi->get_next()))
-    {
-      d= fabs(pi_s1->x - cur_pi->x) + fabs(pi_s1->y - cur_pi->y);
-      if (d > GIS_ZERO)
-        break;
-      if (!pi_s2 && pi_s1->shape != cur_pi->shape)
-        pi_s2= cur_pi;
-    }
-
-    if (!pi_s2)
-      return 0;
-  } while (cur_pi);
-
-  return 1;
-}
-
 
 longlong Item_func_spatial_rel::val_int()
 {
@@ -929,9 +802,7 @@ longlong Item_func_spatial_rel::val_int()
   Geometry *g1, *g2;
   int result= 0;
   int mask= 0;
-
-  if (spatial_rel == SP_TOUCHES_FUNC)
-    DBUG_RETURN(func_touches());
+  uint shape_a, shape_b;
 
   res1= args[0]->val_str(&tmp_value1);
   res2= args[1]->val_str(&tmp_value2);
@@ -940,56 +811,103 @@ longlong Item_func_spatial_rel::val_int()
   if (func.reserve_op_buffer(1))
     DBUG_RETURN(0);
 
+  if ((null_value=
+       (args[0]->null_value || args[1]->null_value ||
+	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
+	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
+    goto exit;
+
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
       mask= 1;
-      func.add_operation(Gcalc_function::op_backdifference, 2);
+      func.add_operation(Gcalc_function::op_difference, 2);
+      /* Mind the g2 goes first. */
+      null_value= g2->store_shapes(&trn) || g1->store_shapes(&trn);
       break;
     case SP_WITHIN_FUNC:
       mask= 1;
       func.add_operation(Gcalc_function::op_difference, 2);
+      null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
       break;
     case SP_EQUALS_FUNC:
+      mask= 1;
+      func.add_operation(Gcalc_function::op_symdifference, 2);
+      null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
       break;
     case SP_DISJOINT_FUNC:
       mask= 1;
       func.add_operation(Gcalc_function::op_intersection, 2);
+      null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
       break;
     case SP_INTERSECTS_FUNC:
       func.add_operation(Gcalc_function::op_intersection, 2);
+      null_value= g1->store_shapes(&trn) || g2->store_shapes(&trn);
       break;
     case SP_OVERLAPS_FUNC:
-      func.add_operation(Gcalc_function::op_backdifference, 2);
-      break;
     case SP_CROSSES_FUNC:
       func.add_operation(Gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::v_find_t |
+                         Gcalc_function::op_intersection, 2);
+      shape_a= func.get_next_expression_pos();
+      if ((null_value= g1->store_shapes(&trn)))
+        break;
+      shape_b= func.get_next_expression_pos();
+      if ((null_value= g2->store_shapes(&trn)))
+        break;
+      func.add_operation(Gcalc_function::v_find_t |
+                         Gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::v_find_t |
+                         Gcalc_function::op_difference, 2);
+      func.repeat_expression(shape_a);
+      func.repeat_expression(shape_b);
+      func.add_operation(Gcalc_function::v_find_t |
+                         Gcalc_function::op_difference, 2);
+      func.repeat_expression(shape_b);
+      func.repeat_expression(shape_a);
+      break;
+    case SP_TOUCHES_FUNC:
+      func.add_operation(Gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::v_find_f |
+                         Gcalc_function::op_not |
+                         Gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::op_internals, 1);
+      shape_a= func.get_next_expression_pos();
+      if ((null_value= g1->store_shapes(&trn)))
+        break;
+      func.add_operation(Gcalc_function::op_internals, 1);
+      shape_b= func.get_next_expression_pos();
+      if ((null_value= g2->store_shapes(&trn)))
+        break;
+      func.add_operation(Gcalc_function::v_find_t |
+                         Gcalc_function::op_intersection, 2);
+      func.add_operation(Gcalc_function::op_border, 1);
+      func.repeat_expression(shape_a);
+      func.add_operation(Gcalc_function::op_border, 1);
+      func.repeat_expression(shape_b);
       break;
     default:
       DBUG_ASSERT(FALSE);
       break;
   }
 
-
-  if ((null_value=
-       (args[0]->null_value || args[1]->null_value ||
-	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
-	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
+  if (null_value)
     goto exit;
 
   collector.prepare_operation();
   scan_it.init(&collector);
+#ifdef TMP_BLOCK
   if (spatial_rel == SP_EQUALS_FUNC)
   {
     result= (g1->get_class_info()->m_type_id == g1->get_class_info()->m_type_id) &&
             func_equals();
     goto exit;
   }
+#endif /*TMP_BLOCK*/
 
   if (func.alloc_states())
     goto exit;
 
-  result= func.find_function(scan_it) ^ mask;
+  result= func.check_function(scan_it) ^ mask;
 
 exit:
   collector.reset();
@@ -1307,7 +1225,7 @@ int Item_func_buffer::Transporter::start_line()
 
   if (m_fn->reserve_op_buffer(2))
     return 1;
-  last_shape_pos= m_fn->get_next_operation_pos();
+  last_shape_pos= m_fn->get_next_expression_pos();
   m_fn->add_operation(buffer_op, 0);
   m_npoints= 0;
   int_start_line();
@@ -1321,7 +1239,7 @@ int Item_func_buffer::Transporter::start_poly()
 
   if (m_fn->reserve_op_buffer(2))
     return 1;
-  last_shape_pos= m_fn->get_next_operation_pos();
+  last_shape_pos= m_fn->get_next_expression_pos();
   m_fn->add_operation(buffer_op, 0);
   return Gcalc_operation_transporter::start_poly();
 }
@@ -1827,19 +1745,20 @@ double Item_func_distance::val_real()
        of objects
        scev_thread | scev_two_threads | scev_single_point
     */
-    func.clear_state();
+    func.clear_i_states();
     for (Gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
     {
       gcalc_shape_info si= pit.point()->get_shape();
       if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
-        func.invert_state(si);
+        func.invert_i_state(si);
     }
 
+    func.clear_b_states();
     for (; ev; ev= ev->get_next())
     {
       if (ev->event != scev_intersection)
         cur_point= ev->pi;
-      func.set_on_state(ev->get_shape());
+      func.set_b_state(ev->get_shape());
       if (func.count())
       {
         /* Point of one object is inside the other - intersection found */

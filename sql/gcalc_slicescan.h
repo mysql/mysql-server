@@ -307,6 +307,7 @@ public:
   virtual int complete_ring()=0;
   virtual int add_point(double x, double y)=0;
   virtual int start_collection(int n_objects) { return 0; }
+  virtual int empty_shape() { return 0; }
   int start_simple_poly()
   {
     return start_poly() || start_ring();
