@@ -401,7 +401,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
 #endif
   DBUG_ASSERT((!table_ref->table) ||
               (table_ref->table && table_ref->table->s));
