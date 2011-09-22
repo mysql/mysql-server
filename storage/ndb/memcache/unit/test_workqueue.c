@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <time.h>
+#include <sys/types.h>
 
 #include "workqueue.h"
 #include <ndbmemcache_config.h>
