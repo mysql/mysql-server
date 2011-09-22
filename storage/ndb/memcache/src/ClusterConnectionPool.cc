@@ -18,6 +18,7 @@
  02110-1301  USA
  */
 #include <stdio.h>
+#include <assert.h>
 
 /* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
 #define __STDC_FORMAT_MACROS 
@@ -142,7 +143,7 @@ Ndb_cluster_connection * ClusterConnectionPool::connect(const char *connectstrin
    invalidated.
 */
 ClusterConnectionPool::~ClusterConnectionPool() {
-  for(int i = 0 ; i < pool_size ; i++) {
+  for(unsigned int i = 0 ; i < pool_size ; i++) {
     if(pool_connections[i]) {
       delete pool_connections[i];
       pool_connections[i] = 0;
@@ -186,7 +187,7 @@ void ClusterConnectionPool::add_stats(const char *prefix,
 
   Ndb db(main_conn);
   
-  for(int i = 0 ; i < pool_size ; i++) {
+  for(unsigned int i = 0 ; i < pool_size ; i++) {
     pool_connections[i]->collect_client_stats(ndb_stats, Ndb::NumClientStatistics);
   
     for(int s = 0 ; s < Ndb::NumClientStatistics ; s++) {

@@ -78,8 +78,8 @@ int TableSpec::build_column_list(const char ** const &col_array,
 */
 TableSpec::TableSpec(const char *sqltable,
                      const char *keycols, const char *valcols) :
-  math_column(0), flags_column(0), static_flags(0), 
-  cas_column(0), exp_column(0),
+  math_column(0), flags_column(0), 
+  cas_column(0), exp_column(0), static_flags(0),
   key_columns(new const char *[MAX_KEY_COLUMNS]) ,
   value_columns(new const char *[MAX_VAL_COLUMNS]) 
 {
@@ -107,16 +107,16 @@ TableSpec::TableSpec(const char *sqltable,
 TableSpec::TableSpec(const TableSpec &t) :
   nkeycols(t.nkeycols) ,
   nvaluecols(t.nvaluecols) ,
-  key_columns(new const char *[t.nkeycols]) ,
-  value_columns(new const char *[t.nvaluecols]) ,  
   schema_name(strdup(t.schema_name)) ,
   table_name(strdup(t.table_name)) , 
-  math_column(strdup(t.math_column)) 
+  math_column(strdup(t.math_column)) ,
+  key_columns(new const char *[t.nkeycols]) ,
+  value_columns(new const char *[t.nvaluecols])
 { 
    must_free.schema_name = must_free.table_name = 1;
    must_free.special_cols = 1;
    if(nkeycols) {
-     for(int i = 0; i < nkeycols ; i++) 
+    for(int i = 0; i < nkeycols ; i++) 
        key_columns[i] = strdup(t.key_columns[i]);
      must_free.all_key_cols = 1;
    }
@@ -125,7 +125,7 @@ TableSpec::TableSpec(const TableSpec &t) :
        value_columns[i] = strdup(t.value_columns[i]);
      must_free.all_val_cols = 1;
   }
-};
+}
 
 
 /* destructor */
@@ -150,7 +150,7 @@ TableSpec::~TableSpec() {
   }  
   delete[] key_columns;
   delete[] value_columns;
-};
+}
 
 
 void TableSpec::setKeyColumns(const char *col1, ...) {

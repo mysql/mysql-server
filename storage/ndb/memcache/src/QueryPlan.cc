@@ -76,14 +76,14 @@ inline const NdbDictionary::Column *get_ndb_col(const TableSpec *spec,
 QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  : 
   initialized(0), 
   dup_numbers(false),
-  is_scan(false), 
+  db(my_ndb),
   spec(my_spec), 
-  db(my_ndb)
+  is_scan(false)
 {  
   const NdbDictionary::Column *col;
   bool op_ok = false; 
   bool last_value_col_is_int = false;
-  int  first_value_col_id;
+  int  first_value_col_id = -1;
   
   /* Get the data dictionary */
   db->setDatabaseName(spec->schema_name);
@@ -149,6 +149,7 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     if(i == 0) first_value_col_id = this_col_id;
     last_value_col_is_int = is_integer(table, this_col_id);
   }
+  assert(first_value_col_id >= 0);
 
   if(spec->cas_column) {                                        // CAS
     col = get_ndb_col(spec, table, spec->cas_column);
@@ -235,8 +236,8 @@ const NdbDictionary::Index * QueryPlan::chooseIndex() {
   dict->listIndexes(list, spec->table_name);
 
   /* First look for a unique index.  All columns must match. */
-  for(int i = 0; i < list.count ; i++) {
-  int nmatches, j;
+  for(unsigned int i = 0; i < list.count ; i++) {
+  unsigned int nmatches, j;
     idx = dict->getIndex(list.elements[i].name, spec->table_name);
     if(idx && idx->getType() == NdbDictionary::Index::UniqueHashIndex) {
       if(idx->getNoOfColumns() == spec->nkeycols) { 
@@ -250,7 +251,7 @@ const NdbDictionary::Index * QueryPlan::chooseIndex() {
 
   /* Then look for an ordered index.  A prefix match is OK. */
   /* Return the first suitable index we find (which might not be the best) */
-  for(int i = 0; i < list.count ; i++) {
+  for(unsigned int i = 0; i < list.count ; i++) {
     idx = dict->getIndex(list.elements[i].name, spec->table_name);
     if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex) {
       if(idx->getNoOfColumns() >= spec->nkeycols) {  

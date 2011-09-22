@@ -213,7 +213,6 @@ bool Record::setIntValue(int id, int value, char *data) const {
   int index = map[id];
   NumericHandler * h = handlers[index]->native_handler;
   const char * buffer = data + specs[index].offset;
-  int i = 0;
   
   if(h) {
     return (h->write_int32(value,buffer) > 0);
@@ -243,7 +242,6 @@ Uint64 Record::getUint64Value(int id, char *data) const {
 bool Record::setUint64Value(int id, Uint64 value, char *data) const {
   int index = map[id];
   const char * buffer = data + specs[index].offset;
-  Uint64 i = 0;
 
   if(specs[index].column->getType() != NdbDictionary::Column::Bigunsigned) {
     logger->log(LOG_WARNING, 0, "Operation failed - column %s must be BIGINT UNSIGNED",
@@ -252,6 +250,7 @@ bool Record::setUint64Value(int id, Uint64 value, char *data) const {
   }
   
   * ((Uint64 *) buffer) = value;
+  return true;
 }  
 
 

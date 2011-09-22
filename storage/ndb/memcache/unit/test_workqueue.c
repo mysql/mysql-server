@@ -150,7 +150,7 @@ void * producer_thread(void *arg) {
   struct workqueue *queue = testinfo->q;
   int batchsize = testinfo->producer_batch_size;
   int sleeptime = testinfo->producer_median_sleep;
-  int iterations = testinfo->iterations + 1;
+  unsigned int iterations = testinfo->iterations + 1;
   
   /* Generate consecutive integers, in random batches.  And sleep for random
      amounts of time between them.  Put them on the queue. 
@@ -240,7 +240,7 @@ int sleep_microseconds(int usec) {
 
 
 void express_nanosec(Uint64 ns) {
-  char *units[4] = { "ns", "us", "ms", "s" };
+  const char *units[4] = { "ns", "us", "ms", "s" };
   int p;
   for(p = 0; ns > 1000 && p < 4; ns /= 1000, p++);
   

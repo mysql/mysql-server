@@ -137,10 +137,10 @@ void * str_key_dup(const void *key, size_t) {
 
 config_v1::config_v1(Configuration * cf) :
   conf(*cf),
-  containers_map(0),
-  policies_map(0),
   server_role_id(-1), 
-  nclusters(0)
+  nclusters(0),
+  policies_map(0),
+  containers_map(0)
 {};
 
 config_v1::~config_v1() {
@@ -375,8 +375,6 @@ TableSpec * config_v1::get_container(char *name) {
 
 TableSpec * config_v1::get_container_record(char *name) {
   TableSpec *container;
-  int res;
-  bool success = true;
   TableSpec spec("ndbmemcache.containers",
                  "name",  
                  "db_schema,db_table,key_columns,value_columns,flags,"
@@ -395,7 +393,7 @@ TableSpec * config_v1::get_container_record(char *name) {
   
   if(tx->getNdbError().classification == NdbError::NoError) {
     char val[256];
-    char *schema, *table, *keycols, *valcols, *flags, *inccol, *cascol, *expcol;
+    char *schema, *table, *keycols, *valcols;
     
     //  `db_schema` VARCHAR(250) NOT NULL,
     //  `db_table` VARCHAR(250) NOT NULL,
@@ -759,7 +757,7 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
       DEBUG_PRINT("%d waiting", waiting);
       if(db.nextEvent()) { 
         if(recattr1->isNULL() == 0) {
-          int role_name_len = *(const unsigned char*) recattr1->aRef();
+          uint role_name_len = *(const unsigned char*) recattr1->aRef();
           char *role_name = recattr1->aRef() + 1;
           if(role_name_len == strlen(server_role) && 
              strcmp(server_role, role_name) == 0) { 
