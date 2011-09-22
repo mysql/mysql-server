@@ -70,7 +70,10 @@ add_executable(memcached ${MEMCACHED_SOURCES})
 
 target_link_libraries(memcached 
                       event memcached_utilities
-                      ${LIBDL} ${LIBM} ${LIBNSL} ${LIBSOCKET})
+                      ${LIBM} ${LIBNSL} ${LIBSOCKET})
+IF(HAVE_LIBDL)
+target_link_libraries(memcached dl)
+ENDIF()
 
 CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
 CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
