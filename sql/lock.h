@@ -40,8 +40,4 @@ bool lock_schema_name(THD *thd, const char *db);
 bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                       const char *db, const char *name);
 
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-#include "ndb_global_schema_lock_guard.h" 
-#endif
-
 #endif /* LOCK_INCLUDED */

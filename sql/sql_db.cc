@@ -563,7 +563,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
   
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  Ha_global_schema_lock_guard global_schema_lock(thd);
   (void)global_schema_lock.lock();
  #endif
 
@@ -700,7 +700,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   DBUG_ENTER("mysql_alter_db");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  Ha_global_schema_lock_guard global_schema_lock(thd);
   (void)global_schema_lock.lock();
 #endif
 
@@ -786,7 +786,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   DBUG_ENTER("mysql_rm_db");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  Ha_global_schema_lock_guard global_schema_lock(thd);
   (void)global_schema_lock.lock();
  #endif
 
