@@ -362,6 +362,38 @@ public:
   LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
 };
 
+
+/* Note: these states are actually bit coded with HARD */
+enum killed_state
+{
+  NOT_KILLED= 0,
+  KILL_HARD_BIT= 1,                             /* Bit for HARD KILL */
+  KILL_BAD_DATA= 2,
+  KILL_BAD_DATA_HARD= 3,
+  KILL_QUERY= 4,
+  KILL_QUERY_HARD= 5,
+  /*
+    All of the following killed states will kill the connection
+    KILL_CONNECTION must be the first of these!
+  */
+  KILL_CONNECTION= 6,
+  KILL_CONNECTION_HARD= 7,
+  KILL_SYSTEM_THREAD= 8,
+  KILL_SYSTEM_THREAD_HARD= 9,
+  KILL_SERVER= 10,
+  KILL_SERVER_HARD= 11
+};
+
+extern int killed_errno(killed_state killed);
+#define killed_mask_hard(killed) ((killed_state) ((killed) & ~KILL_HARD_BIT))
+
+enum killed_type
+{
+  KILL_TYPE_ID,
+  KILL_TYPE_USER
+};
+
+
 #include "sql_lex.h"				/* Must be here */
 
 class Delayed_insert;
@@ -1973,16 +2005,6 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
-  enum killed_state
-  {
-    NOT_KILLED=0,
-    KILL_BAD_DATA=1,
-    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
-    KILL_SYSTEM_THREAD=ER_NEW_ABORTING_CONNECTION, /* Kill connection nicely */
-    KILL_QUERY=ER_QUERY_INTERRUPTED,
-    KILL_SERVER,	 /* Placeholder for shortdown */
-    KILLED_NO_VALUE      /* means neither of the states */
-  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -2165,7 +2187,7 @@ public:
   }
   void close_active_vio();
 #endif
-  void awake(THD::killed_state state_to_set);
+  void awake(killed_state state_to_set);
 
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
@@ -2399,18 +2421,13 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    killed_state killed_val; /* to cache the volatile 'killed' */
-    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
+    return ::killed_errno(killed);
   }
   inline void send_kill_message() const
   {
     int err= killed_errno();
     if (err)
-    {
-      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
-        err = KILL_QUERY;
       my_message(err, ER(err), MYF(0));
-    }
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()

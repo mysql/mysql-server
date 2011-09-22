@@ -1082,7 +1082,7 @@ static void close_connections(void)
     if (tmp->slave_thread)
       continue;
 
-    tmp->killed= THD::KILL_CONNECTION;
+    tmp->killed= KILL_SERVER_HARD;
     thread_scheduler.post_kill_notification(tmp);
     pthread_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
@@ -2033,7 +2033,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
 		      errcode ? ER(errcode) : ""));
   if (lock)
     (void) pthread_mutex_lock(&LOCK_thread_count);
-  thd->killed= THD::KILL_CONNECTION;
+  thd->killed= KILL_CONNECTION;
 
   if (global_system_variables.log_warnings > 3)
   {
@@ -2728,26 +2728,29 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
   {
     const char *kreason= "UNKNOWN";
     switch (thd->killed) {
-    case THD::NOT_KILLED:
+    case NOT_KILLED:
+    case KILL_HARD_BIT:
       kreason= "NOT_KILLED";
       break;
-    case THD::KILL_BAD_DATA:
+    case KILL_BAD_DATA:
+    case KILL_BAD_DATA_HARD:
       kreason= "KILL_BAD_DATA";
       break;
-    case THD::KILL_CONNECTION:
+    case KILL_CONNECTION:
+    case KILL_CONNECTION_HARD:
       kreason= "KILL_CONNECTION";
       break;
-    case THD::KILL_QUERY:
+    case KILL_QUERY:
+    case KILL_QUERY_HARD:
       kreason= "KILL_QUERY";
       break;
-    case THD::KILL_SYSTEM_THREAD:
+    case KILL_SYSTEM_THREAD:
+    case KILL_SYSTEM_THREAD_HARD:
       kreason= "KILL_SYSTEM_THREAD";
       break;
-    case THD::KILL_SERVER:
+    case KILL_SERVER:
+    case KILL_SERVER_HARD:
       kreason= "KILL_SERVER";
-      break;
-    case THD::KILLED_NO_VALUE:
-      kreason= "KILLED_NO_VALUE";
       break;
     }
     fprintf(stderr, "\nTrying to get some variables.\n"
@@ -5270,7 +5273,7 @@ void create_thread_to_handle_connection(THD *thd)
                  ("Can't create thread to handle request (error %d)",
                   error));
       thread_count--;
-      thd->killed= THD::KILL_CONNECTION;			// Safety
+      thd->killed= KILL_CONNECTION;             // Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
 
       pthread_mutex_lock(&LOCK_connection_count);

@@ -1312,7 +1312,7 @@ sp_head::execute(THD *thd)
 	ctx->enter_handler(hip);
         thd->clear_error();
         thd->is_fatal_error= 0;
-	thd->killed= THD::NOT_KILLED;
+	thd->killed= NOT_KILLED;
         thd->mysys_var->abort= 0;
 	continue;
       }
@@ -1362,10 +1362,7 @@ sp_head::execute(THD *thd)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed &&
-      thd->killed != THD::KILL_CONNECTION &&
-      thd->killed != THD::KILL_SERVER &&
-      thd->killed != THD::KILL_SYSTEM_THREAD)
+  if (cur_db_changed && thd->killed < KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
@@ -1799,7 +1796,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     thd->options= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
-      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode = query_error_code(thd, thd->killed == NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                             thd->binlog_evt_union.unioned_events_trans, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&

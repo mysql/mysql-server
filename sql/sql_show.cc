@@ -1943,8 +1943,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         pthread_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           pthread_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed != THD::NOT_KILLED &&
-                                      tmp->killed != THD::KILL_BAD_DATA ?
+        thd_info->proc_info= (char*) (tmp->killed >= KILL_QUERY ?
                                       "Killed" : 0);
 #ifndef EMBEDDED_LIBRARY
         thd_info->state_info= (char*) (tmp->net.reading_or_writing ?
@@ -2084,8 +2083,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if ((mysys_var= tmp->mysys_var))
         pthread_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
-      if ((val= (char *) ((tmp->killed != THD::NOT_KILLED &&
-                           tmp->killed != THD::KILL_BAD_DATA ?
+      if ((val= (char *) ((tmp->killed >= KILL_QUERY ?
                            "Killed" : 0))))
         table->field[4]->store(val, strlen(val), cs);
       else

@@ -506,7 +506,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   my_off_t record;
   TABLE *sort_form;
   THD *thd= current_thd;
-  volatile THD::killed_state *killed= &thd->killed;
+  volatile killed_state *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set, *save_vcol_set;
   DBUG_ENTER("find_all_keys");
@@ -1239,9 +1239,9 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   void *first_cmp_arg;
   element_count dupl_count= 0;
   uchar *src;
-  THD::killed_state not_killable;
+  killed_state not_killable;
   uchar *unique_buff= param->unique_buff;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  volatile killed_state *killed= &current_thd->killed;
   DBUG_ENTER("merge_buffers");
 
   status_var_increment(current_thd->status_var.filesort_merge_passes);
@@ -1249,7 +1249,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   if (param->not_killable)
   {
     killed= &not_killable;
-    not_killable= THD::NOT_KILLED;
+    not_killable= NOT_KILLED;
   }
 
   error=0;

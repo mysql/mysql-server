@@ -6290,3 +6290,5 @@ ER_QUERY_CACHE_IS_GLOBALY_DISABLED
         eng "Query cache is globally disabled and you can't enable it only for this session"
 ER_VIEW_ORDERBY_IGNORED
         eng "View '%-.192s'.'%-.192s' ORDER BY clause ignored because there is other ORDER BY clause already."
+ER_CONNECTION_KILLED 70100 
+        eng "Connection was killed"

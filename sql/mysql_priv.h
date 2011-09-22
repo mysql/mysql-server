@@ -118,8 +118,6 @@ char *sql_strmake_with_convert(const char *str, size_t arg_length,
 			       CHARSET_INFO *from_cs,
 			       size_t max_res_length,
 			       CHARSET_INFO *to_cs, size_t *result_length);
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
-void sql_kill(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
@@ -1073,6 +1071,10 @@ struct Query_cache_query_flags
 #define query_cache_maybe_disabled(T) 1
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
+
+uint kill_one_thread(THD *thd, ulong id, killed_state kill_signal);
+void sql_kill(THD *thd, ulong id, killed_state kill_signal);
+void sql_kill_user(THD *thd, LEX_USER *str, killed_state kill_signal);
 
 /*
   Error injector Macros to enable easy testing of recovery after failures

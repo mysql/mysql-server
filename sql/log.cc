@@ -1809,7 +1809,7 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
       log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
       log_query.append("`"))
     DBUG_RETURN(1);
-  int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+  int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
   Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
                         TRUE, TRUE, errcode);
   DBUG_RETURN(mysql_bin_log.write(&qinfo));
@@ -1833,7 +1833,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
         log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
         log_query.append("`"))
       DBUG_RETURN(1);
-    int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+    int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
     Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
                           TRUE, TRUE, errcode);
     DBUG_RETURN(mysql_bin_log.write(&qinfo));
@@ -5166,7 +5166,7 @@ int query_error_code(THD *thd, bool not_killed)
 {
   int error;
   
-  if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
+  if (not_killed || (killed_mask_hard(thd->killed) == KILL_BAD_DATA))
   {
     error= thd->is_error() ? thd->main_da.sql_errno() : 0;
 
@@ -5176,7 +5176,7 @@ int query_error_code(THD *thd, bool not_killed)
        caller.
     */
     if (error == ER_SERVER_SHUTDOWN || error == ER_QUERY_INTERRUPTED ||
-        error == ER_NEW_ABORTING_CONNECTION)
+        error == ER_NEW_ABORTING_CONNECTION || error == ER_CONNECTION_KILLED)
       error= 0;
   }
   else

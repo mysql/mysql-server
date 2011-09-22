@@ -1735,6 +1735,9 @@ typedef struct st_lex : public Query_tables_list
   LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
   ulong type;
+  /* The following is used by KILL */
+  killed_state kill_signal;
+  killed_type  kill_type;
   /*
     This variable is used in post-parse stage to declare that sum-functions,
     or functions which have sense only if GROUP BY is present, are allowed.

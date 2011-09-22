@@ -524,7 +524,7 @@ terminate_slave_thread(THD *thd,
     IF_DBUG(int err= ) pthread_kill(thd->real_id, thr_client_alarm);
     DBUG_ASSERT(err != EINVAL);
 #endif
-    thd->awake(THD::NOT_KILLED);
+    thd->awake(KILL_CONNECTION);
     pthread_mutex_unlock(&thd->LOCK_thd_data);
 
     /*

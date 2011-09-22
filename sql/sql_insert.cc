@@ -943,7 +943,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  thd->clear_error();
 	}
         else
-          errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+          errcode= query_error_code(thd, thd->killed == NOT_KILLED);
         
 	/* bug#22725:
 
@@ -957,7 +957,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	routines did not result in any error due to the KILLED.  In
 	such case the flag is ignored for constructing binlog event.
 	*/
-	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
+	DBUG_ASSERT(thd->killed != KILL_BAD_DATA || error > 0);
 	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                               thd->query(), thd->query_length(),
 			      transactional_table, FALSE,
@@ -2362,7 +2362,7 @@ void kill_delayed_threads(void)
   Delayed_insert *di;
   while ((di= it++))
   {
-    di->thd.killed= THD::KILL_SYSTEM_THREAD;
+    di->thd.killed= KILL_SYSTEM_THREAD;
     pthread_mutex_lock(&di->thd.LOCK_thd_data);
     if (di->thd.mysys_var)
     {
@@ -2447,8 +2447,7 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
 
   for (;;)
   {
-    if (thd->killed == THD::KILL_CONNECTION ||
-        thd->killed == THD::KILL_SYSTEM_THREAD || thd->killed == THD::KILL_SERVER)
+    if (thd->killed >= KILL_CONNECTION)
     {
       uint lock_count;
       /*
@@ -2496,7 +2495,7 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
 	  break;
 	if (error == ETIMEDOUT || error == ETIME)
 	{
-	  thd->killed= THD::KILL_SYSTEM_THREAD;
+	  thd->killed= KILL_SYSTEM_THREAD;
 	  break;
 	}
       }
@@ -2529,7 +2528,7 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
       {
 	/* Fatal error */
 	di->dead= 1;
-	thd->killed= THD::KILL_SYSTEM_THREAD;
+	thd->killed= KILL_SYSTEM_THREAD;
       }
       pthread_cond_broadcast(&di->cond_client);
     }
@@ -2539,7 +2538,7 @@ static void handle_delayed_insert_impl(THD *thd, Delayed_insert *di)
       {
 	/* Some fatal error */
 	di->dead= 1;
-	thd->killed= THD::KILL_SYSTEM_THREAD;
+	thd->killed= KILL_SYSTEM_THREAD;
       }
     }
     di->status=0;
@@ -2599,7 +2598,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
   threads.append(thd);
-  thd->killed=abort_loop ? THD::KILL_SYSTEM_THREAD : THD::NOT_KILLED;
+  thd->killed=abort_loop ? KILL_SYSTEM_THREAD : NOT_KILLED;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   /*
@@ -2633,7 +2632,7 @@ end:
 
   di->table=0;
   di->dead= 1;                                  // If error
-  thd->killed= THD::KILL_SYSTEM_THREAD;	        // If error
+  thd->killed= KILL_SYSTEM_THREAD;	        // If error
   pthread_mutex_unlock(&di->mutex);
 
   close_thread_tables(thd);			// Free the table
@@ -2712,7 +2711,7 @@ bool Delayed_insert::handle_inserts(void)
   max_rows= delayed_insert_limit;
   if (thd.killed || table->needs_reopen_or_name_lock())
   {
-    thd.killed= THD::KILL_SYSTEM_THREAD;
+    thd.killed= KILL_SYSTEM_THREAD;
     max_rows= ULONG_MAX;                     // Do as much as possible
   }
 
@@ -2825,7 +2824,7 @@ bool Delayed_insert::handle_inserts(void)
       /* if the delayed insert was killed, the killed status is
          ignored while binlogging */
       int errcode= 0;
-      if (thd.killed == THD::NOT_KILLED)
+      if (thd.killed == NOT_KILLED)
         errcode= query_error_code(&thd, TRUE);
       
       /*
@@ -3354,7 +3353,7 @@ bool select_insert::send_eof()
   bool const trans_table= table->file->has_transactions();
   ulonglong id;
   bool changed;
-  THD::killed_state killed_status= thd->killed;
+  killed_state killed_status= thd->killed;
   DBUG_ENTER("select_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
@@ -3389,7 +3388,7 @@ bool select_insert::send_eof()
     if (!error)
       thd->clear_error();
     else
-      errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+      errcode= query_error_code(thd, killed_status == NOT_KILLED);
 
     if (write_to_binlog(trans_table, errcode))
     {
@@ -3463,7 +3462,7 @@ void select_insert::abort() {
     {
         if (mysql_bin_log.is_open())
         {
-          int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+          int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
           /* error of writing binary log is ignored */
           write_to_binlog(transactional_table, errcode);
         }
@@ -3824,7 +3823,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
           !table->s->tmp_table &&
           !ptr->get_create_info()->table_existed)
       {
-        int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+        int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
         if (int error= ptr->binlog_show_create_table(tables, count, errcode))
           return error;
       }
@@ -3867,7 +3866,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                           create_table->table_name);
       if (thd->current_stmt_binlog_row_based)
       {
-        int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+        int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
         binlog_show_create_table(&(create_table->table), 1, errcode);
       }
       table= create_table->table;

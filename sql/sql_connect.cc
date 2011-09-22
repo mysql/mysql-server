@@ -1095,7 +1095,7 @@ void prepare_new_connection_state(THD* thd)
     execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {
-      thd->killed= THD::KILL_CONNECTION;
+      thd->killed= KILL_CONNECTION;
       sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
@@ -1181,8 +1181,7 @@ pthread_handler_t handle_one_connection(void *arg)
     prepare_new_connection_state(thd);
 
     while (!net->error && net->vio != 0 &&
-           thd->killed != THD::KILL_CONNECTION &&
-           thd->killed != THD::KILL_SERVER)
+           thd->killed < KILL_CONNECTION)
     {
       if (do_command(thd))
 	break;
