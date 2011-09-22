@@ -529,6 +529,33 @@ on the counters */
 		}							\
 	}
 
+#ifdef HAVE_ATOMIC_BUILTINS
+
+# define MONITOR_ATOMIC_INC(monitor)					\
+	if (MONITOR_IS_ON(monitor)) {					\
+		ib_int64_t	value;					\
+		value  = (ib_int64_t) os_atomic_increment_ulint(	\
+			&MONITOR_VALUE(monitor), 1);			\
+		/* Note: This is not 100% accurate because of the	\
+		inherent race, we ignore it due to performance. */	\
+		if (value > MONITOR_MAX_VALUE(monitor)) {		\
+			MONITOR_MAX_VALUE(monitor) = value;		\
+		}							\
+	}
+
+# define MONITOR_ATOMIC_DEC(monitor)					\
+	if (MONITOR_IS_ON(monitor)) {					\
+		ib_int64_t	value;					\
+		value = (ib_int64_t) os_atomic_decrement_ulint(		\
+			&MONITOR_VALUE(monitor), 1);			\
+		/* Note: This is not 100% accurate because of the	\
+		inherent race, we ignore it due to performance. */	\
+		if (value < MONITOR_MIN_VALUE(monitor)) {		\
+			MONITOR_MIN_VALUE(monitor) = value;		\
+		}							\
+	}
+#endif /* HAVE_ATOMIC_BUILTINS */
+
 #define	MONITOR_DEC(monitor)						\
 	if (MONITOR_IS_ON(monitor)) {					\
 		MONITOR_VALUE(monitor)--;				\
