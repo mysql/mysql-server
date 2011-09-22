@@ -107,6 +107,12 @@ CREATE  TABLE IF NOT EXISTS `key_prefixes` (
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
+bool kludge_to_help_with_linking() {
+  int i;
+  i = genhash_string_hash("abc", 4);
+  return (i < 6);
+}
+
 
 /* Functions used by genhash */
 extern "C" {
