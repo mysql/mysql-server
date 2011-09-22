@@ -1405,6 +1405,16 @@ bool Item_in_optimizer::is_top_level_item()
 }
 
 
+void Item_in_optimizer::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of our Item_in_subselect: */
+  Item_bool_func::fix_after_pullout(new_parent, ref);
+
+  /* Then, re-calculate not_null_tables_cache: */
+  eval_not_null_tables(NULL);
+}
+
+
 bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
 {
   not_null_tables_cache= 0;
@@ -2136,6 +2146,14 @@ bool Item_func_between::eval_not_null_tables(uchar *opt_arg)
 }  
 
 
+void Item_func_between::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func_opt_neg::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
 void Item_func_between::fix_length_and_dec()
 {
   THD *thd= current_thd;
@@ -2515,6 +2533,16 @@ Item_func_if::eval_not_null_tables(uchar *opt_arg)
 
   return 0;
 }
+
+
+void Item_func_if::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
 
 void
 Item_func_if::fix_length_and_dec()
@@ -3759,6 +3787,14 @@ Item_func_in::eval_not_null_tables(uchar *opt_arg)
   return 0;
 }
 
+
+void Item_func_in::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func_opt_neg::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
 
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
