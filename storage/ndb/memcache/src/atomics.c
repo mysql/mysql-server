@@ -31,7 +31,7 @@ int atomic_cmp_swap_int(ndbmc_atomic32_t *loc, int old, int new) {
   return (stored_old == old);  
 }
 
-int atomic_cmp_swap_ptr(volatile void **loc, void *old, void *new) {
+int atomic_cmp_swap_ptr(void * volatile *loc, void *old, void *new) {
   void * stored_old;
   
   membar_enter();
