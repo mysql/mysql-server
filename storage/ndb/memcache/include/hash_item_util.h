@@ -21,7 +21,6 @@
 #define NDBMEMCACHE_HASH_ITEM_UTIL_H
 
 #include <sys/types.h>
-#include <stdbool.h>
 #include <stdint.h>
 
 #include <memcached/engine.h> 
