@@ -2044,7 +2044,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   DBUG_ENTER("mysql_rm_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  Ha_global_schema_lock_guard global_schema_lock(thd);
 #endif
 
   /* Disable drop of enabled log tables, must be done before name locking */
@@ -4570,7 +4570,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   DBUG_ENTER("mysql_create_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  Ha_global_schema_lock_guard global_schema_lock(thd);
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       !create_info->frm_only)
   {
@@ -4795,7 +4795,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   DBUG_ENTER("mysql_create_like_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK 
-  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  Ha_global_schema_lock_guard global_schema_lock(thd);
  
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
     (void)global_schema_lock.lock();
@@ -7156,7 +7156,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
   if (ha_legacy_type(table->s->db_type()) == DB_TYPE_NDBCLUSTER ||
       ha_legacy_type(create_info->db_type) == DB_TYPE_NDBCLUSTER)
   {

@@ -120,9 +120,6 @@ private:
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
-void ndbcluster_global_schema_lock_init();
-void ndbcluster_global_schema_lock_deinit();
-
 extern unsigned char g_node_id_map[max_ndb_nodes];
 extern pthread_mutex_t LOCK_ndb_util_thread;
 extern pthread_cond_t COND_ndb_util_thread;
