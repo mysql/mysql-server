@@ -51,9 +51,9 @@ typedef int time_point_t;
 
 /* On platforms without gethrvtime(), define get_thread_time() to 0. */
 #ifdef HAVE_GETHRVTIME
-#define get_thread_vtime(X) gethrvtime(X)
+#define get_thread_vtime() gethrvtime()
 #else
-#define get_thread_vtime(X) 0
+#define get_thread_vtime() 0
 #endif
 
 
