@@ -249,7 +249,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
               {
                 "database": "test",
                 "table": "where_subselect_19379",
-                "record_may_be_null": false,
+                "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -261,15 +261,15 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             ] /* ref_optimizer_key_uses */
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "where_subselect_19379",
-                "records": 1,
+                "rows": 1,
                 "cost": 1,
                 "table_type": "system"
               }
-            ] /* records_estimation */
+            ] /* rows_estimation */
           }
         ] /* steps */,
         "empty_result": {
@@ -395,7 +395,7 @@ FROM t1
                                 {
                                   "database": "test",
                                   "table": "t2",
-                                  "record_may_be_null": false,
+                                  "row_may_be_null": false,
                                   "map_bit": 0,
                                   "depends_on_map_bits": [
                                   ] /* depends_on_map_bits */
@@ -403,15 +403,15 @@ FROM t1
                               ] /* table_dependencies */
                             },
                             {
-                              "records_estimation": [
+                              "rows_estimation": [
                                 {
                                   "database": "test",
                                   "table": "t2",
-                                  "records": 1,
+                                  "rows": 1,
                                   "cost": 1,
                                   "table_type": "system"
                                 }
-                              ] /* records_estimation */
+                              ] /* rows_estimation */
                             },
                             {
                               "attaching_conditions_to_tables": {
@@ -484,7 +484,7 @@ FROM t1
               {
                 "database": "test",
                 "table": "where_subselect_19033",
-                "record_may_be_null": false,
+                "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -492,7 +492,7 @@ FROM t1
               {
                 "database": "test",
                 "table": "t1",
-                "record_may_be_null": false,
+                "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -508,11 +508,11 @@ FROM t1
             ] /* pulled_out_semijoin_tables */
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "where_subselect_19033",
-                "records": 1,
+                "rows": 1,
                 "cost": 1,
                 "table_type": "system"
               },
@@ -520,11 +520,11 @@ FROM t1
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 1,
+                  "rows": 1,
                   "cost": 2
                 } /* table_scan */
               }
-            ] /* records_estimation */
+            ] /* rows_estimation */
           },
           {
             "execution_plan_for_potential_materialization": {
@@ -538,14 +538,14 @@ FROM t1
                         "considered_access_paths": [
                           {
                             "access_type": "scan",
-                            "records": 1,
+                            "rows": 1,
                             "cost": 2.0049,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "cost_for_plan": 2.2049,
-                      "records_for_plan": 1,
+                      "rows_for_plan": 1,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -562,14 +562,14 @@ FROM t1
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 1,
+                      "rows": 1,
                       "cost": 2.0049,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "cost_for_plan": 2.2049,
-                "records_for_plan": 1,
+                "rows_for_plan": 1,
                 "semijoin_strategy_choice": [
                   {
                     "strategy": "FirstMatch",
@@ -579,20 +579,20 @@ FROM t1
                       ] /* tables */
                     } /* recompute_best_access_paths */,
                     "cost": 2.0049,
-                    "records": 1,
+                    "rows": 1,
                     "chosen": true
                   },
                   {
                     "strategy": "MaterializationLookup",
                     "cost": 2.3049,
-                    "records": 1,
+                    "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
                   },
                   {
                     "strategy": "DuplicatesWeedout",
                     "cost": 2.1049,
-                    "records": 1,
+                    "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
                   }
@@ -868,7 +868,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                     {
                                       "database": "test",
                                       "table": "t1",
-                                      "record_may_be_null": false,
+                                      "row_may_be_null": false,
                                       "map_bit": 0,
                                       "depends_on_map_bits": [
                                       ] /* depends_on_map_bits */
@@ -876,16 +876,16 @@ ON table2 .col_int_key = table1 .col_int_key
                                   ] /* table_dependencies */
                                 },
                                 {
-                                  "records_estimation": [
+                                  "rows_estimation": [
                                     {
                                       "database": "test",
                                       "table": "t1",
                                       "table_scan": {
-                                        "records": 4,
+                                        "rows": 4,
                                         "cost": 2
                                       } /* table_scan */
                                     }
-                                  ] /* records_estimation */
+                                  ] /* rows_estimation */
                                 },
                                 {
                                   "considered_execution_plans": [
@@ -896,14 +896,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "considered_access_paths": [
                                           {
                                             "access_type": "scan",
-                                            "records": 4,
+                                            "rows": 4,
                                             "cost": 2.0068,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
                                       "cost_for_plan": 2.8068,
-                                      "records_for_plan": 4,
+                                      "rows_for_plan": 4,
                                       "chosen": true
                                     }
                                   ] /* considered_execution_plans */
@@ -957,7 +957,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                     {
                                       "database": "test",
                                       "table": "t1",
-                                      "record_may_be_null": false,
+                                      "row_may_be_null": false,
                                       "map_bit": 0,
                                       "depends_on_map_bits": [
                                       ] /* depends_on_map_bits */
@@ -965,16 +965,16 @@ ON table2 .col_int_key = table1 .col_int_key
                                   ] /* table_dependencies */
                                 },
                                 {
-                                  "records_estimation": [
+                                  "rows_estimation": [
                                     {
                                       "database": "test",
                                       "table": "t1",
                                       "table_scan": {
-                                        "records": 4,
+                                        "rows": 4,
                                         "cost": 2
                                       } /* table_scan */
                                     }
-                                  ] /* records_estimation */
+                                  ] /* rows_estimation */
                                 },
                                 {
                                   "considered_execution_plans": [
@@ -985,14 +985,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "considered_access_paths": [
                                           {
                                             "access_type": "scan",
-                                            "records": 4,
+                                            "rows": 4,
                                             "cost": 2.0068,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
                                       "cost_for_plan": 2.8068,
-                                      "records_for_plan": 4,
+                                      "rows_for_plan": 4,
                                       "chosen": true
                                     }
                                   ] /* considered_execution_plans */
@@ -1044,7 +1044,7 @@ ON table2 .col_int_key = table1 .col_int_key
               {
                 "database": "test",
                 "table": "where_subselect_20070",
-                "record_may_be_null": false,
+                "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -1052,7 +1052,7 @@ ON table2 .col_int_key = table1 .col_int_key
               {
                 "database": "test",
                 "table": "table1",
-                "record_may_be_null": false,
+                "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -1060,7 +1060,7 @@ ON table2 .col_int_key = table1 .col_int_key
               {
                 "database": "test",
                 "table": "table2",
-                "record_may_be_null": false,
+                "row_may_be_null": false,
                 "map_bit": 2,
                 "depends_on_map_bits": [
                 ] /* depends_on_map_bits */
@@ -1104,12 +1104,12 @@ ON table2 .col_int_key = table1 .col_int_key
             ] /* pulled_out_semijoin_tables */
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "where_subselect_20070",
                 "table_scan": {
-                  "records": 6,
+                  "rows": 6,
                   "cost": 2
                 } /* table_scan */
               },
@@ -1117,7 +1117,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "database": "test",
                 "table": "table1",
                 "table_scan": {
-                  "records": 4,
+                  "rows": 4,
                   "cost": 2
                 } /* table_scan */
               },
@@ -1125,11 +1125,11 @@ ON table2 .col_int_key = table1 .col_int_key
                 "database": "test",
                 "table": "table2",
                 "table_scan": {
-                  "records": 4,
+                  "rows": 4,
                   "cost": 2
                 } /* table_scan */
               }
-            ] /* records_estimation */
+            ] /* rows_estimation */
           },
           {
             "execution_plan_for_potential_materialization": {
@@ -1149,14 +1149,14 @@ ON table2 .col_int_key = table1 .col_int_key
                           },
                           {
                             "access_type": "scan",
-                            "records": 4,
+                            "rows": 4,
                             "cost": 2.0068,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "cost_for_plan": 2.8068,
-                      "records_for_plan": 4,
+                      "rows_for_plan": 4,
                       "rest_of_plan": [
                         {
                           "database": "test",
@@ -1166,21 +1166,21 @@ ON table2 .col_int_key = table1 .col_int_key
                               {
                                 "access_type": "ref",
                                 "index": "col_int_key",
-                                "records": 2,
+                                "rows": 2,
                                 "cost": 4.493,
                                 "chosen": true
                               },
                               {
                                 "access_type": "scan",
                                 "using_join_cache": true,
-                                "records": 3,
+                                "rows": 3,
                                 "cost": 2.2071,
                                 "chosen": true
                               }
                             ] /* considered_access_paths */
                           } /* best_access_path */,
                           "cost_for_plan": 7.414,
-                          "records_for_plan": 12,
+                          "rows_for_plan": 12,
                           "chosen": true
                         }
                       ] /* rest_of_plan */
@@ -1198,14 +1198,14 @@ ON table2 .col_int_key = table1 .col_int_key
                           },
                           {
                             "access_type": "scan",
-                            "records": 4,
+                            "rows": 4,
                             "cost": 2.0068,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
                       "cost_for_plan": 2.8068,
-                      "records_for_plan": 4,
+                      "rows_for_plan": 4,
                       "rest_of_plan": [
                         {
                           "database": "test",
@@ -1215,21 +1215,21 @@ ON table2 .col_int_key = table1 .col_int_key
                               {
                                 "access_type": "ref",
                                 "index": "col_int_key",
-                                "records": 2,
+                                "rows": 2,
                                 "cost": 4.493,
                                 "chosen": true
                               },
                               {
                                 "access_type": "scan",
                                 "using_join_cache": true,
-                                "records": 3,
+                                "rows": 3,
                                 "cost": 2.2071,
                                 "chosen": true
                               }
                             ] /* considered_access_paths */
                           } /* best_access_path */,
                           "cost_for_plan": 7.414,
-                          "records_for_plan": 12,
+                          "rows_for_plan": 12,
                           "pruned_by_cost": true
                         }
                       ] /* rest_of_plan */
@@ -1254,14 +1254,14 @@ ON table2 .col_int_key = table1 .col_int_key
                     },
                     {
                       "access_type": "scan",
-                      "records": 4,
+                      "rows": 4,
                       "cost": 2.0068,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "cost_for_plan": 2.8068,
-                "records_for_plan": 4,
+                "rows_for_plan": 4,
                 "semijoin_strategy_choice": [
                 ] /* semijoin_strategy_choice */,
                 "rest_of_plan": [
@@ -1273,21 +1273,21 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "ref",
                           "index": "col_int_key",
-                          "records": 2,
+                          "rows": 2,
                           "cost": 4.493,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 3,
+                          "rows": 3,
                           "cost": 2.2071,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "cost_for_plan": 7.414,
-                    "records_for_plan": 12,
+                    "rows_for_plan": 12,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1299,19 +1299,19 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
-                              "records": 6,
+                              "rows": 6,
                               "cost": 2.0209,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "cost_for_plan": 23.835,
-                        "records_for_plan": 72,
+                        "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
                             "cost": 21.835,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
                           }
@@ -1328,14 +1328,14 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 6,
+                          "rows": 6,
                           "cost": 2.0194,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "cost_for_plan": 9.6262,
-                    "records_for_plan": 24,
+                    "rows_for_plan": 24,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1347,26 +1347,26 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "ref",
                               "index": "col_int_key",
-                              "records": 2,
+                              "rows": 2,
                               "cost": 24.958,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
-                              "records": 3,
+                              "rows": 3,
                               "cost": 2.2135,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "cost_for_plan": 26.24,
-                        "records_for_plan": 72,
+                        "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
                             "cost": 21.84,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
                           }
@@ -1385,20 +1385,20 @@ ON table2 .col_int_key = table1 .col_int_key
                     {
                       "access_type": "ref",
                       "index": "col_int_key",
-                      "records": 2e308,
+                      "rows": 2e308,
                       "cost": 0,
                       "chosen": false
                     },
                     {
                       "access_type": "scan",
-                      "records": 4,
+                      "rows": 4,
                       "cost": 2.0068,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "cost_for_plan": 2.8068,
-                "records_for_plan": 4,
+                "rows_for_plan": 4,
                 "semijoin_strategy_choice": [
                 ] /* semijoin_strategy_choice */,
                 "rest_of_plan": [
@@ -1410,21 +1410,21 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "ref",
                           "index": "col_int_key",
-                          "records": 2,
+                          "rows": 2,
                           "cost": 4.493,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 3,
+                          "rows": 3,
                           "cost": 2.2071,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "cost_for_plan": 7.414,
-                    "records_for_plan": 12,
+                    "rows_for_plan": 12,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1436,19 +1436,19 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
-                              "records": 6,
+                              "rows": 6,
                               "cost": 2.0209,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "cost_for_plan": 23.835,
-                        "records_for_plan": 72,
+                        "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
                             "cost": 21.835,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
                           }
@@ -1465,14 +1465,14 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 6,
+                          "rows": 6,
                           "cost": 2.0194,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "cost_for_plan": 9.6262,
-                    "records_for_plan": 24,
+                    "rows_for_plan": 24,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1484,26 +1484,26 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "ref",
                               "index": "col_int_key",
-                              "records": 2,
+                              "rows": 2,
                               "cost": 24.958,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
-                              "records": 3,
+                              "rows": 3,
                               "cost": 2.2135,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "cost_for_plan": 26.24,
-                        "records_for_plan": 72,
+                        "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
                             "cost": 21.84,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
                           }
@@ -1521,14 +1521,14 @@ ON table2 .col_int_key = table1 .col_int_key
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 6,
+                      "rows": 6,
                       "cost": 2.019,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "cost_for_plan": 3.219,
-                "records_for_plan": 6,
+                "rows_for_plan": 6,
                 "semijoin_strategy_choice": [
                 ] /* semijoin_strategy_choice */,
                 "rest_of_plan": [
@@ -1540,21 +1540,21 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "ref",
                           "index": "col_int_key",
-                          "records": 2,
+                          "rows": 2,
                           "cost": 6.5395,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 3,
+                          "rows": 3,
                           "cost": 2.208,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "cost_for_plan": 9.0271,
-                    "records_for_plan": 18,
+                    "rows_for_plan": 18,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1566,21 +1566,21 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "ref",
                               "index": "col_int_key",
-                              "records": 2,
+                              "rows": 2,
                               "cost": 18.819,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
-                              "records": 3,
+                              "rows": 3,
                               "cost": 2.2118,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "cost_for_plan": 22.039,
-                        "records_for_plan": 54,
+                        "rows_for_plan": 54,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "FirstMatch",
@@ -1595,13 +1595,13 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "ref",
                                         "index": "col_int_key",
-                                        "records": 2,
+                                        "rows": 2,
                                         "cost": 6.5395,
                                         "chosen": true
                                       },
                                       {
                                         "access_type": "scan",
-                                        "records": 3,
+                                        "rows": 3,
                                         "cost": 13.241,
                                         "chosen": false
                                       }
@@ -1616,14 +1616,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "ref",
                                         "index": "col_int_key",
-                                        "records": 2,
+                                        "rows": 2,
                                         "cost": 12.679,
                                         "chosen": true
                                       },
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
-                                        "records": 3,
+                                        "rows": 3,
                                         "cost": 2.2101,
                                         "chosen": true
                                       }
@@ -1633,20 +1633,20 @@ ON table2 .col_int_key = table1 .col_int_key
                               ] /* tables */
                             } /* recompute_best_access_paths */,
                             "cost": 11.569,
-                            "records": 6,
+                            "rows": 6,
                             "chosen": true
                           },
                           {
                             "strategy": "MaterializationLookup",
                             "cost": 11.533,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
                             "cost": 16.639,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
                           }
@@ -1663,21 +1663,21 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "ref",
                           "index": "col_int_key",
-                          "records": 2,
+                          "rows": 2,
                           "cost": 6.5395,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 3,
+                          "rows": 3,
                           "cost": 2.208,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
                     "cost_for_plan": 9.0271,
-                    "records_for_plan": 18,
+                    "rows_for_plan": 18,
                     "semijoin_strategy_choice": [
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
@@ -1689,21 +1689,21 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "ref",
                               "index": "col_int_key",
-                              "records": 2,
+                              "rows": 2,
                               "cost": 18.819,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
-                              "records": 3,
+                              "rows": 3,
                               "cost": 2.2118,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
                         "cost_for_plan": 22.039,
-                        "records_for_plan": 54,
+                        "rows_for_plan": 54,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "FirstMatch",
@@ -1718,13 +1718,13 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "ref",
                                         "index": "col_int_key",
-                                        "records": 2,
+                                        "rows": 2,
                                         "cost": 6.5395,
                                         "chosen": true
                                       },
                                       {
                                         "access_type": "scan",
-                                        "records": 3,
+                                        "rows": 3,
                                         "cost": 13.241,
                                         "chosen": false
                                       }
@@ -1739,14 +1739,14 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "ref",
                                         "index": "col_int_key",
-                                        "records": 2,
+                                        "rows": 2,
                                         "cost": 12.679,
                                         "chosen": true
                                       },
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
-                                        "records": 3,
+                                        "rows": 3,
                                         "cost": 2.2101,
                                         "chosen": true
                                       }
@@ -1756,20 +1756,20 @@ ON table2 .col_int_key = table1 .col_int_key
                               ] /* tables */
                             } /* recompute_best_access_paths */,
                             "cost": 11.569,
-                            "records": 6,
+                            "rows": 6,
                             "chosen": true
                           },
                           {
                             "strategy": "MaterializationLookup",
                             "cost": 11.533,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
                             "cost": 16.639,
-                            "records": 6,
+                            "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
                           }
@@ -1792,7 +1792,7 @@ ON table2 .col_int_key = table1 .col_int_key
                   "rechecking_index_usage": {
                     "range_analysis": {
                       "table_scan": {
-                        "records": 4,
+                        "rows": 4,
                         "cost": 4.9068
                       } /* table_scan */,
                       "potential_range_indices": [
@@ -1820,7 +1820,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           {
                             "index": "col_int_key",
                             "index_only": true,
-                            "records": 18446744073709551615,
+                            "rows": 18446744073709551615,
                             "cost": 0,
                             "rowid_ordered": false,
                             "chosen": false,

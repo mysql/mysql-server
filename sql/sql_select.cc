@@ -4861,7 +4861,7 @@ static void trace_table_dependencies(Opt_trace_context * trace,
     const TABLE *table= join_tabs[i].table;
     Opt_trace_object trace_one_table(trace);
     trace_one_table.add_utf8_table(table).
-      add("record_may_be_null", table->maybe_null != 0);
+      add("row_may_be_null", table->maybe_null != 0);
     DBUG_ASSERT(table->map < (1ULL << table_count));
     for (uint j= 0; j < table_count; j++)
     {
@@ -5374,7 +5374,7 @@ const_table_extraction_done:
   {
     Opt_trace_object trace_wrapper(trace);
     /* Calc how many (possible) matched records in each table */
-    Opt_trace_array trace_records(trace, "records_estimation");
+    Opt_trace_array trace_records(trace, "rows_estimation");
 
     for (s= stat ; s < stat_end ; s++)
     {
@@ -5382,7 +5382,7 @@ const_table_extraction_done:
       trace_table.add_utf8_table(s->table);
       if (s->type == JT_SYSTEM || s->type == JT_CONST)
       {
-        trace_table.add("records", 1).add("cost", 1);
+        trace_table.add("rows", 1).add("cost", 1);
         trace_table.add_alnum("table_type", (s->type == JT_SYSTEM) ?
                               "system": "const");
 
@@ -5468,7 +5468,7 @@ const_table_extraction_done:
           }
           else
           {
-            trace_table.add("records", 0).
+            trace_table.add("rows", 0).
               add_alnum("cause", "impossible_where_condition");
           }
         }
@@ -5481,7 +5481,7 @@ const_table_extraction_done:
       }
       else
         Opt_trace_object(trace, "table_scan").
-          add("records", s->found_records).
+          add("rows", s->found_records).
           add("cost", s->read_time);
     }
   }
@@ -7853,7 +7853,7 @@ best_access_path(JOIN      *join,
 
       {
         const double idx_time= tmp + records * ROW_EVALUATE_COST;
-        trace_access_idx.add("records", records).add("cost", idx_time);
+        trace_access_idx.add("rows", records).add("cost", idx_time);
         if (idx_time < best_time ||
             (quick_matches_more_parts && quick_records < best_quick_records))
         {
@@ -7906,7 +7906,7 @@ best_access_path(JOIN      *join,
     // "scan" means (full) index scan or (full) table scan.
     trace_access_scan.add_alnum("access_type", s->quick ? "range" : "scan");
     trace_access_scan.add("cost", s->read_time).
-      add("records", s->found_records).
+      add("rows", s->found_records).
       add_alnum("cause", "cost");
 
     goto skip_table_scan;
@@ -8021,7 +8021,7 @@ best_access_path(JOIN      *join,
       }
     }
 
-    trace_access_scan.add("records", rows2double(rnd_records)).
+    trace_access_scan.add("rows", rows2double(rnd_records)).
       add("cost", tmp);
     /*
       We estimate the cost of evaluating WHERE clause for found records
@@ -8064,7 +8064,7 @@ skip_table_scan:
       s->table == join->sort_by_table &&
       join->unit->select_limit_cnt >= records)
   {
-    trace_access_scan.add("use_temp_table", true);
+    trace_access_scan.add("use_tmp_table", true);
     join->sort_by_table= (TABLE*) 1;  // Must use temporary table
   }
 
@@ -8425,7 +8425,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
       join->positions[idx].sj_strategy= SJ_OPT_NONE;
 
     trace_table.add("cost_for_plan", read_time).
-      add("records_for_plan", record_count);
+      add("rows_for_plan", record_count);
     join_tables&= ~(s->table->map);
     ++idx;
   }
@@ -8987,7 +8987,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
                             + current_record_count * ROW_EVALUATE_COST;
 
       trace_one_table.add("cost_for_plan", current_read_time).
-        add("records_for_plan", current_record_count);
+        add("rows_for_plan", current_record_count);
 
       if (has_sj)
       {
@@ -9334,7 +9334,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
                               + current_record_count * ROW_EVALUATE_COST;
 
         trace_one_table.add("cost_for_plan", current_read_time).
-          add("records_for_plan", current_record_count);
+          add("rows_for_plan", current_record_count);
 
         if (has_sj)
         {
@@ -15420,7 +15420,7 @@ void Optimize_table_order::advance_sj_state(
           *current_read_time=    reopt_cost;
           *current_record_count= reopt_rec_count;
           trace_one_strategy.add("cost", *current_read_time).
-            add("records", *current_record_count);
+            add("rows", *current_record_count);
           handled_by_fm_or_ls=  pos->firstmatch_need_tables;
         }
         trace_one_strategy.add("chosen",
@@ -15497,7 +15497,7 @@ void Optimize_table_order::advance_sj_state(
         *current_read_time=    reopt_cost;
         *current_record_count= reopt_rec_count;
         trace_one_strategy.add("cost", *current_read_time).
-          add("records", *current_record_count);
+          add("rows", *current_record_count);
         handled_by_fm_or_ls= first->table->emb_sj_nest->sj_inner_tables;
       }
       trace_one_strategy.add("chosen",
@@ -15575,7 +15575,7 @@ void Optimize_table_order::advance_sj_state(
 
     Opt_trace_object trace_one_strategy(trace);
     trace_one_strategy.add_alnum("strategy", "MaterializationLookup").
-      add("cost", mat_read_time).add("records", prefix_rec_count).
+      add("cost", mat_read_time).add("rows", prefix_rec_count).
       add("duplicate_tables_left", pos->dups_producing_tables != 0);
     if (mat_read_time < *current_read_time || pos->dups_producing_tables)
     {
@@ -15658,7 +15658,7 @@ void Optimize_table_order::advance_sj_state(
       duplicate removal is not an apples-to-apples comparison.
     */
     trace_one_strategy.add("cost", prefix_cost).
-      add("records", prefix_rec_count).
+      add("rows", prefix_rec_count).
       add("duplicate_tables_left", pos->dups_producing_tables != 0);
     if (prefix_cost < *current_read_time || pos->dups_producing_tables)
     {
@@ -15771,7 +15771,7 @@ void Optimize_table_order::advance_sj_state(
       Opt_trace_object trace_one_strategy(trace);
       trace_one_strategy.add_alnum("strategy", "DuplicatesWeedout").
         add("cost", dups_cost).
-        add("records", prefix_rec_count * sj_outer_fanout).
+        add("rows", prefix_rec_count * sj_outer_fanout).
         add("duplicate_tables_left", pos->dups_producing_tables != 0);
       if (dups_cost < *current_read_time || pos->dups_producing_tables)
       {
@@ -19895,7 +19895,7 @@ join_init_quick_read_record(JOIN_TAB *tab)
   tab->select->traced_before= true;
 
   Opt_trace_object wrapper(trace);
-  Opt_trace_object trace_table(trace, "records_estimation_per_record");
+  Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
   trace_table.add_utf8_table(tab->table);
 #endif
 
@@ -21745,7 +21745,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
           Opt_trace_object
-            trace_recest(trace, "records_estimation");
+            trace_recest(trace, "rows_estimation");
           trace_recest.add_utf8_table(tab->table).
           add_utf8("index", table->key_info[new_ref_key].name);
           select->quick= 0;
@@ -21803,7 +21803,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       {
         tab->quick_order_tested.set_bit(best_key);
         Opt_trace_object
-          trace_recest(trace, "records_estimation");
+          trace_recest(trace, "rows_estimation");
         trace_recest.add_utf8_table(tab->table).
           add_utf8("index", table->key_info[best_key].name);
 
