@@ -2658,7 +2658,7 @@ case SQLCOM_PREPARE:
       }
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-      Ndb_global_schema_lock_guard global_schema_lock(thd);
+      Ha_global_schema_lock_guard global_schema_lock(thd);
 
       if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
         (void)global_schema_lock.lock();
