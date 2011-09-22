@@ -97,7 +97,7 @@ IF (NOT MCP_BUG58158)
   IF(WITH_EMBEDDED_SERVER)
     # Kludge libndbclient into variable used when creating libmysqld
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
-      ndbclient_static CACHE INTERNAL "" FORCE)
+      ndbclient CACHE INTERNAL "" FORCE)
   ENDIF()
 ENDIF()
 
