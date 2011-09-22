@@ -472,7 +472,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -675,7 +675,7 @@ select `col
               {
                 "database": "test",
                 "table": "t\n1\ta",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }

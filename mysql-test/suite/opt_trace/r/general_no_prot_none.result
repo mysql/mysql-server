@@ -940,7 +940,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                           {
                             "database": "",
                             "table": "",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -1279,7 +1279,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                           {
                             "database": "",
                             "table": "",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -1316,7 +1316,7 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-14188
+14195
 set optimizer_trace_max_mem_size=13500;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
@@ -1333,7 +1333,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13385	1	1
+13392	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -2074,7 +2074,7 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -2153,7 +2153,7 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -2308,7 +2308,7 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -2387,7 +2387,7 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -2560,7 +2560,7 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -2663,7 +2663,7 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -2836,7 +2836,7 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -2939,7 +2939,7 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -3127,12 +3127,12 @@ explain select * from t1,t2	{
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -3241,12 +3241,12 @@ explain select * from t1,t2	{
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -3449,7 +3449,7 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
               {
                 "database": "test",
                 "table": "t1_16",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -3552,7 +3552,7 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                     {
                       "database": "test",
                       "table": "t2_16",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -3801,12 +3801,12 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -3913,7 +3913,7 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                           {
                             "database": "test",
                             "table": "t2",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -4082,7 +4082,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -4181,7 +4181,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -4280,7 +4280,7 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
               {
                 "database": "",
                 "table": "",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -4497,7 +4497,7 @@ concat(c1,'y') IN
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -4600,7 +4600,7 @@ concat(c1,'y') IN
                     {
                       "database": "test",
                       "table": "t2",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -4706,7 +4706,7 @@ concat(c1,'y') IN
                     {
                       "database": "test",
                       "table": "t2",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -5263,12 +5263,12 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -5441,7 +5441,7 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -5564,7 +5564,7 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
                           {
                             "database": "test",
                             "table": "t2",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -5798,12 +5798,12 @@ trace
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -6172,7 +6172,7 @@ insert into t6 select * from t6 where d>7	{
               {
                 "database": "test",
                 "table": "t6",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -6359,7 +6359,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
               {
                 "database": "test",
                 "table": "t6",
-                "scan_type": "table"
+                "access_type": "range"
               }
             ] /* refine_plan */
           }
@@ -6539,7 +6539,7 @@ delete t6 from t5, t6 where d>7000	{
               {
                 "database": "test",
                 "table": "t6",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -6864,7 +6864,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -6986,7 +6986,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -7108,7 +7108,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -7230,7 +7230,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -7438,7 +7438,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
               {
                 "database": "test",
                 "table": "t6",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -7545,7 +7545,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                           {
                             "database": "test",
                             "table": "t2",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -7711,7 +7711,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -7833,7 +7833,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -7955,7 +7955,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -8077,7 +8077,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -8363,7 +8363,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
               {
                 "database": "test",
                 "table": "t6",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -8485,133 +8485,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
-              }
-            ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-        ] /* steps */
-      } /* join_execution */
-    }
-  ] /* steps */
-}	0	0
-freturn 3 ret@0	{
-  "steps": [
-  ] /* steps */
-}	0	0
-set_trigger_field NEW.s:=`f1`()	{
-  "steps": [
-  ] /* steps */
-}	0	0
-set ret@0 NULL	{
-  "steps": [
-  ] /* steps */
-}	0	0
-insert into t1 values("z",0)	{
-  "steps": [
-  ] /* steps */
-}	0	0
-delete from t1 where id="z"	{
-  "steps": [
-    {
-      "database": "test",
-      "table": "t1",
-      "range_analysis": {
-        "table_scan": {
-          "records": 3,
-          "cost": 4.7154
-        } /* table_scan */
-      } /* range_analysis */
-    }
-  ] /* steps */
-}	0	0
-select sum(data) into ret from t1	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`test`.`t1`.`data`) AS `sum(data)` from `test`.`t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
-          {
-            "table_dependencies": [
-              {
-                "database": "test",
-                "table": "t1",
-                "record_may_be_null": false,
-                "map_bit": 0,
-                "depends_on_map_bits": [
-                ] /* depends_on_map_bits */
-              }
-            ] /* table_dependencies */
-          },
-          {
-            "records_estimation": [
-              {
-                "database": "test",
-                "table": "t1",
-                "table_scan": {
-                  "records": 2,
-                  "cost": 2
-                } /* table_scan */
-              }
-            ] /* records_estimation */
-          },
-          {
-            "considered_execution_plans": [
-              {
-                "database": "test",
-                "table": "t1",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "scan",
-                      "records": 2,
-                      "cost": 2.0154,
-                      "chosen": true
-                    }
-                  ] /* considered_access_paths */
-                } /* best_access_path */,
-                "cost_for_plan": 2.4154,
-                "records_for_plan": 2,
-                "chosen": true
-              }
-            ] /* considered_execution_plans */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": null,
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-                {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": null
-                }
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-              {
-                "database": "test",
-                "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -8737,7 +8611,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -8863,7 +8737,133 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+freturn 3 ret@0	{
+  "steps": [
+  ] /* steps */
+}	0	0
+set_trigger_field NEW.s:=`f1`()	{
+  "steps": [
+  ] /* steps */
+}	0	0
+set ret@0 NULL	{
+  "steps": [
+  ] /* steps */
+}	0	0
+insert into t1 values("z",0)	{
+  "steps": [
+  ] /* steps */
+}	0	0
+delete from t1 where id="z"	{
+  "steps": [
+    {
+      "database": "test",
+      "table": "t1",
+      "range_analysis": {
+        "table_scan": {
+          "records": 3,
+          "cost": 4.7154
+        } /* table_scan */
+      } /* range_analysis */
+    }
+  ] /* steps */
+}	0	0
+select sum(data) into ret from t1	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select sum(`test`.`t1`.`data`) AS `sum(data)` from `test`.`t1`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "record_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "records_estimation": [
+              {
+                "database": "test",
+                "table": "t1",
+                "table_scan": {
+                  "records": 2,
+                  "cost": 2
+                } /* table_scan */
+              }
+            ] /* records_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "database": "test",
+                "table": "t1",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "records": 2,
+                      "cost": 2.0154,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 2.4154,
+                "records_for_plan": 2,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "database": "test",
+                  "table": "t1",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "database": "test",
+                "table": "t1",
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -9008,7 +9008,7 @@ select @trace;
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -9201,7 +9201,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
               {
                 "database": "test",
                 "table": "t6",
-                "scan_type": "index"
+                "access_type": "index_scan"
               }
             ] /* refine_plan */
           }
@@ -9308,7 +9308,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                           {
                             "database": "test",
                             "table": "t2",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ] /* refine_plan */
                       }
@@ -9474,7 +9474,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -9596,7 +9596,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -9718,7 +9718,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -9840,7 +9840,7 @@ select sum(data) into ret from t1	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -9995,7 +9995,7 @@ explain select * from v1 where id="b"	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -10188,7 +10188,7 @@ explain select * from v1 where id="b"	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ] /* refine_plan */
                 }
@@ -10428,7 +10428,7 @@ VARIABLE_NAME="optimizer_trace"	{
               {
                 "database": "information_schema",
                 "table": "session_variables",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -10578,7 +10578,7 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
               {
                 "database": "",
                 "table": "",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }

@@ -85,7 +85,7 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -278,7 +278,7 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }

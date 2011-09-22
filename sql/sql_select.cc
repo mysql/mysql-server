@@ -7903,6 +7903,7 @@ best_access_path(JOIN      *join,
   */
   if (!(records >= s->found_records || best > s->read_time))            // (1)
   {
+    // "scan" means (full) index scan or (full) table scan.
     trace_access_scan.add_alnum("access_type", s->quick ? "range" : "scan");
     trace_access_scan.add("cost", s->read_time).
       add("records", s->found_records).
@@ -7983,9 +7984,9 @@ best_access_path(JOIN      *join,
     {
       trace_access_scan.add_alnum("access_type", "scan");
       /* Estimate cost of reading table. */
-      if (s->table->force_index && !best_key)
+      if (s->table->force_index && !best_key) // index scan
         tmp= s->table->file->read_time(s->ref.key, 1, s->records);
-      else
+      else // table scan
         tmp= s->table->file->scan_time();
 
       if (disable_jbuf)
@@ -11407,21 +11408,18 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
 }
 
 
-/*
-  Try to extract and push the index condition
+/**
+  Try to extract and push the index condition down to table handler
 
-  SYNOPSIS
-    push_index_cond()
-      tab            A join tab that has tab->table->file and its condition
-                     in tab->m_condition
-      keyno          Index for which extract and push the condition
-      other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
-
-  DESCRIPTION
-    Try to extract and push the index condition down to table handler
+  @param  tab            A join tab that has tab->table->file and its
+                         condition in tab->m_condition
+  @param  keyno          Index for which extract and push the condition
+  @param  other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+  @param  trace_obj      trace object where information is to be added
 */
 
-static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
+static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
+                            Opt_trace_object *trace_obj)
 {
   DBUG_ENTER("push_index_cond");
 
@@ -11486,7 +11484,10 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
           other_tbls_ok &&
           (idx_cond->used_tables() &
            ~(tab->table->map | tab->join->const_table_map)))
+      {
         tab->cache_idx_cond= idx_cond;
+        trace_obj->add("pushed_to_BKA", true);
+      }
       else
       {
         idx_remainder_cond= tab->table->file->idx_cond_push(keyno, idx_cond);
@@ -11504,7 +11505,10 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
         pushdown APIs.
       */
       if (idx_remainder_cond != idx_cond)
+      {
         tab->ref.disable_cache= TRUE;
+        trace_obj->add("pushed_index_condition", idx_cond);
+      }
 
       Item *row_cond= make_cond_remainder(tab->condition(), TRUE);
       DBUG_EXECUTE("where", print_where(row_cond, "remainder cond",
@@ -11522,6 +11526,7 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       }
       else
         tab->set_condition(idx_remainder_cond, __LINE__);
+      trace_obj->add("table_condition_attached", tab->condition());
       if (tab->select)
       {
         DBUG_EXECUTE("where", print_where(tab->select->cond, "cond",
@@ -12409,7 +12414,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  !table->no_keyread)
         table->set_keyread(TRUE);
       else
-        push_index_cond(tab, tab->ref.key, icp_other_tables_ok);
+        push_index_cond(tab, tab->ref.key, icp_other_tables_ok,
+                        &trace_refine_table);
       break;
     case JT_ALL:
       if (setup_join_buffering(tab, join, options, no_jbuf_after,
@@ -12425,6 +12431,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	tab->read_first_record= join_init_quick_read_record;
 	if (statistics)
 	  join->thd->inc_status_select_range_check();
+        trace_refine_table.add_alnum("access_type", "dynamic_range");
       }
       else
       {
@@ -12486,11 +12493,14 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	}
         if (tab->select && tab->select->quick &&
             tab->select->quick->index != MAX_KEY && ! tab->table->key_read)
-          push_index_cond(tab, tab->select->quick->index, icp_other_tables_ok);
+          push_index_cond(tab, tab->select->quick->index, icp_other_tables_ok,
+                          &trace_refine_table);
+        trace_refine_table.add_alnum("access_type",
+                                     tab->type == JT_INDEX_SCAN ?
+                                     "index_scan" :
+                                     (tab->select && tab->select->quick) ?
+                                     "range" : "table_scan");
       }
-      trace_refine_table.add_alnum("scan_type",
-                                   tab->type == JT_INDEX_SCAN ?
-                                   "index" : "table");
       break;
     case JT_FT:
       break;
@@ -21497,6 +21507,76 @@ find_field_in_item_list (Field *field, void *data)
 
 
 /**
+  It is not obvious to see that test_if_skip_sort_order() never changes the
+  plan if no_changes is true. So we double-check: creating an instance of this
+  class saves some important access-path-related information of the current
+  table; when the instance is destroyed, the latest access-path information is
+  compared with saved data.
+*/
+class Plan_change_watchdog
+{
+#ifndef DBUG_OFF
+public:
+  /**
+    @param tab_arg     table whose access path is being determined
+    @param no_changes  whether a change to the access path is allowed
+  */
+  Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg)
+  {
+    if (no_changes_arg)
+    {
+      tab= tab_arg;
+      type= tab->type;
+      if ((select= tab->select))
+        if ((quick= tab->select->quick))
+          quick_index= quick->index;
+      use_quick= tab->use_quick;
+      ref_key= tab->ref.key;
+      ref_key_parts= tab->ref.key_parts;
+      index= tab->index;
+    }
+    else
+      tab= NULL;
+  }
+  ~Plan_change_watchdog()
+  {
+    if (tab == NULL)
+      return;
+    // changes are not allowed, we verify:
+    DBUG_ASSERT(tab->type == type);
+    DBUG_ASSERT(tab->select == select);
+    if (select != NULL)
+    {
+      DBUG_ASSERT(tab->select->quick == quick);
+      if (quick != NULL)
+        DBUG_ASSERT(tab->select->quick->index == quick_index);
+    }
+    DBUG_ASSERT(tab->use_quick == use_quick);
+    DBUG_ASSERT(tab->ref.key == ref_key);
+    DBUG_ASSERT(tab->ref.key_parts == ref_key_parts);
+    DBUG_ASSERT(tab->index == index);
+  }
+private:
+  const JOIN_TAB *tab;            ///< table, or NULL if changes are allowed
+  enum join_type type;            ///< copy of tab->type
+  // "Range / index merge" info
+  const SQL_SELECT *select;       ///< copy of tab->select
+  const QUICK_SELECT_I *quick;    ///< copy of tab->select->quick
+  uint quick_index;               ///< copy of tab->select->quick->index
+  enum quick_type use_quick;      ///< copy of tab->use_quick
+  // "ref access" info
+  int ref_key;                    ///< copy of tab->ref.key
+  uint ref_key_parts;/// copy of tab->ref.key_parts
+  // Other index-related info
+  uint index;                     ///< copy of tab->index
+#else // in non-debug build, empty class
+public:
+  Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg) {}
+#endif
+};
+
+
+/**
   Test if we can skip the ORDER BY by using an index.
 
   SYNOPSIS
@@ -21536,11 +21616,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   SQL_SELECT *select=tab->select;
   QUICK_SELECT_I *save_quick= 0;
   int best_key= -1;
-  Item *orig_cond= 0;
-  bool orig_cond_saved= false;
-  bool changed_key= false;
+  Item *orig_cond;
+  bool orig_cond_saved= false, ret;
+  int changed_key= -1;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
+  LINT_INIT(orig_cond);
+
+  Plan_change_watchdog watchdog(tab, no_changes);
 
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
@@ -21588,7 +21671,23 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     ref_key_parts= select->quick->used_key_parts;
   }
 
+  /*
+    If part of the select condition has been pushed we use the
+    select condition as it was before pushing. The original
+    select condition is saved so that it can be restored when
+    exiting this function (if we have not changed index).
+  */
+  if (tab->pre_idx_push_cond)
+  {
+    orig_cond=
+      tab->set_jt_and_sel_condition(tab->pre_idx_push_cond, __LINE__);
+    orig_cond_saved= true;
+  }
+
   Opt_trace_context * const trace= &tab->join->thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object
+    trace_skip_sort_order(trace, "reconsidering_access_paths_for_index_ordering");
 
   if (ref_key >= 0)
   {
@@ -21607,18 +21706,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
-      /*
-        If part of the select condition has been pushed we use the
-        select condition as it was before pushing. The original
-        select condition is saved so that it can be restored when
-        exiting this function (if we have not changed index).
-      */
-      if (tab->pre_idx_push_cond)
-      {
-        orig_cond= 
-          tab->set_jt_and_sel_condition(tab->pre_idx_push_cond, __LINE__);
-        orig_cond_saved= true;
-      }
 
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
@@ -21657,9 +21744,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           key_map new_ref_key_map;  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
-          Opt_trace_object trace_wrapper(trace);
           Opt_trace_object
-            trace_recest(trace, "records_estimation_for_index_ordering");
+            trace_recest(trace, "records_estimation");
           trace_recest.add_utf8_table(tab->table).
           add_utf8("index", table->key_info[new_ref_key].name);
           select->quick= 0;
@@ -21675,7 +21761,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             goto use_filesort;
 	}
         ref_key= new_ref_key;
-        changed_key= true;
+        changed_key= new_ref_key;
       }
     }
     /* Check if we get the rows in requested sorted order by using the key */
@@ -21716,9 +21802,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           best_key != ref_key)
       {
         tab->quick_order_tested.set_bit(best_key);
-        Opt_trace_object trace_wrapper(trace);
         Opt_trace_object
-          trace_recest(trace, "records_estimation_for_index_ordering");
+          trace_recest(trace, "records_estimation");
         trace_recest.add_utf8_table(tab->table).
           add_utf8("index", table->key_info[best_key].name);
 
@@ -21743,7 +21828,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       used_key_parts= (order_direction == -1) ?
         saved_best_key_parts :  best_key_parts;
-      changed_key= true;
+      changed_key= best_key;
     }
     else
       goto use_filesort; 
@@ -21802,16 +21887,6 @@ check_reverse_order:
 
         if (table->covering_keys.is_set(best_key))
           table->set_keyread(TRUE);
-        if (tab->pre_idx_push_cond)
-        {
-          tab->set_jt_and_sel_condition(tab->pre_idx_push_cond, __LINE__);
-          /*
-            orig_cond is a part of pre_idx_push_cond,
-            no need to restore it.
-          */
-          orig_cond= 0;
-          orig_cond_saved= false;
-        }
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {
@@ -21888,21 +21963,52 @@ skipped_filesort:
     delete save_quick;
     save_quick= NULL;
   }
-  /*
-    Restore condition only if we didn't chose index different to what we used
-    for ICP.
-  */
-  if (orig_cond_saved && !changed_key)
-    tab->set_jt_and_sel_condition(orig_cond, __LINE__);
-  DBUG_RETURN(true);
-
+  ret= true;
+  goto fix_ICP;
 use_filesort:
   // Restore original save_quick
   if (select && select->quick != save_quick)
     select->set_quick(save_quick);
+  ret= false;
+fix_ICP:
+  if (changed_key >= 0)
+  {
+    bool cancelled_ICP= false;
+    // switching to another index, makes pushed index condition obsolete
+    if (!no_changes && table->file->pushed_idx_cond)
+    {
+      table->file->cancel_pushed_idx_cond();
+      // and thus tab's m_condition must be how it was before ICP
+      orig_cond_saved= false;
+      cancelled_ICP= true;
+    }
+    if (unlikely(trace->is_started()))
+    {
+      Opt_trace_object
+        trace_change_index(trace, "index_order_summary");
+      trace_change_index.add_utf8_table(tab->table);
+      if (cancelled_ICP)
+        trace_change_index.add("disabled_pushed_condition_on_old_index", true);
+      trace_change_index.add_utf8("index", table->key_info[changed_key].name).
+        add_alnum("order_direction", order_direction == 1 ? "asc" :
+                  ((order_direction == -1) ? "desc" : "undefined"));
+      trace_change_index.add("plan_changed", !no_changes);
+      if (!no_changes)
+      {
+        const char *new_type= tab->type == JT_INDEX_SCAN ? "index_scan" :
+          (tab->select && tab->select->quick) ?
+          "range" : "unknown";
+        DBUG_ASSERT(new_type[0] != 'u');
+        trace_change_index.add_alnum("access_type", new_type);
+      }
+    }
+  }
   if (orig_cond_saved)
+  {
+    // ICP set up prior to the call, is still valid:
     tab->set_jt_and_sel_condition(orig_cond, __LINE__);
-  DBUG_RETURN(false);
+  }
+  DBUG_RETURN(ret);
 }
 
 
