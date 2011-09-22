@@ -1604,6 +1604,8 @@ void plugin_shutdown(void)
   uint i, count= plugin_array.elements;
   struct st_plugin_int **plugins, *plugin;
   struct st_plugin_dl **dl;
+  bool skip_binlog = true;
+
   DBUG_ENTER("plugin_shutdown");
 
   if (initialized)
@@ -1625,7 +1627,13 @@ void plugin_shutdown(void)
       for (i= 0; i < count; i++)
       {
         plugin= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
-        if (plugin->state == PLUGIN_IS_READY)
+
+	if (plugin->state == PLUGIN_IS_READY
+	    && strcmp(plugin->name.str, "binlog") == 0 && skip_binlog)
+	{
+		skip_binlog = false;
+
+	} else if (plugin->state == PLUGIN_IS_READY)
         {
           plugin->state= PLUGIN_IS_DELETED;
           reap_needed= true;

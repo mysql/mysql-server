@@ -30,6 +30,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 column */
 #define UPDATE_ALL_VAL_COL		-1
 
+/** Defines for handler_binlog_row()'s mode field */
+#define HDL_UPDATE	1
+#define HDL_INSERT	2
+#define HDL_DELETE	3
+
 /** InnoDB API callback functions */
 static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_open_table,
@@ -145,11 +150,6 @@ innodb_api_begin(
 				if (!conn_data->thd) {
 					conn_data->thd = handler_create_thd();
 				}
-				if (!conn_data->mysql_tbl) {
-					conn_data->mysql_tbl = handler_open_table(
-						conn_data->thd,
-						dbname, name, -2);
-				}
 			}
 		}
 	} else {
@@ -209,15 +209,17 @@ innodb_api_read_int(
 }
 
 /*************************************************************//**
-Position a row accord to key, and fetch value if needed
+set up an integer type tuple field
 @return DB_SUCCESS if successful otherwise, error code */
 static
 ib_err_t
 innodb_api_write_int(
 /*=================*/
-	ib_tpl_t        tpl,
-	int		field,
-	uint64_t	value)
+	ib_tpl_t        tpl,		/*!< in/out: tuple to set */
+	int		field,		/*!< in: field to set */
+	uint64_t	value,		/*!< in: value */
+	void*		table)		/*!< in/out: MySQL table. Only needed
+					when binlog is enabled */
 {
 	ib_col_meta_t   col_meta;
 	ib_col_meta_t*	m_col = &col_meta;
@@ -231,22 +233,39 @@ innodb_api_write_int(
 	if (m_col->attr == IB_COL_UNSIGNED) {
 		if (m_col->type_len == 8) {
 			ib_cb_tuple_write_u64(tpl, field, value);
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value, TRUE, FALSE);
+			}
 		} else if (m_col->type_len == 4) {
 			uint32_t	value32;
 			value32 = (uint32_t) value;
 			
 			ib_cb_tuple_write_u32(tpl, field, value32);
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value32, TRUE, FALSE);
+			}
 		}
+
 	} else {
 		if (m_col->type_len == 8) {
 			int64_t		value64;
 			value64 = (int64_t) value;
 
 			ib_cb_tuple_write_i64(tpl, field, value64);
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value64, FALSE, FALSE);
+			}
 		} else if (m_col->type_len == 4) {
 			int32_t		value32;
 			value32 = (int32_t) value;
 			ib_cb_tuple_write_i32(tpl, field, value32);
+			if (table) {
+				handler_rec_setup_int(
+					table, field, value32, FALSE, FALSE);
+			}
 		}
 	}
 
@@ -429,15 +448,28 @@ innodb_api_search(
 				item->mci_item[MCI_COL_KEY].m_enabled = TRUE;
 			} else if (meta_info->flag_enabled
 				   && i == col_info[META_FLAG].m_field_id) {
-				item->mci_item[MCI_COL_FLAG].m_digit =
-					 innodb_api_read_int(
+
+				if (data_len == IB_SQL_NULL) {
+					item->mci_item[MCI_COL_FLAG].m_is_null
+						= true;
+				} else {
+					item->mci_item[MCI_COL_FLAG].m_digit =
+						innodb_api_read_int(
 						&col_info[META_FLAG].m_col,
 						read_tpl, i);
-				item->mci_item[MCI_COL_FLAG].m_is_str = FALSE;
-				item->mci_item[MCI_COL_FLAG].m_len = data_len;
-				item->mci_item[MCI_COL_FLAG].m_enabled = TRUE;
+					item->mci_item[MCI_COL_FLAG].m_is_str
+						 = FALSE;
+					item->mci_item[MCI_COL_FLAG].m_len
+						 = data_len;
+					item->mci_item[MCI_COL_FLAG].m_enabled
+						 = TRUE;
+				}
 			} else if (meta_info->cas_enabled
 				   && i == col_info[META_CAS].m_field_id) {
+				if (data_len == IB_SQL_NULL) {
+					item->mci_item[MCI_COL_CAS].m_is_null
+						= true;
+				}
 				item->mci_item[MCI_COL_CAS].m_digit =
 					 innodb_api_read_int(
 						&col_info[META_CAS].m_col,
@@ -447,6 +479,11 @@ innodb_api_search(
 				item->mci_item[MCI_COL_CAS].m_enabled = TRUE;
 			} else if (meta_info->exp_enabled
 				   && i == col_info[META_EXP].m_field_id) {
+				if (data_len == IB_SQL_NULL) {
+					item->mci_item[MCI_COL_EXP].m_is_null
+						= true;
+				}
+
 				item->mci_item[MCI_COL_EXP].m_digit =
 					 innodb_api_read_int(
 						&col_info[META_EXP].m_col,
@@ -538,6 +575,35 @@ innodb_api_set_multi_cols(
 }
 
 /*************************************************************//**
+Set up a table record in table->record[0] from a "mci_item_t" record */
+static
+void
+innodb_api_setup_hdl_rec(
+/*=====================*/
+	mci_item_t*		item,		/*!< in: item contain data
+						to set on table->record[0] */ 
+	meta_column_t*		col_info,	/*!< in: column information */
+	void*			table)		/*!< out: MySQL TABLE* */
+{
+	int	i;
+
+	for (i = 0; i < MCI_ITEM_TO_GET; i++) {
+		if (item->mci_item[i].m_is_str) {
+			handler_rec_setup_str(
+				table, col_info[META_KEY + i].m_field_id,
+				item->mci_item[i].m_str,
+				item->mci_item[i].m_len);
+		} else {
+			handler_rec_setup_int(
+				table, col_info[META_KEY + i].m_field_id,
+				item->mci_item[i].m_digit, TRUE,
+				item->mci_item[i].m_is_null);
+		}
+	}
+
+}
+
+/*************************************************************//**
 Insert a row
 @return DB_SUCCESS if successful otherwise, error code */
 static
@@ -556,7 +622,7 @@ innodb_api_set_tpl(
 	uint64_t	exp,		/*!< in: expiration */
 	uint64_t	flag,		/*!< in: flag */
 	int		col_to_set,	/*!< in: column to set */
-	void*		table)
+	void*		table)		/*!< in: MySQL TABLE* */
 {
 	ib_err_t	err = DB_ERROR;
 
@@ -567,6 +633,8 @@ innodb_api_set_tpl(
 	err = ib_cb_col_set_value(tpl, col_info[META_KEY].m_field_id,
 				  key, key_len);
 
+	/* If "table" is not NULL, we need to setup MySQL record
+	for binlogging */
 	if (table) {
 		handler_rec_init(table);
 		handler_rec_setup_str(
@@ -600,19 +668,19 @@ innodb_api_set_tpl(
 
 	if (meta_info->cas_enabled) {
 		err = innodb_api_write_int(
-			tpl, col_info[META_CAS].m_field_id, cas); 
+			tpl, col_info[META_CAS].m_field_id, cas, table); 
 		assert(err == DB_SUCCESS);
 	}
 
 	if (meta_info->exp_enabled) {
 		err = innodb_api_write_int(
-			tpl, col_info[META_EXP].m_field_id, exp);
+			tpl, col_info[META_EXP].m_field_id, exp, table);
 		assert(err == DB_SUCCESS);
 	}
 
 	if (meta_info->flag_enabled) {
 		err = innodb_api_write_int(
-			tpl, col_info[META_FLAG].m_field_id, flag);
+			tpl, col_info[META_FLAG].m_field_id, flag, table);
 		assert(err == DB_SUCCESS);
 	}
 
@@ -661,13 +729,11 @@ innodb_api_insert(
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
 
-		if (cursor_data->mysql_tbl) {
-			handler_binlog_row(cursor_data->mysql_tbl);
+		if (engine->enable_binlog && cursor_data->mysql_tbl) {
+			handler_binlog_row(cursor_data->mysql_tbl,
+					   HDL_INSERT);
 			handler_binlog_flush(cursor_data->thd,
 					     cursor_data->mysql_tbl);
-			handler_unlock_table(cursor_data->thd,
-					     cursor_data->mysql_tbl,
-					     -3);
 		}
 
 	} else {
@@ -696,7 +762,9 @@ innodb_api_update(
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< in/out: cas value */
 	uint64_t		flags,	/*!< in: flags */
-	ib_tpl_t		old_tpl)/*!< in: tuple being updated */
+	ib_tpl_t		old_tpl,/*!< in: tuple being updated */
+	mci_item_t*		result)	/*!< in: item info for the tuple being
+					updated */
 {
 	uint64_t	new_cas;
 	ib_tpl_t	new_tpl;
@@ -717,15 +785,31 @@ innodb_api_update(
 		exp += time;
 	}
 
+	if (engine->enable_binlog) {
+		innodb_api_setup_hdl_rec(result, col_info,
+					 cursor_data->mysql_tbl);
+		handler_store_record(cursor_data->mysql_tbl);
+	}
+
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
 				 len, key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
-				 NULL);
+				 cursor_data->mysql_tbl);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
+
+		if (engine->enable_binlog) {
+			assert(cursor_data->mysql_tbl);
+
+			handler_binlog_row(cursor_data->mysql_tbl,
+					   HDL_UPDATE);
+			handler_binlog_flush(cursor_data->thd,
+                                             cursor_data->mysql_tbl);
+		}
+
 	} else {
 		ib_cb_trx_rollback(cursor_data->c_trx);
 		cursor_data->c_trx = NULL;
@@ -749,9 +833,10 @@ innodb_api_delete(
 {
 	ib_err_t	err = DB_SUCCESS;
 	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
+	mci_item_t	result;
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
-				NULL, NULL, FALSE);
+				&result, NULL, FALSE);
 
 	if (err != DB_SUCCESS) {
 		return(ENGINE_KEY_ENOENT);
@@ -759,9 +844,33 @@ innodb_api_delete(
 
 	err = ib_cb_delete_row(srch_crsr);
 
+        if (err == DB_SUCCESS && engine->enable_binlog) {
+		meta_info_t*	meta_info = &engine->meta_info;
+		meta_column_t*	col_info = meta_info->m_item;
+
+		if (!cursor_data->mysql_tbl) {
+			cursor_data->mysql_tbl = handler_open_table(
+				cursor_data->thd,
+				meta_info->m_item[META_DB].m_str,
+				meta_info->m_item[META_TABLE].m_str, -2);
+		}
+
+		assert(cursor_data->mysql_tbl);
+
+		innodb_api_setup_hdl_rec(&result, col_info,
+					 cursor_data->mysql_tbl);
+
+		handler_binlog_row(cursor_data->mysql_tbl, HDL_DELETE);
+		handler_binlog_flush(cursor_data->thd,
+				     cursor_data->mysql_tbl);
+
+		handler_unlock_table(cursor_data->thd,
+				     cursor_data->mysql_tbl, HDL_READ);
+		cursor_data->mysql_tbl = NULL;
+	}
+
 	return(err == DB_SUCCESS ? ENGINE_SUCCESS : ENGINE_KEY_ENOENT);
 }
-
 
 /*************************************************************//**
 Link the value with a string, driver function for command
@@ -839,7 +948,8 @@ innodb_api_link(
 
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
 				 key, len, append_buf, total_len,
-				 new_cas, exp, flags, column_used, NULL);
+				 new_cas, exp, flags, column_used,
+				 cursor_data->mysql_tbl);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 
@@ -1013,8 +1123,18 @@ innodb_api_store(
 	ENGINE_ERROR_CODE stored = ENGINE_NOT_STORED;
 	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
 
+
 	err = innodb_api_search(engine, cursor_data, &srch_crsr,
 				key, len, &result, &old_tpl, FALSE);
+
+	if (engine->enable_binlog && !cursor_data->mysql_tbl) {
+		meta_info_t*            meta_info = &engine->meta_info;
+
+		cursor_data->mysql_tbl = handler_open_table(
+			cursor_data->thd, meta_info->m_item[META_DB].m_str,
+			meta_info->m_item[META_TABLE].m_str, -2);
+	}
+
 	switch (op) {
 	case OPERATION_ADD:
 		/* Only add if the key does not exist */
@@ -1029,7 +1149,7 @@ innodb_api_store(
 		if (err == DB_SUCCESS) {
 			err = innodb_api_update(engine, cursor_data, srch_crsr,
 						key, len, val_len, exp,
-						cas, flags, old_tpl);
+						cas, flags, old_tpl, &result);
 		}
 		break;
 	case OPERATION_APPEND:
@@ -1053,7 +1173,7 @@ innodb_api_store(
 			err = innodb_api_update(engine, cursor_data,
 						srch_crsr, key, len, val_len,
 						exp, cas, flags,
-						old_tpl);
+						old_tpl, &result);
 		} else {
 			err = innodb_api_insert(engine, cursor_data, key, len,
 						val_len, exp, cas, flags);
@@ -1066,7 +1186,7 @@ innodb_api_store(
 		} else if (input_cas == result.mci_item[MCI_COL_CAS].m_digit) {
 			err = innodb_api_update(engine, cursor_data, srch_crsr,
 						key, len, val_len, exp,
-						cas, flags, old_tpl);
+						cas, flags, old_tpl, &result);
 
 		} else {
 			stored = ENGINE_KEY_EEXISTS;
@@ -1075,6 +1195,12 @@ innodb_api_store(
 	}
 
 	ib_tuple_delete(old_tpl);
+
+	if (engine->enable_binlog && cursor_data->mysql_tbl) {
+		handler_unlock_table(cursor_data->thd,
+				     cursor_data->mysql_tbl, HDL_READ);
+		cursor_data->mysql_tbl = NULL;
+	}
 
 	if (err == DB_SUCCESS && stored == ENGINE_NOT_STORED) {
 		stored = ENGINE_SUCCESS;

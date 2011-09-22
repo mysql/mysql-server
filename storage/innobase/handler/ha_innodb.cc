@@ -3324,6 +3324,12 @@ innobase_close_thd(
 	void*		thd)	/*!< in: handle to the MySQL thread of the user
 				whose resources should be free'd */
 {
+	trx_t*	trx = thd_to_trx((THD*) thd);
+
+	if (!trx) {
+		return(0);
+	}
+
 	return(innobase_close_connection(innodb_hton_ptr, (THD*) thd));
 }
 
