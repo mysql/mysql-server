@@ -27,6 +27,7 @@
 
 BOOL run_test;
 int time_of_test;
+int num_elements;
 
 struct arg {
     int n;
@@ -56,8 +57,8 @@ static void *scan_db(void *arg) {
     DB_ENV* env = myarg->env;
     DB* db = myarg->db;
     DB_TXN* txn = NULL;
-    int r = env->txn_begin(env, 0, &txn, DB_READ_UNCOMMITTED); CKERR(r);
     while(run_test) {
+        int r = env->txn_begin(env, 0, &txn, DB_TXN_SNAPSHOT); CKERR(r);
         DBC* cursor = NULL;
         CHK(db->cursor(db, txn, &cursor, 0));
         while (r != DB_NOTFOUND) {
@@ -71,8 +72,8 @@ static void *scan_db(void *arg) {
         }
         
         CHK(cursor->c_close(cursor));
+        CHK(txn->commit(txn,0));
     }
-    CHK(txn->commit(txn,0));
     return arg;
 }
 
@@ -82,8 +83,8 @@ static void *ptquery_db(void *arg) {
     DB* db = myarg->db;
     DB_TXN* txn = NULL;
     int n = myarg->n;
-    int r = env->txn_begin(env, 0, &txn, DB_READ_UNCOMMITTED); CKERR(r);
     while(run_test) {
+        int r = env->txn_begin(env, 0, &txn, DB_TXN_SNAPSHOT); CKERR(r);
         int rand_key = random() % n;        
         DBT key;
         DBT val;
@@ -91,8 +92,8 @@ static void *ptquery_db(void *arg) {
         dbt_init(&key, &rand_key, sizeof(rand_key));
         r = db->get(db, txn, &key, &val, 0);
         assert(r != DB_NOTFOUND);
+        CHK(txn->commit(txn,0));
     }
-    CHK(txn->commit(txn,0));
     return arg;
 }
 
@@ -104,7 +105,7 @@ static void *update_db(void *arg) {
 
     DB_TXN* txn = NULL;
     while (run_test) {
-        int r = env->txn_begin(env, 0, &txn, DB_READ_UNCOMMITTED); CKERR(r);
+        int r = env->txn_begin(env, 0, &txn, DB_TXN_SNAPSHOT); CKERR(r);
         for (u_int32_t i = 0; i < 1000; i++) {
             int rand_key = random() % n;
             int rand_val = random();
@@ -126,16 +127,16 @@ static void *update_db(void *arg) {
 static void *test_time(void *arg) {
     assert(arg == NULL);
     usleep(time_of_test*1000*1000);
-    printf("should now end test\n");
+    if (verbose) printf("should now end test\n");
     run_test = FALSE;
     return arg;
 }
 
 
 static void
-test_evictions (int nseconds) {
-    int n = 100000;
-    if (verbose) printf("test_rand_insert:%d \n", n);
+test_evictions (void) {
+    int n = num_elements;
+    if (verbose) printf("test_3645:%d \n", n);
 
     DB_TXN * const null_txn = 0;
     const char * const fname = "test.bulk_fetch.brt";
@@ -174,6 +175,7 @@ test_evictions (int nseconds) {
         keys[i] = i;
     }
     
+    if (verbose) printf("starting insertion of elements to setup test\n");
     for (int i=0; i<n; i++) {
         DBT key, val;
         r = db->put(db, null_txn, dbt_init(&key, &keys[i], sizeof keys[i]), dbt_init(&val, &i, sizeof i), 0);
@@ -187,6 +189,8 @@ test_evictions (int nseconds) {
     //   - one thread doing table scan without bulk fetch
     //   - one thread doing random point queries
     //
+    run_test = TRUE;
+    if (verbose) printf("starting creation of pthreads\n");
     toku_pthread_t mytids[7];
     struct arg myargs[7];
     for (u_int32_t i = 0; i < sizeof(myargs)/sizeof(myargs[0]); i++) {
@@ -223,8 +227,6 @@ test_evictions (int nseconds) {
     // make the guy that does point queries
     CHK(toku_pthread_create(&mytids[5], NULL, ptquery_db, &myargs[5]));
 
-    run_test = TRUE;
-    time_of_test = nseconds;
     // make the guy that sleeps
     CHK(toku_pthread_create(&mytids[6], NULL, test_time, NULL));
     
@@ -232,15 +234,54 @@ test_evictions (int nseconds) {
         void *ret;
         r = toku_pthread_join(mytids[i], &ret); assert_zero(r);
     }
+    if (verbose) printf("ending test, pthreads have joined\n");
 
 
     r = db->close(db, 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
 }
 
+static inline void parse_3645_args (int argc, char *const argv[]) {
+    const char *argv0=argv[0];
+    while (argc>1) {
+        int resultcode=0;
+        if (strcmp(argv[1], "-v")==0) {
+            verbose++;
+        } 
+        else if (strcmp(argv[1], "-q")==0) {
+            verbose=0;
+        } 
+        else if (strcmp(argv[1], "-h")==0) {
+        do_usage:
+            fprintf(stderr, "Usage:\n%s [-v|-h-q|--num_elements number | --num_seconds number]\n", argv0);
+            exit(resultcode);
+        } 
+        else if (strcmp(argv[1], "--num_elements") == 0) {
+            argc--;
+            argv++;
+            num_elements = atoi(argv[1]);
+        }
+        else if (strcmp(argv[1], "--num_seconds") == 0) {
+            argc--;
+            argv++;
+            time_of_test = atoi(argv[1]);
+        }
+        else {
+            resultcode=1;
+            goto do_usage;
+        }
+        argc--;
+        argv++;
+    }
+}
+
+
 int
 test_main(int argc, char *const argv[]) {
-    parse_args(argc, argv);
-    test_evictions(60);
+    // default values
+    num_elements = 100000;
+    time_of_test = 60;
+    parse_3645_args(argc, argv);
+    test_evictions();
     return 0;
 }
