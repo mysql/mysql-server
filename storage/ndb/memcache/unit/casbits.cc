@@ -54,6 +54,6 @@ void worker_set_cas(int verbose, Uint64 *cas) {
     did_inc = atomic_cmp_swap_int(& engine_cas_lo, cas_lo, cas_lo + 1);
   } while(! did_inc);
   *cas = Uint64(cas_lo) | (Uint64(cas_hi) << 32);
-  detail(verbose, "%ull \n", (unsigned long long) *cas);
+  detail(verbose, "%llu \n", (unsigned long long) *cas);
 }
 

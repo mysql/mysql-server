@@ -895,7 +895,7 @@ int dth_write32_year(Int32 value, const char *buf) {
 /***** DATE & TIME HELPERS *****/
 
 typedef struct {
-  unsigned long year, month, day, hour, minute, second, fraction;
+  unsigned int year, month, day, hour, minute, second, fraction;
   bool is_negative;
 } time_helper;
 
@@ -935,7 +935,7 @@ DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) {
   if(! too_long) {
     if(*c == '-' || *c == '+') *buf++ = *c++;  // tolerate initial + or -
 
-    for(register int i = 0 ; i < len && *c != 0 ; c++, i++ )
+    for(register unsigned int i = 0 ; i < len && *c != 0 ; c++, i++ )
       if(isdigit(*c))
         *buf++ = *c; 
     *buf = 0;
@@ -957,7 +957,7 @@ int dth_decode_date(const NdbDictionary::Column *, char * &str, const void *buf)
   tm.month = (encoded_date >> 5 & 15); // four bits
   tm.year  = (encoded_date >> 9);
   
-  return sprintf(str, "%04d-%02d-%02d",tm.year, tm.month, tm.day) + 1;
+  return sprintf(str, "%04du-%02du-%02du",tm.year, tm.month, tm.day) + 1;
 }
 
 size_t dth_length_date(const NdbDictionary::Column *col, const void *buf) {
@@ -1001,7 +1001,7 @@ int dth_decode_time(const NdbDictionary::Column *, char * &str, const void *buf)
   factor_HHMMSS(& tm, int_time);
   
   /* Stringify it */
-  return sprintf(str, "%s%02d:%02d:%02d", tm.is_negative ? "-" : "" ,
+  return sprintf(str, "%s%02du:%02du:%02du", tm.is_negative ? "-" : "" ,
                  tm.hour, tm.minute, tm.second);
 }
 
@@ -1012,7 +1012,6 @@ size_t dth_length_time(const NdbDictionary::Column *col, const void *buf) {
 int dth_encode_time(const NdbDictionary::Column *, size_t len, 
                     size_t offset, const char *str, void *buf) {
   Int32  int_time;
-  time_helper tm = { 0,0,0,0,0,0,0, false };
   
   /* Make a safe (null-terminated) copy */
   DateTime_CopyBuffer copybuff(len, str);
@@ -1043,7 +1042,7 @@ int dth_decode_datetime(const NdbDictionary::Column *, char * &str, const void *
   factor_YYYYMMDD(& tm, int_date);
   
   /* Stringify it */
-  return sprintf(str, "%04d-%02d-%02d %02d:%02d:%02d", tm.year, tm.month, 
+  return sprintf(str, "%04du-%02du-%02du %02du:%02du:%02du", tm.year, tm.month, 
                  tm.day, tm.hour, tm.minute, tm.second);
  }
 
@@ -1054,7 +1053,6 @@ size_t dth_length_datetime(const NdbDictionary::Column *col, const void *buf) {
 int dth_encode_datetime(const NdbDictionary::Column *, size_t len, 
                         size_t offset, const char *str, void *buf) {
   uint64_t int_datetime;
-  time_helper tm = { 0,0,0,0,0,0,0, false };
   
   /* Make a safe (null-terminated) copy */
   DateTime_CopyBuffer copybuff(len, str);
@@ -1087,7 +1085,7 @@ size_t dth_length_float(const NdbDictionary::Column *col,
                         const void *buf) {
   char stack_copy[16];
   double d = (double) (* (float *) buf);
-  return snprintf(stack_copy, 16, "G", d) + 1;
+  return snprintf(stack_copy, 16, "%G", d) + 1;
 }
 
 int dth_decode_double(const NdbDictionary::Column *col, 
@@ -1124,7 +1122,7 @@ int dth_decode_decimal(const NdbDictionary::Column *col,
   int scale = col->getScale();
   int prec  = col->getPrecision();
   int len = scale + prec + 3;
-  int r = decimal_bin2str(buf, col->getSizeInBytes(), prec, scale, str, len);
+  decimal_bin2str(buf, col->getSizeInBytes(), prec, scale, str, len);
   return len;
 }
 

@@ -50,7 +50,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
   const Configuration & conf = get_Configuration();
 
   /* How many NDB instances are needed per cluster? */
-  for(int c = 0 ; c < conf.nclusters ; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     ClusterConnectionPool *pool = conf.getConnectionPoolById(c);
     double total_ndb_objects = conf.figureInFlightTransactions(c);
     cluster[c].nInst = (int) total_ndb_objects / nthreads;
@@ -59,7 +59,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
   }
   
   // Get the NDB instances. 
-  for(int c = 0 ; c < conf.nclusters ; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     cluster[c].instances = (NdbInstance**) 
       calloc(cluster[c].nInst, sizeof(NdbInstance *));
     
@@ -81,12 +81,12 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
   /* Hoard a transaction (an API connect record) for each Ndb object.  This
      first call to startTransaction() will send TC_SEIZEREQ and wait for a 
      reply, but later at runtime startTransaction() should return immediately.
-     Also, for each NDB instance, ore-build the QueryPlan for the default key prefix.
+     Also, for each NDB instance, pre-build the QueryPlan for the default key prefix.
      TODO? Start one tx on each data node.
   */
   QueryPlan *plan;
-  const KeyPrefix *default_prefix = conf.getDefaultPrefix();
-  for(int c = 0 ; c < conf.nclusters ; c++) {
+  const KeyPrefix *default_prefix = conf.getDefaultPrefix();  // TODO: something
+  for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     const KeyPrefix *prefix = conf.getNextPrefixForCluster(c, NULL); 
     if(prefix) {
       NdbTransaction ** txlist;
@@ -109,7 +109,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
      The engine thread will add items to this queue, and the commit thread will 
      consume them. 
   */
-  for(int c = 0 ; c < conf.nclusters; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     cluster[c].queue = (struct workqueue *) malloc(sizeof(struct workqueue));
     workqueue_init(cluster[c].queue, 8192, 1);
   }  
@@ -140,11 +140,11 @@ void Scheduler_stockholm::shutdown() {
   const Configuration & conf = get_Configuration();
 
   /* Shut down the workqueues */
-  for(int c = 0 ; c < conf.nclusters; c++)
+  for(unsigned int c = 0 ; c < conf.nclusters; c++)
     workqueue_abort(cluster[c].queue);
   
   /* Close all of the Ndbs */
-  for(int c = 0 ; c < conf.nclusters; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     for(int i = 0 ; i < cluster[c].nInst ; i++) {
       delete cluster[c].instances[i];
     }
@@ -231,7 +231,7 @@ void Scheduler_stockholm::add_stats(const char *stat_key,
                                     const void * cookie) {
   char key[128];
   char val[128];
-  int klen, vlen, p;
+  int klen, vlen;
   const Configuration & conf = get_Configuration();
 
   if(strncasecmp(stat_key, "reconf", 6) == 0) {
@@ -239,7 +239,7 @@ void Scheduler_stockholm::add_stats(const char *stat_key,
     return;
   }
   
-  for(int c = 0 ; c < conf.nclusters; c++) {  
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     klen = sprintf(key, "pipeline_%d_cluster_%d_commit_cycles", pipeline->id, c);
     vlen = sprintf(val, "%"PRIu64, cluster[c].stats.cycles);
     add_stat(key, klen, val, vlen, cookie);

@@ -262,7 +262,7 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
       uint64_t number;
       const int len = wqitem->cache_item->nbytes;
       char value[32];
-      for(size_t i = 0 ; i  < len ; i++) 
+      for(int i = 0 ; i  < len ; i++) 
         value[i] = * (hash_item_get_data(wqitem->cache_item) + i); 
       value[len] = 0;
       if(safe_strtoull(value, &number)) { // numeric: set the math column
@@ -519,7 +519,6 @@ void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
   ndb_pipeline * & pipeline = wqitem->pipeline;
   status_block * return_status;
-  ENGINE_ERROR_CODE io_status = ENGINE_SUCCESS;
   bool tx_did_match = false;
     
   /************** Error handling ***********/  
@@ -684,7 +683,7 @@ void rewrite_callback(int result, NdbTransaction *tx, void *itemptr) {
 void incr_callback(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
   ndb_pipeline * & pipeline = wqitem->pipeline;
-  status_block * return_status;
+  status_block * return_status = 0;
   ENGINE_ERROR_CODE io_status = ENGINE_SUCCESS;
 
   /*  read  insert  update cr_flag response

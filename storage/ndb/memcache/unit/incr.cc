@@ -72,7 +72,6 @@ int do_incr(int v, QueryPlan *plan, const char *akey,
             bool create, bool update, Uint64 *val) {
   int r;
   char key[50];
-  char value[50];
   char ndbkeybuffer[300];
   char ndbrowbuffer1[8192];
   char ndbrowbuffer2[8192];
@@ -135,7 +134,6 @@ int do_incr(int v, QueryPlan *plan, const char *akey,
   
   // NdbOperation #3:  update (interpreted)
   if (update) {
-    int i;
     NdbOperation::OperationOptions options;
     const Uint32 program_size = 10;
     Uint32 program[program_size];

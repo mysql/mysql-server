@@ -35,9 +35,9 @@
 */
 
 
-Operation::Operation(QueryPlan *p, int o, char *kbuf) : plan(p), 
-                                                        op(o),
-                                                        key_buffer(kbuf)
+Operation::Operation(QueryPlan *p, int o, char *kbuf) : key_buffer(kbuf), 
+                                                        plan(p), 
+                                                        op(o)                                                        
 {
   if(op == OP_READ) record = plan->val_record;
   else if(op == OP_FLUSH) record = plan->key_record;  // scanning delete 

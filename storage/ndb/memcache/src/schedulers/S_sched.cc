@@ -368,7 +368,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
       
       response_code = ENGINE_EWOULDBLOCK;
       break;
-    case op_not_supported:
+   case op_not_supported:
       DEBUG_PRINT("op_status is op_not_supported");
       response_code = ENGINE_ENOTSUP;
       break;
@@ -376,6 +376,10 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
       DEBUG_PRINT("op_status is op_overflow");
       response_code = ENGINE_E2BIG;
       break;
+    case op_async_sent:
+      DEBUG_PRINT("op_async_sent could be a bug");
+      response_code = ENGINE_FAILED;
+      break;      
     case op_failed:
       DEBUG_PRINT("op_status is op_failed");
       response_code = ENGINE_FAILED;

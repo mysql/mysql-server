@@ -28,7 +28,7 @@ class config_v1 {
 public:
   /* Public Methods */
   config_v1(Configuration * cf);
-  ~config_v1();
+  virtual ~config_v1();
   bool read_configuration();
   virtual void minor_version_config() = 0;
   

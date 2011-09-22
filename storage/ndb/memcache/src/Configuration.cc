@@ -51,10 +51,10 @@ extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 Configuration::Configuration(Configuration *old) :
   nclusters(0), 
   nprefixes(0), 
-  config_version(CONFIG_VER_UNKNOWN),
   primary_connect_string(old->primary_connect_string),
-  primary_conn(old->primary_conn),
-  server_role(old->server_role)
+  server_role(old->server_role),
+  config_version(CONFIG_VER_UNKNOWN),
+  primary_conn(old->primary_conn)
 {
   db = new Ndb(primary_conn);
   db->init();
@@ -96,9 +96,9 @@ bool Configuration::connectToPrimary() {
 bool Configuration::openAllConnections() {
   DEBUG_ENTER_METHOD("Configuration::openAllConnections");
   Ndb_cluster_connection *conn;
-  int n_open = 0;
+  unsigned int n_open = 0;
 
-  for(int i = 0; i < nclusters ; i++) {
+  for(unsigned int i = 0; i < nclusters ; i++) {
     ClusterConnectionPool *pool = getConnectionPoolById(i);
 
     /* if the connect string is NULL, or empty, or identical to the primary 
@@ -127,8 +127,8 @@ bool Configuration::openAllConnections() {
 */
 bool Configuration::prefetchDictionary() {
   DEBUG_ENTER_METHOD("Configuration::prefetchDictionary");
-  int ok = 0;
-  for(int i = 0 ; i < nprefixes ; i++) {
+  unsigned int ok = 0;
+  for(unsigned int i = 0 ; i < nprefixes ; i++) {
     /* Instantiate an Ndb and a QueryPlan, then discard them. 
        The QueryPlan constructor will make calls into NdbDictionary's 
        getTable() and getColumn() methods. 
@@ -200,9 +200,9 @@ const KeyPrefix * Configuration::getPrefixForKey(const char *key, int nkey) cons
 }
 
 
-const KeyPrefix * Configuration::getNextPrefixForCluster(int cluster_id, 
+const KeyPrefix * Configuration::getNextPrefixForCluster(unsigned int cluster_id, 
                                                          KeyPrefix *k) const {
-  int i = 0;
+  unsigned int i = 0;
 
   if(k) while(prefixes[i] != k && i < nprefixes) i++;
   while(i < nprefixes && prefixes[i]->info.cluster_id != cluster_id) i++;
@@ -214,7 +214,7 @@ const KeyPrefix * Configuration::getNextPrefixForCluster(int cluster_id,
 
 void Configuration::disconnectAll() {
   DEBUG_ENTER_METHOD(" Configuration::disconnectAll");
-  for(int i = 0; i < nclusters; i++) {
+  for(unsigned int i = 0; i < nclusters; i++) {
     ClusterConnectionPool *p = getConnectionPoolById(i);
     delete p;
   }
