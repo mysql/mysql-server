@@ -26,10 +26,37 @@
 #include "debug.h"
 #include "Record.h" 
 
-/* MAX_KEY_COLUMNS and MAX_VAL_COLUMNS are defined in Record.h */
+/* Reimplmentation of strsep() which is not always available */
+char * tokenize_list(char **stringloc, const char *delim) {
+  char *token_start = *stringloc;
+  char *s = *stringloc;
+
+  if (s == 0) return 0;
+
+  while(1) {
+    char c = *s++;
+    char sepc;
+    const char * sep_char = delim;
+    do { /* iterate over the possible delimiter characters */
+      sepc = *sep_char++;
+      if (sepc == c) {  /* found a delim.  modify the string in-place: */
+        if(c) {
+          s[-1] = 0;  /* place a null before the delim. */
+          *stringloc = s;  /* advance pointer to next span */
+        }
+        else { 
+          *stringloc = 0;  /* signal end of tokenizing */
+        }
+        return token_start;
+      }
+    } while (sepc != 0);
+  }
+}
+
 
 /* Parse a comma-separated string like "column1, column2".
-   Makes a copy of "list".
+   Makes a copy of "list".  
+   MAX_KEY_COLUMNS and MAX_VAL_COLUMNS are defined in Record.h 
 */
 int TableSpec::build_column_list(const char ** const &col_array, 
                                  const char *list) {
@@ -37,7 +64,7 @@ int TableSpec::build_column_list(const char ** const &col_array,
   if(list == 0) return 0;
   char *next = strdup(list);  
   while(next && n < (MAX_KEY_COLUMNS + MAX_VAL_COLUMNS)) {
-    char *item = strsep(& next, ", ");
+    char *item = tokenize_list(& next, ", ");
     if(*item != '\0')
     {
       col_array[n++] = item;

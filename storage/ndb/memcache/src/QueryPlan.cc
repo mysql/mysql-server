@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stddef.h>
+#include <strings.h>
 
 #include "NdbApi.hpp"
 #include <memcached/extension_loggers.h>
