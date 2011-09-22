@@ -414,7 +414,10 @@ read_view_open_now_low(
 		view->up_limit_id = view->low_limit_id;
 	}
 
-	read_view_add(view);
+	/* Purge views are not added to the view list. */
+	if (cr_trx_id > 0) {
+		read_view_add(view);
+	}
 
 	return(view);
 }
@@ -481,6 +484,8 @@ read_view_purge_open(
 
 	ut_ad(read_view_validate(oldest_view));
 
+	mutex_exit(&trx_sys->mutex);
+
 	ut_a(oldest_view->creator_trx_id > 0);
 	creator_trx_id = oldest_view->creator_trx_id;
 
@@ -509,8 +514,6 @@ read_view_purge_open(
 		view->trx_ids[i] = oldest_view->trx_ids[i - 1];
 	}
 
-	ut_ad(read_view_validate(view));
-
 	view->creator_trx_id = 0;
 
 	view->low_limit_no = oldest_view->low_limit_no;
@@ -523,10 +526,6 @@ read_view_purge_open(
 	} else {
 		view->up_limit_id = oldest_view->up_limit_id;
 	}
-
-	read_view_add(view);
-
-	mutex_exit(&trx_sys->mutex);
 
 	return(view);
 }
