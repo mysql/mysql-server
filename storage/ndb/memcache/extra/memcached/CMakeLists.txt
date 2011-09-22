@@ -48,7 +48,7 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
 
 ADD_LIBRARY(memcached_utilities SHARED ${LIBMEMCACHED_UTILITIES_SOURCES})
 IF(HAVE_LIBDL)
-target_link_library(memcached_utilities dl)
+target_link_libraries(memcached_utilities dl)
 ENDIF()
 
 SET(MEMCACHED_SOURCES
