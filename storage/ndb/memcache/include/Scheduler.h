@@ -37,7 +37,7 @@ class Scheduler {
 public:
   /* Public Interface */
   Scheduler() {};
-  virtual ~Scheduler();
+  virtual ~Scheduler() {};
   
   /** init() is the called from the main thread, 
       after configuration has been read. 
