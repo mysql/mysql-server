@@ -406,7 +406,7 @@ bool Truncate_statement::truncate_table(THD *thd, TABLE_LIST *table_ref)
   DBUG_ENTER("Truncate_statement::truncate_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
 #endif
 
   /* Initialize, or reinitialize in case of reexecution (SP). */

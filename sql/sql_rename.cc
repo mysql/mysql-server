@@ -49,7 +49,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   DBUG_ENTER("mysql_rename_tables");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  Ha_global_schema_lock_guard global_schema_lock(thd);
 #endif
   /*
     Avoid problems with a rename on a table that we have locked or
