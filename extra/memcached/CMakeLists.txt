@@ -23,6 +23,8 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
 
 IF(${CMAKE_COMPILER_IS_GNUCC})
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xc99=all")
 ENDIF()
 
 # memcached cannot currently be built with -Werror; 
@@ -66,16 +68,9 @@ SET(MEMCACHED_SOURCES
 
 add_executable(memcached ${MEMCACHED_SOURCES})
 
-target_link_libraries(memcached event memcached_utilities)
-
-if(LIBDL)
-  target_link_libraries(memcached dl)
-endif()
-
-if(LIBM) 
-  target_link_libraries(memcached m)
-endif()
-
+target_link_libraries(memcached 
+                      event memcached_utilities
+                      ${LIBDL} ${LIBM} ${LIBNSL} ${LIBSOCKET})
 
 CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
 CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
