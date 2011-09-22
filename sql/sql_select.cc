@@ -4874,7 +4874,7 @@ static void trace_table_dependencies(Opt_trace_context * trace,
     }
     Opt_trace_array depends_on(trace, "depends_on_map_bits");
     // RAND_TABLE_BIT may be in join_tabs[i].dependent, so we test all 64 bits
-    compile_time_assert(sizeof(TABLE::map) <= 64);
+    compile_time_assert(sizeof(table->map) <= 64);
     for (uint j= 0; j < 64; j++)
     {
       if (join_tabs[i].dependent & (1ULL << j))
