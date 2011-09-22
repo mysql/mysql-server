@@ -5735,15 +5735,14 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     mysql_rewrite_query(thd);
 
     if (thd->rewritten_query.length())
+      lex->safe_to_cache_query= FALSE; // see comments below 
+
+    if (!thd->slave_thread && !opt_log_raw)
     {
-      lex->safe_to_cache_query= FALSE; // see comments below
-      if (!opt_log_raw)
+      if (thd->rewritten_query.length())
         general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
                                           thd->rewritten_query.length());
-    }
-    else
-    {
-      if (!opt_log_raw)
+      else
         general_log_write(thd, COM_QUERY, thd->query(), qlen);
     }
 
