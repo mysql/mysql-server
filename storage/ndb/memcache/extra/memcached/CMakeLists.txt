@@ -47,7 +47,9 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
                 utilities/util.c)
 
 ADD_LIBRARY(memcached_utilities SHARED ${LIBMEMCACHED_UTILITIES_SOURCES})
-
+IF(HAVE_LIBDL)
+target_link_library(memcached_utilities dl)
+ENDIF()
 
 SET(MEMCACHED_SOURCES
                 daemon/cache.h
