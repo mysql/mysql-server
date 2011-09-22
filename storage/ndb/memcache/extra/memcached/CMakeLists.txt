@@ -89,5 +89,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in
                ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
 
 install(TARGETS memcached DESTINATION ${INSTALL_SBINDIR}) 
+install(TARGETS memcached_utilities DESTINATION ${INSTALL_LIBDIR})
 
 
