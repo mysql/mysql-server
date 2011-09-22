@@ -1914,6 +1914,23 @@ a	a
 EXECUTE st1;
 a	a
 DROP TABLE t1, t2, t3;
+#
+# BUG#849776: Wrong result with semijoin + "Impossible where"
+#
+CREATE TABLE t1 ( b varchar(1), a integer) ;
+INSERT INTO t1 VALUES ('z',8);
+CREATE TABLE t2 ( a integer, b varchar(1)) ;
+CREATE TABLE t4 ( a integer, b varchar(1)) ;
+CREATE TABLE t5 ( a integer) ;
+INSERT INTO t5 VALUES (8);
+select * from t5 where (a) in (
+SELECT t1.a 
+FROM t1 LEFT JOIN t2 ON t1.a = t2.a
+WHERE t2.b NOT IN (SELECT t4.b FROM t4 WHERE t4.b < t1.b)
+);
+a
+8
+DROP TABLE t1, t2, t4, t5;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
