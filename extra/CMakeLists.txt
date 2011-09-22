@@ -79,16 +79,3 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
 ENDIF()
 
-# Support for bundled libevent and memcache
-# WITH_MEMCACHE is declared in storage/ndb/CMakeLists.txt
-option(WITH_LIBEVENT "Use bundled libevent for building memcached" ON)
-
-if(WITH_MEMCACHE) 
-  add_subdirectory(memcached)
-  
-  if(WITH_LIBEVENT) 
-    add_subdirectory(libevent)
-    add_dependencies(memcached event)
-  endif()
-endif()
-

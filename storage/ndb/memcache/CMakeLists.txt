@@ -166,3 +166,19 @@ target_link_libraries(ndbmemcache ndbclient_static ndbgeneral ${MEMCACHED_UTILIT
 set_target_properties(ndbmemcache PROPERTIES LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
 add_subdirectory(unit)
+
+
+######### BUNDLED SOURCES FOR MEMCACHED AND LIBEVENT
+# Support for bundled libevent and memcache
+# WITH_MEMCACHE is declared in storage/ndb/CMakeLists.txt
+option(WITH_LIBEVENT "Use bundled libevent for building memcached" ON)
+
+if(WITH_MEMCACHE)
+  add_subdirectory(memcached)
+
+  if(WITH_LIBEVENT)
+    add_subdirectory(libevent)
+    add_dependencies(memcached event)
+  endif()
+endif()
+
