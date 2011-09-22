@@ -79,15 +79,15 @@ struct st_dynamic_column_value
     unsigned long long ulong_value;
     double double_value;
     struct {
-      LEX_STRING string_value;
+      LEX_STRING value;
       CHARSET_INFO *charset;
-    };
+    } string;
     struct {
-      decimal_digit_t decimal_buffer[DECIMAL_BUFF_LENGTH];
-      decimal_t decimal_value;
-    };
+      decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
+      decimal_t value;
+    } decimal;
     MYSQL_TIME time_value;
-  };
+  } x;
 };
 
 typedef struct st_dynamic_column_value DYNAMIC_COLUMN_VALUE;
