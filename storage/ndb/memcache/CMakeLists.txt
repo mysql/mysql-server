@@ -29,6 +29,12 @@ ELSE()
   RETURN()
 ENDIF()  
 
+# Check for atomic operations
+include(atomics.cmake)
+if(NO_ATOMICS)
+  RETURN()
+ENDIF()
+
 # Paths to header files
 include_directories(BEFORE include)
 include_directories(BEFORE cache-src)
@@ -72,9 +78,7 @@ set(NDB_MEMCACHE_SOURCE_FILES
     cache-src/items.c
     cache-src/slabs.c
  )
-
-# Check for atomic operations
-include(atomics.cmake)
+  
 
 # Define DEBUG_OUTPUT by default (enables runtime "debug" option in memcached)
 add_definitions(-DDEBUG_OUTPUT)

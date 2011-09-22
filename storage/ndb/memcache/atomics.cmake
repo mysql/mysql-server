@@ -46,6 +46,7 @@ ELSEIF(HAVE_DARWIN_ATOMICS)
 ELSEIF(HAVE_SOLARIS_ATOMICS)
   MESSAGE(STATUS "Using Solaris <atomic.h>")
 ELSE()
-  MESSAGE(FATAL_ERROR "No atomic functions available")
+  MESSAGE(STATUS "Skipping NDB/Memcache. No atomic functions available.")
+  SET(NO_ATOMICS 1)
 ENDIF()
 
