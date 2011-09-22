@@ -6291,6 +6291,8 @@ trace
                     } /* best_access_path */,
                     "cost_for_plan": 5.2089,
                     "rows_for_plan": 4,
+                    "sort_cost": 4,
+                    "new_cost_for_plan": 9.2089,
                     "chosen": true
                   }
                 ] /* rest_of_plan */

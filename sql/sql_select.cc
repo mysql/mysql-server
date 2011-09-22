@@ -357,7 +357,8 @@ private:
                                         double record_count,
                                         double read_time,
                                         uint current_search_depth);
-  void plan_is_complete(uint idx, double record_count, double read_time);
+  void consider_complete_plan(uint idx, double record_count, double read_time,
+                              Opt_trace_object *trace_obj);
   void optimize_wo_join_buffering(uint first_tab, uint last_tab, 
                                   table_map last_remaining_tables, 
                                   bool first_alt, uint no_jbuf_before,
@@ -8737,7 +8738,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
 /**
   Cost calculation of another (partial-)QEP has been completed.
 
-  If this is our 'best' plan explored sofar, we record this 
+  If this is our 'best' plan explored so far, we record this
   query plan and its cost.
 
   @param idx              length of the partial QEP in 'join->positions';
@@ -8746,10 +8747,13 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
   @param record_count     estimate for the number of records returned by the
                           best partial plan
   @param read_time        the cost of the best partial plan
+  @param trace_obj        trace object where information is to be added
 */
-void Optimize_table_order::plan_is_complete(uint      idx,
-                                            double    record_count,
-                                            double    read_time)
+void Optimize_table_order::consider_complete_plan(
+                                            uint             idx,
+                                            double           record_count,
+                                            double           read_time,
+                                            Opt_trace_object *trace_obj)
 {
   /*
     We may have to make a temp table, note that this is only a 
@@ -8761,9 +8765,13 @@ void Optimize_table_order::plan_is_complete(uint      idx,
       join->positions[join->const_tables].table->table)
   {
     read_time+= record_count;
+    trace_obj->add("sort_cost", record_count).
+      add("new_cost_for_plan", read_time);
   }
 
-  if (read_time < join->best_read)
+  const bool chosen= read_time < join->best_read;
+  trace_obj->add("chosen", chosen);
+  if (chosen)
   {
     memcpy((uchar*) join->best_positions, (uchar*) join->positions,
             sizeof(POSITION) * (idx + 1));
@@ -9119,8 +9127,8 @@ bool Optimize_table_order::best_extension_by_limited_search(
       }
       else  //if ((current_search_depth > 1) && ...
       {
-        plan_is_complete(idx, current_record_count, current_read_time);
-        trace_one_table.add("chosen", true);
+        consider_complete_plan(idx, current_record_count,
+                               current_read_time, &trace_one_table);
       }
       backout_nj_sj_state(remaining_tables, s);
     }
@@ -9386,8 +9394,8 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
         }
         else
         {
-          plan_is_complete(idx, current_record_count, current_read_time);
-          trace_one_table.add("chosen", true);
+          consider_complete_plan(idx, current_record_count,
+                                 current_read_time, &trace_one_table);
         }
         backout_nj_sj_state(remaining_tables, s);
         memcpy(join->best_ref + idx, saved_refs,
