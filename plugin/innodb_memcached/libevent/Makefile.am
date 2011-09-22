@@ -28,13 +28,15 @@ RELEASE = 1.4
 # History:
 #  Libevent 1.4.1 was 2:0:0
 #  Libevent 1.4.2 should be 3:0:0
-VERSION_INFO = 2:0:0
+#  Libevent 1.4.5 is 3:0:1 (we forgot to increment in the past)
+VERSION_INFO = 3:3:1
 
 bin_SCRIPTS = event_rpcgen.py
 
 EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	evrpc.h evrpc-internal.h min_heap.h \
 	event.3 \
+	Doxyfile \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
 	evport.c devpoll.c event_rpcgen.py \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
@@ -43,13 +45,15 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	test/test-eof.c test/test-weof.c test/test-time.c \
 	test/test-init.c test/test.sh \
 	compat/sys/queue.h compat/sys/_time.h \
-	WIN32-Code/config.h WIN32-Code/misc.c \
-	WIN32-Code/win32.c WIN32-Code/misc.h \
+	WIN32-Code/config.h \
+	WIN32-Code/event-config.h \
+	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
 	WIN32-Prj/event_test/event_test.dsp \
 	WIN32-Prj/event_test/test.txt WIN32-Prj/libevent.dsp \
 	WIN32-Prj/libevent.dsw WIN32-Prj/signal_test/signal_test.dsp \
-	WIN32-Prj/time_test/time_test.dsp
+	WIN32-Prj/time_test/time_test.dsp WIN32-Prj/regress/regress.vcproj \
+	WIN32-Prj/libevent.sln WIN32-Prj/libevent.vcproj
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 
@@ -57,7 +61,7 @@ if BUILD_WIN32
 
 SUBDIRS = . sample
 SYS_LIBS = -lws2_32
-SYS_SRC = WIN32-Code/misc.c WIN32-Code/win32.c
+SYS_SRC = WIN32-Code/win32.c
 SYS_INCLUDES = -IWIN32-Code
 
 else
@@ -102,7 +106,9 @@ libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_extra_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 
-include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h event-config.h
+include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
+
+nodist_include_HEADERS = event-config.h
 
 INCLUDES = -I$(srcdir)/compat $(SYS_INCLUDES)
 

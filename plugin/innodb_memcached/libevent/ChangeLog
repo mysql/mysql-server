@@ -1,3 +1,95 @@
+Changes in 1.4.12-stable:
+ o Try to contain degree of failure when running on a win32 version so heavily firewalled that we can't fake a socketpair.
+ o Fix an obscure timing-dependent, allocator-dependent crash in the evdns code.
+ o Use __VA_ARGS__ syntax for varargs macros in event_rpcgen when compiler is not GCC.
+ o Activate fd events in a pseudorandom order with O(N) backends, so that we don't systematically favor low fds (select) or earlier-added fds (poll, win32).
+ o Fix another pair of fencepost bugs in epoll.c.  [Patch from Adam Langley.]
+ o Do not break evdns connections to nameservers when our IP changes.
+ o Set truncated flag correctly in evdns server replies.
+ o Disable strict aliasing with GCC: our code is not compliant with it.
+
+Changes in 1.4.11-stable:
+ o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
+ o Remove the limit on size of HTTP headers by removing static buffers.
+ o Fix a nasty dangling pointer bug in epoll.c that could occur after epoll_recalc(). [Patch from Kevin Springborn]
+ o Distribute Win32-Code/event-config.h, not ./event-config.h
+
+Changes in 1.4.10-stable:
+ o clean up buffered http connection data on reset; reported by Brian O'Kelley
+ o bug fix and potential race condition in signal handling; from Alexander Drozdov
+ o rename the Solaris event ports backend to evport
+ o support compilation on Haiku
+ o fix signal processing when a signal callback delivers a signal; from Alexander Drozdov
+ o const-ify some arguments to evdns functions.
+ o off-by-one error in epoll_recalc; reported by Victor Goya
+ o include Doxyfile in tar ball; from Jeff Garzik
+ o correctly parse queries with encoded \r, \n or + characters
+
+Changes in 1.4.9-stable:
+ o event_add would not return error for some backends; from Dean McNamee
+ o Clear the timer cache on entering the event loop; reported by Victor Chang
+ o Only bind the socket on connect when a local address has been provided; reported by Alejo Sanchez
+ o Allow setting of local port for evhttp connections to support millions of connections from a single system; from Richard Jones.
+ o Clear the timer cache when leaving the event loop; reported by Robin Haberkorn
+ o Fix a typo in setting the global event base; reported by lance.
+ o Fix a memory leak when reading multi-line headers
+ o Fix a memory leak by not running explicit close detection for server connections
+
+Changes in 1.4.8-stable:
+ o Match the query in DNS replies to the query in the request; from Vsevolod Stakhov.
+ o Fix a merge problem in which name_from_addr returned pointers to the stack; found by Jiang Hong.
+ o Do not remove Accept-Encoding header
+	
+Changes in 1.4.7-stable:
+ o Fix a bug where headers arriving in multiple packets were not parsed; fix from Jiang Hong; test by me.
+	
+Changes in 1.4.6-stable:
+ o evutil.h now includes <stdarg.h> directly
+ o switch all uses of [v]snprintf over to evutil
+ o Correct handling of trailing headers in chunked replies; from Scott Lamb.
+ o Support multi-line HTTP headers; based on a patch from Moshe Litvin
+ o Reject negative Content-Length headers; anonymous bug report
+ o Detect CLOCK_MONOTONIC at runtime for evdns; anonymous bug report	
+ o Fix a bug where deleting signals with the kqueue backend would cause subsequent adds to fail
+ o Support multiple events listening on the same signal; make signals regular events that go on the same event queue; problem report by Alexander Drozdov.
+ o Deal with evbuffer_read() returning -1 on EINTR|EAGAIN; from Adam Langley.
+ o Fix a bug in which the DNS server would incorrectly set the type of a cname reply to a.
+ o Fix a bug where setting the timeout on a bufferevent would take not effect if the event was already pending.
+ o Fix a memory leak when using signals for some event bases; reported by Alexander Drozdov.
+ o Add libevent.vcproj file to distribution to help with Windows build.
+ o Fix a problem with epoll() and reinit; problem report by Alexander Drozdov.	
+ o Fix off-by-one errors in devpoll; from Ian Bell
+ o Make event_add not change any state if it fails; reported by Ian Bell.
+ o Do not warn on accept when errno is either EAGAIN or EINTR
+
+Changes in 1.4.5-stable:
+ o Fix connection keep-alive behavior for HTTP/1.0
+ o Fix use of freed memory in event_reinit; pointed out by Peter Postma
+ o Constify struct timeval * where possible; pointed out by Forest Wilkinson
+ o allow min_heap_erase to be called on removed members; from liusifan.
+ o Rename INPUT and OUTPUT to EVRPC_INPUT and EVRPC_OUTPUT.  Retain INPUT/OUTPUT aliases on on-win32 platforms for backwards compatibility.
+ o Do not use SO_REUSEADDR when connecting
+ o Fix Windows build
+ o Fix a bug in event_rpcgen when generated fixed-sized entries
+
+Changes in 1.4.4-stable:
+ o Correct the documentation on buffer printf functions.
+ o Don't warn on unimplemented epoll_create(): this isn't a problem, just a reason to fall back to poll or select.
+ o Correctly handle timeouts larger than 35 minutes on Linux with epoll.c.  This is probably a kernel defect, but we'll have to support old kernels anyway even if it gets fixed.
+ o Fix a potential stack corruption bug in tagging on 64-bit CPUs.
+ o expose bufferevent_setwatermark via header files and fix high watermark on read
+ o fix a bug in bufferevent read water marks and add a test for them
+ o introduce bufferevent_setcb and bufferevent_setfd to allow better manipulation of bufferevents
+ o use libevent's internal timercmp on all platforms, to avoid bugs on old platforms where timercmp(a,b,<=) is buggy.
+ o reduce system calls for getting current time by caching it.
+ o fix evhttp_bind_socket() so that multiple sockets can be bound by the same http server.
+ o Build test directory correctly with CPPFLAGS set.
+ o Fix build under Visual C++ 2005.
+ o Expose evhttp_accept_socket() API.
+ o Merge windows gettimeofday() replacement into a new evutil_gettimeofday() function.
+ o Fix autoconf script behavior on IRIX.
+ o Make sure winsock2.h include always comes before windows.h include.
+
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive
  o Patch from Tani Hosokawa: make some functions in http.c threadsafe.
@@ -45,9 +137,6 @@ Changes in 1.4.1-beta:
  o The configure script now takes an --enable-gcc-warnigns option that turns on many optional gcc warnings.  (Nick has been building with these for a while, but they might be useful to other developers.)
  o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
  o removed linger from http server socket; reported by Ilya Martynov
- o Rewrite win32.c backend to be O(n lg n) rather than O(n^2)
-	
-Changes in 1.4.0-beta:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages
  o Fix Solaris compilation; from Magne Mahre

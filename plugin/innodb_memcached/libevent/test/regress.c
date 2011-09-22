@@ -43,10 +43,11 @@
 #ifndef WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
 #endif
+#include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -60,7 +61,9 @@
 #include "log.h"
 
 #include "regress.h"
+#ifndef WIN32
 #include "regress.gen.h"
+#endif
 
 int pair[2];
 int test_ok;
@@ -92,6 +95,9 @@ simple_read_cb(int fd, short event, void *arg)
 	char buf[256];
 	int len;
 
+	if (arg == NULL)
+		return;
+
 	len = read(fd, buf, sizeof(buf));
 
 	if (len) {
@@ -109,6 +115,9 @@ static void
 simple_write_cb(int fd, short event, void *arg)
 {
 	int len;
+
+	if (arg == NULL)
+		return;
 
 	len = write(fd, TEST1, strlen(TEST1) + 1);
 	if (len == -1)
@@ -178,7 +187,7 @@ timeout_cb(int fd, short event, void *arg)
 	struct timeval tv;
 	int diff;
 
-	gettimeofday(&tcalled, NULL);
+	evutil_gettimeofday(&tcalled, NULL);
 	if (evutil_timercmp(&tcalled, &tset, >))
 		evutil_timersub(&tcalled, &tset, &tv);
 	else
@@ -192,6 +201,7 @@ timeout_cb(int fd, short event, void *arg)
 		test_ok = 1;
 }
 
+#ifndef WIN32
 static void
 signal_cb_sa(int sig)
 {
@@ -206,6 +216,7 @@ signal_cb(int fd, short event, void *arg)
 	signal_del(ev);
 	test_ok = 1;
 }
+#endif
 
 struct both {
 	struct event ev;
@@ -298,6 +309,57 @@ cleanup_test(void)
 	}
         test_ok = 0;
 	return (0);
+}
+
+static void
+test_registerfds(void)
+{
+	int i, j;
+	int pair[2];
+	struct event read_evs[512];
+	struct event write_evs[512];
+
+	struct event_base *base = event_base_new();
+
+	fprintf(stdout, "Testing register fds: ");
+
+	for (i = 0; i < 512; ++i) {
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+			/* run up to the limit of file descriptors */
+			break;
+		}
+		event_set(&read_evs[i], pair[0],
+		    EV_READ|EV_PERSIST, simple_read_cb, NULL);
+		event_base_set(base, &read_evs[i]);
+		event_add(&read_evs[i], NULL);
+		event_set(&write_evs[i], pair[1],
+		    EV_WRITE|EV_PERSIST, simple_write_cb, NULL);
+		event_base_set(base, &write_evs[i]);
+		event_add(&write_evs[i], NULL);
+
+		/* just loop once */
+		event_base_loop(base, EVLOOP_ONCE);
+	}
+
+	/* now delete everything */
+	for (j = 0; j < i; ++j) {
+		event_del(&read_evs[j]);
+		event_del(&write_evs[j]);
+#ifndef WIN32
+		close(read_evs[j].ev_fd);
+		close(write_evs[j].ev_fd);
+#else
+		CloseHandle((HANDLE)read_evs[j].ev_fd);
+		CloseHandle((HANDLE)write_evs[j].ev_fd);
+#endif
+
+		/* just loop once */
+		event_base_loop(base, EVLOOP_ONCE);
+	}
+
+	event_base_free(base);
+
+	fprintf(stdout, "OK\n");
 }
 
 static void
@@ -441,7 +503,7 @@ test_simpletimeout(void)
 	evtimer_set(&ev, timeout_cb, NULL);
 	evtimer_add(&ev, &tv);
 
-	gettimeofday(&tset, NULL);
+	evutil_gettimeofday(&tset, NULL);
 	event_dispatch();
 
 	cleanup_test();
@@ -449,11 +511,25 @@ test_simpletimeout(void)
 
 #ifndef WIN32
 extern struct event_base *current_base;
+
+static void
+child_signal_cb(int fd, short event, void *arg)
+{
+	struct timeval tv;
+	int *pint = arg;
+
+	*pint = 1;
+
+	tv.tv_usec = 500000;
+	tv.tv_sec = 0;
+	event_loopexit(&tv);
+}
+
 static void
 test_fork(void)
 {
-	int status;
-	struct event ev;
+	int status, got_sigchld = 0;
+	struct event ev, sig_ev;
 	pid_t pid;
 
 	setup_test("After fork: ");
@@ -464,6 +540,9 @@ test_fork(void)
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
+	signal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
+	signal_add(&sig_ev, NULL);
+
 	if ((pid = fork()) == 0) {
 		/* in the child */
 		if (event_reinit(current_base) == -1) {
@@ -471,12 +550,16 @@ test_fork(void)
 			exit(1);
 		}
 
+		signal_del(&sig_ev);
+
+		called = 0;
+
 		event_dispatch();
 
 		/* we do not send an EOF; simple_read_cb requires an EOF 
 		 * to set test_ok.  we just verify that the callback was
 		 * called. */
-		exit(test_ok != 0 || called != 2);
+		exit(test_ok != 0 || called != 2 ? -2 : 76);
 	}
 
 	/* wait for the child to read the data */
@@ -489,8 +572,8 @@ test_fork(void)
 		exit(1);
 	}
 	
-	if (WEXITSTATUS(status) != 0) {
-		fprintf(stderr, "FAILED (exit)\n");
+	if (WEXITSTATUS(status) != 76) {
+		fprintf(stderr, "FAILED (exit): %d\n", WEXITSTATUS(status));
 		exit(1);
 	}
 
@@ -499,6 +582,13 @@ test_fork(void)
 	shutdown(pair[0], SHUT_WR);
 
 	event_dispatch();
+
+	if (!got_sigchld) {
+		fprintf(stdout, "FAILED (sigchld)\n");
+		exit(1);
+	}
+
+	signal_del(&sig_ev);
 
 	cleanup_test();
 }
@@ -512,6 +602,9 @@ test_simplesignal(void)
 	setup_test("Simple signal: ");
 	signal_set(&ev, SIGALRM, signal_cb, &ev);
 	signal_add(&ev, NULL);
+	/* find bugs in which operations are re-ordered */
+	signal_del(&ev);
+	signal_add(&ev, NULL);
 
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 1;
@@ -521,6 +614,36 @@ test_simplesignal(void)
 	event_dispatch();
  skip_simplesignal:
 	if (signal_del(&ev) == -1)
+		test_ok = 0;
+
+	cleanup_test();
+}
+
+static void
+test_multiplesignal(void)
+{
+	struct event ev_one, ev_two;
+	struct itimerval itv;
+
+	setup_test("Multiple signal: ");
+
+	signal_set(&ev_one, SIGALRM, signal_cb, &ev_one);
+	signal_add(&ev_one, NULL);
+
+	signal_set(&ev_two, SIGALRM, signal_cb, &ev_two);
+	signal_add(&ev_two, NULL);
+
+	memset(&itv, 0, sizeof(itv));
+	itv.it_value.tv_sec = 1;
+	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
+		goto skip_simplesignal;
+
+	event_dispatch();
+
+ skip_simplesignal:
+	if (signal_del(&ev_one) == -1)
+		test_ok = 0;
+	if (signal_del(&ev_two) == -1)
 		test_ok = 0;
 
 	cleanup_test();
@@ -700,6 +823,52 @@ out:
 	cleanup_test();
 	return;
 }
+
+static void
+signal_cb_swp(int sig, short event, void *arg)
+{
+	called++;
+	if (called < 5)
+		raise(sig);
+	else
+		event_loopexit(NULL);
+}
+static void
+timeout_cb_swp(int fd, short event, void *arg)
+{
+	if (called == -1) {
+		struct timeval tv = {5, 0};
+
+		called = 0;
+		evtimer_add((struct event *)arg, &tv);
+		raise(SIGUSR1);
+		return;
+	}
+	test_ok = 0;
+	event_loopexit(NULL);
+}
+
+static void
+test_signal_while_processing(void)
+{
+	struct event_base *base = event_init();
+	struct event ev, ev_timer;
+	struct timeval tv = {0, 0};
+
+	setup_test("Receiving a signal while processing other signal: ");
+
+	called = -1;
+	test_ok = 1;
+	signal_set(&ev, SIGUSR1, signal_cb_swp, NULL);
+	signal_add(&ev, NULL);
+	evtimer_set(&ev_timer, timeout_cb_swp, &ev_timer);
+	evtimer_add(&ev_timer, &tv);
+	event_dispatch();
+
+	event_base_free(base);
+	cleanup_test();
+	return;
+}
 #endif
 
 static void
@@ -757,9 +926,9 @@ test_loopexit(void)
 	tv.tv_sec = 1;
 	event_loopexit(&tv);
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	evtimer_del(&ev);
@@ -905,6 +1074,10 @@ test_evbuffer_find(void)
 	evbuffer_free(buf);
 }
 
+/*
+ * simple bufferevent test
+ */
+
 static void
 readcb(struct bufferevent *bev, void *arg)
 {
@@ -958,6 +1131,74 @@ test_bufferevent(void)
 	cleanup_test();
 }
 
+/*
+ * test watermarks and bufferevent
+ */
+
+static void
+wm_readcb(struct bufferevent *bev, void *arg)
+{
+	int len = EVBUFFER_LENGTH(bev->input);
+	static int nread;
+
+	assert(len >= 10 && len <= 20);
+
+	evbuffer_drain(bev->input, len);
+
+	nread += len;
+	if (nread == 65000) {
+		bufferevent_disable(bev, EV_READ);
+		test_ok++;
+	}
+}
+
+static void
+wm_writecb(struct bufferevent *bev, void *arg)
+{
+	if (EVBUFFER_LENGTH(bev->output) == 0)
+		test_ok++;
+}
+
+static void
+wm_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	test_ok = -2;
+}
+
+static void
+test_bufferevent_watermarks(void)
+{
+	struct bufferevent *bev1, *bev2;
+	char buffer[65000];
+	int i;
+
+	setup_test("Bufferevent Watermarks: ");
+
+	bev1 = bufferevent_new(pair[0], NULL, wm_writecb, wm_errorcb, NULL);
+	bev2 = bufferevent_new(pair[1], wm_readcb, NULL, wm_errorcb, NULL);
+
+	bufferevent_disable(bev1, EV_READ);
+	bufferevent_enable(bev2, EV_READ);
+
+	for (i = 0; i < sizeof(buffer); i++)
+		buffer[i] = i;
+
+	bufferevent_write(bev1, buffer, sizeof(buffer));
+
+	/* limit the reading on the receiving bufferevent */
+	bufferevent_setwatermark(bev2, EV_READ, 10, 20);
+
+	event_dispatch();
+
+	bufferevent_free(bev1);
+	bufferevent_free(bev2);
+
+	if (test_ok != 2)
+		test_ok = 0;
+
+	cleanup_test();
+}
+
 struct test_pri_event {
 	struct event ev;
 	int count;
@@ -987,7 +1228,7 @@ test_priorities(int npriorities)
 	struct test_pri_event one, two;
 	struct timeval tv;
 
-	snprintf(buf, sizeof(buf), "Testing Priorities %d: ", npriorities);
+	evutil_snprintf(buf, sizeof(buf), "Testing Priorities %d: ", npriorities);
 	setup_test(buf);
 
 	event_base_priority_init(global_base, npriorities);
@@ -1252,6 +1493,7 @@ evtag_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+#ifndef WIN32
 static void
 rpc_test(void)
 {
@@ -1277,7 +1519,7 @@ rpc_test(void)
 	EVTAG_ASSIGN(attack, weapon, "feather");
 	EVTAG_ASSIGN(attack, action, "tickle");
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	for (i = 0; i < 1000; ++i) {
 		run = EVTAG_ADD(msg, run);
 		if (run == NULL) {
@@ -1285,6 +1527,8 @@ rpc_test(void)
 			exit(1);
 		}
 		EVTAG_ASSIGN(run, how, "very fast but with some data in it");
+		EVTAG_ASSIGN(run, fixed_bytes,
+		    (unsigned char*)"012345678901234567890123");
 	}
 
 	if (msg_complete(msg) == -1) {
@@ -1310,7 +1554,7 @@ rpc_test(void)
 		exit(1);
 	}
 
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	fprintf(stderr, "(%.1f us/add) ",
 	    (float)tv_end.tv_sec/(float)i * 1000000.0 +
@@ -1335,6 +1579,7 @@ rpc_test(void)
 
 	fprintf(stdout, "OK\n");
 }
+#endif
 
 static void
 test_evutil_strtoll(void)
@@ -1375,10 +1620,16 @@ main (int argc, char **argv)
 	err = WSAStartup( wVersionRequested, &wsaData );
 #endif
 
+#ifndef WIN32
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		return (1);
+#endif
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	/* Initalize the event library */
 	global_base = event_init();
+
+	test_registerfds();
 
         test_evutil_strtoll();
 
@@ -1391,6 +1642,7 @@ main (int argc, char **argv)
 	test_evbuffer_find();
 	
 	test_bufferevent();
+	test_bufferevent_watermarks();
 
 	test_free_active_base();
 
@@ -1398,7 +1650,9 @@ main (int argc, char **argv)
 
 	http_suite();
 
+#ifndef WIN32
 	rpc_suite();
+#endif
 
 	dns_suite();
 	
@@ -1419,6 +1673,7 @@ main (int argc, char **argv)
 	test_simpletimeout();
 #ifndef WIN32
 	test_simplesignal();
+	test_multiplesignal();
 	test_immediatesignal();
 #endif
 	test_loopexit();
@@ -1432,14 +1687,15 @@ main (int argc, char **argv)
 
 	evtag_test();
 
+#ifndef WIN32
 	rpc_test();
 
-#ifndef WIN32
 	test_signal_dealloc();
 	test_signal_pipeloss();
 	test_signal_switchbase();
 	test_signal_restore();
 	test_signal_assert();
+	test_signal_while_processing();
 #endif
 	
 	return (0);

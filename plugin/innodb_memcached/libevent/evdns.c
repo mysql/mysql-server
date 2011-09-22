@@ -39,17 +39,13 @@
 #include "config.h"
 #endif
 
-#ifdef WIN32
-#include "misc.h"
-#endif
-
 #ifdef DNS_USE_FTIME_FOR_ID
 #include <sys/timeb.h>
 #endif
 
 #ifndef DNS_USE_CPU_CLOCK_FOR_ID
 #ifdef HAVE_GETTIMEOFDAY
-#define DNS_USE_GETTIMEOFDAY_FOR_ID	1
+#define DNS_USE_GETTIMEOFDAY_FOR_ID     1
 #endif
 #endif
 
@@ -65,9 +61,7 @@
 #endif
 
 /* #define _POSIX_C_SOURCE 200507 */
-#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#endif
 
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 #ifdef DNS_USE_OPENSSL_FOR_ID
@@ -86,7 +80,9 @@
 #include <openssl/rand.h>
 #endif
 
+#ifndef _FORTIFY_SOURCE
 #define _FORTIFY_SOURCE 3
+#endif
 
 #include <string.h>
 #include <fcntl.h>
@@ -152,7 +148,6 @@ typedef unsigned int uint;
 #define u8  ev_uint8_t
 
 #ifdef WIN32
-#define snprintf _snprintf
 #define open _open
 #define read _read
 #define close _close
@@ -222,6 +217,7 @@ struct reply {
 struct nameserver {
 	int socket;  /* a connected UDP socket */
 	u32 address;
+	u16 port;
 	int failed_times;  /* number of times which we have given this server a chance */
 	int timedout;  /* number of times in a row a request has timed out */
 	struct event event;
@@ -397,7 +393,7 @@ debug_ntoa(u32 address)
 {
 	static char buf[32];
 	u32 a = ntohl(address);
-	snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
+	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
                       (int)(u8)((a>>24)&0xff),
                       (int)(u8)((a>>16)&0xff),
                       (int)(u8)((a>>8 )&0xff),
@@ -428,11 +424,7 @@ _evdns_log(int warn, const char *fmt, ...)
   if (!evdns_log_fn)
     return;
   va_start(args,fmt);
-#ifdef WIN32
-  _vsnprintf(buf, sizeof(buf), fmt, args);
-#else
-  vsnprintf(buf, sizeof(buf), fmt, args);
-#endif
+  evutil_vsnprintf(buf, sizeof(buf), fmt, args);
   buf[sizeof(buf)-1] = '\0';
   evdns_log_fn(warn, buf);
   va_end(args);
@@ -486,7 +478,6 @@ nameserver_probe_failed(struct nameserver *const ns) {
 					  global_nameserver_timeouts_length - 1)];
 	ns->failed_times++;
 
-	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) timeout) < 0) {
           log(EVDNS_LOG_WARN,
               "Error from libevent when adding timer event for %s",
@@ -515,7 +506,6 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	ns->state = 0;
 	ns->failed_times = 1;
 
-	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) &global_nameserver_timeouts[0]) < 0) {
 		log(EVDNS_LOG_WARN,
 		    "Error from libevent when adding timer event for %s",
@@ -697,7 +687,10 @@ reply_callback(struct request *const req, u32 ttl, u32 err, struct reply *reply)
 static void
 reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
 	int error;
-	static const int error_codes[] = {DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST, DNS_ERR_NOTIMPL, DNS_ERR_REFUSED};
+	static const int error_codes[] = {
+		DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST,
+		DNS_ERR_NOTIMPL, DNS_ERR_REFUSED
+	};
 
 	if (flags & 0x020f || !reply || !reply->have_answer) {
 		/* there was an error */
@@ -718,16 +711,18 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			/* we regard these errors as marking a bad nameserver */
 			if (req->reissue_count < global_max_reissues) {
 				char msg[64];
-				snprintf(msg, sizeof(msg), "Bad response %d (%s)",
+				evutil_snprintf(msg, sizeof(msg),
+				    "Bad response %d (%s)",
 					 error, evdns_err_to_string(error));
 				nameserver_failed(req->ns, msg);
 				if (!request_reissue(req)) return;
 			}
 			break;
 		case DNS_ERR_SERVERFAILED:
-			/* rcode 2 (servfailed) sometimes means "we are broken" and
-			 * sometimes (with some binds) means "that request was very
-			 * confusing."  Treat this as a timeout, not a failure. 
+			/* rcode 2 (servfailed) sometimes means "we
+			 * are broken" and sometimes (with some binds)
+			 * means "that request was very confusing."
+			 * Treat this as a timeout, not a failure.
 			 */
 			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver %s; "
 				"will allow the request to time out.",
@@ -739,10 +734,13 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		}
 
 		if (req->search_state && req->request_type != TYPE_PTR) {
-			/* if we have a list of domains to search in, try the next one */
+			/* if we have a list of domains to search in,
+			 * try the next one */
 			if (!search_try_next(req)) {
-				/* a new request was issued so this request is finished and */
-				/* the user callback will be made when that request (or a */
+				/* a new request was issued so this
+				 * request is finished and */
+				/* the user callback will be made when
+				 * that request (or a */
 				/* child of it) finishes. */
 				request_finished(req, &req_head);
 				return;
@@ -819,10 +817,10 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 /* parses a raw request from a nameserver */
 static int
 reply_parse(u8 *packet, int length) {
-	int j = 0;  /* index into packet */
+	int j = 0, k = 0;  /* index into packet */
 	u16 _t;  /* used by the macros */
 	u32 _t32;  /* used by the macros */
-	char tmp_name[256]; /* used by the macros */
+	char tmp_name[256], cmp_name[256]; /* used by the macros */
 
 	u16 trans_id, questions, answers, authority, additional, datalength;
         u16 flags = 0;
@@ -855,10 +853,21 @@ reply_parse(u8 *packet, int length) {
 
 	/* This macro skips a name in the DNS reply. */
 #define SKIP_NAME \
-	do { tmp_name[0] = '\0';					\
-		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0) \
-			goto err;													\
-	} while(0);
+	do { tmp_name[0] = '\0';				\
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0)\
+			goto err;				\
+	} while(0)
+#define TEST_NAME \
+	do { tmp_name[0] = '\0';				\
+		cmp_name[0] = '\0';				\
+		k = j;						\
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0)\
+			goto err;					\
+		if (name_parse(req->request, req->request_len, &k, cmp_name, sizeof(cmp_name))<0)	\
+			goto err;				\
+		if (memcmp(tmp_name, cmp_name, strlen (tmp_name)) != 0)	\
+			return (-1); /* we ignore mismatching names */	\
+	} while(0)
 
 	reply.type = req->request_type;
 
@@ -867,7 +876,7 @@ reply_parse(u8 *packet, int length) {
 		/* the question looks like
 		 *   <label:name><u16:type><u16:class>
 		 */
-		SKIP_NAME;
+		TEST_NAME;
 		j += 4;
 		if (j > length) goto err;
 	}
@@ -1041,12 +1050,16 @@ default_transaction_id_fn(void)
 	u16 trans_id;
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 	struct timespec ts;
+	static int clkid = -1;
+	if (clkid == -1) {
+		clkid = CLOCK_REALTIME;
 #ifdef CLOCK_MONOTONIC
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
-#else
-	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) != -1)
+			clkid = CLOCK_MONOTONIC;
 #endif
-	event_err(1, "clock_gettime");
+	}
+	if (clock_gettime(clkid, &ts) == -1)
+		event_err(1, "clock_gettime");
 	trans_id = ts.tv_nsec & 0xffff;
 #endif
 
@@ -1058,7 +1071,7 @@ default_transaction_id_fn(void)
 
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
 	struct timeval tv;
-	gettimeofday(&tv, NULL);
+	evutil_gettimeofday(&tv, NULL);
 	trans_id = tv.tv_usec & 0xffff;
 #endif
 
@@ -1068,7 +1081,7 @@ default_transaction_id_fn(void)
 		/* down to using gettimeofday. */
 		/*
 		  struct timeval tv;
-		  gettimeofday(&tv, NULL);
+		  evutil_gettimeofday(&tv, NULL);
 		  trans_id = tv.tv_usec & 0xffff;
 		*/
 		abort();
@@ -1146,17 +1159,36 @@ nameserver_pick(void) {
 	}
 }
 
+static int
+address_is_correct(struct nameserver *ns, struct sockaddr *sa, socklen_t slen)
+{
+	struct sockaddr_in *sin = (struct sockaddr_in*) sa;
+	if (sa->sa_family != AF_INET || slen != sizeof(struct sockaddr_in))
+		return 0;
+	if (sin->sin_addr.s_addr != ns->address)
+		return 0;
+	return 1;
+}
+
 /* this is called when a namesever socket is ready for reading */
 static void
 nameserver_read(struct nameserver *ns) {
 	u8 packet[1500];
+	struct sockaddr_storage ss;
+	socklen_t addrlen = sizeof(ss);
 
 	for (;;) {
-          	const int r = recv(ns->socket, packet, sizeof(packet), 0);
+          	const int r = recvfrom(ns->socket, packet, sizeof(packet), 0,
+		    (struct sockaddr*)&ss, &addrlen);
 		if (r < 0) {
 			int err = last_error(ns->socket);
 			if (error_is_eagain(err)) return;
 			nameserver_failed(ns, strerror(err));
+			return;
+		}
+		if (!address_is_correct(ns, (struct sockaddr*)&ss, addrlen)) {
+			log(EVDNS_LOG_WARN, "Address mismatch on received "
+			    "DNS packet.");
 			return;
 		}
 		ns->timedout = 0;
@@ -1576,7 +1608,7 @@ evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_a
 	assert(!(in && inaddr_name));
 	if (in) {
 		a = ntohl(in->s_addr);
-		snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
+		evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 				(int)(u8)((a	)&0xff),
 				(int)(u8)((a>>8 )&0xff),
 				(int)(u8)((a>>16)&0xff),
@@ -1593,7 +1625,7 @@ int
 evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl)
 {
 	return evdns_server_request_add_reply(
-		  req, EVDNS_ANSWER_SECTION, name, TYPE_A, CLASS_INET,
+		  req, EVDNS_ANSWER_SECTION, name, TYPE_CNAME, CLASS_INET,
 		  ttl, -1, 1, cname);
 }
 
@@ -1679,7 +1711,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 	if (j > 512) {
 overflow:
 		j = 512;
-		buf[3] |= 0x02; /* set the truncated bit. */
+		buf[2] |= 0x02; /* set the truncated bit. */
 	}
 
 	req->response_len = j;
@@ -1886,7 +1918,15 @@ evdns_request_timeout_callback(int fd, short events, void *arg) {
 /*   2 other failure */
 static int
 evdns_request_transmit_to(struct request *req, struct nameserver *server) {
-	const int r = send(server->socket, req->request, req->request_len, 0);
+	struct sockaddr_in sin;
+	int r;
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_addr.s_addr = req->ns->address;
+	sin.sin_port = req->ns->port;
+	sin.sin_family = AF_INET;
+
+	r = sendto(server->socket, req->request, req->request_len, 0,
+	    (struct sockaddr*)&sin, sizeof(sin));
 	if (r < 0) {
 		int err = last_error(server->socket);
 		if (error_is_eagain(err)) return 1;
@@ -1935,7 +1975,6 @@ evdns_request_transmit(struct request *req) {
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
 		    "Setting timeout for request %lx", (unsigned long) req);
-		evtimer_set(&req->timeout_event, evdns_request_timeout_callback, req);
 		if (evtimer_add(&req->timeout_event, &global_timeout) < 0) {
                   log(EVDNS_LOG_WARN,
 		      "Error from libevent when adding timer for request %lx",
@@ -2082,7 +2121,6 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 
 	const struct nameserver *server = server_head, *const started_at = server_head;
 	struct nameserver *ns;
-	struct sockaddr_in sin;
 	int err = 0;
 	if (server) {
 		do {
@@ -2096,18 +2134,14 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 
 	memset(ns, 0, sizeof(struct nameserver));
 
+	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
+
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
         evutil_make_socket_nonblocking(ns->socket);
-	sin.sin_addr.s_addr = address;
-	sin.sin_port = htons(port);
-	sin.sin_family = AF_INET;
-	if (connect(ns->socket, (struct sockaddr *) &sin, sizeof(sin)) != 0) {
-		err = 2;
-		goto out2;
-	}
 
 	ns->address = address;
+	ns->port = htons(port);
 	ns->state = 1;
 	event_set(&ns->event, ns->socket, EV_READ | EV_PERSIST, nameserver_ready_callback, ns);
 	if (event_add(&ns->event, NULL) < 0) {
@@ -2220,6 +2254,8 @@ request_new(int type, const char *name, int flags,
         if (!req) return NULL;
 	memset(req, 0, sizeof(struct request));
 
+	evtimer_set(&req->timeout_event, evdns_request_timeout_callback, req);
+
 	/* request data lives just after the header */
 	req->request = ((u8 *) req) + sizeof(struct request);
 	/* denotes that the request data shouldn't be free()ed */
@@ -2289,13 +2325,13 @@ int evdns_resolve_ipv6(const char *name, int flags,
 	}
 }
 
-int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	char buf[32];
 	struct request *req;
 	u32 a;
 	assert(in);
 	a = ntohl(in->s_addr);
-	snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
+	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 			(int)(u8)((a	)&0xff),
 			(int)(u8)((a>>8 )&0xff),
 			(int)(u8)((a>>16)&0xff),
@@ -2307,7 +2343,7 @@ int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type cal
 	return 0;
 }
 
-int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	/* 32 nybbles, 32 periods, "ip6.arpa", NUL. */
 	char buf[73];
 	char *cp;
@@ -2959,7 +2995,7 @@ load_nameservers_from_registry(void)
 #undef TRY
 }
 
-static int
+int
 evdns_config_windows_nameservers(void)
 {
 	if (load_nameservers_with_getnetworkparams() == 0)

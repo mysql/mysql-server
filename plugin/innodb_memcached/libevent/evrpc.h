@@ -436,9 +436,18 @@ void evrpc_pool_set_timeout(struct evrpc_pool *pool, int timeout_in_secs);
  */
 
 enum EVRPC_HOOK_TYPE {
-	INPUT,		/**< apply the function to an input hook */
-	OUTPUT		/**< apply the function to an output hook */
+	EVRPC_INPUT,		/**< apply the function to an input hook */
+	EVRPC_OUTPUT		/**< apply the function to an output hook */
 };
+
+#ifndef WIN32
+/** Deprecated alias for EVRPC_INPUT.  Not available on windows, where it
+ * conflicts with platform headers. */
+#define INPUT EVRPC_INPUT
+/** Deprecated alias for EVRPC_OUTPUT.  Not available on windows, where it
+ * conflicts with platform headers. */
+#define OUTPUT EVRPC_OUTPUT
+#endif
 
 /** adds a processing hook to either an rpc base or rpc pool
  *

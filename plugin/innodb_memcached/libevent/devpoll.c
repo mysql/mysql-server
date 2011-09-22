@@ -75,7 +75,7 @@ static int devpoll_del	(void *, struct event *);
 static int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
 static void devpoll_dealloc	(struct event_base *, void *);
 
-struct eventop devpollops = {
+const struct eventop devpollops = {
 	"devpoll",
 	devpoll_init,
 	devpoll_add,
@@ -139,7 +139,7 @@ devpoll_init(struct event_base *base)
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
 	    rl.rlim_cur != RLIM_INFINITY)
-		nfiles = rl.rlim_cur - 1;
+		nfiles = rl.rlim_cur;
 
 	/* Initialize the kernel queue */
 	if ((dpfd = open("/dev/poll", O_RDWR)) == -1) {
@@ -187,12 +187,12 @@ devpoll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct devpollop *devpollop = arg;
 
-	if (max > devpollop->nfds) {
+	if (max >= devpollop->nfds) {
 		struct evdevpoll *fds;
 		int nfds;
 
 		nfds = devpollop->nfds;
-		while (nfds < max)
+		while (nfds <= max)
 			nfds <<= 1;
 
 		fds = realloc(devpollop->fds, nfds * sizeof(struct evdevpoll));

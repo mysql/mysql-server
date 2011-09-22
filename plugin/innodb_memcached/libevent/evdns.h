@@ -346,7 +346,7 @@ struct in6_addr;
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_reverse_ipv6()
  */
-int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
 /**
@@ -359,7 +359,7 @@ int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type cal
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_reverse_ipv6()
  */
-int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
 /**
@@ -411,7 +411,7 @@ int evdns_resolv_conf_parse(int flags, const char *const filename);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolv_conf_parse()
  */
-#ifdef MS_WINDOWS
+#ifdef WIN32
 int evdns_config_windows_nameservers(void);
 #endif
 

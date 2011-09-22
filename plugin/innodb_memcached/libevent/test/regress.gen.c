@@ -639,6 +639,10 @@ evtag_marshal_kill(struct evbuffer *evbuf, uint32_t tag, const struct kill *msg)
 static struct run_access_ __run_base = {
   run_how_assign,
   run_how_get,
+  run_some_bytes_assign,
+  run_some_bytes_get,
+  run_fixed_bytes_assign,
+  run_fixed_bytes_get,
 };
 
 struct run *
@@ -654,8 +658,17 @@ run_new(void)
   tmp->how_data = NULL;
   tmp->how_set = 0;
 
+  tmp->some_bytes_data = NULL;
+  tmp->some_bytes_length = 0;
+  tmp->some_bytes_set = 0;
+
+  memset(tmp->fixed_bytes_data, 0, sizeof(tmp->fixed_bytes_data));
+  tmp->fixed_bytes_set = 0;
+
   return (tmp);
 }
+
+
 
 
 int
@@ -671,11 +684,52 @@ run_how_assign(struct run *msg,
 }
 
 int
+run_some_bytes_assign(struct run *msg, const uint8_t * value, uint32_t len)
+{
+  if (msg->some_bytes_data != NULL)
+    free (msg->some_bytes_data);
+  msg->some_bytes_data = malloc(len);
+  if (msg->some_bytes_data == NULL)
+    return (-1);
+  msg->some_bytes_set = 1;
+  msg->some_bytes_length = len;
+  memcpy(msg->some_bytes_data, value, len);
+  return (0);
+}
+
+int
+run_fixed_bytes_assign(struct run *msg, const uint8_t *value)
+{
+  msg->fixed_bytes_set = 1;
+  memcpy(msg->fixed_bytes_data, value, 24);
+  return (0);
+}
+
+int
 run_how_get(struct run *msg, char * *value)
 {
   if (msg->how_set != 1)
     return (-1);
   *value = msg->how_data;
+  return (0);
+}
+
+int
+run_some_bytes_get(struct run *msg, uint8_t * *value, uint32_t *plen)
+{
+  if (msg->some_bytes_set != 1)
+    return (-1);
+  *value = msg->some_bytes_data;
+  *plen = msg->some_bytes_length;
+  return (0);
+}
+
+int
+run_fixed_bytes_get(struct run *msg, uint8_t **value)
+{
+  if (msg->fixed_bytes_set != 1)
+    return (-1);
+  *value = msg->fixed_bytes_data;
   return (0);
 }
 
@@ -687,6 +741,14 @@ run_clear(struct run *tmp)
     tmp->how_data = NULL;
     tmp->how_set = 0;
   }
+  if (tmp->some_bytes_set == 1) {
+    free (tmp->some_bytes_data);
+    tmp->some_bytes_data = NULL;
+    tmp->some_bytes_length = 0;
+    tmp->some_bytes_set = 0;
+  }
+  tmp->fixed_bytes_set = 0;
+  memset(tmp->fixed_bytes_data, 0, sizeof(tmp->fixed_bytes_data));
 }
 
 void
@@ -694,12 +756,18 @@ run_free(struct run *tmp)
 {
   if (tmp->how_data != NULL)
       free (tmp->how_data); 
+  if (tmp->some_bytes_data != NULL)
+      free (tmp->some_bytes_data); 
   free(tmp);
 }
 
 void
 run_marshal(struct evbuffer *evbuf, const struct run *tmp){
   evtag_marshal_string(evbuf, RUN_HOW, tmp->how_data);
+  if (tmp->some_bytes_set) {
+    evtag_marshal(evbuf, RUN_SOME_BYTES, tmp->some_bytes_data, tmp->some_bytes_length);
+  }
+  evtag_marshal(evbuf, RUN_FIXED_BYTES, tmp->fixed_bytes_data, sizeof(tmp->fixed_bytes_data));
 }
 
 int
@@ -722,6 +790,34 @@ run_unmarshal(struct run *tmp,  struct evbuffer *evbuf)
         tmp->how_set = 1;
         break;
 
+      case RUN_SOME_BYTES:
+
+        if (tmp->some_bytes_set)
+          return (-1);
+        if (evtag_payload_length(evbuf, &tmp->some_bytes_length) == -1)
+          return (-1);
+        if (tmp->some_bytes_length > EVBUFFER_LENGTH(evbuf))
+          return (-1);
+        if ((tmp->some_bytes_data = malloc(tmp->some_bytes_length)) == NULL)
+          return (-1);
+        if (evtag_unmarshal_fixed(evbuf, RUN_SOME_BYTES, tmp->some_bytes_data, tmp->some_bytes_length) == -1) {
+          event_warnx("%s: failed to unmarshal some_bytes", __func__);
+          return (-1);
+        }
+        tmp->some_bytes_set = 1;
+        break;
+
+      case RUN_FIXED_BYTES:
+
+        if (tmp->fixed_bytes_set)
+          return (-1);
+        if (evtag_unmarshal_fixed(evbuf, RUN_FIXED_BYTES, tmp->fixed_bytes_data, sizeof(tmp->fixed_bytes_data)) == -1) {
+          event_warnx("%s: failed to unmarshal fixed_bytes", __func__);
+          return (-1);
+        }
+        tmp->fixed_bytes_set = 1;
+        break;
+
       default:
         return -1;
     }
@@ -736,6 +832,8 @@ int
 run_complete(struct run *msg)
 {
   if (!msg->how_set)
+    return (-1);
+  if (!msg->fixed_bytes_set)
     return (-1);
   return (0);
 }

@@ -325,6 +325,7 @@
 #cmakedefine HAVE_SYS_EPOLL_H 1
 #cmakedefine HAVE_SYS_EVENT_H 1
 #cmakedefine HAVE_SYS_QUEUE_H 1
+#cmakedefine HAVE_TAILQFOREACH 1
 #define USE_MB 1
 #define USE_MB_IDENT 1
 

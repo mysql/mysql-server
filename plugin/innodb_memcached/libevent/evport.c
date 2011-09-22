@@ -122,7 +122,7 @@ static int 	evport_dispatch	(struct event_base *, void *, struct timeval *);
 static void	evport_dealloc	(struct event_base *, void *);
 
 const struct eventop evportops = {
-	"event ports",
+	"evport",
 	evport_init,
 	evport_add,
 	evport_del,

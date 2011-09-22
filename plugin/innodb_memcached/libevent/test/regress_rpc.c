@@ -42,7 +42,7 @@
 #include <sys/queue.h>
 #ifndef WIN32
 #include <sys/socket.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
 #endif
@@ -450,14 +450,14 @@ rpc_basic_client(void)
 	need_input_hook = 1;
 	need_output_hook = 1;
 
-	assert(evrpc_add_hook(base, INPUT, rpc_hook_add_header, (void*)"input")
+	assert(evrpc_add_hook(base, EVRPC_INPUT, rpc_hook_add_header, (void*)"input")
 	    != NULL);
-	assert(evrpc_add_hook(base, OUTPUT, rpc_hook_add_header, (void*)"output")
+	assert(evrpc_add_hook(base, EVRPC_OUTPUT, rpc_hook_add_header, (void*)"output")
 	    != NULL);
 
 	pool = rpc_pool_with_connection(port);
 
-	assert(evrpc_add_hook(pool, INPUT, rpc_hook_remove_header, (void*)"output"));
+	assert(evrpc_add_hook(pool, EVRPC_INPUT, rpc_hook_remove_header, (void*)"output"));
 
 	/* set up the basic message */
 	msg = msg_new();

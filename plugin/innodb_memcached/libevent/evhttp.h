@@ -35,8 +35,8 @@ extern "C" {
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 #endif
 
@@ -85,6 +85,24 @@ struct evhttp *evhttp_new(struct event_base *base);
  * @see evhttp_free()
  */
 int evhttp_bind_socket(struct evhttp *http, const char *address, u_short port);
+
+/**
+ * Makes an HTTP server accept connections on the specified socket
+ *
+ * This may be useful to create a socket and then fork multiple instances
+ * of an http server, or when a socket has been communicated via file
+ * descriptor passing in situations where an http servers does not have
+ * permissions to bind to a low-numbered port.
+ *
+ * Can be called multiple times to have the http server listen to
+ * multiple different sockets.
+ *
+ * @param http a pointer to an evhttp object
+ * @param fd a socket fd that is ready for accepting connections
+ * @return 0 on success, -1 on failure.
+ * @see evhttp_free(), evhttp_bind_socket()
+ */
+int evhttp_accept_socket(struct evhttp *http, int fd);
 
 /**
  * Free the previously created HTTP server.
@@ -198,7 +216,6 @@ struct {
 	char major;			/* HTTP Major number */
 	char minor;			/* HTTP Minor number */
 
-	int got_firstline;
 	int response_code;		/* HTTP Response code */
 	char *response_code_line;	/* Readable response */
 
@@ -249,6 +266,10 @@ void evhttp_connection_free(struct evhttp_connection *evcon);
 /** sets the ip address from which http connections are made */
 void evhttp_connection_set_local_address(struct evhttp_connection *evcon,
     const char *address);
+
+/** sets the local port from which http connections are made */
+void evhttp_connection_set_local_port(struct evhttp_connection *evcon,
+    unsigned short port);
 
 /** Sets the timeout for events related to this connection */
 void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
@@ -314,10 +335,20 @@ char *evhttp_decode_uri(const char *uri);
 
 /**
  * Helper function to parse out arguments in a query.
- * The arguments are separated by key and value.
- * URI should already be decoded.
+ *
+ * Parsing a uri like
+ *
+ *    http://foo.com/?q=test&s=some+thing
+ *
+ * will result in two entries in the key value queue.
+
+ * The first entry is: key="q", value="test"
+ * The second entry is: key="s", value="some thing"
+ *
+ * @param uri the request URI
+ * @param headers the head of the evkeyval queue
  */
-void evhttp_parse_query(const char *uri, struct evkeyvalq *);
+void evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
 
 
 /**

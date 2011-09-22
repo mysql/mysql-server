@@ -93,7 +93,7 @@ encode_int(struct evbuffer *evbuf, ev_uint32_t number)
 	int off = 1, nibbles = 0;
 	ev_uint8_t data[5];
 
-	memset(data, 0, sizeof(data));
+	memset(data, 0, sizeof(ev_uint32_t)+1);
 	while (number) {
 		if (off & 0x1)
 			data[off/2] = (data[off/2] & 0xf0) | (number & 0x0f);

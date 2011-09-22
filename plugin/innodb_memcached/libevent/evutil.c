@@ -29,11 +29,10 @@
 #endif
 
 #ifdef WIN32
+#include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
-#include <winsock2.h>
-#include "misc.h"
 #endif
 
 #include <sys/types.h>
@@ -50,6 +49,10 @@
 #include <stdlib.h>
 #endif
 #include <errno.h>
+#if defined WIN32 && !defined(HAVE_GETTIMEOFDAY_H)
+#include <sys/timeb.h>
+#endif
+#include <stdio.h>
 
 #include "evutil.h"
 #include "log.h"
@@ -194,5 +197,49 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	return (ev_int64_t) _strtoi64(s, endptr, base);
 #else
 #error "I don't know how to parse 64-bit integers."
+#endif
+}
+
+#ifndef HAVE_GETTIMEOFDAY
+int
+evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+	struct _timeb tb;
+
+	if(tv == NULL)
+		return -1;
+
+	_ftime(&tb);
+	tv->tv_sec = (long) tb.time;
+	tv->tv_usec = ((int) tb.millitm) * 1000;
+	return 0;
+}
+#endif
+
+int
+evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
+{
+	int r;
+	va_list ap;
+	va_start(ap, format);
+	r = evutil_vsnprintf(buf, buflen, format, ap);
+	va_end(ap);
+	return r;
+}
+
+int
+evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
+{
+#ifdef _MSC_VER
+	int r = _vsnprintf(buf, buflen, format, ap);
+	buf[buflen-1] = '\0';
+	if (r >= 0)
+		return r;
+	else
+		return _vscprintf(format, ap);
+#else
+	int r = vsnprintf(buf, buflen, format, ap);
+	buf[buflen-1] = '\0';
+	return r;
 #endif
 }
