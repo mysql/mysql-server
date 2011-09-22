@@ -174,10 +174,10 @@ add_subdirectory(unit)
 option(WITH_LIBEVENT "Use bundled libevent for building memcached" ON)
 
 if(WITH_MEMCACHE)
-  add_subdirectory(memcached)
+  add_subdirectory(extra/memcached)
 
   if(WITH_LIBEVENT)
-    add_subdirectory(libevent)
+    add_subdirectory(extra/libevent)
     add_dependencies(memcached event)
   endif()
 endif()
