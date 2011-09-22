@@ -54,7 +54,7 @@
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
-			      "MAYBE_REF","ALL","range","index","fulltext",
+			      "ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
                               "index_merge"
 };
