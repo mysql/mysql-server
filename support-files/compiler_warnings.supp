@@ -107,3 +107,8 @@ plugin/semisync/semisync_master.cc : .*may be used uninitialized in this functio
 storage/innobase/.* : .*
 client/mysqldump.c : .*may be used uninitialized in this function.*
 
+# 
+# Bundled memcached and libevent
+#
+storage/ndb/extra/.* : .*
+
