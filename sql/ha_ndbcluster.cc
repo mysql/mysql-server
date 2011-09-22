@@ -12670,7 +12670,7 @@ static int ndbcluster_init(void *p)
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
   ndbcluster_hton= (handlerton *)p;
-  ndbcluster_global_schema_lock_init();
+  ndbcluster_global_schema_lock_init(ndbcluster_hton);
 
   {
     handlerton *h= ndbcluster_hton;
