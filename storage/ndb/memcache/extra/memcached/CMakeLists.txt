@@ -88,6 +88,6 @@ CHECK_INCLUDE_FILES("sys/types.h;netinet/tcp.h" HAVE_NETINET_TCP_H)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in 
                ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
 
-install(PROGRAMS memcached DESTINATION ${INSTALL_SBINDIR}) 
+install(TARGETS memcached DESTINATION ${INSTALL_SBINDIR}) 
 
 
