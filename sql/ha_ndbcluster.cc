@@ -17836,7 +17836,7 @@ static MYSQL_SYSVAR_ULONG(
   "to cluster management and data nodes.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  0,                                 /* default */
+  30,                                /* default */
   0,                                 /* min */
   ONE_YEAR_IN_SECONDS,               /* max */
   0                                  /* block */
@@ -17851,7 +17851,7 @@ static MYSQL_SYSVAR_ULONG(
   "complete (0 = no wait)",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  15,                                /* default */
+  30,                                /* default */
   0,                                 /* min */
   ONE_YEAR_IN_SECONDS,               /* max */
   0                                  /* block */
