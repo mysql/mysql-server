@@ -1491,6 +1491,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
+
+    /*
+      Initialize thd->lex since it's used in many base functions, such as
+      open_tables(). Otherwise, it remains unitialized and may cause crash
+      during execution of COM_REFRESH.
+    */
+    lex_start(thd);
+    
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
@@ -6986,7 +6994,14 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (ha_flush_logs(NULL))
       result=1;
     if (flush_error_log())
-      result=1;
+    {
+      /*
+        When flush_error_log() failed, my_error() has not been called.
+        So, we have to do it here to keep the protocol.
+      */
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      result= 1;
+    }
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
@@ -7035,7 +7050,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 	return 1;                               // Killed
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
                               FALSE : TRUE, TRUE))
-          result= 1;
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
+        result= 1;
+      }
       
       if (make_global_read_lock_block_commit(thd)) // Killed
       {
@@ -7048,7 +7069,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     {
       if (close_cached_tables(thd, tables, FALSE, (options & REFRESH_FAST) ?
                               FALSE : TRUE, FALSE))
+      {
+        /*
+          NOTE: my_error() has been already called by reopen_tables() within
+          close_cached_tables().
+        */
         result= 1;
+      }
     }
     my_dbopt_cleanup();
   }
@@ -7065,7 +7092,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
     {
-      result=1;
+      /* NOTE: my_error() has been already called by reset_master(). */
+      result= 1;
     }
   }
 #endif
@@ -7073,7 +7101,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
-         result= 1;
+     {
+       /* NOTE: my_error() has been already called by load_des_key_file(). */
+       result= 1;
+     }
    }
 #endif
 #ifdef HAVE_REPLICATION
@@ -7082,7 +7113,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
    tmp_write_to_binlog= 0;
    pthread_mutex_lock(&LOCK_active_mi);
    if (reset_slave(thd, active_mi))
-     result=1;
+   {
+     /* NOTE: my_error() has been already called by reset_slave(). */
+     result= 1;
+   }
    pthread_mutex_unlock(&LOCK_active_mi);
  }
 #endif
