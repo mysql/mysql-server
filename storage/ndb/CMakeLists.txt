@@ -38,19 +38,14 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
 
     # Split the cluster_version further into Y.Y.Y subcomponents
     IF(${cluster_version} MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)")
-      SET(MYSQL_CLUSTER_VERSION_MAJOR ${CMAKE_MATCH_1} CACHE INTERNAL
-        "MySQL Cluster Major version calculated from MySQL version" FORCE)
-      SET(MYSQL_CLUSTER_VERSION_MINOR ${CMAKE_MATCH_2} CACHE INTERNAL
-        "MySQL Cluster Minor version calculated from MySQL version" FORCE)
-      SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3} CACHE INTERNAL
-        "MySQL Cluster Build version calculated from MySQL version" FORCE)
+      SET(MYSQL_CLUSTER_VERSION_MAJOR ${CMAKE_MATCH_1})
+      SET(MYSQL_CLUSTER_VERSION_MINOR ${CMAKE_MATCH_2})
+      SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3})
     ENDIF()
 
     # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
     # that this is a MySQL Cluster build, yay!
-    SET(MYSQL_CLUSTER_VERSION ${cluster_version} CACHE INTERNAL
-      "This is MySQL Cluster" FORCE)
-
+    SET(MYSQL_CLUSTER_VERSION ${cluster_version})
   ENDIF()
 ENDMACRO()
 
@@ -66,6 +61,62 @@ ENDIF()
 
 
 NDB_CHECK_MYSQL_CLUSTER(${VERSION})
+
+#
+# Add the ndbcluster plugin
+#
+SET(NDBCLUSTER_SOURCES
+  ../../sql/ha_ndbcluster.cc
+  ../../sql/ha_ndbcluster_cond.cc
+  ../../sql/ha_ndbcluster_push.cc
+  ../../sql/ha_ndbcluster_connection.cc
+  ../../sql/ha_ndbcluster_binlog.cc
+  ../../sql/ha_ndb_index_stat.cc
+  ../../sql/ha_ndbinfo.cc
+  ../../sql/ndb_local_connection.cc
+  ../../sql/ndb_share.cc
+  ../../sql/ndb_thd.cc
+  ../../sql/ndb_thd_ndb.cc
+  ../../sql/ndb_global_schema_lock.cc
+  ../../sql/ndb_mi.cc
+  ../../sql/ndb_conflict_trans.cc
+)
+
+# Inlude directories used when building ha_ndbcluster
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+
+# NDB is DEFAULT plugin in MySQL Cluster
+SET(is_default_plugin "")
+IF(MYSQL_CLUSTER_VERSION)
+  SET(is_default_plugin "DEFAULT")
+ENDIF()
+
+MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
+  ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+  LINK_LIBRARIES ndbclient_static)
+
+IF (NOT MCP_BUG58158)
+  IF(WITH_EMBEDDED_SERVER)
+    # Kludge libndbclient into variable used when creating libmysqld
+    SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
+      ndbclient_static CACHE INTERNAL "" FORCE)
+  ENDIF()
+ENDIF()
+
+
+#
+# Add NDB binaries if ndbcluster is built
+#
+IF (NOT DEFINED WITH_NDBCLUSTER)
+  # Not building NDB 
+  IF(MYSQL_CLUSTER_VERSION)
+    MESSAGE(FATAL_ERROR "This is MySQL Cluster, you can't build it without the NDB engine")
+  ENDIF()
+
+  RETURN()
+ENDIF()
+
+MESSAGE(STATUS "Building NDB")
 
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
 
@@ -168,39 +219,3 @@ ADD_SUBDIRECTORY(memcache)
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
 ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
-
-SET(NDBCLUSTER_SOURCES
-  ../../sql/ha_ndbcluster.cc
-  ../../sql/ha_ndbcluster_cond.cc
-  ../../sql/ha_ndbcluster_push.cc
-  ../../sql/ha_ndbcluster_connection.cc
-  ../../sql/ha_ndbcluster_binlog.cc
-  ../../sql/ha_ndb_index_stat.cc
-  ../../sql/ha_ndbinfo.cc
-  ../../sql/ndb_local_connection.cc
-  ../../sql/ndb_share.cc
-  ../../sql/ndb_thd.cc
-  ../../sql/ndb_thd_ndb.cc
-  ../../sql/ndb_global_schema_lock.cc
-  ../../sql/ndb_mi.cc
-  ../../sql/ndb_conflict_trans.cc
-)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
-  
-# NDB is DEFAULT plugin in MySQL Cluster
-SET(is_default_plugin "")
-IF(MYSQL_CLUSTER_VERSION)
-  SET(is_default_plugin "DEFAULT")
-ENDIF()
-
-MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-  ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
-  LINK_LIBRARIES ndbclient_static)
-
-IF (NOT MCP_BUG58158)
-  IF(WITH_EMBEDDED_SERVER)
-    # Kludge libndbclient into variable used when creating libmysqld
-    SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
-      ndbclient_static CACHE INTERNAL "" FORCE)
-  ENDIF()
-ENDIF()
