@@ -30,6 +30,10 @@ Created 03/15/2011      Jimmy Yang
 #include "innodb_engine.h"
 #include "assert.h"
 
+/** Defines for handler_unlock_table()'s mode field */
+#define HDL_READ	0x1
+#define HDL_WRITE	0x2
+
 /**********************************************************************//**
 Creates a THD object.
 @return a pointer to the THD object, NULL if failed */
@@ -56,7 +60,9 @@ extern
 void
 handler_binlog_row(
 /*===============*/
-	void*		my_table);	/*!< in: table metadata */
+	void*		my_table,	/*!< in: table metadata */
+	int		mode);		/*!< in: type of DML */
+
 
 /**********************************************************************//**
 Flush binlog from cache to binlog file */
@@ -95,7 +101,16 @@ handler_rec_setup_int(
 	void*		my_table,	/*!< in/out: TABLE structure */
 	int		field_id,	/*!< in: Field ID for the field */
 	int		value,		/*!< in: value to set */
-	bool		unsigned_flag);	/*!< in: whether it is unsigned */
+	bool		unsigned_flag,	/*!< in: whether it is unsigned */
+	bool		is_null);	/*!< in: whether it is null value */
+
+/**********************************************************************//**
+copy an record */
+extern
+void
+handler_store_record(
+/*=================*/
+        void*                   table);         /*!< in: TABLE */
 
 /**********************************************************************//**
 Unlock a table and commit the transaction
@@ -114,6 +129,7 @@ typedef struct mci_column {
 	uint64_t	m_digit;
 	bool		m_is_str;
 	bool		m_enabled;
+	bool		m_is_null;
 } mci_column_t;
 
 /** We would need to fetch 5 values from each key value rows if they
@@ -123,9 +139,9 @@ are available. They are the "key", "value", "cas", "exp" and "flag" */
 enum mci_item_idx {
 	MCI_COL_KEY,
 	MCI_COL_VALUE,
+	MCI_COL_FLAG,
 	MCI_COL_CAS,
-	MCI_COL_EXP,
-	MCI_COL_FLAG
+	MCI_COL_EXP
 };
 
 typedef struct mci_items {

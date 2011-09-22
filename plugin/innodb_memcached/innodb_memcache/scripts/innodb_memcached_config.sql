@@ -80,7 +80,7 @@ USE test
 
 CREATE TABLE demo_test (c1 VARCHAR(32),
 			c2 VARCHAR(1024),
-			c3 INT, c4 BIGINT UNSIGNED, C5 INT, primary key(c1))
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 
 INSERT INTO demo_test VALUES ("AA", "HELLO, HELLO", 8, 0, 0);

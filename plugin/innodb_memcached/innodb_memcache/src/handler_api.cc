@@ -100,14 +100,25 @@ Wrapper of function binlog_log_row() to binlog an operation on a row */
 void
 handler_binlog_row(
 /*===============*/
-	void*		my_table)	/*!< in: TABLE structure */
+	void*		my_table,	/*!< in: TABLE structure */
+	int		mode)		/*!< in: type of DML */
 {
 	TABLE*		table = (TABLE*) my_table;
 	Log_func	*log_func;
 
-	log_func = Write_rows_log_event::binlog_row_logging_function;
 
-	binlog_log_row(table, 0, table->record[0], log_func);
+	if (mode == HDL_UPDATE) {
+		assert(table->record[1]);
+		log_func = Update_rows_log_event::binlog_row_logging_function;
+		binlog_log_row(table, table->record[1], table->record[0],
+			       log_func);
+	} else if (mode == HDL_INSERT) {
+		log_func = Write_rows_log_event::binlog_row_logging_function;
+		binlog_log_row(table, 0, table->record[0], log_func);
+	} else if (mode == HDL_DELETE) {
+		log_func = Delete_rows_log_event::binlog_row_logging_function;
+		binlog_log_row(table, table->record[0], 0, log_func);
+	}
 }
 
 /**********************************************************************//**
@@ -119,9 +130,15 @@ handler_binlog_flush(
 	void*		my_table)	/*!< in: TABLE structure */
 {
 	THD*		thd = (THD*) my_thd;
+	int		ret;
 
 	thd->binlog_write_table_map((TABLE*) my_table, 1, 0);
-	tc_log->log_xid(thd, 0);
+	ret = tc_log->log_xid(thd, 0);
+	
+	if (ret) {
+		tc_log->unlog(ret, 0);
+	}
+	ret = trans_commit_stmt(thd);
 }
 
 /**********************************************************************//**
@@ -141,7 +158,7 @@ handler_rec_setup_str(
 /*==================*/
 	void*		my_table,	/*!< in/out: TABLE structure */
 	int		field_id,	/*!< in: Field ID for the field */
-	const char*		str,		/*!< in: string to set */
+	const char*	str,		/*!< in: string to set */
 	int		len)		/*!< in: length of string */
 {
 	Field*		fld;
@@ -164,15 +181,30 @@ handler_rec_setup_int(
 	void*		my_table,	/*!< in/out: TABLE structure */
 	int		field_id,	/*!< in: Field ID for the field */
 	int		value,		/*!< in: value to set */
-	bool		unsigned_flag)	/*!< in: whether it is unsigned */
+	bool		unsigned_flag,	/*!< in: whether it is unsigned */
+	bool		is_null)	/*!< in: whether it is null value */
 {
 	Field*		fld;
 	TABLE*		table = (TABLE*) my_table;
 
 	fld = table->field[field_id];
-	fld->store(value, unsigned_flag);
-}
 
+	if (is_null) {
+		fld->set_null();
+	} else {
+		fld->set_notnull();
+		fld->store(value, unsigned_flag);
+	}
+}
+/**********************************************************************//**
+copy an record */
+void
+handler_store_record(
+/*=================*/
+	void*		table)		/*!< in: TABLE */
+{
+	store_record((TABLE*) table, record[1]);
+}
 /**********************************************************************//**
 close an handler */
 void
@@ -362,16 +394,16 @@ handler_unlock_table(
 /*=================*/
 	void*		my_thd,		/*!< in: thread */
 	void*		my_table,	/*!< in: Table metadata */
-	int		my_lock_mode)	/*!< in: lock mode */
+	int		mode)		/*!< in: mode */
 {
 	int			result;
 	THD*			thd = (THD*) my_thd;
 	TABLE*			table = (TABLE*) my_table;
 	enum thr_lock_type	lock_mode;
 
-	lock_mode = (my_lock_mode < TL_IGNORE) 
+	lock_mode = (mode & HDL_READ) 
 			? TL_READ
-			: (enum thr_lock_type) my_lock_mode;
+			: TL_WRITE;
 	
 	if (lock_mode == TL_WRITE) {
 		query_cache_invalidate3(thd, table, 1);
@@ -384,7 +416,7 @@ handler_unlock_table(
 		mysql_unlock_tables(thd, thd->lock);
 	}
 
-	close_thread_tables(thd);
+	close_mysql_tables(thd);
 	thd->lock = 0;
 
 	return(result);

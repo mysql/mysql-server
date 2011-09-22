@@ -48,7 +48,6 @@ Created 3/14/2011 Jimmy Yang
 #include "sql_handler.h"
 #include "handler.h"
 
-
 typedef struct field_arg {
 	unsigned int	num_arg;
 	int*	len;
@@ -77,6 +76,15 @@ typedef struct field_arg {
 		field->num_arg = 0;					\
 	} while(0)
 
+/** Defines for handler_unlock_table()'s mode field */
+#define HDL_READ	0x1
+#define HDL_WRITE	0x2
+
+/** Defines for handler_binlog_row()'s mode field */
+#define HDL_UPDATE	1
+#define HDL_INSERT	2
+#define HDL_DELETE	3
+
 extern "C" {
 /**********************************************************************//**
 Creates a THD object.
@@ -101,7 +109,8 @@ Wrapper of function binlog_log_row() to binlog an operation on a row */
 void
 handler_binlog_row(
 /*===============*/
-	void*		my_table);	/*!< in: Table metadata */
+	void*		my_table,	/*!< in: Table metadata */
+	int		mode);		/*!< in: type of DML */
 
 /**********************************************************************//**
 Flush binlog from cache to binlog file */
@@ -143,7 +152,8 @@ handler_rec_setup_int(
         void*		table,		/*!< in/out: TABLE structure */
         int		field_id,	/*!< in: Field ID for the field */
         int		value,		/*!< in: value to set */
-        bool		unsigned_flag);	/*!< in: whether it is unsigned */
+	bool		unsigned_flag,	/*!< in: whether it is unsigned */
+	bool		is_null);	/*!< in: whether it is null value */
 /**********************************************************************//**
 Unlock a table and commit the transaction
 return 0 if fail to commit the transaction */
@@ -152,21 +162,27 @@ handler_unlock_table(
 /*=================*/
 	void*			my_thd,		/*!< in: thread */
 	void*			my_table,	/*!< in: Table metadata */
-	int			my_lock_mode);	/*!< in: lock mode */
+	int			mode);		/*!< in: mode */
 /**********************************************************************//**
 close an handler */
 void
 handler_close_thd(
 /*==============*/
 	void*			my_thd);	/*!< in: thread */
+/**********************************************************************//**
+copy an record */
+void
+handler_store_record(
+/*=================*/
+	void*			table);		/*!< in: TABLE */
 }
 
 /**********************************************************************//**
 binlog a row operation */
 extern
 int
- binlog_log_row(
-/*============*/
+binlog_log_row(
+/*===========*/
 	TABLE*		table,		/*!< in: ptr to TABLE */
 	const uchar	*before_record,	/*!< in: Before image of record */
 	const uchar	*after_record,	/*!< in: Current image of record */

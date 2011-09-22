@@ -252,13 +252,15 @@ innodb_conn_clean(
 
 			if (conn_data->mysql_tbl) {
 				assert(conn_data->thd);
-				/* handler_unlock_table(conn_data->thd,
+				handler_unlock_table(conn_data->thd,
 						     conn_data->mysql_tbl,
-						     -3); */
+						     HDL_READ);
 			}
 
 			if (conn_data->thd) {
 				innodb_cb_close_thd(conn_data->thd);
+				handler_close_thd(conn_data->thd);
+				conn_data->thd = NULL;
 			}
 
 			free(conn_data);
