@@ -875,6 +875,8 @@ TRACE
                     } /* best_access_path */,
                     "cost_for_plan": 5.2196,
                     "rows_for_plan": 4,
+                    "sort_cost": 4,
+                    "new_cost_for_plan": 9.2196,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -1187,6 +1189,8 @@ TRACE
                       } /* best_access_path */,
                       "cost_for_plan": 2.6066,
                       "rows_for_plan": 3,
+                      "sort_cost": 3,
+                      "new_cost_for_plan": 5.6066,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */

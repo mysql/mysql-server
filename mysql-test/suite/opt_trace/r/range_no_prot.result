@@ -822,6 +822,8 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
                 } /* best_access_path */,
                 "cost_for_plan": 71.2,
                 "rows_for_plan": 103,
+                "sort_cost": 103,
+                "new_cost_for_plan": 174.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1355,6 +1357,8 @@ GROUP BY key2	{
                 } /* best_access_path */,
                 "cost_for_plan": 21.124,
                 "rows_for_plan": 5,
+                "sort_cost": 5,
+                "new_cost_for_plan": 26.124,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -4876,6 +4880,8 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 } /* best_access_path */,
                 "cost_for_plan": 3.81,
                 "rows_for_plan": 2,
+                "sort_cost": 2,
+                "new_cost_for_plan": 5.81,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -5198,6 +5204,8 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 } /* best_access_path */,
                 "cost_for_plan": 2.4049,
                 "rows_for_plan": 2,
+                "sort_cost": 2,
+                "new_cost_for_plan": 4.4049,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -6527,6 +6535,8 @@ GROUP BY field1	{
                     } /* best_access_path */,
                     "cost_for_plan": 9.8133,
                     "rows_for_plan": 16,
+                    "sort_cost": 16,
+                    "new_cost_for_plan": 25.813,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -6562,7 +6572,9 @@ GROUP BY field1	{
                     } /* best_access_path */,
                     "cost_for_plan": 12.253,
                     "rows_for_plan": 16,
-                    "chosen": true
+                    "sort_cost": 16,
+                    "new_cost_for_plan": 28.253,
+                    "chosen": false
                   }
                 ] /* rest_of_plan */
               }
