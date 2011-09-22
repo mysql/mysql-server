@@ -25,7 +25,9 @@
 
 #cmakedefine HAVE_MACH_MACH_TIME_H
 #cmakedefine HAVE_SRANDOMDEV
+#ifndef HAVE_GETHRTIME
 #cmakedefine HAVE_GETHRTIME
+#endif
 #cmakedefine HAVE_GETHRVTIME
 #cmakedefine HAVE_MEMSET
 

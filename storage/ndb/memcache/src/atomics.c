@@ -44,13 +44,4 @@ int atomic_cmp_swap_ptr_nobarrier(volatile void **loc, void *old, void *new) {
   return (atomic_cas_ptr(loc, old, new) == old);
 }
 
-Int32 atomic_add_int(ndbmc_atomic32_t *loc, Int32 amount) {
-  Int 32 nv;
-
-  membar_enter();
-  nv = atomic_add_32_nv(loc, amount);
-  membar_exit();
-  return nv;
-}
-
 #endif
