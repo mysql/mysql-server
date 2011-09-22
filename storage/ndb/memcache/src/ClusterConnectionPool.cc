@@ -52,7 +52,7 @@ ClusterConnectionPool *get_connection_pool_for_cluster(const char * name) {
 }
 
 
-bool store_connection_pool_for_cluster(const char *name, 
+void store_connection_pool_for_cluster(const char *name, 
                                        const ClusterConnectionPool *p) {
   DEBUG_ENTER();
   if(name == 0) name = "[default]";
