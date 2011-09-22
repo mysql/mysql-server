@@ -67,6 +67,7 @@ typedef volatile Uint32 ndbmc_atomic32_t;
 */
 
 #ifdef USE_DARWIN_ATOMICS
+#define atomic_add_int(loc, amount) OSAtomicAdd32Barrier(amount, loc)
 #define atomic_cmp_swap_int(loc, old, new) OSAtomicCompareAndSwap32Barrier(old, new, loc)
 #define atomic_cmp_swap_ptr(loc, old, new) OSAtomicCompareAndSwapPtrBarrier(old, new, loc)
 
@@ -74,6 +75,16 @@ typedef volatile Uint32 ndbmc_atomic32_t;
 #define atomic_cmp_swap_int(loc, old, new) \
   __sync_bool_compare_and_swap(loc, (Uint32) old, (Uint32) new)
 #define atomic_cmp_swap_ptr(loc, old, new) __sync_bool_compare_and_swap(loc, old, new)
+#define atomic_add_int(loc, amount) __sync_fetch_and_add(loc, amount)
+
+#else
+
+DECLARE_FUNCTIONS_WITH_C_LINKAGE
+
+int atomic_cmp_swap_int(ndbmc_atomic32_t *loc, int oldvalue, int newvalue);
+int atomic_cmp_swap_ptr(void * volatile *loc, void *oldvalue, void *newvalue);
+
+END_FUNCTIONS_WITH_C_LINKAGE
 #endif
 
 #endif
