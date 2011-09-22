@@ -291,7 +291,8 @@ class set_var_base;
   tells whether we are choosing the said optimization), "cause" (free text
   value, tells why we are making this choice, when it's not obvious)
   can and should often be used. Having a restricted vocabulary helps
-  consistency.
+  consistency. Use "row" instead of "record". Use "tmp" instead of
+  "temporary".
 
   @li Use only simple characters for key names: a-ZA-Z_#, and no space. '#'
   serves to denote a number, like in "select#" .
@@ -623,25 +624,25 @@ public:
   {
     if (likely(!started))
       return *this;
-    return do_add(key, (longlong)value);
+    return do_add(key, static_cast<longlong>(value));
   }
   Opt_trace_struct& add(int value)
   {
     if (likely(!started))
       return *this;
-    return do_add(NULL, (longlong)value);
+    return do_add(NULL, static_cast<longlong>(value));
   }
   Opt_trace_struct& add(const char *key, uint value)
   {
     if (likely(!started))
       return *this;
-    return do_add(key, (ulonglong)value);
+    return do_add(key, static_cast<ulonglong>(value));
   }
   Opt_trace_struct& add(uint value)
   {
     if (likely(!started))
       return *this;
-    return do_add(NULL, (ulonglong)value);
+    return do_add(NULL, static_cast<ulonglong>(value));
   }
   Opt_trace_struct& add(const char *key, longlong value)
   {
