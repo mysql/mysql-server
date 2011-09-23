@@ -1347,8 +1347,8 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_pushed_queries_dropped= 0;
   m_pushed_queries_executed= 0;
   m_pushed_reads= 0;
-  bzero(m_transaction_no_hint_count, sizeof(m_transaction_no_hint_count));
-  bzero(m_transaction_hint_count, sizeof(m_transaction_hint_count));
+  memset(m_transaction_no_hint_count, 0, sizeof(m_transaction_no_hint_count));
+  memset(m_transaction_hint_count, 0, sizeof(m_transaction_hint_count));
   global_schema_lock_trans= NULL;
   global_schema_lock_count= 0;
   global_schema_lock_error= 0;
@@ -6195,7 +6195,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
             production code.
           */
           if (actual_length < field->pack_length())
-            bzero(field->ptr + actual_length,
+            memset(field->ptr + actual_length, 0,
                   field->pack_length() - actual_length);
 #endif
           field->move_field_offset(-dst_offset);
@@ -6259,7 +6259,7 @@ static void get_default_value(void *def_val, Field *field)
           memcpy(def_val, src_ptr, actual_length);
 #ifdef HAVE_purify
           if (actual_length < field->pack_length())
-            bzero(((char*)def_val) + actual_length,
+            memset(((char*)def_val) + actual_length, 0,
                   field->pack_length() - actual_length);
 #endif
         }
@@ -7068,7 +7068,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 {
   DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
 
-  memset((char*) stat_info, 0, sizeof(PARTITION_STATS));
+  memset(stat_info, 0, sizeof(PARTITION_STATS));
   int error = 0;
   THD *thd = table->in_use;
 
