@@ -766,7 +766,9 @@ int ca_counter= 0;
 int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
 {
   Gcalc_point_iterator pi(si);
+#ifdef TMP_BLOCK
   const Gcalc_heap::Info *event_point= NULL;
+#endif /*TMP_BLOCK*/
   int prev_state= 0;
   int sav_prev_state;
   active_thread *prev_range= NULL;
@@ -858,8 +860,10 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   {
     active_thread *cur_t= *cur_t_hook;
 
+#ifdef TMP_BLOCK
     if (!event_point && events->event != scev_intersection)
       event_point= events->pi;
+#endif /*TMP_BLOCK*/
     if (events->event == scev_single_point)
       continue;
 
