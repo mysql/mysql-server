@@ -7,7 +7,7 @@ libdir=@INSTALL_LIBDIR@
 scriptsdir=@INSTALL_SCRIPTDIR@
 memcachedir=@MEMCACHED_ROOT_DIR@
 sourcetree=@CMAKE_CURRENT_SOURCE_DIR@
-installtree=@CMAKE_BINARY_DIR@/memcache-api
+installtree=@CMAKE_INSTALL_PREFIX@/memcache-api
 memcached_binary=@MEMCACHED_BIN_PATH@
 
 MYSQL_PREFIX=$prefix
