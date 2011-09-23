@@ -250,15 +250,4 @@ uint partition_info_num_subparts(const partition_info* part_info)
 
 #endif
 
-#if MYSQL_VERSION_ID >= 50603
-
-/*
-  Allow use of bzero although MySQL header files redefine
-  it to an invalid symbol, will actually fix this by replacing bzero
-  with memset in sql/ha_ndb*
-*/
-#undef bzero
-#include <strings.h>
-#endif
-
 #endif
