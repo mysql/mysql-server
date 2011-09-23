@@ -305,8 +305,17 @@ bool Geometry::envelope(String *result) const
   MBR mbr;
   const char *end;
 
-  if (get_mbr(&mbr, &end) ||
-      result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10))
+  if (get_mbr(&mbr, &end))
+  {
+    /* Empty geometry */
+    if (result->reserve(1 + 4*2))
+      return 1;
+    result->q_append((char) wkb_ndr);
+    result->q_append((uint32) wkb_geometrycollection);
+    result->q_append((uint32) 0);
+    return 0;
+  }
+  if (result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10))
     return 1;
 
   result->q_append((char) wkb_ndr);

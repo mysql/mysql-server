@@ -236,8 +236,8 @@ fid	AsText(Envelope(g))
 119	POLYGON((0 0,3 0,3 3,0 3,0 0))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
-122	NULL
-123	NULL
+122	GEOMETRYCOLLECTION EMPTY
+123	GEOMETRYCOLLECTION EMPTY
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	23	100.00	
@@ -404,22 +404,22 @@ Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
-120	120	1	1	0	1	0	1	1	1
+120	120	1	1	0	1	0	1	1	0
 120	121	0	0	1	0	0	0	1	0
-120	122	0	1	NULL	NULL	NULL	0	NULL	0
-120	123	0	1	NULL	NULL	NULL	0	NULL	0
+120	122	0	1	NULL	0	NULL	0	NULL	0
+120	123	0	1	NULL	0	NULL	0	NULL	0
 121	120	0	0	1	0	0	0	1	0
-121	121	1	1	0	1	0	1	1	1
-121	122	0	1	NULL	NULL	NULL	0	NULL	0
-121	123	0	1	NULL	NULL	NULL	0	NULL	0
-122	120	1	0	NULL	NULL	NULL	0	NULL	0
-122	121	1	0	NULL	NULL	NULL	0	NULL	0
-122	122	1	1	NULL	NULL	NULL	0	NULL	0
-122	123	1	1	NULL	NULL	NULL	0	NULL	0
-123	120	1	0	NULL	NULL	NULL	0	NULL	0
-123	121	1	0	NULL	NULL	NULL	0	NULL	0
-123	122	1	1	NULL	NULL	NULL	0	NULL	0
-123	123	1	1	NULL	NULL	NULL	0	NULL	0
+121	121	1	1	0	1	0	1	1	0
+121	122	0	1	NULL	0	NULL	0	NULL	0
+121	123	0	1	NULL	0	NULL	0	NULL	0
+122	120	1	0	NULL	0	NULL	0	NULL	0
+122	121	1	0	NULL	0	NULL	0	NULL	0
+122	122	1	1	NULL	1	NULL	0	NULL	0
+122	123	1	1	NULL	1	NULL	0	NULL	0
+123	120	1	0	NULL	0	NULL	0	NULL	0
+123	121	1	0	NULL	0	NULL	0	NULL	0
+123	122	1	1	NULL	1	NULL	0	NULL	0
+123	123	1	1	NULL	1	NULL	0	NULL	0
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
@@ -429,7 +429,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
 1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (flat, BNL join)
 Warnings:
-Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,st_within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,st_contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
+Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,st_within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,st_contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,st_equals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
 gp  point,
@@ -867,7 +867,7 @@ mbroverlaps
 down,left,right,up
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrtouches   FROM t1 a1 JOIN t1 a2 ON MBRTouches(    a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrtouches
-big,down2,left,left2,right,right2,small,up2
+big,center,down,down2,left,left2,right,right2,small,up,up2
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrwithin    FROM t1 a1 JOIN t1 a2 ON MBRWithin(     a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 mbrwithin
 big,center
@@ -888,7 +888,7 @@ overlaps
 down,left,right,up
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS touches      FROM t1 a1 JOIN t1 a2 ON Touches(       a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 touches
-big,down2,left,left2,right,right2,small,up2
+big,center,down,down2,left,left2,right,right2,small,up,up2
 SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS within       FROM t1 a1 JOIN t1 a2 ON Within(        a1.square, a2.square) WHERE a1.name = "center" GROUP BY a1.name;
 within
 big,center
