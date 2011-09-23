@@ -2,12 +2,14 @@
 import datetime
 
 # generate sql write queries
-def mysqlgen_select_for_update(k, kv):
+def mysqlgen_select_for_update(k, kv, c, cv):
     print "select * from t where %s=%s for update;" % (k, kv)
 def mysqlgen_update(k, kv, c, cv):
-    print "update t where %s=%s set %s=%s+1;" % (k, kv, kv, kv);
+    print "update t where %s=%s set %s=%s+1;" % (k, kv, c, c);
 def mysqlgen_insert(k, kv, c, cv):
     print "insert t values(%s, %s);" % (kv, cv)
+def mysqlgen_insert_on_dup_update(k, kv, c, cv):
+    print "insert t values(%s, %s) on duplicate key update %s=%s+1;" % (kv, cv, c, c)
 def mysqlgen_replace(k, kv, c, cv):
     print "replace t values(%s, %s);" % (kv, cv)
 
@@ -22,8 +24,6 @@ def mysqlgen_prepare():
     print "# prepare with some common parameters"
     print "set storage_engine=tokudb;"
     print "connect(conn1, localhost, root);"
-    # ONLY connection 1 should have autocommit off.
-    print "set autocommit=off;"
     print "connect(conn2, localhost, root);"
     print "connection conn1;"
     print ""
@@ -41,6 +41,9 @@ def mysqlgen_cleanup():
     print "drop table t;"
     print "set global tokudb_lock_timeout=30000000;"
     print ""
+
+def expect_lock_timeout():
+    print "--error ER_LOCK_WAIT_TIMEOUT"
 
 # Here's where all the magic happens
 print "# Tokutek"
@@ -67,12 +70,18 @@ for timeout in ["0", "1000000"]:
         for tb, qb in write_queries:
             print "# testing conflict \"%s\" vs. \"%s\"" % (ta, tb)
             print "connection conn1;"
+            print "set autocommit=off;"
             print "begin;"
             print ""
 
             # point lock
             print "#TODO: Test point lock"
-            print ""
+            qa("a", 1, "b", 100)
+            print "connection conn2;"
+            for k in range(1, 5):
+                if k == 1:
+                    print "--error ER_LOCK_WAIT_TIMEOUT"
+                qb("a", k, "b", 100)
 
             # range lock
             print "#TODO: Test range lock"
