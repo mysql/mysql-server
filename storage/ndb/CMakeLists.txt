@@ -95,15 +95,6 @@ MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
   ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
   LINK_LIBRARIES ndbclient_static)
 
-IF (NOT MCP_BUG58158)
-  IF(WITH_EMBEDDED_SERVER)
-    # Kludge libndbclient into variable used when creating libmysqld
-    SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
-      ndbclient_static CACHE INTERNAL "" FORCE)
-  ENDIF()
-ENDIF()
-
-
 #
 # Add NDB binaries if ndbcluster is built
 #
