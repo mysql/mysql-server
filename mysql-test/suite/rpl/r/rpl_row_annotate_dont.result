@@ -109,7 +109,7 @@ slave-bin.000001	#	Rotate	2	#	slave-bin.000002;pos=4
 ########################################################################
 # INSERTs DELAYED ON MASTERs
 ########################################################################
-SET SESSION binlog_annotate_rows_events = ON;
+SET SESSION binlog_annotate_row_events = ON;
 INSERT DELAYED INTO test1.t4 VALUES (1,1);
 FLUSH TABLES;
 SELECT * FROM test1.t4 ORDER BY a;

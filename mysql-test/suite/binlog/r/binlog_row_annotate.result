@@ -427,7 +427,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 #
 #####################################################################################
-# mysqlbinlog --skip-annotate-rows-events
+# mysqlbinlog --skip-annotate-row-events
 # No Annotates should appear in this output
 #####################################################################################
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
@@ -1013,7 +1013,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 #
 #####################################################################################
-# mysqlbinlog --read-from-remote-server --skip-annotate-rows-events
+# mysqlbinlog --read-from-remote-server --skip-annotate-row-events
 # No Annotates should appear in this output
 #####################################################################################
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;

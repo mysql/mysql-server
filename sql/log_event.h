@@ -3082,7 +3082,7 @@ char *str_to_hex(char *to, const char *from, uint len);
 /**
   @class Annotate_rows_log_event
 
-  In row-based mode, if binlog_annotate_rows_events = ON, each group of
+  In row-based mode, if binlog_annotate_row_events = ON, each group of
   Table_map_log_events is preceded by an Annotate_rows_log_event which
   contains the query which caused the subsequent rows operations.
 

@@ -460,7 +460,7 @@ struct system_variables
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
   ulong progress_report_time;
-  my_bool binlog_annotate_rows_events;
+  my_bool binlog_annotate_row_events;
   my_bool binlog_direct_non_trans_update;
   /*
     In slave thread we need to know in behalf of which

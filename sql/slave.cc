@@ -2013,7 +2013,7 @@ static int request_dump(MYSQL* mysql, Master_info* mi,
   
   *suppress_warnings= FALSE;
 
-  if (opt_log_slave_updates && opt_replicate_annotate_rows_events)
+  if (opt_log_slave_updates && opt_replicate_annotate_row_events)
     binlog_flags|= BINLOG_SEND_ANNOTATE_ROWS_EVENT;
 
   // TODO if big log files: Change next to int8store()
@@ -3077,11 +3077,11 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   /*
-    binlog_annotate_rows_events must be TRUE only after an Annotate_rows event
+    binlog_annotate_row_events must be TRUE only after an Annotate_rows event
     has been recieved and only till the last corresponding rbr event has been
     applied. In all other cases it must be FALSE.
   */
-  thd->variables.binlog_annotate_rows_events= 0;
+  thd->variables.binlog_annotate_row_events= 0;
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);

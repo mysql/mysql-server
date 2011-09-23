@@ -1978,10 +1978,10 @@ static sys_var_const    sys_log_slave_updates(&vars, "log_slave_updates",
                                               OPT_GLOBAL, SHOW_MY_BOOL,
                                               (uchar*) &opt_log_slave_updates);
 static sys_var_const
-sys_replicate_annotate_rows_events(&vars,
-                                "replicate_annotate_rows_events",
+sys_replicate_annotate_row_events(&vars,
+                                "replicate_annotate_row_events",
                                 OPT_GLOBAL, SHOW_MY_BOOL,
-                                (uchar*) &opt_replicate_annotate_rows_events);
+                                (uchar*) &opt_replicate_annotate_row_events);
 static sys_var_const    sys_relay_log(&vars, "relay_log",
                                       OPT_GLOBAL, SHOW_CHAR_PTR,
                                       (uchar*) &opt_relay_logname);

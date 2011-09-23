@@ -2010,7 +2010,7 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       /*
         Annotating delayed inserts is not supported.
       */
-      di->thd.variables.binlog_annotate_rows_events= 0;
+      di->thd.variables.binlog_annotate_row_events= 0;
 
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name, MYF(MY_WME)), 0);
