@@ -576,22 +576,10 @@ void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
       assert("How did we get here?" == 0);
   }
   
-  tx->close();
-  
-  // If this was a synchronous call, the server is waiting for us 
-  if(wqitem->base.is_sync) {
-    wqitem->status = return_status;
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
-    pipeline->scheduler->yield(wqitem);
-  }
-  else {
-    /* The workitem was allocated back in the engine thread; if used in a
-       callback, it would be freed there, too.  But we must free it here.
-    */
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem->previous);
-    pipeline->scheduler->io_completed(wqitem);
-    workitem_free(wqitem);
-  }
+  tx->close();  
+  wqitem->status = return_status;
+  pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
+  pipeline->scheduler->yield(wqitem);
 }
 
 
@@ -766,18 +754,9 @@ void incr_callback(int result, NdbTransaction *tx, void *itemptr) {
   
   tx->close();
   
-  if(wqitem->base.is_sync) {
-    wqitem->status = return_status;
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
-    pipeline->scheduler->yield(wqitem);    
-  }
-  else {
-    /* The workitem was allocated back in the engine thread; if used in a
-       callback, it would be freed there, too.  But we must free it here.  */
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem->previous);
-    pipeline->scheduler->io_completed(wqitem);
-    workitem_free(wqitem);
-  }
+  wqitem->status = return_status;
+  pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
+  pipeline->scheduler->yield(wqitem);    
 }
 
 

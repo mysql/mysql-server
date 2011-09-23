@@ -15,8 +15,7 @@ set(UNIT_SOURCE_FILES
 add_executable(run_unit_tests ${UNIT_SOURCE_FILES})
 target_link_libraries(run_unit_tests ndbmemcache)
 
-add_executable(test_workqueue test_workqueue.c)
-target_link_libraries(test_workqueue ndbmemcache)
+add_executable(test_workqueue test_workqueue.c ../src/workqueue.c)
 
 # Tests which can run without a cluster:
 
