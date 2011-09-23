@@ -4654,12 +4654,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            char *db,
                            const char *table_name,
                            const char *path,
-#ifndef MCP_WL3749
-                           TABLE **repartitioned_table,
-                           bool *is_fast_alter_partitioning)
-#else
                            TABLE **fast_alter_table)
-#endif
 {
   TABLE *new_table= NULL;
   DBUG_ENTER("prep_alter_part_table");
@@ -4710,9 +4705,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     new_table= open_table_uncached(thd, path, db, table_name, 0);
     if (!new_table)
       DBUG_RETURN(TRUE);
-#ifndef MCP_WL3749
-    *repartitioned_table= new_table;
-#endif
+
     /*
       This table may be used for copy rows between partitions
       and also read/write columns when fixing the partition_info struct.
@@ -4724,18 +4717,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     if (alter_info->flags & ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
-#ifndef MCP_WL3749
-      /* 'ALTER TABLE t REORG PARTITION' only allowed with auto partition 
-          if default partitioning is used */
-      if (tab_part_info->part_type != HASH_PARTITION ||
-          (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION &&
-           !tab_part_info->use_default_num_partitions) ||
-          ((!table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
-           tab_part_info->use_default_num_partitions))
-#else
       if (tab_part_info->part_type != HASH_PARTITION ||
           tab_part_info->use_default_num_partitions)
-#endif
       {
         my_error(ER_REORG_NO_PARAM_ERROR, MYF(0));
         goto err;
@@ -4749,15 +4732,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           after the change as before. Thus we can reply ok immediately
           without any changes at all.
         */
-#ifndef MCP_WL3749
-        flags= new_table->file->alter_table_flags(alter_info->flags);
-        if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
-        {
-          *is_fast_alter_partitioning= TRUE;
-        }
-#else
         *fast_alter_table= new_table;
-#endif
         thd->work_part_info= tab_part_info;
         DBUG_RETURN(FALSE);
       }
@@ -4782,23 +4757,13 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     }
     if (!(flags= new_table->file->alter_table_flags(alter_info->flags)))
     {
-       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
+      my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
     if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
-#ifndef MCP_WL3749
-      *is_fast_alter_partitioning= TRUE;
-#else
       *fast_alter_table= new_table;
-#endif
-
-#ifndef MCP_WL3749
-    DBUG_PRINT("info", ("*is_fast_alter_partitioning: %u  flags: 0x%x",
-                        *is_fast_alter_partitioning, flags));
-#else
     DBUG_PRINT("info", ("*fast_alter_table: %p  flags: 0x%x",
                         *fast_alter_table, flags));
-#endif
     if ((alter_info->flags & ALTER_ADD_PARTITION) ||
          (alter_info->flags & ALTER_REORGANIZE_PARTITION))
     {
@@ -4986,11 +4951,7 @@ adding and copying partitions, the second after completing the adding
 and copying and finally the third line after also dropping the partitions
 that are reorganised.
 */
-#ifndef MCP_WL3749
-      if (*is_fast_alter_partitioning &&
-#else
       if (*fast_alter_table &&
-#endif
           tab_part_info->part_type == HASH_PARTITION)
       {
         uint part_no= 0, start_part= 1, start_sec_part= 1;
@@ -5095,11 +5056,7 @@ that are reorganised.
         do
         {
           partition_element *part_elem= alt_it++;
-#ifndef MCP_WL3749
-          if (*is_fast_alter_partitioning)
-#else
           if (*fast_alter_table)
-#endif
             part_elem->part_state= PART_TO_BE_ADDED;
           if (tab_part_info->partitions.push_back(part_elem))
           {
@@ -5107,9 +5064,6 @@ that are reorganised.
             goto err;
           }
         } while (++part_count < num_new_partitions);
-        DBUG_PRINT("info", ("Setting  tab_part_info->num_parts (%u) to %u",
-                            tab_part_info->num_parts,
-                            tab_part_info->num_parts + num_new_partitions));
         tab_part_info->num_parts+= num_new_partitions;
       }
       /*
@@ -5191,11 +5145,7 @@ that are reorganised.
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         goto err;
       }
-#ifndef MCP_WL3749
-      if (!(*is_fast_alter_partitioning))
-#else
       if (!(*fast_alter_table))
-#endif
       {
         new_table->file->print_error(HA_ERR_WRONG_COMMAND, MYF(0));
         goto err;
@@ -5258,11 +5208,7 @@ state of p1.
         uint part_count= 0, start_part= 1, start_sec_part= 1;
         uint end_part= 0, end_sec_part= 0;
         bool all_parts= TRUE;
-#ifndef MCP_WL3749
-        if (*is_fast_alter_partitioning &&
-#else
         if (*fast_alter_table &&
-#endif
             tab_part_info->linear_hash_ind)
         {
           uint upper_2n= tab_part_info->linear_hash_mask + 1;
@@ -5288,22 +5234,14 @@ state of p1.
         do
         {
           partition_element *p_elem= part_it++;
-#ifndef MCP_WL3749
-          if (*is_fast_alter_partitioning &&
-#else
           if (*fast_alter_table &&
-#endif
               (all_parts ||
               (part_count >= start_part && part_count <= end_part) ||
               (part_count >= start_sec_part && part_count <= end_sec_part)))
             p_elem->part_state= PART_CHANGED;
           if (++part_count > num_parts_remain)
           {
-#ifndef MCP_WL3749
-            if (*is_fast_alter_partitioning)
-#else
             if (*fast_alter_table)
-#endif
               p_elem->part_state= PART_REORGED_DROPPED;
             else
               part_it.remove();
@@ -5428,21 +5366,13 @@ the generated partition syntax in a correct manner.
             }
             else
               tab_max_range= part_elem->range_value;
-#ifndef MCP_WL3749
-            if (*is_fast_alter_partitioning &&
-#else
             if (*fast_alter_table &&
-#endif
                 tab_part_info->temp_partitions.push_back(part_elem))
             {
               mem_alloc_error(1);
               goto err;
             }
-#ifndef MCP_WL3749
-            if (*is_fast_alter_partitioning)
-#else
             if (*fast_alter_table)
-#endif
               part_elem->part_state= PART_TO_BE_REORGED;
             if (!found_first)
             {
@@ -5462,11 +5392,7 @@ the generated partition syntax in a correct manner.
                 else
                   alt_max_range= alt_part_elem->range_value;
 
-#ifndef MCP_WL3749
-                if (*is_fast_alter_partitioning)
-#else
                 if (*fast_alter_table)
-#endif
                   alt_part_elem->part_state= PART_TO_BE_ADDED;
                 if (alt_part_count == 0)
                   tab_it.replace(alt_part_elem);
@@ -5703,11 +5629,7 @@ err:
     */
     close_temporary(new_table, 1, 0);
   }
-#ifndef MCP_WL3749
-    *repartitioned_table= NULL;
-#else
-    *fast_alter_table= NULL;
-#endif
+  *fast_alter_table= NULL;
   DBUG_RETURN(TRUE);
 }
 

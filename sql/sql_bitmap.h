@@ -65,74 +65,12 @@ public:
   void subtract(Bitmap& map2) { bitmap_subtract(&map, &map2.map); }
   void merge(Bitmap& map2) { bitmap_union(&map, &map2.map); }
   my_bool is_set(uint n) const { return bitmap_is_set(&map, n); }
-#ifndef MCP_WL3749
-  my_bool is_set() const { return !bitmap_is_clear_all(&map); }
-#endif
   my_bool is_prefix(uint n) const { return bitmap_is_prefix(&map, n); }
   my_bool is_clear_all() const { return bitmap_is_clear_all(&map); }
   my_bool is_set_all() const { return bitmap_is_set_all(&map); }
   my_bool is_subset(const Bitmap& map2) const { return bitmap_is_subset(&map, &map2.map); }
   my_bool is_overlapping(const Bitmap& map2) const { return bitmap_is_overlapping(&map, &map2.map); }
   my_bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
-#ifndef MCP_WL3749
-    my_bool operator!=(const Bitmap& map2) const { return !bitmap_cmp(&map, &map2.
-map); }
-  Bitmap operator&=(uint n)
-  {
-    if (bitmap_is_set(&map, n))
-    {
-      bitmap_clear_all(&map);
-      bitmap_set_bit(&map, n);
-    }
-    else
-      bitmap_clear_all(&map);
-    return *this;
-  }
-  Bitmap operator&=(const Bitmap& map2)
-  {
-    bitmap_intersect(&map, &map2.map);
-    return *this;
-  }
-  Bitmap operator&(uint n)
-  {
-    Bitmap bm(*this);
-    bm&= n;
-    return bm;
-  }
-  Bitmap operator&(const Bitmap& map2)
-  {
-    Bitmap bm(*this);
-    bm&= map2;
-    return bm;
-  }
-  Bitmap operator|=(uint n)
-  {
-    bitmap_set_bit(&map, n);
-    return *this;
-  }
-  Bitmap operator|=(const Bitmap& map2)
-  {
-    bitmap_union(&map, &map2.map);
-  }
-  Bitmap operator|(uint n)
-  {
-    Bitmap bm(*this);
-    bm|= n;
-    return bm;
-  }
-  Bitmap operator|(const Bitmap& map2)
-  {
-    Bitmap bm(*this);
-    bm|= map2;
-    return bm;
-  }
-  Bitmap operator~()
-  {
-    Bitmap bm(*this);
-    bitmap_invert(&bm.map);
-    return bm;
-  }
-#endif
   char *print(char *buf) const
   {
     char *s=buf;

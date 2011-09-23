@@ -2516,7 +2516,6 @@ MODIFY p varchar(255) CHARACTER SET utf8;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1000 bytes
 Warning	1071	Specified key was too long; max key length is 1000 bytes
-Warning	1071	Specified key was too long; max key length is 1000 bytes
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
