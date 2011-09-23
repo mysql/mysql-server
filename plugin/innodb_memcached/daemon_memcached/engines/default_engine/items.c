@@ -501,10 +501,15 @@ hash_item *do_item_get(struct default_engine *engine,
     int was_found = 0;
 
     if (engine->config.verbose > 2) {
+        EXTENSION_LOGGER_DESCRIPTOR *logger;
+        logger = (void*)engine->server.extension->get_extension(EXTENSION_LOGGER);
         if (it == NULL) {
-            fprintf(stderr, "> NOT FOUND %s", key);
+            logger->log(EXTENSION_LOG_DEBUG, NULL,
+                        "> NOT FOUND %s", key);
         } else {
-            fprintf(stderr, "> FOUND KEY %s", (const char*)item_get_key(it));
+            logger->log(EXTENSION_LOG_DEBUG, NULL,
+                        "> FOUND KEY %s",
+                        (const char*)item_get_key(it));
             was_found++;
         }
     }
@@ -517,7 +522,9 @@ hash_item *do_item_get(struct default_engine *engine,
     }
 
     if (it == NULL && was_found) {
-        fprintf(stderr, " -nuked by flush");
+        EXTENSION_LOGGER_DESCRIPTOR *logger;
+        logger = (void*)engine->server.extension->get_extension(EXTENSION_LOGGER);
+        logger->log(EXTENSION_LOG_DEBUG, NULL, " -nuked by flush");
         was_found--;
     }
 
@@ -527,7 +534,9 @@ hash_item *do_item_get(struct default_engine *engine,
     }
 
     if (it == NULL && was_found) {
-        fprintf(stderr, " -nuked by expire");
+        EXTENSION_LOGGER_DESCRIPTOR *logger;
+        logger = (void*)engine->server.extension->get_extension(EXTENSION_LOGGER);
+        logger->log(EXTENSION_LOG_DEBUG, NULL, " -nuked by expire");
         was_found--;
     }
 
@@ -536,9 +545,6 @@ hash_item *do_item_get(struct default_engine *engine,
         DEBUG_REFCNT(it, '+');
         do_item_update(engine, it);
     }
-
-    if (engine->config.verbose > 2)
-        fprintf(stderr, "\n");
 
     return it;
 }
@@ -580,7 +586,9 @@ static ENGINE_ERROR_CODE do_store_item(struct default_engine *engine,
             stored = ENGINE_SUCCESS;
         } else {
             if (engine->config.verbose > 1) {
-                fprintf(stderr,
+                EXTENSION_LOGGER_DESCRIPTOR *logger;
+                logger = (void*)engine->server.extension->get_extension(EXTENSION_LOGGER);
+                logger->log(EXTENSION_LOG_INFO, NULL,
                         "CAS:  failure: expected %"PRIu64", got %"PRIu64"\n",
                         item_get_cas(old_it),
                         item_get_cas(it));
@@ -709,18 +717,27 @@ static ENGINE_ERROR_CODE do_add_delta(struct default_engine *engine,
     if ((res = snprintf(buf, sizeof(buf), "%" PRIu64, value)) == -1) {
         return ENGINE_EINVAL;
     }
-    hash_item *new_it = do_item_alloc(engine, item_get_key(it),
-                                      it->nkey, it->flags,
-                                      it->exptime, res,
-                                      cookie);
-    if (new_it == NULL) {
-        do_item_unlink(engine, it);
-        return ENGINE_ENOMEM;
+
+    if (it->refcount == 1 && res <= it->nbytes) {
+        // we can do inline replacement
+        memcpy(item_get_data(it), buf, res);
+        memset(item_get_data(it) + res, ' ', it->nbytes - res);
+        item_set_cas(NULL, NULL, it, get_cas_id());
+        *rcas = item_get_cas(it);
+    } else {
+        hash_item *new_it = do_item_alloc(engine, item_get_key(it),
+                                          it->nkey, it->flags,
+                                          it->exptime, res,
+                                          cookie);
+        if (new_it == NULL) {
+            do_item_unlink(engine, it);
+            return ENGINE_ENOMEM;
+        }
+        memcpy(item_get_data(new_it), buf, res);
+        do_item_replace(engine, it, new_it);
+        *rcas = item_get_cas(new_it);
+        do_item_release(engine, new_it);       /* release our reference */
     }
-    memcpy(item_get_data(new_it), buf, res);
-    do_item_replace(engine, it, new_it);
-    *rcas = item_get_cas(new_it);
-    do_item_release(engine, new_it);       /* release our reference */
 
     return ENGINE_SUCCESS;
 }

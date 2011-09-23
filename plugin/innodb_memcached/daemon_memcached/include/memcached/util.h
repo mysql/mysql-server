@@ -11,7 +11,6 @@
  */
 #include <memcached/visibility.h>
 #include <memcached/types.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -777,6 +777,7 @@ int main(int argc, char **argv) {
             break;
         case 't':
             timeout = atoi(optarg);
+            break;
         case 'n':
             test_case = optarg;
             break;
