@@ -1218,8 +1218,8 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_pushed_queries_dropped= 0;
   m_pushed_queries_executed= 0;
   m_pushed_reads= 0;
-  bzero(m_transaction_no_hint_count, sizeof(m_transaction_no_hint_count));
-  bzero(m_transaction_hint_count, sizeof(m_transaction_hint_count));
+  memset(m_transaction_no_hint_count, 0, sizeof(m_transaction_no_hint_count));
+  memset(m_transaction_hint_count, 0, sizeof(m_transaction_hint_count));
   global_schema_lock_trans= NULL;
   global_schema_lock_count= 0;
   global_schema_lock_error= 0;
@@ -1394,7 +1394,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans,
     m_table->setStatusInvalid();
     /* Close other open handlers not used by any thread */
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
     close_cached_tables(thd, &table_list, have_lock, FALSE, FALSE);
@@ -6974,7 +6974,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
             production code.
           */
           if (actual_length < field->pack_length())
-            bzero(field->ptr + actual_length,
+            memset(field->ptr + actual_length, 0,
                   field->pack_length() - actual_length);
 #endif
           field->move_field_offset(-dst_offset);
@@ -7038,7 +7038,7 @@ static void get_default_value(void *def_val, Field *field)
           memcpy(def_val, src_ptr, actual_length);
 #ifdef HAVE_purify
           if (actual_length < field->pack_length())
-            bzero(((char*)def_val) + actual_length,
+            memset(((char*)def_val) + actual_length, 0,
                   field->pack_length() - actual_length);
 #endif
         }
@@ -7847,7 +7847,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 {
   DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
 
-  bzero((char*) stat_info, sizeof(PARTITION_STATS));
+  memset(stat_info, 0, sizeof(PARTITION_STATS));
   int error = 0;
   THD *thd = table->in_use;
 
@@ -13675,7 +13675,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   pthread_mutex_unlock(&ndbcluster_mutex);
 
   TABLE_LIST table_list;
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
