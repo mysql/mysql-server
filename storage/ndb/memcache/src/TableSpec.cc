@@ -61,7 +61,7 @@ char * tokenize_list(char **stringloc, const char *delim) {
 int TableSpec::build_column_list(const char ** const &col_array, 
                                  const char *list) {
   int n = 0;
-  if(list == 0) return 0;
+  if(list == 0 || *list == 0) return 0;
   char *next = strdup(list);  
   while(next && n < (MAX_KEY_COLUMNS + MAX_VAL_COLUMNS)) {
     char *item = tokenize_list(& next, ", ");
@@ -86,19 +86,19 @@ TableSpec::TableSpec(const char *sqltable,
   nkeycols = build_column_list(key_columns, keycols);
   if(nkeycols) must_free.first_key = 1;
   nvaluecols = build_column_list(value_columns, valcols);
-  if(nvaluecols) must_free.first_val = 1;
+  must_free.first_val = (nvaluecols);
   if(sqltable) {
     char *sqltabname = strdup(sqltable);
-    char *s;
-    for(s = sqltabname ; *s && *s != '.' ; s++);
     schema_name = sqltabname;
     must_free.schema_name = 1;
+    char *s = sqltabname;
+    for( ; *s && *s != '.' ; s++);
     if(*s) {
       assert(*s == '.');
       *s = '\0' ;
       table_name = s+1;
     }
-    must_free.table_name = 0;
+    must_free.table_name = must_free.all_val_cols = must_free.special_cols = 0;
   }
 }
 

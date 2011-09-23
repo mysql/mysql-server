@@ -57,6 +57,7 @@ write_my_cnf() {
     echo "datadir=$HOME_BASE/sandbox/data"
     echo "pid-file=$HOME_BASE/sandbox/mysqld.pid"
     echo "user="`whoami`
+    echo "innodb_log_file_size=1M"
     echo
   ) > $HOME_BASE/sandbox/my.cnf
  }
@@ -91,7 +92,11 @@ write_cluster_ini() {
 do_install_db() {
   $MYSQL_SCRIPTS/mysql_install_db \
     --basedir=$MYSQL_PREFIX --datadir=$HOME_BASE/sandbox/data \
-     > /dev/null  && echo Created MySQL System Tables
+    --skip-name-resolve --user=`whoami` > /dev/null
+  if test ! -d sandbox/data/mysql 
+    then echo "Failed: mysql_install_db did not work." && exit
+    else echo "Created MySQL System Tables"
+  fi
 }
 
 start_mgm_server() {
