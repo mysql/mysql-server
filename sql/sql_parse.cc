@@ -1349,7 +1349,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
 
+    // See comment in opt_trace_disable_if_no_security_context_access()
+    Opt_trace_start ots(thd, &table_list, thd->lex->sql_command, NULL,
+                        NULL, 0, NULL, NULL);
+
     mysqld_list_fields(thd,&table_list,fields);
+
     thd->lex->unit.cleanup();
     /* No need to rollback statement transaction, it's not started. */
     DBUG_ASSERT(thd->transaction.stmt.is_empty());
