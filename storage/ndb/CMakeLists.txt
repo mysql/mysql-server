@@ -98,10 +98,6 @@ MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
 #
 IF (NOT DEFINED WITH_NDBCLUSTER)
   # Not building NDB 
-  IF(MYSQL_CLUSTER_VERSION)
-    MESSAGE(FATAL_ERROR "This is MySQL Cluster, you can't build it without the NDB engine")
-  ENDIF()
-
   RETURN()
 ENDIF()
 
