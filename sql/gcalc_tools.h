@@ -104,6 +104,8 @@ public:
   void set_states(int *shape_states) { i_states= shape_states; }
   int alloc_states();
   void invert_i_state(gcalc_shape_info shape) { i_states[shape]^= 1; }
+  void set_i_state(gcalc_shape_info shape) { i_states[shape]= 1; }
+  void clear_i_state(gcalc_shape_info shape) { i_states[shape]= 0; }
   void set_b_state(gcalc_shape_info shape) { b_states[shape]= 1; }
   void clear_b_state(gcalc_shape_info shape) { b_states[shape]= 0; }
   int get_state(gcalc_shape_info shape)

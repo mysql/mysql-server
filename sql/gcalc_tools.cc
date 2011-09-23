@@ -297,7 +297,7 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
           (get_shape_kind(si) == Gcalc_function::shape_polygon))
         set_b_state(si);
       else if (get_shape_kind(si) == Gcalc_function::shape_line)
-        invert_i_state(si);
+        set_i_state(si);
     }
 
     if (count())
@@ -313,7 +313,7 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
           (get_shape_kind(si) == Gcalc_function::shape_polygon))
         clear_b_state(si);
       else if (get_shape_kind(si) == Gcalc_function::shape_line)
-        invert_i_state(si);
+        clear_i_state(si);
     }
 
     if (scan_it.get_event_position() == scan_it.get_event_end())
