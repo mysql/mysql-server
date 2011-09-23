@@ -148,28 +148,16 @@ bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
-#ifndef MCP_WL3749
-enum open_table_mode;
-TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
-			   const char *table_name,
-                           bool add_to_temporary_tables_list,
-                           open_table_mode open_mode= OTM_OPEN);
-#else
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list);
-#endif
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list);
 
 my_bool mysql_rm_tmp_tables(void);
-#ifndef MCP_WL3749
-bool rm_temporary_table(handlerton *base, char *path, bool frm_only);
-#else
 bool rm_temporary_table(handlerton *base, char *path);
-#endif
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
