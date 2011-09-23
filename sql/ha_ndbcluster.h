@@ -279,7 +279,7 @@ struct Ndb_local_table_statistics {
 #include "ndb_thd_ndb.h"
 
 struct st_ndb_status {
-  st_ndb_status() { bzero(this, sizeof(struct st_ndb_status)); }
+  st_ndb_status() { memset(this, 0, sizeof(struct st_ndb_status)); }
   long cluster_node_id;
   const char * connected_host;
   long connected_port;
