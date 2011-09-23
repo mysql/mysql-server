@@ -64,9 +64,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   return close_cached_tables(thd, tables, wait_for_refresh, LONG_TIMEOUT);
 }
 
-/* Online alter table not supported */
-#define NDB_WITHOUT_ONLINE_ALTER
-
 /* thd has no version field anymore */
 #define NDB_THD_HAS_NO_VERSION
 
@@ -75,15 +72,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
 /* No mysql_rm_table_part2 anymore in 5.5.8 */
 #define NDB_NO_MYSQL_RM_TABLE_PART2
-
-#ifdef MCP_WL3749
-/*
-  The enum open_table_mode has been removed in 5.5.7 and 'open_table_from_share'
-  now takes "bool is_create_table" instead of the enum type. Define OTM_OPEN
-  to false since it's not a create table
-*/
-#define OTM_OPEN false
-#endif
 
 #endif
 
