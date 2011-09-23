@@ -46,7 +46,7 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
                 utilities/genhash_int.h
                 utilities/util.c)
 
-ADD_CONVENIENCE_IBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
+ADD_CONVENIENCE_LIBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
 IF(HAVE_LIBDL)
 target_link_libraries(memcached_utilities dl)
 ENDIF()
