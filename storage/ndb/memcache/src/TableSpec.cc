@@ -125,6 +125,7 @@ TableSpec::TableSpec(const TableSpec &t) :
        value_columns[i] = strdup(t.value_columns[i]);
      must_free.all_val_cols = 1;
   }
+  must_free.first_key = must_free.first_val = 0;
 }
 
 

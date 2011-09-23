@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include <time.h>
-#include <sys/types.h>
 
 #include "workqueue.h"
 #include <ndbmemcache_config.h>
@@ -140,7 +139,7 @@ int run_test(struct threadinfo *params) {
 
 void * producer_thread(void *arg) {
   long long total_sleep = 0;
-  useconds_t slp = 0;
+  int slp = 0;
   size_t i = 1;
   int n_ints;
   int sample_interval = 1000;
@@ -189,7 +188,7 @@ void * producer_thread(void *arg) {
 
 
 void * consumer_thread(void *arg) {
-  useconds_t slp = 0;
+  int slp = 0;
   long long total_sleep = 0;
   size_t i;
   size_t last_i = 0;
