@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3400;
+use Test::More tests => 3430;
 use FindBin qw($Bin);
 use lib "$Bin/lib";
 use MemcachedTest;
@@ -369,7 +369,7 @@ $mc->silent_mutation(::CMD_ADDQ, 'silentadd', 'silentaddval');
 {
     my %stats = $mc->stats('settings');
 
-    is(1024, $stats{'maxconns'});
+    is(1000, $stats{'maxconns'});
     is('NULL', $stats{'domain_socket'});
     is('on', $stats{'evictions'});
     is('yes', $stats{'cas_enabled'});

@@ -187,6 +187,7 @@ struct settings {
     double factor;          /* chunk size growth factor */
     int chunk_size;
     int num_threads;        /* number of worker (without dispatcher) libevent threads to run */
+    int num_threads_per_udp; /* number of worker threads serving each udp socket */
     char prefix_delimiter;  /* character that marks a key prefix (for stats) */
     int detail_enabled;     /* nonzero if we're collecting detailed stats */
     bool allow_detailed;    /* detailed stats commands are allowed */
@@ -223,7 +224,8 @@ extern struct settings settings;
 
 enum thread_type {
     GENERAL = 11,
-    TAP = 13
+    TAP = 13,
+    DISPATCHER = 15
 };
 
 typedef struct {
@@ -258,14 +260,10 @@ typedef struct {
     }
 
 extern void notify_thread(LIBEVENT_THREAD *thread);
+extern void notify_dispatcher(void);
+extern bool create_notification_pipe(LIBEVENT_THREAD *me);
 
 extern LIBEVENT_THREAD* tap_thread;
-
-typedef struct {
-    pthread_t thread_id;        /* unique ID of this thread */
-    struct event_base *base;    /* libevent handle this thread uses */
-} LIBEVENT_DISPATCHER_THREAD;
-
 
 typedef struct conn conn;
 typedef bool (*STATE_FUNC)(conn *);
@@ -288,19 +286,19 @@ struct conn {
 
     char   *rbuf;   /** buffer to read commands into */
     char   *rcurr;  /** but if we parsed some already, this is where we stopped */
-    int    rsize;   /** total allocated size of rbuf */
-    int    rbytes;  /** how much data, starting from rcur, do we have unparsed */
+    uint32_t rsize;   /** total allocated size of rbuf */
+    uint32_t rbytes;  /** how much data, starting from rcur, do we have unparsed */
 
     char   *wbuf;
     char   *wcurr;
-    int    wsize;
-    int    wbytes;
+    uint32_t wsize;
+    uint32_t wbytes;
     /** which state to go into after finishing current write */
     STATE_FUNC   write_and_go;
     void   *write_and_free; /** free this memory after finishing writing */
 
     char   *ritem;  /** when we read in an item's value, it goes here */
-    int    rlbytes;
+    uint32_t rlbytes;
 
     /* data for the nread state */
 
@@ -343,13 +341,15 @@ struct conn {
 
     /* data for UDP clients */
     int    request_id; /* Incoming UDP request ID, if this is a UDP "connection" */
-    struct sockaddr request_addr; /* Who sent the most recent request */
+    struct sockaddr_storage request_addr; /* Who sent the most recent request */
     socklen_t request_addr_size;
     unsigned char *hdrbuf; /* udp packet headers */
     int    hdrsize;   /* number of headers' worth of space is allocated */
 
     bool   noreply;   /* True if the reply should not be sent. */
     /* current stats command */
+
+    uint8_t refcount; /* number of references to the object */
 
     struct {
         char *buffer;
@@ -379,11 +379,6 @@ struct conn {
     bool ewouldblock;
     bool tap_nack_mode;
     TAP_ITERATOR tap_iterator;
-
-    struct {
-        bool active;
-        rel_time_t  timeout;
-    } pending_close;
 };
 
 /* States for the connection list_state */
@@ -394,8 +389,6 @@ struct conn {
 /*
  * Functions
  */
-
-
 conn *conn_new(const SOCKET sfd, STATE_FUNC init_state, const int event_flags,
                const int read_buffer_size, enum network_transport transport,
                struct event_base *base, struct timeval *timeout);
@@ -422,7 +415,8 @@ bool update_event(conn *c, const int new_flags);
  * also #define-d to directly call the underlying code in singlethreaded mode.
  */
 
-void thread_init(int nthreads, struct event_base *main_base);
+void thread_init(int nthreads, struct event_base *main_base,
+                 void (*dispatcher_callback)(int, short, void *));
 void threads_shutdown(void);
 
 int  dispatch_event_add(int thread, conn *c);
@@ -486,8 +480,7 @@ bool conn_closing(conn *c);
 bool conn_mwrite(conn *c);
 bool conn_ship_log(conn *c);
 bool conn_add_tap_client(conn *c);
-MEMCACHED_PUBLIC_API bool conn_setup_tap_stream(conn *c);
-
+bool conn_setup_tap_stream(conn *c);
 
 /* If supported, give compiler hints for branch prediction. */
 #if !defined(__GNUC__) || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)

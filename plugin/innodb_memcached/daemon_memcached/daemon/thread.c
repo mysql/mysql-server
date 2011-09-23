@@ -50,7 +50,7 @@ static pthread_mutex_t stats_lock;
 static CQ_ITEM *cqi_freelist;
 static pthread_mutex_t cqi_freelist_lock;
 
-static LIBEVENT_DISPATCHER_THREAD dispatcher_thread;
+static LIBEVENT_THREAD dispatcher_thread;
 
 /*
  * Each libevent instance has a wakeup pipe, which other threads
@@ -185,6 +185,56 @@ static void create_worker(void *(*func)(void *), void *arg, pthread_t *id) {
 }
 
 /****************************** LIBEVENT THREADS *****************************/
+
+bool create_notification_pipe(LIBEVENT_THREAD *me)
+{
+    if (evutil_socketpair(SOCKETPAIR_AF, SOCK_STREAM, 0,
+                          (void*)me->notify) == SOCKET_ERROR) {
+        settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                        "Can't create notify pipe: %s",
+                                        strerror(errno));
+        return false;
+    }
+
+    for (int j = 0; j < 2; ++j) {
+        int flags = 1;
+        setsockopt(me->notify[j], IPPROTO_TCP,
+                   TCP_NODELAY, (void *)&flags, sizeof(flags));
+        setsockopt(me->notify[j], SOL_SOCKET,
+                   SO_REUSEADDR, (void *)&flags, sizeof(flags));
+
+
+        if (evutil_make_socket_nonblocking(me->notify[j]) == -1) {
+            settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                            "Failed to enable non-blocking: %s",
+                                            strerror(errno));
+            return false;
+        }
+    }
+    return true;
+}
+
+static void setup_dispatcher(struct event_base *main_base,
+                             void (*dispatcher_callback)(int, short, void *))
+{
+    memset(&dispatcher_thread, 0, sizeof(dispatcher_thread));
+    dispatcher_thread.type = DISPATCHER;
+    dispatcher_thread.base = main_base;
+    dispatcher_thread.thread_id = pthread_self();
+    if (!create_notification_pipe(&dispatcher_thread)) {
+        exit(1);
+    }
+    /* Listen for notifications from other threads */
+    event_set(&dispatcher_thread.notify_event, dispatcher_thread.notify[0],
+              EV_READ | EV_PERSIST, dispatcher_callback, &dispatcher_callback);
+    event_base_set(dispatcher_thread.base, &dispatcher_thread.notify_event);
+
+    if (event_add(&dispatcher_thread.notify_event, 0) == -1) {
+        settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                        "Can't monitor libevent notify pipe\n");
+        exit(1);
+    }
+}
 
 /*
  * Set up a thread's information.
@@ -455,14 +505,6 @@ static void libevent_tap_process(int fd, short which, void *arg) {
     conn *pending_io[max_items];
     size_t n_items = list_to_array(pending_io, max_items, &me->pending_io);
 
-    if (n_items > 0 && settings.verbose > 1) {
-        fprintf(stderr, "Going to handle tap io for ");
-        for (size_t i = 0; i < n_items; ++i) {
-            fprintf(stderr, "%d ", pending_io[i]->sfd);
-        }
-        fprintf(stderr, "\n");
-    }
-
     UNLOCK_THREAD(me);
     for (size_t i = 0; i < n_items; ++i) {
         conn *c = pending_io[i];
@@ -492,11 +534,10 @@ static void libevent_tap_process(int fd, short which, void *arg) {
     if (n_pending_close > 0) {
         for (size_t i = 0; i < n_pending_close; ++i) {
             conn *ce = pending_close[i];
-            if (ce->pending_close.active && ce->pending_close.timeout < current_time) {
+            if (ce->refcount == 1) {
                 settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
-                                                "OK, time to nuke: %p (%d < %d)\n",
-                                                (void*)ce, ce->pending_close.timeout,
-                                                current_time);
+                                                "OK, time to nuke: %p\n",
+                                                (void*)ce);
                 assert(ce->next == NULL);
                 conn_close(ce);
             } else {
@@ -554,7 +595,6 @@ void notify_io_complete(const void *cookie, ENGINE_ERROR_CODE status)
             conn->sfd = INVALID_SOCKET;
         }
 
-        conn->pending_close.timeout = 0;
         settings.extensions.logger->log(EXTENSION_LOG_DEBUG, NULL,
                                         "Immediate close of %p\n",
                                         conn);
@@ -576,16 +616,17 @@ void notify_io_complete(const void *cookie, ENGINE_ERROR_CODE status)
     ** correct one) and re-evaluate.
     */
     LIBEVENT_THREAD *thr = conn->thread;
-
-    if (thr == NULL || conn->state == conn_closing) {
+    if (thr == NULL || (conn->state == conn_closing ||
+                        conn->state == conn_pending_close ||
+                        conn->state == conn_immediate_close)) {
         return;
     }
 
     int notify = 0;
 
     LOCK_THREAD(thr);
-
-    if (thr != conn->thread || conn->state == conn_closing || !conn->ewouldblock) {
+    if (thr != conn->thread || !conn->ewouldblock) {
+        // Ignore
         UNLOCK_THREAD(thr);
         return;
     }
@@ -660,6 +701,9 @@ int is_listen_thread() {
 #endif
 }
 
+void notify_dispatcher(void) {
+    notify_thread(&dispatcher_thread);
+}
 
 /******************************* GLOBAL STATS ******************************/
 
@@ -761,7 +805,8 @@ void slab_stats_aggregate(struct thread_stats *stats, struct slab_stats *out) {
  * nthreads  Number of worker event handler threads to spawn
  * main_base Event base for main thread
  */
-void thread_init(int nthr, struct event_base *main_base) {
+void thread_init(int nthr, struct event_base *main_base,
+                 void (*dispatcher_callback)(int, short, void *)) {
     int i;
     nthreads = nthr + 1;
 
@@ -785,31 +830,12 @@ void thread_init(int nthr, struct event_base *main_base) {
         exit(1);
     }
 
-    dispatcher_thread.base = main_base;
-    dispatcher_thread.thread_id = pthread_self();
+    setup_dispatcher(main_base, dispatcher_callback);
 
     for (i = 0; i < nthreads; i++) {
-        if (evutil_socketpair(SOCKETPAIR_AF, SOCK_STREAM, 0,
-                              (void*)threads[i].notify) == SOCKET_ERROR) {
-            settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
-                                            "Can't create notify pipe: %s",
-                                            strerror(errno));
+        if (!create_notification_pipe(&threads[i])) {
             exit(1);
         }
-
-        for (int j = 0; j < 2; ++j) {
-            int flags = 1;
-            setsockopt(threads[i].notify[j], IPPROTO_TCP,
-                       TCP_NODELAY, (void *)&flags, sizeof(flags));
-            setsockopt(threads[i].notify[j], SOL_SOCKET,
-                       SO_REUSEADDR, (void *)&flags, sizeof(flags));
-
-
-            if (evutil_make_socket_nonblocking(threads[i].notify[j]) == -1) {
-                exit(1);
-            }
-        }
-
         threads[i].index = i;
 
         setup_thread(&threads[i], i == (nthreads - 1));

@@ -62,7 +62,7 @@ if ($stats->{'auth_sasl_enabled'} == 'yes') {
     $sasl_enabled = 1;
 }
 
-is(scalar(keys(%$stats)), 40, "40 stats values");
+is(scalar(keys(%$stats)), 42, "42 stats values");
 
 # Test initial state
 foreach my $key (qw(curr_items total_items bytes cmd_get cmd_set get_hits evictions get_misses
@@ -169,7 +169,7 @@ my ($newid, $v) = mem_gets($sock, 'c');
 is('z', $v, 'got the expected value');
 
 my $settings = mem_stats($sock, ' settings');
-is(1024, $settings->{'maxconns'});
+is(1000, $settings->{'maxconns'});
 is('NULL', $settings->{'domain_socket'});
 is('on', $settings->{'evictions'});
 is('yes', $settings->{'cas_enabled'});

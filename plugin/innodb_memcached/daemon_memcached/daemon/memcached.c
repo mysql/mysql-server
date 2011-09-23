@@ -13,8 +13,6 @@
  *      Anatoly Vorobey <mellon@pobox.com>
  *      Brad Fitzpatrick <brad@danga.com>
  */
-
-
 #include "config.h"
 #include "config_static.h"
 #include "memcached.h"
@@ -132,8 +130,6 @@ static inline struct thread_stats *get_thread_stats(conn *c);
 static void register_callback(ENGINE_HANDLE *eh,
                               ENGINE_EVENT_TYPE type,
                               EVENT_CALLBACK cb, const void *cb_data);
-
-
 enum try_read_result {
     READ_DATA_RECEIVED,
     READ_NO_DATA_RECEIVED,
@@ -239,11 +235,6 @@ static void stats_init(void) {
     stats.rejected_conns = 0;
     stats.curr_conns = stats.total_conns = stats.conn_structs = 0;
 
-    /* make the time we started always be 2 seconds before we really
-       did, so time(0) - time.started is never zero.  if so, things
-       like 'settings.oldest_live' which act as booleans as well as
-       values are now false in boolean context... */
-    process_started = time(0) - 2;
     stats_prefix_init();
 }
 
@@ -266,7 +257,7 @@ static void settings_init(void) {
     /* By default this string should be NULL for getaddrinfo() */
     settings.inter = NULL;
     settings.maxbytes = 64 * 1024 * 1024; /* default is 64MB */
-    settings.maxconns = 1024;         /* to limit connections-related memory to about 5MB */
+    settings.maxconns = 1000;         /* to limit connections-related memory to about 5MB */
     settings.verbose = 0;
     settings.oldest_live = 0;
     settings.evict_to_free = 1;       /* push old items out of cache when memory runs out */
@@ -274,6 +265,7 @@ static void settings_init(void) {
     settings.factor = 1.25;
     settings.chunk_size = 48;         /* space for a modest key and value */
     settings.num_threads = 4;         /* N workers */
+    settings.num_threads_per_udp = 0;
     settings.prefix_delimiter = ':';
     settings.detail_enabled = 0;
     settings.allow_detailed = true;
@@ -345,6 +337,47 @@ static const char *prot_text(enum protocol prot) {
     return rv;
 }
 
+struct {
+    pthread_mutex_t mutex;
+    bool disabled;
+    ssize_t count;
+    uint64_t num_disable;
+} listen_state;
+
+static bool is_listen_disabled(void) {
+    bool ret;
+    pthread_mutex_lock(&listen_state.mutex);
+    ret = listen_state.disabled;
+    pthread_mutex_unlock(&listen_state.mutex);
+    return ret;
+}
+
+static uint64_t get_listen_disabled_num(void) {
+    uint64_t ret;
+    pthread_mutex_lock(&listen_state.mutex);
+    ret = listen_state.num_disable;
+    pthread_mutex_unlock(&listen_state.mutex);
+    return ret;
+}
+
+static void disable_listen(void) {
+    pthread_mutex_lock(&listen_state.mutex);
+    listen_state.disabled = true;
+    listen_state.count = 10;
+    ++listen_state.num_disable;
+    pthread_mutex_unlock(&listen_state.mutex);
+
+    conn *next;
+    for (next = listen_conn; next; next = next->next) {
+        update_event(next, 0);
+        if (listen(next->sfd, 1) != 0) {
+            settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                            "listen() failed",
+                                            strerror(errno));
+        }
+    }
+}
+
 void safe_close(SOCKET sfd) {
     if (sfd != INVALID_SOCKET) {
         int rval;
@@ -361,6 +394,10 @@ void safe_close(SOCKET sfd) {
             STATS_LOCK();
             stats.curr_conns--;
             STATS_UNLOCK();
+
+            if (is_listen_disabled()) {
+                notify_dispatcher();
+            }
         }
     }
 }
@@ -609,12 +646,12 @@ conn *conn_new(const SOCKET sfd, STATE_FUNC init_state,
     }
 
     STATS_LOCK();
-    stats.curr_conns++;
     stats.total_conns++;
     STATS_UNLOCK();
 
     c->aiostat = ENGINE_SUCCESS;
     c->ewouldblock = false;
+    c->refcount = 1;
 
     MEMCACHED_CONN_ALLOCATE(c->sfd);
 
@@ -658,42 +695,23 @@ static void conn_cleanup(conn *c) {
     c->thread = NULL;
     assert(c->next == NULL);
     c->ascii_cmd = NULL;
-    c->pending_close.active = false;
     c->sfd = INVALID_SOCKET;
     c->tap_nack_mode = false;
 }
 
 void conn_close(conn *c) {
     assert(c != NULL);
-
-    /* delete the event, the socket and the conn */
-    if (c->sfd != INVALID_SOCKET) {
-        MEMCACHED_CONN_RELEASE(c->sfd);
-        unregister_event(c);
-
-        if (settings.verbose > 1) {
-            settings.extensions.logger->log(EXTENSION_LOG_DEBUG, c,
-                                            "<%d connection closed.\n", c->sfd);
-        }
-        safe_close(c->sfd);
-        c->sfd = INVALID_SOCKET;
-    }
+    assert(c->sfd == INVALID_SOCKET);
 
     if (c->ascii_cmd != NULL) {
         c->ascii_cmd->abort(c->ascii_cmd, c);
     }
 
     assert(c->thread);
-    if (!c->pending_close.active) {
-        perform_callbacks(ON_DISCONNECT, NULL, c);
-    } else {
-        assert(current_time > c->pending_close.timeout);
-    }
-
     LOCK_THREAD(c->thread);
     /* remove from pending-io list */
     if (settings.verbose > 1 && list_contains(c->thread->pending_io, c)) {
-        settings.extensions.logger->log(EXTENSION_LOG_DEBUG, c,
+        settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
                                         "Current connection was in the pending-io list.. Nuking it\n");
     }
     c->thread->pending_io = list_remove(c->thread->pending_io, c);
@@ -2307,6 +2325,8 @@ static bool binary_response_handler(const void *key, uint16_t keylen,
 struct tap_cmd_stats {
     uint64_t connect;
     uint64_t mutation;
+    uint64_t checkpoint_start;
+    uint64_t checkpoint_end;
     uint64_t delete;
     uint64_t flush;
     uint64_t opaque;
@@ -2391,6 +2411,8 @@ static void ship_tap_log(conn *c) {
         case TAP_PAUSE :
             more_data = false;
             break;
+        case TAP_CHECKPOINT_START:
+        case TAP_CHECKPOINT_END:
         case TAP_MUTATION:
             if (!settings.engine.v1->get_item_info(settings.engine.v0, c, it, &info)) {
                 settings.engine.v1->release(settings.engine.v0, c, it);
@@ -2401,7 +2423,25 @@ static void ship_tap_log(conn *c) {
             send_data = true;
             c->ilist[c->ileft++] = it;
 
-            msg.mutation.message.header.request.opcode = PROTOCOL_BINARY_CMD_TAP_MUTATION;
+            if (event == TAP_CHECKPOINT_START) {
+                msg.mutation.message.header.request.opcode =
+                    PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_START;
+                pthread_mutex_lock(&tap_stats.mutex);
+                tap_stats.sent.checkpoint_start++;
+                pthread_mutex_unlock(&tap_stats.mutex);
+            } else if (event == TAP_CHECKPOINT_END) {
+                msg.mutation.message.header.request.opcode =
+                    PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_END;
+                pthread_mutex_lock(&tap_stats.mutex);
+                tap_stats.sent.checkpoint_end++;
+                pthread_mutex_unlock(&tap_stats.mutex);
+            } else if (event == TAP_MUTATION) {
+                msg.mutation.message.header.request.opcode = PROTOCOL_BINARY_CMD_TAP_MUTATION;
+                pthread_mutex_lock(&tap_stats.mutex);
+                tap_stats.sent.mutation++;
+                pthread_mutex_unlock(&tap_stats.mutex);
+            }
+
             msg.mutation.message.header.request.cas = htonll(info.cas);
             msg.mutation.message.header.request.keylen = htons(info.nkey);
             msg.mutation.message.header.request.extlen = 16;
@@ -2434,10 +2474,6 @@ static void ship_tap_log(conn *c) {
                 add_iov(c, info.value[0].iov_base, info.value[0].iov_len);
             }
 
-            pthread_mutex_lock(&tap_stats.mutex);
-            tap_stats.sent.mutation++;
-            pthread_mutex_unlock(&tap_stats.mutex);
-
             break;
         case TAP_DELETION:
             /* This is a delete */
@@ -2449,14 +2485,32 @@ static void ship_tap_log(conn *c) {
             }
             send_data = true;
             c->ilist[c->ileft++] = it;
-            msg.mutation.message.header.request.opcode = PROTOCOL_BINARY_CMD_TAP_DELETE;
+            msg.delete.message.header.request.opcode = PROTOCOL_BINARY_CMD_TAP_DELETE;
+            msg.delete.message.header.request.cas = htonll(info.cas);
             msg.delete.message.header.request.keylen = htons(info.nkey);
-            msg.delete.message.header.request.bodylen = htonl(info.nkey + 8);
+
+            bodylen = 8 + info.nkey + nengine;
+            if ((tap_flags & TAP_FLAG_NO_VALUE) == 0) {
+                bodylen += info.nbytes;
+            }
+            msg.delete.message.header.request.bodylen = htonl(bodylen);
+
             memcpy(c->wcurr, msg.delete.bytes, sizeof(msg.delete.bytes));
             add_iov(c, c->wcurr, sizeof(msg.delete.bytes));
             c->wcurr += sizeof(msg.delete.bytes);
             c->wbytes += sizeof(msg.delete.bytes);
+
+            if (nengine > 0) {
+                memcpy(c->wcurr, engine, nengine);
+                add_iov(c, c->wcurr, nengine);
+                c->wcurr += nengine;
+                c->wbytes += nengine;
+            }
+
             add_iov(c, info.key, info.nkey);
+            if ((tap_flags & TAP_FLAG_NO_VALUE) == 0) {
+                add_iov(c, info.value[0].iov_base, info.value[0].iov_len);
+            }
 
             pthread_mutex_lock(&tap_stats.mutex);
             tap_stats.sent.delete++;
@@ -2545,8 +2599,12 @@ static void process_bin_unknown_packet(conn *c) {
     }
 
     if (ret == ENGINE_SUCCESS) {
-        write_and_free(c, c->dynamic_buffer.buffer, c->dynamic_buffer.offset);
-        c->dynamic_buffer.buffer = NULL;
+        if (c->dynamic_buffer.buffer != NULL) {
+            write_and_free(c, c->dynamic_buffer.buffer, c->dynamic_buffer.offset);
+            c->dynamic_buffer.buffer = NULL;
+        } else {
+            conn_set_state(c, conn_new_cmd);
+        }
     } else if (ret == ENGINE_ENOTSUP) {
         write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_UNKNOWN_COMMAND, 0);
     } else if (ret == ENGINE_EWOULDBLOCK) {
@@ -2634,7 +2692,8 @@ static void process_bin_tap_packet(tap_event_t event, conn *c) {
     uint32_t exptime = 0;
     uint32_t ndata = c->binary_header.request.bodylen - nengine - nkey - 8;
 
-    if (event == TAP_MUTATION) {
+    if (event == TAP_MUTATION || event == TAP_CHECKPOINT_START ||
+        event == TAP_CHECKPOINT_END) {
         protocol_binary_request_tap_mutation *mutation = (void*)tap;
         flags = ntohl(mutation->message.body.item.flags);
         exptime = ntohl(mutation->message.body.item.expiration);
@@ -2734,6 +2793,18 @@ static void process_bin_packet(conn *c) {
         pthread_mutex_unlock(&tap_stats.mutex);
         process_bin_tap_packet(TAP_MUTATION, c);
         break;
+    case PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_START:
+        pthread_mutex_lock(&tap_stats.mutex);
+        tap_stats.received.checkpoint_start++;
+        pthread_mutex_unlock(&tap_stats.mutex);
+        process_bin_tap_packet(TAP_CHECKPOINT_START, c);
+        break;
+    case PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_END:
+        pthread_mutex_lock(&tap_stats.mutex);
+        tap_stats.received.checkpoint_end++;
+        pthread_mutex_unlock(&tap_stats.mutex);
+        process_bin_tap_packet(TAP_CHECKPOINT_END, c);
+        break;
     case PROTOCOL_BINARY_CMD_TAP_DELETE:
         pthread_mutex_lock(&tap_stats.mutex);
         tap_stats.received.delete++;
@@ -2779,14 +2850,16 @@ static RESPONSE_HANDLER response_handlers[256] = {
     [PROTOCOL_BINARY_CMD_TAP_DELETE] = process_bin_tap_ack,
     [PROTOCOL_BINARY_CMD_TAP_FLUSH] = process_bin_tap_ack,
     [PROTOCOL_BINARY_CMD_TAP_OPAQUE] = process_bin_tap_ack,
-    [PROTOCOL_BINARY_CMD_TAP_VBUCKET_SET] = process_bin_tap_ack
+    [PROTOCOL_BINARY_CMD_TAP_VBUCKET_SET] = process_bin_tap_ack,
+    [PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_START] = process_bin_tap_ack,
+    [PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_END] = process_bin_tap_ack
 };
 
 static void dispatch_bin_command(conn *c) {
     int protocol_error = 0;
 
     int extlen = c->binary_header.request.extlen;
-    int keylen = c->binary_header.request.keylen;
+    uint16_t keylen = c->binary_header.request.keylen;
     uint32_t bodylen = c->binary_header.request.bodylen;
 
     if (settings.require_sasl && !authenticated(c)) {
@@ -2936,6 +3009,8 @@ static void dispatch_bin_command(conn *c) {
             }
             break;
        case PROTOCOL_BINARY_CMD_TAP_MUTATION:
+       case PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_START:
+       case PROTOCOL_BINARY_CMD_TAP_CHECKPOINT_END:
        case PROTOCOL_BINARY_CMD_TAP_DELETE:
        case PROTOCOL_BINARY_CMD_TAP_FLUSH:
        case PROTOCOL_BINARY_CMD_TAP_OPAQUE:
@@ -2986,8 +3061,8 @@ static void dispatch_bin_command(conn *c) {
 
 static void process_bin_update(conn *c) {
     char *key;
-    int nkey;
-    int vlen;
+    uint16_t nkey;
+    uint32_t vlen;
     item *it;
     protocol_binary_request_set* req = binary_get_request(c);
 
@@ -3636,6 +3711,8 @@ static void server_stats(ADD_STAT add_stats, conn *c, bool aggregate) {
     APPEND_STAT("bytes_read", "%"PRIu64, thread_stats.bytes_read);
     APPEND_STAT("bytes_written", "%"PRIu64, thread_stats.bytes_written);
     APPEND_STAT("limit_maxbytes", "%"PRIu64, settings.maxbytes);
+    APPEND_STAT("accepting_conns", "%u",  is_listen_disabled() ? 0 : 1);
+    APPEND_STAT("listen_disabled_num", "%"PRIu64, get_listen_disabled_num());
     APPEND_STAT("rejected_conns", "%" PRIu64, (unsigned long long)stats.rejected_conns);
     APPEND_STAT("threads", "%d", settings.num_threads);
     APPEND_STAT("conn_yields", "%" PRIu64, (unsigned long long)thread_stats.conn_yields);
@@ -3655,6 +3732,12 @@ static void server_stats(ADD_STAT add_stats, conn *c, bool aggregate) {
     if (ts.sent.mutation) {
         APPEND_STAT("tap_mutation_sent", "%"PRIu64, ts.sent.mutation);
     }
+    if (ts.sent.checkpoint_start) {
+        APPEND_STAT("tap_checkpoint_start_sent", "%"PRIu64, ts.sent.checkpoint_start);
+    }
+    if (ts.sent.checkpoint_end) {
+        APPEND_STAT("tap_checkpoint_end_sent", "%"PRIu64, ts.sent.checkpoint_end);
+    }
     if (ts.sent.delete) {
         APPEND_STAT("tap_delete_sent", "%"PRIu64, ts.sent.delete);
     }
@@ -3673,6 +3756,12 @@ static void server_stats(ADD_STAT add_stats, conn *c, bool aggregate) {
     }
     if (ts.received.mutation) {
         APPEND_STAT("tap_mutation_received", "%"PRIu64, ts.received.mutation);
+    }
+    if (ts.received.checkpoint_start) {
+        APPEND_STAT("tap_checkpoint_start_received", "%"PRIu64, ts.received.checkpoint_start);
+    }
+    if (ts.received.checkpoint_end) {
+        APPEND_STAT("tap_checkpoint_end_received", "%"PRIu64, ts.received.checkpoint_end);
     }
     if (ts.received.delete) {
         APPEND_STAT("tap_delete_received", "%"PRIu64, ts.received.delete);
@@ -3705,6 +3794,7 @@ static void process_stat_settings(ADD_STAT add_stats, void *c) {
     APPEND_STAT("growth_factor", "%.2f", settings.factor);
     APPEND_STAT("chunk_size", "%d", settings.chunk_size);
     APPEND_STAT("num_threads", "%d", settings.num_threads);
+    APPEND_STAT("num_threads_per_udp", "%d", settings.num_threads_per_udp);
     APPEND_STAT("stat_key_prefix", "%c", settings.prefix_delimiter);
     APPEND_STAT("detail_enabled", "%s",
                 settings.detail_enabled ? "yes" : "no");
@@ -4719,7 +4809,7 @@ static enum try_read_result try_read_udp(conn *c) {
 
     c->request_addr_size = sizeof(c->request_addr);
     res = recvfrom(c->sfd, c->rbuf, c->rsize,
-                   0, &c->request_addr, &c->request_addr_size);
+                   0, (struct sockaddr *)&c->request_addr, &c->request_addr_size);
     if (res > 8) {
         unsigned char *buf = (unsigned char *)c->rbuf;
         STATS_ADD(c, bytes_read, res);
@@ -4928,8 +5018,11 @@ static enum transmit_result transmit(conn *c) {
         }
         /* if res == 0 or res == -1 and error is not EAGAIN or EWOULDBLOCK,
            we have a real error, on which we close the connection */
-        if (settings.verbose > 0)
-            perror("Failed to write, and not due to blocking");
+        if (settings.verbose > 0) {
+            settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
+                                            "Failed to write, and not due to blocking: %s",
+                                            strerror(errno));
+        }
 
         if (IS_UDP(c->transport))
             conn_set_state(c, conn_read);
@@ -4953,18 +5046,18 @@ bool conn_listening(conn *c)
                 settings.extensions.logger->log(EXTENSION_LOG_INFO, c,
                                                 "Too many open connections\n");
             }
+            disable_listen();
         } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
             settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
                                             "Failed to accept new client: %s\n",
                                             strerror(errno));
-
         }
 
         return false;
     }
 
     STATS_LOCK();
-    int curr_conns = stats.curr_conns;
+    int curr_conns = ++stats.curr_conns;
     STATS_UNLOCK();
 
     if (curr_conns >= settings.maxconns) {
@@ -4976,8 +5069,8 @@ bool conn_listening(conn *c)
             settings.extensions.logger->log(EXTENSION_LOG_INFO, c,
                                             "Too many open connections\n");
         }
-        safe_close(sfd);
 
+        safe_close(sfd);
         return false;
     }
 
@@ -5006,9 +5099,7 @@ bool conn_listening(conn *c)
 bool conn_ship_log(conn *c) {
     bool cont = false;
 
-    if (c->pending_close.active) {
-        // Remove the event if it is present..
-        unregister_event(c);
+    if (c->sfd == INVALID_SOCKET) {
         return false;
     }
 
@@ -5143,7 +5234,7 @@ bool conn_swallow(conn *c) {
 
     /* first check if we have leftovers in the conn_read buffer */
     if (c->rbytes > 0) {
-        int tocopy = c->rbytes > c->sbytes ? c->sbytes : c->rbytes;
+        uint32_t tocopy = c->rbytes > c->sbytes ? c->sbytes : c->rbytes;
         c->sbytes -= tocopy;
         c->rcurr += tocopy;
         c->rbytes -= tocopy;
@@ -5208,7 +5299,7 @@ bool conn_nread(conn *c) {
     }
     /* first check if we have leftovers in the conn_read buffer */
     if (c->rbytes > 0) {
-        int tocopy = c->rbytes > c->rlbytes ? c->rlbytes : c->rbytes;
+        uint32_t tocopy = c->rbytes > c->rlbytes ? c->rlbytes : c->rbytes;
         if (c->ritem != c->rcurr) {
             memmove(c->ritem, c->rcurr, tocopy);
         }
@@ -5341,25 +5432,16 @@ bool conn_mwrite(conn *c) {
 }
 
 bool conn_pending_close(conn *c) {
-    assert(!c->pending_close.active);
-    assert(c->sfd != -1);
-    settings.extensions.logger->log(EXTENSION_LOG_INFO, c,
-                                    "Tap client connection closed (%d)."
-                                    " Putting it (%p) in pending close\n",
-                                    c->sfd, (void*)c);
+    assert(c->sfd == INVALID_SOCKET);
+    settings.extensions.logger->log(EXTENSION_LOG_DEBUG, c,
+                                    "Awaiting clients to release the cookie (pending close for %p)",
+                                    (void*)c);
     LOCK_THREAD(c->thread);
-    c->pending_close.timeout = current_time + 5;
-    c->pending_close.active = true;
     c->thread->pending_io = list_remove(c->thread->pending_io, c);
     if (!list_contains(c->thread->pending_close, c)) {
         enlist_conn(c, &c->thread->pending_close);
     }
     UNLOCK_THREAD(c->thread);
-
-    // We don't want any network notifications anymore..
-    unregister_event(c);
-    safe_close(c->sfd);
-    c->sfd = -1;
 
     /*
      * tell the tap connection that we're disconnecting it now,
@@ -5367,30 +5449,39 @@ bool conn_pending_close(conn *c) {
      */
     perform_callbacks(ON_DISCONNECT, NULL, c);
 
-    /* disconnect callback may have changed the state for the object
+    /*
+     * disconnect callback may have changed the state for the object
      * so we might complete the disconnect now
      */
     return c->state != conn_pending_close;
 }
 
 bool conn_immediate_close(conn *c) {
-    if (IS_UDP(c->transport)) {
-        conn_cleanup(c);
-    } else {
-        conn_close(c);
-    }
+    settings.extensions.logger->log(EXTENSION_LOG_DETAIL, c,
+                                    "Immediate close of %p",
+                                    (void*)c);
+    perform_callbacks(ON_DISCONNECT, NULL, c);
+    conn_close(c);
 
     return false;
 }
 
 bool conn_closing(conn *c) {
-    assert(c->thread->type == TAP || c->thread->type == GENERAL);
-    if (c->thread == tap_thread) {
+    if (IS_UDP(c->transport)) {
+        conn_cleanup(c);
+        return false;
+    }
+
+    // We don't want any network notifications anymore..
+    unregister_event(c);
+    safe_close(c->sfd);
+    c->sfd = INVALID_SOCKET;
+
+    if (c->refcount > 1) {
         conn_set_state(c, conn_pending_close);
     } else {
         conn_set_state(c, conn_immediate_close);
     }
-
     return true;
 }
 
@@ -5452,7 +5543,7 @@ void event_handler(const int fd, const short which, void *arg) {
     /* sanity */
     if (fd != c->sfd) {
         if (settings.verbose > 0) {
-            settings.extensions.logger->log(EXTENSION_LOG_INFO, c,
+            settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
                     "Catastrophic: event fd doesn't match conn fd!\n");
         }
         conn_close(c);
@@ -5496,15 +5587,14 @@ void event_handler(const int fd, const short which, void *arg) {
         }
     }
 
-
     /* Close any connections pending close */
     if (n_pending_close > 0) {
         for (size_t i = 0; i < n_pending_close; ++i) {
             conn *ce = pending_close[i];
-            if (ce->pending_close.timeout < current_time) {
+            if (ce->refcount == 1) {
                 settings.extensions.logger->log(EXTENSION_LOG_DEBUG, NULL,
-                                                "OK, time to nuke: %p: (%d)\n", (void*)ce,
-                                                ce->sfd);
+                                                "OK, time to nuke: %p\n",
+                                                (void*)ce);
                 conn_close(ce);
             } else {
                 LOCK_THREAD(ce->thread);
@@ -5520,6 +5610,35 @@ void event_handler(const int fd, const short which, void *arg) {
         UNLOCK_THREAD(thr);
     }
 }
+
+static void dispatch_event_handler(int fd, short which, void *arg) {
+    char buffer[80];
+    ssize_t nr = recv(fd, buffer, sizeof(buffer), 0);
+
+    if (nr != -1 && is_listen_disabled()) {
+        bool enable = false;
+        pthread_mutex_lock(&listen_state.mutex);
+        listen_state.count -= nr;
+        if (listen_state.count <= 0) {
+            enable = true;
+            listen_state.disabled = false;
+        }
+        pthread_mutex_unlock(&listen_state.mutex);
+        if (enable) {
+            conn *next;
+            for (next = listen_conn; next; next = next->next) {
+                update_event(next, EV_READ | EV_PERSIST);
+                if (listen(next->sfd, settings.backlog) != 0) {
+                    settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                    "listen() failed",
+                                                    strerror(errno));
+                }
+            }
+        }
+    }
+}
+
+
 
 static SOCKET new_socket(struct addrinfo *ai) {
     SOCKET sfd;
@@ -5549,8 +5668,12 @@ static void maximize_sndbuf(const int sfd) {
 
     /* Start with the default size. */
     if (getsockopt(sfd, SOL_SOCKET, SO_SNDBUF, (void *)&old_size, &intsize) != 0) {
-        if (settings.verbose > 0)
-            perror("getsockopt(SO_SNDBUF)");
+        if (settings.verbose > 0) {
+            settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                            "getsockopt(SO_SNDBUF): %s",
+                                            strerror(errno));
+        }
+
         return;
     }
 
@@ -5631,7 +5754,9 @@ static int server_socket(const char *interface,
         if (next->ai_family == AF_INET6) {
             error = setsockopt(sfd, IPPROTO_IPV6, IPV6_V6ONLY, (char *) &flags, sizeof(flags));
             if (error != 0) {
-                perror("setsockopt");
+                settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                "setsockopt(IPV6_V6ONLY): %s",
+                                                strerror(errno));
                 safe_close(sfd);
                 continue;
             }
@@ -5643,21 +5768,32 @@ static int server_socket(const char *interface,
             maximize_sndbuf(sfd);
         } else {
             error = setsockopt(sfd, SOL_SOCKET, SO_KEEPALIVE, (void *)&flags, sizeof(flags));
-            if (error != 0)
-                perror("setsockopt");
+            if (error != 0) {
+                settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                "setsockopt(SO_KEEPALIVE): %s",
+                                                strerror(errno));
+            }
 
             error = setsockopt(sfd, SOL_SOCKET, SO_LINGER, (void *)&ling, sizeof(ling));
-            if (error != 0)
-                perror("setsockopt");
+            if (error != 0) {
+                settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                "setsockopt(SO_LINGER): %s",
+                                                strerror(errno));
+            }
 
             error = setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, (void *)&flags, sizeof(flags));
-            if (error != 0)
-                perror("setsockopt");
+            if (error != 0) {
+                settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                "setsockopt(TCP_NODELAY): %s",
+                                                strerror(errno));
+            }
         }
 
         if (bind(sfd, next->ai_addr, next->ai_addrlen) == SOCKET_ERROR) {
             if (errno != EADDRINUSE) {
-                perror("bind()");
+                settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                "bind(): %s",
+                                                strerror(errno));
                 safe_close(sfd);
                 freeaddrinfo(ai);
                 return 1;
@@ -5667,7 +5803,9 @@ static int server_socket(const char *interface,
         } else {
             success++;
             if (!IS_UDP(transport) && listen(sfd, settings.backlog) == SOCKET_ERROR) {
-                perror("listen()");
+                settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                "listen(): %s",
+                                                strerror(errno));
                 safe_close(sfd);
                 freeaddrinfo(ai);
                 return 1;
@@ -5697,11 +5835,12 @@ static int server_socket(const char *interface,
         if (IS_UDP(transport)) {
             int c;
 
-            for (c = 0; c < settings.num_threads; c++) {
+            for (c = 0; c < settings.num_threads_per_udp; c++) {
                 /* this is guaranteed to hit all threads because we round-robin */
                 dispatch_conn_new(sfd, conn_read, EV_READ | EV_PERSIST,
                                   UDP_READ_BUFFER_SIZE, transport);
                 STATS_LOCK();
+                ++stats.curr_conns;
                 ++stats.daemon_conns;
                 STATS_UNLOCK();
             }
@@ -5716,6 +5855,7 @@ static int server_socket(const char *interface,
             listen_conn_add->next = listen_conn;
             listen_conn = listen_conn_add;
             STATS_LOCK();
+            ++stats.curr_conns;
             ++stats.daemon_conns;
             STATS_UNLOCK();
         }
@@ -5745,7 +5885,22 @@ static int server_sockets(int port, enum network_transport transport,
         for (char *p = strtok_r(list, ";,", &b);
              p != NULL;
              p = strtok_r(NULL, ";,", &b)) {
-            ret |= server_socket(p, port, transport, portnumber_file);
+            int the_port = port;
+
+            char *s = strchr(p, ':');
+            if (s != NULL) {
+                *s = '\0';
+                ++s;
+                if (!safe_strtol(s, &the_port)) {
+                    settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                                    "Invalid port number: \"%s\"", s);
+                    return 1;
+                }
+            }
+            if (strcmp(p, "*") == 0) {
+                p = NULL;
+            }
+            ret |= server_socket(p, the_port, transport, portnumber_file);
         }
         free(list);
         return ret;
@@ -5756,7 +5911,9 @@ static int new_socket_unix(void) {
     int sfd;
 
     if ((sfd = socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_SOCKET) {
-        perror("socket()");
+        settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                        "socket(AF_UNIX, SOCK_STREAM, 0): %s",
+                                        strerror(errno));
         return INVALID_SOCKET;
     }
 
@@ -5807,14 +5964,18 @@ static int server_socket_unix(const char *path, int access_mask) {
     assert(strcmp(addr.sun_path, path) == 0);
     old_umask = umask( ~(access_mask&0777));
     if (bind(sfd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-        perror("bind()");
+        settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                        "bind(): %s",
+                                        strerror(errno));
         safe_close(sfd);
         umask(old_umask);
         return 1;
     }
     umask(old_umask);
     if (listen(sfd, settings.backlog) == -1) {
-        perror("listen()");
+        settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                                        "listen(): %s",
+                                        strerror(errno));
         safe_close(sfd);
         return 1;
     }
@@ -5825,7 +5986,6 @@ static int server_socket_unix(const char *path, int access_mask) {
                  "failed to create listening connection\n");
         exit(EXIT_FAILURE);
     }
-
     STATS_LOCK();
     ++stats.daemon_conns;
     STATS_UNLOCK();
@@ -5866,20 +6026,23 @@ static void clock_handler(const int fd, const short which, void *arg) {
     set_current_time();
 }
 
-
 static void usage(void) {
     printf(PACKAGE " " VERSION "\n");
     printf("-p <num>      TCP port number to listen on (default: 11211)\n"
            "-U <num>      UDP port number to listen on (default: 11211, 0 is off)\n"
            "-s <file>     UNIX socket path to listen on (disables network support)\n"
            "-a <mask>     access mask for UNIX socket, in octal (default: 0700)\n"
-           "-l <ip_addr>  interface to listen on (default: INADDR_ANY, all addresses)\n"
+           "-l <addr>     interface to listen on (default: INADDR_ANY, all addresses)\n"
+           "              <addr> may be specified as host:port. If you don't specify\n"
+           "              a port number, the value you specified with -p or -U is\n"
+           "              used. You may specify multiple addresses separated by comma\n"
+           "              or by using -l multiple times\n"
            "-d            run as a daemon\n"
            "-r            maximize core file limit\n"
            "-u <username> assume identity of <username> (only when run as root)\n"
            "-m <num>      max memory to use for items in megabytes (default: 64 MB)\n"
            "-M            return error on memory exhausted (rather than removing items)\n"
-           "-c <num>      max simultaneous connections (default: 1024)\n"
+           "-c <num>      max simultaneous connections (default: 1000)\n"
            "-k            lock down all paged memory.  Note that there is a\n"
            "              limit on how much memory you may lock.  Trying to\n"
            "              allocate more than that would fail, so be sure you\n"
@@ -5925,7 +6088,6 @@ static void usage(void) {
            "MEMCACHED_TOP_KEYS        Number of top keys to keep track of\n"
            "MEMCACHED_REQS_TAP_EVENT  Similar to -R but for tap_ship_log\n");
 }
-
 static void usage_license(void) {
     printf(PACKAGE " " VERSION "\n\n");
     printf(
@@ -5997,7 +6159,6 @@ static void usage_license(void) {
     return;
 }
 
-
 static void save_pid(const char *pid_file) {
     FILE *fp;
 
@@ -6007,7 +6168,8 @@ static void save_pid(const char *pid_file) {
             if (fgets(buffer, sizeof(buffer), fp) != NULL) {
                 unsigned int pid;
                 if (safe_strtoul(buffer, &pid) && kill((pid_t)pid, 0) == 0) {
-                    fprintf(stderr, "WARNING: The pid file contained the following (running) pid: %u\n", pid);
+                    settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                               "WARNING: The pid file contained the following (running) pid: %u\n", pid);
                 }
             }
             fclose(fp);
@@ -6132,6 +6294,16 @@ static int get_socket_fd(const void *cookie) {
 static void set_tap_nack_mode(const void *cookie, bool enable) {
     conn *c = (conn *)cookie;
     c->tap_nack_mode = enable;
+}
+
+static void reserve_cookie(const void *cookie) {
+    conn *c = (conn *)cookie;
+    ++c->refcount;
+}
+
+static void release_cookie(const void *cookie) {
+    conn *c = (conn *)cookie;
+    --c->refcount;
 }
 
 static int num_independent_stats(void) {
@@ -6538,7 +6710,9 @@ static SERVER_HANDLE_V1 *get_server_api(void)
         .get_engine_specific = get_engine_specific,
         .get_socket_fd = get_socket_fd,
         .set_tap_nack_mode = set_tap_nack_mode,
-        .notify_io_complete = notify_io_complete
+        .notify_io_complete = notify_io_complete,
+        .reserve = reserve_cookie,
+        .release = release_cookie
     };
 
     static SERVER_STAT_API server_stat_api = {
@@ -6552,7 +6726,6 @@ static SERVER_HANDLE_V1 *get_server_api(void)
         .get_level = get_log_level,
         .set_level = set_log_level
     };
-
     static SERVER_EXTENSION_API extension_api = {
         .register_extension = register_extension,
         .unregister_extension = unregister_extension,
@@ -6636,7 +6809,6 @@ static bool load_extension(const char *soname, const char *config) {
     return true;
 }
 
-
 /**
  * Do basic sanity check of the runtime environment
  * @return true if no errors found, false if we can't use this env
@@ -6648,7 +6820,8 @@ static bool sanitycheck(void) {
         if (strncmp(ever, "1.", 2) == 0) {
             /* Require at least 1.3 (that's still a couple of years old) */
             if ((ever[2] == '1' || ever[2] == '2') && !isdigit(ever[3])) {
-                fprintf(stderr, "You are using libevent %s.\nPlease upgrade to"
+                settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
+                        "You are using libevent %s.\nPlease upgrade to"
                         " a more recent version (1.3 or newer)\n",
                         event_get_version());
                 return false;
@@ -6663,9 +6836,9 @@ static
 char*
 my_strdupl(const char* str, int len)
 {
-        char*   s = (char*) malloc(len + 1);
-        s[len] = 0;
-        return((char*) memcpy(s, str, len));
+	char*   s = (char*) malloc(len + 1);
+	s[len] = 0;
+	return((char*) memcpy(s, str, len));
 }
 
 /** Function that messages MySQL config variable string to something
@@ -6673,22 +6846,22 @@ that can be parsed by getopt() */
 static
 void
 daemon_memcached_make_option(char* option, int* option_argc,
-			     char*** option_argv)
+                             char*** option_argv)
 {
 	static const char*      sep = " ";
-	char*			last;
-	char*			opt_str;
-	char*			my_str;
-	int			num_arg = 0;
-	int			i = 1;
+	char*                   last;
+	char*                   opt_str;
+	char*                   my_str;
+	int                     num_arg = 0;
+	int                     i = 1;
 
 	my_str = my_strdupl(option, strlen(option));
-	
+
 	for (opt_str = strtok_r(my_str, sep, &last);
-             opt_str;
-             opt_str = strtok_r(NULL, sep, &last)) {
-                num_arg++;
-        }
+	     opt_str;
+	     opt_str = strtok_r(NULL, sep, &last)) {
+		num_arg++;
+	}
 
 	free(my_str);
 
@@ -6698,11 +6871,11 @@ daemon_memcached_make_option(char* option, int* option_argc,
 				       * sizeof(**option_argv));
 
 	for (opt_str = strtok_r(my_str, sep, &last);
-             opt_str;
-             opt_str = strtok_r(NULL, sep, &last)) {
+	     opt_str;
+	     opt_str = strtok_r(NULL, sep, &last)) {
 		(*option_argv)[i] = my_strdupl(opt_str, strlen(opt_str));
 		i++;
-        }
+	}
 
 	assert(i == num_arg + 1);
 
@@ -6712,14 +6885,12 @@ daemon_memcached_make_option(char* option, int* option_argc,
 }
 
 /* Structure that adds the call back functions struture pointers,
-passed to InnoDB engine.
-NOTE: if variables in this structure changes, please make corresponding
-change in "innodb_engine.c" */
+passed to InnoDB engine */
 typedef struct eng_config_info {
-	char*		option_string;
-	void*		cb_ptr;
-	unsigned int	eng_r_batch_size;
-	unsigned int	eng_w_batch_size;
+	char*           option_string;
+	void*           cb_ptr;
+	unsigned int    eng_r_batch_size;
+	unsigned int    eng_w_batch_size;
 	bool		enable_binlog;
 } eng_config_info_t;
 
@@ -6773,6 +6944,11 @@ void* daemon_memcached_main(void *p) {
         return(NULL);
     }
 
+    /* make the time we started always be 2 seconds before we really
+       did, so time(0) - time.started is never zero.  if so, things
+       like 'settings.oldest_live' which act as booleans as well as
+       values are now false in boolean context... */
+    process_started = time(0) - 2;
     set_current_time();
 
     /* Initialize the socket subsystem */
@@ -7269,7 +7445,7 @@ void* daemon_memcached_main(void *p) {
 #endif
 
     /* start up worker threads if MT mode */
-    thread_init(settings.num_threads, main_base);
+    thread_init(settings.num_threads, main_base, dispatch_event_handler);
 
     /* initialise clock event */
     clock_handler(0, 0, 0);
