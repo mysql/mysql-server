@@ -18,73 +18,6 @@
  02110-1301  USA
  */
 
-/********************* COMMON SCHEMA FOR VERSION 1.x ***************
- CREATE  TABLE IF NOT EXISTS `ndb_clusters` (
- `cluster_id` INT NOT NULL ,
- `ndb_connectstring` VARCHAR(128) NULL ,
- `microsec_rtt` INT UNSIGNED NOT NULL default 250, 
- PRIMARY KEY (`cluster_id`)
- ) ENGINE = ndbcluster; 
- 
- CREATE  TABLE IF NOT EXISTS `cache_policies` (
- `policy_name` VARCHAR(40) NOT NULL PRIMARY KEY,
- `get_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
- `set_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
- `delete_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
- `flush_from_db` ENUM('false', 'true') NOT NULL DEFAULT 'false'
- ) ENGINE = ndbcluster;
- 
- CREATE  TABLE IF NOT EXISTS `containers` (
- `name` varchar(50) not null primary key,
- `db_schema` VARCHAR(250) NOT NULL,
- `db_table` VARCHAR(250) NOT NULL,
- `key_columns` VARCHAR(250) NOT NULL,
- `value_columns` VARCHAR(250),
- `flags` VARCHAR(250) NOT NULL DEFAULT "0",
- `increment_column` VARCHAR(250),
- `cas_column` VARCHAR(250),
- `expire_time_column` VARCHAR(250)
- ) ENGINE = ndbcluster;
- 
-CREATE  TABLE IF NOT EXISTS `key_prefixes` (
- `server_role_id` INT UNSIGNED NOT NULL DEFAULT 0,
- `key_prefix` VARCHAR(250) NOT NULL ,
- `cluster_id` INT UNSIGNED NOT NULL DEFAULT 0,
- `policy` VARCHAR(40) NOT NULL,
- `container` VARCHAR(50), 
- PRIMARY KEY (`server_role_id`, `key_prefix`)
- ) ENGINE = ndbcluster;
- 
- CREATE  TABLE IF NOT EXISTS `last_memcached_signon` (
- `ndb_node_id` INT UNSIGNED NOT NULL PRIMARY KEY,
- `hostname` VARCHAR(255) NOT NULL, 
- `server_role` VARCHAR(40) NOT NULL,
- `signon_time` timestamp NOT NULL 
- ) ENGINE = ndbcluster;
-
-
- ********************* SPECIFIC TO VERSION 1.0 ***************
-
- CREATE  TABLE IF NOT EXISTS `memcache_server_roles` (
- `role_name` VARCHAR(40) NOT NULL ,
- `role_id` INT UNSIGNED NOT NULL ,
- `max_tps` INT UNSIGNED NOT NULL default 100000,
- PRIMARY KEY (`role_name`) )
- ENGINE = ndbcluster;
- 
- 
- ********************* SPECIFIC TO VERSION 1.1 ***************
-
- CREATE  TABLE IF NOT EXISTS `memcache_server_roles` (
- `role_name` VARCHAR(40) NOT NULL ,
- `role_id` INT UNSIGNED NOT NULL ,
- `max_clients` INT UNSIGNED NOT NULL default 100, 
- `config_timestamp` timestamp 
- PRIMARY KEY (`role_name`) )
- ENGINE = ndbcluster;
- 
-****************/
- 
 #include <unistd.h>
 #include <stdlib.h>  
 #include <stdio.h>
@@ -96,6 +29,7 @@ CREATE  TABLE IF NOT EXISTS `key_prefixes` (
 
 #include <memcached/extension_loggers.h>
 #include <memcached/util.h>
+#include <memcached/genhash.h>
 
 #include "ndbmemcache_global.h"
 #include "debug.h"
@@ -140,6 +74,74 @@ void * str_key_dup(const void *key, size_t) {
 
 
 /*********** VERSION 1 METADATA *******************/
+
+/********************* COMMON SCHEMA FOR VERSION 1.x ***************
+ CREATE  TABLE IF NOT EXISTS `ndb_clusters` (
+ `cluster_id` INT NOT NULL ,
+ `ndb_connectstring` VARCHAR(128) NULL ,
+ `microsec_rtt` INT UNSIGNED NOT NULL default 250, 
+ PRIMARY KEY (`cluster_id`)
+ ) ENGINE = ndbcluster; 
+ 
+ CREATE  TABLE IF NOT EXISTS `cache_policies` (
+ `policy_name` VARCHAR(40) NOT NULL PRIMARY KEY,
+ `get_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
+ `set_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
+ `delete_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
+ `flush_from_db` ENUM('false', 'true') NOT NULL DEFAULT 'false'
+ ) ENGINE = ndbcluster;
+ 
+ CREATE  TABLE IF NOT EXISTS `containers` (
+ `name` varchar(50) not null primary key,
+ `db_schema` VARCHAR(250) NOT NULL,
+ `db_table` VARCHAR(250) NOT NULL,
+ `key_columns` VARCHAR(250) NOT NULL,
+ `value_columns` VARCHAR(250),
+ `flags` VARCHAR(250) NOT NULL DEFAULT "0",
+ `increment_column` VARCHAR(250),
+ `cas_column` VARCHAR(250),
+ `expire_time_column` VARCHAR(250)
+ ) ENGINE = ndbcluster;
+ 
+ CREATE  TABLE IF NOT EXISTS `key_prefixes` (
+ `server_role_id` INT UNSIGNED NOT NULL DEFAULT 0,
+ `key_prefix` VARCHAR(250) NOT NULL ,
+ `cluster_id` INT UNSIGNED NOT NULL DEFAULT 0,
+ `policy` VARCHAR(40) NOT NULL,
+ `container` VARCHAR(50), 
+ PRIMARY KEY (`server_role_id`, `key_prefix`)
+ ) ENGINE = ndbcluster;
+ 
+ CREATE  TABLE IF NOT EXISTS `last_memcached_signon` (
+ `ndb_node_id` INT UNSIGNED NOT NULL PRIMARY KEY,
+ `hostname` VARCHAR(255) NOT NULL, 
+ `server_role` VARCHAR(40) NOT NULL,
+ `signon_time` timestamp NOT NULL 
+ ) ENGINE = ndbcluster;
+ 
+ 
+ ********************* SPECIFIC TO VERSION 1.0 ***************
+ 
+ CREATE  TABLE IF NOT EXISTS `memcache_server_roles` (
+ `role_name` VARCHAR(40) NOT NULL ,
+ `role_id` INT UNSIGNED NOT NULL ,
+ `max_tps` INT UNSIGNED NOT NULL default 100000,
+ PRIMARY KEY (`role_name`) )
+ ENGINE = ndbcluster;
+ 
+ 
+ ********************* SPECIFIC TO VERSION 1.1 ***************
+ 
+ CREATE  TABLE IF NOT EXISTS `memcache_server_roles` (
+ `role_name` VARCHAR(40) NOT NULL ,
+ `role_id` INT UNSIGNED NOT NULL ,
+ `max_clients` INT UNSIGNED NOT NULL default 100, 
+ `config_timestamp` timestamp 
+ PRIMARY KEY (`role_name`) )
+ ENGINE = ndbcluster;
+ 
+ ****************/
+
 
 config_v1::config_v1(Configuration * cf) :
   conf(*cf),

@@ -43,7 +43,10 @@ include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
 
 # Paths to libraries
-link_directories(${NDB_SOURCE_DIR}/src ${NDB_SOURCE_DIR}/src/common/util)
+link_directories(${NDB_SOURCE_DIR}/src 
+                 ${NDB_SOURCE_DIR}/src/common/util
+                 ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached
+                )
 
 # Source files for this module 
 set(NDB_MEMCACHE_SOURCE_FILES
@@ -122,15 +125,21 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
         DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
                
+######### TARGETS ############
 # Build the module
 add_library(ndb_engine MODULE ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndb_engine ndbclient_static ndbgeneral)
+target_link_libraries(ndb_engine ndbclient_static ndbgeneral memcached_utilities)
 
-add_dependencies(ndb_engine ndbclient_static ndbgeneral)
 # If we are using the bundled memcache, it is a dependency:
 if(WITH_MEMCACHE)
   add_dependencies(ndb_engine memcached)
 endif()
+
+# Build the library used by the unit tests
+add_library(ndbmemcache SHARED ${NDB_MEMCACHE_SOURCE_FILES})
+target_link_libraries(ndbmemcache ndbclient_static ndbgeneral memcached_utilities)
+set_target_properties(ndbmemcache PROPERTIES LINK_FLAGS "${FINAL_LINK_FLAGS}")
+
 
 # Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
@@ -147,7 +156,7 @@ set_target_properties(ndb_engine PROPERTIES
                       PREFIX ""
                       LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
-
+############ INSTALLER RULES #########
 # Install the ndb_engine.so module
 install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 
@@ -164,10 +173,6 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
 ######################################################## 
 
 
-# Build the library used by the unit tests
-add_library(ndbmemcache SHARED ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndbmemcache ndbclient_static ndbgeneral ${MEMCACHED_UTILITIES_LIBRARY})
-set_target_properties(ndbmemcache PROPERTIES LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
 add_subdirectory(unit)
 
