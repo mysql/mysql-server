@@ -3224,7 +3224,7 @@ static void end_idle_wait_v1(PSI_idle_locker* locker)
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
-      wait->m_event_id= thread->m_event_id;
+      wait->m_end_event_id= thread->m_event_id;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -3726,6 +3726,8 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
       insert_events_waits_history_long(wait);
     thread->m_events_waits_count--;
   }
+
+  table->m_has_io_stats= true;
 }
 
 /**
@@ -3804,6 +3806,8 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
       insert_events_waits_history_long(wait);
     thread->m_events_waits_count--;
   }
+
+  table->m_has_lock_stats= true;
 }
 
 static void start_file_wait_v1(PSI_file_locker *locker,

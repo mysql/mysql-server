@@ -1305,6 +1305,8 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
         pfs->m_lock_enabled= share->m_enabled &&
           flag_global_instrumentation && global_table_lock_class.m_enabled;
         pfs->m_lock_timed= share->m_timed && global_table_lock_class.m_timed;
+        pfs->m_has_io_stats= false;
+        pfs->m_has_lock_stats= false;
         share->inc_refcount();
         pfs->m_table_stat.reset();
         pfs->m_thread_owner= opening_thread;
@@ -1326,24 +1328,35 @@ void PFS_table::sanitized_aggregate(void)
   */
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
-  if (safe_share != NULL && safe_thread != NULL)
+  if ((safe_share != NULL && safe_thread != NULL) &&
+      (m_has_io_stats || m_has_lock_stats))
+  {
     safe_aggregate(& m_table_stat, safe_share, safe_thread);
+    m_has_io_stats= false;
+    m_has_lock_stats= false;
+  }
 }
 
 void PFS_table::sanitized_aggregate_io(void)
 {
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
-  if (safe_share != NULL && safe_thread != NULL)
+  if (safe_share != NULL && safe_thread != NULL && m_has_io_stats)
+  {
     safe_aggregate_io(& m_table_stat, safe_share, safe_thread);
+    m_has_io_stats= false;
+  }
 }
 
 void PFS_table::sanitized_aggregate_lock(void)
 {
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
-  if (safe_share != NULL && safe_thread != NULL)
+  if (safe_share != NULL && safe_thread != NULL && m_has_lock_stats)
+  {
     safe_aggregate_lock(& m_table_stat, safe_share, safe_thread);
+    m_has_lock_stats= false;
+  }
 }
 
 void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
@@ -1360,11 +1373,17 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
     uint index;
     event_name_array= thread->m_instr_class_waits_stats;
 
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/io/table/sql/handler) */
+    /*
+      Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      (for wait/io/table/sql/handler)
+    */
     index= global_table_io_class.m_event_name_index;
     table_stat->sum_io(& event_name_array[index]);
 
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/lock/table/sql/handler) */
+    /*
+      Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      (for wait/lock/table/sql/handler)
+    */
     index= global_table_lock_class.m_event_name_index;
     table_stat->sum_lock(& event_name_array[index]);
   }
@@ -1388,7 +1407,10 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
     uint index;
     event_name_array= thread->m_instr_class_waits_stats;
 
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/io/table/sql/handler) */
+    /*
+      Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      (for wait/io/table/sql/handler)
+    */
     index= global_table_io_class.m_event_name_index;
     table_stat->sum_io(& event_name_array[index]);
   }
@@ -1412,7 +1434,10 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
     uint index;
     event_name_array= thread->m_instr_class_waits_stats;
 
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/lock/table/sql/handler) */
+    /*
+      Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      (for wait/lock/table/sql/handler)
+    */
     index= global_table_lock_class.m_event_name_index;
     table_stat->sum_lock(& event_name_array[index]);
   }

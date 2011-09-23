@@ -138,46 +138,6 @@ static void print_cached_tables(void)
 }
 
 
-void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
-{
-  char buff[256],buff2[256];
-  String str(buff,sizeof(buff),system_charset_info);
-  String out(buff2,sizeof(buff2),system_charset_info);
-  const char *sep;
-  DBUG_ENTER("TEST_filesort");
-
-  out.length(0);
-  for (sep=""; s_length-- ; sortorder++, sep=" ")
-  {
-    out.append(sep);
-    if (sortorder->reverse)
-      out.append('-');
-    if (sortorder->field)
-    {
-      if (sortorder->field->table_name)
-      {
-	out.append(*sortorder->field->table_name);
-	out.append('.');
-      }
-      out.append(sortorder->field->field_name ? sortorder->field->field_name:
-		 "tmp_table_column");
-    }
-    else
-    {
-      str.length(0);
-      sortorder->item->print(&str, QT_ORDINARY);
-      out.append(str);
-    }
-  }
-  out.append('\0');				// Purify doesn't like c_ptr()
-  DBUG_LOCK_FILE;
-  (void) fputs("\nInfo about FILESORT\n",DBUG_FILE);
-  fprintf(DBUG_FILE,"Sortorder: %s\n",out.ptr());
-  DBUG_UNLOCK_FILE;
-  DBUG_VOID_RETURN;
-}
-
-
 void
 TEST_join(JOIN *join)
 {
