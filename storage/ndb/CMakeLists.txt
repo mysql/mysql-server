@@ -85,6 +85,12 @@ SET(NDBCLUSTER_SOURCES
 # Inlude directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
+IF(NOT MYSQL_CLUSTER_VERSION)
+ # Online alter table not supported in non MySQL Cluster
+ # versions yet, compile ndbcluster without online alter support
+ ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
+ENDIF()
+
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
 IF(MYSQL_CLUSTER_VERSION)
