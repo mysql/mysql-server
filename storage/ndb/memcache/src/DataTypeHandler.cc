@@ -524,13 +524,14 @@ int dth_encode_char(const NdbDictionary::Column *col,
                     size_t len, size_t offset, const char *str, void *buf) {
   char *cbuf = ((char *) buf);
   char *dest = cbuf + offset;
-  if(len > col->getLength()) return DTH_VALUE_TOO_LONG;
+  int rem_space = col->getLength() - (len + offset);
+  if(rem_space < 0) return DTH_VALUE_TOO_LONG;
 
   /* copy string into buffer */
   memcpy(dest, str, len);
 
   /* right-pad with spaces */
-  for(char *s = dest+len ; len < col->getLength() ; len++) {
+  for(char *s = dest+len ; rem_space < col->getLength() ; rem_space++) {
     *(s++) = ' ';
   }
 

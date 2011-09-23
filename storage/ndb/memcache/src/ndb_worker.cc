@@ -335,9 +335,10 @@ op_status_t worker_do_read(workitem *wqitem, bool server_cas) {
   const char *dbkey = workitem_get_key_suffix(wqitem);
 
   /* Use the workitem's inline buffer as a key buffer; 
-     allocate a new result buffer large enough for the result */
+     allocate a new result buffer large enough for the result.
+     Add 2 bytes to hold potential \r\n in a no-copy result. */
   Operation op(plan, OP_READ, wqitem->ndb_key_buffer);
-  workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer());  
+  workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer() + 2);
   op.buffer = wqitem->row_buffer_1;
 
   /* Copy the key into the key buffer, ecnoding it for NDB */
@@ -517,6 +518,9 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
 
 void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
+
+  assert(tx->getNdb()->getCustomData() == wqitem);
+
   ndb_pipeline * & pipeline = wqitem->pipeline;
   status_block * return_status;
   bool tx_did_match = false;
@@ -761,7 +765,7 @@ void incr_callback(int result, NdbTransaction *tx, void *itemptr) {
 
 
 bool finalize_read(workitem *wqitem) {
-  DEBUG_ENTER();
+  DEBUG_PRINT("%d.%d",wqitem->pipeline->id, wqitem->id);
   
   bool need_hash_item;
   Operation op(wqitem->plan, OP_READ);
