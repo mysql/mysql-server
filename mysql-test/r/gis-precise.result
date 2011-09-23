@@ -7,7 +7,7 @@ select 0, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFro
 0	0
 select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POINT(10 10)'));
 1	ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POINT(10 10)'))
-1	0
+1	1
 select 1, ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
 1	ST_Intersects(GeomFromText('POLYGON((0 0,20 10,10 30, 0 0))'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'))
 1	1
@@ -25,90 +25,46 @@ insert into t1 values
 (GeomFromText('POINT(8 2)')), (GeomFromText('POINT(8 4)')), (GeomFromText('POINT(8 6)')), (GeomFromText('POINT(8 8)'));
 select astext(g) from t1 where ST_Within(g, GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'));
 astext(g)
-POINT(2 2)
-POINT(2 4)
-POINT(2 6)
-POINT(2 8)
-POINT(4 2)
 POINT(4 4)
-POINT(4 6)
-POINT(4 8)
 POINT(6 2)
 POINT(6 4)
 POINT(6 6)
-POINT(6 8)
-POINT(8 2)
-POINT(8 4)
-POINT(8 6)
-POINT(8 8)
 select 'Contains';
 Contains
 Contains
 select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
 astext(g)
-POINT(2 2)
-POINT(2 4)
-POINT(2 6)
-POINT(2 8)
-POINT(4 2)
 POINT(4 4)
-POINT(4 6)
-POINT(4 8)
 POINT(6 2)
 POINT(6 4)
 POINT(6 6)
-POINT(6 8)
-POINT(8 2)
-POINT(8 4)
-POINT(8 6)
-POINT(8 8)
 select 'Intersects';
 Intersects
 Intersects
 select astext(g) from t1 where ST_Intersects(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
 astext(g)
+POINT(4 4)
+POINT(6 2)
+POINT(6 4)
+POINT(6 6)
 select 'Contains';
 Contains
 Contains
 select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
 astext(g)
-POINT(2 2)
-POINT(2 4)
-POINT(2 6)
-POINT(2 8)
-POINT(4 2)
 POINT(4 4)
-POINT(4 6)
-POINT(4 8)
 POINT(6 2)
 POINT(6 4)
 POINT(6 6)
-POINT(6 8)
-POINT(8 2)
-POINT(8 4)
-POINT(8 6)
-POINT(8 8)
 select 'Contains2';
 Contains2
 Contains2
 select astext(g) from t1 where ST_Contains(GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1), (5.01 3.01, 6 5, 9 5, 8 3, 5.01 3.01))'), g);
 astext(g)
-POINT(2 2)
-POINT(2 4)
-POINT(2 6)
-POINT(2 8)
-POINT(4 2)
 POINT(4 4)
-POINT(4 6)
-POINT(4 8)
 POINT(6 2)
-POINT(6 4)
 POINT(6 6)
-POINT(6 8)
-POINT(8 2)
 POINT(8 4)
-POINT(8 6)
-POINT(8 8)
 DROP TABLE t1;
 select 0, ST_Within(GeomFromText('LINESTRING(15 15, 50 50, 60 60)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
 0	ST_Within(GeomFromText('LINESTRING(15 15, 50 50, 60 60)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'))
@@ -136,7 +92,7 @@ ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('P
 1
 select ST_contains(GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)), ((6 6, 6 11, 11 11, 11 6, 6 6)))'), GeomFromText('POINT(5 10)'));
 ST_contains(GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)), ((6 6, 6 11, 11 11, 11 6, 6 6)))'), GeomFromText('POINT(5 10)'))
-1
+0
 select ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 15, 15 15, 15 10, 10 10))'));
 ST_Disjoint(GeomFromText('POLYGON((0 0, 0 5, 5 5, 5 0, 0 0))'), GeomFromText('POLYGON((10 10, 10 15, 15 15, 15 10, 10 10))'))
 1
@@ -219,10 +175,10 @@ st_touches(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))
 0
 select st_touches(geomfromtext('point(1 1)'), geomfromtext('point(1 1)'));
 st_touches(geomfromtext('point(1 1)'), geomfromtext('point(1 1)'))
-0
+1
 select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 1)'));
 st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 1)'))
-0
+1
 select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 0)'));
 st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 0)'))
 0
@@ -459,10 +415,16 @@ ST_WITHIN( POINTFROMTEXT(' POINT(1 2 ) ') , MULTIPOLYGONFROMTEXT(' MULTIPOLYGON(
 1
 select ST_ASTEXT(envelope(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION EMPTY')));
 ST_ASTEXT(envelope(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION EMPTY')))
-NULL
+GEOMETRYCOLLECTION EMPTY
 SELECT ST_EQUALS( GEOMETRYFROMTEXT(' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') , GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') );
 ST_EQUALS( GEOMETRYFROMTEXT(' MULTILINESTRING( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') , GEOMETRYFROMTEXT(' POLYGON( (3 5, 2 5, 2 4, 3 4, 3 5) ) ') )
 0
 SELECT ST_TOUCHES( GEOMETRYFROMTEXT(' LINESTRING( 1 1 , 1 4 , 5 0 , 8 3 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ') );
 ST_TOUCHES( GEOMETRYFROMTEXT(' LINESTRING( 1 1 , 1 4 , 5 0 , 8 3 ) ') , POLYGONFROMTEXT(' POLYGON( ( 2 2 , 2 8 , 8 8 , 8 2 , 2 2 ) , ( 4 4 , 4 6 , 6 6 , 6 4 , 4 4 ) ) ') )
 0
+SELECT ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT(' MULTIPOINT( 5 8 , 5 2 , 1 8 , 3 0 , 3 0 , 7 8 ) ') );
+ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT(' MULTIPOINT( 5 8 , 5 2 , 1 8 , 3 0 , 3 0 , 7 8 ) ') )
+0
+SELECT ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT('MULTIPOINT( 4 0 , 6 9 , 5 1, 1 4 )') );
+ST_EQUALS( MULTIPOINTFROMTEXT(' MULTIPOINT( 5 1 , 6 9 , 1 4 , 4 0 ) ') , MULTIPOINTFROMTEXT('MULTIPOINT( 4 0 , 6 9 , 5 1, 1 4 )') )
+1

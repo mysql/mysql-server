@@ -293,6 +293,7 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
       gcalc_shape_info si= events->get_shape();
       if (events->event == scev_thread ||
           events->event == scev_end ||
+          events->event == scev_single_point ||
           (get_shape_kind(si) == Gcalc_function::shape_polygon))
         set_b_state(si);
       else if (get_shape_kind(si) == Gcalc_function::shape_line)
@@ -308,6 +309,7 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
       gcalc_shape_info si= events->get_shape();
       if (events->event == scev_thread ||
           events->event == scev_end ||
+          events->event == scev_single_point ||
           (get_shape_kind(si) == Gcalc_function::shape_polygon))
         clear_b_state(si);
       else if (get_shape_kind(si) == Gcalc_function::shape_line)
