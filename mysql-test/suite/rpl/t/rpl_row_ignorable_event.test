@@ -8,6 +8,11 @@
 #
 
 source include/have_binlog_format_row.inc;
+ 
+#We will delay the slave start as resetting the debug variable (on the master)
+#while the dump thread is running, may cause sporadic races between user and
+#dump threads. BUG#12765441
+--let $rpl_skip_start_slave= 1
 source include/master-slave.inc;
 source include/have_binlog_rows_query.inc;
 source include/have_innodb.inc;
@@ -132,6 +137,9 @@ insert into t7(a) values(UUID_SHORT());
 drop table t7;
 source include/show_binlog_events.inc;
 
+--connection slave
+--source include/start_slave.inc
+--connection master
 sync_slave_with_master;
 --let $binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
 --echo # Test The Rows_query log event can be relayed.

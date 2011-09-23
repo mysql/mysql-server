@@ -8076,6 +8076,7 @@ void free_re(void)
   my_regfree(&sp_re);
   my_regfree(&view_re);
   my_regfree(&opt_trace_re);
+  my_regfree(&explain_re);
   my_regex_end();
 }
 
