@@ -280,16 +280,15 @@ Dbspj::execAPI_FAILREQ(Signal* signal)
 {
   jamEntry();
   Uint32 failedApiNode = signal->theData[0];
-  ndbrequire(signal->theData[1] == QMGR_REF); // As callback hard-codes QMGR
+  Uint32 ref = signal->theData[1];
 
   /**
    * We only need to care about lookups
    *   as SCAN's are aborted by DBTC
    */
-
   signal->theData[0] = failedApiNode;
   signal->theData[1] = reference();
-  sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+  sendSignal(ref, GSN_API_FAILCONF, signal, 2, JBB);
 }
 
 void
