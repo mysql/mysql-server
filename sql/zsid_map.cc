@@ -57,11 +57,7 @@ int Sid_map::clear()
                my_free, 0);
   reset_dynamic(&_sidno_to_sid);
   reset_dynamic(&_sorted);
-  if (my_chsize(fd, 0, 0, MYF(MY_WME)) != 0)  // 1 on error, 0 on success
-  {
-    close();
-    DBUG_RETURN(1);
-  }
+  PROPAGATE_REPORTED_ERROR_INT(appender.truncate(0));
   DBUG_RETURN(0);
 }
 
@@ -76,6 +72,11 @@ enum_return_status Sid_map::open(const char *_filename)
   DBUG_ASSERT(strlen(_filename) < FN_REFLEN);
 
   fd= my_open(filename, O_RDWR | O_CREAT | O_BINARY, MYF(MY_WME));
+  if (fd == -1)
+    RETURN_REPORTED_ERROR;
+  File_reader reader;
+  reader.set_file(fd);
+  appender.set_file(fd);
   int pos= 0;
   rpl_sidno sidno= 0;
   uchar type_code;
@@ -83,33 +84,25 @@ enum_return_status Sid_map::open(const char *_filename)
   // read each block in the file
   while (true)
   {
-    size_t read_bytes= my_read(fd, &type_code, 1, MYF(0));
-    if (read_bytes == 0)
-      RETURN_OK;
-    if (read_bytes == MY_FILE_ERROR)
-    {
-      my_error(ER_ERROR_ON_READ, MYF(0), filename, errno);
+    enum_read_status read_status= reader.read(&type_code, 1);
+    if (read_status == READ_ERROR)
       goto error;
-    }
-    DBUG_ASSERT(read_bytes == 1);
+    else if (read_status == READ_TRUNCATED)
+      goto truncate;
+    else if (read_status == READ_EOF)
+      break;
+    DBUG_ASSERT(read_status == READ_OK);
     if (type_code == 0)
     {
       // type code 0: 16-byte uuid
-      enum_read_status read_status= sid.read(fd, MYF(0));
-      if (read_status == READ_ERROR_IO)
-      {
-        my_error(ER_ERROR_ON_READ, MYF(0), filename, errno);
+      read_status= sid.read(&reader);
+      if (read_status == READ_ERROR)
         goto error;
-      }
-      if (read_status == READ_EOF || read_status == READ_TRUNCATED)
+      else if (read_status == READ_EOF || read_status == READ_TRUNCATED)
         goto truncate;
       DBUG_ASSERT(read_status == READ_OK);
       sidno++;
-      if (add_node(sidno, &sid) != 0)
-      {
-        my_error(ER_OUT_OF_RESOURCES, MYF(0));
-        goto error;
-      }
+      PROPAGATE_REPORTED_ERROR(add_node(sidno, &sid));
       pos+= 1 + Uuid::BYTE_LENGTH;
     }
     else
@@ -125,20 +118,19 @@ enum_return_status Sid_map::open(const char *_filename)
       {
         // odd type code: ignorable
         ulonglong skip_len;
-        int ret= Compact_encoding::read_unsigned(fd, &skip_len, MYF(MY_WME));
-        if (ret <= 0)
-        {
-          if (skip_len == 1)
-            goto truncate;
-          else
-            goto error;
-        }
+        read_status= Compact_encoding::read_unsigned(&reader, &skip_len);
+        if (read_status == READ_ERROR)
+          goto error;
+        else if (read_status == READ_EOF || read_status == READ_TRUNCATED)
+          goto truncate;
         /// @todo: if file is truncated in middle of block, truncate file
-        if (my_seek(fd, skip_len, SEEK_CUR, MYF(MY_WME)) != 0)
+        if (reader.seek(skip_len))
           goto error;
       }
     }
   }
+
+  RETURN_OK;
 
 truncate:
   if (my_chsize(fd, pos, 0, MYF(MY_WME)) != 0)  // 1 on error, 0 on success
@@ -154,6 +146,11 @@ error:
 rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
 {
   DBUG_ENTER("Sid_map::add_permanent");
+#ifdef DBUG
+  char buf[Uuid::MAX_TEXT_LENGTH + 1];
+  sid->to_string(buf);
+  DBUG_PRINT("info", ("SID=%s", sid));
+#endif
   sid_lock->assert_some_rdlock();
   Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                      rpl_sid::BYTE_LENGTH);
@@ -173,8 +170,8 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
   else
   {
     sidno= get_max_sidno() + 1;
-    if (add_node(sidno, sid) != 0 ||
-        write_to_disk(sidno, sid) != 0 ||
+    if (add_node(sidno, sid) != RETURN_STATUS_OK ||
+        write_to_disk(sidno, sid) != RETURN_STATUS_OK ||
         (_sync && sync() != 0))
       sidno= -1;
   }
@@ -189,19 +186,18 @@ enum_return_status Sid_map::write_to_disk(rpl_sidno sidno, const rpl_sid *sid)
 {
   DBUG_ENTER("Sid_map::write_to_disk");
   sid_lock->assert_some_lock();
-  if (fd == -1)
+  if (!appender.is_open())
   {
     my_error(ER_ERROR_ON_WRITE, MYF(0));
     RETURN_REPORTED_ERROR;
   }
   uchar type_code= 0;
-  my_off_t old_pos= my_tell(fd, MYF(MY_WME));
-  if (my_write(fd, &type_code, 1, MYF(MY_WME | MY_WAIT_IF_FULL)) != 1)
-    RETURN_REPORTED_ERROR;
-  if (sid->write(fd, MYF(MY_WME | MY_WAIT_IF_FULL)) != 0)
+  my_off_t saved_pos;
+  if (appender.tell(&saved_pos) != RETURN_STATUS_OK ||
+      appender.append(&type_code, 1, saved_pos) != APPEND_OK ||
+      sid->append(&appender, saved_pos) != APPEND_OK)
   {
-    if (my_chsize(fd, old_pos, 0, MYF(MY_WME)) != 0)
-      close(); // fatal error, sid file is corrupt
+    close(); // fatal error, sid file is corrupt
     RETURN_REPORTED_ERROR;
   }
   RETURN_OK;
@@ -272,6 +268,7 @@ enum_return_status Sid_map::close()
   DBUG_ENTER("Sid_map::close()");
   int ret= my_close(fd, MYF(MY_WME));
   fd= -1;
+  appender.set_file(-1);
   if (ret != 0)
     RETURN_REPORTED_ERROR;
   RETURN_OK;

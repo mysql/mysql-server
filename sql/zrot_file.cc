@@ -39,42 +39,31 @@ enum_return_status Rot_file::open(const char *_filename, bool writable)
                        (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
                        MYF(MY_WME));
   if (sub_file.fd < 0)
-  {
-    my_error(ER_FILE_NOT_FOUND, MYF(0), sub_file.filename, errno);
     RETURN_REPORTED_ERROR;
-  }
 
+  File_reader reader;
+  reader.set_file(sub_file.fd);
+  appender.set_file(sub_file.fd);
   ulonglong offset;
-  int ret= Compact_encoding::read_unsigned(sub_file.fd, &offset, MYF(0));
-  DBUG_PRINT("info", ("rotfile %s header length %d offset %lld",
-                      sub_file.filename, ret, offset));
-  if (ret <= 0)
+  enum_read_status read_status=
+    Compact_encoding::read_unsigned(&reader, &offset);
+  DBUG_PRINT("info", ("rotfile='%s' read_status='%d' offset='%lld'",
+                      sub_file.filename, read_status, offset));
+  switch (read_status)
   {
-    if (offset == 0)
-    {
-      // IO error: generate message
-      my_error(ER_ERROR_ON_READ, MYF(0), sub_file.filename, errno);
+  case READ_OK:
+    break;
+  case READ_ERROR:
+    RETURN_REPORTED_ERROR;
+  case READ_TRUNCATED:
+    PROPAGATE_REPORTED_ERROR(appender.truncate(0));
+    // FALLTHROUGH
+  case READ_EOF:
+    // file was empty: write the header
+    if (Compact_encoding::append_unsigned(&appender, 0) != APPEND_OK)
       RETURN_REPORTED_ERROR;
-    }
-    else if (ret == 0 && offset == 1)
-    {
-      // file was empty: write the header
-      offset= 0;
-      if (Compact_encoding::write_unsigned(sub_file.fd, offset,
-                                           MYF(MY_WME)) <= 0)
-        RETURN_REPORTED_ERROR;
-      sub_file.header_length= 1;
-    }
-    else 
-    {
-      // file format error
-      my_error(ER_FILE_FORMAT, MYF(0), sub_file.filename);
-      close();
-      RETURN_REPORTED_ERROR;
-    }
   }
-  else
-    sub_file.header_length= ret;
+  PROPAGATE_REPORTED_ERROR(appender.tell(&sub_file.header_length));
 
   _is_open= true;
   RETURN_OK;
@@ -99,7 +88,7 @@ enum_return_status Rot_file::purge(my_off_t offset)
 }
 
 
-enum_return_status Rot_file::truncate(my_off_t offset)
+enum_return_status Rot_file::do_truncate(my_off_t offset)
 {
   DBUG_ASSERT(0); // @todo: implement /sven
   DBUG_ENTER("Rot_file::truncate");

@@ -13,10 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+
 #include "zgroups.h"
 #include "sql_class.h"
 #include "binlog.h"
 #include "transaction.h"
+
 
 #ifdef HAVE_UGID
 
@@ -32,7 +34,6 @@ ugid_acquire_group_ownership(THD *thd, Checkable_rwlock *lock,
                              rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("ugid_acquire_group_ownership");
-  //printf("ugid_acquire_group_ownership(sidno=%d gno=%lld)\n", sidno, gno);
   enum_ugid_statement_status ret= UGID_STATEMENT_EXECUTE;
   lock->assert_some_rdlock();
   gls->lock_sidno(sidno);
@@ -55,7 +56,6 @@ ugid_acquire_group_ownership(THD *thd, Checkable_rwlock *lock,
     }
     else
     {
-      //printf("other owner. waiting.\n");
       lock->unlock();
       Group g= { sidno, gno };
       gls->wait_for_sidno(thd, &mysql_bin_log.sid_map, g, owner);
@@ -74,12 +74,11 @@ ugid_acquire_group_ownership(THD *thd, Checkable_rwlock *lock,
   Acquire ownership of all groups in a Group_set.  This is used to
   begin a master-super-group when @@SESSION.UGID_NEXT_LIST != NULL.
 */
-static int
+static enum_ugid_statement_status
 ugid_acquire_group_ownerships(THD *thd, Checkable_rwlock *lock,
                               Group_log_state *gls, const Group_set *gs)
 {
   DBUG_ENTER("ugid_acquire_group_ownerships");
-  //printf("ugid_acquire_group_ownerships\n");
   lock->assert_some_rdlock();
   // first check if we need to wait for any group
   while (true)
@@ -126,12 +125,12 @@ ugid_acquire_group_ownerships(THD *thd, Checkable_rwlock *lock,
     // read lock that was held when this function was invoked
     lock->rdlock();
     if (thd->killed || abort_loop)
-      DBUG_RETURN(1);
+      DBUG_RETURN(UGID_STATEMENT_CANCEL);
   }
 
   // now we know that we don't have to wait for any other
   // thread. so we acquire ownership of all groups that we need
-  int ret= 0;
+  enum_return_status ret= RETURN_STATUS_OK;
   Group_set::Group_iterator git(gs);
   Group g= git.get();
   do {
@@ -141,7 +140,7 @@ ugid_acquire_group_ownerships(THD *thd, Checkable_rwlock *lock,
       if (owner.is_none())
       {
         ret= gls->acquire_ownership(g.sidno, g.gno, thd);
-        if (ret != 0)
+        if (ret != RETURN_STATUS_OK)
           break;
       }
       else
@@ -161,14 +160,23 @@ ugid_acquire_group_ownerships(THD *thd, Checkable_rwlock *lock,
     if (gs->contains_sidno(sidno))
       gls->unlock_sidno(sidno);
 
-  DBUG_RETURN(ret);
+  DBUG_RETURN(ret == RETURN_STATUS_OK ?
+              UGID_STATEMENT_EXECUTE : UGID_STATEMENT_CANCEL);
 }
 
 
 /**
   Check that the @@SESSION.UGID_* variables are consistent.
+
+  @param thd THD object for the current client.
+  @param lock Lock protecting the number of SIDNOs
+  @param gsc Group statement cache.
+  @param gtc Group transaction cache.
+  @param ugid_next_list The @@SESSION.UGID_NEXT_LIST variable (possibly NULL).
+  @param ugid_next The @@SESSION.UGID_NEXT variable.
+  @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
 */
-static int
+static enum_return_status
 ugid_before_statement_check_session_variables(
   const THD *thd, Checkable_rwlock *lock,
   const Group_cache *gsc, const Group_cache *gtc,
@@ -192,7 +200,7 @@ ugid_before_statement_check_session_variables(
       ugid_next->to_string(buf);
       lock->unlock();
       my_error(ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST, MYF(0), buf);
-      DBUG_RETURN(1);
+      RETURN_REPORTED_ERROR;
     }
 
     // UGID_NEXT cannot be "AUTOMATIC" when UGID_NEXT_LIST != NULL.
@@ -200,7 +208,7 @@ ugid_before_statement_check_session_variables(
     {
       my_error(ER_UGID_NEXT_CANT_BE_AUTOMATIC_IF_UGID_NEXT_LIST_IS_NON_NULL,
                MYF(0));
-      DBUG_RETURN(1);
+      RETURN_REPORTED_ERROR;
     }
   }
 
@@ -214,7 +222,7 @@ ugid_before_statement_check_session_variables(
     ugid_next->to_string(buf);
     lock->unlock();
     my_error(ER_UGID_NEXT_IS_ENDED_IN_GROUP_CACHE, MYF(0), buf);
-    DBUG_RETURN(1);
+    RETURN_REPORTED_ERROR;
   }
 
   // If UGID_END==1, then UGID_NEXT must not be "AUTOMATIC" or
@@ -224,7 +232,7 @@ ugid_before_statement_check_session_variables(
       thd->variables.ugid_end)
   {
     my_error(ER_UGID_END_IS_ON_BUT_UGID_NEXT_IS_AUTO_OR_ANON, MYF(0));
-    DBUG_RETURN(1);
+    RETURN_REPORTED_ERROR;
   }
 
   // If UGID_NEXT_LIST == NULL and UGID_NEXT == "SID:GNO", then
@@ -235,11 +243,12 @@ ugid_before_statement_check_session_variables(
       thd->variables.ugid_end &&
       !thd->variables.ugid_commit)
   {
-    my_error(ER_UGID_END_REQUIRES_UGID_COMMIT_WHEN_UGID_NEXT_LIST_IS_NULL, MYF(0));
-    DBUG_RETURN(1);
+    my_error(ER_UGID_END_REQUIRES_UGID_COMMIT_WHEN_UGID_NEXT_LIST_IS_NULL,
+             MYF(0));
+    RETURN_REPORTED_ERROR;
   }
 
-  DBUG_RETURN(0);
+  RETURN_OK;
 }
 
 
@@ -265,11 +274,9 @@ ugid_before_statement_begin_master_super_group(
     {
       // acquire group ownership for Group_set.
       if (!ugid_next_list->is_empty())
-        if (ugid_acquire_group_ownerships(thd, lock, gls, ugid_next_list))
-        {
-          my_error(ER_OUT_OF_RESOURCES, MYF(0), ER(ER_OUT_OF_RESOURCES));
+        if (ugid_acquire_group_ownerships(thd, lock, gls, ugid_next_list) !=
+            UGID_STATEMENT_EXECUTE)
           DBUG_RETURN(UGID_STATEMENT_CANCEL);
-        }
       thd->variables.ugid_has_ongoing_super_group= 1;
     }
     else
@@ -303,10 +310,10 @@ ugid_before_statement_begin_master_super_group(
 
 
 /**
-  Begin a master-group, i.e., check if the statement should be skipped
-  or not.
+  Begin a group, i.e., check if the statement should be skipped or
+  not.
 */
-static int
+static enum_ugid_statement_status
 ugid_before_statement_begin_group(const THD *thd, Checkable_rwlock *lock,
                                   const Group_log_state *gls,
                                   const Ugid_specification *ugid_next)
@@ -318,8 +325,8 @@ ugid_before_statement_begin_group(const THD *thd, Checkable_rwlock *lock,
   if (ugid_next->type == Ugid_specification::UGID)
     if (!gls->get_owner(ugid_next->group.sidno,
                         ugid_next->group.gno).equals(thd))
-      DBUG_RETURN(1);
-  DBUG_RETURN(0);
+      DBUG_RETURN(UGID_STATEMENT_SKIP);
+  DBUG_RETURN(UGID_STATEMENT_EXECUTE);
 }
 
 
@@ -350,8 +357,7 @@ ugid_before_statement(THD *thd, Checkable_rwlock *lock, Group_log_state *gls,
   // Begin the group, i.e., check if this statement should be skipped
   // or not.
   if (ret == UGID_STATEMENT_EXECUTE)
-    if (ugid_before_statement_begin_group(thd, lock, gls, ugid_next))
-      ret= UGID_STATEMENT_SKIP;
+    ret= ugid_before_statement_begin_group(thd, lock, gls, ugid_next);
 
   // Generate a warning if the group should be skipped.  We do not
   // generate warning if log_warnings is false, partially because that
@@ -368,7 +374,6 @@ ugid_before_statement(THD *thd, Checkable_rwlock *lock, Group_log_state *gls,
                         ER(ER_SKIPPING_LOGGED_GROUP), buf);
     */
   }
-//#endif
 
   lock->unlock();
 
@@ -377,15 +382,19 @@ ugid_before_statement(THD *thd, Checkable_rwlock *lock, Group_log_state *gls,
 
 
 int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
-                           Group_log_state *gls, Group_cache *gc,
+                           Group_log_state *gls,
+                           Group_log *gl,
+                           Group_cache *gc,
                            Group_cache *trx_cache,
                            rpl_binlog_pos offset_after_last_statement)
 {
   DBUG_ENTER("ugid_flush_group_cache");
   lock->rdlock();
-  gc->generate_automatic_gno(thd, gls);
-  PROPAGATE_REPORTED_ERROR_INT(gc->write_to_log(trx_cache,
-                                                offset_after_last_statement));
+  PROPAGATE_REPORTED_ERROR_INT(gc->generate_automatic_gno(thd, gls));
+  PROPAGATE_REPORTED_ERROR_INT(
+    gc->write_to_log(thd, trx_cache,
+                     offset_after_last_statement,
+                     thd->variables.ugid_commit ? true : false, gl));
   PROPAGATE_REPORTED_ERROR_INT(gc->update_group_log_state(thd, gls));
   lock->unlock();
   gc->clear();
@@ -422,9 +431,6 @@ int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
     }
   }
 
-  /*printf("ugid_before_flush_trx_cache commit=%d\n",
-         thd->variables.ugid_commit);
-  */
   if (thd->variables.ugid_commit)
   {
     /*
@@ -436,8 +442,6 @@ int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
     if (ugid_next_list != NULL)
     {
       lock->rdlock();
-      //printf("hello\n");
-      //ugid_next_list->print();
       ret= trx_cache->add_dummy_subgroups_if_missing(gls, ugid_next_list);
       lock->unlock();
     }

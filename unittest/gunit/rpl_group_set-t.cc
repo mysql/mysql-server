@@ -37,12 +37,13 @@ class GroupTest : public ::testing::Test
 public:
   static const char *uuids[16];
   rpl_sid sids[16];
-  int seed;
+  unsigned int seed;
 
 
   void SetUp()
   {
-    seed= 1315993962;//(int)time(NULL);
+    seed= (unsigned int)time(NULL);
+    printf("# seed = %u\n", seed);
     srand(seed);
     for (int i= 0; i < 16; i++)
       sids[i].parse(uuids[i]);
@@ -71,17 +72,19 @@ public:
     Sid_map, Group_cache, Group_log_state, and Owned_groups.
 
     We will generate sets of groups in *stages*.  Each stage is
-    divided into 200 *sub-stages*.  In each sub-stage, we randomly
-    sample one sub-group from a fixed set of groups.  The fixed set of
-    groups consists of groups from 16 different SIDs.  For the Nth SID
-    (1 <= N <= 16), the fixed set of groups contains all GNOS from the
-    closed interval [N, N - 1 + N * N].  The stage consists of the set
-    of groups from the 200 sub-stages.
+    divided into a number of *sub-stages* (the number of substages is
+    taken uniformly at random from the set 1, 2, ..., 200).  In each
+    sub-stage, we randomly sample one sub-group from a fixed set of
+    groups.  The fixed set of groups consists of groups from 16
+    different SIDs.  For the Nth SID (1 <= N <= 16), the fixed set of
+    groups contains all GNOS from the closed interval [N, N - 1 + N *
+    N].  The stage consists of the set of groups from all the
+    sub-stages.
   */
 
   #define BEGIN_SUBSTAGE_LOOP(group_test, stage, do_errtext)            \
     (group_test)->push_errtext();                                       \
-    for (int substage_i= 0; substage_i < Stage::N_SUBSTAGES; substage_i++) { \
+    for (int substage_i= 0; substage_i < (stage)->n_substages; substage_i++) { \
       Substage &substage= (stage)->substages[substage_i];               \
       if (do_errtext)                                                   \
         (group_test)->append_errtext(__LINE__,                          \
@@ -91,7 +94,7 @@ public:
   #define END_SUBSTAGE_LOOP(group_test) } group_test->pop_errtext()
 
   /**
-    A substage, i.e., one of the 200 groups.
+    A substage, i.e., one of the randomly generated groups.
   */
   struct Substage
   {
@@ -101,10 +104,17 @@ public:
     char sid_str[rpl_sid::TEXT_LENGTH + 1];
     char ugid_str[rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1];
     bool is_first, is_last, is_auto;
+#ifndef NO_DBUG
+    void print() const
+    {
+      printf("%d/%s [first=%d last=%d auto=%d]",
+             sidno, ugid_str, is_first, is_last, is_auto);
+    }
+#endif
   };
 
   /**
-    A stage, i.e., the 200 randomly generated groups.
+    A stage, i.e., the sequence of randomly generated groups.
   */
   struct Stage
   {
@@ -112,8 +122,9 @@ public:
     Sid_map *sid_map;
 
     // List of groups added in the present stage.
-    static const int N_SUBSTAGES= 200;
-    Substage substages[N_SUBSTAGES];
+    static const int MAX_SUBSTAGES= 200;
+    Substage substages[MAX_SUBSTAGES];
+    int n_substages;
 
     // Set of groups added in the present stage.
     Group_set set;
@@ -142,8 +153,20 @@ public:
 
     ~Stage() { free(str); }
 
+    void print() const
+    {
+      printf("%d substages = {\n", n_substages);
+      for (int i= 0; i < n_substages; i++)
+      {
+        printf("  substage[%d]: ", i);
+        substages[i].print();
+        printf("\n");
+      }
+      printf("\n");
+    }
+
     /**
-      Generate the 200 random groups that constitute a stage.
+      Generate the the random groups that constitute a stage.
 
       @param done_groups The set of all groups added in previous
       stages.
@@ -155,6 +178,7 @@ public:
       automatic_groups.clear();
       non_automatic_groups.clear();
 
+      n_substages= 1 + (rand() % MAX_SUBSTAGES);
       BEGIN_SUBSTAGE_LOOP(group_test, this, false)
       {
         // generate random UGID
@@ -177,27 +201,25 @@ public:
         const Group_set::Interval *iv= ivit.get();
         substage.is_auto=
           !set.contains_group(substage.sidno, substage.gno) &&
-          (((iv == NULL || iv->start > 1) ? substage.gno == 1 :
-            substage.gno == iv->end));
-        //printf("is_auto=%d\n", substage.is_auto);
+          ((iv == NULL || iv->start > 1) ? substage.gno == 1 :
+            substage.gno == iv->end);
 
         // check if this sub-group is the first in its group in this
         // stage, and add it to the set
-        if (set.contains_group(substage.sidno, substage.gno))
-          substage.is_first= true;
-        else
+        substage.is_first= !set.contains_group(substage.sidno, substage.gno);
+        if (substage.is_first)
           ASSERT_OK(set.add(substage.ugid_str));
       } END_SUBSTAGE_LOOP(group_test);
 
       // Iterate backwards so that we can detect when a subgroup is
       // the last subgroup of its group.
       set.clear();
-      for (int substage_i= N_SUBSTAGES - 1; substage_i >= 0; substage_i--)
+      for (int substage_i= n_substages - 1; substage_i >= 0; substage_i--)
       {
-        substages[substage_i].is_last=
-          !set.contains_group(substages[substage_i].sidno,
-                              substages[substage_i].gno);
-        ASSERT_OK(set.add(substages[substage_i].ugid_str));
+        Substage &substage= substages[substage_i];
+        substage.is_last= !set.contains_group(substage.sidno, substage.gno);
+        if (substage.is_last)
+          ASSERT_OK(set.add(substage.ugid_str));
       }
 
       str_len= set.get_string_length();
@@ -251,17 +273,12 @@ public:
   {
     append_errtext(line, "%s", desc);
     // check using is_subset
-    //printf("sub=%p\n", sub);
-    //sub->print();
-    //printf("super=%p\n", super);
-    //super->print();
     EXPECT_EQ(outcome, sub->is_subset(super)) << errtext;
     // check using set subtraction
     enum_return_status status;
     Group_set sub_minus_super(sub, &status);
     ASSERT_OK(status) << errtext;
     ASSERT_OK(sub_minus_super.remove(super)) << errtext;
-    //sub_minus_super.print();
     ASSERT_EQ(outcome, sub_minus_super.is_empty()) << errtext;
   }
 
@@ -470,7 +487,6 @@ TEST_F(GroupTest, Group_containers)
     for (int end_i= 0; end_i < MAX_END; end_i++) {                      \
       for (int dummy_i= 0; dummy_i < MAX_DUMMY; dummy_i++) {            \
         for (int anon_i= 0; anon_i < MAX_ANON; anon_i++, combination_i++) { \
-          /*if (combination_i != 82) continue;*/                        \
           Group_set &group_set __attribute__((unused))=                 \
             containers[combination_i]->group_set;                       \
           Group_cache &stmt_cache __attribute__((unused))=              \
@@ -483,7 +499,8 @@ TEST_F(GroupTest, Group_containers)
                          "type_i=%d end_i=%d dummy_i=%d "               \
                          "anon_i=%d combination_i=%d",                  \
                          type_i, end_i, dummy_i,                        \
-                         anon_i, combination_i);
+                         anon_i, combination_i);                        \
+          //verbose= (combination_i == 108); /*todo*/
 
 #define END_LOOP_B } } } } pop_errtext()
 
@@ -533,8 +550,6 @@ TEST_F(GroupTest, Group_containers)
     containers[combination_i] = new Containers(&lock, sid_maps[0]);
   } END_LOOP_B;
 
-  //verbose= true;
-
   /*
     Construct a Group_set that contains the set of all groups from
     which we sample.
@@ -554,10 +569,10 @@ TEST_F(GroupTest, Group_containers)
 
   /*
     Iterate through stages. In each stage, create the "stage group
-    set" by taking 200 randomly sampled subgroups.  Add this stage
-    group set to each of the group sets in different ways.  Stop when
-    the union of all stage group sets is equal to the full set from
-    which we took the samples.
+    set" by generating up to 200 subgroups.  Add this stage group set
+    to each of the group sets in different ways.  Stop when the union
+    of all stage group sets is equal to the full set from which we
+    took the samples.
   */
   char *done_str= NULL;
   int done_str_len= 0;
@@ -588,6 +603,12 @@ TEST_F(GroupTest, Group_containers)
     stage_i++;
     append_errtext(__LINE__, "stage_i=%d", stage_i);
     stage.new_stage(&done_groups, sid_maps[1]);
+
+    if (verbose)
+    {
+      printf("======== stage %d ========\n", stage_i);
+      stage.print();
+    }
 
     // Create a string that contains all previous stage.str,
     // concatenated.
@@ -633,6 +654,18 @@ TEST_F(GroupTest, Group_containers)
     // Add groups to Group_caches.
     BEGIN_LOOP_B
     {
+      if (verbose)
+      {
+        printf("======== stage=%d combination=%d ========\n",
+               stage_i, combination_i);
+        printf("group log state:\n");
+        group_log_state.print();
+        printf("trx cache:\n");
+        trx_cache.print(sid_maps[0]);
+        printf("stmt cache:\n");
+        stmt_cache.print(sid_maps[0]);
+      }
+      
       Group_set ended_groups(sid_maps[0]);
       bool trx_contains_logged_subgroup= false;
       bool stmt_contains_logged_subgroup= false;
@@ -655,6 +688,7 @@ TEST_F(GroupTest, Group_containers)
         }
         end_j= substage.is_last &&
           ended_groups.contains_group(substage.sidno, substage.gno);
+                 
         /*
           In DUMMY_RANDOMIZE mode, we have to determine once *per
           group* (not substage) if we use DUMMY_END or not. So we
@@ -675,11 +709,14 @@ TEST_F(GroupTest, Group_containers)
           anon_j1= rand() % 2;
           anon_j2= rand() % 2;
         }
+        if (verbose)
+          printf("type_j=%d end_j=%d dummy_j=%d anon_j1=%d anon_j2=%d\n",
+                 type_j, end_j, dummy_j, anon_j1, anon_j2);
 
         thd->variables.ugid_next_list.is_non_null=
           (type_i == TYPE_NONTRX || type_i == TYPE_AUTO) ? 0 : 1;
         ugid_commit=
-          (substage_i == Stage::N_SUBSTAGES - 1) ||
+          (substage_i == stage.n_substages - 1) ||
           !thd->variables.ugid_next_list.is_non_null;
 
         if (type_j == TYPE_AUTO)
@@ -762,11 +799,18 @@ TEST_F(GroupTest, Group_containers)
           }
         }
 
-        ugid_flush_group_cache(thd, &lock, &group_log_state,
-                               &stmt_cache, &trx_cache,
-                               stmt_contains_logged_subgroup ?
-                               20 + rand() % 99/*offset_after_last_statement*/ :
-                               -1);
+        if (verbose)
+        {
+          printf("stmt_cache:\n");
+          stmt_cache.print(sid_maps[0]);
+        }
+        if (!stmt_cache.is_empty())
+          ugid_flush_group_cache(thd, &lock,
+                                 &group_log_state, NULL/*group log*/,
+                                 &stmt_cache, &trx_cache,
+                                 stmt_contains_logged_subgroup ?
+                                 20 + rand() % 99 : -1
+                                 /*offset_after_last_statement*/);
         stmt_contains_logged_subgroup= false;
         ugid_before_flush_trx_cache(thd, &lock, &group_log_state, &trx_cache);
         if (ugid_commit)
@@ -774,11 +818,22 @@ TEST_F(GroupTest, Group_containers)
           // simulate ugid_after_flush_trx_cache() but don't
           // execute a COMMIT statement
           thd->variables.ugid_has_ongoing_super_group= 0;
-          ugid_flush_group_cache(thd, &lock, &group_log_state,
-                                 &trx_cache, &trx_cache,
-                                 trx_contains_logged_subgroup ?
-                                 20 + rand() % 99/*offset_after_last_statement*/ :
-                                 -1);
+
+          if (verbose)
+          {
+            printf("trx_cache:\n");
+            trx_cache.print(sid_maps[0]);
+            printf("trx_cache.is_empty=%d n_subgroups=%d trx_contains_logged_subgroup=%d\n",
+                   trx_cache.is_empty(), trx_cache.get_n_subgroups(),
+                   trx_contains_logged_subgroup);
+          }
+          if (!trx_cache.is_empty())
+            ugid_flush_group_cache(thd, &lock, 
+                                   &group_log_state, NULL/*group log*/,
+                                   &trx_cache, &trx_cache,
+                                   trx_contains_logged_subgroup ?
+                                   20 + rand() % 99 : -1
+                                   /*offset_after_last_statement*/);
           trx_contains_logged_subgroup= false;
         }
       } END_SUBSTAGE_LOOP(this);

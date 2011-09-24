@@ -545,6 +545,7 @@ static int binlog_flush_group_cache(THD *thd, binlog_cache_mngr *cache_mngr,
   {
     int ret= ugid_flush_group_cache(thd, &mysql_bin_log.sid_lock,
                                     &mysql_bin_log.group_log_state,
+                                    &mysql_bin_log.group_log,
                                     &cache_data->group_cache,
                                     &cache_mngr->trx_cache.group_cache,
                                     offset_after_last_statement);

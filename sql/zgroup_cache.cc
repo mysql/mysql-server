@@ -68,9 +68,6 @@ enum_return_status Group_cache::add_subgroup(const Cached_subgroup *group)
     }
   }
 
-  //printf("group=%p group->type=%d group->sidno=%d group->gno=%lld group->blen=%lld group->group_end=%d\n",
-  //group, group->type, group->sidno, group->gno, group->binlog_length, group->group_end);
-
   // if sub-group could not be merged with previous sub-group, append it
   if (insert_dynamic(&subgroups, group) != 0)
   {
@@ -220,18 +217,9 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
   enum_return_status ret= RETURN_STATUS_OK;
   bool updated= false;
 
-/*
-  printf("Group_cache(%p)->update_group_log_state n_subgroups=%d\n",
-         this, n_subgroups
-         );
-*/
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
-    /*
-    printf("i=%d cs=%p cs->type=%d cs->sidno=%d cs->gno=%lld cs->blen=%lld cs->group_end=%d\n",
-           i, cs, cs->type, cs->sidno, cs->gno, cs->binlog_length, cs->group_end);
-    */
     if (cs->type == NORMAL_SUBGROUP || cs->type == DUMMY_SUBGROUP)
     {
       DBUG_ASSERT(lock_set != NULL ? lock_set->contains_sidno(cs->sidno) :
@@ -264,11 +252,12 @@ Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
 }
 
 
-void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
+enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
+                                                       Group_log_state *gls)
 {
   DBUG_ENTER("Group_cache::generate_automatic_gno");
   if (thd->variables.ugid_next.type != Ugid_specification::AUTOMATIC)
-    DBUG_VOID_RETURN;
+    RETURN_OK;
   DBUG_ASSERT(thd->variables.ugid_next_list.get_group_set() == NULL);
   int n_subgroups= get_n_subgroups();
   rpl_gno automatic_gno= 0;
@@ -284,6 +273,8 @@ void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
         sidno= cs->sidno;
         gls->lock_sidno(sidno);
         automatic_gno= gls->get_automatic_gno(sidno);
+        if (automatic_gno == -1)
+          RETURN_REPORTED_ERROR;
         gls->acquire_ownership(sidno, automatic_gno, thd);
         gls->unlock_sidno(sidno);
       }
@@ -294,7 +285,7 @@ void Group_cache::generate_automatic_gno(const THD *thd, Group_log_state *gls)
   }
   if (last_automatic_subgroup != NULL)
     last_automatic_subgroup->group_end= true;
-  DBUG_VOID_RETURN;
+  RETURN_OK;
 }
 
 
@@ -304,7 +295,6 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
                                   Cached_subgroup **last_non_dummy_subgroup)
 {
   DBUG_ENTER("Group_cache::write_to_log(Group_cache *)");
-  //printf("Group_cache::write_to_log(Group_cache *)\n");
 
   int n_subgroups= get_n_subgroups();
 
@@ -375,8 +365,10 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
 
 
 enum_return_status
-Group_cache::write_to_log(Group_cache *trx_group_cache,
-                          rpl_binlog_pos offset_after_last_statement)
+Group_cache::write_to_log(const THD *thd, Group_cache *trx_group_cache,
+                          rpl_binlog_pos offset_after_last_statement,
+                          bool group_commit,
+                          Group_log *group_log)
 {
   DBUG_ENTER("Group_cache::write_to_log");
   Cached_subgroup *last_non_dummy_subgroup;
@@ -384,14 +376,20 @@ Group_cache::write_to_log(Group_cache *trx_group_cache,
                                                 offset_after_last_statement,
                                                 &last_non_dummy_subgroup));
 
-/*
+  if (group_log == NULL) // gl is NULL in unittests
+    RETURN_OK;
+
   int n_subgroups= get_n_subgroups();
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
-    group_log->write_subgroup(cs);
+    if (cs == last_non_dummy_subgroup)
+      group_log->write_subgroup(cs, group_commit, offset_after_last_statement,
+                                thd);
+    else
+      group_log->write_subgroup(cs, false, 0, thd);
   }
-*/
+
   RETURN_OK;
 }
 

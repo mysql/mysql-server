@@ -44,7 +44,7 @@ int Compact_encoding::get_unsigned_encoded_length(ulonglong n)
 }
 
 
-int Compact_encoding::write_unsigned(ulonglong n, uchar *buf)
+int Compact_encoding::write_unsigned(uchar *buf, ulonglong n)
 {
   DBUG_ENTER("Compact_encoding::write_unsigned(ulonglong , char *)");
   int len= get_unsigned_encoded_length(n);
@@ -57,104 +57,97 @@ int Compact_encoding::write_unsigned(ulonglong n, uchar *buf)
 }
 
 
-int Compact_encoding::write_unsigned(File fd, ulonglong n, myf my_flags)
+enum_append_status
+Compact_encoding::append_unsigned(Appender *appender, ulonglong n)
 {
-  DBUG_ENTER("Compact_encoding::write_unsigned");
-  uchar buf[10];
-  int len= write_unsigned(n, buf);
-  int ret= my_write(fd, buf, len, my_flags);
-  DBUG_RETURN(ret != len ? -ret : ret);
+  DBUG_ENTER("Compact_encoding::append_unsigned(Appender *, ulonglong)");
+  uchar buf[MAX_ENCODED_LENGTH];
+  int len= write_unsigned(buf, n);
+  PROPAGATE_APPEND_STATUS(appender->append(buf, len));
+  DBUG_RETURN(APPEND_OK);
 }
 
 
-int Compact_encoding::read_unsigned(File fd, ulonglong *out, myf my_flags)
+enum_read_status
+Compact_encoding::read_unsigned(Reader *reader, ulonglong *out)
 {
   DBUG_ENTER("Compact_encoding::read_unsigned");
   // read first byte
   uchar b;
-  size_t ret= my_read(fd, &b, 1, my_flags);
-  if (ret != 1)
-  {
-    *out= (ret == 0 ? 1 : 0);
-    DBUG_RETURN(0);
-  }
+  my_off_t saved_pos;
+  if (reader->tell(&saved_pos) != RETURN_STATUS_OK)
+    DBUG_RETURN(READ_ERROR);
+  enum_read_status ret= reader->read(&b, 1);
+  if (ret != READ_OK)
+    DBUG_RETURN(ret);
   if (b & 1)
   {
     *out= b >> 1;
-    DBUG_RETURN(1);
+    DBUG_RETURN(READ_OK);
   }
   // read second byte if needed
   uint extra_byte= 0;
   if (b == 0)
   {
-    ret= my_read(fd, &b, 1, my_flags);
-    if (ret != 1)
-    {
-      *out= (ret == 0 ? 1 : 0); // 0 = IO error; 1 = file truncated
-      if (my_flags & MY_WME)
-        my_error(ER_ERROR_ON_READ, MYF(0), my_filename(fd), my_errno);
-      DBUG_RETURN(-1);
-    }
+    ret= reader->read(&b, 1);
+    if (ret != READ_OK)
+      goto rewind;
     // one of the two lowest bits must be set in order for the number
     // to be termiated after the 64th bit.
     if (!(b & 3))
-    {
-      *out= 2; // 2 = file format error
-      if (my_flags & MY_WME)
-        my_error(ER_FILE_FORMAT, MYF(0), my_filename(fd));
-      DBUG_RETURN(-1);
-    }
+      goto file_format_error;
     extra_byte= 1;
   }
-  // set len to the position of the least significant 1-bit in b (range 0..7)
-  uint len= 7;
-  if (b & 0x0f)
-    len-= 4;
-  if (b & 0x33)
-    len-= 2;
-  if (b & 0x55)
-    len--;
-  // read len bytes
-  uchar buf[8]= {0, 0, 0, 0, 0, 0, 0, 0};
-  ret= my_read(fd, buf, len + extra_byte * 7, my_flags);
-  if (ret != len + extra_byte * 7)
   {
-    *out= (ret < len + extra_byte * 7 ? 1 : 0);
-    if (my_flags & MY_WME)
-      my_error(ER_ERROR_ON_READ, MYF(0), my_filename(fd), my_errno);
-    DBUG_RETURN(-(1 + extra_byte + ret));
+    // set len to the position of the least significant 1-bit in b (range 0..7)
+    uint len= 7;
+    if (b & 0x0f)
+      len-= 4;
+    if (b & 0x33)
+      len-= 2;
+    if (b & 0x55)
+      len--;
+    // read len bytes
+    uchar buf[8]= {0, 0, 0, 0, 0, 0, 0, 0};
+    ret= reader->read(buf, len + extra_byte * 7);
+    if (ret != READ_OK)
+      goto rewind;
+    {
+      ulonglong o= uint8korr(buf);
+      // check that the result will fit in 64 bits
+      if (o >= (1 << (64 - (7 - len))))
+        goto file_format_error;
+      // put the high bits of b in the low bits of o
+      o <<= (7 - len);
+      o |= b >> (len + 1);
+      *out= o;
+      DBUG_RETURN(READ_OK);
+    }
   }
-  ulonglong o= uint8korr(buf);
-  // check that the result will fit in 64 bits
-  if (o >= (1 << (64 - (7 - len))))
-  {
-    *out= 2; // 2 = file format error
-    if (my_flags & MY_WME)
-      my_error(ER_FILE_FORMAT, MYF(0), my_filename(fd));
-    DBUG_RETURN(-(1 + extra_byte + len + extra_byte * 7));
-  }
-  // put the high bits of b in the low bits of o
-  o <<= (7 - len);
-  o |= b >> (len + 1);
-  *out= o;
-  return 1 + extra_byte + len + extra_byte * 7;
+file_format_error:
+  my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+  ret= READ_ERROR;
+  // FALLTHROUGH
+rewind:
+  if (reader->seek(saved_pos) != RETURN_STATUS_OK)
+    DBUG_RETURN(READ_ERROR);
+  DBUG_RETURN(ret == READ_EOF ? READ_TRUNCATED : ret);
 }
 
 
-int Compact_encoding::write_signed(File fd, longlong n, myf my_flags)
+enum_append_status Compact_encoding::append_signed(Appender *appender, longlong n)
 {
-  return write_unsigned(fd, signed_to_unsigned(n), my_flags);
+  return append_unsigned(appender, signed_to_unsigned(n));
 }
 
 
-int Compact_encoding::read_signed(File fd, longlong *out, myf my_flags)
+enum_read_status Compact_encoding::read_signed(Reader *reader, longlong *out)
 {
+  DBUG_ENTER("Compact_encoding::read_signed");
   ulonglong o;
-  int ret= read_unsigned(fd, &o, my_flags);
-  if (ret <= 0)
-    return ret;
+  PROPAGATE_READ_STATUS(read_unsigned(reader, &o));
   *out= unsigned_to_signed(o);
-  return ret;
+  DBUG_RETURN(READ_OK);
 }
 
 
