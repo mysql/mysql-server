@@ -19,6 +19,7 @@
 
 
 #include "my_base.h"
+#include "mysqld_error.h"
 
 
 /*
@@ -46,20 +47,27 @@
 
 
 class MYSQL_BIN_LOG;
+class Group_log;
 
 
-typedef int64 rpl_gno;
+/// Type of SIDNO (source ID number, first component of UGID)
 typedef int32 rpl_sidno;
+/// Type for GNO (group number, second component of UGID)
+typedef int64 rpl_gno;
+/// Type of binlog_no (binlog number)
 typedef int64 rpl_binlog_no;
+/// Type of binlog_pos (positions in binary log)
 typedef int64 rpl_binlog_pos;
+/// Type of LGIC (local group identifier)
 typedef int64 rpl_lgid;
 
+
 /**
-  Return value from functions that read from disk.
+  Generic return type for functions that read from disk.
 */
 enum enum_read_status
 {
-  /// Success
+  /// Read succeeded.
   READ_OK,
   /**
     The file position was at end of file before the read. my_error
@@ -72,19 +80,58 @@ enum enum_read_status
   */
   READ_TRUNCATED,
   /**
-    An error occurred when reading - either IO error or wrong file format.
-    my_error has been called.
+    An error occurred when reading - either IO error or wrong file
+    format or something else.  my_error has been called.
   */  
-  READ_ERROR_IO,
-  /**
-    Some error not related to the file occurred (e.g., out of memory).
-    my_error has been called.
-  */
-  READ_ERROR_OTHER
+  READ_ERROR
 };
+#define PROPAGATE_READ_STATUS(STATUS)                                   \
+  do                                                                    \
+  {                                                                     \
+    enum_read_status __propagate_read_status_status= (STATUS);          \
+    if (__propagate_read_status_status != READ_OK)                      \
+      DBUG_RETURN(__propagate_read_status_status);                      \
+  } while (0)
+
 
 /**
-  Generic return type for many functions.
+  Generic return type for functions that append to a file.
+*/
+enum enum_append_status
+{
+  /// Write succeeded.
+  APPEND_OK,
+  /**
+    An error occurred and it is impossible to continue writing.
+    Examples:
+     - Part of the data has been written and it was impossible to
+       truncate the file back to the previous size.
+     - An IO error occurred.
+    This also means that my_error has been called.
+  */
+  APPEND_ERROR,
+  /**
+    The write failed, but the state has returned to what it was before
+    the write attempt so it may be possible to write more later.
+    Examples:
+     - The write did not change the file at all.
+     - Part of the data was written, the disk got full, and the file
+       was truncated back to the previous size.
+    This also means that my_error has been called.
+  */
+  APPEND_NONE
+};
+#define PROPAGATE_APPEND_STATUS(STATUS)                                 \
+  do                                                                    \
+  {                                                                     \
+    enum_append_status __propagate_append_status_status= (STATUS);      \
+    if (__propagate_append_status_status != APPEND_OK)                  \
+      DBUG_RETURN(__propagate_append_status_status);                    \
+  } while (0)
+
+
+/**
+  Generic return type for many functions that can succeed or fail.
 
   This is used in conjuction with the macros below for functions where
   the return status either indicates "success" or "failure".  It
@@ -110,61 +157,44 @@ enum enum_return_status
 };
 
 /**
-  Lowest level macro to return an enum_return_status value.
+  Lowest level macro used in the PROPAGATE_* and RETURN_* macros
+  below.
+
+  If NO_DBUG is defined, does nothing. Otherwise, if STATUS is
+  RETURN_STATUS_OK, does nothing; otherwise, make a dbug printout and
+  (if ALLOW_UNREPORTED==0) assert that STATUS !=
+  RETURN_STATUS_UNREPORTED.
+
   @param STATUS The status to return.
   @param ACTION A text that describes what we are doing: either
   "Returning" or "Propagating" (used in DBUG_PRINT macros)
   @param STATUS_NAME The stringified version of the STATUS (used in
   DBUG_PRINT macros).
-  @param CONVERT_TO_INT If true, the return value is converted to an
-  int: if STATUS == RETURN_STATUS_OK, 0 is returned; otherwise 1 is
-  returned.
   @param ALLOW_UNREPORTED If false, the macro asserts that STATUS is
   not RETURN_STATUS_UNREPORTED_ERROR.
 */
 #ifdef NO_DBUG
-#define __DO_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
-  DBUG_RETURN(STATUS)
-#define __DO_RETURN_INT(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
-  DBUG_RETURN(STATUS == RETURN_STATUS_OK ? 0 : 1)
+#define __CHECK_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED)
 #else
 extern void check_return_status(enum_return_status status,
-                                const char *action, const char *status_name);
-#define __DO_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
-  check_return_status(STATUS, ACTION, STATUS_NAME);                     \
-  DBUG_ASSERT(ALLOW_UNREPORTED || STATUS != RETURN_STATUS_UNREPORTED_ERROR); \
-  DBUG_RETURN(STATUS)
-#define __DO_RETURN_INT(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
-  check_return_status(STATUS, ACTION, STATUS_NAME);                     \
-  DBUG_ASSERT(ALLOW_UNREPORTED || STATUS != RETURN_STATUS_UNREPORTED_ERROR); \
-  DBUG_RETURN(STATUS == RETURN_STATUS_OK ? 0 : 1)
-#endif
+                                const char *action, const char *status_name,
+                                int allow_unreported);
+#define __CHECK_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED) \
+  check_return_status(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED);
+#endif  
 /**
   Low-level macro that checks if STATUS is RETURN_STATUS_OK; if it is
-  not, then STATUS is returned.
+  not, then RETURN_VALUE is returned.
   @see __DO_RETURN_STATUS
 */
-#define __PROPAGATE_ERROR(STATUS, ALLOW_UNREPORTED)                     \
+#define __PROPAGATE_ERROR(STATUS, RETURN_VALUE, ALLOW_UNREPORTED)       \
   do                                                                    \
   {                                                                     \
     enum_return_status __propagate_error_status= STATUS;                \
     if (__propagate_error_status != RETURN_STATUS_OK) {                 \
-      __DO_RETURN_STATUS(__propagate_error_status, "Propagating", #STATUS, \
-                         ALLOW_UNREPORTED);                             \
-    }                                                                   \
-  } while (0)
-/**
-  Low-level macro that checks if STATUS is RETURN_STATUS_OK; if it is
-  not, then 1 is returned.
-  @see __DO_RETURN_STATUS
-*/
-#define __PROPAGATE_ERROR_INT(STATUS, ALLOW_UNREPORTED)                 \
-  do                                                                    \
-  {                                                                     \
-    enum_return_status __propagate_error_int_status= STATUS;            \
-    if (__propagate_error_int_status != RETURN_STATUS_OK) {             \
-      __DO_RETURN_INT(__propagate_error_int_status, "Propagating", #STATUS, \
-                      ALLOW_UNREPORTED);                                \
+      __CHECK_RETURN_STATUS(__propagate_error_status, "Propagating",    \
+                            #STATUS, ALLOW_UNREPORTED);                 \
+      DBUG_RETURN(RETURN_VALUE);                                        \
     }                                                                   \
   } while (0)
 /// Low-level macro that returns STATUS. @see __DO_RETURN_STATUS
@@ -172,26 +202,30 @@ extern void check_return_status(enum_return_status status,
   do                                                                    \
   {                                                                     \
     enum_return_status __return_status_status= STATUS;                  \
-    __DO_RETURN_STATUS(__return_status_status, "Returning", #STATUS,    \
-                       ALLOW_UNREPORTED);                               \
+    __CHECK_RETURN_STATUS(__return_status_status, "Returning",          \
+                          #STATUS, ALLOW_UNREPORTED);                   \
+    DBUG_RETURN(__return_status_status);                                \
   } while (0)
 /**
   If STATUS (of type enum_return_status) returns RETURN_STATUS_OK,
   does nothing; otherwise, does a DBUG_PRINT and returns STATUS.
 */
-#define PROPAGATE_ERROR(STATUS) __PROPAGATE_ERROR(STATUS, true)
+#define PROPAGATE_ERROR(STATUS)                                 \
+  __PROPAGATE_ERROR(STATUS, __propagate_error_status, true)
 /**
   If STATUS (of type enum_return_status) returns RETURN_STATUS_OK,
   does nothing; otherwise asserts that STATUS ==
   RETURN_STATUS_REPORTED_ERROR, does a DBUG_PRINT, and returns STATUS.
 */
-#define PROPAGATE_REPORTED_ERROR(STATUS) __PROPAGATE_ERROR(STATUS, false)
+#define PROPAGATE_REPORTED_ERROR(STATUS)                        \
+  __PROPAGATE_ERROR(STATUS, __propagate_error_status, false)
 /**
   If STATUS (of type enum_return_status) returns RETURN_STATUS_OK,
   does nothing; otherwise asserts that STATUS ==
   RETURN_STATUS_REPORTED_ERROR, does a DBUG_PRINT, and returns 1.
 */
-#define PROPAGATE_REPORTED_ERROR_INT(STATUS) __PROPAGATE_ERROR_INT(STATUS, false)
+#define PROPAGATE_REPORTED_ERROR_INT(STATUS)    \
+  __PROPAGATE_ERROR(STATUS, 1, false)
 /**
   If STATUS returns something else than RETURN_STATUS_OK, does a
   DBUG_PRINT.  Then, returns STATUS.
@@ -210,8 +244,10 @@ extern void check_return_status(enum_return_status status,
 /// Does a DBUG_PRINT and returns RETURN_STATUS_UNREPORTED_ERROR.
 #define RETURN_UNREPORTED_ERROR RETURN_STATUS(RETURN_STATUS_UNREPORTED_ERROR)
 
+
+/// The maximum value of GNO
 const rpl_gno MAX_GNO= LONGLONG_MAX;
-const rpl_sidno ANONYMOUS_SIDNO= 0;
+/// The length of MAX_GNO when printed in decimal.
 const int MAX_GNO_TEXT_LENGTH= 19;
 
 
@@ -234,6 +270,425 @@ rpl_gno parse_gno(const char **s);
 int format_gno(char *s, rpl_gno gno);
 
 
+class Reader
+{
+public:
+  virtual ~Reader() {};
+  /**
+    Read length characters into buffer, or leave the read position
+    where it is and return an error status code.
+
+    @param length The number of bytes to read.
+    @param buffer The buffer to read data into.
+    @retval READ_OK Success; the read position has moved forwards.
+    @retval READ_ERROR There was an error; the read position
+    has not changed; my_error has been called.
+    @retval READ_EOF The file ended at the read position; the read
+    position has not changed; my_error has NOT been called.
+    @retval READ_TRUNCATED The file ended in the middle of the block
+    to be read; the read position has not changed; my_error has NOT been called.
+  */
+  virtual enum_read_status read(uchar *buffer, size_t length)= 0;
+  /**
+    Set the read position to the given position.
+    An assertion may be raised if the new position is not valid.
+    @param position New position.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  virtual enum_return_status seek(my_off_t position)= 0;
+  /**
+    Get the current read position.
+    @param[out] position If successful, the position will be stored here.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  virtual enum_return_status tell(my_off_t *position) const = 0;
+  /// Return the name of the resource we read from (e.g., filename).
+  virtual const char *get_source_name() const= 0;
+  /**
+    Same as read above, but calls my_error if return status is
+    READ_EOF or READ_TRUNCATED.
+  */
+  enum_read_status read_report(size_t length, uchar *buffer)
+  {
+    DBUG_ENTER("Reader::read_report");
+    enum_read_status ret= read(buffer, length);
+    if (ret != READ_OK)
+    {
+      if (ret == READ_EOF)
+        my_error(ER_UNEXPECTED_EOF, MYF(0), get_source_name(), my_errno);
+      else if (ret == READ_TRUNCATED)
+        my_error(ER_FILE_TRUNCATED, MYF(0), get_source_name());
+    }
+    DBUG_RETURN(ret);
+  }
+protected:
+  /**
+    Reads length bytes starting at offset from the given File into
+    buffer, and on success advances the read position of this Reader
+    by the length.
+
+    This auxiliary function is intended to be used by subclasses that
+    use a File as (part of) the back-end.
+
+    @param fd File descriptor to read from.
+    @param buffer Buffer to write to.
+    @param length Number of bytes to read.
+    @param offset Offset to start reading from.
+    @return READ_OK or READ_TRUNCATED or READ_EOF or READ_ERROR.
+  */
+  enum_read_status file_pread(File fd, uchar *buffer,
+                              size_t length, my_off_t offset);
+  /**
+    Check if the given position is before the end of the file.
+
+    This auxiliary function is intended to be used by subclasses that
+    use a File as (part of) the back-end.  It does not actually move
+    the read position.
+
+    @param fd File to check.
+    @param position Position to check.
+    @return RETURN_STATUS_REPORTED_ERROR if there is an error or if
+    the position is beyond the end of the file; otherwise
+    RETURN_STATUS_OK
+  */
+  enum_return_status file_seek(File fd, my_off_t position);
+  /**
+    Call READER->read_data(LENGTH, BUFFER), and propagate the return
+    value to the caller if the return value is different from READ_OK.
+  */
+#define READER_READ(READER, SAVED_POSITION, LENGTH, BUFFER)             \
+  do                                                                    \
+    {                                                                   \
+      Reader *__reader_read_reader= (READER);                           \
+      enum_read_status __reader_read_status=                            \
+        __reader_read_reader->read(BUFFER, LENGTH);                     \
+      if (__reader_read_status != READ_OK)                              \
+      {                                                                 \
+        __reader_read_reader->seek(SAVED_POSITION);                     \
+        DBUG_RETURN(__reader_read_status);                              \
+      }                                                                 \
+    } while (0)
+
+
+#define READER_CHECK_FORMAT(READER, SAVED_POSITION, CONDITION)          \
+    do                                                                  \
+    {                                                                   \
+      if (!(CONDITION))                                                 \
+      {                                                                 \
+        Reader *__reader_check_format_reader= (READER);                 \
+        __reader_check_format_reader->seek(SAVED_POSITION);             \
+        my_error(ER_FILE_FORMAT, MYF(0),                                \
+                 __reader_check_format_reader->get_source_name());      \
+        DBUG_RETURN(READ_ERROR);                                        \
+      }                                                                 \
+    } while (0)
+};
+
+
+class Appender
+{
+public:
+  virtual ~Appender() {};
+protected:
+  /**
+    Append the given data.
+    @param buffer Data to append.
+    @param length Number of bytes to append.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  virtual enum_return_status do_append(const uchar *buffer, size_t length)= 0;
+  /**
+    Truncate to the given position.
+    @param position Position to truncate to.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  virtual enum_return_status do_truncate(my_off_t new_position)= 0;
+  /**
+    Get the current size of this Appender.
+    @param[out] position If successful, the position will be stored here.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  virtual enum_return_status do_tell(my_off_t *position) const= 0;
+  /// Return the name of the resource we append to (e.g., filename).
+  virtual const char *do_get_source_name() const= 0;
+public:
+  /**
+    Try to append the given data.  If that fails, try to revert the
+    state by calling truncate() with the position before this call.
+    @param buffer Data to write.
+    @param length Number of bytes to write.
+    @param truncate_position Position to truncate the file to if the
+    write fails.  If omitted or set to PREVIOUS_POSITION, the position
+    before this call is used.
+    @return APPEND_OK or APPEND_NONE or APPEND_ERROR.
+  */
+  enum_append_status append(const uchar *buffer, size_t length,
+                            my_off_t truncate_position= PREVIOUS_POSITION)
+  {
+    DBUG_ENTER("Appender::append(const uchar *, size_t)");
+    if (truncate_position == PREVIOUS_POSITION)
+      if (tell(&truncate_position) != RETURN_STATUS_OK)
+        DBUG_RETURN(APPEND_NONE);
+    enum_return_status return_status= do_append(buffer, length);
+    if (return_status != RETURN_STATUS_OK)
+    {
+      if (truncate(truncate_position) != RETURN_STATUS_OK)
+        DBUG_RETURN(APPEND_ERROR);
+      DBUG_RETURN(APPEND_NONE);
+    }
+    DBUG_RETURN(APPEND_OK);
+  }
+  /**
+    Truncate the Appender to the given size.
+
+    This checks that the position is before the current write position
+    before it calls do_truncate(). If the positions are equal, does
+    nothing; if the new position is past the current position, returns
+    error without calling do_truncate().
+    @param new_position Position to truncate to.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status truncate(my_off_t new_position);
+  /**
+    Get the current read position.
+    @param[out] position If successful, the position will be stored here.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  virtual enum_return_status tell(my_off_t *position)
+  {
+    DBUG_ENTER("Appender::tell");
+    PROPAGATE_REPORTED_ERROR(do_tell(position));
+    RETURN_OK;
+  }
+  /// Return the name of the resource we append to (e.g., filename)
+  const char *get_source_name() const { return do_get_source_name(); }
+  /// Used in last argument of append().
+  static const my_off_t PREVIOUS_POSITION= ~(my_off_t)0;
+protected:
+  /**
+    Gets the current file position of the given file handler.
+
+    This auxiliary function is intended to be used by sub-classes that
+    use a File as (part) of the back-end.
+
+    @param fd File descriptor to get position from.
+    @param position[out] If successful, the position will be stored here.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status file_tell(File fd, my_off_t *position) const
+  {
+    DBUG_ENTER("Appender::file_tell");
+    my_off_t ret= my_tell(fd, MYF(MY_WME));
+    if (ret == (my_off_t)(os_off_t)-1)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  };
+  /**
+    Truncates the given file to the specified position.
+
+    This auxiliary function is intended to be used by sub-classes that
+    use a File as (part) of the back-end.
+
+    @param fd File descriptor to truncate.
+    @param logical_position The logical position (as would be reported
+    by tell()) to truncate to.
+    @param absolute_position The file position in fd that we should
+    truncate to.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status file_truncate(File fd, my_off_t position)
+  {
+    DBUG_ENTER("Appender::file_truncate");
+    if (my_chsize(fd, position, 0, MYF(MY_WME)) != 0)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
+};
+
+
+class Memory_reader : public Reader
+{
+public:
+  Memory_reader(size_t _length, const uchar *_data,
+                const char *_source_name= "<Memory buffer>")
+    : source_name(_source_name), data_length(_length), data(_data), pos(0) {}
+  Memory_reader(String *str, const char *_source_name= "<String *>")
+    : source_name(_source_name),
+    data_length(str->length()), data((uchar *)str->ptr()), pos(0) {}
+  enum_read_status read(uchar *buffer, size_t length)
+  {
+    DBUG_ENTER("Memory_reader::read");
+    if (pos + length > data_length)
+      DBUG_RETURN(pos == data_length ? READ_EOF : READ_TRUNCATED);
+    memcpy(buffer, data + pos, length);
+    pos+= length;
+    DBUG_RETURN(READ_OK);
+  }
+  enum_return_status seek(my_off_t new_pos)
+  {
+    DBUG_ENTER("Memory_reader::seek");
+    if (pos > data_length)
+    {
+      my_error(ER_FSEEK_FAIL, MYF(0));
+      RETURN_REPORTED_ERROR;
+    }
+    pos= new_pos;
+    RETURN_OK;
+  }
+  enum_return_status tell(my_off_t *position) const
+  { *position= pos; return RETURN_STATUS_OK; }
+  const char *get_source_name() const { return source_name; }
+private:
+  const char *source_name;
+  const size_t data_length;
+  const uchar *data;
+  size_t pos;
+};
+
+
+class File_reader : public Reader
+{
+public:
+  File_reader(File _fd= -1) : fd(_fd), pos(0) {}
+  enum_return_status open(const char *filename)
+  {
+    DBUG_ENTER("File_reader::open");
+    fd= my_open(filename, O_RDONLY, MYF(MY_WME));
+    if (fd == -1)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
+  enum_return_status close()
+  {
+    DBUG_ENTER("File_reader::close");
+    if (my_close(fd, MYF(MY_WME)) != 0)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
+  void set_file(File _fd= -1) { fd= _fd; pos= 0; }
+  enum_read_status read(uchar *buffer, size_t length)
+  { return file_pread(fd, buffer, length, pos); }
+  enum_return_status seek(my_off_t new_position)
+  {
+    DBUG_ENTER("File_reader::seek");
+    PROPAGATE_REPORTED_ERROR(file_seek(fd, new_position));
+    pos= new_position;
+    RETURN_OK;
+  }
+  enum_return_status tell(my_off_t *position) const
+  { *position= pos; return RETURN_STATUS_OK; }
+  const char *get_source_name() const { return my_filename(fd); }
+private:
+  File fd;
+  my_off_t pos;
+};
+
+
+/**
+  Appender object where the output is stored in a File.
+*/
+class File_appender : public Appender
+{
+public:
+  /**
+    Create a new File_reader
+
+    @param _fd File descriptor. If this is not given, you have to call
+    open() or set_file() before using this File_appender. You have to
+    call set_file() with no arguments before destroying this object.
+  */
+  File_appender(File _fd= -1) : fd(_fd) {}
+  /**
+    Open the back-end file.
+    @param filename Name of the file to open.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status open(const char *filename)
+  {
+    DBUG_ENTER("File_appender::open");
+    fd= my_open(filename, O_WRONLY, MYF(MY_WME));
+    if (fd == -1)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
+  /**
+    Set the back-end file to an existing, open file.
+    @param _fd File descriptor of the open file.
+  */
+  void set_file(File _fd) { fd= _fd; }
+  /// Unsets the back-end file.
+  void unset_file() { fd= -1; }
+  /**
+    Close the back-end file.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status close()
+  {
+    DBUG_ENTER("File_appender::close");
+    if (my_close(fd, MYF(MY_WME)) != 0)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
+protected:
+  const char *do_get_source_name() const { return my_filename(fd); }
+  enum_return_status do_tell(my_off_t *position) const
+  { return file_tell(fd, position); }
+  enum_return_status do_append(const uchar *buf, size_t length)
+  {
+    DBUG_ENTER("File_appender::append");
+    if (my_write(fd, buf, length, MYF(MY_WME | MY_WAIT_IF_FULL)) != length)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
+  enum_return_status do_truncate(my_off_t new_position)
+  { return file_truncate(fd, new_position); }
+public:
+  enum_return_status sync()
+  {
+    DBUG_ENTER("File_appender::sync");
+    if (my_sync(fd, MYF(MY_WME)) != 0)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
+  /**
+    Return true if there is a back-end file associated with this
+    File_appender.
+  */
+  bool is_open() const { return fd != -1; }
+  //~File_appender() { DBUG_ASSERT(!is_open()); }
+private:
+  File fd;
+};
+
+
+/**
+  Appender class where the output is stored in a String object.
+*/
+class String_appender : public Appender
+{
+public:
+  String_appender(String *_str) : str(_str) {}
+  enum_return_status append(const uchar *buf, size_t length)
+  {
+    DBUG_ENTER("String_appender::append");
+    if (str->append((const char *)buf, length))
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      RETURN_REPORTED_ERROR;
+    }
+    RETURN_OK;
+  }
+  enum_return_status truncate(my_off_t new_position)
+  {
+    DBUG_ENTER("String_appender::truncate");
+    str->length(new_position);
+    RETURN_OK;
+  }
+private:
+  String *str;
+};
+
+
 /**
   Represents the owner of a group.
 
@@ -242,19 +697,22 @@ int format_gno(char *s, rpl_gno gno);
 */
 struct Rpl_owner_id
 {
-  int owner_type;
+  uint32 owner_type;
   uint32 thread_id;
   void copy_from(const THD *thd);
   void set_to_dead_client() { owner_type= thread_id= 0; }
-  void set_to_none() { owner_type= thread_id= -1; }
+  void set_to_none() { owner_type= NO_OWNER_TYPE; thread_id= NO_THREAD_ID; }
   bool equals(const THD *thd) const;
-  bool is_sql_thread() const { return owner_type >= 1; }
-  bool is_none() const { return owner_type == -1; }
+  bool is_sql_thread() const
+  { return owner_type >= 1 && owner_type != NO_OWNER_TYPE; }
+  bool is_none() const { return owner_type == NO_OWNER_TYPE; }
   bool is_client() const { return owner_type == 0; }
   bool is_very_old_client() const { return owner_type == 0 && thread_id == 0; }
   bool is_live_client() const;
   bool is_dead_client() const
   { return is_client() && !is_very_old_client() && !is_live_client(); }
+  static const uint32 NO_OWNER_TYPE= ~0;
+  static const uint32 NO_THREAD_ID= ~0;
 };
 
 
@@ -305,19 +763,19 @@ struct Uuid
 #endif
   /**
     Write this UUID to the given file.
-    @param fd File descriptor to write to.
-    @param my_flags Flags passed to my_write.
-    @return RETURN_STATUS_OK, RETURN_STATUS_REPORTED_ERROR, or
-    RETURN_STATUS_UNREPORTED_ERROR.
+    @param appender Appender object to write to.
+    @param truncate_to_position @see Appender::append.
+    @return APPEND_OK, APPEND_NONE, or APPEND_ERROR.
   */
-  enum_return_status write(File fd, myf my_flags) const;
+  enum_append_status append(
+    Appender *appender,
+    my_off_t truncate_to_position= Appender::PREVIOUS_POSITION) const;
   /**
     Read this UUID from the given file.
-    @param fd File descriptor to read from.
-    @param my_flags Flags passed to my_write.
-    @return READ_OK, READ_ERROR_IO, READ_EOF, or READ_TRUNCATED.
+    @param Reader
+    @return READ_OK, READ_ERROR, READ_EOF, or READ_TRUNCATED.
   */
-  enum_read_status read(File fd, myf my_flags);
+  enum_read_status read(Reader *reader);
   /**
     Returns true if the given string contains a valid UUID, false otherwise.
   */
@@ -610,8 +1068,6 @@ private:
 
     @param sidno The SIDNO to add.
     @param sid The SID to add.
-    @param _sync If true, sync the file.
-
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_node(rpl_sidno sidno, const rpl_sid *sid);
@@ -642,13 +1098,12 @@ private:
     @see Sid_map::get_sorted_sidno.
   */
   DYNAMIC_ARRAY _sorted;
-  /**
-  */
+  /// Filename.
   char filename[FN_REFLEN];
-  /**
-    File descriptor for the backing file.
-  */
+  /// File descriptor for the back-end file.
   File fd;
+  /// Appender object to write to the file.
+  File_appender appender;
 };
 
 
@@ -998,14 +1453,19 @@ public:
   */
   static bool is_valid(const char *text);
 #ifndef NO_DBUG
+  char *get_string() const
+  {
+    char *str= (char *)malloc(get_string_length() + 1);
+    DBUG_ASSERT(str != NULL);
+    to_string(str);
+    return str;
+  }
   /// Print this group set to stdout.
   void print() const
   {
-    char *buf= (char *)malloc(get_string_length() + 1);
-    DBUG_ASSERT(buf != NULL);
-    to_string(buf);
-    printf("%s\n", buf);
-    free(buf);
+    char *str= get_string();
+    printf("%s\n", str);
+    free(str);
   }
 #endif
   //bool is_intersection_nonempty(Group_set *other);
@@ -1564,6 +2024,52 @@ public:
   */
   enum_return_status get_partial_groups(Group_set *gs) const;
 
+#ifndef NO_DBUG
+  int to_string(const Sid_map *sm, char *out) const
+  {
+    char *p= out;
+    rpl_sidno max_sidno= get_max_sidno();
+    for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
+    {
+      HASH *hash= get_hash(sidno);
+      for (uint i= 0; i < hash->records; i++)
+      {
+        Node *node= (Node *)my_hash_element(hash, i);
+        DBUG_ASSERT(node != NULL);
+        p+= sm->sidno_to_sid(sidno)->to_string(p);
+        p+= sprintf(p, "/%d:%lld owned by %d-%d is %spartial\n",
+                    sidno, node->gno,
+                    node->owner.owner_type, node->owner.thread_id,
+                    node->is_partial ? "" : "not ");
+      }
+    }
+    return p - out;
+  }
+  size_t get_string_length() const
+  {
+    rpl_sidno max_sidno= get_max_sidno();
+    size_t ret= 0;
+    for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
+    {
+      HASH *hash= get_hash(sidno);
+      ret+= hash->records * 256; // should be enough
+    }
+    return ret;
+  }
+  char *to_string(const Sid_map *sm) const
+  {
+    char *str= (char *)malloc(get_string_length());
+    DBUG_ASSERT(str != NULL);
+    to_string(sm, str);
+    return str;
+  }
+  void print(const Sid_map *sm) const
+  {
+    char *str= to_string(sm);
+    printf("%s\n", str);
+    free(str);
+  }
+#endif
 private:
   /// Represents one owned group.
   struct Node
@@ -1766,6 +2272,37 @@ public:
   const Group_set *get_ended_groups() { return &ended_groups; }
   /// Return a pointer to the Owned_groups that contains the owned groups.
   const Owned_groups *get_owned_groups() { return &owned_groups; }
+  /// Return Sid_map used by this Group_log_state.
+  const Sid_map *get_sid_map() { return sid_map; }
+#ifndef NO_DBUG
+  size_t get_string_length() const
+  {
+    return owned_groups.get_string_length() +
+      ended_groups.get_string_length() + 100;
+  }
+  int to_string(char *buf) const
+  {
+    char *p= buf;
+    p+= sprintf(p, "Ended groups:\n");
+    p+= ended_groups.to_string(p);
+    p+= sprintf(p, "\nOwned groups:\n");
+    p+= owned_groups.to_string(sid_map, p);
+    return p - buf;
+  }
+  char *to_string() const
+  {
+    char *str= (char *)malloc(get_string_length());
+    DBUG_ASSERT(str != NULL);
+    to_string(str);
+    return str;
+  }
+  void print() const
+  {
+    char *str= to_string();
+    printf("%s", str);
+    free(str);
+  }
+#endif
 private:
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
@@ -1867,6 +2404,24 @@ struct Subgroup
 
 
 /**
+  Represents a sub-group in the group cache.
+
+  Groups in the group cache are slightly different from other
+  sub-groups, because not all information about them is known.
+
+  Automatic sub-groups are marked as such by setting gno<=0.
+*/
+struct Cached_subgroup
+{
+  enum_subgroup_type type;
+  rpl_sidno sidno;
+  rpl_gno gno;
+  rpl_binlog_pos binlog_length;
+  bool group_end;
+};
+
+
+/**
   Represents a group cache: either the statement group cache or the
   transaction group cache.
 */
@@ -1956,8 +2511,10 @@ public:
     sub-groups of the group.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status write_to_log(Group_cache *trx_group_cache,
-                                  rpl_binlog_pos offset_after_last_statement);
+  enum_return_status write_to_log(const THD *thd, Group_cache *trx_group_cache,
+                                  rpl_binlog_pos offset_after_last_statement,
+                                  bool group_commit,
+                                  Group_log *group_log);
   /**
     Generates GNO for all groups that are committed for the first time
     in this Group_cache.
@@ -1968,8 +2525,10 @@ public:
 
     @param thd The THD that this Group_log_state belongs to.
     @param gls The Group_log_state where group ownership is acquired.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
   */
-  void generate_automatic_gno(const THD *thd, Group_log_state *gls);
+  enum_return_status generate_automatic_gno(const THD *thd,
+                                            Group_log_state *gls);
   /**
     Return true if this Group_cache contains the given group.
 
@@ -2011,7 +2570,7 @@ public:
   enum_return_status get_ended_groups(Group_set *gs) const;
 
 #ifndef NO_DBUG
-  void get_string(Sid_map *sm, char *buf)
+  void get_string(const Sid_map *sm, char *buf) const
   {
     int n_subgroups= get_n_subgroups();
 
@@ -2032,36 +2591,26 @@ public:
     }
     sprintf(buf, "}\n");
   }
-  size_t get_string_length()
+  size_t get_string_length() const
   {
     return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
             40 + 10 + 21 + 1 + 100/*margin*/) * get_n_subgroups() + 100/*margin*/;
   }
-  char *get_string(Sid_map *sm)
+  char *get_string(const Sid_map *sm) const
   {
-    char *buf= (char *)malloc(get_string_length());
-    get_string(sm, buf);
-    return buf;
+    char *str= (char *)malloc(get_string_length());
+    get_string(sm, str);
+    return str;
+  }
+  void print(const Sid_map *sm) const
+  {
+    char *str= get_string(sm);
+    printf("%s\n", str);
+    free(str);
   }
 #endif
 
 private:
-  /**
-    Represents a sub-group in the group cache.
-
-    Groups in the group cache are slightly different from other
-    sub-groups, because not all information about them is known.
-
-    Automatic sub-groups are marked as such by setting gno<=0.
-  */
-  struct Cached_subgroup
-  {
-    enum_subgroup_type type;
-    rpl_sidno sidno;
-    rpl_gno gno;
-    rpl_binlog_pos binlog_length;
-    bool group_end;
-  };
 
   /// List of all subgroups in this cache, of type Cached_subgroup.
   DYNAMIC_ARRAY subgroups;
@@ -2137,18 +2686,32 @@ enum enum_ugid_statement_status
   */
   UGID_STATEMENT_SKIP
 };
+
+
 /**
-  Before the transaction cache is flushed, this function checks if we
-  need to add an ending dummy groups sub-groups.
+  Before a loggable statement begins, this function:
+
+   - checks that the various @@session.ugid_* variables are consistent
+     with each other
+
+   - starts the super-group (if no super-group is active) and acquires
+     ownership of all groups in the super-group
+
+   - starts the group (if no group is active)
 */
 enum_ugid_statement_status
 ugid_before_statement(THD *thd, Checkable_rwlock *lock,
                       Group_log_state *gls,
                       Group_cache *gsc, Group_cache *gtc);
+/**
+  Before the transaction cache is flushed, this function checks if we
+  need to add an ending dummy groups sub-groups.
+*/
 int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
                                 Group_log_state *gls, Group_cache *gc);
 int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
                            Group_log_state *gls,
+                           Group_log *gl,
                            Group_cache *gc, Group_cache *trx_cache,
                            rpl_binlog_pos offset_after_last_statement);
 
@@ -2195,7 +2758,7 @@ public:
     @param data The bytes to write.
     @return The number of bytes written.  This function calls my_error on error.
   */
-  size_t append(my_off_t length, const uchar *data)
+  size_t append(const uchar *data, my_off_t length)
   {
     DBUG_ENTER("Atom_file::append");
     DBUG_ASSERT(is_writable());
@@ -2209,14 +2772,14 @@ public:
     @param buffer Buffer to save data in.
     @return The number of bytes read. This function calls my_error on error.
   */
-  size_t pread(my_off_t offset, my_off_t length, uchar *buffer) const;
+  size_t pread(my_off_t offset, uchar *buffer, my_off_t length) const;
   /**
     Atomically truncate the file to the given offset, then append data
     at the end.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status truncate_and_append(my_off_t offset, my_off_t length,
-                                         const uchar *data);
+  enum_return_status truncate_and_append(my_off_t offset,
+                                         const uchar *data, my_off_t length);
   /**
     Sync the file to disk.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -2289,7 +2852,7 @@ private:
      suffixes.  The purge operation removes the first few such files,
      until the file that contains the first position after the purge.
 */
-class Rot_file
+class Rot_file : public Appender
 {
 public:
   /// Create a new Rot_file that is not open.
@@ -2307,72 +2870,42 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status close();
-  /**
-    Append data to the end of this Rot_file.
-    @param length Number of bytes to write.
-    @param data Data to write.
-    @return Number of bytes written, or MY_FILE_ERROR on IO error.  This
-    function calls my_error on error or if too few bytes were written.
-  */
-  my_off_t append(my_off_t length, const uchar *data)
+protected:
+  /// @see Appender::do_append
+  enum_return_status do_append(const uchar *data, size_t length)
   {
     DBUG_ENTER("Rot_file::append");
     DBUG_ASSERT(is_writable());
-    my_off_t ret= my_write(sub_file.fd, data, length,
-                           MYF(MY_WME | MY_WAIT_IF_FULL));
-    DBUG_RETURN(ret);
+    if (my_write(sub_file.fd, data, length, MYF(MY_WME | MY_WAIT_IF_FULL)) !=
+        length)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
   }
-  /**
-    Iterator class that sequentially reads from the file.
-
-    @todo In the future, when we have implemented real, rotatable
-    files, each iterator object blocks the parent Rot_file from
-    purging the underlying file.  It also forces the underlying file
-    to stay open until the iterator object iterates to the next file
-    or is closed. /sven
-  */
-  class Reader
+  /// @see Appender::do_truncate
+  enum_return_status do_truncate(my_off_t offset);
+  /// @see Appender::do_tell
+  enum_return_status do_tell(my_off_t *position) const
   {
-  public:
-    /**
-      Create a new Reader for the given Rot_file.
-      @param rot_file The parent Rot_file.
-      @param pos The initial read position. 
-    */
-    Reader(Rot_file *_rot_file, my_off_t pos) : rot_file(_rot_file)
-    { seek(pos); }
-    ~Reader() {};
-    /**
-      Read at the current position in this file.
-      @param length Number of bytes to read.
-      @param[out] buffer Output buffer, must have space for length bytes.
-      @return Number of bytes read, or MY_FILE_ERROR on error.  This
-      function calls my_error on error if my_flags specifies that it
-      should.
-    */
-    size_t read(my_off_t length, uchar *buffer, myf my_flags)
-    {
-      DBUG_ENTER("Rot_file::Reader::read(my_off_t, uchar *)");
-      size_t ret= my_pread(rot_file->sub_file.fd, buffer, length,
-                           rot_file->sub_file.header_length + offset, my_flags);
-      if (ret != MY_FILE_ERROR)
-        offset+= ret;
-      DBUG_RETURN(ret);
-    }
-    /**
-      Seek to the given position.
-      @param pos The new read position.
-    */
-    void seek(my_off_t pos) { offset= pos; }
-    /// Return the current read position.
-    my_off_t tell() { return offset; }
-    /// Return the current filename.
-    const char *get_current_filename() const
-    { return rot_file->sub_file.filename; }
-  private:
-    my_off_t offset;
-    Rot_file *rot_file;
-  };
+    DBUG_ENTER("Rot_file::tell");
+    PROPAGATE_REPORTED_ERROR(file_tell(sub_file.fd, position));
+    *position-= sub_file.header_length;
+    RETURN_OK;
+  }
+  /// Return real filename of the last file (the one being written).
+  const char *do_get_source_name() const { return sub_file.filename; }
+public:
+  /**
+    Sync any pending data.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status sync()
+  {
+    DBUG_ENTER("Rot_file::sync");
+    DBUG_ASSERT(is_writable());
+    if (my_sync(sub_file.fd, MYF(MY_WME)) != 0)
+      RETURN_REPORTED_ERROR;
+    RETURN_OK;
+  }
   /**
     Set the limit at which files will be rotated.
 
@@ -2390,24 +2923,6 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status purge(my_off_t offset);
-  /**
-    Truncate the end of the file.
-    @param offset The position of the next byte to be read.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status truncate(my_off_t offset);
-  /**
-    Sync any pending data.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status sync()
-  {
-    DBUG_ENTER("Rot_file::sync");
-    DBUG_ASSERT(is_writable());
-    if (my_sync(sub_file.fd, MYF(MY_WME)) != 0)
-      RETURN_REPORTED_ERROR;
-    RETURN_OK;
-  }
   /// Return true iff this file is open and was opened in read mode.
   bool is_writable() const { return is_open() && _is_writable; }
   /// Return true iff this file is open.
@@ -2417,8 +2932,44 @@ public:
     function is called.
   */
   ~Rot_file();
-  /// Return real filename of the last file (the one being written).
-  const char *get_last_filename() const { return sub_file.filename; }
+  
+  /**
+    Iterator class that sequentially reads from the file.
+
+    @todo In the future, when we have implemented real, rotatable
+    files, each iterator object blocks the parent Rot_file from
+    purging the underlying file.  It also forces the underlying file
+    to stay open until the iterator object iterates to the next file
+    or is closed. /sven
+  */
+  class Rot_file_reader : public Reader
+  {
+  public:
+    /**
+      Create a new Reader for the given Rot_file.
+      @param rot_file The parent Rot_file.
+      @param position The initial read position. 
+    */
+    Rot_file_reader(Rot_file *_rot_file, my_off_t position)
+      : rot_file(_rot_file)
+    { seek(position); }
+    ~Rot_file_reader() {};
+    enum_read_status read(uchar *buffer, size_t length)
+    { return file_pread(rot_file->sub_file.fd, buffer,
+                        rot_file->sub_file.header_length + pos, length); }
+    enum_return_status seek(my_off_t new_position)
+    {
+      DBUG_ENTER("Rot_file_reader::seek");
+      pos= new_position;
+      RETURN_OK;
+    }
+    enum_return_status tell(my_off_t *position) const
+    { *position= pos; return RETURN_STATUS_OK; }
+    const char *get_source_name() const { return rot_file->sub_file.filename; }
+  private:
+    my_off_t pos;
+    Rot_file *rot_file;
+  };
 private:
   /// Number of bytes of this file's header (fake implementation)
   int header_length;
@@ -2450,6 +3001,7 @@ private:
     version should have a DYNAMIC_ARRAY of files.
   */
   Sub_file sub_file;
+  File_appender appender;
 /*
   enum enum_state { CLOSED, OPEN_READ, OPEN_READ_WRITE };
   char filename[FN_REFLEN];
@@ -2460,36 +3012,46 @@ private:
 };
 
 
+/**
+  Class to encode/decode sub-groups.
+*/
+class Subgroup_coder
+{
+public:
+  Subgroup_coder() : lgid(0), offset(0), binlog_pos(0), binlog_no(0) {}
+  enum_append_status append(Appender *appender, const Cached_subgroup *cs,
+                            rpl_binlog_pos offset_after_last_statement,
+                            bool group_commit, uint32 owner_type);
+  enum_read_status read(Reader *reader, Subgroup *s);
+private:
+  rpl_lgid lgid;
+  my_off_t offset;
+  rpl_binlog_pos binlog_pos;
+  rpl_binlog_no binlog_no;
+  /// Constants used to encode groups.
+  static const int TINY_SUBGROUP_MAX= 246, TINY_SUBGROUP_MIN= -123;
+  static const int NORMAL_SUBGROUP_MIN= 247,
+    NORMAL_SUBGROUP_SIDNO_BIT= 0, NORMAL_SUBGROUP_GNO_BIT= 1,
+    NORMAL_SUBGROUP_BINLOG_LENGTH_BIT= 2;
+  static const int SPECIAL_TYPE= 255;
+  static const int DUMMY_SUBGRUOP_MAX= 15;
+  static const int ANONYMOUS_SUBGROUP_COMMIT= 16,
+    ANONYMOUS_SUBGROUP_NO_COMMIT= 17;
+  static const int BINLOG_ROTATE= 18;
+  static const int BINLOG_OFFSET_AFTER_LAST_STATEMENT= 19;
+  static const int BINLOG_GAP= 20;
+  static const int FLIP_OWNER= 21, SET_OWNER= 22;
+  static const int FULL_SUBGROUP= 26;
+  static const int MIN_IGNORABLE_TYPE= 25;
+  static const my_off_t FULL_SUBGROUP_SIZE=
+    1 + 1 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 1 + 1;
+};
+
+
 class Group_log
 {
-private:
-  /**
-    State needed to encode/decode a sub-group.
-  */
-  struct Read_state
-  {
-    rpl_lgid lgid;
-    my_off_t offset;
-    /// Constants used to encode groups.
-    static const int TINY_SUBGROUP_MAX= 246, TINY_SUBGROUP_MIN= -123;
-    static const int NORMAL_SUBGROUP_MIN= 247,
-      NORMAL_SUBGROUP_SIDNO_BIT= 0, NORMAL_SUBGROUP_GNO_BIT= 1,
-      NORMAL_SUBGROUP_BINLOG_LENGTH_BIT= 2;
-    static const int SPECIAL_TYPE= 255;
-    static const int DUMMY_SUBGRUOP_MAX= 15;
-    static const int ANONYMOUS_SUBGROUP_COMMIT= 16,
-      ANONYMOUS_SUBGROUP_NO_COMMIT= 17;
-    static const int BINLOG_ROTATE= 18;
-    static const int BINLOG_OFFSET_AFTER_LAST_STATEMENT= 19;
-    static const int BINLOG_GAP= 20;
-    static const int FLIP_OWNER= 21, SET_OWNER= 22;
-    static const int FULL_SUBGROUP= 26;
-    static const my_off_t FULL_SUBGROUP_SIZE=
-      1 + 1 + 4 + 8 + 8 + 8 + 8 + 8 + 1 + 1;
-  };
-
 public:
-  Group_log(Sid_map *_sid_map) : sid_map(_sid_map), group_log_file() {}
+  Group_log(Sid_map *_sid_map) : sid_map(_sid_map), rot_file() {}
   /**
     Open the disk file.
     @param filename Name of file to open.
@@ -2502,12 +3064,14 @@ public:
     @param Subgroup Subgroup to write.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status write_subgroup(const Subgroup *subgroup);
+  enum_return_status write_subgroup(const Cached_subgroup *subgroup,
+                                    rpl_binlog_pos offset_after_last_statement,
+                                    bool group_commit, const THD *thd);
 
   /**
     Iterator class that sequentially reads groups from the log.
   */
-  class Reader
+  class Group_log_reader
   {
   public:
     /**
@@ -2522,9 +3086,11 @@ public:
       @param status Will be set to 0 on success, 1 on error. This
       function calls my_error.
     */
-    Reader(Group_log *group_log, const Group_set *group_set,
-           rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
-           enum_read_status *status);
+    Group_log_reader(Group_log *group_log, const Group_set *group_set,
+                     rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
+                     enum_read_status *status);
+    /// Destroy this Group_log_reader.
+    ~Group_log_reader();
     /**
       Read the next subgroup from this Group_log.
       @param[out] subgroup Subgroup object where the subgroup will be stored.
@@ -2533,10 +3099,8 @@ public:
       @retval READ_ERROR IO error. This function calls my_error.
     */
     enum_read_status read_subgroup(Subgroup *subgroup);
-    /// Destroy this Reader.
-    ~Reader();
     const char *get_current_filename() const
-    { return rot_file_reader.get_current_filename(); }
+    { return rot_file_reader.get_source_name(); }
   private:
     /**
       Unconditionally read subgroup from file.
@@ -2552,9 +3116,9 @@ public:
     /// Sid_map used by Sub_groups in the log.
     Group_log *group_log;
     /// Reader object from which we read raw bytes.
-    Rot_file::Reader rot_file_reader;
+    Rot_file::Rot_file_reader rot_file_reader;
     /// State needed to decode groups.
-    Read_state read_state;
+    Subgroup_coder decoder;
     /// Max size required by any subgroup.
     static const int READ_BUF_SIZE= 256;
     /// Internal buffer to decode subgroups. 
@@ -2573,13 +3137,9 @@ private:
   /// Sid_map used for this log.
   Sid_map *sid_map;
   /// Rot_file to which groups will be written.
-  Rot_file group_log_file;
+  Rot_file rot_file;
   /// State needed to encode groups.
-  Read_state read_state;
-  /// Max size required by any subgroup.
-  static const int WRITE_BUF_SIZE= 256;
-  /// Internal buffer to encode subgroups.
-  uchar write_buf[WRITE_BUF_SIZE];
+  Subgroup_coder encoder;
 };
 
 
@@ -2603,7 +3163,7 @@ public:
     @param buf The buffer to use.
     @return The number of bytes used.
   */
-  static int write_unsigned(ulonglong n, uchar *buf);
+  static int write_unsigned(uchar *buf, ulonglong n);
   /**
     Write a compact-encoded unsigned integer to the given file.
 
@@ -2614,7 +3174,7 @@ public:
     @return On success, returns number of bytes written (1...10).  On
     failure, returns the negative number of bytes written (-9..0).
   */
-  static int write_unsigned(File fd, ulonglong n, myf my_flags);
+  static enum_append_status append_unsigned(Appender *appender, ulonglong n);
   /**
     Read a compact-encoded unsigned integer from the given file.
     
@@ -2630,7 +3190,7 @@ public:
     @return On success, returns the number of bytes read (1...10).  On
     error, returns the negative number of bytes read (-10...0).
   */
-  static int read_unsigned(File fd, ulonglong *out, myf my_flags);
+  static enum_read_status read_unsigned(Reader *reader, ulonglong *out);
   /**
     Compute the number of bytes needed to encode the given number.
     @param n The number
@@ -2648,12 +3208,12 @@ public:
     Write a compact-encoded signed integer to the given file.
     @see write_unsigned.
   */
-  static int write_signed(File fd, longlong n, myf my_flags);
+  static enum_append_status append_signed(Appender *appender, longlong n);
   /**
     Read a compact-encoded signed integer from the given file.
     @see read_unsigned.
   */
-  static int read_signed(File fd, longlong *out, myf my_flags);
+  static enum_read_status read_signed(Reader *reader, longlong *out);
 };
 
 

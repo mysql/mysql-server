@@ -29,7 +29,6 @@ void Group_log_state::clear()
   DBUG_ENTER("Group_log_state::clear()");
   sid_lock->rdlock();
   rpl_sidno max_sidno= sid_map->get_max_sidno();
-  DBUG_PRINT("info", ("max_sidno=%d", max_sidno));
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     sid_locks.lock(sidno);
 
@@ -48,10 +47,8 @@ Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno,
                                    const THD *thd)
 {
   DBUG_ENTER("Group_log_state::acquire_ownership");
-  //ended_groups.ensure_sidno(sidno);
-  //printf("Group_log_state::acquire_ownership(sidno=%d gno=%lld)\n", sidno, gno);
   DBUG_ASSERT(!ended_groups.contains_group(sidno, gno));
-  DBUG_PRINT("info", ("acquire ownership of group %d:%lld", sidno, gno));
+  DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
   Rpl_owner_id owner;
   owner.copy_from(thd);
   PROPAGATE_REPORTED_ERROR(owned_groups.add(sidno, gno, owner));
@@ -62,7 +59,7 @@ Group_log_state::acquire_ownership(rpl_sidno sidno, rpl_gno gno,
 enum_return_status Group_log_state::end_group(rpl_sidno sidno, rpl_gno gno)
 {
   DBUG_ENTER("Group_log_state::end_group");
-  DBUG_PRINT("info", ("ending group %d:%lld", sidno, gno));
+  DBUG_PRINT("info", ("group=%d:%lld", sidno, gno));
   owned_groups.remove(sidno, gno);
   PROPAGATE_REPORTED_ERROR(ended_groups._add(sidno, gno));
   RETURN_OK;
@@ -75,23 +72,21 @@ rpl_gno Group_log_state::get_automatic_gno(rpl_sidno sidno) const
   //ended_groups.ensure_sidno(sidno);
   Group_set::Const_interval_iterator ivit(&ended_groups, sidno);
   rpl_gno next_candidate= 1;
-  //printf("get_automatic_gno\n");
   while (true)
   {
     Group_set::Interval *iv= ivit.get();
     rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
     while (next_candidate < next_interval_start)
     {
-      //printf("next_candidate=%lld\n", next_candidate);
       if (owned_groups.get_owner(sidno, next_candidate).is_none())
         DBUG_RETURN(next_candidate);
       next_candidate++;
     }
-    /*
-      @todo: check for error
     if (iv == NULL)
-      my_error();
-    */
+    {
+      my_error(ER_GNO_EXHAUSTED, MYF(0));
+      DBUG_RETURN(-1);
+    }
     next_candidate= iv->end;
     ivit.next();
   }

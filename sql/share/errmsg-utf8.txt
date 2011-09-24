@@ -6567,4 +6567,10 @@ ER_MALFORMED_GROUP_SPECIFICATION
   eng "Malformed group specification '%.200s'."
 
 ER_FILE_FORMAT
-  eng "File '%s' has an unknown format, it may be corrupt."
+  eng "File '%250s' has an unknown format, it may be corrupt."
+
+ER_FILE_TRUNCATED
+  eng "File '%250s' was truncated in the middle.
+
+ER_GNO_EXHAUSTED
+  eng "Impossible to generate automatic GNO: the space of possible values is exhausted.  Restart the server with a new SID."

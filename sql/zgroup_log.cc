@@ -25,72 +25,46 @@
 int Group_log::open(const char *filename)
 {
   DBUG_ENTER("Group_log::open(const char *)");
-  int ret= group_log_file.open(filename, true);
+  int ret= rot_file.open(filename, true);
   DBUG_RETURN(ret);
 }
 
 
-enum_return_status Group_log::write_subgroup(const Subgroup *subgroup)
+enum_return_status
+Group_log::write_subgroup(const Cached_subgroup *subgroup,
+                          rpl_binlog_pos offset_after_last_statement,
+                          bool group_commit, const THD *thd)
 {
   DBUG_ENTER("Group_log::write_subgroup(const Subgroup *)");
-  uchar *p= write_buf;
 
-  if (!group_log_file.is_open())
+  if (!rot_file.is_open())
   {
-    my_error(ER_ERROR_ON_WRITE, MYF(0),
-             group_log_file.get_last_filename(), errno);
+    my_error(ER_ERROR_ON_WRITE, MYF(0), rot_file.get_source_name(), errno);
     RETURN_REPORTED_ERROR;
   }
 
-  *p= 255, p++;
-  *p= 26, p++;
-  *p= subgroup->type, p++;
-#define PACK(FIELD, N) int ## N ## store(p, subgroup->FIELD); p+= N
-  PACK(sidno, 4);
-  PACK(gno, 8);
-  PACK(binlog_no, 8);
-  PACK(binlog_pos, 8);
-  PACK(binlog_length, 8);
-  PACK(binlog_offset_after_last_statement, 8);
-  *p= subgroup->group_end ? 1 : 0, p++;
-  *p= subgroup->group_commit ? 1 : 0, p++;
-
-  read_state.lgid++;
-
-  my_off_t len= p - write_buf;
-  my_off_t written= group_log_file.append(len, write_buf);
-  if (written != len)
+  Rpl_owner_id id;
+  id.copy_from(thd);
+  if (encoder.append(&rot_file, subgroup, offset_after_last_statement,
+                     group_commit, id.owner_type) != APPEND_OK)
   {
-    /**
-      If the thread is killed in the middle of the write, it is not
-      safe to append more data after the partial write.  Hence we
-      close it, and in the beginning of this function we don't assert
-      that the file is open; we just return write error if it is
-      closed.
-
-      @todo we could try to truncate the file first, and if successful
-      keep it open
-    */
-    group_log_file.close();
+    rot_file.close();
     RETURN_REPORTED_ERROR;
   }
   RETURN_OK;
 }
 
 
-Group_log::Reader::Reader(Group_log *_group_log,
-                          const Group_set *group_set,
-                          rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
-                          enum_read_status *status)
+Group_log::Group_log_reader::Group_log_reader(
+  Group_log *_group_log, const Group_set *group_set,
+  rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos, enum_read_status *status)
   : output_sid_map(group_set->get_sid_map()),
     group_log(_group_log),
-    rot_file_reader(&group_log->group_log_file, 0),
+    rot_file_reader(&group_log->rot_file, 0),
     has_peeked(true)
 {
   DBUG_ENTER("Group_log::Reader::Reader");
   bool found_group= false, found_pos= false;
-  read_state.offset= 0;
-  read_state.lgid= 0;
   do
   {
     *status= do_read_subgroup(&peeked_subgroup);
@@ -106,61 +80,27 @@ Group_log::Reader::Reader(Group_log *_group_log,
 }
 
 
-enum_read_status Group_log::Reader::do_read_subgroup(Subgroup *subgroup)
+enum_read_status Group_log::Group_log_reader::do_read_subgroup(
+  Subgroup *subgroup)
 {
   DBUG_ENTER("Group_log::Reader::do_read_subgroup(Subgroup *)");
-  my_off_t read_bytes=
-    rot_file_reader.read(Read_state::FULL_SUBGROUP_SIZE, read_buf, MYF(0));
-  if (read_bytes == MY_FILE_ERROR)
-  {
-    my_error(ER_ERROR_ON_READ, MYF(0),
-             rot_file_reader.get_current_filename(), errno);
-    DBUG_RETURN(READ_ERROR_IO);
-  }
-  if (read_bytes == 0)
-    DBUG_RETURN(READ_EOF);
-  if (read_buf[0] != Read_state::SPECIAL_TYPE ||
-      (read_bytes >= 2 && read_buf[1] != Read_state::FULL_SUBGROUP))
-  {
-    rot_file_reader.seek(rot_file_reader.tell() - read_bytes);
-    my_error(ER_FILE_FORMAT, MYF(0), rot_file_reader.get_current_filename());
-    DBUG_RETURN(READ_ERROR_IO);
-  }
-  if (read_bytes < Read_state::FULL_SUBGROUP_SIZE)
-  {
-    rot_file_reader.seek(rot_file_reader.tell() - read_bytes);
-    DBUG_RETURN(READ_TRUNCATED);
-  }
-#define UNPACK(FIELD, N) subgroup->FIELD= sint ## N ## korr(p), p += N
-  uchar *p= read_buf;
-  UNPACK(sidno, 4);
-  UNPACK(gno, 8);
-  UNPACK(binlog_no, 8);
-  UNPACK(binlog_pos, 8);
-  UNPACK(binlog_length, 8);
-  UNPACK(binlog_offset_after_last_statement, 8);
-  subgroup->group_end= *p == 1 ? true : false, p++;
-  subgroup->group_commit= *p == 1 ? true : false, p++;
-  subgroup->lgid= ++read_state.lgid;
+  my_off_t saved_pos;
+  if (rot_file_reader.tell(&saved_pos) != RETURN_STATUS_OK)
+    DBUG_RETURN(READ_ERROR);
+  PROPAGATE_READ_STATUS(decoder.read(&rot_file_reader, subgroup));
   const Sid_map *log_sid_map= group_log->get_sid_map();
   if (output_sid_map != log_sid_map)
   {
     const rpl_sid *sid= log_sid_map->sidno_to_sid(subgroup->sidno);
-    if (sid == NULL)
-    {
-      rot_file_reader.seek(rot_file_reader.tell() - read_bytes);
-      my_error(ER_FILE_FORMAT, MYF(0), rot_file_reader.get_current_filename());
-      DBUG_RETURN(READ_ERROR_IO);
-    }
+    READER_CHECK_FORMAT(&rot_file_reader, saved_pos, sid != NULL);
     subgroup->sidno= output_sid_map->add_permanent(sid);
-    if (subgroup->sidno < 1)
-      DBUG_RETURN(READ_ERROR_OTHER);
+    READER_CHECK_FORMAT(&rot_file_reader, saved_pos, subgroup->sidno < 1);
   }
   DBUG_RETURN(READ_OK);
 }
 
 
-enum_read_status Group_log::Reader::read_subgroup(Subgroup *subgroup)
+enum_read_status Group_log::Group_log_reader::read_subgroup(Subgroup *subgroup)
 {
   DBUG_ENTER("Group_log::Reader::read_subgroup(Subgroup *)");
   if (has_peeked)

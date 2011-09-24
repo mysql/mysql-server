@@ -129,31 +129,16 @@ int Uuid::to_string(char *buf) const
 }
 
 
-enum_return_status Uuid::write(File fd, myf my_flags) const
+enum_append_status Uuid::append(Appender *appender,
+                                my_off_t truncate_to_position) const
 {
-  DBUG_ENTER("Uuid::write(File, myf)");
-  if (my_write(fd, bytes, Uuid::BYTE_LENGTH, my_flags) != Uuid::BYTE_LENGTH)
-  {
-    if ((my_flags & MY_WME) != 0)
-      RETURN_REPORTED_ERROR;
-    else
-      RETURN_UNREPORTED_ERROR;
-  }
-  RETURN_OK;
+  return appender->append(bytes, Uuid::BYTE_LENGTH, truncate_to_position);
 }
 
 
-enum_read_status Uuid::read(File fd, myf my_flags)
+enum_read_status Uuid::read(Reader *reader)
 {
-  DBUG_ENTER("Uuid::read(File, myf)");
-  size_t read_bytes= my_read(fd, bytes, Uuid::BYTE_LENGTH, my_flags);
-  if (read_bytes == 0)
-    DBUG_RETURN(READ_EOF);
-  if (read_bytes < Uuid::BYTE_LENGTH)
-    DBUG_RETURN(READ_TRUNCATED);
-  if (read_bytes == MY_FILE_ERROR)
-    DBUG_RETURN(READ_ERROR_IO);
-  DBUG_RETURN(READ_OK);
+  return reader->read(bytes, Uuid::BYTE_LENGTH);
 }
 
 

@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+
 #include "zgroups.h"
 
 
@@ -178,7 +179,7 @@ enum_return_status Atom_file::close()
 }
 
 
-size_t Atom_file::pread(my_off_t offset, my_off_t length, uchar *buffer) const
+size_t Atom_file::pread(my_off_t offset, uchar *buffer, my_off_t length) const
 {
   DBUG_ENTER("Atom_file::pread");
   DBUG_ASSERT(is_open());
@@ -207,8 +208,8 @@ size_t Atom_file::pread(my_off_t offset, my_off_t length, uchar *buffer) const
 
 
 enum_return_status
-Atom_file::truncate_and_append(my_off_t offset, my_off_t length,
-                               const uchar *data)
+Atom_file::truncate_and_append(my_off_t offset,
+                               const uchar *data, my_off_t length)
 {
   DBUG_ENTER("Atom_file::truncate_and_append");
   File ofd= my_open(overwrite_filename, O_WRONLY | O_BINARY | O_CREAT | O_EXCL,
