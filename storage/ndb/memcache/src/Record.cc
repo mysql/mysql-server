@@ -153,11 +153,13 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
 */
 bool Record::appendCRLF(int id, size_t len, char *buffer) const {
   int idx = map[id];
-  if(   handlers[idx]->contains_string 
-     && handlers[idx]->writeToNdb(specs[idx].column, 2, len, "\r\n", buffer) 
-     >= 0)
-  {
-    return true; 
+  int length_bytes = handlers[idx]->contains_string;
+
+if(length_bytes) {
+    size_t offset = len + length_bytes - 1;  /* see DataTypeHandler.h */
+    buffer[offset]   = '\r';
+    buffer[offset+1] = '\n';
+    return true;
   }
   return false;
 }
@@ -256,7 +258,7 @@ bool Record::setUint64Value(int id, Uint64 value, char *data) const {
 
 int Record::encode(int id, const char *key, int nkey,
                    char *buffer) const {
-  return handlers[map[id]]->writeToNdb(specs[map[id]].column, nkey, 0, key, 
+  return handlers[map[id]]->writeToNdb(specs[map[id]].column, nkey, key, 
                                        buffer + specs[map[id]].offset);
 }
 

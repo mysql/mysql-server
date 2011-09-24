@@ -64,12 +64,13 @@ typedef struct {
  
   // String Writer.  Returns length written or < 0 for error.
   int (*writeToNdb)(const NdbDictionary::Column *col, size_t len, 
-                    size_t offset, const char *str, void * const buf);
+                    const char *str, void * const buf);
 
   // NumericHandler.  
   NumericHandler * native_handler;
   
   // Will readFromNdb() return a pointer to a string inside of buf?
+  // 1 = CHAR; 2 = VARCHAR; 3 = LONGVARCHAR
   int contains_string;
 } DataTypeHandler;
 
