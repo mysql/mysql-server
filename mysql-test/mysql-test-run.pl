@@ -3014,13 +3014,13 @@ sub memcached_start {
   
   mtr_verbose("memcached_start"); 
   
-  my $found_perl_source = my_find_file($bindir, 
+  my $found_perl_source = my_find_file($basedir, 
      ["storage/ndb/memcache",        # source
       "mysql-test/lib"],             # install 
       "memcached_path.pl", NOT_REQUIRED);
   
   my $found_so = my_find_file($bindir,
-    ["storage/ndb/memcache/",       # source
+    ["storage/ndb/memcache/",       # source or build
      "lib"],                        # install
     "ndb_engine.so", NOT_REQUIRED); 
      
