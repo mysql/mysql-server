@@ -42,7 +42,7 @@ extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 #define DECODE_ARGS const NdbDictionary::Column *, char * &, const void * const
 #define SFDLEN_ARGS const NdbDictionary::Column *, const void * const
-#define ENCODE_ARGS const NdbDictionary::Column *, size_t, size_t, const char *, void * const
+#define ENCODE_ARGS const NdbDictionary::Column *, size_t, const char *, void * const
 
 typedef int    impl_readFromNdb(DECODE_ARGS);
 typedef size_t impl_getStringifiedLength(SFDLEN_ARGS);
@@ -154,7 +154,7 @@ DataTypeHandler Handler_Varchar =  {
   dth_length_varchar,      // getStringifiedLength()
   dth_encode_varchar,      // writeToNdb()
   0,                       // native_handler
-  true                     // contains_string
+  2                        // contains_string + 1-byte length
 };
 
 DataTypeHandler Handler_LongVarchar = {
@@ -162,7 +162,7 @@ DataTypeHandler Handler_LongVarchar = {
   dth_length_longvarchar,
   dth_encode_longvarchar,
   0,
-  true
+  3                       // contains string + 2 length bytes
 };
 
 DataTypeHandler Handler_Char =  {
@@ -170,7 +170,7 @@ DataTypeHandler Handler_Char =  {
   dth_length_char,        // getStringifiedLength()
   dth_encode_char,        // writeToNdb()
   0,                      // native_handler
-  true                    // contains_string
+  1                       // contains_string (no length bytes)
 };
 
 DataTypeHandler Handler_enum = {   /* NDB sees ENUM columns as CHAR(1) */
@@ -427,7 +427,7 @@ size_t dth_length_unsupported(const NdbDictionary::Column *, const void *) {
   return 0;
 }
 
-int dth_encode_unsupported(const NdbDictionary::Column *col, size_t, size_t, 
+int dth_encode_unsupported(const NdbDictionary::Column *col, size_t,
                            const char *, void *) {
   logger->log(LOG_WARNING, 0, "Unsupported column type: %s\n", col->getName());
   return DTH_NOT_SUPPORTED;
@@ -451,16 +451,15 @@ size_t dth_length_varchar(const NdbDictionary::Column *col, const void *buf) {
 
 
 int dth_encode_varchar(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, const char *str, void *buf) {
-  size_t total_len = len + offset;
+                       size_t len, const char *str, void *buf) {
   uint8_t * length_byte = (uint8_t *) buf;
-  char *char_buffer = ((char *) buf) + 1 + offset;
+  char *char_buffer = ((char *) buf) + 1;
     
-  if(total_len > col->getLength())
+  if(len > col->getLength())
     return DTH_VALUE_TOO_LONG;
   
   /* Set the length byte */
-  *length_byte = (uint8_t) total_len;
+  *length_byte = (uint8_t) len;
   
   /* Copy string value into buffer */
   strncpy(char_buffer, str, len);
@@ -486,12 +485,11 @@ size_t dth_length_longvarchar(const NdbDictionary::Column *col, const void *buf)
   return (size_t) ( *length_byte_1 + (*length_byte_2 << 8));
 }
 
-int dth_encode_longvarchar(const NdbDictionary::Column *col, 
-                           size_t len, size_t offset,
+int dth_encode_longvarchar(const NdbDictionary::Column *col, size_t len, 
                            const char *str, void *buf) {
   char *cbuf = ((char *) buf);
-  char *dest = cbuf + 2 + offset;
-  unsigned short total_len = len + offset;
+  char *dest = cbuf + 2;
+  unsigned short total_len = len;
   const unsigned short short_lo = 255;
   const unsigned short short_hi = 65535 ^ 255; 
   
@@ -520,18 +518,18 @@ size_t dth_length_char(const NdbDictionary::Column *col, const void *buf) {
   return col->getLength();
 }
 
-int dth_encode_char(const NdbDictionary::Column *col, 
-                    size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_char(const NdbDictionary::Column *col, size_t len,
+                    const char *str, void *buf) {
   char *cbuf = ((char *) buf);
-  char *dest = cbuf + offset;
-  int rem_space = col->getLength() - (len + offset);
-  if(rem_space < 0) return DTH_VALUE_TOO_LONG;
+  char *dest = cbuf;
+  if(len > col->getLength()) 
+    return DTH_VALUE_TOO_LONG;
 
   /* copy string into buffer */
   memcpy(dest, str, len);
 
   /* right-pad with spaces */
-  for(char *s = dest+len ; rem_space < col->getLength() ; rem_space++) {
+  for(char *s = dest+len ; len <= col->getLength() ; len++) {
     *(s++) = ' ';
   }
 
@@ -574,7 +572,6 @@ template<typename INTTYPE> int dth_write32(Int32 value, const char *buf) {
 /* Make a safe copy of the text representation of a number, discarding 
    any terminal junk characters that may be in the buffer */
 #define MAKE_COPY_BUFFER(sz) \
-  assert(offset == 0); \
   char copy_buff[sz]; \
   if(len >= sz) return DTH_VALUE_TOO_LONG; \
   strncpy(copy_buff, str, len); \
@@ -589,8 +586,8 @@ int dth_decode_tinyint(const NdbDictionary::Column *col,
   return sprintf(str, "%d", (int) i) + 1;  // +1 for null terminator
 }
 
-int dth_encode_tinyint(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_tinyint(const NdbDictionary::Column *col, size_t len,
+                       const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   int intval = 0;
 
@@ -611,7 +608,7 @@ int dth_decode_tiny_unsigned(const NdbDictionary::Column *col,
 }
 
 int dth_encode_tiny_unsigned(const NdbDictionary::Column *, size_t len, 
-                             size_t offset, const char *str, void *buf) {
+                             const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   Uint32 intval = 0;
   
@@ -631,8 +628,8 @@ int dth_decode_smallint(const NdbDictionary::Column *col,
   return sprintf(str, "%hd",* (short *) buf) + 1;  // +1 for null terminator
 }
 
-int dth_encode_smallint(const NdbDictionary::Column *col, 
-                        size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_smallint(const NdbDictionary::Column *col, size_t len, 
+                        const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   int intval = 0;
   
@@ -651,8 +648,8 @@ int dth_decode_small_unsigned(const NdbDictionary::Column *col,
   return sprintf(str, "%hu",* (short *) buf) + 1;  // +1 for null terminator
 }
 
-int dth_encode_small_unsigned(const NdbDictionary::Column *col, 
-                              size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_small_unsigned(const NdbDictionary::Column *col, size_t len, 
+                              const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   Uint32 intval = 0;
   
@@ -681,8 +678,8 @@ size_t dth_length_mediumint(const NdbDictionary::Column *col, const void *buf) {
   return len;  
 }
 
-int dth_encode_mediumint(const NdbDictionary::Column *col, 
-                         size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_mediumint(const NdbDictionary::Column *col, size_t len,
+                         const char *str, void *buf) {
   int intval = 0;
   const int MAXVAL = 8388607;
   const int MINVAL = -8388608;  
@@ -731,7 +728,7 @@ size_t dth_length_medium_unsigned(const NdbDictionary::Column *, const void *buf
 }
 
 int dth_encode_medium_unsigned(const NdbDictionary::Column *, size_t len,
-                               size_t offset, const char *str, void *buf) {
+                               const char *str, void *buf) {
   MAKE_COPY_BUFFER(16);
   Uint32 intval = 0;
   
@@ -767,8 +764,8 @@ int dth_decode_int(const NdbDictionary::Column *col,
   return sprintf(str, "%d",* (int *) buf) + 1;  // +1 for null terminator
 }
 
-int dth_encode_int(const NdbDictionary::Column *col, 
-                   size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_int(const NdbDictionary::Column *col, size_t len, 
+                   const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
 
   int *ibuf = (int *) buf;
@@ -785,8 +782,8 @@ int dth_decode_unsigned(const NdbDictionary::Column *col,
   return sprintf(str, "%du",* (Uint32 *) buf) + 1;  // +1 for null terminator
 }
 
-int dth_encode_unsigned(const NdbDictionary::Column *col, 
-                        size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_unsigned(const NdbDictionary::Column *col, size_t len,
+                        const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
   
   Uint32 *ibuf = (Uint32 *) buf;
@@ -803,8 +800,8 @@ int dth_decode_bigint(const NdbDictionary::Column *col,
   return sprintf(str, "%"PRId64,* (Int64 *) buf) + 1;  // +1 for null
 }
 
-int dth_encode_bigint(const NdbDictionary::Column *col, 
-                      size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_bigint(const NdbDictionary::Column *col, size_t len,
+                      const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
   
   int64_t *ibuf = (int64_t *) buf;
@@ -821,8 +818,8 @@ int dth_decode_ubigint(const NdbDictionary::Column *col,
   return sprintf(str, "%"PRIu64,* (Uint64 *) buf) + 1;  // +1 for null
 }
 
-int dth_encode_ubigint(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_ubigint(const NdbDictionary::Column *col, size_t len,
+                       const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
 
   uint64_t *ibuf = (uint64_t *) buf;
@@ -844,9 +841,8 @@ size_t dth_length_enum(const NdbDictionary::Column *col, const void *buf) {
   return 1;
 }
 
-int dth_encode_enum(const NdbDictionary::Column *col, 
-                    size_t len, size_t offset, const char *str, void *buf) {
-  assert(offset == 0);
+int dth_encode_enum(const NdbDictionary::Column *col, size_t len,
+                    const char *str, void *buf) {
   char *cbuf = (char *) buf;
   *cbuf = *str;  
   return 1;
@@ -865,7 +861,7 @@ size_t dth_length_year(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_year(const NdbDictionary::Column *, size_t len, 
-                    size_t offset, const char *str, void *buf) {
+                    const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   Uint32 intval = 0;
   
@@ -966,7 +962,7 @@ size_t dth_length_date(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_date(const NdbDictionary::Column *, size_t len, 
-                    size_t offset, const char *str, void *buf) {
+                    const char *str, void *buf) {
   Int32  int_date;
   Uint32  encoded_date; 
   time_helper tm = { 0,0,0,0,0,0,0, false };
@@ -1011,7 +1007,7 @@ size_t dth_length_time(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_time(const NdbDictionary::Column *, size_t len, 
-                    size_t offset, const char *str, void *buf) {
+                    const char *str, void *buf) {
   Int32  int_time;
   
   /* Make a safe (null-terminated) copy */
@@ -1052,7 +1048,7 @@ size_t dth_length_datetime(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_datetime(const NdbDictionary::Column *, size_t len, 
-                        size_t offset, const char *str, void *buf) {
+                        const char *str, void *buf) {
   uint64_t int_datetime;
   
   /* Make a safe (null-terminated) copy */
@@ -1103,8 +1099,7 @@ size_t dth_length_double(const NdbDictionary::Column *col,
 }
 
 template <typename T> int dth_encode_fp(const NdbDictionary::Column *col, 
-                                        size_t len, size_t offset, 
-                                        const char *str, void *buf) {
+                                        size_t len, const char *str, void *buf) {
   MAKE_COPY_BUFFER(64);
   errno = 0;
   double d = strtod(copy_buff, NULL);
@@ -1132,8 +1127,7 @@ size_t dth_length_decimal(const NdbDictionary::Column *col,
   return col->getScale() + col->getPrecision() + 3; // sign, point, and terminator
 }
 
-int dth_encode_decimal(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, 
+int dth_encode_decimal(const NdbDictionary::Column *col, size_t len, 
                        const char *str, void *buf) {
   MAKE_COPY_BUFFER(64);
   int scale = col->getScale();
