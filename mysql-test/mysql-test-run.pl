@@ -3037,6 +3037,7 @@ sub memcached_start {
     $ndb_opt_string = $ndb_opt_string . ";" . $options;
   }
 
+
   $found_perl_source ne "" or return;
   $found_so ne "" or mtr_error("Failed to find ndb_engine.so");  
   require "$found_perl_source";
@@ -3044,8 +3045,19 @@ sub memcached_start {
   {
     mtr_error("Memcached not available.");
   }
-  my $exe = get_memcached_exe_path();
-  
+  my $exe = "";
+  if(memcached_is_bundled())
+  {
+    $exe = my_find_bin($bindir,
+    ["libexec", "sbin", "bin", "storage/ndb/memcache/extra/memcached"],
+    "memcached", NOT_REQUIRED);
+  }
+  else 
+  {
+    $exe = get_memcached_exe_path();
+  }
+  $exe ne "" or mtr_error("Failed to find memcached.");
+
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "-p");
