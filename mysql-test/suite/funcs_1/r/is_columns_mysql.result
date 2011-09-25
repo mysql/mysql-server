@@ -111,7 +111,7 @@ def	mysql	innodb_table_stats	n_rows	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bi
 def	mysql	innodb_table_stats	stats_timestamp	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 def	mysql	innodb_table_stats	sum_of_other_index_sizes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	mysql	innodb_table_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references	
-def	mysql	ndb_binlog_index	deletes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	mysql	ndb_binlog_index	deletes	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			select,insert,update,references	
 def	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references	
 def	mysql	ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			select,insert,update,references	
 def	mysql	ndb_binlog_index	gci	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned			select,insert,update,references	
