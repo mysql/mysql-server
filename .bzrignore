@@ -3169,3 +3169,7 @@ Docs/INFO_BIN
 Docs/INFO_SRC
 Testing
 source_downloads
+storage/ndb/include/ndb_config.h
+storage/ndb/memcache/memcached_path.pl
+storage/ndb/memcache/sandbo*
+storage/ndb/memcache/include/ndbmemcache_config.h
