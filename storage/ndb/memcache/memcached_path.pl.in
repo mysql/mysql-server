@@ -20,7 +20,6 @@
 
 use strict;
 
-
 sub memcached_is_available() {
   if("@MEMCACHED_FOUND@" eq "TRUE") {
     return 1;
@@ -28,6 +27,10 @@ sub memcached_is_available() {
   else {
     return 0;
   }
+}
+
+sub memcached_is_bundled() {
+  return ("@WITH_MEMCACHE@" eq "ON") ? 1 : 0;
 }
 
 sub get_memcached_exe_path() {
