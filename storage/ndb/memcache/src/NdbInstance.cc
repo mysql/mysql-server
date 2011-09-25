@@ -23,7 +23,6 @@
 
 #include "NdbInstance.h"
 #include "debug.h"
-#include "atomics.h"
 
 /* ------------------------------------------
    ------------- NdbInstance ----------------
