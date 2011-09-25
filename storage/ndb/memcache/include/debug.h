@@ -44,6 +44,14 @@
 
 #ifdef DEBUG_OUTPUT
 
+/* Very old Sun compilers do not have __func__ */
+#ifdef __SUNPRO_C
+#if __SUNPRO_C < 0x530 
+#define __func__ "?"
+#endif
+#endif
+
+
 extern int do_debug;
 
 /* There's no if(do_debug) check on DEBUG_INIT or DEBUG_ASSERT */

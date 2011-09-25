@@ -149,7 +149,7 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     if(i == 0) first_value_col_id = this_col_id;
     last_value_col_is_int = is_integer(table, this_col_id);
   }
-  assert(first_value_col_id >= 0);
+  assert(nvaluecols == 0 || first_value_col_id > -1);
 
   if(spec->cas_column) {                                        // CAS
     col = get_ndb_col(spec, table, spec->cas_column);
