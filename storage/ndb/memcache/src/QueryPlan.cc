@@ -18,7 +18,6 @@
  02110-1301  USA
  */
 #include <stdio.h>
-#include <assert.h>
 #include <stddef.h>
 #include <strings.h>
 
@@ -149,7 +148,6 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     if(i == 0) first_value_col_id = this_col_id;
     last_value_col_is_int = is_integer(table, this_col_id);
   }
-  assert(nvaluecols == 0 || first_value_col_id > -1);
 
   if(spec->cas_column) {                                        // CAS
     col = get_ndb_col(spec, table, spec->cas_column);
@@ -240,7 +238,7 @@ const NdbDictionary::Index * QueryPlan::chooseIndex() {
   unsigned int nmatches, j;
     idx = dict->getIndex(list.elements[i].name, spec->table_name);
     if(idx && idx->getType() == NdbDictionary::Index::UniqueHashIndex) {
-      if(idx->getNoOfColumns() == spec->nkeycols) { 
+      if((int) idx->getNoOfColumns() == spec->nkeycols) { 
         for(nmatches = 0, j = 0; j < idx->getNoOfColumns() ; j++) 
           if(! strcmp(spec->key_columns[j], idx->getColumn(j)->getName()))
              nmatches++;
@@ -254,7 +252,7 @@ const NdbDictionary::Index * QueryPlan::chooseIndex() {
   for(unsigned int i = 0; i < list.count ; i++) {
     idx = dict->getIndex(list.elements[i].name, spec->table_name);
     if(idx && idx->getType() == NdbDictionary::Index::OrderedIndex) {
-      if(idx->getNoOfColumns() >= spec->nkeycols) {  
+      if((int) idx->getNoOfColumns() >= spec->nkeycols) {  
         if(! strcmp(spec->key_columns[0], idx->getColumn(0)->getName())) {
           is_scan = true;
           return idx;
