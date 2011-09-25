@@ -54,7 +54,7 @@ write_point_queries = [
 write_range_queries = [
         ("select for update", mysqlgen_select_for_update_range),
         ("update", mysqlgen_update_range) ]
-timeouts = ["0", "500000"]
+timeouts = [0, 500000]
 
 # Here's where all the magic happens
 print "# Tokutek"
@@ -90,6 +90,22 @@ for timeout in timeouts:
             mysqlgen_select_star()
             print "connection default;"
             print ""
+            # test early commit
+            if timeout > 0:
+                print "# check that an early commit allows a blocked"
+                print "# transaction to complete"
+                print "connection default;"
+                print "begin;"
+                qa("a", "1", "b", "150")
+                print "connection conn2;"
+                # this makes the query asynchronous, so we can jump back
+                # to the default connection and commit it.
+                print "send ",
+                qb("a", "1", "b", "175")
+                print "connection default;"
+                print "commit;"
+                print "connection conn2;"
+                print "reap;"
         # point vs range contention
         for rt, rq in write_range_queries:
             print "# testing range query \"%s\" vs \"%s\"" % (rt, ta)
@@ -113,6 +129,22 @@ for timeout in timeouts:
             mysqlgen_select_star()
             print "connection default;"
             print ""
+            # test early commit
+            if timeout > 0:
+                print "# check that an early commit allows a blocked"
+                print "# transaction to complete"
+                print "connection default;"
+                print "begin;"
+                qa("a", "1", "b", "150")
+                print "connection conn2;"
+                # this makes the query asynchronous, so we can jump back
+                # to the default connection and commit it.
+                print "send ",
+                rq("a", "b", "<=2")
+                print "connection default;"
+                print "commit;"
+                print "connection conn2;"
+                print "reap;"
     for rt, rq in write_range_queries:
         for rtb, rqb in write_range_queries:
             print "# testing range query \"%s\" vs range query \"%s\"" % (rt, rtb)
@@ -139,4 +171,20 @@ for timeout in timeouts:
             mysqlgen_select_star()
             print "connection default;"
             print ""
+            # test early commit
+            if timeout > 0:
+                print "# check that an early commit allows a blocked"
+                print "# transaction to complete"
+                print "connection default;"
+                print "begin;"
+                rq("a", "b", ">=2 and a<=4")
+                print "connection conn2;"
+                # this makes the query asynchronous, so we can jump back
+                # to the default connection and commit it.
+                print "send ",
+                rqb("a", "b", ">=0 and a<=3")
+                print "connection default;"
+                print "commit;"
+                print "connection conn2;"
+                print "reap;"
 mysqlgen_cleanup()
