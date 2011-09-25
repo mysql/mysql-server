@@ -1792,6 +1792,8 @@ public:
 
 
 #ifdef HAVE_UGID
+
+
 /**
   Class for variables that store values of type Ugid_specification.
 */

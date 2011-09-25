@@ -3592,7 +3592,12 @@ static Sys_var_charptr Sys_ignore_db_dirs(
        NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
+
 #ifdef HAVE_UGID
+
+static Sys_var_have Sys_have_ugid(
+       "have_ugid", "have_ugid",
+       READ_ONLY GLOBAL_VAR(have_ugid), NO_CMD_LINE);
 
 static bool check_ugid_next_list(sys_var *self, THD *thd, set_var *var)
 {

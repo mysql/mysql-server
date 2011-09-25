@@ -1153,6 +1153,7 @@ protected:
 };
 
 
+#ifdef HAVE_UGID
 class Create_func_group_subtract : public Create_func_arg2
 {
 public:
@@ -1177,6 +1178,7 @@ protected:
   Create_func_group_subset() {}
   virtual ~Create_func_group_subset() {}
 };
+#endif
 
 
 class Create_func_hex : public Create_func_arg1
@@ -3982,6 +3984,7 @@ Create_func_greatest::create_native(THD *thd, LEX_STRING name,
 }
 
 
+#ifdef HAVE_UGID
 Create_func_group_subtract Create_func_group_subtract::s_singleton;
 
 Item*
@@ -3998,6 +4001,7 @@ Create_func_group_subset::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_group_subset(arg1, arg2);
 }
+#endif
 
 
 Create_func_hex Create_func_hex::s_singleton;
@@ -5452,8 +5456,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("GET_LOCK") }, BUILDER(Create_func_get_lock)},
   { { C_STRING_WITH_LEN("GLENGTH") }, GEOM_BUILDER(Create_func_glength)},
   { { C_STRING_WITH_LEN("GREATEST") }, BUILDER(Create_func_greatest)},
+#ifdef HAVE_UGID
   { { C_STRING_WITH_LEN("GROUP_SUBTRACT") }, BUILDER(Create_func_group_subtract) },
   { { C_STRING_WITH_LEN("GROUP_SUBSET") }, BUILDER(Create_func_group_subset) },
+#endif
   { { C_STRING_WITH_LEN("HEX") }, BUILDER(Create_func_hex)},
   { { C_STRING_WITH_LEN("IFNULL") }, BUILDER(Create_func_ifnull)},
   { { C_STRING_WITH_LEN("INET_ATON") }, BUILDER(Create_func_inet_aton)},

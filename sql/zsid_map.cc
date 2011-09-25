@@ -48,7 +48,7 @@ Sid_map::~Sid_map()
 }
 
 
-int Sid_map::clear()
+enum_return_status Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
   my_hash_free(&_sid_to_sidno);
@@ -57,8 +57,8 @@ int Sid_map::clear()
                my_free, 0);
   reset_dynamic(&_sidno_to_sid);
   reset_dynamic(&_sorted);
-  PROPAGATE_REPORTED_ERROR_INT(appender.truncate(0));
-  DBUG_RETURN(0);
+  PROPAGATE_REPORTED_ERROR(appender.truncate(0));
+  RETURN_OK;
 }
 
 

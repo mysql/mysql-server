@@ -15,14 +15,20 @@
 
 
 #include <gtest/gtest.h>
+#include <string.h>
+
 #define FRIEND_OF_GROUP_SET class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_CACHE class GroupTest_Group_containers_Test
 #define FRIEND_OF_GROUP_LOG_STATE class GroupTest_Group_containers_Test
-#include <string.h>
+
 #include "sql_class.h"
 #include "my_pthread.h"
 #include "binlog.h"
+
 #include "zgroups.h"
+
+
+#ifdef HAVE_UGID
 
 
 #define N_SIDS 16
@@ -941,3 +947,6 @@ TEST_F(GroupTest, Group_containers)
 
   mysql_bin_log.sid_lock.assert_no_lock();
 }
+
+
+#endif

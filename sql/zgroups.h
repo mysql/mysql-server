@@ -943,10 +943,9 @@ public:
   /**
     Clears this Sid_map (for RESET MASTER)
 
-    @return 0 Success.
-    @return 1 Error.  This function calls my_error internally.
+    @return RETURN_STATUS_OK or RETURN_STAUTS_REPORTED_ERROR
   */
-  int clear();
+  enum_return_status clear();
   /**
     Open the disk file if it is not already open.
     @param base_filename The base of the filename, i.e., without "-sids".

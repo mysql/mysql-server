@@ -445,6 +445,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
   if (lex->spcont && tmp->var == Sys_autocommit_ptr)
     lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
+#ifdef HAVE_UGID
   if (lex->uses_stored_routines() &&
       (tmp->var == Sys_ugid_next_ptr || tmp->var == Sys_ugid_next_list_ptr ||
        tmp->var == Sys_ugid_end_ptr || tmp->var == Sys_ugid_commit_ptr))
@@ -453,6 +454,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
              tmp->var->name.str);
     return TRUE;
   }
+#endif
 
   if (! (var= new set_var(var_type, tmp->var, &tmp->base_name, val)))
     return TRUE;

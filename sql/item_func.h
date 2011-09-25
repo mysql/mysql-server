@@ -1447,6 +1447,7 @@ public:
 };
 
 
+#ifdef HAVE_UGID
 class Item_func_group_subset : public Item_int_func
 {
   String buf;
@@ -1456,6 +1457,7 @@ public:
   const char *func_name() const { return "group_subset"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
 };
+#endif
 
 
 /* Handling of user definable variables */

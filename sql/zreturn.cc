@@ -17,7 +17,7 @@
 #include "zgroups.h"
 
 
-#ifndef NO_DBUG
+#if defined(HAVE_UGID) && !defined(NO_DBUG)
 
 
 #include "sql_class.h"
@@ -40,4 +40,4 @@ void check_return_status(enum_return_status status, const char *action,
 }
 
 
-#endif
+#endif // HAVE_UGID && ! NO_DBUG

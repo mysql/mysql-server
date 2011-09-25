@@ -1,3 +1,4 @@
+--source include/have_ugid.inc
 --source include/have_innodb.inc
 --let $rpl_topology= 1
 --source include/rpl_init.inc
