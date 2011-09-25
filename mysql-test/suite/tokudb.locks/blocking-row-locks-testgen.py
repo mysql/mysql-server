@@ -148,3 +148,4 @@ for timeout in ["0", "1000000"]:
             mysqlgen_select_star()
             print "connection default;"
             print ""
+mysqlgen_cleanup()
