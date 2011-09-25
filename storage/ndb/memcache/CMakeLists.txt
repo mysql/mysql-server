@@ -20,6 +20,9 @@ IF(WIN32)
   RETURN()
 ENDIF()
 
+# Don't disable assert
+remove_definitions(-DNDEBUG)
+
 include("FindMemcached.cmake")
 
 IF(MEMCACHED_FOUND) 
