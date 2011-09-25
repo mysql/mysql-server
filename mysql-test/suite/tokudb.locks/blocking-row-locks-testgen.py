@@ -1,10 +1,6 @@
 # 9/23/2011 Generate blocking row lock tests
 import datetime
 
-# whether or not to do a sleep hack to get
-# tests to pass
-do_sleep_hack = False
-
 # generate sql write queries
 def mysqlgen_select_for_update(k, kv, c, cv):
     print "select * from t where %s=%s for update;" % (k, kv)
@@ -83,8 +79,6 @@ for timeout in ["0", "1000000"]:
             for k in range(1, 5):
                 if k == 1:
                     print "--error ER_LOCK_WAIT_TIMEOUT"
-                if do_sleep_hack:
-                    print "--sleep 0.2"
                 qb("a", k, "b", "100")
             # Always check in the end that a commit
             # allows the other transaction full access
@@ -104,12 +98,8 @@ for timeout in ["0", "1000000"]:
             qa("a", "1", "b", "100")
             print "connection conn2;"
             print "--error ER_LOCK_WAIT_TIMEOUT"
-            if do_sleep_hack:
-                print "--sleep 0.2"
             rq("a", "b", "<=2")
             print "--error ER_LOCK_WAIT_TIMEOUT"
-            if do_sleep_hack:
-                print "--sleep 0.2"
             rq("a", "b", ">=0")
             rq("a", "b", ">2")
             # Always check in the end that a commit
