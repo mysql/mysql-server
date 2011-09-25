@@ -23,9 +23,18 @@
 #include <thr_alarm.h>
 #include <sql_common.h>
 
-#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
-                             CLIENT_SECURE_CONNECTION | CLIENT_TRANSACTIONS | \
-			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
+/*
+ Note: CLIENT_CAPABILITIES is also defined in libmysql/client_settings.h.
+ When adding capabilities here, consider if they should be also added to
+ the libmysql version.
+*/
+#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | \
+                             CLIENT_LONG_FLAG |     \
+                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_TRANSACTIONS |  \
+                             CLIENT_PROTOCOL_41 |   \
+                             CLIENT_SECURE_CONNECTION | \
+                             CLIENT_PLUGIN_AUTH)
 
 #define read_user_name(A) {}
 #undef HAVE_SMEM
