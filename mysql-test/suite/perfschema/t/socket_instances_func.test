@@ -20,6 +20,7 @@
 
 --source include/not_embedded.inc
 --source include/not_windows.inc
+--source include/have_perfschema.inc
 
 # Set this to enable debugging output
 let $my_socket_debug= 0;
