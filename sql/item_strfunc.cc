@@ -4031,6 +4031,7 @@ String *Item_func_uuid::val_str(String *str)
 }
 
 
+#ifdef HAVE_UGID
 void Item_func_group_subtract::fix_length_and_dec()
 {
   maybe_null= args[0]->maybe_null || args[1]->maybe_null;
@@ -4084,5 +4085,5 @@ String *Item_func_group_subtract::val_str_ascii(String *str)
   null_value= true;
   DBUG_RETURN(NULL);
 }
-
+#endif
 

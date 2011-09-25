@@ -1,3 +1,4 @@
+--source include/have_ugid.inc
 --source include/have_log_bin.inc
 
 --let $ida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
@@ -165,18 +166,18 @@ while ($id <= 4)
 
   # can't set value from stored function
   --eval CREATE FUNCTION set_var() RETURNS INT BEGIN SET @@SESSION.$var = $val; RETURN 1; END
-  --error 1739 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
+  --error 1745 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
   SELECT set_var();
   DROP FUNCTION set_var;
 
   # can't set value from trigger
   eval CREATE TRIGGER t BEFORE INSERT ON t1 FOR EACH ROW SET @@SESSION.$var = $val;
-  --error 1739 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
+  --error 1745 # ER_VARIABLE_NOT_SETTABLE_IN_SUB_STATEMENT
   INSERT INTO t1 VALUES (1);
   DROP TRIGGER t;
 
   # can't set value when invoking SF
-  --error 1744 # ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
+  --error 1750 # ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
   eval SET @@SESSION.$var = f()
 
   # must be SUPER
@@ -223,16 +224,16 @@ DROP PROCEDURE p;
 # Cannot set ugid_next outside master-super-group, inside a transaction
 SET UGID_NEXT_LIST = NULL;
 BEGIN;
-  --error 1740 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+  --error 1746 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
   eval SET UGID_NEXT_LIST = '$ida:1';
-  --error 1740 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+  --error 1746 # ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
   eval SET UGID_NEXT = '$ida:1';
 COMMIT;
 
 # Cannot start master-super-group when ugid_next and ugid_next_list
 # are incompatible.
 eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1', @@SESSION.UGID_NEXT = '$ida:2';
---error 1741 # ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
+--error 1747 # ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
 BEGIN;
 
 # In a master-super-group where ugid_next_list != NULL, ugid_next can
@@ -243,10 +244,10 @@ eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1-2', @@SESSION.UGID_NEXT = '$ida:1';
 COMMIT; # start master-super-group
 
 eval SET @@SESSION.UGID_NEXT = '$ida:3';
---error 1741 # ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
+--error 1747 # ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
 COMMIT;
 eval SET @@SESSION.UGID_NEXT = 'AUTOMATIC';
---error 1747 # ER_UGID_NEXT_CANT_BE_AUTOMATIC_IF_UGID_NEXT_LIST_IS_NON_NULL
+--error 1753 # ER_UGID_NEXT_CANT_BE_AUTOMATIC_IF_UGID_NEXT_LIST_IS_NON_NULL
 COMMIT;
 
 eval SET @@SESSION.UGID_NEXT = '$ida:1';
@@ -256,11 +257,11 @@ COMMIT;
 eval SET @@SESSION.UGID_NEXT = 'ANONYMOUS';
 COMMIT;
 
---error 1743 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
+--error 1749 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
 eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1-2';
---error 1743 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
+--error 1749 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
 eval SET @@SESSION.UGID_NEXT_LIST = '$ida:2';
---error 1743 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
+--error 1749 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
 eval SET @@SESSION.UGID_NEXT_LIST = NULL;
 
 SET @@SESSION.UGID_COMMIT = 1;
@@ -268,7 +269,7 @@ COMMIT; # end master-super-group
 
 # It is allowed to set ugid_next_list to an empty string.
 eval SET @@SESSION.UGID_COMMIT = 0, @@SESSION.UGID_NEXT_LIST = '', @@SESSION.UGID_NEXT = '$ida:1';
---error 1741 # ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
+--error 1747 # ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
 COMMIT;
 eval SET @@SESSION.UGID_NEXT = 'ANONYMOUS', @@SESSION.UGID_COMMIT = 1;
 COMMIT; # end master-super-group
@@ -279,11 +280,11 @@ COMMIT; # end master-super-group
 eval SET @@SESSION.UGID_NEXT_LIST = NULL, @@SESSION.UGID_NEXT = '$ida:1', @@SESSION.UGID_COMMIT = 0;
 COMMIT; # start master-super-group
 SELECT @@SESSION.UGID_NEXT_LIST;
---error 1742 # ER_CANT_CHANGE_UGID_NEXT_IN_SUPER_GROUP_WHEN_UGID_NEXT_LIST_IS_NULL
+--error 1748 # ER_CANT_CHANGE_UGID_NEXT_IN_SUPER_GROUP_WHEN_UGID_NEXT_LIST_IS_NULL
 eval SET @@SESSION.UGID_NEXT = '$ida:1';
---error 1743 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
+--error 1749 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
 eval SET @@SESSION.UGID_NEXT_LIST = NULL;
---error 1743 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
+--error 1749 # ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
 eval SET @@SESSION.UGID_NEXT_LIST = '$ida:1';
 SET @@SESSION.UGID_COMMIT = 1;
 COMMIT; # end master-super-group
@@ -291,7 +292,7 @@ COMMIT; # end master-super-group
 # If UGID_NEXT_LIST == NULL and UGID_NEXT == SID:GNO, then it is not
 # allowed to have UGID_END = 1 unless UGID_COMMIT = 1.
 eval SET @@SESSION.UGID_NEXT_LIST = NULL, @@SESSION.UGID_NEXT = '$ida:1', @@SESSION.UGID_END = 1, @@SESSION.UGID_COMMIT = 0;
---error 1749
+--error 1755
 COMMIT;
 
 SET @@SESSION.UGID_COMMIT = 0, @@SESSION.UGID_NEXT = AUTOMATIC, @@SESSION.UGID_NEXT_LIST = NULL;

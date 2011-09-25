@@ -3744,12 +3744,12 @@ longlong Item_master_pos_wait::val_int()
 }
 
 
+#ifdef HAVE_UGID
 /**
   Return 1 if both arguments are group_sets and the first is a subset
   of the second.  Generate an error if any of the arguments is not a
   group_set.
 */
-
 longlong Item_func_group_subset::val_int()
 {
   DBUG_ENTER("Item_func_group_subset::val_int()");
@@ -3779,6 +3779,7 @@ longlong Item_func_group_subset::val_int()
   }
   DBUG_RETURN(ret);
 }
+#endif
 
 
 /**

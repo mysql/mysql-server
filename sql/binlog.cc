@@ -116,10 +116,12 @@ public:
     return pending() == NULL && my_b_tell(&cache_log) == 0;
   }
 
+#ifdef HAVE_UGID
   bool is_group_cache_empty() const
   {
     return group_cache.is_empty();
   }
+#endif
 
   Rows_log_event *pending() const
   {
@@ -164,7 +166,9 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
+#ifdef HAVE_UGID
     group_cache.clear();
+#endif
     DBUG_ASSERT(is_binlog_empty());
   }
 
@@ -527,15 +531,20 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   DBUG_ENTER("binlog_close_connection");
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ASSERT(cache_mngr->trx_cache.is_binlog_empty() &&
-              cache_mngr->stmt_cache.is_binlog_empty() &&
-              cache_mngr->trx_cache.is_group_cache_empty() &&
-              cache_mngr->stmt_cache.is_group_cache_empty());
+              cache_mngr->stmt_cache.is_binlog_empty()
+#ifdef HAVE_UGID
+              && cache_mngr->trx_cache.is_group_cache_empty()
+              && cache_mngr->stmt_cache.is_group_cache_empty()
+#endif
+              );
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
   my_free(cache_mngr);
   DBUG_RETURN(0);
 }
 
+
+#ifdef HAVE_UGID
 static int binlog_flush_group_cache(THD *thd, binlog_cache_mngr *cache_mngr,
                                     binlog_cache_data *cache_data,
                                     rpl_binlog_pos offset_after_last_statement)
@@ -553,6 +562,7 @@ static int binlog_flush_group_cache(THD *thd, binlog_cache_mngr *cache_mngr,
   }
   DBUG_RETURN(0);
 }
+#endif
 
 
 static int write_event_to_cache(THD *thd, Log_event *ev,
@@ -560,12 +570,16 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
 {
   DBUG_ENTER("write_event_to_cache");
   IO_CACHE *file= &cache_data->cache_log;
+#ifdef HAVE_UGID
   my_off_t start_pos= my_b_tell(file);
+#endif
   if (ev->write(file) != 0)
     DBUG_RETURN(1);
+#ifdef HAVE_UGID
   PROPAGATE_REPORTED_ERROR_INT(
     cache_data->group_cache.add_logged_subgroup(thd,
                                                 my_b_tell(file) - start_pos));
+#endif
   DBUG_RETURN(0);
 }
 
@@ -618,9 +632,11 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
   }
   else
   {
+#ifdef HAVE_UGID
     if (binlog_flush_group_cache(thd, cache_mngr, cache_data,
                                  -1/*offset_after_last_statement*/))
       DBUG_RETURN(1);
+#endif
   }
   cache_data->reset();
 
@@ -795,9 +811,11 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 
   if (!cache_mngr->stmt_cache.is_binlog_empty())
     error= binlog_commit_flush_stmt_cache(thd, cache_mngr);
+#ifdef HAVE_UGID
   else
     error= binlog_flush_group_cache(thd, cache_mngr, &cache_mngr->stmt_cache,
                                     -1/*offset_after_last_statement*/);
+#endif
 
   if (cache_mngr->trx_cache.is_binlog_empty())
   {
@@ -808,10 +826,12 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     DBUG_RETURN(error);
   }
 
+#ifdef HAVE_UGID
   if (!error)
     error= ugid_before_flush_trx_cache(thd, &mysql_bin_log.sid_lock,
                                        &mysql_bin_log.group_log_state,
                                        &cache_mngr->trx_cache.group_cache);
+#endif
 
   /*
     We commit the transaction if:
@@ -864,9 +884,11 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   {
     if (!cache_mngr->stmt_cache.is_binlog_empty())
       error= binlog_commit_flush_stmt_cache(thd, cache_mngr);
+#ifdef HAVE_UGID
     else
       error= binlog_flush_group_cache(thd, cache_mngr, &cache_mngr->stmt_cache,
                                       -1/*offset_after_last_statement*/);
+#endif
   }
 
   if (cache_mngr->trx_cache.is_binlog_empty())
@@ -1727,10 +1749,12 @@ int MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
   no_auto_events= no_auto_events_arg;
   max_size= max_size_arg;
   DBUG_PRINT("info",("max_size: %lu", max_size));
+#ifdef HAVE_UGID
   sid_lock.rdlock();
-  int ret= group_log_state.ensure_sidno();
+  PROPAGATE_REPORTED_ERROR(group_log_state.ensure_sidno());
   sid_lock.unlock();
-  DBUG_RETURN(ret);
+#endif
+  DBUG_RETURN(0);
 }
 
 
@@ -1893,6 +1917,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_EXECUTE_IF("crash_create_non_critical_before_update_index", DBUG_SUICIDE(););
 #endif
 
+#ifdef HAVE_UGID
   sid_lock.rdlock();
   if (sid_map.open(sid_map_filename) != 0 ||
       group_log.open(group_log_filename) != 0)
@@ -1901,6 +1926,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     DBUG_RETURN(1);
   }
   sid_lock.unlock();
+#endif
 
   write_error= 0;
 
@@ -2429,8 +2455,9 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
 
-  DBUG_PRINT("info", ("sven-1"));
+#ifdef HAVE_UGID
   sid_lock.rdlock();
+#endif
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -2517,29 +2544,25 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
 
-  DBUG_PRINT("info", ("sven-2"));
-
 #ifdef HAVE_UGID
   group_log_state.clear();
-  if (sid_map.clear() != 0 ||
+  if (sid_map.clear() != RETURN_STATUS_OK ||
       init_sid_map() != 0 ||
-      group_log_state.ensure_sidno() != 0)
+      group_log_state.ensure_sidno() != RETURN_STATUS_OK)
     goto err;
 #endif
-
-  DBUG_PRINT("info", ("sven-3"));
 
   if (!open_index_file(index_file_name, 0, FALSE))
     if ((error= open_binlog(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE)))
       goto err;
   my_free((void *) save_name);
-  DBUG_PRINT("info", ("sven-4"));
 
 err:
-  DBUG_PRINT("info", ("sven-5"));
   if (error == 1)
     name= const_cast<char*>(save_name);
+#ifdef HAVE_UGID
   sid_lock.unlock();
+#endif
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
@@ -4315,9 +4338,11 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_mngr *cache_mngr,
 
   mysql_mutex_lock(&LOCK_log);
 
+#ifdef HAVE_UGID
   if (binlog_flush_group_cache(thd, cache_mngr, cache_data,
                                offset_after_last_statement))
     goto err;
+#endif
 
   DBUG_ASSERT(is_open());
   if (likely(is_open()))                       // Should always be true
@@ -4741,9 +4766,11 @@ int MYSQL_BIN_LOG::log_xid(THD *thd, my_xid xid)
     note that the return value is inverted.
    */
   int ret= (!binlog_commit_flush_stmt_cache(thd, cache_mngr) &&
+#ifdef HAVE_UGID
             !ugid_before_flush_trx_cache(thd, &mysql_bin_log.sid_lock,
                                          &mysql_bin_log.group_log_state,
                                          &cache_mngr->trx_cache.group_cache) &&
+#endif
             !binlog_commit_flush_trx_cache(thd, cache_mngr, xid));
   DBUG_RETURN(ret);
 }
@@ -4854,6 +4881,7 @@ err1:
 }
 
 
+#ifdef HAVE_UGID
 Group_cache *THD::get_group_cache(bool is_transactional)
 {
   DBUG_ENTER("THD::get_group_cache(bool)");
@@ -4873,6 +4901,7 @@ Group_cache *THD::get_group_cache(bool is_transactional)
 
   DBUG_RETURN(&cache_data->group_cache);
 }
+#endif
 
 
 /*

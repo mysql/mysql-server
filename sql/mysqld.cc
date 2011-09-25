@@ -65,6 +65,7 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
+#include "zgroups.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -613,6 +614,7 @@ SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
+SHOW_COMP_OPTION have_ugid;
 
 /* Thread specific variables */
 
@@ -4054,11 +4056,13 @@ static int init_server_auto_options()
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
+#ifdef HAVE_UGID
     if (!Uuid::is_valid(uuid))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
+#endif
     strcpy(server_uuid, uuid);
   }
   else
@@ -4910,6 +4914,7 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
     }
 
+#ifdef HAVE_UGID
     /*
       Add server_uuid to the sid_map.  This must be done after
       server_uuid has been initialized in init_server_auto_options and
@@ -4923,6 +4928,7 @@ int mysqld_main(int argc, char **argv)
     mysql_bin_log.sid_lock.unlock();
     if (ret)
       unireg_abort(1);
+#endif
   }
 
   init_ssl();
@@ -7471,6 +7477,11 @@ static int mysql_init_variables(void)
 #endif /* HAVE_OPENSSL */
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
+#endif
+#ifdef HAVE_UGID
+  have_ugid=SHOW_OPTION_YES;
+#else
+  have_ugid=SHOW_OPTION_NO;
 #endif
 
 #if defined(__WIN__)

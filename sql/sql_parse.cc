@@ -2024,8 +2024,10 @@ void implicit_commit_after(THD *thd)
   thd->get_stmt_da()->set_overwrite_status(false);
   thd->mdl_context.release_transactional_locks();
 
+#ifdef HAVE_UGID
   if (thd->variables.ugid_commit)
     thd->variables.ugid_has_ongoing_super_group= 0;
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -2238,13 +2240,19 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
 
+#ifdef HAVE_UGID
   /*
     Execute ugid_before_statement, so that we acquire ownership of
     groups as specified by ugid_next and ugid_next_list.
   */
   if (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt)
   {
-    // Initialize the cache manager if this was not done yet.
+    /*
+      Initialize the cache manager if this was not done yet.
+      binlog_setup_trx_data is idempotent and if it's not called here
+      it's called elsewhere.  It is neede here just so that
+      thd->get_group_cache won't crash.
+    */
     thd->binlog_setup_trx_data();
     enum_ugid_statement_status state=
       ugid_before_statement(thd, &mysql_bin_log.sid_lock,
@@ -2264,6 +2272,7 @@ mysql_execute_command(THD *thd)
       DBUG_RETURN(0);
     }
   }
+#endif
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
@@ -4689,9 +4698,12 @@ finish:
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
 
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
-      (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
-       thd->variables.ugid_commit))
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)
+#ifdef HAVE_UGID
+      || (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
+          thd->variables.ugid_commit)
+#endif
+      )
   {
     implicit_commit_after(thd);
   }
