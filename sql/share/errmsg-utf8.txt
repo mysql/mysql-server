@@ -6526,3 +6526,9 @@ ER_MTS_INCONSISTENT_DATA
 
 ER_UNDO_RECORD_TOO_BIG
   eng "Undo log record is too big."
+
+ER_PLUGIN_NO_UNINSTALL
+  eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
+
+ER_PLUGIN_NO_INSTALL
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
