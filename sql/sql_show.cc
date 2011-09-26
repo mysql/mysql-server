@@ -2439,7 +2439,7 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
         case SHOW_INT:
-          end= int10_to_str((long) *(uint32*) value, buff, 10);
+          end= int10_to_str((long) *(int*) value, buff, -10);
           break;
         case SHOW_HAVE:
         {

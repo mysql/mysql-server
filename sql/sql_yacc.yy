@@ -1350,7 +1350,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         optional_flush_tables_arguments opt_dyncol_type dyncol_type
-        opt_time_precision kill_type kill_option
+        opt_time_precision kill_type kill_option int_num
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -9676,6 +9676,12 @@ delete_limit_clause:
           }
         ;
 
+int_num:
+          NUM           { int error; $$= (int) my_strtoll10($1.str, (char**) 0, &error); }
+        | '-' NUM       { int error; $$= -(int) my_strtoll10($2.str, (char**) 0, &error); }
+        | '-' LONG_NUM  { int error; $$= -(int) my_strtoll10($2.str, (char**) 0, &error); }
+        ;
+
 ulong_num:
           NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | HEX_NUM       { $$= (ulong) strtol($1.str, (char**) 0, 16); }
@@ -13434,7 +13440,7 @@ grant_option:
             lex->mqh.conn_per_hour= $2;
             lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
           }
-        | MAX_USER_CONNECTIONS_SYM ulong_num
+        | MAX_USER_CONNECTIONS_SYM int_num
           {
             LEX *lex=Lex;
             lex->mqh.user_conn= $2;

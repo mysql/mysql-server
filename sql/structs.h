@@ -222,8 +222,11 @@ typedef struct user_resources {
   uint updates;
   /* Maximum number of connections established per hour. */
   uint conn_per_hour;
-  /* Maximum number of concurrent connections. */
-  uint user_conn;
+  /*
+    Maximum number of concurrent connections. If -1 then no new
+    connections allowed
+  */
+  int user_conn;
   /*
      Values of this enum and specified_limits member are used by the
      parser to store which user limits were specified in GRANT statement.
@@ -256,7 +259,7 @@ typedef struct  user_conn {
   /* Total length of the key. */
   uint len;
   /* Current amount of concurrent connections for this account. */
-  uint connections;
+  int connections;
   /*
      Current number of connections per hour, number of updating statements
      per hour and total number of statements per hour for this account.

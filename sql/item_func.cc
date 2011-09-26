@@ -5063,9 +5063,13 @@ void Item_func_get_system_var::fix_length_and_dec()
   switch (var->show_type())
   {
     case SHOW_LONG:
-    case SHOW_INT:
     case SHOW_HA_ROWS:
       unsigned_flag= TRUE;
+      max_length= MY_INT64_NUM_DECIMAL_DIGITS;
+      decimals=0;
+      break;
+    case SHOW_INT:
+      unsigned_flag= FALSE;
       max_length= MY_INT64_NUM_DECIMAL_DIGITS;
       decimals=0;
       break;
@@ -5209,7 +5213,7 @@ longlong Item_func_get_system_var::val_int()
 
   switch (var->show_type())
   {
-    case SHOW_INT:      get_sys_var_safe (uint);
+    case SHOW_INT:      get_sys_var_safe (int);
     case SHOW_LONG:     get_sys_var_safe (ulong);
     case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);

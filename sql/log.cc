@@ -1062,17 +1062,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       query_length= command_name[thd->command].length;
     }
 
-    if (!query_length) 
-    {
-      /*
-        Not a real query; Reset counts for slow query logging
-        (QQ: Wonder if this is really needed)
-      */
-      thd->sent_row_count= thd->examined_row_count= 0;
-      thd->query_plan_flags= QPLAN_INIT;
-      thd->query_plan_fsort_passes= 0;
-    }
-
     for (current_handler= slow_log_handler_list; *current_handler ;)
       error= (*current_handler++)->log_slow(thd, current_time,
                                             user_host_buff, user_host_len,

@@ -669,7 +669,8 @@ ulong extra_max_connections;
 */
 ulong max_long_data_size;
 
-uint  max_user_connections= 0;
+int  max_user_connections= 0;
+bool max_user_connections_checking=0;
 ulonglong denied_connections;
 /**
   Limit of the total number of prepared statements in the server.
@@ -2142,6 +2143,7 @@ static bool cache_thread()
       */
       thd->mysys_var->abort= 0;
       thd->thr_create_utime= microsecond_interval_timer();
+      thd->start_utime= thd->thr_create_utime;
       threads.append(thd);
       return(1);
     }
@@ -5263,7 +5265,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->prior_thr_create_utime= thd->start_utime= microsecond_interval_timer();
+    thd->prior_thr_create_utime= microsecond_interval_timer();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
@@ -7432,9 +7434,9 @@ each time the SQL thread starts.",
    &max_system_variables.max_tmp_tables, 0, GET_ULONG,
    REQUIRED_ARG, 32, 1, (longlong) ULONG_MAX, 0, 1, 0},
   {"max_user_connections", OPT_MAX_USER_CONNECTIONS,
-   "The maximum number of active connections for a single user (0 = no limit).",
-   &max_user_connections, &max_user_connections, 0, GET_UINT,
-   REQUIRED_ARG, 0, 0, UINT_MAX, 0, 1, 0},
+   "The maximum number of active connections for a single user (0 = no limit. In addition global max_user_connections counting and checking is permanently disabled).",
+   &max_user_connections, &max_user_connections, 0, GET_INT,
+   REQUIRED_ARG, 0, 0, INT_MAX, 0, 1, 0},
   {"max_write_lock_count", OPT_MAX_WRITE_LOCK_COUNT,
    "After this many write locks, allow some read locks to run in between.",
    &max_write_lock_count, &max_write_lock_count, 0, GET_ULONG,
@@ -9641,6 +9643,8 @@ static int get_options(int *argc,char **argv)
   if (!max_long_data_size_used)
     max_long_data_size= global_system_variables.max_allowed_packet;
 
+  /* Rember if max_user_connections was 0 at startup */
+  max_user_connections_checking= max_user_connections != 0;
   return 0;
 }
 
