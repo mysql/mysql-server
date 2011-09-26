@@ -27,7 +27,9 @@ def mysqlgen_select_where(k, where):
 def mysqlgen_prepare():
     print "# prepare with some common parameters"
     print "connect(conn1, localhost, root);"
+    print "set session transaction isolation level serializable;"
     print "connect(conn2, localhost, root);"
+    print "set session transaction isolation level serializable;"
     print "connection conn1;"
     print ""
 def mysqlgen_reload_table():
@@ -79,6 +81,13 @@ for timeout in timeouts:
                 if k == 1:
                     print "--error ER_LOCK_WAIT_TIMEOUT"
                 qb("a", k, "b", "100")
+            # point write lock vs read query
+            print "# make sure we can't read that row, but can read others."
+            print "--error ER_LOCK_WAIT_TIMEOUT"
+            mysqlgen_select_star()
+            print "--error ER_LOCK_WAIT_TIMEOUT"
+            mysqlgen_select_where("a", "=1")
+            mysqlgen_select_where("a", ">=2")
             # Always check in the end that a commit
             # allows the other transaction full access
             print "connection conn1;"
@@ -104,7 +113,7 @@ for timeout in timeouts:
                 print "commit;"
                 print "connection conn2;"
                 print "reap;"
-        # point vs range contention
+       # point vs range contention
         for rt, rq in write_range_queries:
             print "# testing range query \"%s\" vs \"%s\"" % (rt, ta)
             print "connection conn1;"
@@ -117,6 +126,13 @@ for timeout in timeouts:
             print "--error ER_LOCK_WAIT_TIMEOUT"
             rq("a", "b", ">=0")
             rq("a", "b", ">2")
+            # write range lock vs read query
+            print "# make sure we can't read that row, but can read others."
+            print "--error ER_LOCK_WAIT_TIMEOUT"
+            mysqlgen_select_star()
+            print "--error ER_LOCK_WAIT_TIMEOUT"
+            mysqlgen_select_where("a", "=1")
+            mysqlgen_select_where("a", ">=2")
             # Always check in the end that a commit
             # allows the other transaction full access
             print "connection conn1;"
@@ -158,6 +174,15 @@ for timeout in timeouts:
             print "--error ER_LOCK_WAIT_TIMEOUT"
             rqb("a", "b", "<=2")
             rqb("a", "b", ">=5")
+            # point write lock vs read query
+            print "# make sure we can't read that row, but can read others."
+            print "--error ER_LOCK_WAIT_TIMEOUT"
+            mysqlgen_select_star()
+            print "--error ER_LOCK_WAIT_TIMEOUT"
+            mysqlgen_select_where("a", "=2")
+            print "--error ER_LOCK_WAIT_TIMEOUT"
+            mysqlgen_select_where("a", ">=3 and a<=5")
+            mysqlgen_select_where("a", ">=5")
             # Always check in the end that a commit
             # allows the other transaction full access
             print "connection conn1;"
