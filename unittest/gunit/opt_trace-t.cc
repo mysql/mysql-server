@@ -170,7 +170,7 @@ TEST_F(TraceContentTest, NormalUsage)
       }
       ota.add_alnum("one string element");
       ota.add(true);
-      ota.add_hex(12318421343459);
+      ota.add_hex(12318421343459ULL);
     }
     oto.add("yet another key", -1000LL);
     {
