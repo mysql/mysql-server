@@ -30,12 +30,14 @@ enum_read_status Reader::file_pread(File fd, uchar *buffer,
   size_t read_bytes= my_pread(fd, buffer, length, offset, MYF(0));
   if (read_bytes != length)
   {
-    /*if (abort_loop || current_thd->killed)
+    /*
+    if (abort_loop || current_thd->killed)
     {
       /// @todo: report other error?
       my_error(ER_ERROR_ON_READ, MYF(0), get_source_name(), errno);
       DBUG_RETURN(READ_ERROR);
-      }*/
+    }
+    */
     if (read_bytes == MY_FILE_ERROR)
     {
       my_error(ER_ERROR_ON_READ, MYF(0), get_source_name(), errno);
@@ -50,18 +52,20 @@ enum_read_status Reader::file_pread(File fd, uchar *buffer,
 }
 
 
-enum_return_status Reader::file_seek(File fd, my_off_t position)
+enum_read_status Reader::file_seek(File fd,
+                                   my_off_t old_position, my_off_t new_position)
 {
   DBUG_ENTER("Reader::file_seek");
   MY_STAT stat;
   if (my_fstat(fd, &stat, MYF(MY_WME)) != 0)
-    RETURN_REPORTED_ERROR;
-  if (position > (my_off_t)stat.st_size)
-  {
-    my_error(ER_FSEEK_FAIL, MYF(0));
-    RETURN_REPORTED_ERROR;
-  }
-  RETURN_OK;
+    DBUG_RETURN(READ_ERROR);
+  if (old_position > (my_off_t)stat.st_size)
+    // should not happen unless user truncated file under our feet
+    DBUG_RETURN(READ_ERROR);
+  if (new_position > (my_off_t)stat.st_size)
+    DBUG_RETURN(old_position == (my_off_t)stat.st_size ?
+                READ_EOF : READ_TRUNCATED);
+  DBUG_RETURN(READ_OK);
 }
 
 

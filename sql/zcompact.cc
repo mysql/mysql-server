@@ -23,10 +23,10 @@
 #include "mysqld_error.h"
 
 
-const int Compact_encoding::MAX_ENCODED_LENGTH;
+const int Compact_coder::MAX_ENCODED_LENGTH;
 
 
-int Compact_encoding::get_unsigned_encoded_length(ulonglong n)
+int Compact_coder::get_unsigned_encoded_length(ulonglong n)
 {
   if (n == 0)
     return 1;
@@ -44,9 +44,9 @@ int Compact_encoding::get_unsigned_encoded_length(ulonglong n)
 }
 
 
-int Compact_encoding::write_unsigned(uchar *buf, ulonglong n)
+int Compact_coder::write_unsigned(uchar *buf, ulonglong n)
 {
-  DBUG_ENTER("Compact_encoding::write_unsigned(ulonglong , char *)");
+  DBUG_ENTER("Compact_coder::write_unsigned(ulonglong , char *)");
   int len= get_unsigned_encoded_length(n);
   DBUG_PRINT("info", ("encoded-length=%u\n", len));
   if (len > 8)
@@ -58,9 +58,9 @@ int Compact_encoding::write_unsigned(uchar *buf, ulonglong n)
 
 
 enum_append_status
-Compact_encoding::append_unsigned(Appender *appender, ulonglong n)
+Compact_coder::append_unsigned(Appender *appender, ulonglong n)
 {
-  DBUG_ENTER("Compact_encoding::append_unsigned(Appender *, ulonglong)");
+  DBUG_ENTER("Compact_coder::append_unsigned(Appender *, ulonglong)");
   uchar buf[MAX_ENCODED_LENGTH];
   int len= write_unsigned(buf, n);
   PROPAGATE_APPEND_STATUS(appender->append(buf, len));
@@ -69,17 +69,12 @@ Compact_encoding::append_unsigned(Appender *appender, ulonglong n)
 
 
 enum_read_status
-Compact_encoding::read_unsigned(Reader *reader, ulonglong *out)
+Compact_coder::read_unsigned(Reader *reader, ulonglong *out)
 {
-  DBUG_ENTER("Compact_encoding::read_unsigned");
+  DBUG_ENTER("Compact_coder::read_unsigned");
   // read first byte
   uchar b;
-  my_off_t saved_pos;
-  if (reader->tell(&saved_pos) != RETURN_STATUS_OK)
-    DBUG_RETURN(READ_ERROR);
-  enum_read_status ret= reader->read(&b, 1);
-  if (ret != READ_OK)
-    DBUG_RETURN(ret);
+  PROPAGATE_READ_STATUS(reader->read(&b, 1));
   if (b & 1)
   {
     *out= b >> 1;
@@ -89,9 +84,7 @@ Compact_encoding::read_unsigned(Reader *reader, ulonglong *out)
   uint extra_byte= 0;
   if (b == 0)
   {
-    ret= reader->read(&b, 1);
-    if (ret != READ_OK)
-      goto rewind;
+    PROPAGATE_READ_STATUS_NOEOF(reader->read(&b, 1));
     // one of the two lowest bits must be set in order for the number
     // to be termiated after the 64th bit.
     if (!(b & 3))
@@ -109,9 +102,7 @@ Compact_encoding::read_unsigned(Reader *reader, ulonglong *out)
       len--;
     // read len bytes
     uchar buf[8]= {0, 0, 0, 0, 0, 0, 0, 0};
-    ret= reader->read(buf, len + extra_byte * 7);
-    if (ret != READ_OK)
-      goto rewind;
+    PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, len + extra_byte * 7));
     {
       ulonglong o= uint8korr(buf);
       // check that the result will fit in 64 bits
@@ -126,28 +117,126 @@ Compact_encoding::read_unsigned(Reader *reader, ulonglong *out)
   }
 file_format_error:
   my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
-  ret= READ_ERROR;
-  // FALLTHROUGH
-rewind:
-  if (reader->seek(saved_pos) != RETURN_STATUS_OK)
-    DBUG_RETURN(READ_ERROR);
-  DBUG_RETURN(ret == READ_EOF ? READ_TRUNCATED : ret);
+  DBUG_RETURN(READ_ERROR);
 }
 
 
-enum_append_status Compact_encoding::append_signed(Appender *appender, longlong n)
+enum_read_status
+Compact_coder::read_unsigned(Reader *reader, ulong *out)
+{
+  DBUG_ENTER("Compact_coder::read_unsigned");
+  // read first byte
+  uchar b;
+  PROPAGATE_READ_STATUS(reader->read(&b, 1));
+  if (b & 1)
+  {
+    *out= b >> 1;
+    DBUG_RETURN(READ_OK);
+  }
+  if (b == 0)
+    goto file_format_error;
+  {
+    // set len to the position of the least significant 1-bit in b (range 0..7)
+    uint len= 7;
+    if (b & 0x0f)
+      len-= 4;
+    if (b & 0x33)
+      len-= 2;
+    if (b & 0x55)
+      len--;
+    // read len bytes
+    uchar buf[8]= {0, 0, 0, 0, 0, 0, 0, 0};
+    PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, len));
+    {
+      ulonglong o= uint8korr(buf);
+      o <<= (7 - len);
+      o |= b >> (len + 1);
+      // check that the result will fit in 64 bits
+      if (o >= 0x100000000ull)
+        goto file_format_error;
+      // put the high bits of b in the low bits of o
+      *out= (ulong)o;
+      DBUG_RETURN(READ_OK);
+    }
+  }
+file_format_error:
+  my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+  DBUG_RETURN(READ_ERROR);
+}
+
+
+enum_append_status Compact_coder::append_signed(Appender *appender, longlong n)
 {
   return append_unsigned(appender, signed_to_unsigned(n));
 }
 
 
-enum_read_status Compact_encoding::read_signed(Reader *reader, longlong *out)
+enum_read_status Compact_coder::read_signed(Reader *reader, longlong *out)
 {
-  DBUG_ENTER("Compact_encoding::read_signed");
+  DBUG_ENTER("Compact_coder::read_signed");
   ulonglong o;
   PROPAGATE_READ_STATUS(read_unsigned(reader, &o));
   *out= unsigned_to_signed(o);
   DBUG_RETURN(READ_OK);
+}
+
+
+enum_read_status
+Compact_coder::read_type_code(Reader *reader,
+                              int min_fatal, int min_ignorable,
+                              uchar *out)
+{
+  DBUG_ENTER("Compact_coder::read_type_code");
+  DBUG_ASSERT((min_fatal & 1) == 0);
+  DBUG_ASSERT((min_ignorable & 1) == 1);
+
+  PROPAGATE_READ_STATUS(reader->read(out, 1));
+
+  if ((*out & 1) == 0)
+  {
+    // even type code
+    if (*out < min_fatal)
+      DBUG_RETURN(READ_OK);
+    // unknown even type code: fatal
+    my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+    DBUG_RETURN(READ_ERROR);
+  }
+  else
+  {
+    // odd type code
+    if (*out < min_ignorable)
+      DBUG_RETURN(READ_OK);
+    // unknown odd type code: ignorable
+    ulonglong skip_len;
+    PROPAGATE_READ_STATUS_NOEOF(read_unsigned(reader, &skip_len));
+    PROPAGATE_READ_STATUS_NOEOF(reader->seek(skip_len));
+    DBUG_RETURN(READ_OK);
+  }
+}
+
+
+enum_read_status Compact_coder::read_string(Reader *reader, uchar *buf,
+                                            size_t *length, size_t max_length,
+                                            bool null_terminated)
+{
+  DBUG_ENTER("Compact_coder::read_string(Reader *, uchar *, size_t *, size_t, bool)");
+  if (null_terminated)
+    max_length--;
+  PROPAGATE_READ_STATUS(read_unsigned(reader, length, max_length));
+  PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, *length));
+  buf[*length]= 0;
+  DBUG_RETURN(READ_OK);
+}
+
+
+enum_append_status Compact_coder::append_string(Appender *appender,
+                                                const uchar *string,
+                                                size_t length)
+{
+  DBUG_ENTER("Compact_coder::append_string(Reader *, uchar *, size_t)");
+  PROPAGATE_APPEND_STATUS(append_unsigned(appender, length));
+  PROPAGATE_APPEND_STATUS(appender->append(string, length));
+  DBUG_RETURN(APPEND_OK);
 }
 
 

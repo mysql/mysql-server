@@ -129,17 +129,4 @@ int Uuid::to_string(char *buf) const
 }
 
 
-enum_append_status Uuid::append(Appender *appender,
-                                my_off_t truncate_to_position) const
-{
-  return appender->append(bytes, Uuid::BYTE_LENGTH, truncate_to_position);
-}
-
-
-enum_read_status Uuid::read(Reader *reader)
-{
-  return reader->read(bytes, Uuid::BYTE_LENGTH);
-}
-
-
 #endif /* HAVE_UGID */

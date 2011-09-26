@@ -75,8 +75,9 @@ enum enum_read_status
   */
   READ_EOF,
   /**
-    End of file was reached in the middle of the read. my_error has
-    NOT been called.
+    End of file was reached in the middle of the read.  It is not
+    specified whether anything was actually read or not, or whether
+    the read position has moved or not.  my_error has NOT been called.
   */
   READ_TRUNCATED,
   /**
@@ -88,9 +89,18 @@ enum enum_read_status
 #define PROPAGATE_READ_STATUS(STATUS)                                   \
   do                                                                    \
   {                                                                     \
-    enum_read_status __propagate_read_status_status= (STATUS);          \
-    if (__propagate_read_status_status != READ_OK)                      \
-      DBUG_RETURN(__propagate_read_status_status);                      \
+    enum_read_status _propagate_read_status_status= (STATUS);           \
+    if (_propagate_read_status_status != READ_OK)                       \
+      DBUG_RETURN(_propagate_read_status_status);                       \
+  } while (0)
+
+#define PROPAGATE_READ_STATUS_NOEOF(STATUS)                             \
+  do                                                                    \
+  {                                                                     \
+    enum_read_status _propagate_read_status_noeof_status= (STATUS);     \
+    if (_propagate_read_status_noeof_status != READ_OK)                 \
+      DBUG_RETURN(_propagate_read_status_noeof_status == READ_EOF ?     \
+                  READ_TRUNCATED : _propagate_read_status_noeof_status); \
   } while (0)
 
 
@@ -290,12 +300,70 @@ public:
   */
   virtual enum_read_status read(uchar *buffer, size_t length)= 0;
   /**
+    Read, and if the return status is READ_EOF or READ_TRUNCATED,
+    return the position to what it was before.
+
+    @param READ_OP Arbitrary expression that performs the read
+    operation.  The expression does not even have to read from the
+    READER object; the only requirement is that it returns a value of
+    type enum_read_status.
+    @param READER Reader* object in which the read position will be
+    rewound if the READ_OP returns READ_EOF or READ_TRUNCATED.
+    @param REWIND_POSITION Position to rewind to if READ_OP returns
+    READ_EOF or READ_TRUNCATED.  If this parameter is set to
+    PREVIOUS_POSITION, the position will be rewound to where it was
+    before this call.
+    @param NOEOF If true, and the read operation returns READ_EOF,
+    will return READ_TRUNCATED instead.  This is useful if the calling
+    function needs to rewind an already succeeded read operation.
+  */
+#define READ_OR_REWIND(READ_OP, READER, REWIND_POSITION, NOEOF)         \
+  do {                                                                  \
+    Reader *_read_or_rewind_reader= (READER);                           \
+    my_off_t _read_or_rewind_position= (REWIND_POSITION);               \
+    if (_read_or_rewind_position == Reader::PREVIOUS_POSITION)          \
+    {                                                                   \
+      if (_read_or_rewind_reader->tell(&_read_or_rewind_position) !=    \
+          RETURN_STATUS_OK)                                             \
+        DBUG_RETURN(READ_ERROR);                                        \
+    }                                                                   \
+    enum_read_status _read_or_rewind_status= (READ_OP);                 \
+    if (_read_or_rewind_status == READ_TRUNCATED ||                     \
+        _read_or_rewind_status == READ_EOF)                             \
+    {                                                                   \
+      if (_read_or_rewind_reader->seek(rewind_position) != READ_OK)     \
+        DBUG_RETURN(READ_ERROR);                                        \
+      DBUG_RETURN((NOEOF) && _read_or_rewind_status == READ_EOF ?       \
+                  READ_TRUNCATED : _read_or_rewind_status);             \
+    }                                                                   \
+  } while (0)
+  /**
+    Same as read(uchar *, size_t), but rewinds the read position to
+    where it was before this call if the return status is READ_EOF or
+    READ_TRUNCATED.
+
+    @param buffer Buffer to read into.
+    @param length Number of bytes to read.
+    @param rewind_position If the read operation returns READ_EOF or
+    READ_TRUNCATED, the read position will be rewound to this
+    position.  If this parameters is omitted or equal to
+    PREVIOUS_POSITION, the read position will be rewound to where it
+    was before this call.
+  */
+  enum_read_status read_or_rewind(uchar *buffer, size_t length,
+                                  my_off_t rewind_position= PREVIOUS_POSITION)
+  {
+    DBUG_ENTER("Reader::read_or_rewind");
+    READ_OR_REWIND(read(buffer, length), this, rewind_position, false);
+    DBUG_RETURN(READ_OK);
+  }
+  /**
     Set the read position to the given position.
     An assertion may be raised if the new position is not valid.
     @param position New position.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+    @return Same as for function 'read' above.
   */
-  virtual enum_return_status seek(my_off_t position)= 0;
+  virtual enum_read_status seek(my_off_t position)= 0;
   /**
     Get the current read position.
     @param[out] position If successful, the position will be stored here.
@@ -305,10 +373,11 @@ public:
   /// Return the name of the resource we read from (e.g., filename).
   virtual const char *get_source_name() const= 0;
   /**
-    Same as read above, but calls my_error if return status is
-    READ_EOF or READ_TRUNCATED.
+    Same as read(uchar *, size_t), but calls my_error if return status
+    is READ_EOF or READ_TRUNCATED.
   */
-  enum_read_status read_report(size_t length, uchar *buffer)
+  enum_read_status read_report(size_t length, uchar *buffer,
+                               my_off_t rewind_position= NO_REWIND)
   {
     DBUG_ENTER("Reader::read_report");
     enum_read_status ret= read(buffer, length);
@@ -321,6 +390,8 @@ public:
     }
     DBUG_RETURN(ret);
   }
+  static const my_off_t PREVIOUS_POSITION= ~(my_off_t)0;
+  static const my_off_t NO_REWIND= (~(my_off_t)0) - 1;
 protected:
   /**
     Reads length bytes starting at offset from the given File into
@@ -343,42 +414,26 @@ protected:
 
     This auxiliary function is intended to be used by subclasses that
     use a File as (part of) the back-end.  It does not actually move
-    the read position.
+    the read position (normally, subclasses of Reader use pread() and
+    keep track of the reading position manually).
 
     @param fd File to check.
-    @param position Position to check.
+    @param old_position Current position in the file.
+    @param new_position New position in the file.
     @return RETURN_STATUS_REPORTED_ERROR if there is an error or if
     the position is beyond the end of the file; otherwise
     RETURN_STATUS_OK
   */
-  enum_return_status file_seek(File fd, my_off_t position);
-  /**
-    Call READER->read_data(LENGTH, BUFFER), and propagate the return
-    value to the caller if the return value is different from READ_OK.
-  */
-#define READER_READ(READER, SAVED_POSITION, LENGTH, BUFFER)             \
-  do                                                                    \
-    {                                                                   \
-      Reader *__reader_read_reader= (READER);                           \
-      enum_read_status __reader_read_status=                            \
-        __reader_read_reader->read(BUFFER, LENGTH);                     \
-      if (__reader_read_status != READ_OK)                              \
-      {                                                                 \
-        __reader_read_reader->seek(SAVED_POSITION);                     \
-        DBUG_RETURN(__reader_read_status);                              \
-      }                                                                 \
-    } while (0)
+  enum_read_status file_seek(File fd, my_off_t old_position,
+                             my_off_t new_position);
 
 
-#define READER_CHECK_FORMAT(READER, SAVED_POSITION, CONDITION)          \
+#define READER_CHECK_FORMAT(READER, CONDITION)                          \
     do                                                                  \
     {                                                                   \
       if (!(CONDITION))                                                 \
       {                                                                 \
-        Reader *__reader_check_format_reader= (READER);                 \
-        __reader_check_format_reader->seek(SAVED_POSITION);             \
-        my_error(ER_FILE_FORMAT, MYF(0),                                \
-                 __reader_check_format_reader->get_source_name());      \
+        my_error(ER_FILE_FORMAT, MYF(0), (READER)->get_source_name());  \
         DBUG_RETURN(READ_ERROR);                                        \
       }                                                                 \
     } while (0)
@@ -524,16 +579,13 @@ public:
     pos+= length;
     DBUG_RETURN(READ_OK);
   }
-  enum_return_status seek(my_off_t new_pos)
+  enum_read_status seek(my_off_t new_pos)
   {
     DBUG_ENTER("Memory_reader::seek");
-    if (pos > data_length)
-    {
-      my_error(ER_FSEEK_FAIL, MYF(0));
-      RETURN_REPORTED_ERROR;
-    }
-    pos= new_pos;
-    RETURN_OK;
+    if (new_pos > data_length)
+      DBUG_RETURN(pos == data_length ? READ_EOF : READ_TRUNCATED);
+    pos= (size_t)new_pos;
+    DBUG_RETURN(READ_OK);
   }
   enum_return_status tell(my_off_t *position) const
   { *position= pos; return RETURN_STATUS_OK; }
@@ -567,13 +619,18 @@ public:
   }
   void set_file(File _fd= -1) { fd= _fd; pos= 0; }
   enum_read_status read(uchar *buffer, size_t length)
-  { return file_pread(fd, buffer, length, pos); }
-  enum_return_status seek(my_off_t new_position)
+  {
+    DBUG_ENTER("File_reader::read");
+    PROPAGATE_READ_STATUS(file_pread(fd, buffer, length, pos));
+    pos+= length;
+    DBUG_RETURN(READ_OK);
+  }
+  enum_read_status seek(my_off_t new_position)
   {
     DBUG_ENTER("File_reader::seek");
-    PROPAGATE_REPORTED_ERROR(file_seek(fd, new_position));
+    PROPAGATE_READ_STATUS(file_seek(fd, pos, new_position));
     pos= new_position;
-    RETURN_OK;
+    DBUG_RETURN(READ_OK);
   }
   enum_return_status tell(my_off_t *position) const
   { *position= pos; return RETURN_STATUS_OK; }
@@ -769,13 +826,15 @@ struct Uuid
   */
   enum_append_status append(
     Appender *appender,
-    my_off_t truncate_to_position= Appender::PREVIOUS_POSITION) const;
+    my_off_t truncate_to_position= Appender::PREVIOUS_POSITION) const
+  { return appender->append(bytes, Uuid::BYTE_LENGTH, truncate_to_position); }
   /**
     Read this UUID from the given file.
     @param Reader
     @return READ_OK, READ_ERROR, READ_EOF, or READ_TRUNCATED.
   */
-  enum_read_status read(Reader *reader);
+  enum_read_status read(Reader *reader)
+  { return reader->read(bytes, Uuid::BYTE_LENGTH); }
   /**
     Returns true if the given string contains a valid UUID, false otherwise.
   */
@@ -1502,7 +1561,7 @@ public:
   /**
     Encodes this Group_set as a string.
 
-    @param buf Pointer to the buffer where the string should be
+    @param buf[out] Pointer to the buffer where the string should be
     stored. This should have size at least get_string_length()+1.
     @param string_format String_format object that specifies
     separators in the resulting text.
@@ -2359,9 +2418,8 @@ struct Ugid_specification
   /**
     Writes this Ugid_specification to the given string buffer.
 
-    @param buf The buffer
-    @retval buf If the type of this specification: "UUID:NUMBER",
-    "ANONYMOUS", or "AUTOMATIC".
+    @param buf[out] The buffer
+    @retval The number of characters written.
   */
   int to_string(char *buf) const;
   /**
@@ -2954,13 +3012,21 @@ public:
     { seek(position); }
     ~Rot_file_reader() {};
     enum_read_status read(uchar *buffer, size_t length)
-    { return file_pread(rot_file->sub_file.fd, buffer,
-                        rot_file->sub_file.header_length + pos, length); }
-    enum_return_status seek(my_off_t new_position)
+    {
+      DBUG_ENTER("Rot_file_reader::read");
+      PROPAGATE_READ_STATUS(file_pread(rot_file->sub_file.fd, buffer,
+                                       rot_file->sub_file.header_length + pos,
+                                       length));
+      pos+= length;
+      DBUG_RETURN(READ_OK);
+    }
+    enum_read_status seek(my_off_t new_position)
     {
       DBUG_ENTER("Rot_file_reader::seek");
+      PROPAGATE_READ_STATUS(file_seek(rot_file->sub_file.fd,
+                                      pos, new_position));
       pos= new_position;
-      RETURN_OK;
+      DBUG_RETURN(READ_OK);
     }
     enum_return_status tell(my_off_t *position) const
     { *position= pos; return RETURN_STATUS_OK; }
@@ -3146,7 +3212,7 @@ private:
   Auxiliary class for reading and writing compact-encoded numbers to
   file.
 */
-class Compact_encoding
+class Compact_coder
 {
 public:
   static const int MAX_ENCODED_LENGTH= 10;
@@ -3159,7 +3225,7 @@ public:
   /**
     Write a compact-encoded unsigned integer to the given buffer.
     @param n The number to write.
-    @param buf The buffer to use.
+    @param buf[out] The buffer to use.
     @return The number of bytes used.
   */
   static int write_unsigned(uchar *buf, ulonglong n);
@@ -3191,6 +3257,37 @@ public:
   */
   static enum_read_status read_unsigned(Reader *reader, ulonglong *out);
   /**
+    Like read_unsigned(Reader *, ulonglong *), but throws an error if
+    the value is greater than max_value.
+  */
+  static enum_read_status read_unsigned(Reader *reader, ulonglong *out,
+                                        ulonglong max_value)
+  {
+    DBUG_ENTER("Compact_coder::read_unsigned(Reader *, ulonglong *, ulonglong)");
+    PROPAGATE_READ_STATUS(read_unsigned(reader, out));
+    if (*out > max_value)
+    {
+      my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+      DBUG_RETURN(READ_ERROR);
+    }
+    DBUG_RETURN(READ_OK);
+  }
+  /// Like read_unsigned(Reader *, ulonglong *), but optimized for 32-bit.
+  static enum_read_status read_unsigned(Reader *reader, ulong *out);
+  /// Like read_unsigned(Reader *, ulong *, ulong), but optimized for 32-bit.
+  static enum_read_status read_unsigned(Reader *reader, ulong *out,
+                                        ulong max_value)
+  {
+    DBUG_ENTER("Compact_coder::read_unsigned(Reader *, ulong *, ulong)");
+    PROPAGATE_READ_STATUS(read_unsigned(reader, out));
+    if (*out > max_value)
+    {
+      my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+      DBUG_RETURN(READ_ERROR);
+    }
+    DBUG_RETURN(READ_OK);
+  }
+  /**
     Compute the number of bytes needed to encode the given number.
     @param n The number
     @return The number of bytes needed to encode n.
@@ -3213,6 +3310,53 @@ public:
     @see read_unsigned.
   */
   static enum_read_status read_signed(Reader *reader, longlong *out);
+  /**
+    Read a type code from the given file.
+
+    This is used for type codes in, e.g., sid_map files, binlog_map
+    files, group_log files, group_index files.
+
+    The type code is one byte.  Callers specify which type codes are
+    known and which are unknown.  Even unknown type codes are fatal:
+    an error is generated if such a type code is found.  Odd unknown
+    type codes are ignorable: the type code is followed by an unsigned
+    compact-encoded integer, N, followed by N bytes of data.  If an
+    odd unknown type code is found, this function seeks past the data
+    and returns ok.
+  */
+  static enum_read_status read_type_code(Reader *reader,
+                                         int min_fatal, int min_ignorable,
+                                         uchar *out);
+  /**
+    Read a compact-encoded integer - the string length - followed by a
+    string of that length.
+
+    @param reader Reader object to read from.
+    @param buf[out] Buffer to save string in.
+    @param length[out] The string length will be stored here.
+    @param max_length The maximal number of characters of buf that may
+    be touched.
+    @param null_terminated If true, the string will be null-terminated
+    and the maximal number of allowed non-null characters will be
+    max_length - 1.
+  */
+  static enum_read_status read_string(Reader *reader,
+                                      uchar *buf, size_t *length,
+                                      size_t max_length, bool null_terminated);
+  /**
+    Append a compact-encoded string, in the form of a compact-encoded
+    integer followed by the string characters.
+
+    @param reader Reader object to read from.
+    @param string String to write.
+    @param length Number of characters to write.  If omitted,
+    strlen(string) characters will be written.
+  */
+  static enum_append_status append_string(Appender *appender,
+                                          const uchar *string, size_t length);
+  static enum_append_status append_string(Appender *appender,
+                                          const uchar *string)
+  { return append_string(appender, string, strlen((const char *)string)); }
 };
 
 
