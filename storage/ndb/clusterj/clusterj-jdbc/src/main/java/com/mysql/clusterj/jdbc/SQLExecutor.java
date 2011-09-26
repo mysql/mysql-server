@@ -17,26 +17,28 @@
 
 package com.mysql.clusterj.jdbc;
 
-import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.ClusterJUserException;
-import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
-import com.mysql.clusterj.core.query.QueryExecutionContextImpl;
-import com.mysql.clusterj.core.spi.DomainTypeHandler;
-import com.mysql.clusterj.core.spi.QueryExecutionContext;
-import com.mysql.clusterj.core.spi.SessionSPI;
-import com.mysql.clusterj.core.spi.ValueHandler;
-import com.mysql.clusterj.core.store.ResultData;
-import com.mysql.clusterj.core.util.I18NHelper;
-import com.mysql.clusterj.core.util.Logger;
-import com.mysql.clusterj.core.util.LoggerFactoryService;
-import com.mysql.jdbc.ParameterBindings;
-import com.mysql.jdbc.ResultSetInternalMethods;
-
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.mysql.clusterj.ClusterJDatastoreException;
+import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.LockMode;
+import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
+import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.SessionSPI;
+import com.mysql.clusterj.core.store.ResultData;
+import com.mysql.clusterj.core.util.I18NHelper;
+import com.mysql.clusterj.core.util.Logger;
+import com.mysql.clusterj.core.util.LoggerFactoryService;
+import com.mysql.jdbc.ParameterBindings;
+import com.mysql.jdbc.PreparedStatement;
+import com.mysql.jdbc.ResultSetInternalMethods;
+import com.mysql.jdbc.ServerPreparedStatement;
+import com.mysql.jdbc.ServerPreparedStatement.BindValue;
 
 /** This class contains behavior to execute various SQL commands. There is one subclass for each
  * command to be executed. 
@@ -72,6 +74,18 @@ public class SQLExecutor {
 
     /** The query domain type for qualified SELECT and DELETE operations */
     protected QueryDomainTypeImpl<?> queryDomainType;
+
+    /** Does the jdbc driver support bind values (mysql 5.1.17 and later)? */
+    static boolean bindValueSupport = getBindValueSupport();
+
+    static boolean getBindValueSupport() {
+        try {
+            com.mysql.jdbc.ServerPreparedStatement.class.getMethod("getParameterBindValues", (Class<?>[])null);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     public SQLExecutor(DomainTypeHandlerImpl<?> domainTypeHandler, List<String> columnNames, int numberOfParameters) {
         this(domainTypeHandler, columnNames);
@@ -110,12 +124,12 @@ public class SQLExecutor {
 
         /** Execute the SQL command
          * @param session the clusterj session which must not be null
-         * @param parameterBindings the parameter bindings from the prepared statement
+         * @param preparedStatement the prepared statement
          * @return the result of executing the statement, or null
          * @throws SQLException
          */
         ResultSetInternalMethods execute(InterceptorImpl interceptor,
-                ParameterBindings parameterBindings) throws SQLException;
+                PreparedStatement preparedStatement) throws SQLException;
     }
 
     /** This class implements the Executor contract but returns null, indicating that
@@ -124,7 +138,7 @@ public class SQLExecutor {
     public static class Noop implements Executor {
 
         public ResultSetInternalMethods execute(InterceptorImpl interceptor,
-                ParameterBindings parameterBindings) throws SQLException {
+                PreparedStatement preparedStatement) throws SQLException {
             return null;
         }
     }
@@ -133,23 +147,41 @@ public class SQLExecutor {
      */
     public static class Select extends SQLExecutor implements Executor {
 
-        public Select(DomainTypeHandlerImpl<?> domainTypeHandler, List<String> columnNames, QueryDomainTypeImpl<?> queryDomainType) {
+        private LockMode lockMode;
+
+        public Select(DomainTypeHandlerImpl<?> domainTypeHandler, List<String> columnNames,
+                QueryDomainTypeImpl<?> queryDomainType, LockMode lockMode, int numberOfParameters) {
             super(domainTypeHandler, columnNames, queryDomainType);
+            this.numberOfParameters = numberOfParameters;
+            this.lockMode = lockMode;
             if (queryDomainType == null) {
                 throw new ClusterJFatalInternalException("queryDomainType must not be null for Select.");
             }
         }
 
+        public Select(DomainTypeHandlerImpl<?> domainTypeHandler,
+                List<String> columnNames, QueryDomainTypeImpl<?> queryDomainType, LockMode lockMode) {
+            this(domainTypeHandler, columnNames, queryDomainType, lockMode, 0);
+        }
+
         public ResultSetInternalMethods execute(InterceptorImpl interceptor,
-                ParameterBindings parameterBindings) throws SQLException {
-            // create value handler to copy data from parameters to ndb
-            // count the parameters
-            int count = countParameters(parameterBindings);
+                PreparedStatement preparedStatement) throws SQLException {
             SessionSPI session = interceptor.getSession();
-            Map<String, Object> parameters = createParameterMap(queryDomainType, parameterBindings, 0, count);
-            QueryExecutionContext context = new QueryExecutionContextImpl(session, parameters);
+            session.setLockMode(lockMode);
+            // create value handler to copy data from parameters to ndb
+            ValueHandlerBatching valueHandlerBatching = getValueHandler(preparedStatement, null);
+            if (valueHandlerBatching == null) {
+                return null;
+            }
+            int numberOfStatements = valueHandlerBatching.getNumberOfStatements();
+            if (numberOfStatements != 1) {
+                return null;
+            }
+            QueryExecutionContextJDBCImpl context = 
+                new QueryExecutionContextJDBCImpl(session, valueHandlerBatching, numberOfParameters);
             session.startAutoTransaction();
             try {
+                valueHandlerBatching.next();
                 ResultData resultData = queryDomainType.getResultData(context);
                 // session.endAutoTransaction();
                 return new ResultSetInternalMethodsImpl(resultData, columnNumberToFieldNumberMap, 
@@ -176,30 +208,32 @@ public class SQLExecutor {
         }
 
         public ResultSetInternalMethods execute(InterceptorImpl interceptor,
-                ParameterBindings parameterBindings) throws SQLException {
+                PreparedStatement preparedStatement) throws SQLException {
             SessionSPI session = interceptor.getSession();
             if (queryDomainType == null) {
                 int rowsDeleted = session.deletePersistentAll(domainTypeHandler);
-                if (logger.isDebugEnabled()) logger.debug("deleteAll deleted: " + rowsDeleted);
+                if (logger.isDebugEnabled()) 
+                    logger.debug("deleteAll deleted: " + rowsDeleted);
                 return new ResultSetInternalMethodsUpdateCount(rowsDeleted);
             } else {
-                int numberOfBoundParameters = countParameters(parameterBindings);
-                int numberOfStatements = numberOfBoundParameters / numberOfParameters;
+                ValueHandlerBatching valueHandlerBatching = getValueHandler(preparedStatement, null);
+                if (valueHandlerBatching == null) {
+                    return null;
+                }
+                int numberOfStatements = valueHandlerBatching.getNumberOfStatements();
+                if (logger.isDebugEnabled()) 
+                    logger.debug("executing numberOfStatements: " + numberOfStatements 
+                            + " with numberOfParameters: " + numberOfParameters);
                 long[] deleteResults = new long[numberOfStatements];
-                if (logger.isDebugEnabled()) logger.debug(
-                        " numberOfParameters: " + numberOfParameters
-                        + " numberOfBoundParameters: " + numberOfBoundParameters
-                        + " numberOfStatements: " + numberOfStatements
-                        );
                 QueryExecutionContextJDBCImpl context = 
-                    new QueryExecutionContextJDBCImpl(session, parameterBindings, numberOfParameters);
-                for (int i = 0; i < numberOfStatements; ++i) {
+                    new QueryExecutionContextJDBCImpl(session, valueHandlerBatching, numberOfParameters);
+                int i = 0;
+                while (valueHandlerBatching.next()) {
                     // this will execute each statement in the batch using different parameters
                     int statementRowsDeleted = queryDomainType.deletePersistentAll(context);
-                    if (logger.isDebugEnabled()) logger.debug("statement " + i
-                            + " deleted " + statementRowsDeleted);
-                    deleteResults[i] = statementRowsDeleted;
-                    context.nextStatement();
+                    if (logger.isDebugEnabled())
+                        logger.debug("statement " + i + " deleted " + statementRowsDeleted);
+                    deleteResults[i++] = statementRowsDeleted;
                 }
                 return new ResultSetInternalMethodsUpdateCount(deleteResults);
             }
@@ -215,26 +249,69 @@ public class SQLExecutor {
         }
 
         public ResultSetInternalMethods execute(InterceptorImpl interceptor,
-                ParameterBindings parameterBindings) throws SQLException {
+                PreparedStatement preparedStatement) throws SQLException {
             SessionSPI session = interceptor.getSession();
-            int numberOfBoundParameters = countParameters(parameterBindings);
+            int numberOfBoundParameters = preparedStatement.getParameterMetaData().getParameterCount();
             int numberOfStatements = numberOfBoundParameters / numberOfParameters;
-            if (logger.isDebugEnabled()) logger.debug("SQLExecutor.Insert.execute"
-                    + " numberOfParameters: " + numberOfParameters
+            if (logger.isDebugEnabled())
+                logger.debug("numberOfParameters: " + numberOfParameters
                     + " numberOfBoundParameters: " + numberOfBoundParameters
                     + " numberOfFields: " + numberOfFields
                     + " numberOfStatements: " + numberOfStatements
                     );
             // interceptor.beforeClusterjStart();
             // session asks for values by field number which are converted to parameter number
-            for (int offset = 0; offset < numberOfBoundParameters; offset += numberOfParameters) {
-                ValueHandler valueHandler = getValueHandler(parameterBindings, fieldNumberToColumnNumberMap, offset);
+            ValueHandlerBatching valueHandler = getValueHandler(preparedStatement, fieldNumberToColumnNumberMap);
+            if (valueHandler == null) {
+                // we cannot handle this request
+                return null;
+            }
+            int count = 0;
+            while(valueHandler.next()) {
+                if (logger.isDetailEnabled()) logger.detail("inserting row " + count++);
                 session.insert(domainTypeHandler, valueHandler);
             }
             session.flush();
             // interceptor.afterClusterjStart();
             return new ResultSetInternalMethodsUpdateCount(numberOfStatements);
         }
+    }
+
+    protected ValueHandlerBatching getValueHandler(
+            PreparedStatement preparedStatement, int[] fieldNumberToColumnNumberMap) {
+        ValueHandlerBatching result = null;
+        try {
+            int numberOfBoundParameters = preparedStatement.getParameterMetaData().getParameterCount();
+            int numberOfStatements = numberOfParameters == 0 ? 1 : numberOfBoundParameters / numberOfParameters;
+            if (logger.isDebugEnabled()) logger.debug(
+                    " numberOfParameters: " + numberOfParameters
+                    + " numberOfBoundParameters: " + numberOfBoundParameters
+                    + " numberOfStatements: " + numberOfStatements
+                    + " fieldNumberToColumnNumberMap: " + Arrays.toString(fieldNumberToColumnNumberMap)
+                    );
+            if (preparedStatement instanceof ServerPreparedStatement) {
+                if (bindValueSupport) {
+                    ServerPreparedStatement serverPreparedStatement = (ServerPreparedStatement)preparedStatement;
+                    BindValue[] bindValues = serverPreparedStatement.getParameterBindValues();
+                    result = new ValueHandlerBindValuesImpl(bindValues, fieldNumberToColumnNumberMap,
+                            numberOfStatements, numberOfParameters);
+                } else {
+                    // note if you try to get parameter bindings from a server prepared statement, NPE in the driver
+                    // so if it's a server prepared statement without bind value support, e.g. using a JDBC driver
+                    // earlier than 5.1.17, returning null will allow the driver to pursue its normal path.
+                }
+            } else {
+            // not a server prepared statement; treat as regular prepared statement
+            ParameterBindings parameterBindings = preparedStatement.getParameterBindings();
+            result = new ValueHandlerImpl(parameterBindings, fieldNumberToColumnNumberMap, 
+                    numberOfStatements, numberOfParameters);
+            }
+        } catch (SQLException ex) {
+            throw new ClusterJDatastoreException(ex);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return result;
     }
 
     /** Create the parameter map assigning each bound parameter a number.
@@ -316,17 +393,6 @@ public class SQLExecutor {
         }
     }
 
-    /** Create a value handler (part of the clusterj spi) to retrieve values from jdbc parameter bindings.
-     * @param parameterBindings the jdbc parameter bindings from prepared statements
-     * @param fieldNumberToParameterNumberMap map from field number to parameter number
-     * @param offset into the parameter bindings for this instance (used for batch execution)
-     * @return
-     */
-    protected ValueHandler getValueHandler(ParameterBindings parameterBindings,
-            int[] fieldNumberToParameterNumberMap, int offset) {
-        return new ValueHandlerImpl(parameterBindings, fieldNumberToParameterNumberMap, offset);
-    }
-
     /** If detailed logging is enabled write the parameter bindings to the log.
      * @param parameterBindings the jdbc parameter bindings
      */
@@ -344,32 +410,6 @@ public class SQLExecutor {
                 }
             }
         }
-    }
-
-    /** Count the number of bound parameters. If this is a batch execution, then the
-     * number of bound parameters is the number of statements in the batch times the
-     * number of parameters per statement.
-     * If detailed logging is enabled write the parameter bindings to the log.
-     * @param parameterBindings the jdbc parameter bindings
-     */
-    protected static int countParameters(ParameterBindings parameterBindings) {
-        int i = 0;
-        while (true) {
-            try {
-                ++i;
-                // parameters are 1-origin per jdbc specification
-                Object objectValue = parameterBindings.getObject(i);
-                if (logger.isDetailEnabled()) {
-                    logger.detail("parameterBinding: parameter " + i
-                            + " has value: " + objectValue
-                            + " of type " + objectValue.getClass());
-                }
-            } catch (Exception e) {
-                // we don't know how many parameters are bound...
-                break;
-            }
-        }
-        return i - 1;
     }
 
 }
