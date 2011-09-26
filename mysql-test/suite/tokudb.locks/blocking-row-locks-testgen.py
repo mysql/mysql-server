@@ -26,18 +26,16 @@ def mysqlgen_select_where(k, where):
 # mysql test code generation
 def mysqlgen_prepare():
     print "# prepare with some common parameters"
-    print "set storage_engine=tokudb;"
-    #print "connect(conn1, localhost, root);"
-    #print "set autocommit=off;"
+    print "connect(conn1, localhost, root);"
     print "connect(conn2, localhost, root);"
-    print "connection default;"
+    print "connection conn1;"
     print ""
 def mysqlgen_reload_table():
     print "# drop old table, generate new one. 4 rows"
     print "--disable_warnings"
     print "drop table if exists t;"
     print "--enable_warnings"
-    print "create table t (a int primary key, b int);"
+    print "create table t (a int primary key, b int) engine=tokudb;"
     for i in range(1, 7):
         mysqlgen_insert_ignore("a", i, "b", i*i)
     print ""
@@ -72,7 +70,7 @@ for timeout in timeouts:
         # point vs point contention
         for tb, qb in write_point_queries:
             print "# testing conflict \"%s\" vs. \"%s\"" % (ta, tb)
-            print "connection default;"
+            print "connection conn1;"
             print "begin;"
             print ""
             qa("a", "1", "b", "100")
@@ -83,33 +81,33 @@ for timeout in timeouts:
                 qb("a", k, "b", "100")
             # Always check in the end that a commit
             # allows the other transaction full access
-            print "connection default;"
+            print "connection conn1;"
             print "commit;"
             print "connection conn2;"
             qb("a", "1", "b", "100")
             mysqlgen_select_star()
-            print "connection default;"
+            print "connection conn1;"
             print ""
             # test early commit
             if timeout > 0:
                 print "# check that an early commit allows a blocked"
                 print "# transaction to complete"
-                print "connection default;"
+                print "connection conn1;"
                 print "begin;"
                 qa("a", "1", "b", "150")
                 print "connection conn2;"
                 # this makes the query asynchronous, so we can jump back
-                # to the default connection and commit it.
+                # to the conn1 connection and commit it.
                 print "send ",
                 qb("a", "1", "b", "175")
-                print "connection default;"
+                print "connection conn1;"
                 print "commit;"
                 print "connection conn2;"
                 print "reap;"
         # point vs range contention
         for rt, rq in write_range_queries:
             print "# testing range query \"%s\" vs \"%s\"" % (rt, ta)
-            print "connection default;"
+            print "connection conn1;"
             print "begin;"
             print ""
             qa("a", "1", "b", "100")
@@ -121,34 +119,34 @@ for timeout in timeouts:
             rq("a", "b", ">2")
             # Always check in the end that a commit
             # allows the other transaction full access
-            print "connection default;"
+            print "connection conn1;"
             print "commit;"
             print "connection conn2;"
             rq("a", "b", "<=2")
             rq("a", "b", ">=0")
             mysqlgen_select_star()
-            print "connection default;"
+            print "connection conn1;"
             print ""
             # test early commit
             if timeout > 0:
                 print "# check that an early commit allows a blocked"
                 print "# transaction to complete"
-                print "connection default;"
+                print "connection conn1;"
                 print "begin;"
                 qa("a", "1", "b", "150")
                 print "connection conn2;"
                 # this makes the query asynchronous, so we can jump back
-                # to the default connection and commit it.
+                # to the conn1 connection and commit it.
                 print "send ",
                 rq("a", "b", "<=2")
-                print "connection default;"
+                print "connection conn1;"
                 print "commit;"
                 print "connection conn2;"
                 print "reap;"
     for rt, rq in write_range_queries:
         for rtb, rqb in write_range_queries:
             print "# testing range query \"%s\" vs range query \"%s\"" % (rt, rtb)
-            print "connection default;"
+            print "connection conn1;"
             print "begin;"
             print ""
             rq("a", "b", ">=2 and a<=4")
@@ -162,28 +160,28 @@ for timeout in timeouts:
             rqb("a", "b", ">=5")
             # Always check in the end that a commit
             # allows the other transaction full access
-            print "connection default;"
+            print "connection conn1;"
             print "commit;"
             print "connection conn2;"
             rqb("a", "b", ">=0 and a<=3")
             rqb("a", "b", ">=3 and a<=6")
             rqb("a", "b", "<=2")
             mysqlgen_select_star()
-            print "connection default;"
+            print "connection conn1;"
             print ""
             # test early commit
             if timeout > 0:
                 print "# check that an early commit allows a blocked"
                 print "# transaction to complete"
-                print "connection default;"
+                print "connection conn1;"
                 print "begin;"
                 rq("a", "b", ">=2 and a<=4")
                 print "connection conn2;"
                 # this makes the query asynchronous, so we can jump back
-                # to the default connection and commit it.
+                # to the conn1 connection and commit it.
                 print "send ",
                 rqb("a", "b", ">=0 and a<=3")
-                print "connection default;"
+                print "connection conn1;"
                 print "commit;"
                 print "connection conn2;"
                 print "reap;"

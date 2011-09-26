@@ -1,6 +1,5 @@
-set storage_engine=tokudb;
 drop table if exists t;
-create table t (a int primary key, b int);
+create table t (a int primary key, b int) engine=tokudb;
 insert ignore t values(1, 1);
 insert ignore t values(2, 4);
 insert ignore t values(3, 9);

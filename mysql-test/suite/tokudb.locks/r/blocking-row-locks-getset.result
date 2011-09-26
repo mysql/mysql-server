@@ -1,4 +1,3 @@
-set storage_engine='tokudb';
 select @@tokudb_lock_timeout;
 @@tokudb_lock_timeout
 30000000
