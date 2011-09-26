@@ -764,4 +764,27 @@ a	b	c
 1	r	r
 DROP VIEW v1;
 DROP TABLE t1, t2;
+#
+# BUG#858732: Wrong result with semijoin + loosescan + comma join
+#
+CREATE TABLE t1 (f13 int(11) NOT NULL , PRIMARY KEY (f13)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (16),(24);
+CREATE TABLE t2 (f14 int(11) NOT NULL, f12 varchar(1) NOT NULL, KEY (f12,f14)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (6,'y');
+CREATE TABLE t3 (f12 varchar(1) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('r'),('s'),('t'),('v'),('w'),('x'),('y');
+# The following must use LooseScan but not join buffering
+explain
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	PRIMARY	alias2	index	f12	f12	7	NULL	1	Using index; LooseScan
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using index; FirstMatch(alias2)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	7	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+f12
+y
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@subselect_sj2_tmp;
