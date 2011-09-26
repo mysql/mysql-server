@@ -1647,4 +1647,61 @@ b
 1
 2
 DROP TABLE t1,t2;
+#
+# Bug#11765255 58201:
+# VALGRIND/CRASH WHEN ORDERING BY MULTIPLE AGGREGATE FUNCTIONS
+#
+select 1 as foo
+union
+select 2
+union
+select 3
+union
+select 4
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+;
+foo
+1
+prepare stmt1 from 'select 1 as foo
+union
+select 2
+union
+select 3
+union
+select 4
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+';
+execute stmt1;
+foo
+1
+execute stmt1;
+foo
+1
+select 1 as foo
+union
+select 2
+union
+select 3
+union
+(select 4)
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+;
+foo
+1
+prepare stmt1 from 'select 1 as foo
+union
+select 2
+union
+select 3
+union
+(select 4)
+order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
+';
+execute stmt1;
+foo
+1
+execute stmt1;
+foo
+1
+deallocate prepare stmt1;
 End of 5.1 tests

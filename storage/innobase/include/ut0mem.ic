@@ -47,24 +47,3 @@ ut_strcmp(const void* str1, const void* str2)
 {
 	return(strcmp((const char*)str1, (const char*)str2));
 }
-
-/**************************************************************************
-Compute strlen(ut_strcpyq(str, q)). */
-UNIV_INLINE
-ulint
-ut_strlenq(
-/*=======*/
-				/* out: length of the string when quoted */
-	const char*	str,	/* in: null-terminated string */
-	char		q)	/* in: the quote character */
-{
-	ulint len;
-
-	for (len = 0; *str; len++, str++) {
-		if (*str == q) {
-			len++;
-		}
-	}
-
-	return(len);
-}
