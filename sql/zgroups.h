@@ -536,6 +536,7 @@ protected:
     my_off_t ret= my_tell(fd, MYF(MY_WME));
     if (ret == (my_off_t)(os_off_t)-1)
       RETURN_REPORTED_ERROR;
+    *position= ret;
     RETURN_OK;
   };
   /**
