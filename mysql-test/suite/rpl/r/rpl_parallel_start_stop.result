@@ -59,7 +59,7 @@ set @save.slave_transaction_retries= @@global.slave_transaction_retries;
 set @@global.slave_transaction_retries= 1;
 start slave sql_thread;
 Warnings:
-Note	1740	Temporary failed transaction retry is not supported in multi-threaded slave mode. Such failure will force the slave to stop.
+Note	1740	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 include/stop_slave.inc
 create table t2 (a int);
 insert into t2 values (1);
@@ -69,7 +69,7 @@ Note	1740	UNTIL condtion is not supported in multi-threaded slave mode. Slave is
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc
 Warnings:
-Note	1740	Temporary failed transaction retry is not supported in multi-threaded slave mode. Such failure will force the slave to stop.
+Note	1740	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 drop table t1;
 drop table t2m;
 drop table t2;
