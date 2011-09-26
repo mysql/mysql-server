@@ -645,6 +645,7 @@ bool st_select_lex_unit::exec()
 	if (!saved_error)
 	{
 	  examined_rows+= thd->examined_row_count;
+          thd->examined_row_count= 0;
 	  if (union_result->flush())
 	  {
 	    thd->lex->current_select= lex_select_save;

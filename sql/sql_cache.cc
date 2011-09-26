@@ -391,7 +391,7 @@ static void debug_wait_for_kill(const char *info)
   sql_print_information("%s", info);
   while(!thd->killed)
     my_sleep(1000);
-  thd->killed= THD::NOT_KILLED;
+  thd->killed= NOT_KILLED;
   /*
     Remove the set debug variable, to ensure we don't get stuck on it again
     This is needed as for MyISAM, invalidate_table() may be called twice
@@ -4439,7 +4439,7 @@ void Query_cache::wreck(uint line, const char *message)
   DBUG_PRINT("warning", ("%5d QUERY CACHE WRECK => DISABLED",line));
   DBUG_PRINT("warning", ("=================================="));
   if (thd)
-    thd->killed= THD::KILL_CONNECTION;
+    thd->killed= KILL_CONNECTION;
   cache_dump();
   /* check_integrity(0); */ /* Can't call it here because of locks */
   bins_dump();

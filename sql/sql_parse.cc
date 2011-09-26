@@ -793,7 +793,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
     my_error(thd->killed_errno(), MYF(0));
   else if ((res == 0) && do_release)
   {
-    thd->killed= THD::KILL_CONNECTION;
+    thd->killed= KILL_CONNECTION;
     if (global_system_variables.log_warnings > 3)
     {
       Security_context *sctx= &thd->main_security_ctx;
@@ -1530,7 +1530,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
     ulong id=(ulong) uint4korr(packet);
-    sql_kill(thd,id,false);
+    sql_kill(thd,id, KILL_CONNECTION_HARD);
     break;
   }
   case COM_SET_OPTION:
@@ -1572,15 +1572,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
 
   /* report error issued during command execution */
-  if (thd->killed_errno())
+  if (thd->killed)
   {
-    if (! thd->main_da.is_set())
-      thd->send_kill_message();
-  }
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
+    if  (thd->killed_errno())
+    {
+      if (! thd->main_da.is_set())
+        thd->send_kill_message();
+    }
+    if (thd->killed < KILL_CONNECTION)
+    {
+      thd->killed= NOT_KILLED;
+      thd->mysys_var->abort= 0;
+    }
   }
 
   /* If commit fails, we should be able to reset the OK status. */
@@ -4038,8 +4041,6 @@ end_with_restore_list:
   }
   case SQLCOM_KILL:
   {
-    Item *it= (Item *)lex->value_list.head();
-
     if (lex->table_or_sp_used())
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
@@ -4047,13 +4048,20 @@ end_with_restore_list:
       break;
     }
 
-    if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
+    if (lex->kill_type == KILL_TYPE_ID)
     {
-      my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
-		 MYF(0));
-      goto error;
+      Item *it= (Item *)lex->value_list.head();
+      if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
+      {
+        my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
+                   MYF(0));
+        goto error;
+      }
+      sql_kill(thd, (ulong) it->val_int(), lex->kill_signal);
     }
-    sql_kill(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
+    else
+      sql_kill_user(thd, get_current_user(thd, lex->users_list.head()),
+                    lex->kill_signal);
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -7174,12 +7182,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     This is written such that we have a short lock on LOCK_thread_count
 */
 
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
+uint kill_one_thread(THD *thd, ulong id, killed_state kill_signal)
 {
   THD *tmp;
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
-  DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
+  DBUG_PRINT("enter", ("id: %lu  signal: %u", id, (uint) kill_signal));
+
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
@@ -7219,7 +7228,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
-      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
+      tmp->awake(kill_signal);
       error=0;
     }
     else
@@ -7228,6 +7237,76 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   }
   DBUG_PRINT("exit", ("%d", error));
   DBUG_RETURN(error);
+}
+
+
+/**
+  kill all threads from one user
+
+  @param thd			Thread class
+  @param user_name		User name for threads we should kill
+  @param only_kill_query        Should it kill the query or the connection
+
+  @note
+    This is written such that we have a short lock on LOCK_thread_count
+
+    If we can't kill all threads because of security issues, no threads
+    are killed.
+*/
+
+static uint kill_threads_for_user(THD *thd, LEX_USER *user,
+                                  killed_state kill_signal, ha_rows *rows)
+{
+  THD *tmp;
+  List<THD> threads_to_kill;
+  DBUG_ENTER("kill_threads_for_user");
+
+  *rows= 0;
+
+  if (thd->is_fatal_error)                       // If we run out of memory
+    DBUG_RETURN(ER_OUT_OF_RESOURCES);
+
+  DBUG_PRINT("enter", ("user: %s  signal: %u", user->user.str,
+                       (uint) kill_signal));
+
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
+  I_List_iterator<THD> it(threads);
+  while ((tmp=it++))
+  {
+    if (tmp->command == COM_DAEMON)
+      continue;
+    /*
+      Check that hostname (if given) and user name matches.
+
+      host.str[0] == '%' means that host name was not given. See sql_yacc.yy
+    */
+    if (((user->host.str[0] == '%' && !user->host.str[1]) ||
+         !strcmp(tmp->security_ctx->host, user->host.str)) &&
+        !strcmp(tmp->security_ctx->user, user->user.str))
+    {
+      if (!(thd->security_ctx->master_access & SUPER_ACL) &&
+          !thd->security_ctx->user_matches(tmp->security_ctx))
+      {
+        VOID(pthread_mutex_unlock(&LOCK_thread_count));
+        DBUG_RETURN(ER_KILL_DENIED_ERROR);
+      }
+      if (!threads_to_kill.push_back(tmp, tmp->mem_root))
+        pthread_mutex_lock(&tmp->LOCK_thd_data); // Lock from delete
+    }
+  }
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  if (!threads_to_kill.is_empty())
+  {
+    List_iterator_fast<THD> it(threads_to_kill);
+    THD *ptr;
+    while ((ptr= it++))
+    {
+      ptr->awake(kill_signal);
+      pthread_mutex_unlock(&ptr->LOCK_thd_data);
+      (*rows)++;
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -7241,13 +7320,30 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     only_kill_query     Should it kill the query or the connection
 */
 
-void sql_kill(THD *thd, ulong id, bool only_kill_query)
+void sql_kill(THD *thd, ulong id, killed_state state)
 {
   uint error;
-  if (!(error= kill_one_thread(thd, id, only_kill_query)))
+  if (!(error= kill_one_thread(thd, id, state)))
     my_ok(thd);
   else
     my_error(error, MYF(0), id);
+}
+
+
+void sql_kill_user(THD *thd, LEX_USER *user, killed_state state)
+{
+  uint error;
+  ha_rows rows;
+  if (!(error= kill_threads_for_user(thd, user, state, &rows)))
+    my_ok(thd, rows);
+  else
+  {
+    /*
+      This is probably ER_OUT_OF_RESOURCES, but in the future we may
+      want to write the name of the user we tried to kill
+    */
+    my_error(error, MYF(0), user->host.str, user->user.str);
+  }
 }
 
 

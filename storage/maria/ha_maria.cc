@@ -2701,7 +2701,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
             changes to commit (rollback shouldn't be tested).
           */
           DBUG_ASSERT(!thd->main_da.is_sent ||
-                      thd->killed == THD::KILL_CONNECTION);
+                      thd->killed == KILL_CONNECTION);
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
           if (ma_commit(trn))

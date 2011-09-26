@@ -59,7 +59,7 @@ static void wait_for_kill_signal(THD *thd)
   while (thd->killed == 0)
     sleep(1);
   // Reset signal and continue as if nothing happend
-  thd->killed= THD::NOT_KILLED;
+  thd->killed= NOT_KILLED;
 }
 #endif
 

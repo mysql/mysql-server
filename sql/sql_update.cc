@@ -221,7 +221,7 @@ int mysql_update(THD *thd,
   bool          need_reopen;
   ulonglong     id;
   List<Item> all_fields;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status= NOT_KILLED;
   DBUG_ENTER("mysql_update");
 
   for ( ; ; )
@@ -788,9 +788,9 @@ int mysql_update(THD *thd,
   // simulated killing after the loop must be ineffective for binlogging
   DBUG_EXECUTE_IF("simulate_kill_bug27571",
                   {
-                    thd->killed= THD::KILL_QUERY;
+                    thd->killed= KILL_QUERY;
                   };);
-  error= (killed_status == THD::NOT_KILLED)?  error : 1;
+  error= (killed_status == NOT_KILLED)?  error : 1;
   
   if (error &&
       will_batch &&
@@ -851,7 +851,7 @@ int mysql_update(THD *thd,
       if (error < 0)
         thd->clear_error();
       else
-        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        errcode= query_error_code(thd, killed_status == NOT_KILLED);
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query(), thd->query_length(),
@@ -1937,7 +1937,7 @@ void multi_update::abort()
         got caught and if happens later the killed error is written
         into repl event.
       */
-      int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
       /* the error of binary logging is ignored */
       (void)thd->binlog_query(THD::ROW_QUERY_TYPE,
                               thd->query(), thd->query_length(),
@@ -2151,7 +2151,7 @@ bool multi_update::send_eof()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   ulonglong id;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status= NOT_KILLED;
   DBUG_ENTER("multi_update::send_eof");
   thd_proc_info(thd, "updating reference tables");
 
@@ -2164,7 +2164,7 @@ bool multi_update::send_eof()
     if local_error is not set ON until after do_updates() then
     later carried out killing should not affect binlogging.
   */
-  killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
+  killed_status= (local_error == 0) ? NOT_KILLED : thd->killed;
   thd_proc_info(thd, "end");
 
   /* We must invalidate the query cache before binlog writing and
@@ -2193,7 +2193,7 @@ bool multi_update::send_eof()
       if (local_error == 0)
         thd->clear_error();
       else
-        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        errcode= query_error_code(thd, killed_status == NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query(), thd->query_length(),
                             transactional_tables, FALSE, errcode))

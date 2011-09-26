@@ -3082,7 +3082,19 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
 bool sys_var_max_user_conn::check(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
+  {
+    if (! max_user_connections_checking)
+    {
+      /*
+        We can't change the value of max_user_connections from 0 as then
+        connect counting would be wrong.
+      */
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+               "--max-user-connections=0");
+      return TRUE;
+    }
     return sys_var_thd::check(thd, var);
+  }
   else
   {
     /*
@@ -3098,7 +3110,7 @@ bool sys_var_max_user_conn::update(THD *thd, set_var *var)
 {
   DBUG_ASSERT(var->type == OPT_GLOBAL);
   pthread_mutex_lock(&LOCK_global_system_variables);
-  max_user_connections= (uint)var->save_result.ulonglong_value;
+  max_user_connections= (int) var->save_result.ulonglong_value;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }

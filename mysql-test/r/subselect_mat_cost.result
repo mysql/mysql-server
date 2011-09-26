@@ -1,5 +1,6 @@
 set @subselect_mat_cost=@@optimizer_switch;
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+set log_slow_time=0.1;
 TEST GROUP 1:
 Typical cases of in-to-exists and materialization subquery strategies
 =====================================================================

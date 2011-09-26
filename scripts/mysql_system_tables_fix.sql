@@ -326,8 +326,11 @@ UPDATE host SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, 
 
 #
 # Add max_user_connections resource limit
+# this is signed in MariaDB so that if one sets it's to -1 then the user
+# can't connect anymore.
 #
-ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
+ALTER TABLE user ADD max_user_connections int(11) DEFAULT '0' NOT NULL AFTER max_connections;
+ALTER TABLE user MODIFY max_user_connections int(11) DEFAULT '0' NOT NULL AFTER max_connections;
 
 #
 # user.Create_user_priv

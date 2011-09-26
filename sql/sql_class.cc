@@ -1266,7 +1266,7 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 #endif
 
 
-void THD::awake(THD::killed_state state_to_set)
+void THD::awake(killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
@@ -1283,7 +1283,7 @@ void THD::awake(THD::killed_state state_to_set)
                       "KILLED");
   }
   killed= state_to_set;
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set >= KILL_CONNECTION)
   {
     thr_alarm_kill(thread_id);
     if (!slave_thread)
@@ -1362,6 +1362,38 @@ void THD::awake(THD::killed_state state_to_set)
   }
   DBUG_VOID_RETURN;
 }
+
+
+/*
+  Get error number for killed state
+  Note that the error message can't have any parameters.
+  See thd::kill_message()
+*/
+
+int killed_errno(killed_state killed)
+{
+  switch (killed) {
+  case NOT_KILLED:
+  case KILL_HARD_BIT:
+    return 0;                                   // Probably wrong usage
+  case KILL_BAD_DATA:
+  case KILL_BAD_DATA_HARD:
+    return 0;                                   // Not a real error
+  case KILL_CONNECTION:
+  case KILL_CONNECTION_HARD:
+  case KILL_SYSTEM_THREAD:
+  case KILL_SYSTEM_THREAD_HARD:
+    return ER_CONNECTION_KILLED;
+  case KILL_QUERY:
+  case KILL_QUERY_HARD:
+    return ER_QUERY_INTERRUPTED;
+  case KILL_SERVER:
+  case KILL_SERVER_HARD:
+    return ER_SERVER_SHUTDOWN;
+  }
+  return 0;                                     // Keep compiler happy
+}
+
 
 /*
   Remember the location of thread info, the structure needed for
@@ -3397,12 +3429,13 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   @param thd  user thread
   @retval 0 the user thread is active
   @retval 1 the user thread has been killed
+
+  This is used to signal a storage engine if it should be killed.
 */
 
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
-  if (thd->killed == THD::NOT_KILLED || thd->killed == THD::KILL_BAD_DATA ||
-      thd->killed == THD::KILL_SYSTEM_THREAD)
+  if (!(thd->killed & KILL_HARD_BIT))
     return 0;
   return thd->killed;
 }

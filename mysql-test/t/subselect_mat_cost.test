@@ -15,6 +15,11 @@
 
 set @subselect_mat_cost=@@optimizer_switch;
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+#
+# Test logging to slow log (there was some errors in the log files about
+# the slow log when running under valgrind, so better to get this tested)
+#
+set log_slow_time=0.1;
 
 
 -- echo TEST GROUP 1:

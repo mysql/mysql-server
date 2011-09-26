@@ -17,6 +17,7 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
 #include <myisam.h>
 

@@ -376,9 +376,7 @@ void libevent_kill_thd_callback(int Fd, short, void*)
   {
     THD *thd= (THD*)list->data;
     list= list_rest(list);
-    if (thd->killed == THD::KILL_CONNECTION ||
-        thd->killed == THD::KILL_SYSTEM_THREAD ||
-        thd->killed == THD::KILL_SERVER)
+    if ((int) thd->killed >= (int) KILL_CONNECTION)
     {
       /*
         Delete from libevent and add to the processing queue.
@@ -512,7 +510,7 @@ static void libevent_connection_close(THD *thd)
   DBUG_ENTER("libevent_connection_close");
   DBUG_PRINT("enter", ("thd: %p", thd));
 
-  thd->killed= THD::KILL_CONNECTION;          // Avoid error messages
+  thd->killed= KILL_CONNECTION;                // Avoid error messages
 
   if (thd->net.vio->sd >= 0)                  // not already closed
   {
@@ -535,8 +533,7 @@ static bool libevent_should_close_connection(THD* thd)
 {
   return (thd->net.error ||
           thd->net.vio == 0 ||
-          thd->killed == THD::KILL_CONNECTION ||
-          thd->killed == THD::KILL_SERVER);
+          (int) thd->killed >= (int) KILL_CONNECTION);
 }
 
 

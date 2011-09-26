@@ -669,7 +669,8 @@ ulong extra_max_connections;
 */
 ulong max_long_data_size;
 
-uint  max_user_connections= 0;
+int  max_user_connections= 0;
+bool max_user_connections_checking=0;
 ulonglong denied_connections;
 /**
   Limit of the total number of prepared statements in the server.
@@ -1082,7 +1083,7 @@ static void close_connections(void)
     if (tmp->slave_thread)
       continue;
 
-    tmp->killed= THD::KILL_CONNECTION;
+    tmp->killed= KILL_SERVER_HARD;
     thread_scheduler.post_kill_notification(tmp);
     pthread_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
@@ -2033,7 +2034,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
 		      errcode ? ER(errcode) : ""));
   if (lock)
     (void) pthread_mutex_lock(&LOCK_thread_count);
-  thd->killed= THD::KILL_CONNECTION;
+  thd->killed= KILL_CONNECTION;
 
   if (global_system_variables.log_warnings > 3)
   {
@@ -2142,6 +2143,7 @@ static bool cache_thread()
       */
       thd->mysys_var->abort= 0;
       thd->thr_create_utime= microsecond_interval_timer();
+      thd->start_utime= thd->thr_create_utime;
       threads.append(thd);
       return(1);
     }
@@ -2728,26 +2730,29 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
   {
     const char *kreason= "UNKNOWN";
     switch (thd->killed) {
-    case THD::NOT_KILLED:
+    case NOT_KILLED:
+    case KILL_HARD_BIT:
       kreason= "NOT_KILLED";
       break;
-    case THD::KILL_BAD_DATA:
+    case KILL_BAD_DATA:
+    case KILL_BAD_DATA_HARD:
       kreason= "KILL_BAD_DATA";
       break;
-    case THD::KILL_CONNECTION:
+    case KILL_CONNECTION:
+    case KILL_CONNECTION_HARD:
       kreason= "KILL_CONNECTION";
       break;
-    case THD::KILL_QUERY:
+    case KILL_QUERY:
+    case KILL_QUERY_HARD:
       kreason= "KILL_QUERY";
       break;
-    case THD::KILL_SYSTEM_THREAD:
+    case KILL_SYSTEM_THREAD:
+    case KILL_SYSTEM_THREAD_HARD:
       kreason= "KILL_SYSTEM_THREAD";
       break;
-    case THD::KILL_SERVER:
+    case KILL_SERVER:
+    case KILL_SERVER_HARD:
       kreason= "KILL_SERVER";
-      break;
-    case THD::KILLED_NO_VALUE:
-      kreason= "KILLED_NO_VALUE";
       break;
     }
     fprintf(stderr, "\nTrying to get some variables.\n"
@@ -5260,7 +5265,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->prior_thr_create_utime= thd->start_utime= microsecond_interval_timer();
+    thd->prior_thr_create_utime= microsecond_interval_timer();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
@@ -5270,7 +5275,7 @@ void create_thread_to_handle_connection(THD *thd)
                  ("Can't create thread to handle request (error %d)",
                   error));
       thread_count--;
-      thd->killed= THD::KILL_CONNECTION;			// Safety
+      thd->killed= KILL_CONNECTION;             // Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
 
       pthread_mutex_lock(&LOCK_connection_count);
@@ -7429,9 +7434,9 @@ each time the SQL thread starts.",
    &max_system_variables.max_tmp_tables, 0, GET_ULONG,
    REQUIRED_ARG, 32, 1, (longlong) ULONG_MAX, 0, 1, 0},
   {"max_user_connections", OPT_MAX_USER_CONNECTIONS,
-   "The maximum number of active connections for a single user (0 = no limit).",
-   &max_user_connections, &max_user_connections, 0, GET_UINT,
-   REQUIRED_ARG, 0, 0, UINT_MAX, 0, 1, 0},
+   "The maximum number of active connections for a single user (0 = no limit. In addition global max_user_connections counting and checking is permanently disabled).",
+   &max_user_connections, &max_user_connections, 0, GET_INT,
+   REQUIRED_ARG, 0, 0, INT_MAX, 0, 1, 0},
   {"max_write_lock_count", OPT_MAX_WRITE_LOCK_COUNT,
    "After this many write locks, allow some read locks to run in between.",
    &max_write_lock_count, &max_write_lock_count, 0, GET_ULONG,
@@ -9638,6 +9643,8 @@ static int get_options(int *argc,char **argv)
   if (!max_long_data_size_used)
     max_long_data_size= global_system_variables.max_allowed_packet;
 
+  /* Rember if max_user_connections was 0 at startup */
+  max_user_connections_checking= max_user_connections != 0;
   return 0;
 }
 
