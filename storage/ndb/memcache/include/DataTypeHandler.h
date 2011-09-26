@@ -49,7 +49,7 @@ enum {  /* These can be returned by readFromNdb() or writeToNdb() */
 */
 typedef struct {
   int (*read_int32)(Int32 & result, const void * const buf);
-  int (*write_int32)(Int32 value, const char * buf);
+  int (*write_int32)(Int32 value, void * const buf);
 } NumericHandler;
 
 
