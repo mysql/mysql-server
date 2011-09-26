@@ -1109,7 +1109,7 @@ void my_net_local_init(NET *net)
   my_net_set_read_timeout(net, CLIENT_NET_READ_TIMEOUT);
   my_net_set_write_timeout(net, CLIENT_NET_WRITE_TIMEOUT);
   net->retry_count=  1;
-  net->max_packet_size= max(net_buffer_length, max_allowed_packet);
+  net->max_packet_size= MY_MAX(net_buffer_length, max_allowed_packet);
 }
 
 /*
@@ -3197,7 +3197,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       copy_length= end - start;
       /* We've got some data beyond offset: copy up to buffer_length bytes */
       if (param->buffer_length)
-        memcpy(buffer, start, min(copy_length, param->buffer_length));
+        memcpy(buffer, start, MY_MIN(copy_length, param->buffer_length));
     }
     else
       copy_length= 0;
@@ -3423,7 +3423,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     size_t len;
     if (field->decimals >= NOT_FIXED_DEC)
       len= my_gcvt(value, type,
-                   (int) min(sizeof(buff)-1, param->buffer_length),
+                   (int) MY_MIN(sizeof(buff)-1, param->buffer_length),
                    buff, NULL);
     else
       len= my_fcvt(value, (int) field->decimals, buff, NULL);
@@ -3733,7 +3733,7 @@ static void fetch_result_bin(MYSQL_BIND *param,
                              uchar **row)
 {
   ulong length= net_field_length(row);
-  ulong copy_length= min(length, param->buffer_length);
+  ulong copy_length= MY_MIN(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
   *param->length= length;
   *param->error= copy_length < length;
@@ -3745,7 +3745,7 @@ static void fetch_result_str(MYSQL_BIND *param,
                              uchar **row)
 {
   ulong length= net_field_length(row);
-  ulong copy_length= min(length, param->buffer_length);
+  ulong copy_length= MY_MIN(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
   /* Add an end null if there is room in the buffer */
   if (copy_length != param->buffer_length)

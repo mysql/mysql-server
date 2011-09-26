@@ -124,8 +124,8 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   {
     uchar *alloc, *data;
     alloc= my_malloc(LF_DYNARRAY_LEVEL_LENGTH * array->size_of_element +
-                    max(array->size_of_element, sizeof(void *)),
-                    MYF(MY_WME|MY_ZEROFILL));
+                     MY_MAX(array->size_of_element, sizeof(void *)),
+                     MYF(MY_WME|MY_ZEROFILL));
     if (unlikely(!alloc))
       return(NULL);
     /* reserve the space for free() address */

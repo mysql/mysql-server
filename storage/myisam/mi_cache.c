@@ -61,7 +61,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
       (my_off_t) (info->read_end - info->request_pos))
   {
     in_buff_pos=info->request_pos+(uint) offset;
-    in_buff_length= min(length, (size_t) (info->read_end-in_buff_pos));
+    in_buff_length= MY_MIN(length, (size_t) (info->read_end-in_buff_pos));
     memcpy(buff,info->request_pos+(uint) offset,(size_t) in_buff_length);
     if (!(length-=in_buff_length))
       DBUG_RETURN(0);

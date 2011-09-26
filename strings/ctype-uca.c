@@ -20283,7 +20283,7 @@ my_strnxfrm_uca(const CHARSET_INFO *cs,
   
   if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
   {
-    uint space_count= min((uint) (de - dst) / 2, nweights);
+    uint space_count= MY_MIN((uint) (de - dst) / 2, nweights);
     s_res= my_space_weight(cs);
     for (; space_count ; space_count--)
     {
@@ -20645,7 +20645,7 @@ static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
 {
   char tail[30];
   size_t len= lexem->end - lexem->prev;
-  strmake (tail, lexem->prev, (size_t) min(len, sizeof(tail)-1));
+  strmake (tail, lexem->prev, (size_t) MY_MIN(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
   my_snprintf(errstr, errsize - 1,
               "%s at '%s'", txt[0] ? txt : "Syntax error", tail);

@@ -21,6 +21,11 @@
 #include "thr_malloc.h"
 #include "sql_class.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 extern "C" void sql_alloc_error_handler(void);
 
 void init_sql_alloc(MEM_ROOT *mem_root, uint block_size, uint pre_alloc)

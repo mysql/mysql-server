@@ -284,7 +284,7 @@ struct st_harvester {
 static int harvest_pins(LF_PINS *el, struct st_harvester *hv)
 {
   int i;
-  LF_PINS *el_end= el+min(hv->npins, LF_DYNARRAY_LEVEL_LENGTH);
+  LF_PINS *el_end= el + MY_MIN(hv->npins, LF_DYNARRAY_LEVEL_LENGTH);
   for (; el < el_end; el++)
   {
     for (i= 0; i < LF_PINBOX_PINS; i++)

@@ -24,6 +24,9 @@
 #include "rpl_handler.h"
 #include "rpl_info_factory.h"
 
+using std::max;
+using std::min;
+
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -1403,7 +1406,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
     SELECT_LEX_UNIT *unit= &thd->lex->unit;
     ha_rows event_count, limit_start, limit_end;
-    my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
+    my_off_t pos = max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
     mysql_mutex_t *log_lock = binary_log->get_log_lock();
