@@ -46,7 +46,7 @@
 
 /* Very old Sun compilers do not have __func__ */
 #ifdef __SUNPRO_C
-#if __SUNPRO_C < 0x530 
+#if __SUNPRO_C < 0x600
 #define __func__ "?"
 #endif
 #endif
