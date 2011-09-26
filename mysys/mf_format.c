@@ -85,7 +85,7 @@ char * fn_format(char * to, const char *name, const char *dir,
     tmp_length= strlength(startpos);
     DBUG_PRINT("error",("dev: '%s'  ext: '%s'  length: %u",dev,ext,
                         (uint) length));
-    (void) strmake(to,startpos,min(tmp_length,FN_REFLEN-1));
+    (void) strmake(to, startpos, MY_MIN(tmp_length, FN_REFLEN-1));
   }
   else
   {
