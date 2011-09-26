@@ -17,7 +17,7 @@ CREATE TABLE tt005 (mkey binary(20) not null primary key, sval binary(20));
 CREATE TABLE tt006 (mkey varbinary(32) not null primary key, sval varbinary(32));
 CREATE TABLE tt007 (mkey float not null primary key, sval float);
 CREATE TABLE tt008 (mkey double not null primary key, sval double);
-CREATE TABLE tt009 (mkey decimal not null primary key, sval decimal);
+CREATE TABLE tt009 (mkey decimal(8,2) not null primary key, sval decimal(8,2));
 CREATE TABLE tt010 (mkey date not null primary key, sval date);
 CREATE TABLE tt011 (mkey datetime not null primary key, sval datetime);
 CREATE TABLE tt012 (mkey time not null primary key, sval time);
