@@ -516,7 +516,7 @@ row_purge_upd_exist_or_extern_func(
 
 	ut_ad(node);
 
-	if ((node->rec_type == TRX_UNDO_UPD_DEL_REC)
+	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 
 		goto skip_secondaries;
