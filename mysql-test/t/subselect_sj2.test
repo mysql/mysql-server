@@ -962,4 +962,27 @@ EXECUTE st1;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # BUG#858732: Wrong result with semijoin + loosescan + comma join
+--echo #
+CREATE TABLE t1 (f13 int(11) NOT NULL , PRIMARY KEY (f13)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (16),(24);
+
+CREATE TABLE t2 (f14 int(11) NOT NULL, f12 varchar(1) NOT NULL, KEY (f12,f14)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (6,'y');
+
+CREATE TABLE t3 (f12 varchar(1) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('r'),('s'),('t'),('v'),('w'),('x'),('y');
+
+--echo # The following must use LooseScan but not join buffering
+explain
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+
+DROP TABLE t1,t2,t3;
+
+
 set optimizer_switch=@subselect_sj2_tmp;

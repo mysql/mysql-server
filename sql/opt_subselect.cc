@@ -3834,7 +3834,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
-        for (uint j= i; j < pos->n_sj_tables; j++)
+        for (uint j= i; j < i + pos->n_sj_tables; j++)
           join->join_tab[j].inside_loosescan_range= TRUE;
 
         /* Calculate key length */
