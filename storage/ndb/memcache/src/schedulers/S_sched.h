@@ -121,7 +121,9 @@ public:
   ~Cluster();
   void add_stats(const char *, ADD_STAT, const void *);
   WorkerConnection ** getWorkerConnectionPtr(int thd) const;  
+  void startThreads();
    
+  bool threads_started;
   int cluster_id;
   int nconnections;
   int nreferences;
@@ -140,6 +142,10 @@ public:
   Connection(Cluster &, int connection_id);
   ~Connection();
   void add_stats(const char *, ADD_STAT, const void *);
+  void startThreads();
+
+  /* These are not intended to be part of the public API, but are marked as
+     public so that they can be called from C code in pthread_create(): */
   void * run_ndb_send_thread();
   void * run_ndb_poll_thread();
 

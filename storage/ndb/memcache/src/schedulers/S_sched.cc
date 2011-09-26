@@ -95,6 +95,10 @@ void S::SchedulerGlobal::init(int _nthreads, const char *_config_string) {
       * wc_cell = new WorkerConnection(this, t, c);
     }
   }
+    
+  /* Start the send & poll threads for each connection */
+  for(int i = 0 ; i < nclusters ; i++) 
+    clusters[i]->startThreads();
   
   /* Log message for startup */
   logger->log(LOG_WARNING, 0, "Scheduler: starting for %d cluster%s; "
@@ -430,7 +434,8 @@ void S::SchedulerWorker::add_stats(const char *stat_key,
 /* Cluster methods */
 S::Cluster::Cluster(SchedulerGlobal *global, int _id) : 
   cluster_id(_id), 
-  nreferences(0)
+  nreferences(0),
+  threads_started(false)
 {
   DEBUG_PRINT("%d", cluster_id);
   
@@ -474,6 +479,18 @@ S::Cluster::Cluster(SchedulerGlobal *global, int _id) :
   connections = new S::Connection * [nconnections];
   for(int i = 0; i < nconnections ; i++) {
     connections[i] = new S::Connection(*this, i);
+  }
+}
+
+
+void S::Cluster::startThreads() {
+  /* Threads are started only once and persist across reconfiguration.
+     But, this method will be called again for each reconf. */
+  if(threads_started == false) {
+    for(int i = 0 ; i < nconnections; i++) {
+      connections[i]->startThreads();
+    }
+    threads_started = true;
   }
 }
 
@@ -626,14 +643,17 @@ S::Connection::Connection(S::Cluster & _cl, int _id) :
   /* Initialize the queues for sent and resceduled items */
   sentqueue = new Queue<NdbInstance>(nInst);
   reschedulequeue = new Queue<NdbInstance>(nInst);
-    
+}
+
+
+void S::Connection::startThreads() {
   /* Start the poll thread */
   pthread_create( & poll_thread_id, NULL, run_poll_thread, (void *) this);
-
+  
   /* Start the send thread */
   pthread_create( & send_thread_id, NULL, run_send_thread, (void *) this);
 }
-
+  
 
 S::Connection::~Connection() {
   /* Shut down a connection. 
