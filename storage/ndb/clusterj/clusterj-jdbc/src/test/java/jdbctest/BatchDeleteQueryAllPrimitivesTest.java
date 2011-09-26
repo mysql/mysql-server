@@ -81,7 +81,7 @@ create table allprimitives (
         deleteEqualQuery("id", "PRIMARY", 5, 0);
         try {
             connection.setAutoCommit(false);
-            PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM allprimitives where id = ?");
+            PreparedStatement preparedStatement = ((com.mysql.jdbc.Connection)connection).serverPrepareStatement("DELETE FROM allprimitives where id = ?");
             // delete 4 through 9 (excluding 5 which is already gone)
             for (int i = 4; i < 9; ++i) {
                 preparedStatement.setInt(1, i);
