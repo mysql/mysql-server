@@ -214,7 +214,7 @@ int Record::getIntValue(int id, char *data) const {
 bool Record::setIntValue(int id, int value, char *data) const {
   int index = map[id];
   NumericHandler * h = handlers[index]->native_handler;
-  const char * buffer = data + specs[index].offset;
+  char * buffer = data + specs[index].offset;
   
   if(h) {
     return (h->write_int32(value,buffer) > 0);

@@ -76,13 +76,13 @@ typedef int    impl_writeToNdb(ENCODE_ARGS);
 
 /* Implementations for NumericHandlers */
 template<typename INTTYPE> int dth_read32(Int32 &, const void * const);
-template<typename INTTYPE> int dth_write32(Int32, const char *);
+template<typename INTTYPE> int dth_write32(Int32, void * const);
 int dth_read32_year(Int32 &, const void * const);
-int dth_write32_year(Int32, const char *);
+int dth_write32_year(Int32, void * const);
 int dth_read32_medium(Int32 &, const void * const);
-int dth_write32_medium(Int32, const char *);
+int dth_write32_medium(Int32, void * const);
 int dth_read32_medium_unsigned(Int32 &, const void * const);
-int dth_write32_medium_unsigned(Int32, const char *);
+int dth_write32_medium_unsigned(Int32, void * const);
 
 
 /* Implementations for readFromNdb() */
@@ -583,13 +583,15 @@ template<typename INTTYPE> size_t dth_length_u(const NdbDictionary::Column *,
   return len;  
 }
 
+/* read32: read the value from the buffer into an int32 */
 template<typename INTTYPE> int dth_read32(Int32 &result, const void * const buf) {
   LOAD_FOR_ARCHITECTURE(INTTYPE, i, buf);
   result = (Int32) i;
   return 1;
 }
 
-template<typename INTTYPE> int dth_write32(Int32 value, const char *buf) {
+/* write32: write an int32 into the buffer */
+template<typename INTTYPE> int dth_write32(Int32 value, void *buf) {
   STORE_FOR_ARCHITECTURE(INTTYPE, value, buf);
   return 1;
 }
@@ -729,7 +731,7 @@ int dth_read32_medium(Int32 &result, const void * const buf) {
   return 1;
 }
 
-int dth_write32_medium(Int32 value, const char *buf) {
+int dth_write32_medium(Int32 value, void *buf) {
   Int8 *cbuf = (Int8 *) buf;
   cbuf[0] = (Int8) (value);
   cbuf[1] = (Int8) (value >> 8);
@@ -776,7 +778,7 @@ int dth_read32_medium_unsigned(Int32 &result, const void * const buf) {
   return 1;
 }
 
-int dth_write32_medium_unsigned(Int32 value, const char *buf) {
+int dth_write32_medium_unsigned(Int32 value, void *buf) {
   Uint8 *cbuf = (Uint8 *) buf;
   cbuf[0] = (Uint8) (value);
   cbuf[1] = (Uint8) (value >> 8);
@@ -915,7 +917,7 @@ int dth_read32_year(Int32 &result, const void * const buf) {
   return 1;
 }
 
-int dth_write32_year(Int32 value, const char *buf) {
+int dth_write32_year(Int32 value, void *buf) {
   if(value < 1900 || value > 2155) 
     return 0;
   Uint8 i = (Uint8) (value - 1900);
