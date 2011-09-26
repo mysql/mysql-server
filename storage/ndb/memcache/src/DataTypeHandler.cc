@@ -54,7 +54,7 @@ memcpy(&x, buf, sizeof(x));
 Type tmp_value = (Type) x; \
 memcpy(buf, &tmp_value, sizeof(tmp_value));
 
-#ifdef __i386
+#if defined(__i386) || defined(__x86_64)
 #define LOAD_FOR_ARCHITECTURE LOAD_UNALIGNED
 #define STORE_FOR_ARCHITECTURE STORE_UNALIGNED 
 #else
@@ -835,12 +835,12 @@ int dth_decode_bigint(const NdbDictionary::Column *col,
 int dth_encode_bigint(const NdbDictionary::Column *col, size_t len,
                       const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
-  Int64 int64val = 0;
+  int64_t int64val = 0;
   
   if(! safe_strtoll(copy_buff, &int64val)) 
     return DTH_NUMERIC_OVERFLOW;
 
-  STORE_FOR_ARCHITECTURE(Int64, int64val, buf);
+  STORE_FOR_ARCHITECTURE(int64_t, int64val, buf);
   return len;
 }
 
@@ -855,12 +855,12 @@ int dth_decode_ubigint(const NdbDictionary::Column *col,
 int dth_encode_ubigint(const NdbDictionary::Column *col, size_t len,
                        const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
-  Uint64 uint64val = 0;
+  uint64_t uint64val = 0;
 
   if(! safe_strtoull(copy_buff, &uint64val))  
     return DTH_NUMERIC_OVERFLOW;
 
-  STORE_FOR_ARCHITECTURE(Uint64, uint64val, buf);
+  STORE_FOR_ARCHITECTURE(uint64_t, uint64val, buf);
   return len;
 }                                 
 
