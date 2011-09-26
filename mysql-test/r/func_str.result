@@ -2803,8 +2803,8 @@ SELECT ((rpad(1.0,2048,1)) = ('4(') ^ (0.1));
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '4('
 SELECT
-pow((rpad(1.0,2048,1)),(b'1111111111111111111111111111111111111111111'));
-ERROR 22003: DOUBLE value is out of range in 'pow(rpad(1.0,2048,1),0x07ffffffffff)'
+pow((rpad(10.0,2048,1)),(b'1111111111111111111111111111111111111111111'));
+ERROR 22003: DOUBLE value is out of range in 'pow(rpad(10.0,2048,1),0x07ffffffffff)'
 SELECT ((rpad(1.0,2048,1)) + (0) ^ ('../'));
 ((rpad(1.0,2048,1)) + (0) ^ ('../'))
 1.011111111111111
