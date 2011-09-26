@@ -11348,8 +11348,8 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
     scanReleaseLocksLab(signal);
     return;
   }//if
-  Uint32 time_passed= tcConnectptr.p->tcTimer - cLqhTimeOutCount;
-  if (rows) 
+  Uint32 time_passed= cLqhTimeOutCount - tcConnectptr.p->tcTimer;
+  if (rows)
   {
     if (time_passed > 1) 
     {
