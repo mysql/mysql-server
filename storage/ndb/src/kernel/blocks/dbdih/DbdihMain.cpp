@@ -9018,6 +9018,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   Uint32 hashValue = req->hashValue;
+  Uint32 distr_key_indicator = req->distr_key_indicator;
   Uint32 ttabFileSize = ctabFileSize;
   Uint32 fragId, newFragId = RNIL;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
@@ -9042,7 +9043,7 @@ loop:
    * of distribution algorithm in use, hashValue
    * IS fragment id.
    */
-  if (req->distr_key_indicator)
+  if (distr_key_indicator)
   {
     fragId = hashValue;
     if (unlikely(fragId >= tabPtr.p->totalfragments))

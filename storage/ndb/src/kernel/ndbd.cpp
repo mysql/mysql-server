@@ -310,7 +310,9 @@ get_multithreaded_config(EmulatorData& ed)
     return 0;
 
   ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
-         << " threads=" << globalData.ndbMtLqhThreads << endl;
+         << " threads=" << globalData.ndbMtLqhThreads
+         << " tc=" << globalData.ndbMtTcThreads
+         << endl;
 
   return 0;
 }
