@@ -2216,7 +2216,8 @@ mysql_declare_plugin(myisam)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   myisam_sysvars,             /* system variables                */
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

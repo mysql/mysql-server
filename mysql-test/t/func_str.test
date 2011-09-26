@@ -1626,6 +1626,23 @@ SET @@global.max_allowed_packet:= @tmp_max;
 --disconnect newconn
 
 
+#
+# BUG #12735829: SPACE() FUNCTION WARNING REFERS TO REPEAT() IN ER_WARN_ALLOWED_PACKET_OVERFLOWED 
+#
+
+SELECT SPACE(@@global.max_allowed_packet*2);
+
+
+#
+# BUG #11746123-23637: CHARSET AND COLLATION OF THE FUNCTION SPACE()  
+#
+
+SET NAMES latin1;
+PREPARE stmt FROM "SELECT COLLATION(space(2))";
+EXECUTE stmt;
+SET NAMES latin2;
+EXECUTE stmt;
+
 --echo #
 --echo # End of 5.6 tests
 --echo #
