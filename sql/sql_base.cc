@@ -542,8 +542,6 @@ static void table_def_use_table(THD *thd, TABLE *table)
   DBUG_ASSERT(table->db_stat && table->file);
   /* The children must be detached from the table. */
   DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
-
-  table->file->rebind_psi();
 }
 
 
@@ -560,7 +558,6 @@ static void table_def_unuse_table(TABLE *table)
   DBUG_ASSERT(! table->s->has_old_version());
 
   table->in_use= 0;
-  table->file->unbind_psi();
 
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);
@@ -1655,6 +1652,10 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     table->file->ha_reset();
   }
 
+  /* Do this *before* entering the LOCK_open critical section. */
+  if (table->file != NULL)
+    table->file->unbind_psi();
+
   mysql_mutex_lock(&LOCK_open);
 
   if (table->s->has_old_version() || table->needs_reopen() ||
@@ -2731,6 +2732,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   int error;
   TABLE_SHARE *share;
   my_hash_value_type hash_value;
+  bool recycled_free_table;
+
   DBUG_ENTER("open_table");
 
   /*
@@ -3088,6 +3091,7 @@ retry_share:
   {
     table= share->free_tables.front();
     table_def_use_table(thd, table);
+    recycled_free_table= true;
     /* We need to release share as we have EXTRA reference to it in our hands. */
     release_table_share(share);
   }
@@ -3099,6 +3103,7 @@ retry_share:
 
     mysql_mutex_unlock(&LOCK_open);
 
+    recycled_free_table= false;
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
       goto err_lock;
@@ -3139,6 +3144,13 @@ retry_share:
   }
 
   mysql_mutex_unlock(&LOCK_open);
+
+  /* Call rebind_psi outside of the LOCK_open critical section. */
+  if (recycled_free_table)
+  {
+    DBUG_ASSERT(table->file != NULL);
+    table->file->rebind_psi();
+  }
 
   table->mdl_ticket= mdl_ticket;
 
