@@ -119,10 +119,10 @@ error:
 rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
 {
   DBUG_ENTER("Sid_map::add_permanent");
-#ifdef DBUG
-  char buf[Uuid::MAX_TEXT_LENGTH + 1];
+#ifndef NO_DBUG
+  char buf[Uuid::TEXT_LENGTH + 1];
   sid->to_string(buf);
-  DBUG_PRINT("info", ("SID=%s", sid));
+  DBUG_PRINT("info", ("SID=%s", buf));
 #endif
   sid_lock->assert_some_rdlock();
   Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
@@ -165,10 +165,8 @@ enum_return_status Sid_map::write_to_disk(rpl_sidno sidno, const rpl_sid *sid)
     RETURN_REPORTED_ERROR;
   }
   uchar type_code= 0;
-  my_off_t saved_pos;
-  if (appender.tell(&saved_pos) != RETURN_STATUS_OK ||
-      appender.append(&type_code, 1, saved_pos) != APPEND_OK ||
-      sid->append(&appender, saved_pos) != APPEND_OK)
+  if (appender.append(&type_code, 1) != APPEND_OK ||
+      sid->append(&appender) != APPEND_OK)
   {
     close(); // fatal error, sid file is corrupt
     RETURN_REPORTED_ERROR;

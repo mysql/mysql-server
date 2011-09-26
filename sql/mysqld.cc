@@ -4915,19 +4915,22 @@ int mysqld_main(int argc, char **argv)
     }
 
 #ifdef HAVE_UGID
-    /*
-      Add server_uuid to the sid_map.  This must be done after
-      server_uuid has been initialized in init_server_auto_options and
-      after the binary log (and sid_map file) has been initialized in
-      init_server_components().
+    if (opt_bin_log)
+    {
+      /*
+        Add server_uuid to the sid_map.  This must be done after
+        server_uuid has been initialized in init_server_auto_options and
+        after the binary log (and sid_map file) has been initialized in
+        init_server_components().
 
-      No error message is needed: init_sid_map() prints a message.
-    */
-    mysql_bin_log.sid_lock.rdlock();
-    int ret= mysql_bin_log.init_sid_map();
-    mysql_bin_log.sid_lock.unlock();
-    if (ret)
-      unireg_abort(1);
+        No error message is needed: init_sid_map() prints a message.
+      */
+      mysql_bin_log.sid_lock.rdlock();
+      int ret= mysql_bin_log.init_sid_map();
+      mysql_bin_log.sid_lock.unlock();
+      if (ret)
+        unireg_abort(1);
+    }
 #endif
   }
 
