@@ -45,8 +45,7 @@ enum_return_status Rot_file::open(const char *_filename, bool writable)
   reader.set_file(sub_file.fd);
   appender.set_file(sub_file.fd);
   ulonglong offset;
-  enum_read_status read_status=
-    Compact_encoding::read_unsigned(&reader, &offset);
+  enum_read_status read_status= Compact_coder::read_unsigned(&reader, &offset);
   DBUG_PRINT("info", ("rotfile='%s' read_status='%d' offset='%lld'",
                       sub_file.filename, read_status, offset));
   switch (read_status)
@@ -60,7 +59,7 @@ enum_return_status Rot_file::open(const char *_filename, bool writable)
     // FALLTHROUGH
   case READ_EOF:
     // file was empty: write the header
-    if (Compact_encoding::append_unsigned(&appender, 0) != APPEND_OK)
+    if (Compact_coder::append_unsigned(&appender, 0) != APPEND_OK)
       RETURN_REPORTED_ERROR;
   }
   PROPAGATE_REPORTED_ERROR(appender.tell(&sub_file.header_length));

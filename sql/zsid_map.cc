@@ -77,63 +77,36 @@ enum_return_status Sid_map::open(const char *_filename)
   File_reader reader;
   reader.set_file(fd);
   appender.set_file(fd);
-  int pos= 0;
+  my_off_t pos= 0;
   rpl_sidno sidno= 0;
   uchar type_code;
   rpl_sid sid;
   // read each block in the file
   while (true)
   {
-    enum_read_status read_status= reader.read(&type_code, 1);
-    if (read_status == READ_ERROR)
+    if (reader.tell(&pos) != RETURN_STATUS_OK)
       goto error;
-    else if (read_status == READ_TRUNCATED)
-      goto truncate;
-    else if (read_status == READ_EOF)
-      break;
-    DBUG_ASSERT(read_status == READ_OK);
-    if (type_code == 0)
+    switch (Compact_coder::read_type_code(&reader, 2, 1, &type_code))
     {
-      // type code 0: 16-byte uuid
-      read_status= sid.read(&reader);
-      if (read_status == READ_ERROR)
-        goto error;
-      else if (read_status == READ_EOF || read_status == READ_TRUNCATED)
-        goto truncate;
-      DBUG_ASSERT(read_status == READ_OK);
-      sidno++;
-      PROPAGATE_REPORTED_ERROR(add_node(sidno, &sid));
-      pos+= 1 + Uuid::BYTE_LENGTH;
+    case READ_ERROR: goto error;
+    case READ_TRUNCATED: goto truncate;
+    case READ_EOF: RETURN_OK;
+    case READ_OK: break;
     }
-    else
+    DBUG_ASSERT(type_code == 0);
+    switch (sid.read(&reader))
     {
-      // unknown type code
-      if ((type_code & 1) == 0)
-      {
-        my_error(ER_FILE_FORMAT, MYF(0));
-        // even type code: fatal
-        goto error;
-      }
-      else
-      {
-        // odd type code: ignorable
-        ulonglong skip_len;
-        read_status= Compact_encoding::read_unsigned(&reader, &skip_len);
-        if (read_status == READ_ERROR)
-          goto error;
-        else if (read_status == READ_EOF || read_status == READ_TRUNCATED)
-          goto truncate;
-        /// @todo: if file is truncated in middle of block, truncate file
-        if (reader.seek(skip_len))
-          goto error;
-      }
+    case READ_ERROR: goto error;
+    case READ_EOF: case READ_TRUNCATED: goto truncate;
+    case READ_OK: break;
     }
+    sidno++;
+    if (add_node(sidno, &sid) != RETURN_STATUS_OK)
+      goto error;
   }
 
-  RETURN_OK;
-
 truncate:
-  if (my_chsize(fd, pos, 0, MYF(MY_WME)) != 0)  // 1 on error, 0 on success
+  if (appender.truncate(pos) != RETURN_STATUS_OK)
     goto error;
   RETURN_OK;
 
@@ -172,7 +145,7 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
     sidno= get_max_sidno() + 1;
     if (add_node(sidno, sid) != RETURN_STATUS_OK ||
         write_to_disk(sidno, sid) != RETURN_STATUS_OK ||
-        (_sync && sync() != 0))
+        (_sync && sync() != RETURN_STATUS_OK))
       sidno= -1;
   }
 

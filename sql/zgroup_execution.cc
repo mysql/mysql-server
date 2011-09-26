@@ -352,7 +352,10 @@ ugid_before_statement(THD *thd, Checkable_rwlock *lock, Group_log_state *gls,
     ugid_before_statement_begin_master_super_group(thd, lock, gls,
                                                    ugid_next_list, ugid_next);
   if (ret == UGID_STATEMENT_CANCEL)
+  {
+    lock->unlock();
     DBUG_RETURN(ret);
+  }
 
   // Begin the group, i.e., check if this statement should be skipped
   // or not.

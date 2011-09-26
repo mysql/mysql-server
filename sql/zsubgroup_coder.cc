@@ -24,7 +24,7 @@ enum_append_status Subgroup_coder::append(
   rpl_binlog_pos offset_after_last_statement,
   bool group_commit, uint32 owner_type)
 {
-  DBUG_ENTER("Group_log::Read_state::write");
+  DBUG_ENTER("Subgroup_coder::append");
   uchar buf[FULL_SUBGROUP_SIZE];
   uchar *p= buf;
   // write type code
@@ -52,17 +52,14 @@ enum_append_status Subgroup_coder::append(
 
 enum_read_status Subgroup_coder::read(Reader *reader, Subgroup *out)
 {
-  DBUG_ENTER("Group_log::Read_state::read");
+  DBUG_ENTER("Subgroup_coder::read");
   uchar buf[FULL_SUBGROUP_SIZE];
-  my_off_t saved_pos;
-  if (reader->tell(&saved_pos) != RETURN_STATUS_OK)
-    DBUG_RETURN(READ_ERROR);
-  READER_READ(reader, saved_pos, 2, buf);
-  READER_CHECK_FORMAT(reader, saved_pos,
+  PROPAGATE_READ_STATUS(reader->read(buf, 2));
+  READER_CHECK_FORMAT(reader,
                       buf[0] == SPECIAL_TYPE &&
                       (buf[1] == FULL_SUBGROUP ||
                        (buf[1] >= MIN_IGNORABLE_TYPE && (buf[1] & 1) == 1)));
-  READER_READ(reader, saved_pos, FULL_SUBGROUP_SIZE, buf);
+  PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, FULL_SUBGROUP_SIZE));
 #define UNPACK(FIELD, N) out->FIELD= sint ## N ## korr(p), p += N
   uchar *p= buf;
   UNPACK(sidno, 4);

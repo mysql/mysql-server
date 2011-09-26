@@ -84,17 +84,14 @@ enum_read_status Group_log::Group_log_reader::do_read_subgroup(
   Subgroup *subgroup)
 {
   DBUG_ENTER("Group_log::Reader::do_read_subgroup(Subgroup *)");
-  my_off_t saved_pos;
-  if (rot_file_reader.tell(&saved_pos) != RETURN_STATUS_OK)
-    DBUG_RETURN(READ_ERROR);
   PROPAGATE_READ_STATUS(decoder.read(&rot_file_reader, subgroup));
   const Sid_map *log_sid_map= group_log->get_sid_map();
   if (output_sid_map != log_sid_map)
   {
     const rpl_sid *sid= log_sid_map->sidno_to_sid(subgroup->sidno);
-    READER_CHECK_FORMAT(&rot_file_reader, saved_pos, sid != NULL);
+    READER_CHECK_FORMAT(&rot_file_reader, sid != NULL);
     subgroup->sidno= output_sid_map->add_permanent(sid);
-    READER_CHECK_FORMAT(&rot_file_reader, saved_pos, subgroup->sidno < 1);
+    READER_CHECK_FORMAT(&rot_file_reader, subgroup->sidno < 1);
   }
   DBUG_RETURN(READ_OK);
 }
