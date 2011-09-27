@@ -1468,3 +1468,17 @@ DROP TABLE t1,t2;
 
 --echo # End of Bug#12798270
 
+--echo #
+--echo # Bug#12837714: ADDITIONAL NULL IN 5.6 ON GROUPED SELECT
+--echo #
+
+CREATE TABLE t1 (vc varchar(1), INDEX vc_idx (vc)) ;
+INSERT INTO t1 VALUES (NULL), ('o'), (NULL), ('p'), ('c');
+
+FLUSH TABLE t1;
+
+SELECT vc FROM t1 GROUP BY vc;
+
+DROP TABLE t1; 
+
+--echo # End of Bug#12837714
