@@ -20,9 +20,9 @@ IF(NOT MSVC)
 # we're going to retest using "-march=pentium"
 
 
-  if(${CMAKE_COMPILER_IS_GNUCC} AND NOT ${HAVE_GCC_ATOMIC_BUILTINS})
+  if(CMAKE_COMPILER_IS_GNUCC AND NOT HAVE_GCC_ATOMIC_BUILTINS)
      set(OLD_FLAGS ${CMAKE_REQUIRED_FLAGS})
-     set(CMAKE_REQUIRED_FLAGS ${OLD_FLAGS} -march=pentium)
+     set(CMAKE_REQUIRED_FLAGS "${OLD_FLAGS} -march=pentium")
      CHECK_C_SOURCE_RUNS(
          "int main() {
           volatile int foo= -10; 
