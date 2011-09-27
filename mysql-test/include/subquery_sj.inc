@@ -1842,6 +1842,14 @@ SELECT t1field
 FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 
+SELECT t1.t1field
+FROM t1 LEFT JOIN t1 AS t2 ON t1.t1field IN (SELECT v1field FROM v1);
+
+EXPLAIN
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT v1field FROM v1);
+
 delimiter |;
 CREATE PROCEDURE p1() 
   BEGIN 
@@ -3949,3 +3957,29 @@ ORDER BY col_datetime_key LIMIT 4;
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#12818569.
+
+--echo #
+--echo # Bug#12803439: Assert in replace_subcondition() on update query
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+
+INSERT INTO t1 values(1), (2);
+
+CREATE TABLE t2(a INTEGER);
+
+INSERT INTO t2 VALUES(1), (3);
+
+SELECT *
+FROM t1
+WHERE a IN (SELECT a
+            FROM t2
+            HAVING a IN (SELECT a
+                         FROM t2)
+            )
+HAVING a IN (SELECT a
+             FROM t2);
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#12803439.
