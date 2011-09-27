@@ -621,6 +621,14 @@ class st_select_lex: public st_select_lex_node
 {
 public:
   Name_resolution_context context;
+  /*
+    Two fields used by semi-join transformations to know when semi-join is
+    possible, and in which condition tree the subquery predicate is located.
+  */
+  enum Resolve_place { RESOLVE_NONE, RESOLVE_JOIN_NEST, RESOLVE_CONDITION,
+                       RESOLVE_HAVING };
+  Resolve_place resolve_place; // Indicates part of query being resolved
+  TABLE_LIST *resolve_nest;    // Used when resolving outer join condition
   char *db;
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
