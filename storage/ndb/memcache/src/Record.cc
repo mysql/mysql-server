@@ -237,7 +237,8 @@ Uint64 Record::getUint64Value(int id, char *data) const {
     return 0;
   }
   
-  return * ((Uint64 *) buffer);
+  LOAD_FOR_ARCHITECTURE(Uint64, value, buffer);
+  return value;
 }
 
 
@@ -251,7 +252,7 @@ bool Record::setUint64Value(int id, Uint64 value, char *data) const {
     return false;
   }
   
-  * ((Uint64 *) buffer) = value;
+  STORE_FOR_ARCHITECTURE(Uint64, value, buffer);
   return true;
 }  
 
