@@ -921,6 +921,9 @@ struct handlerton
                            AQP::Join_plan* plan,
                            uint* pushed);
 #endif
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+   int (*global_schema_func)(THD* thd, bool lock, void* args);
+#endif
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -2606,6 +2609,19 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
+#endif
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+class Ha_global_schema_lock_guard
+{
+public:
+  Ha_global_schema_lock_guard(THD *thd);
+  ~Ha_global_schema_lock_guard();
+  int lock(bool no_lock_queue= false);
+private:
+  THD* m_thd;
+  bool m_locked;
+};
 #endif
 
 const char *get_canonical_filename(handler *file, const char *path,

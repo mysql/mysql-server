@@ -338,7 +338,13 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
   if ((error= open_table_def(thd, shadow_table_share, 0)) ||
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
-                                    0, shadow_table, OTM_OPEN)))
+                                    0, shadow_table,
+#ifdef NDB_WITHOUT_ONLINE_ALTER
+                                    false
+#else
+                                    OTM_OPEN
+#endif
+                                    )))
   {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d my_errno: %d",
                          error, my_errno));
@@ -2330,7 +2336,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   if (do_close_cached_tables)
   {
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= (char *)dbname;
     table_list.alias= table_list.table_name= (char *)tabname;
     close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
@@ -2556,7 +2562,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
               ndbtab_g.invalidate();
             }
             TABLE_LIST table_list;
-            bzero((char*) &table_list,sizeof(table_list));
+            memset(&table_list, 0, sizeof(table_list));
             table_list.db= schema->db;
             table_list.alias= table_list.table_name= schema->name;
             close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
@@ -2886,7 +2892,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
         {
           TABLE_LIST table_list;
-          bzero((char*) &table_list,sizeof(table_list));
+          memset(&table_list, 0, sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
           close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
@@ -2922,7 +2928,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
         {
           TABLE_LIST table_list;
-          bzero((char*) &table_list,sizeof(table_list));
+          memset(&table_list, 0, sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
           close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
@@ -2991,7 +2997,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           remote on-line alter table
         */
         TABLE_LIST table_list;
-        bzero((char*) &table_list,sizeof(table_list));
+        memset(&table_list, 0, sizeof(table_list));
         table_list.db= (char *)schema->db;
         table_list.alias= table_list.table_name= (char *)schema->name;
         close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
@@ -3514,7 +3520,7 @@ inline void slave_reset_conflict_fn(NDB_SHARE *share)
   NDB_CONFLICT_FN_SHARE *cfn_share= share->m_cfn_share;
   if (cfn_share)
   {
-    bzero((char*)cfn_share, sizeof(*cfn_share));
+    memset(cfn_share, 0, sizeof(*cfn_share));
   }
 }
 
@@ -5841,7 +5847,7 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
       if (row == NULL)
       {
         row= (ndb_binlog_index_row*)sql_alloc(sizeof(ndb_binlog_index_row));
-        bzero((char*)row, sizeof(ndb_binlog_index_row));
+        memset(row, 0, sizeof(ndb_binlog_index_row));
         row->next= first;
         *rows= row;
         if (found_id)
@@ -6925,7 +6931,7 @@ restart_cluster_failure:
         DBUG_PRINT("info", ("Initializing transaction"));
         inj->new_trans(thd, &trans);
         rows= &_row;
-        bzero((char*)&_row, sizeof(_row));
+        memset(&_row, 0, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
         goto commit_to_binlog;
       }
@@ -6952,7 +6958,7 @@ restart_cluster_failure:
           setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
         i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
 
-        bzero((char*)&_row, sizeof(_row));
+        memset(&_row, 0, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
         DBUG_PRINT("info", ("Initializing transaction"));
         inj->new_trans(thd, &trans);
