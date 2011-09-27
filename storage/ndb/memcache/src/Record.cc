@@ -244,7 +244,7 @@ Uint64 Record::getUint64Value(int id, char *data) const {
 
 bool Record::setUint64Value(int id, Uint64 value, char *data) const {
   int index = map[id];
-  const char * buffer = data + specs[index].offset;
+  char * buffer = data + specs[index].offset;
 
   if(specs[index].column->getType() != NdbDictionary::Column::Bigunsigned) {
     logger->log(LOG_WARNING, 0, "Operation failed - column %s must be BIGINT UNSIGNED",
