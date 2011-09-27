@@ -459,8 +459,9 @@ sub main {
   #
   read_plugin_defs("include/plugin.defs");
 
-  # Also read from any plugin local plugin.defs
-  for (glob "$basedir/plugin/*/tests/mtr/plugin.defs") {
+  # Also read from any plugin local or suite specific plugin.defs
+  for (glob "$basedir/plugin/*/tests/mtr/plugin.defs".
+            " suite/*/plugin.defs") {
     read_plugin_defs($_);
   }
 

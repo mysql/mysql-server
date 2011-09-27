@@ -967,16 +967,9 @@ DROP TABLE t1;
 
 --echo #
 --echo # BUG#12601961 "SEGFAULT IN HANDLER::COMPARE_KEY2"
+--echo # BUG#12724899 "SELECT STRAIGHT_JOIN QUERY GIVES 2 DATES VERSUS
+--echo #               2 WARNINGS WITH ICP ON"
 --echo #
-
-# Note: Until Bug#12724899 is fixed this test should only run
-# with InnoDB as storage engine since the query produces
-# wrong result when using MyISAM.
-
-let $se= `select @@default_storage_engine`;
-
-if ($se == 'InnoDB' )
-{
 
 CREATE TABLE t1 (
   pk INTEGER NOT NULL, 
@@ -998,5 +991,32 @@ eval $query;
 
 DROP TABLE t1;
 
-}
+--echo #
+--echo # BUG#12822678 - 2 MORE ROWS WHEN ICP=ON W/ STRAIGHT_JOIN
+--echo #
 
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  d1 DOUBLE,
+  KEY k1 (d1)
+);
+
+INSERT INTO t1 VALUES (10,1), (17,NULL), (22,NULL);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (4,1);
+
+let query=
+SELECT t1.d1, t2.pk, t2.i1
+FROM t1 STRAIGHT_JOIN t2 ON t2.i1
+WHERE t2.pk <> t1.d1 AND t2.pk = 4;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
