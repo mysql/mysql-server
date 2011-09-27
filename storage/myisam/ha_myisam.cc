@@ -1603,6 +1603,8 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   key_part_map keypart_map,
                                   enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(pushed_idx_cond == NULL);
+  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&SSV::ha_read_key_count);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
@@ -2214,7 +2216,8 @@ mysql_declare_plugin(myisam)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   myisam_sysvars,             /* system variables                */
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -180,7 +180,7 @@ page_zip_rec_needs_ext(
 	}
 #endif
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		ut_ad(comp);
 		/* On a compressed page, there is a two-byte entry in
 		the dense page directory for every record.  But there
@@ -238,11 +238,11 @@ page_zip_get_trailer_len(
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
-	if (UNIV_UNLIKELY(!page_is_leaf(page_zip->data))) {
+	if (!page_is_leaf(page_zip->data)) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 			+ REC_NODE_PTR_SIZE;
 		ut_ad(!page_zip->n_blobs);
-	} else if (UNIV_UNLIKELY(is_clust)) {
+	} else if (is_clust) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 			+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 	} else {

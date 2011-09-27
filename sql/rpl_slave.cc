@@ -5848,6 +5848,10 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
+  /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
+  if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
+
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
          (reconnect ? mysql_reconnect(mysql) != 0 :
           mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,

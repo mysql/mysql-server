@@ -180,6 +180,12 @@ struct PFS_table
   */
   bool m_lock_timed;
 
+  /** True if table io statistics have been collected. */
+  bool m_has_io_stats;
+
+  /** True if table lock statistics have been collected. */
+  bool m_has_lock_stats;
+
 public:
   /**
     Aggregate this table handle statistics to the parents.
@@ -188,8 +194,12 @@ public:
   */
   void aggregate(void)
   {
-    if (likely(m_thread_owner != NULL))
+    if (likely((m_thread_owner != NULL) && (m_has_io_stats || m_has_lock_stats)))
+    {
       safe_aggregate(& m_table_stat, m_share, m_thread_owner);
+      m_has_io_stats= false;
+      m_has_lock_stats= false;
+    }
   }
 
   /**
@@ -263,8 +273,24 @@ struct PFS_socket : public PFS_instr
 /**
   @def WAIT_STACK_LOGICAL_SIZE
   Maximum number of nested waits.
+  Some waits, such as:
+  - "wait/io/table/sql/handler"
+  - "wait/lock/table/sql/handler"
+  are implemented by calling code in a storage engine,
+  that can cause nested waits (file io, mutex, ...)
+  Because of partitioned tables, a table io event (on the whole table)
+  can contain a nested table io event (on a partition).
+  Because of additional debug instrumentation,
+  waiting on what looks like a "mutex" (safe_mutex, innodb sync0sync, ...)
+  can cause nested waits to be recorded.
+  For example, a wait on innodb mutexes can lead to:
+  - wait/sync/mutex/innobase/some_mutex
+    - wait/sync/mutex/innobase/sync0sync
+      - wait/sync/mutex/innobase/os0sync
+  The max depth of the event stack must be sufficient
+  for these low level details to be visible.
 */
-#define WAIT_STACK_LOGICAL_SIZE 3
+#define WAIT_STACK_LOGICAL_SIZE 5
 /**
   @def WAIT_STACK_BOTTOM
   Maximum number dummy waits records.

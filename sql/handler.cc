@@ -3126,6 +3126,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_INDEX_CORRUPT:
     textno= ER_INDEX_CORRUPT;
     break;
+  case HA_ERR_UNDO_REC_TOO_BIG:
+    textno= ER_UNDO_RECORD_TOO_BIG;
+    break;
   default:
     {
       /* The error was "unknown" to this function.

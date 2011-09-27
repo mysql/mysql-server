@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -250,7 +250,7 @@ dict_index_is_clust(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_CLUSTERED));
+	return(index->type & DICT_CLUSTERED);
 }
 /********************************************************************//**
 Check whether the index is unique.
@@ -264,7 +264,7 @@ dict_index_is_unique(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_UNIQUE));
+	return(index->type & DICT_UNIQUE);
 }
 
 /********************************************************************//**
@@ -283,6 +283,21 @@ dict_index_is_ibuf(
 }
 
 /********************************************************************//**
+Check whether the index is an universal index tree.
+@return	nonzero for universal tree, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_is_univ(
+/*===============*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UNIV_UNLIKELY(index->type & DICT_UNIVERSAL));
+}
+
+/********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE
@@ -298,7 +313,7 @@ dict_index_is_sec_or_ibuf(
 
 	type = index->type;
 
-	return(UNIV_LIKELY(!(type & DICT_CLUSTERED) || (type & DICT_IBUF)));
+	return(!(type & DICT_CLUSTERED) || (type & DICT_IBUF));
 }
 
 /********************************************************************//**
@@ -467,7 +482,7 @@ dict_table_flags_to_zip_size(
 {
 	ulint	zip_size = flags & DICT_TF_ZSSIZE_MASK;
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
 			 << (zip_size >> DICT_TF_ZSSIZE_SHIFT));
 
@@ -645,7 +660,7 @@ dict_index_get_sys_col_pos(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(!(index->type & DICT_UNIVERSAL));
+	ut_ad(!dict_index_is_univ(index));
 
 	if (dict_index_is_clust(index)) {
 
