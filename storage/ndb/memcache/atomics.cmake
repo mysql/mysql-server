@@ -45,6 +45,7 @@ IF(NOT MSVC)
       set(CMAKE_REQUIRED_FLAGS ${OLD_FLAGS})
   endif()
 
+
   CHECK_C_SOURCE_RUNS(
     "#include <libkern/OSAtomic.h>
      int main() {
