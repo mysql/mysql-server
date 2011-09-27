@@ -291,7 +291,8 @@ class set_var_base;
   tells whether we are choosing the said optimization), "cause" (free text
   value, tells why we are making this choice, when it's not obvious)
   can and should often be used. Having a restricted vocabulary helps
-  consistency.
+  consistency. Use "row" instead of "record". Use "tmp" instead of
+  "temporary".
 
   @li Use only simple characters for key names: a-ZA-Z_#, and no space. '#'
   serves to denote a number, like in "select#" .
@@ -623,25 +624,25 @@ public:
   {
     if (likely(!started))
       return *this;
-    return do_add(key, (longlong)value);
+    return do_add(key, static_cast<longlong>(value));
   }
   Opt_trace_struct& add(int value)
   {
     if (likely(!started))
       return *this;
-    return do_add(NULL, (longlong)value);
+    return do_add(NULL, static_cast<longlong>(value));
   }
   Opt_trace_struct& add(const char *key, uint value)
   {
     if (likely(!started))
       return *this;
-    return do_add(key, (ulonglong)value);
+    return do_add(key, static_cast<ulonglong>(value));
   }
   Opt_trace_struct& add(uint value)
   {
     if (likely(!started))
       return *this;
-    return do_add(NULL, (ulonglong)value);
+    return do_add(NULL, static_cast<ulonglong>(value));
   }
   Opt_trace_struct& add(const char *key, longlong value)
   {
@@ -679,6 +680,19 @@ public:
       return *this;
     return do_add(NULL, value);
   }
+  /// Adds a 64-bit integer to trace, in hexadecimal format
+  Opt_trace_struct& add_hex(const char *key, uint64 value)
+  {
+    if (likely(!started))
+      return *this;
+    return do_add_hex(key, value);
+  }
+  Opt_trace_struct& add_hex(uint64 value)
+  {
+    if (likely(!started))
+      return *this;
+    return do_add_hex(NULL, value);
+  }
   /// Adds a JSON null object (==Python's "None")
   Opt_trace_struct& add_null(const char *key)
   {
@@ -690,7 +704,7 @@ public:
      Helper to put the database/table name in an object.
      @param  tab  TABLE* pointer
   */
-  Opt_trace_struct& add_utf8_table(TABLE *tab)
+  Opt_trace_struct& add_utf8_table(const TABLE *tab)
   {
     if (likely(!started))
       return *this;
@@ -748,8 +762,9 @@ private:
   Opt_trace_struct& do_add(const char *key, longlong value);
   Opt_trace_struct& do_add(const char *key, ulonglong value);
   Opt_trace_struct& do_add(const char *key, double value);
+  Opt_trace_struct& do_add_hex(const char *key, uint64 value);
   Opt_trace_struct& do_add_null(const char *key);
-  Opt_trace_struct& do_add_utf8_table(TABLE *tab);
+  Opt_trace_struct& do_add_utf8_table(const TABLE *tab);
 
   Opt_trace_struct(const Opt_trace_struct&);            ///< not defined
   Opt_trace_struct& operator=(const Opt_trace_struct&); ///< not defined
@@ -978,9 +993,11 @@ class st_select_lex;
    (Item-s).
    @param  thd         the THD
    @param  select_lex  query's parse tree
+   @param  trace_object  Opt_trace_object to which the query will be added
 */
 void opt_trace_print_expanded_query(THD *thd,
-                                    st_select_lex *select_lex);
+                                    st_select_lex *select_lex,
+                                    Opt_trace_object *trace_object);
 
 /**
    If the security context is not that of the connected user, inform the trace
@@ -1102,7 +1119,8 @@ public:
   Opt_trace_object& add(const char *key, longlong value) { return *this; }
   Opt_trace_object& add(const char *key, ulonglong value) { return *this; }
   Opt_trace_object& add(const char *key, double value) { return *this; }
-  Opt_trace_object& add_utf8_table(TABLE *tab) { return *this; }
+  Opt_trace_object& add_hex(const char *key, uint64 value) { return *this; }
+  Opt_trace_object& add_utf8_table(const TABLE *tab) { return *this; }
   Opt_trace_object& add_select_number(uint select_number) { return *this; }
   void end() {}
 };
@@ -1131,6 +1149,7 @@ public:
   Opt_trace_array& add(longlong value) { return *this; }
   Opt_trace_array& add(ulonglong value) { return *this; }
   Opt_trace_array& add(double value) { return *this; }
+  Opt_trace_array& add_hex(uint64 value) { return *this; }
   Opt_trace_array& add_utf8_table(TABLE *tab) { return *this; }
   Opt_trace_array& add_select_number(uint select_number) { return *this; }
   void end() {}
@@ -1154,7 +1173,8 @@ public:
                   const CHARSET_INFO *query_charset) {}
 };
 
-#define opt_trace_print_expanded_query(thd, select_lex) do {} while (0)
+#define opt_trace_print_expanded_query(thd, select_lex, trace_object) \
+  do {} while (0)
 #define opt_trace_disable_if_no_view_access(thd, view, underlying_tables) \
   do {} while (0)
 #define opt_trace_disable_if_no_stored_proc_func_access(thd, sp) do{} while(0)

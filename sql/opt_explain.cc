@@ -848,7 +848,7 @@ bool Explain_join::explain_key_and_len()
 {
   if (tab->ref.key_parts)
     return explain_key_and_len_index(tab->ref.key, tab->ref.key_length);
-  else if (tab->type == JT_NEXT)
+  else if (tab->type == JT_INDEX_SCAN)
     return explain_key_and_len_index(tab->index);
   else if (tab->select && tab->select->quick)
     return explain_key_and_len_quick(tab->select);
@@ -908,7 +908,7 @@ bool Explain_join::explain_rows_and_filtered()
   double examined_rows;
   if (tab->select && tab->select->quick)
     examined_rows= rows2double(tab->select->quick->records);
-  else if (tab->type == JT_NEXT || tab->type == JT_ALL)
+  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
   {
     if (tab->limit)
       examined_rows= rows2double(tab->limit);
@@ -993,7 +993,7 @@ bool Explain_join::explain_extra()
       else
         str_extra.append(STRING_WITH_LEN("; Scanned all databases"));
     }
-    if (((tab->type == JT_NEXT || tab->type == JT_CONST) &&
+    if (((tab->type == JT_INDEX_SCAN || tab->type == JT_CONST) &&
          table->covering_keys.is_set(tab->index)) ||
         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&
          !((QUICK_ROR_INTERSECT_SELECT*) select->quick)->need_to_fetch_row) ||

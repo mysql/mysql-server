@@ -13287,7 +13287,7 @@ innobase_index_cond(
 /** Attempt to push down an index condition.
 * @param[in] keyno	MySQL key number
 * @param[in] idx_cond	Index condition to be checked
-* @return idx_cond if pushed; NULL if not pushed
+* @return Part of idx_cond which the handler will not evaluate
 */
 UNIV_INTERN
 class Item*
@@ -13302,6 +13302,6 @@ ha_innobase::idx_cond_push(
 	pushed_idx_cond = idx_cond;
 	pushed_idx_cond_keyno = keyno;
 	in_range_check_pushed_down = TRUE;
-	/* Table handler will check the entire condition */
+	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
 }
