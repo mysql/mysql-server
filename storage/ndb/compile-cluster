@@ -1,0 +1,127 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+# -*- cperl -*-
+#
+# MySQL Cluster compile script to bridge the gap between
+# different build systems in different versions of MySQL Server
+#
+# This script is intended for internal use
+#
+use strict;
+use Cwd 'abs_path';
+use File::Basename;
+use Getopt::Long;
+
+# Only add the command line options handled by this script, 
+# thus acting like a filter and passing all other arguments
+# straight through
+my $opt_debug;
+Getopt::Long::Configure("pass_through");
+GetOptions(
+
+  # Build MySQL Server and NDB with debug
+  'debug' => \$opt_debug,
+  'with-debug:s' => sub { $opt_debug = 1; },
+
+) or exit(1);
+
+# Find source root directory, assume this script is
+# in <srcroot>/storage/ndb/
+my $srcdir = dirname(dirname(dirname(abs_path($0))));
+die unless -d $srcdir; # Sanity check that the srcdir exist
+if ($^O eq "cygwin") {
+  # Convert posix path to Windows mixed path since cmake
+  # is most likely a windows binary
+  $srcdir= `cygpath -m $srcdir`;
+  chomp $srcdir;
+}
+
+# Check that cmake exists and figure out it's version 
+my $cmake_version_id;
+{
+  my $version_text = `cmake --version`;
+  print $version_text;
+  die "Could not find cmake" if ($?);
+  if ( $version_text =~ /^cmake version ([0-9]*)\.([0-9]*)\.*([^\s]*)/ )
+  {
+    #print "1: $1 2: $2 3: $3\n";
+    $cmake_version_id= $1*10000 + $2*100 + $3;
+    print "cmake_version_id: $cmake_version_id\n";
+  }
+  die "Could not parse cmake version" unless ($cmake_version_id);
+}
+
+
+#
+# Configure
+#
+{
+  my @args;
+  push(@args, "$srcdir/cmake/configure.pl");
+
+  # MySQL Server options
+  push(@args, "--with-ssl");
+ 
+  if ($opt_debug)
+  {
+    push(@args, "--with-debug");
+    push(@args, "--disable-mysql-maintainer-mode");
+  }
+
+  # NDB options
+  push(@args, "--with-plugin-ndbcluster");
+  push(@args, "--with-ndb-test");
+
+  cmd($^X, @args, @ARGV);
+}
+
+#
+# Build
+#
+{
+  if ($cmake_version_id >= 20800)
+  {
+    # Use the universal "cmake --build <srcdir>" way of building
+    # which is available from cmake 2.8 and works on all platforms
+    my @args;
+    push(@args, "--build");
+  
+    push(@args, "$srcdir");
+
+    cmd("cmake", @args);
+
+  }
+  else
+  {
+    # Use make to build, not supported on Windows
+    die "You need to install cmake with version > 2.8"
+      if ($^O eq "cygwin" or $^O eq "MSWin32");
+
+    cmd("make -C $srcdir");
+  }
+}
+
+sub cmd {
+  my ($cmd, @a)= @_;
+  print "compile-cluster: calling '$cmd ", join(' ', @a), "'\n";
+  system($cmd, @a)
+    and print("command failed: $!\n")
+      and exit(1);
+}
+
+exit(0);
