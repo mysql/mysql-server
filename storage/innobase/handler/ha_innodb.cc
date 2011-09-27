@@ -8295,9 +8295,11 @@ innobase_get_mysql_key_number_for_index(
 	unsigned int		i;
 
  	ut_a(index);
+	ut_ad(strcmp(index->table->name, ib_table->name) == 0);
 
-	/* If index does not belong to the table of share structure. Search
-	index->table instead */
+	/* If index does not belong to the table object of share structure
+	(ib_table comes from the share structure) search the index->table
+	object instead */
 	if (index->table != ib_table) {
 		i = 0;
 		ind = dict_table_get_first_index(index->table);
