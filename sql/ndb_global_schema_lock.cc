@@ -177,7 +177,8 @@ private:
 
 extern ulong opt_ndb_extra_logging;
 
-static int
+static
+int
 ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
                               bool report_cluster_disconnected)
 {
@@ -352,15 +353,30 @@ ndbcluster_global_schema_unlock(THD *thd)
   DBUG_RETURN(0);
 }
 
+static
+int
+ndbcluster_global_schema_func(THD *thd, bool lock, void* args)
+{
+  if (lock)
+  {
+    bool no_lock_queue = (bool)args;
+    return ndbcluster_global_schema_lock(thd, no_lock_queue, true);
+  }
+ 
+  return ndbcluster_global_schema_unlock(thd);
+}
+
 #include "ndb_global_schema_lock.h"
 
-void ndbcluster_global_schema_lock_init(void)
+void ndbcluster_global_schema_lock_init(handlerton *hton)
 {
   assert(gsl_initialized == false);
   assert(gsl_is_locked_or_queued == 0);
   assert(gsl_no_locking_allowed == 0);
   gsl_initialized= true;
   pthread_mutex_init(&gsl_mutex, MY_MUTEX_INIT_FAST);
+
+  hton->global_schema_func= ndbcluster_global_schema_func;
 }
 
 

@@ -279,7 +279,7 @@ struct Ndb_local_table_statistics {
 #include "ndb_thd_ndb.h"
 
 struct st_ndb_status {
-  st_ndb_status() { bzero(this, sizeof(struct st_ndb_status)); }
+  st_ndb_status() { memset(this, 0, sizeof(struct st_ndb_status)); }
   long cluster_node_id;
   const char * connected_host;
   long connected_port;
@@ -511,7 +511,7 @@ static void set_tabname(const char *pathname, char *tabname);
                                      qc_engine_callback *engine_callback,
                                      ulonglong *engine_data);
 
-#ifndef MCP_WL3749
+#ifndef NDB_WITHOUT_ONLINE_ALTER
   int check_if_supported_alter(TABLE *altered_table,
                                HA_CREATE_INFO *create_info,
                                HA_ALTER_INFO *alter_info,
@@ -631,7 +631,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-#ifndef MCP_WL3749
+#ifndef NDB_WITHOUT_ONLINE_ALTER
   int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
 #endif
 
