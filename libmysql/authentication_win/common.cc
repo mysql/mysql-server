@@ -22,6 +22,24 @@ template <> void error_log_print<error_log_level::INFO>(const char *fmt, ...);
 template <> void error_log_print<error_log_level::WARNING>(const char *fmt, ...);
 template <> void error_log_print<error_log_level::ERROR>(const char *fmt, ...);
 
+/**
+  Option indicating desired level of logging. Values:
+
+  0 - no logging
+  1 - log only error messages
+  2 - additionally log warnings
+  3 - additionally log info notes
+  4 - also log debug messages
+
+  Value of this option should be taken into account in the 
+  implementation of  error_log_vprint() function (see 
+  log_client.cc).
+
+  Note: No error or debug messages are logged in production code
+  (see logging macros in common.h).
+*/
+int opt_auth_win_log_level= 2;
+
 
 /** Connection class **************************************************/
 

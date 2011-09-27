@@ -1243,6 +1243,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_UNSUPPORTED);
 	case DB_INDEX_CORRUPT:
 		return(HA_ERR_INDEX_CORRUPT);
+	case DB_UNDO_RECORD_TOO_BIG:
+		return(HA_ERR_UNDO_REC_TOO_BIG);
 	}
 }
 
@@ -4378,25 +4380,6 @@ field_in_record_is_null(
 	}
 
 	return(0);
-}
-
-/**************************************************************//**
-Sets a field in a record to SQL NULL. Uses the record format
-information in table to track the null bit in record. */
-static inline
-void
-set_field_in_record_to_null(
-/*========================*/
-	TABLE*	table,	/*!< in: MySQL table object */
-	Field*	field,	/*!< in: MySQL field object */
-	char*	record)	/*!< in: a row in MySQL format */
-{
-	int	null_offset;
-
-	null_offset = (uint) ((char*) field->null_ptr
-		    - (char*) table->record[0]);
-
-	record[null_offset] = record[null_offset] | field->null_bit;
 }
 
 /*************************************************************//**
@@ -13033,7 +13016,8 @@ mysql_declare_plugin(innobase)
   INNODB_VERSION_SHORT,
   innodb_status_variables_export,/* status variables             */
   innobase_system_variables, /* system variables */
-  NULL /* reserved */
+  NULL, /* reserved */
+  0,    /* flags */
 },
 i_s_innodb_trx,
 i_s_innodb_locks,

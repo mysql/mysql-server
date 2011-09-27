@@ -542,8 +542,6 @@ static void table_def_use_table(THD *thd, TABLE *table)
   DBUG_ASSERT(table->db_stat && table->file);
   /* The children must be detached from the table. */
   DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
-
-  table->file->rebind_psi();
 }
 
 
@@ -560,7 +558,6 @@ static void table_def_unuse_table(TABLE *table)
   DBUG_ASSERT(! table->s->has_old_version());
 
   table->in_use= 0;
-  table->file->unbind_psi();
 
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);
@@ -1660,6 +1657,10 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     table->file->ha_reset();
   }
 
+  /* Do this *before* entering the LOCK_open critical section. */
+  if (table->file != NULL)
+    table->file->unbind_psi();
+
   mysql_mutex_lock(&LOCK_open);
 
   if (table->s->has_old_version() || table->needs_reopen() ||
@@ -2741,6 +2742,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   int error;
   TABLE_SHARE *share;
   my_hash_value_type hash_value;
+  bool recycled_free_table;
+
   DBUG_ENTER("open_table");
 
   /*
@@ -3098,6 +3101,7 @@ retry_share:
   {
     table= share->free_tables.front();
     table_def_use_table(thd, table);
+    recycled_free_table= true;
     /* We need to release share as we have EXTRA reference to it in our hands. */
     release_table_share(share);
   }
@@ -3109,6 +3113,7 @@ retry_share:
 
     mysql_mutex_unlock(&LOCK_open);
 
+    recycled_free_table= false;
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
       goto err_lock;
@@ -3153,6 +3158,13 @@ retry_share:
   }
 
   mysql_mutex_unlock(&LOCK_open);
+
+  /* Call rebind_psi outside of the LOCK_open critical section. */
+  if (recycled_free_table)
+  {
+    DBUG_ASSERT(table->file != NULL);
+    table->file->rebind_psi();
+  }
 
   table->mdl_ticket= mdl_ticket;
 
@@ -8378,29 +8390,33 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
 }
 
 
-/*
-  prepare tables and check access for the view tables
+/**
+  Prepare tables and check access for the view tables.
 
-  SYNOPSIS
-    setup_tables_and_check_view_access()
-    thd		  Thread handler
-    context       name resolution contest to setup table list there
-    from_clause   Top-level list of table references in the FROM clause
-    tables	  Table list (select_lex->table_list)
-    conds	  Condition of current SELECT (can be changed by VIEW)
-    leaves        List of join table leaves list (select_lex->leaf_tables)
-    refresh       It is onle refresh for subquery
-    select_insert It is SELECT ... INSERT command
-    want_access   what access is needed
+  @param thd                Thread context.
+  @param context            Name resolution contest to setup table list
+                            there.
+  @param from_clause        Top-level list of table references in the
+                            FROM clause.
+  @param tables             Table list (select_lex->table_list).
+  @param leaves[in/out]     List of join table leaves list
+                            (select_lex->leaf_tables).
+  @param select_insert      It is SELECT ... INSERT command/
+  @param want_access_first  What access is requested of the first leaf.
+  @param want_access        What access is requested on the rest of leaves.
 
-  NOTE
-    a wrapper for check_tables that will also check the resulting
-    table leaves list for access to all the tables that belong to a view
+  @note A wrapper for check_tables that will also check the resulting
+        table leaves list for access to all the tables that belong to
+        a view.
 
-  RETURN
-    FALSE ok;  In this case *map will include the chosen index
-    TRUE  error
+  @note Beware that it can't properly check privileges in cases when
+        table being changed is not the first table in the list of leaf
+        tables (for example, for multi-UPDATE).
+
+  @retval FALSE - Success.
+  @retval TRUE  - Error.
 */
+
 bool setup_tables_and_check_access(THD *thd, 
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause,

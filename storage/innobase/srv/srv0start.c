@@ -1395,6 +1395,11 @@ innobase_start_or_create_for_mysql(void)
 			" InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
+#if defined(COMPILER_HINTS_ENABLED)
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Compiler hints enabled.\n");
+#endif /* defined(COMPILER_HINTS_ENABLED) */
+
 	ut_print_timestamp(stderr);
 	fputs(" InnoDB: " IB_ATOMICS_STARTUP_MSG "\n", stderr);
 
