@@ -213,6 +213,9 @@ handler_close_thd(
 	void*		my_thd)		/*!< in: thread */
 {
 	delete ((THD*) my_thd);
+
+	/* don't have a THD anymore */
+	my_pthread_setspecific_ptr(THR_THD,  0);
 }
 
 

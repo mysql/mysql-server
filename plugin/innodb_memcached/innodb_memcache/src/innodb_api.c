@@ -1288,7 +1288,6 @@ innodb_api_cursor_reset(
 	pthread_mutex_lock(&engine->conn_mutex);
 	assert(conn_data->c_in_use);
 	conn_data->c_in_use = FALSE;
-
 	pthread_mutex_unlock(&engine->conn_mutex);
 
 	return;
