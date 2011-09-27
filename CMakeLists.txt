@@ -139,6 +139,7 @@ ENDIF()
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(zlib)
+INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
 INCLUDE(mysql_version)
@@ -248,6 +249,8 @@ MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
+# Add libevent
+MYSQL_CHECK_LIBEVENT()
 
 #
 # Setup maintainer mode options by the end. Platform checks are

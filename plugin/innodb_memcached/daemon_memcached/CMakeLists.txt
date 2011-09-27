@@ -17,7 +17,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
-		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/libevent
+		    ${LIBEVENT_INCLUDE_DIR}
 		    ${CMAKE_SOURCE_DIR}/include
 		    ${CMAKE_SOURCE_DIR}/sql
 		    ${CMAKE_SOURCE_DIR}/bld/include
@@ -67,5 +67,5 @@ SET(MEMCACHED_SOURCES
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
 		MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
 
-TARGET_LINK_LIBRARIES(libmemcached event)
+TARGET_LINK_LIBRARIES(libmemcached ${LIBEVENT_LIBRARY})
 TARGET_LINK_LIBRARIES(libmemcached memcached_utilities)
