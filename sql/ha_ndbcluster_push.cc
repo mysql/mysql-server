@@ -1063,12 +1063,20 @@ ndb_pushed_builder_ctx::optimize_query_plan()
   DBUG_ENTER("optimize_query_plan");
   const uint root_no= m_join_root->get_access_no();
 
+  for (uint tab_no= root_no; tab_no<m_plan.get_access_count(); tab_no++)
+  {
+    if (m_join_scope.contain(tab_no))
+    {
+      m_tables[tab_no].m_fanout = m_plan.get_table_access(tab_no)->get_fanout();
+      m_tables[tab_no].m_child_fanout = 1.0;
+    }
+  }
+
   // Find an optimal order for joining the tables
   for (uint tab_no= m_plan.get_access_count()-1;
        tab_no > root_no;
        tab_no--)
   {
-    struct pushed_tables &table= m_tables[tab_no];
     if (!m_join_scope.contain(tab_no))
       continue;
 
@@ -1078,6 +1086,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
      * don't skip any dependent parents from our ancestors
      * when selecting the actuall 'm_parent' to be used.
      */
+    pushed_tables &table= m_tables[tab_no];
     if (!table.m_depend_parents.is_clear_all())
     {
       ndb_table_access_map const &dependency= table.m_depend_parents;
@@ -1115,12 +1124,40 @@ ndb_pushed_builder_ctx::optimize_query_plan()
 
     /**
      * In order to take advantage of the parallelism in the SPJ block; 
-     * Choose the first possible parent candidate. Will result in the
-     * most 'bushy' query plan (aka: star-join)
+     * Initial parent candidate is the first possible among 'parents'.
+     * Will result in the most 'bushy' query plan (aka: star-join)
      */
     parent_no= parents.first_table(root_no);
+
+    if (table.m_fanout*table.m_child_fanout > 1.0 ||
+        !ndbcluster_is_lookup_operation(m_plan.get_table_access(tab_no)->get_access_type()))
+    {
+      /**
+       * This is a index-scan or lookup with scan childs.
+       * Push optimization for index-scan execute:
+       *
+       * These are relative expensive operation which we try to avoid to 
+       * execute whenever possible. By making them depending on parent 
+       * operations with high selectivity, they will be eliminated when
+       * the parent returns no matching rows.
+       *
+       * -> Execute index-scan after any such parents
+       */
+      for (uint candidate= parent_no+1; candidate<parents.length(); candidate++)
+      {
+        if (parents.contain(candidate))
+        {
+          if (m_tables[candidate].m_fanout > 1.0)
+            break;
+
+          parent_no= candidate;     // Parent candidate is selective, eval after
+        }
+      }
+    }
+
     DBUG_ASSERT(parent_no < tab_no);
     table.m_parent= parent_no;
+    m_tables[parent_no].m_child_fanout*= table.m_fanout*table.m_child_fanout;
 
     ndb_table_access_map dependency(table.m_depend_parents);
     dependency.clear_bit(parent_no);
@@ -1134,7 +1171,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
   {
     if (m_join_scope.contain(tab_no))
     {
-      struct pushed_tables &table= m_tables[tab_no];
+      pushed_tables &table= m_tables[tab_no];
       const uint parent_no= table.m_parent;
       table.m_ancestors= m_tables[parent_no].m_ancestors;
       table.m_ancestors.add(parent_no);

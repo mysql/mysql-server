@@ -261,6 +261,33 @@ namespace AQP
     return get_join_tab()->table;
   }
 
+  double Table_access::get_fanout() const
+  {
+    switch (get_access_type())
+    {
+      case AT_PRIMARY_KEY:
+      case AT_UNIQUE_KEY:
+        return 1.0;
+
+      case AT_ORDERED_INDEX_SCAN:
+        DBUG_ASSERT(get_join_tab()->join->best_positions[m_tab_no].records_read>0.0);
+        return get_join_tab()->join->best_positions[m_tab_no].records_read;
+
+      case AT_MULTI_PRIMARY_KEY:
+      case AT_MULTI_UNIQUE_KEY:
+      case AT_MULTI_MIXED:
+        DBUG_ASSERT(get_join_tab()->join->best_positions[m_tab_no].records_read>0.0);
+        return get_join_tab()->join->best_positions[m_tab_no].records_read;
+
+      case AT_TABLE_SCAN:
+        DBUG_ASSERT(get_join_tab()->table->file->stats.records>0.0);
+        return get_join_tab()->table->file->stats.records;
+
+      default:
+        return 99999999.0;
+    }
+  }
+
   /** Get the JOIN_TAB object that corresponds to this operation.*/
   const JOIN_TAB* Table_access::get_join_tab() const
   {
