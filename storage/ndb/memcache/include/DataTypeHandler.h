@@ -26,6 +26,30 @@
 
 #include "ndbmemcache_global.h"
 
+// FOR INTEGER TYPES: x86 allows unaligned access, but most other machines do not.
+// FOR FLOATING POINT TYPES: access must be aligned on all architectures
+#define LOAD_UNALIGNED(Type, x, buf) \
+Type x = *((Type *) buf);
+
+#define STORE_UNALIGNED(Type, x, buf) \
+*((Type *) buf) = (Type) x;
+
+#define LOAD_ALIGNED(Type, x, buf) \
+Type x; \
+memcpy(&x, buf, sizeof(x));
+
+#define STORE_ALIGNED(Type, x, buf) \
+Type tmp_value = (Type) x; \
+memcpy(buf, &tmp_value, sizeof(tmp_value));
+
+#if defined(__i386) || defined(__x86_64)
+#define LOAD_FOR_ARCHITECTURE LOAD_UNALIGNED
+#define STORE_FOR_ARCHITECTURE STORE_UNALIGNED 
+#else
+#define LOAD_FOR_ARCHITECTURE LOAD_ALIGNED
+#define STORE_FOR_ARCHITECTURE STORE_ALIGNED
+#endif
+
 
 /* DataTypeHandler is an interface.  
    Each instance of DataTypeHandler is able to read values of a certain 
