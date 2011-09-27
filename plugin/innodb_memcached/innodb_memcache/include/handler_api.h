@@ -121,14 +121,6 @@ handler_binlog_flush(
 	void*		my_table);	/*!< in: TABLE structure */
 
 /**********************************************************************//**
-Flush binlog from cache to binlog file */
-void    
-handler_binlog_flush(
-/*=================*/
-	void*		my_thd,		/*!< in: THD* */
-	void*		my_table);	/*!< in: Table metadata */
-
-/**********************************************************************//**
 Reset TABLE->record[0] */
 void
 handler_rec_init(

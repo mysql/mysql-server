@@ -258,7 +258,6 @@ innodb_conn_clean(
 			}
 
 			if (conn_data->thd) {
-				innodb_cb_close_thd(conn_data->thd);
 				handler_close_thd(conn_data->thd);
 				conn_data->thd = NULL;
 			}
@@ -803,6 +802,8 @@ innodb_flush(
 		}
 	}
 
+	/* Clean up sessions before doing flush. Table needs to be
+	re-opened */
 	innodb_conn_clean(innodb_eng, TRUE);
 
 	ib_err = innodb_api_flush(meta_info->m_item[META_DB].m_str,
