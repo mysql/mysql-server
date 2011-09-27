@@ -845,7 +845,7 @@ explain extended select concat('*',space(5),'*');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select concat('*',repeat(' ',5),'*') AS `concat('*',space(5),'*')`
+Note	1003	/* select#1 */ select concat('*',space(5),'*') AS `concat('*',space(5),'*')`
 explain extended select reverse('abc');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -2084,7 +2084,7 @@ select space(4294967295);
 space(4294967295)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
 select space(-4294967296);
 space(-4294967296)
 
@@ -2092,7 +2092,7 @@ select space(4294967296);
 space(4294967296)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
 select space(-4294967297);
 space(-4294967297)
 
@@ -2100,7 +2100,7 @@ select space(4294967297);
 space(4294967297)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
 select space(-18446744073709551615);
 space(-18446744073709551615)
 
@@ -2111,7 +2111,7 @@ select space(18446744073709551615);
 space(18446744073709551615)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
 select space(-18446744073709551616);
 space(-18446744073709551616)
 
@@ -2124,7 +2124,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
 select space(-18446744073709551617);
 space(-18446744073709551617)
 
@@ -2137,7 +2137,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
 select rpad('hello', -1, '1');
 rpad('hello', -1, '1')
 NULL
@@ -2834,6 +2834,41 @@ SELECT * FROM t1;
 format(123,2,'no_NO')
 123,00
 DROP TABLE t1;
+#
+# Bug#12985030 SIMPLE QUERY WITH DECIMAL NUMBERS LEAKS MEMORY
+#
+SELECT (rpad(1.0,2048,1)) IS NOT FALSE;
+(rpad(1.0,2048,1)) IS NOT FALSE
+1
+SELECT ((+0) IN
+((0b111111111111111111111111111111111111111111111111111),(rpad(1.0,2048,1)),
+(32767.1)));
+((+0) IN
+((0b111111111111111111111111111111111111111111111111111),(rpad(1.0,2048,1)),
+(32767.1)))
+0
+SELECT ((rpad(1.0,2048,1)) = ('4(') ^ (0.1));
+((rpad(1.0,2048,1)) = ('4(') ^ (0.1))
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '4('
+SELECT
+pow((rpad(1.0,2048,1)),(b'1111111111111111111111111111111111111111111'));
+ERROR 22003: DOUBLE value is out of range in 'pow(rpad(1.0,2048,1),0x07ffffffffff)'
+SELECT ((rpad(1.0,2048,1)) + (0) ^ ('../'));
+((rpad(1.0,2048,1)) + (0) ^ ('../'))
+1.011111111111111
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '../'
+SELECT stddev_samp(rpad(1.0,2048,1));
+stddev_samp(rpad(1.0,2048,1))
+NULL
+SELECT ((127.1) not in ((rpad(1.0,2048,1)),(''),(-1.1)));
+((127.1) not in ((rpad(1.0,2048,1)),(''),(-1.1)))
+1
+SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
+((0xf3) * (rpad(1.0,2048,1)) << (0xcc))
+0
 #
 # End of 5.5 tests
 #
@@ -4372,6 +4407,20 @@ NULL
 Warnings:
 Warning	1301	Result of export_set() was larger than max_allowed_packet (1073741824) - truncated
 SET @@global.max_allowed_packet:= @tmp_max;
+SELECT SPACE(@@global.max_allowed_packet*2);
+SPACE(@@global.max_allowed_packet*2)
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+SET NAMES latin1;
+PREPARE stmt FROM "SELECT COLLATION(space(2))";
+EXECUTE stmt;
+COLLATION(space(2))
+latin1_swedish_ci
+SET NAMES latin2;
+EXECUTE stmt;
+COLLATION(space(2))
+latin2_general_ci
 #
 # End of 5.6 tests
 #
