@@ -4580,8 +4580,17 @@ public:
         m_id(id), m_res(res) {
       m_res.lock(m_id);
     }
-    ~Reserve(){
+
+    void unlock() {
       m_res.unlock(m_id);
+      m_id = 0;
+    }
+
+    ~Reserve(){
+      if (m_id)
+      {
+        m_res.unlock(m_id);
+      }
     }
   };
 };
@@ -4644,6 +4653,8 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
 {
   const Uint32 api_nodes = ctx->getProperty("API_NODES");
   const Uint32 step_no = step->getStepNo();
+  const Uint32 timeout_after_first_alive = ctx->getProperty("TimeoutAfterFirst",
+                                                            30);
   if (step_no > api_nodes)
   {
     // Don't run with more threads than API node slots
@@ -4652,8 +4663,8 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
 
   // Get connectstring from main connection
   char constr[256];
-  if(!ctx->m_cluster_connection.get_connectstring(constr,
-                                                  sizeof(constr)))
+  if (!ctx->m_cluster_connection.get_connectstring(constr,
+                                                   sizeof(constr)))
   {
     g_err << "Too short buffer for connectstring" << endl;
     return NDBT_FAILED;
@@ -4661,9 +4672,17 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
 
   Uint32 l = 0;
   const Uint32 loops = ctx->getNumLoops();
-  while (l < loops)
+  while (l < loops && !ctx->isTestStopped())
   {
     g_info << "loop: " << l << endl;
+    if (ctx->getProperty("WAIT") > 0)
+    {
+      ndbout_c("thread %u waiting", step_no);
+      ctx->incProperty("WAITING");
+      while (ctx->getProperty("WAIT") > 0 && !ctx->isTestStopped())
+        NdbSleep_MilliSleep(10);
+      ndbout_c("thread %u waiting complete", step_no);
+    }
     Ndb_cluster_connection con(constr);
 
     const int retries = 12;
@@ -4679,11 +4698,12 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
     NodeIdReservations::Reserve res(g_reservations, con.node_id());
 
     const int timeout = 30;
-    const int timeout_after_first_alive = 30;
-    if (con.wait_until_ready(timeout, timeout_after_first_alive) != 0)
+    int ret = con.wait_until_ready(timeout, timeout_after_first_alive);
+    if (! (ret == 0 || (timeout_after_first_alive == 0 && ret > 0)))
     {
       g_err << "Cluster connection was not ready, nodeid: "
             << con.node_id() << endl;
+      abort();
       return NDBT_FAILED;
     }
 
@@ -4699,10 +4719,151 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
     NdbSleep_MilliSleep(10 + rand() % max_sleep);
 
     l++;
+    res.unlock(); // make sure it's called before ~Ndb_cluster_connection
+  }
+
+  ctx->incProperty("runNdbClusterConnect_FINISHED");
+
+  return NDBT_OK;
+}
+
+int
+runRestarts(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  Uint32 threads = ctx->getProperty("API_NODES", (unsigned)0);
+  Uint32 sr = ctx->getProperty("ClusterRestart", (unsigned)0);
+  Uint32 master = ctx->getProperty("Master", (unsigned)0);
+  Uint32 slow = ctx->getProperty("SlowNR", (unsigned)0);
+  NdbRestarter restarter;
+
+  if (restarter.waitClusterStarted() != 0)
+  {
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (sr == 0 && restarter.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  while (ctx->getProperty("runNdbClusterConnect_FINISHED") < threads
+         && !ctx->isTestStopped())
+  {
+    ndbout_c("%u %u",
+             ctx->getProperty("runNdbClusterConnect_FINISHED"),
+             threads);
+    if (sr == 0)
+    {
+      int id = rand() % restarter.getNumDbNodes();
+      int nodeId = restarter.getDbNodeId(id);
+      if (master == 1)
+      {
+        nodeId = restarter.getMasterNodeId();
+      }
+      else if (master == 2)
+      {
+        nodeId = restarter.getRandomNotMasterNodeId(rand());
+      }
+      ndbout << "Restart node " << nodeId
+             << "(master: " << restarter.getMasterNodeId() << ")"
+             << endl;
+      if (restarter.restartOneDbNode(nodeId, false, true, true) != 0)
+      {
+        g_err << "Failed to restartNextDbNode" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+
+      if (restarter.waitNodesNoStart(&nodeId, 1))
+      {
+        g_err << "Failed to waitNodesNoStart" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+
+      if (slow)
+      {
+        /**
+         * Block starting node in sp4
+         */
+        int dump[] = { 71, 4 };
+        restarter.dumpStateOneNode(nodeId, dump, NDB_ARRAY_SIZE(dump));
+      }
+
+      if (restarter.startNodes(&nodeId, 1))
+      {
+        g_err << "Failed to start node" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+
+      if (slow)
+      {
+        Uint32 blockTime = 3 * 60 * 1000;
+        Uint64 end = NdbTick_CurrentMillisecond() + blockTime;
+        while (ctx->getProperty("runNdbClusterConnect_FINISHED") < threads
+               && !ctx->isTestStopped() &&
+               NdbTick_CurrentMillisecond() < end)
+        {
+          NdbSleep_MilliSleep(100);
+        }
+
+        // unblock
+        int dump[] = { 71 };
+        restarter.dumpStateOneNode(nodeId, dump, NDB_ARRAY_SIZE(dump));
+      }
+    }
+    else
+    {
+      ndbout << "Blocking threads" << endl;
+      ctx->setProperty("WAITING", Uint32(0));
+      ctx->setProperty("WAIT", 1);
+      while (ctx->getProperty("WAITING") <
+             (threads - ctx->getProperty("runNdbClusterConnect_FINISHED")) &&
+             !ctx->isTestStopped())
+      {
+        NdbSleep_MilliSleep(10);
+      }
+
+      ndbout << "Restart cluster" << endl;
+      if (restarter.restartAll(NdbRestarter::NRRF_NOSTART |
+                               NdbRestarter::NRRF_ABORT) != 0)
+      {
+        g_err << "Failed to restartAll" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+
+      ctx->setProperty("WAITING", Uint32(0));
+      ctx->setProperty("WAIT", Uint32(0));
+
+      ndbout << "Starting cluster" << endl;
+      restarter.startAll();
+    }
+
+    if (restarter.waitClusterStarted() != 0)
+    {
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+  }
+
+  return result;
+}
+
+int runCheckAllNodesStarted(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+
+  if (restarter.waitClusterStarted(1) != 0)
+  {
+    g_err << "All nodes was not started " << endl;
+    return NDBT_FAILED;
   }
 
   return NDBT_OK;
 }
+
 
 
 static bool
@@ -5040,7 +5201,50 @@ TESTCASE("NdbClusterConnectionConnect",
 {
   INITIALIZER(runNdbClusterConnectionConnect);
 }
-
+TESTCASE("NdbClusterConnectNR",
+         "Make sure that every Ndb_cluster_connection get a unique nodeid")
+{
+  TC_PROPERTY("TimeoutAfterFirst", (Uint32)0);
+  INITIALIZER(runNdbClusterConnectInit);
+  STEPS(runNdbClusterConnect, MAX_NODES);
+  STEP(runRestarts); // Note after runNdbClusterConnect or else counting wrong
+}
+TESTCASE("NdbClusterConnectNR_master",
+         "Make sure that every Ndb_cluster_connection get a unique nodeid")
+{
+  TC_PROPERTY("Master", 1);
+  TC_PROPERTY("TimeoutAfterFirst", (Uint32)0);
+  INITIALIZER(runNdbClusterConnectInit);
+  STEPS(runNdbClusterConnect, MAX_NODES);
+  STEP(runRestarts); // Note after runNdbClusterConnect or else counting wrong
+}
+TESTCASE("NdbClusterConnectNR_non_master",
+         "Make sure that every Ndb_cluster_connection get a unique nodeid")
+{
+  TC_PROPERTY("Master", 2);
+  TC_PROPERTY("TimeoutAfterFirst", (Uint32)0);
+  INITIALIZER(runNdbClusterConnectInit);
+  STEPS(runNdbClusterConnect, MAX_NODES);
+  STEP(runRestarts); // Note after runNdbClusterConnect or else counting wrong
+}
+TESTCASE("NdbClusterConnectNR_slow",
+         "Make sure that every Ndb_cluster_connection get a unique nodeid")
+{
+  TC_PROPERTY("Master", 2);
+  TC_PROPERTY("TimeoutAfterFirst", (Uint32)0);
+  TC_PROPERTY("SlowNR", 1);
+  INITIALIZER(runNdbClusterConnectInit);
+  STEPS(runNdbClusterConnect, MAX_NODES);
+  STEP(runRestarts); // Note after runNdbClusterConnect or else counting wrong
+}
+TESTCASE("NdbClusterConnectSR",
+         "Make sure that every Ndb_cluster_connection get a unique nodeid")
+{
+  TC_PROPERTY("ClusterRestart", (Uint32)1);
+  INITIALIZER(runNdbClusterConnectInit);
+  STEPS(runNdbClusterConnect, MAX_NODES);
+  STEP(runRestarts); // Note after runNdbClusterConnect or else counting wrong
+}
 NDBT_TESTSUITE_END(testNdbApi);
 
 int main(int argc, const char** argv){
