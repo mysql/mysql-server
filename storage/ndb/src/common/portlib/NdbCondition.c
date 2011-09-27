@@ -27,6 +27,10 @@ static int init = 0;
 static int clock_id = CLOCK_REALTIME;
 #endif
 
+#if defined NDB_MUTEX_STAT || defined NDB_MUTEX_DEADLOCK_DETECTOR
+#define NDB_MUTEX_STRUCT
+#endif
+
 void
 NdbCondition_initialize(int need_monotonic)
 {
@@ -129,7 +133,7 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
   
-#ifdef NDB_MUTEX_STAT
+#ifdef NDB_MUTEX_STRUCT
   result = pthread_cond_wait(&p_cond->cond, &p_mutex->mutex);
 #else
   result = pthread_cond_wait(&p_cond->cond, p_mutex);
@@ -194,7 +198,7 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
 
-#ifdef NDB_MUTEX_STAT
+#ifdef NDB_MUTEX_STRUCT
   return pthread_cond_timedwait(&p_cond->cond, &p_mutex->mutex, abstime);
 #else
   return pthread_cond_timedwait(&p_cond->cond, p_mutex, abstime);
