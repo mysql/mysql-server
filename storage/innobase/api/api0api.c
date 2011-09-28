@@ -2429,8 +2429,8 @@ ib_col_get_attr(
 }
 
 /*****************************************************************//**
-Get a column type, length and attributes from the tuple.
-@return	len of column data */
+Get a column name from the tuple.
+@return	name of the column */
 UNIV_INTERN
 const char*
 ib_col_get_name(
