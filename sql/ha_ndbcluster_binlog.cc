@@ -644,6 +644,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 }
 
 
+#ifndef NDB_WITHOUT_DIST_PRIV
 // Determine if privilege tables are distributed, ie. stored in NDB
 static bool
 priv_tables_are_in_ndb(THD *thd)
@@ -679,7 +680,7 @@ priv_tables_are_in_ndb(THD *thd)
   }
   DBUG_RETURN(distributed);
 }
-
+#endif
 
 static void
 ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
@@ -731,6 +732,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     type= SOT_DROP_DB;
     DBUG_ASSERT(FALSE);
     break;
+#ifndef NDB_WITHOUT_DIST_PRIV
   case LOGCOM_CREATE_USER:
     type= SOT_CREATE_USER;
     if (priv_tables_are_in_ndb(thd))
@@ -771,6 +773,7 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
       log= 1;
     }
     break;
+#endif
   }
   if (log)
   {
