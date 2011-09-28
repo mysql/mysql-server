@@ -1020,3 +1020,38 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#12838420 "DUPLICATE VALUES FOR GROUP-BY COLUMN WHEN JOIN
+--echo # BUFFERING IS OFF"
+--echo #
+CREATE TABLE t1 (
+  col_int_key INT,
+  pk INT,
+  PRIMARY KEY (pk),
+  KEY (col_int_key)
+);
+INSERT INTO t1 VALUES (2,3),(3,2),(3,5),(4,6);
+
+CREATE TABLE t2 (
+  col_int_key INT,
+  pk INT,
+  PRIMARY KEY (pk),
+  KEY (col_int_key)
+);
+INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
+
+let $query=
+SELECT t2.col_int_key AS field1
+FROM t2 JOIN t1 ON t2.col_int_key
+WHERE t2.pk < 7 AND t2.col_int_key <> 7
+GROUP BY field1;
+
+set @old_opt_switch=@@optimizer_switch;
+# With BNL, a temp table is used for GROUP BY, we don't want this
+SET optimizer_switch="block_nested_loop=off";
+eval EXPLAIN $query;
+eval $query;
+
+SET @@optimizer_switch=@old_opt_switch;
+DROP TABLE t1,t2;
