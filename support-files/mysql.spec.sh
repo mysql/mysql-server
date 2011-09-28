@@ -247,7 +247,7 @@ Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
 Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
-Packager:       MySQL Build Team <build@mysql.com>
+Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Provides:       msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
@@ -961,7 +961,7 @@ echo "====="                                     >> $STATUS_HISTORY
 #  Files section
 ##############################################################################
 
-%files -n MySQL-server%{product_suffix}
+%files -n MySQL-server%{product_suffix} -f release/support-files/plugins.files
 %defattr(-,root,root,0755)
 
 %if %{defined license_files_server}
@@ -1002,6 +1002,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -1019,6 +1020,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
+%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -1034,29 +1036,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
-%attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1154,13 +1134,17 @@ echo "====="                                     >> $STATUS_HISTORY
 * Tue Sep 13 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - Add support for Oracle Linux 6 and Red Hat Enterprise Linux 6.  Due to
-  changes in RPM behaviour ($RPM_BUILD_ROOT is removed prior to %install)
-  this necessitated a move of the libmygcc.a installation from %build to
-  %install, which is probably where it belonged in the first place.
+  changes in RPM behaviour ($RPM_BUILD_ROOT is removed prior to install)
+  this necessitated a move of the libmygcc.a installation to the install
+  phase, which is probably where it belonged in the first place.
 
 * Tue Sep 13 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - "make_win_bin_dist" and its manual are dropped, cmake does it different.
+
+* Thu Sep 08 2011 Daniel Fischer <daniel.fischer@oracle.com>
+
+- Add mysql_plugin man page.
 
 * Tue Aug 30 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
@@ -1170,6 +1154,10 @@ echo "====="                                     >> $STATUS_HISTORY
 
 - Null-upmerge the fix of bug#37165: This spec file is not affected.
 - Replace "/var/lib/mysql" by the spec file variable "%{mysqldatadir}".
+
+* Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
+
+- Source plugin library files list from cmake-generated file.
 
 * Mon Jul 25 2011 Chuck Bell <chuck.bell@oracle.com>
 

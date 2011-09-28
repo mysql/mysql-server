@@ -3871,12 +3871,13 @@ pthread_handler_t handle_slave_worker(void *arg)
   mysql_mutex_lock(&w->jobs_lock);
 
   w->running_status= Slave_worker::NOT_RUNNING;
-  sql_print_information("Worker %lu statistics: "
-                        "events processed = %lu "
-                        "hungry waits = %lu "
-                        "priv queue overfills = %llu ",
-                        w->id, w->events_done, w->wq_size_waits_cnt,
-                        w->jobs.waited_overfill);
+  if (global_system_variables.log_warnings > 1)
+    sql_print_information("Worker %lu statistics: "
+                          "events processed = %lu "
+                          "hungry waits = %lu "
+                          "priv queue overfills = %llu ",
+                          w->id, w->events_done, w->wq_size_waits_cnt,
+                          w->jobs.waited_overfill);
   mysql_cond_signal(&w->jobs_cond);  // famous last goodbye
 
   mysql_mutex_unlock(&w->jobs_lock);
@@ -4517,8 +4518,9 @@ void slave_stop_workers(Relay_log_info *rli)
 
     mysql_mutex_unlock(&w->jobs_lock);
 
-    sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
-                          w->info_thd);
+    if (global_system_variables.log_warnings > 1)
+      sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
+                            w->info_thd);
   }
 
   thd_proc_info(thd, "Waiting for workers to exit");
@@ -4550,15 +4552,16 @@ void slave_stop_workers(Relay_log_info *rli)
     delete w;
   }
 
-  sql_print_information("MTS coordinator statistics: "
-                        "events processed = %lu "
-                        "Worker queues filled over overrun level = %lu "
-                        "waited due a Worker queue full = %lu "
-                        "waited due the total size = %lu "
-                        "sleept when Workers occupied = %lu ",
-                        rli->mts_events_assigned, rli->mts_wq_overrun_cnt,
-                        rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
-                        rli->mts_wq_no_underrun_cnt);
+  if (global_system_variables.log_warnings > 1)
+    sql_print_information("Multi-threaded slave statistics: "
+                          "events processed = %lu ;"
+                          "worker queues filled over overrun level = %lu ;"
+                          "waited due a Worker queue full = %lu ;"
+                          "waited due the total size = %lu ;"
+                          "slept when Workers occupied = %lu ",
+                          rli->mts_events_assigned, rli->mts_wq_overrun_cnt,
+                          rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
+                          rli->mts_wq_no_underrun_cnt);
 
   DBUG_ASSERT(rli->pending_jobs == 0);
   DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
@@ -5819,6 +5822,10 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
+  /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
+  if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
+
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
          (reconnect ? mysql_reconnect(mysql) != 0 :
           mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
@@ -6796,8 +6803,9 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
           push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                               ER_MTS_FEATURE_IS_NOT_SUPPORTED,
                               ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
-                              "Temporary failed transaction retry",
-                              "Such failure will force the slave to stop.");
+                              "slave_transaction_retries",
+                              "In the event of a transient failure, the slave will "
+                              "not retry the transaction and will stop.");
         }
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
