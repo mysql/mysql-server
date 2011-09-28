@@ -264,4 +264,38 @@ WHERE t1.a = (
 
 DROP TABLE t1, t2, t3;
 
+
+--echo #
+--echo # LP BUG#858148 Fourth crash in select_describe() with nested subqueries
+--echo #
+
+CREATE TABLE t1 ( f1 int(11)) ENGINE=InnoDB;
+CREATE TABLE t2 ( f1 int(11), f2 int(11), PRIMARY KEY (f1)) ;
+CREATE TABLE t3 ( f3 int(11)) ENGINE=InnoDB;
+
+EXPLAIN
+SELECT MAX( f1 ) FROM t2
+WHERE f2 >= (
+        SELECT SUM( f1 )
+        FROM t1
+        WHERE EXISTS (
+                SELECT f3
+                FROM t3
+                GROUP BY 1
+        )
+);
+
+SELECT MAX( f1 ) FROM t2
+WHERE f2 >= (
+        SELECT SUM( f1 )
+        FROM t1
+        WHERE EXISTS (
+                SELECT f3
+                FROM t3
+                GROUP BY 1
+        )
+);
+
+drop table t1, t2, t3;
+
 set optimizer_switch=@subselect_innodb_tmp;

@@ -625,6 +625,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     /* Condition doesn't restrict the used table */
     DBUG_RETURN(!cond->const_item());
   }
+  else if (cond->is_expensive())
+    DBUG_RETURN(FALSE);
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_OR_FUNC)
