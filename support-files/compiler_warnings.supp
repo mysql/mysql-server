@@ -100,10 +100,48 @@ mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-
 ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
 
 #
+# Below is suppressions added by Cluster Team
+#
+
+#
 # 5.5-mainline
 # 
 extra/perror.c : .*strerror.*
 plugin/semisync/semisync_master.cc : .*may be used uninitialized in this function.*
-storage/innobase/.* : .*
+.*/innobase/.* : .*
 client/mysqldump.c : .*may be used uninitialized in this function.*
+
+# 5.5-mainline windows
+mysqlslap/mysqlslap.c : .*
+yassl/.* : C4005: 'WIN32_LEAN_AND_MEAN' : macro redefinition
+mytap/tap.c : C4028: formal parameter .* different from declaration
+mysql/readline.cc : C4101: 'input_file_stat' : unreferenced local variable
+
+#
+# 
+#
+.*/sys_vars.h: C4244 .* conversion .* possible loss of data
+.*/mi_dynrec.c : C4244 .* conversion .* possible loss of data
+.*/mi_check.c : C4244 .* conversion .* possible loss of data
+.*/sys_vars.cc : C4244 .* conversion .* possible loss of data
+.*/partition_info.cc : C4244 .* conversion .* possible loss of data
+.*/sql_time.cc : C4244 .* conversion .* possible loss of data
+.*/sql_view.cc : C4244 .* conversion .* possible loss of data
+.*/event_db_repository.cc : C4244 .* conversion .* possible loss of data
+.*/sql_trigger.cc : C4244 .* conversion .* possible loss of data
+.*/sql_table.cc : C4244 .* conversion .* possible loss of data
+.*/sql_show.cc : C4244 .* conversion .* possible loss of data
+
+
+# const qualifiers
+replace/replace.c                     : .*C4090.*
+my_print_defaults/my_print_defaults.c : .*C4090.*
+comp_err/comp_err.c                   : .*C4090.*
+.*/mi_unique.c                        : .*C4090.*
+.*/ft_update.c                        : .*C4090.*
+mysqlshow/mysqlshow.c                 : .*C4090.*
+mysqldump/mysqldump.c                 : .*C4090.*
+.*/mysql_client_test.c                : .*C4090.*
+myisampack/myisampack.c               : .*C4090.*
+my_print_defaults/my_print_defaults.c : .*C4090.*
 
