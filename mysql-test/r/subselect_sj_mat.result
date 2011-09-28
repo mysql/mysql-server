@@ -1697,3 +1697,21 @@ a
 0
 DROP TABLE t2,t3,t4,t5;
 set optimizer_switch=@subselect_sj_mat_tmp;
+#
+# BUG#860300: Second crash with get_fanout_with_deps() with semijoin + materialization
+#
+set @tmp_860300=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off';
+CREATE TABLE t1 (f2 int);
+INSERT INTO t1 VALUES (9),(6);
+CREATE TABLE t3 (f4 int);
+CREATE TABLE t4 (f6 varchar(1));
+SELECT *
+FROM t3
+WHERE 'h' IN (SELECT f6 
+FROM t4
+WHERE 5 IN (SELECT f2 FROM t1)
+GROUP BY t4.f6);
+f4
+DROP TABLE t1,t3,t4;
+set optimizer_switch=@tmp_860300;
