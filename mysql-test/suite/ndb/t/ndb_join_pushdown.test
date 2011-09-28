@@ -1025,10 +1025,10 @@ connection spj;
 
 explain select count(*) from t1 
   join t1 as t2 on t2.a = t1.c 
-  join t1 as t3 on t3.a = t1.c;
+  join t1 as t3 on t3.a = t1.d;
 select count(*) from t1 
   join t1 as t2 on t2.a = t1.c 
-  join t1 as t3 on t3.a = t1.c;
+  join t1 as t3 on t3.a = t1.d;
 
 # Test bushy join with pruned scan and larger result set.
 
@@ -1043,14 +1043,14 @@ delete from t1;
 
 insert into tx values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 
-insert into t1 select 1, x1.a * 10+x2.a, 1, 0 from tx as x1 cross join tx as x2;
+insert into t1 select 1, x1.a * 10+x2.a, 1, 1 from tx as x1 cross join tx as x2;
 
 explain select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
-  join t1 as x3 on x3.a = x1.c;
+  join t1 as x3 on x3.a = x1.d;
 select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
-  join t1 as x3 on x3.a = x1.c;
+  join t1 as x3 on x3.a = x1.d;
 
 connection ddl;
 drop table t1;
@@ -1656,14 +1656,14 @@ select straight_join *
 explain extended
 select straight_join * from
   t3 as x1
-  join t3 as y1 on x1.b3 = y1.b3 and x1.d3 = y1.d3
-  join t3 as x2 on x2.b3 = y1.b3
+  join t3 as y1 on y1.b3 = x1.b3 and y1.d3 = x1.d3
+  join t3 as x2 on x2.b3 = y1.b3+0
   join t3 as y2 on y2.b3 = x2.c3 and y2.d3 = x1.c3;
 --sorted_result
 select straight_join * from
   t3 as x1
-  join t3 as y1 on x1.b3 = y1.b3 and x1.d3 = y1.d3
-  join t3 as x2 on x2.b3 = y1.b3
+  join t3 as y1 on y1.b3 = x1.b3 and y1.d3 = x1.d3
+  join t3 as x2 on x2.b3 = y1.b3+0
   join t3 as y2 on y2.b3 = x2.c3 and y2.d3 = x1.c3;
 
 
@@ -3312,16 +3312,16 @@ connection spj;
 insert into t3 select 1, x1.a * 10+x2.a from t2 as x1 cross join t2 as x2;
 
 explain select straight_join count(*) from t1 as x0  
-   join t3 as x1 on x0.c=x1.a  
-   join t1 as x2 on x0.c=x2.a 
-   join t3 as x3 on x2.c=x3.a  
-   join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
+   join t3 as x1 on x1.a=x0.c
+   join t1 as x2 on x2.a=x0.d
+   join t3 as x3 on x3.a=x2.c
+   join t1 as x4 on x4.a=x0.d and x4.b=x3.b;
 
 select straight_join count(*) from t1 as x0  
-   join t3 as x1 on x0.c=x1.a  
-   join t1 as x2 on x0.c=x2.a 
-   join t3 as x3 on x2.c=x3.a  
-   join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
+   join t3 as x1 on x1.a=x0.c
+   join t1 as x2 on x2.a=x0.d
+   join t3 as x3 on x3.a=x2.c
+   join t1 as x4 on x4.a=x0.d and x4.b=x3.b;
 
 connection ddl;
 drop table t1;
