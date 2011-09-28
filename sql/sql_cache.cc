@@ -3696,6 +3696,18 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     if (!(table= tables_used->table))
       continue;
     handler= table->file;
+    /* Allow caching of queries with derived tables. */
+    if (tables_used->uses_materialization())
+    {
+      /*
+        Currently all result tables are MyISAM or HEAP. MyISAM allows caching
+        unless table is under in a concurrent insert (which never could
+        happen to a derived table). HEAP always allows caching.
+      */
+      DBUG_ASSERT(table->s->db_type() == heap_hton ||
+                  table->s->db_type() == myisam_hton);
+      DBUG_RETURN(0);
+    }
     if (!handler->register_query_cache_table(thd,
                                              table->s->table_cache_key.str,
 					     table->s->table_cache_key.length,

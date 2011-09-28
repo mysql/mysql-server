@@ -4688,6 +4688,27 @@ SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic)	{
                   "join_execution": {
                     "select#": 2,
                     "steps": [
+                      {
+                        "filesort_information": [
+                          {
+                            "direction": "asc",
+                            "database": "",
+                            "table": "",
+                            "field": "topic"
+                          }
+                        ] /* filesort_information */,
+                        "filesort_priority_queue_optimization": {
+                          "usable": false,
+                          "cause": "not applicable (no LIMIT)"
+                        } /* filesort_priority_queue_optimization */,
+                        "filesort_execution": [
+                        ] /* filesort_execution */,
+                        "filesort_summary": {
+                          "records": 2,
+                          "number_of_tmp_files": 0,
+                          "sort_mode": "<sort_key, rowid>"
+                        } /* filesort_summary */
+                      }
                     ] /* steps */
                   } /* join_execution */
                 }
@@ -4702,6 +4723,27 @@ SELECT * from t1 where topic = all (SELECT topic FROM t1 GROUP BY topic)	{
                   "join_execution": {
                     "select#": 2,
                     "steps": [
+                      {
+                        "filesort_information": [
+                          {
+                            "direction": "asc",
+                            "database": "",
+                            "table": "",
+                            "field": "topic"
+                          }
+                        ] /* filesort_information */,
+                        "filesort_priority_queue_optimization": {
+                          "usable": false,
+                          "cause": "not applicable (no LIMIT)"
+                        } /* filesort_priority_queue_optimization */,
+                        "filesort_execution": [
+                        ] /* filesort_execution */,
+                        "filesort_summary": {
+                          "records": 2,
+                          "number_of_tmp_files": 0,
+                          "sort_mode": "<sort_key, rowid>"
+                        } /* filesort_summary */
+                      }
                     ] /* steps */
                   } /* join_execution */
                 }

@@ -608,6 +608,7 @@ public:
       return *this;
     return do_add(NULL, item);
   }
+public:
   Opt_trace_struct& add(const char *key, bool value)
   {
     if (likely(!started))
@@ -639,6 +640,18 @@ public:
     return do_add(key, static_cast<ulonglong>(value));
   }
   Opt_trace_struct& add(uint value)
+  {
+    if (likely(!started))
+      return *this;
+    return do_add(NULL, static_cast<ulonglong>(value));
+  }
+  Opt_trace_struct& add(const char *key, ulong value)
+  {
+    if (likely(!started))
+      return *this;
+    return do_add(key, static_cast<ulonglong>(value));
+  }
+  Opt_trace_struct& add(ulong value)
   {
     if (likely(!started))
       return *this;
@@ -742,6 +755,9 @@ public:
   const char *check_key(const char *key);
 
 private:
+  /// Not implemented, use add_alnum() instead.
+  Opt_trace_struct& add(const char *key, const char* value);
+  Opt_trace_struct& add(const char *key);
 
   /// Full initialization. @sa Opt_trace_struct::Opt_trace_struct
   void do_construct(Opt_trace_context *ctx,
