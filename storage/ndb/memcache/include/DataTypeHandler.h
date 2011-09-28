@@ -44,8 +44,13 @@ memcpy(&x, buf, sizeof(x));
 Type tmp_value = (Type) x; \
 memcpy(buf, &tmp_value, sizeof(tmp_value));
 
-// FOR INTEGER TYPES, x86 allows unaligned access, but most other machines do not.
-// (FOR FLOATING POINT TYPES: access must be aligned on all architectures)
+/* FOR INTEGER TYPES, x86 allows unaligned access, but most other machines do not.
+   (FOR FLOATING POINT TYPES: access must be aligned on all architectures).
+   Wherever in the code there is a LOAD_ALIGNED_DATA macro, we assume the record  
+   has been laid out with necessary padding for alignment.  But if you ever get 
+   an alignment error (e.g. Bus Error on Sparc), you can replace LOAD_ALIGNED_DATA
+   with LOAD_FOR ARCHITECTURE.
+*/
 #if defined(__i386) || defined(__x86_64)
 #define LOAD_FOR_ARCHITECTURE LOAD_ALIGNED_DATA
 #define STORE_FOR_ARCHITECTURE STORE_ALIGNED_DATA
@@ -76,7 +81,6 @@ enum {  /* These can be returned by readFromNdb() or writeToNdb() */
    All functions return 1 on success and DTH_xxx values on error 
 */
 typedef struct {
-  int alignment;  //  specify 1-, 2-, or 4- byte alignment in record
   int (*read_int32)(Int32 & result, const void * const buf);
   int (*write_int32)(Int32 value, void * const buf);
 } NumericHandler;
