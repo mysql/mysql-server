@@ -49,7 +49,11 @@ Record::~Record() {
 void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
   assert(index < ncolumns);
 
-  /* place the index correctly into the columns array */
+  /* The "column map" is an array that maps a specifier like 
+     "COL_STORE_VALUE + 1" (the second value column) or 
+     "COL_STORE_CAS" (the cas column) 
+      to that column's index in the record. 
+  */
   switch(col_type) {
     case COL_STORE_KEY:
       map[COL_STORE_KEY + nkeys++] = index;
@@ -68,17 +72,21 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
     default:
       assert("Bad column type" == 0);
   }
-
-  /* Build the Record Specification */
+  
+  /* Link to the Dictionary Column */
   specs[index].column = column;
-  
-  /* The CAS is manipulated using Record::getPointer() and must be aligned */
-  if(col_type == COL_STORE_CAS)  {
-    int bad_offset = rec_size % 8;
-    if(bad_offset) rec_size += (8 - bad_offset);
-  }
-  
-  specs[index].offset = rec_size;  /* use the current record size */
+
+  /* Link to the correct DataTypeHandler */
+  handlers[index] = getDataTypeHandlerForColumn(column);
+    
+  /* If the data type requires alignment, insert some padding.
+     This call will alter rec_size if needed */
+  pad_offset_for_alignment();
+
+  /* The current record size is the offset of this column */
+  specs[index].offset = rec_size;  
+
+  /* Set nullbits in the record specification */
   if(column->getNullable()) {
     specs[index].nullbit_byte_offset = n_nullable / 8;
     specs[index].nullbit_bit_in_byte = n_nullable % 8;
@@ -88,9 +96,6 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
     specs[index].nullbit_byte_offset = 0;
     specs[index].nullbit_bit_in_byte = 0;
   }
-
-  /* Link in the correct DataTypeHandler */
-  handlers[index] = getDataTypeHandlerForColumn(column);
 
   /* Increment the counter and record size */
   index += 1;
@@ -281,3 +286,21 @@ size_t Record::getStringifiedLength(char *data) const {
   return total;
 }
 
+
+void Record::pad_offset_for_alignment() {
+  int alignment = 1;
+  
+  if(index == map[COL_STORE_CAS]) {  // CAS column requires 8-byte alignment
+    alignment = 8;
+  }
+  else if(handlers[index]->native_handler) {
+    alignment = handlers[index]->native_handler->alignment;
+  }
+  
+  /* Insert padding */
+  if(alignment > 1) {  
+    int bad_offset = rec_size % alignment;
+    if(bad_offset) 
+      rec_size += (alignment - bad_offset);
+  }
+}
