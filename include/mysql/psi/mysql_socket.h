@@ -51,8 +51,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   @def mysql_socket_register(P1, P2, P3)
   Socket registration.
 */
-#define mysql_socket_register(P1, P2, P3) \
-  inline_mysql_socket_register(P1, P2, P3)
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+  #define mysql_socket_register(P1, P2, P3) \
+    inline_mysql_socket_register(P1, P2, P3)
+#else
+  #define mysql_socket_register(P1, P2, P3) \
+    do {} while (0)
+#endif
 
 struct st_mysql_socket
 {
@@ -471,7 +476,7 @@ inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
   #define mysql_socket_accept(K, FD, AP, LP) \
     inline_mysql_socket_accept(__FILE__, __LINE__, K, FD, AP, LP)
 #else
-  #define mysql_socket_accept(FD, AP, LP) \
+  #define mysql_socket_accept(K, FD, AP, LP) \
     inline_mysql_socket_accept(FD, AP, LP)
 #endif
 
@@ -504,23 +509,15 @@ inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
     inline_mysql_socket_shutdown(FD, H)
 #endif
 
-
-static inline void inline_mysql_socket_register(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
+static inline void inline_mysql_socket_register(
   const char *category,
   PSI_socket_info *info,
-  int count
-#else
-  const char *category __attribute__ ((unused)),
-  PSI_socket_info *info __attribute__ ((unused)),
-  int count __attribute__ ((unused))
-#endif
-)
+  int count)
 {
-#ifdef HAVE_PSI_SOCKET_INTERFACE
   PSI_CALL(register_socket)(category, info, count);
-#endif
 }
+#endif
 
 /** mysql_socket_socket */
 
