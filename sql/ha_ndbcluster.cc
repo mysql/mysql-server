@@ -896,7 +896,7 @@ SHOW_VAR ndb_status_index_stat_variables[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-#ifndef NO_PUSHED_JOIN
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 static int ndbcluster_make_pushed_join(handlerton *, THD*,AQP::Join_plan*);
 #endif
 
@@ -11848,7 +11848,9 @@ static int ndbcluster_init(void *p)
     h->discover=         ndbcluster_discover;
     h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
     h->make_pushed_join= ndbcluster_make_pushed_join;
+#endif
   }
 
   // Initialize ndb interface
@@ -14295,7 +14297,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
 }
 #endif
 
-#ifndef NO_PUSHED_JOIN
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 
 /**
  * Try to find pushable subsets of a join plan.
@@ -14352,7 +14354,9 @@ int ndbcluster_make_pushed_join(handlerton *hton,
   }
   DBUG_RETURN(0);
 } // ndbcluster_make_pushed_join
-  
+#endif
+
+
 /**
  * In case a pushed join having the table for this handler as its root
  * has been produced. ::assign_pushed_join() is responsible for setting
@@ -14635,7 +14639,6 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
   DBUG_RETURN(false);
 }
 
-#endif
 
 /**
   @param[in] comment  table comment defined by user
