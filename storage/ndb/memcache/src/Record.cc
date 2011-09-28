@@ -135,9 +135,9 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
 
 
 bool Record::complete(NdbDictionary::Dictionary *dict, 
-                      const NdbDictionary::Index *index) {                       
+                      const NdbDictionary::Index *ndb_index) {                       
   build_null_bitmap();
-  ndb_record = dict->createRecord(index, specs, ncolumns, sizeof(specs[0]));
+  ndb_record = dict->createRecord(ndb_index, specs, ncolumns, sizeof(specs[0]));
 
   if(!ndb_record) {
     logger->log(LOG_WARNING, 0, "createRecord() failure: %s\n",
@@ -202,9 +202,9 @@ size_t Record::decodeCopy(int id, char *dest, char *src) const {
 
 
 int Record::getIntValue(int id, char *data) const {
-  int index = map[id];
-  NumericHandler * h = handlers[index]->native_handler;
-  const char * buffer = data + specs[index].offset;
+  int idx = map[id];
+  NumericHandler * h = handlers[idx]->native_handler;
+  const char * buffer = data + specs[idx].offset;
   int i = 0;
   
   if(h) {
@@ -212,35 +212,35 @@ int Record::getIntValue(int id, char *data) const {
   }
   else {
     logger->log(LOG_WARNING, 0, "getIntValue() failed for column %s - "
-                "unsupported column type.", specs[index].column->getName());
+                "unsupported column type.", specs[idx].column->getName());
   }
   return i;
 }
 
 
 bool Record::setIntValue(int id, int value, char *data) const {
-  int index = map[id];
-  NumericHandler * h = handlers[index]->native_handler;
-  char * buffer = data + specs[index].offset;
+  int idx = map[id];
+  NumericHandler * h = handlers[idx]->native_handler;
+  char * buffer = data + specs[idx].offset;
   
   if(h) {
     return (h->write_int32(value,buffer) > 0);
   } 
   else {
     logger->log(LOG_WARNING, 0, "setIntValue() failed for column %s - "
-                "unsupported column type.", specs[index].column->getName());
+                "unsupported column type.", specs[idx].column->getName());
     return false;
   }
 }
 
 
 Uint64 Record::getUint64Value(int id, char *data) const {
-  int index = map[id];
-  const char * buffer = data + specs[index].offset;
+  int idx = map[id];
+  const char * buffer = data + specs[idx].offset;
 
-  if(specs[index].column->getType() != NdbDictionary::Column::Bigunsigned) {
+  if(specs[idx].column->getType() != NdbDictionary::Column::Bigunsigned) {
     logger->log(LOG_WARNING, 0, "Operation failed - column %s must be BIGINT UNSIGNED",
-                specs[index].column->getName());
+                specs[idx].column->getName());
     return 0;
   }
   
@@ -250,12 +250,12 @@ Uint64 Record::getUint64Value(int id, char *data) const {
 
 
 bool Record::setUint64Value(int id, Uint64 value, char *data) const {
-  int index = map[id];
-  char * buffer = data + specs[index].offset;
+  int idx = map[id];
+  char * buffer = data + specs[idx].offset;
 
-  if(specs[index].column->getType() != NdbDictionary::Column::Bigunsigned) {
+  if(specs[idx].column->getType() != NdbDictionary::Column::Bigunsigned) {
     logger->log(LOG_WARNING, 0, "Operation failed - column %s must be BIGINT UNSIGNED",
-                specs[index].column->getName());
+                specs[idx].column->getName());
     return false;
   }
   
