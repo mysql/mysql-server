@@ -720,42 +720,6 @@ void Explain_table_base::explain_extra_common(const SQL_SELECT *select,
        table->file->pushed_idx_cond) || (tab && tab->cache_idx_cond))
     str_extra->append(STRING_WITH_LEN("; Using index condition"));
 
-#ifndef MCP_WL4784
-  const TABLE* pushed_root= table->file->root_of_pushed_join();
-  if (pushed_root)
-  {
-    char buf[64];
-    int len;
-    int pushed_id= 0;
-
-    for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
-    {
-      const TABLE* prev_root= prev->table->file->root_of_pushed_join();
-      if (prev_root == prev->table)
-      {
-        pushed_id++;
-        if (prev_root == pushed_root)
-          break;
-      }
-    }
-    if (pushed_root == table)
-    {
-      uint pushed_count= tab->table->file->number_of_pushed_joins();
-      len= my_snprintf(buf, sizeof(buf)-1,
-                       "; Parent of %d pushed join@%d",
-                       pushed_count, pushed_id);
-    }
-    else
-    {
-      len= my_snprintf(buf, sizeof(buf)-1,
-                       "; Child of '%s' in pushed join@%d",
-                       tab->table->file->parent_of_pushed_join()->alias,
-                       pushed_id);
-    }
-    str_extra->append(buf,len);
-  }
-#endif
-
   switch (quick_type) {
   case QUICK_SELECT_I::QS_TYPE_ROR_UNION:
   case QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT:

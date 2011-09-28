@@ -45,10 +45,6 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
 #include "debug_sync.h"          // DEBUG_SYNC
-#ifndef MCP_WL4784
-#include "abstract_query_plan.h"
-#endif
-
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
@@ -172,10 +168,6 @@ static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
-#ifndef MCP_WL4784
-static int join_read_linked_first(JOIN_TAB *tab);
-static int join_read_linked_next(READ_RECORD *info);
-#endif
 static Item *make_cond_for_table(Item *cond,table_map table,
 				 table_map used_table,
                                  bool exclude_expensive_cond);
@@ -193,11 +185,9 @@ static bool test_if_cheaper_ordering(const JOIN_TAB *tab,
                                      ha_rows *new_select_limit,
                                      uint *new_used_key_parts= NULL,
                                      uint *saved_best_key_parts= NULL);
-#ifdef MCP_WL4784
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes,
                                     const key_map *map);
-#endif
 static bool list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
@@ -254,10 +244,6 @@ static bool replace_subcondition(JOIN *join, Item **tree,
                                  bool do_fix_fields);
 static bool test_if_ref(Item *root_cond, 
                         Item_field *left_item,Item *right_item);
-
-#ifndef MCP_WL4784
-static int  make_pushed_join(THD *thd, JOIN *join);
-#endif
 
 void get_partial_join_cost(JOIN *join, uint idx, double *read_time_arg,
                            double *record_count_arg);
@@ -2640,11 +2626,6 @@ JOIN::optimize()
     }
   }
 
-#ifndef MCP_WL4784
-  if (make_pushed_join(thd, this))
-    DBUG_RETURN(1);
-#endif
-
   tmp_having= having;
   if (select_options & SELECT_DESCRIBE)
   {
@@ -2813,72 +2794,6 @@ setup_subq_exit:
   DBUG_RETURN(0);
 }
 
-#ifndef MCP_WL4784
-static int
-make_pushed_join(THD *thd, JOIN *join)
-{
-  int active_pushed_joins= 0;
-
-  // Let handler extract whatever it might implement of pushed joins
-  AQP::Join_plan plan(join);
-
-  const int error= ha_make_pushed_joins(thd, &plan);
-  if (unlikely(error))
-    return error;
-
-  // Set up table accessors for child operations of pushed joins
-  for (uint i=join->const_tables ; i < join->tables ; i++)
-  {
-    JOIN_TAB *tab=join->join_tab+i;
-
-    uint pushed_joins= tab->table->file->number_of_pushed_joins();
-    if (pushed_joins > 0)
-    {
-      if (tab->table->file->root_of_pushed_join() == tab->table)
-      {
-        active_pushed_joins += pushed_joins;
-      }
-      else  
-      {
-        // Is child of a pushed join operation:
-        // Replace 'read_key' access with its linked counterpart 
-        // ... Which is effectively a NOOP as the row is read as part of the linked operation
-        tab->read_first_record= join_read_linked_first;
-        DBUG_ASSERT(tab->read_record.read_record != join_read_next_same_or_null);
-        tab->read_record.read_record= join_read_linked_next;
-        tab->read_record.unlock_row= rr_unlock_row;  // FIXME: likely incorrect
-      }
-      active_pushed_joins--;
-    }
-  }
-
-  /* If we just pushed a join containing an ORDER BY and/or a GROUP BY clause,
-   * we have to ensure that we either can skip the sort by scanning an ordered index,
-   * or write to a temp. table later being filesorted.
-   */
-  if (join->const_tables < join->tables &&
-      join->join_tab[join->const_tables].table->file->number_of_pushed_joins() > 0)
-  {
-    const handler *ha=join->join_tab[join->const_tables].table->file;
-
-    if (join->group_list && join->simple_group &&
-        (!plan.group_by_filesort_is_skippable() || ha->test_push_flag(HA_PUSH_NO_ORDERED_INDEX)))
-    {
-      join->need_tmp= 1;
-      join->simple_order= join->simple_group= 0;
-    }
-    else if (join->order && join->simple_order &&
-             (!plan.order_by_filesort_is_skippable() || ha->test_push_flag(HA_PUSH_NO_ORDERED_INDEX)))
-    {
-      join->need_tmp= 1;
-      join->simple_order= join->simple_group= 0;
-    }
-  }
-
-  DBUG_ASSERT(active_pushed_joins==0);
-  return 0;
-}
-#endif
 
 /**
   Restore values in temporary join.
@@ -5181,16 +5096,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       */
       extract_method= extract_no_table;
     }
-#ifndef MCP_WL4784
-    else if (table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
-    {
-      /*
-        Handler implements pushed joins, and prefer const tables to
-        be pushed together with rest of the pushed query.
-      */
-      extract_method= extract_no_table;
-    }
-#endif
     else if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join, extract empty tables */
@@ -5351,17 +5256,11 @@ const_table_extraction_done:
             Extract const tables with proper key dependencies.
             Exclude tables that
              1. are full-text searched, or
-             2. are part of nested outer join, or
-             3. are blocked by handler for const table optimize.
+             2. are part of nested outer join.
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched &&                             // 1
-#ifndef MCP_WL4784
-              !table->pos_in_table_list->in_outer_join_nest() &&       // 2
-              !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE)) // 3
-#else
               !table->pos_in_table_list->in_outer_join_nest())       // 2
-#endif
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -19719,79 +19618,6 @@ join_read_key_unlock_row(st_join_table *tab)
     tab->ref.use_count--;
 }
 
-#ifndef MCP_WL4784
-/**
-  Read a table *assumed* to be included in execution of a pushed join.
-  This is the counterpart of join_read_key() / join_read_always_key()
-  for child tables in a pushed join.
-
-    When the table access is performed as part of the pushed join,
-    all 'linked' child colums are prefetched together with the parent row.
-    The handler will then only format the row as required by MySQL and set
-    'table->status' accordingly.
-
-    However, there may be situations where the prepared pushed join was not
-    executed as assumed. It is the responsibility of the handler to handle
-    these situation by letting ::index_read_pushed() then effectively do a 
-    plain old' index_read_map(..., HA_READ_KEY_EXACT);
-  
-  @param tab			Table to read
-
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
-*/
-static int
-join_read_linked_first(JOIN_TAB *tab)
-{
-  TABLE *table= tab->table;
-  DBUG_ENTER("join_read_linked_first");
-
-  DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
-
-  if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
-  {
-    table->status=STATUS_NOT_FOUND;
-    DBUG_RETURN(-1);
-  }
-
-  // 'read' itself is a NOOP: 
-  //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
-  int error=table->file->index_read_pushed(table->record[0],
-                                      tab->ref.key_buff,
-                                      make_prev_keypart_map(tab->ref.key_parts));
-  if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
-    DBUG_RETURN(report_error(table, error));
-
-  table->null_row=0;
-  int rc= table->status ? -1 : 0;
-  DBUG_RETURN(rc);
-}
-
-
-static int
-join_read_linked_next(READ_RECORD *info)
-{
-  TABLE *table= info->table;
-  DBUG_ENTER("join_read_linked_next");
-
-  int error=table->file->index_next_pushed(table->record[0]);
-  if (error)
-  {
-    if (unlikely(error != HA_ERR_END_OF_FILE))
-      DBUG_RETURN(report_error(table, error));
-    table->status= STATUS_GARBAGE;
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(error);
-}
-#endif
-
 /*
   ref access method implementation: "read_first" function
 
@@ -19889,21 +19715,8 @@ join_read_last_key(JOIN_TAB *tab)
 
 	/* ARGSUSED */
 static int
-join_no_more_records(READ_RECORD *info)
+join_no_more_records(READ_RECORD *info __attribute__((unused)))
 {
-#ifndef MCP_WL4784
-  /**
-   * When a pushed join completes, and its results did not only depend on
-   * the key of this root operations: ('tab->ref.key_buff')
-   * Results from this pushed join can not be reused 
-   * for later queries having the same root key.
-   * (ref: join_read_key(), join_read_const() & join_read_system()
-   */
-  if (info->table->file->test_push_flag(HA_PUSH_MULTIPLE_DEPENDENCY))
-  {
-    info->table->status= STATUS_GARBAGE;
-  }
-#endif
   return -1;
 }
 
@@ -21606,11 +21419,7 @@ find_field_in_item_list (Field *field, void *data)
     1    We can use an index.
 */
 
-#ifndef MCP_WL4784
-bool
-#else
 static bool
-#endif
 test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 			bool no_changes, const key_map *map)
 {
@@ -24915,11 +24724,6 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     If not used with LIMIT, only use keys if the whole query can be
     resolved with a key;  This is because filesort() is usually faster than
     retrieving all rows through an index.
-#ifndef MCP_WL4784
-    The exception is if there is a pushed join which we can't filesort().
-    This is due to the prefetch of result rows from the pushed join
-    which filesort() is not able to buffer.
-#endif
   */
   if (select_limit >= table_records)
   {
