@@ -632,7 +632,6 @@ int mysql_update(THD *thd,
     }
     if (table->key_read)
       table->restore_column_maps_after_mark_index();
-
   }
 
   if (ignore)
