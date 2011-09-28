@@ -289,6 +289,7 @@ size_t Record::getStringifiedLength(char *data) const {
 
 void Record::pad_offset_for_alignment() {
   int alignment = 1;
+  int bad_offset = 0;
   
   if(index == map[COL_STORE_CAS]) {  // CAS column requires 8-byte alignment
     alignment = 8;
@@ -299,7 +300,7 @@ void Record::pad_offset_for_alignment() {
 
   switch(alignment) {
     case 2: case 4: case 8: case 16:  /* insert padding */
-      int bad_offset = rec_size % alignment;
+      bad_offset = rec_size % alignment;
       if(bad_offset) 
         rec_size += (alignment - bad_offset);
       break;
