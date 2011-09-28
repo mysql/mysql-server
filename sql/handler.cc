@@ -4778,7 +4778,7 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
 #endif
 
 
-#ifndef MC_GLOBAL_SCHEMA_LOCK
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
 /**
   Fill list of htons which are initialized and have the global_schema_func set
 */
