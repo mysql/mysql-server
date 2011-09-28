@@ -896,7 +896,7 @@ SHOW_VAR ndb_status_index_stat_variables[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-#ifndef NO_PUSHED_JOIN
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 static int ndbcluster_make_pushed_join(handlerton *, THD*,AQP::Join_plan*);
 #endif
 
@@ -3069,17 +3069,7 @@ static const ulong index_type_flags[]=
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER |
-  /*
-    NOTE 1: our ordered indexes are not really clustered
-    but since accesing data when scanning index is free
-    it's a good approxiamtion
-
-    NOTE 2: We really should consider DD attributes here too
-    (for which there is IO to read data when scanning index)
-    but that will need to handled later...
-  */
-  HA_CLUSTERED_INDEX,
+  HA_READ_ORDER,
 
   /* UNIQUE_INDEX */
   HA_ONLY_WHOLE_INDEX,
@@ -3088,15 +3078,13 @@ static const ulong index_type_flags[]=
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER |
-  HA_CLUSTERED_INDEX,
+  HA_READ_ORDER,
 
   /* ORDERED_INDEX */
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER |
-  HA_CLUSTERED_INDEX
+  HA_READ_ORDER
 };
 
 static const int index_flags_size= sizeof(index_type_flags)/sizeof(ulong);
@@ -3134,9 +3122,24 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
 bool
 ha_ndbcluster::primary_key_is_clustered()
 {
-  if (table->s->primary_key != MAX_KEY)
-    return test(index_flags(table->s->primary_key, 0, 0) & HA_CLUSTERED_INDEX);
-  return FALSE;
+
+  if (table->s->primary_key == MAX_KEY)
+    return false;
+
+  /*
+    NOTE 1: our ordered indexes are not really clustered
+    but since accesing data when scanning index is free
+    it's a good approximation
+
+    NOTE 2: We really should consider DD attributes here too
+    (for which there is IO to read data when scanning index)
+    but that will need to be handled later...
+  */
+  const ndb_index_type idx_type =
+    get_index_type_from_table(table->s->primary_key);
+  return (idx_type == PRIMARY_KEY_ORDERED_INDEX ||
+          idx_type == UNIQUE_ORDERED_INDEX ||
+          idx_type ==  ORDERED_INDEX);
 }
 
 bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
@@ -11845,7 +11848,9 @@ static int ndbcluster_init(void *p)
     h->discover=         ndbcluster_discover;
     h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
     h->make_pushed_join= ndbcluster_make_pushed_join;
+#endif
   }
 
   // Initialize ndb interface
@@ -14292,7 +14297,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
 }
 #endif
 
-#ifndef NO_PUSHED_JOIN
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 
 /**
  * Try to find pushable subsets of a join plan.
@@ -14349,7 +14354,9 @@ int ndbcluster_make_pushed_join(handlerton *hton,
   }
   DBUG_RETURN(0);
 } // ndbcluster_make_pushed_join
-  
+#endif
+
+
 /**
  * In case a pushed join having the table for this handler as its root
  * has been produced. ::assign_pushed_join() is responsible for setting
@@ -14632,7 +14639,6 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
   DBUG_RETURN(false);
 }
 
-#endif
 
 /**
   @param[in] comment  table comment defined by user

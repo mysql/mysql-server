@@ -181,6 +181,7 @@
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
 
 
+
 /*
   bits in alter_table_flags:
 */
