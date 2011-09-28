@@ -69,6 +69,7 @@ int Ugid_specification::to_string(char *buf) const
     DBUG_ASSERT(0);
   }
   DBUG_ASSERT(0);
+  DBUG_RETURN(0);
 }
 
 

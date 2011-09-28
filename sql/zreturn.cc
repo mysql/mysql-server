@@ -31,9 +31,8 @@ void check_return_status(enum_return_status status, const char *action,
     DBUG_ASSERT(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
     if (status == RETURN_STATUS_REPORTED_ERROR)
     {
-      THD *thd= current_thd;
-      DBUG_ASSERT(thd == NULL ||
-                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR);
+      DBUG_ASSERT(current_thd == NULL ||
+                  current_thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR);
     }
     DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));
   }

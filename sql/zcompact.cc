@@ -106,7 +106,7 @@ Compact_coder::read_unsigned(Reader *reader, ulonglong *out)
     {
       ulonglong o= uint8korr(buf);
       // check that the result will fit in 64 bits
-      if (o >= (1 << (64 - (7 - len))))
+      if (o >= (1ULL << (64 - (7 - len))))
         goto file_format_error;
       // put the high bits of b in the low bits of o
       o <<= (7 - len);
