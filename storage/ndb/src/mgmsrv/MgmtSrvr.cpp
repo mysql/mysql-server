@@ -528,8 +528,6 @@ MgmtSrvr::start()
 {
   DBUG_ENTER("MgmtSrvr::start");
 
-  Guard g(m_local_config_mutex);
-
   /* Start transporter */
   if(!start_transporter(m_local_config))
   {
