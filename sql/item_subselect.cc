@@ -4394,7 +4394,13 @@ double get_fanout_with_deps(JOIN *join, table_map tset)
   for (JOIN_TAB *tab= first_top_level_tab(join, WITHOUT_CONST_TABLES); tab;
        tab= next_top_level_tab(join, tab))
   {
-    if ((tab->table->map & checked_deps) && !tab->emb_sj_nest && 
+    /* 
+      Ignore SJM nests. They have tab->table==NULL. There is no point to walk
+      inside them, because GROUP BY clause cannot refer to tables from within
+      subquery.
+    */
+    if (!tab->is_sjm_nest() && (tab->table->map & checked_deps) && 
+        !tab->emb_sj_nest && 
         tab->records_read != 0)
     {
       fanout *= rows2double(tab->records_read);
