@@ -96,6 +96,7 @@ ClusterConnectionPool::ClusterConnectionPool(const char *s) :
 Ndb_cluster_connection * ClusterConnectionPool::connect(const char *connectstring) {
   DEBUG_ENTER_METHOD("ClusterConnectionPool::connect");
   int conn_retries = 0;
+  if(connectstring == 0) connectstring = "";
   Ndb_cluster_connection *c = new Ndb_cluster_connection(connectstring);
   
   /* Set name that appears in the cluster log file */
