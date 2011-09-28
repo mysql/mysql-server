@@ -90,6 +90,13 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  # Distributed privilege tables not supported in non
  # MySQL Cluster version yet, compile ndbcluster without dist priv
  ADD_DEFINITIONS(-DNDB_WITHOUT_DIST_PRIV)
+ # Pushdown of join queries not supported in non
+ # MySQL Cluster version yet, compile ndbcluster without it
+ ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
+ # Since the MySQL Server has no AQP support, compile
+ # that into ndbcluster instead
+ SET(NDBCLUSTER_SOURCES ${NDBCLUSTER_SOURCES}
+     ../../sql/abstract_query_plan.cc)
 ENDIF()
 
 # NDB is DEFAULT plugin in MySQL Cluster
