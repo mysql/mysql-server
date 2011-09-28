@@ -110,5 +110,5 @@ client/mysqldump.c : .*may be used uninitialized in this function.*
 # 
 # Bundled memcached and libevent
 #
-storage/ndb/extra/.* : .*
+.*/ndb/memcache/extra/.* : .*
 
