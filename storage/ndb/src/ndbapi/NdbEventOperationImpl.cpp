@@ -1030,7 +1030,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
     m_ndb->theImpl->m_ndb_cluster_connection.m_event_add_drop_mutex;
 
   // initialize lists
-  bzero(&g_empty_gci_container, sizeof(Gci_container));
+  memset(&g_empty_gci_container, 0, sizeof(Gci_container));
   init_gci_containers();
 }
 
@@ -1087,7 +1087,7 @@ NdbEventBuffer::remove_op()
 void
 NdbEventBuffer::init_gci_containers()
 {
-  bzero(&m_complete_data, sizeof(m_complete_data));
+  memset(&m_complete_data, 0, sizeof(m_complete_data));
   m_latest_complete_GCI = m_latestGCI = 0;
   m_active_gci.clear();
   m_active_gci.fill(2 * ACTIVE_GCI_DIRECTORY_SIZE - 1, g_empty_gci_container);
@@ -1107,7 +1107,7 @@ int NdbEventBuffer::expand(unsigned sz)
   EventBufData *end_data= data+sz;
   EventBufData *last_data= m_free_data;
 
-  bzero((void*)data, sz*sizeof(EventBufData));
+  memset(data, 0, sz*sizeof(EventBufData));
   for (; data < end_data; data++)
   {
     data->m_next= last_data;
@@ -1179,7 +1179,7 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
         free_list(tmp->m_data);
       }
       tmp->~Gci_container();
-      bzero(tmp, sizeof(Gci_container));
+      memset(tmp, 0, sizeof(Gci_container));
     }
   }
 #ifdef VM_TRACE
@@ -1392,7 +1392,7 @@ find_bucket_chained(Vector<Gci_container_pod> * active, Uint64 gci
       if(move->m_gcp_complete_rep_count == 0)
       {
 	memcpy(move, bucket, sizeof(Gci_container));
-	bzero(bucket, sizeof(Gci_container));
+	memset(bucket, 0, sizeof(Gci_container));
 	bucket->m_gci = gci;
 	bucket->m_gcp_complete_rep_count = ~(Uint32)0;
 #ifdef VM_TRACE
@@ -1532,7 +1532,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep)
 	m_complete_data.m_data.append_list(&bucket->m_data, gci);
       }
       reportStatus();
-      bzero(bucket, sizeof(Gci_container));
+      memset(bucket, 0, sizeof(Gci_container));
       if (likely(idx < ACTIVE_GCI_DIRECTORY_SIZE))
       {
         /**
@@ -1621,7 +1621,7 @@ NdbEventBuffer::complete_outof_order_gcis()
       ndbout_c(" ");
 #endif
     }
-    bzero(bucket, sizeof(Gci_container));
+    memset(bucket, 0, sizeof(Gci_container));
     if(i < ACTIVE_GCI_DIRECTORY_SIZE)
     {
       bucket->m_gci = start_gci + ACTIVE_GCI_DIRECTORY_SIZE;
@@ -1678,8 +1678,8 @@ NdbEventBuffer::report_node_connected(Uint32 node_id)
   DBUG_ENTER("NdbEventBuffer::report_node_connected");
   SubTableData data;
   LinearSectionPtr ptr[3];
-  bzero(&data, sizeof(data));
-  bzero(ptr, sizeof(ptr));
+  memset(&data, 0, sizeof(data));
+  memset(ptr, 0, sizeof(ptr));
 
   data.tableId = ~0;
   data.requestInfo = 0;
@@ -1707,8 +1707,8 @@ NdbEventBuffer::report_node_failure(Uint32 node_id)
   DBUG_ENTER("NdbEventBuffer::report_node_failure");
   SubTableData data;
   LinearSectionPtr ptr[3];
-  bzero(&data, sizeof(data));
-  bzero(ptr, sizeof(ptr));
+  memset(&data, 0, sizeof(data));
+  memset(ptr, 0, sizeof(ptr));
 
   data.tableId = ~0;
   data.requestInfo = 0;
@@ -1736,8 +1736,8 @@ NdbEventBuffer::completeClusterFailed()
   DBUG_ENTER("NdbEventBuffer::completeClusterFailed");
   SubTableData data;
   LinearSectionPtr ptr[3];
-  bzero(&data, sizeof(data));
-  bzero(ptr, sizeof(ptr));
+  memset(&data, 0, sizeof(data));
+  memset(ptr, 0, sizeof(ptr));
 
   data.tableId = ~0;
   data.requestInfo = 0;
@@ -1774,7 +1774,7 @@ NdbEventBuffer::completeClusterFailed()
         free_list(tmp->m_data);
       }
       tmp->~Gci_container();
-      bzero(tmp, sizeof(Gci_container));
+      memset(tmp, 0, sizeof(Gci_container));
     }
     else if (tmp->m_gcp_complete_rep_count)
     {
@@ -1795,7 +1795,7 @@ NdbEventBuffer::completeClusterFailed()
         free_list(tmp->m_data);
       }
       tmp->~Gci_container();
-      bzero(tmp, sizeof(Gci_container));
+      memset(tmp, 0, sizeof(Gci_container));
     }
   }
 
@@ -2567,7 +2567,7 @@ NdbEventBuffer::move_data()
     // move this list to last in m_available_data
     m_available_data.append_list(&m_complete_data.m_data, 0);
 
-    bzero(&m_complete_data, sizeof(m_complete_data));
+    memset(&m_complete_data, 0, sizeof(m_complete_data));
   }
 
   // handle used data

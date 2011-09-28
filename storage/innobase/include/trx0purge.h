@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -52,17 +52,6 @@ trx_purge_get_log_from_hist(
 /*========================*/
 	fil_addr_t	node_addr);	/*!< in: file address of the history
 					list node of the log */
-/*****************************************************************//**
-Checks if trx_id is >= purge_view: then it is guaranteed that its update
-undo log still exists in the system.
-@return TRUE if is sure that it is preserved, also if the function
-returns FALSE, it is possible that the undo log still exists in the
-system */
-UNIV_INTERN
-ibool
-trx_purge_update_undo_must_exist(
-/*=============================*/
-	trx_id_t	trx_id);/*!< in: transaction id */
 /********************************************************************//**
 Creates the global purge system control structure and inits the history
 mutex. */
@@ -100,13 +89,6 @@ trx_purge(
 					submit to task queue. */
 	ulint	limit);			/*!< in: the maximum number of
 					records to purge in one batch */
-/******************************************************************//**
-Prints information of the purge system to stderr. */
-UNIV_INTERN
-void
-trx_purge_sys_print(void);
-/*======================*/
-
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */
 typedef struct purge_iter_struct {
@@ -122,9 +104,9 @@ struct trx_purge_struct{
 	sess_t*		sess;		/*!< System session running the purge
 					query */
 	trx_t*		trx;		/*!< System transaction running the
-				       	purge query: this trx is not in the
-				       	trx list of the trx system and it
-				       	never ends */
+					purge query: this trx is not in the
+					trx list of the trx system and it
+					never ends */
 	que_t*		query;		/*!< The query graph which will do the
 					parallelized purge operation */
 	rw_lock_t	latch;		/*!< The latch protecting the purge
@@ -135,11 +117,9 @@ struct trx_purge_struct{
 					obtaining an s-latch here. */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
-	ulint		n_submitted;	/*!< Count of total tasks submitted
-				       	to the task queue */
-	ulint		n_executing;	/*!< Count of currently executing purge
-					worker threads */
-	ulint		n_completed;	/*!< Count of total tasks completed */
+	volatile ulint	n_submitted;	/*!< Count of total tasks submitted
+					to the task queue */
+	volatile ulint	n_completed;	/*!< Count of total tasks completed */
 
 	/*------------------------------*/
 	/* The following two fields form the 'purge pointer' which advances
@@ -153,7 +133,7 @@ struct trx_purge_struct{
 					invariant in trx0purge.c */
 	purge_iter_t	limit;		/* The 'purge pointer' which advances
 					during a purge, and which is used in
-				       	history list truncation */
+					history list truncation */
 	/*-----------------------------*/
 	ibool		next_stored;	/*!< TRUE if the info of the next record
 					to purge is stored below: if yes, then

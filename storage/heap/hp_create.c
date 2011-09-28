@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "heapdef.h"
 
@@ -59,8 +59,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
-      bzero((char*) &keyinfo->block,sizeof(keyinfo->block));
-      bzero((char*) &keyinfo->rb_tree ,sizeof(keyinfo->rb_tree));
+      memset(&keyinfo->block, 0, sizeof(keyinfo->block));
+      memset(&keyinfo->rb_tree, 0, sizeof(keyinfo->rb_tree));
       for (j= length= 0; j < keyinfo->keysegs; j++)
       {
 	length+= keyinfo->seg[j].length;
@@ -186,6 +186,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     share->auto_key= create_info->auto_key;
     share->auto_key_type= create_info->auto_key_type;
     share->auto_increment= create_info->auto_increment;
+    share->create_time= (long) time((time_t*) 0);
     /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(name,MYF(0))))
     {

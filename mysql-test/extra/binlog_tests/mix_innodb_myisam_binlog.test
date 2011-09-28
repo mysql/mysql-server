@@ -218,6 +218,7 @@ commit;
 connection con2;
 begin;
 create temporary table ti (a int) engine=innodb;
+--replace_column 2 #
 rollback;
 insert into ti values(1);
 set autocommit=0;
@@ -274,6 +275,7 @@ DROP TABLE t2;
 INSERT INTO t1 values (6,6);
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a)) engine=innodb ;
 INSERT INTO t1 values (7,7);
+--replace_column 2 #
 ROLLBACK;
 INSERT INTO t1 values (8,8);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;

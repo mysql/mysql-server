@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "my_sys.h"
 
 typedef struct st_mysql MYSQL;
+class Rpl_info_factory;
 
 /*****************************************************************************
   Replication IO Thread
@@ -62,18 +63,9 @@ typedef struct st_mysql MYSQL;
 
 class Master_info : public Rpl_info
 {
- public:
-  Master_info(
-#ifdef HAVE_PSI_INTERFACE
-              PSI_mutex_key *param_key_info_run_lock,
-              PSI_mutex_key *param_key_info_data_lock,
-              PSI_mutex_key *param_key_info_data_cond,
-              PSI_mutex_key *param_key_info_start_cond,
-              PSI_mutex_key *param_key_info_stop_cond
-#endif
-             );
-  virtual ~Master_info();
+friend class Rpl_info_factory;
 
+public:
   /* the variables below are needed because we can change masters on the fly */
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
@@ -81,6 +73,7 @@ class Master_info : public Rpl_info
   my_bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
   char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
+  char ssl_crl[FN_REFLEN], ssl_crlpath[FN_REFLEN];
   my_bool ssl_verify_server_cert;
 
   MYSQL* mysql;
@@ -100,8 +93,11 @@ class Master_info : public Rpl_info
   long clock_diff_with_master;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
+
   time_t last_heartbeat;
-  Server_ids *ignore_server_ids;
+
+  Dynamic_ids *ignore_server_ids;
+
   ulong master_id;
   /*
     to hold checksum alg in use until IO thread has received FD.
@@ -120,12 +116,15 @@ class Master_info : public Rpl_info
 
   bool shall_ignore_server_id(ulong s_id);
 
+  virtual ~Master_info();
+
 protected:
   char master_log_name[FN_REFLEN];
   my_off_t master_log_pos;
 
 public:
-  void init_master_log_pos();
+  void clear_in_memory_info(bool all);
+
   inline const char* get_master_log_name() { return master_log_name; }
   inline ulonglong get_master_log_pos() { return master_log_pos; }
   inline void set_master_log_name(const char *log_file_name)
@@ -143,11 +142,25 @@ public:
   size_t get_number_info_mi_fields();
 
 private:
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to, bool force);
+  void init_master_log_pos();
 
-  Master_info& operator=(const Master_info& info);
+  bool read_info(Rpl_info_handler *from);
+  bool write_info(Rpl_info_handler *to);
+
+  Master_info(
+#ifdef HAVE_PSI_INTERFACE
+              PSI_mutex_key *param_key_info_run_lock,
+              PSI_mutex_key *param_key_info_data_lock,
+              PSI_mutex_key *param_key_info_sleep_lock,
+              PSI_mutex_key *param_key_info_data_cond,
+              PSI_mutex_key *param_key_info_start_cond,
+              PSI_mutex_key *param_key_info_stop_cond,
+              PSI_mutex_key *param_key_info_sleep_cond
+#endif
+             );
+
   Master_info(const Master_info& info);
+  Master_info& operator=(const Master_info& info);
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
 

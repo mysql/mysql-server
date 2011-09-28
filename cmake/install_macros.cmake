@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -245,7 +245,7 @@ SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug
 
 FUNCTION(INSTALL_DEBUG_TARGET target)
  MYSQL_PARSE_ARGUMENTS(ARG
-  "DESTINATION;RENAME;PDB_DESTINATION;COMPONENT"
+  "DESTINATION;RENAME;PDB_DESTINATION;COMPONENT;SUFFIX"
   ""
   ${ARGN}
   )
@@ -263,6 +263,12 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
    STRING(REPLACE "${CMAKE_BINARY_DIR}" "${DEBUGBUILDDIR}"  debug_target_location "${target_location}")
   ELSE()
    STRING(REPLACE "${CMAKE_CFG_INTDIR}" "Debug"  debug_target_location "${target_location}" )
+  ENDIF()
+  IF(ARG_SUFFIX) 
+    GET_FILENAME_COMPONENT(ext ${debug_target_location} EXT)
+    GET_FILENAME_COMPONENT(fn  ${debug_target_location} NAME_WE)
+    STRING(REPLACE "${fn}${ext}" "${fn}${ARG_SUFFIX}${ext}"
+           debug_target_location "${debug_target_location}" )
   ENDIF()
   IF(NOT ARG_COMPONENT)
     SET(ARG_COMPONENT DebugBinaries)

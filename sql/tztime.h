@@ -1,7 +1,7 @@
 #ifndef TZTIME_INCLUDED
 #define TZTIME_INCLUDED
 
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class interface */
-#endif
 
 #include "my_time.h"                            /* my_time_t */
 #include "mysql_time.h"                         /* MYSQL_TIME */

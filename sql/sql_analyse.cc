@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +22,6 @@
 **	 - Check if any number field should be a timestamp
 **	 - type set is out of optimization yet
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #define MYSQL_LEX 1
 
@@ -242,7 +239,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       if (str == end)
       {
 	info->is_float = 1;             // we can't use variable decimals here
-	return 1;
+	DBUG_RETURN(1);
       }
       DBUG_RETURN(0);
     }
@@ -324,12 +321,12 @@ void field_str::add()
 
   if (can_be_still_num)
   {
-    bzero((char*) &num_info, sizeof(num_info));
+    memset(&num_info, 0, sizeof(num_info));
     if (!test_if_number(&num_info, res->ptr(), (uint) length))
       can_be_still_num = 0;
     if (!found)
     {
-      bzero((char*) &ev_num_info, sizeof(ev_num_info));
+      memset(&ev_num_info, 0, sizeof(ev_num_info));
       was_zero_fill = num_info.zerofill;
     }
     else if (num_info.zerofill != was_zero_fill && !was_maybe_zerofill)
@@ -375,7 +372,7 @@ void field_str::add()
       }
       else
       {
-	bzero((char*) &s, sizeof(s));  // Let tree handle free of this
+	memset(&s, 0, sizeof(s));  // Let tree handle free of this
 	if ((treemem += length) > pc->max_treemem)
 	{
 	  room_in_tree = 0;	 // Remove tree, too big tree
@@ -1106,7 +1103,7 @@ int collect_real(double *element, element_count count __attribute__((unused)),
 int collect_decimal(uchar *element, element_count count,
                     TREE_INFO *info)
 {
-  char buff[DECIMAL_MAX_STR_LENGTH];
+  char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String s(buff, sizeof(buff),&my_charset_bin);
 
   if (info->found)

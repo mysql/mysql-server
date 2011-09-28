@@ -28,7 +28,7 @@ struct parse {
 #	define	NPAREN	10	/* we need to remember () 1-9 for back refs */
 	sopno pbegin[NPAREN];	/* -> ( ([0] unused) */
 	sopno pend[NPAREN];	/* -> ) ([0] unused) */
-	CHARSET_INFO *charset;	/* for ctype things  */
+	const CHARSET_INFO *charset; /* for ctype things  */
 };
 
 /* Check if there is enough stack space for recursion. */
@@ -107,7 +107,7 @@ my_regcomp(preg, pattern, cflags, charset)
 my_regex_t *preg;
 const char *pattern;
 int cflags;
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 {
 	struct parse pa;
 	register struct re_guts *g;
@@ -855,7 +855,7 @@ int endc;			/* name ended by endc,']' */
  */
 static char			/* if no counterpart, return ch */
 othercase(charset,ch)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 int ch;
 {
 	/*

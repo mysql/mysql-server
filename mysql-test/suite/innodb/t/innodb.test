@@ -32,6 +32,8 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # the test to be run multiple times without restarting the mysqld server.
 # See Bug#43309 Test main.innodb can't be run twice
 -- disable_query_log
+SET @innodb_thread_sleep_delay_orig = @@innodb_thread_sleep_delay;
+
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 
 SET @innodb_rows_deleted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted');
@@ -452,8 +454,6 @@ alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
-# this should be fixed by MySQL (see Bug #51451)
---error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
 alter table t1 drop index sca_pic;
 alter table t1 add index (sca_pic, cat_code);
@@ -2553,6 +2553,7 @@ DROP TABLE bug35537;
 DISCONNECT c1;
 CONNECTION default;
 
+SET GLOBAL innodb_thread_sleep_delay = @innodb_thread_sleep_delay_orig;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log

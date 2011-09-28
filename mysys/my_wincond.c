@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*****************************************************************************
 ** The following is a simple implementation of posix conditions
@@ -340,7 +340,7 @@ int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack)
 
 int pthread_attr_destroy(pthread_attr_t *connect_att)
 {
-  bzero((uchar*) connect_att,sizeof(*connect_att));
+  memset(connect_att, 0, sizeof(*connect_att));
   return 0;
 }
 
@@ -352,14 +352,14 @@ struct tm *localtime_r(const time_t *timep,struct tm *tmp)
 {
   if (*timep == (time_t) -1)			/* This will crash win32 */
   {
-    bzero(tmp,sizeof(*tmp));
+    memset(tmp, 0, sizeof(*tmp));
   }
   else
   {
     struct tm *res=localtime(timep);
     if (!res)                                   /* Wrong date */
     {
-      bzero(tmp,sizeof(*tmp));                  /* Keep things safe */
+      memset(tmp, 0, sizeof(*tmp));             /* Keep things safe */
       return 0;
     }
     *tmp= *res;

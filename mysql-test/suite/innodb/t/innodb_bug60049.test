@@ -5,6 +5,13 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
+-- disable_query_log
+let $create1 = query_get_value(SHOW CREATE TABLE mysql.innodb_table_stats, Create Table, 1);
+let $create2 = query_get_value(SHOW CREATE TABLE mysql.innodb_index_stats, Create Table, 1);
+DROP TABLE mysql.innodb_index_stats;
+DROP TABLE mysql.innodb_table_stats;
+-- enable_query_log
+
 CREATE TABLE t(a INT)ENGINE=InnoDB;
 RENAME TABLE t TO u;
 DROP TABLE u;
@@ -37,3 +44,8 @@ EOF
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
+
+-- disable_query_log
+USE mysql;
+eval $create1;
+eval $create2;

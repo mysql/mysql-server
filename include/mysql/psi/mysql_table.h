@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.   
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
   @sa MYSQL_START_TABLE_LOCK_WAIT.
   @sa MYSQL_END_TABLE_LOCK_WAIT.
 */
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   #define MYSQL_TABLE_WAIT_VARIABLES(LOCKER, STATE) \
     struct PSI_table_locker* LOCKER; \
     PSI_table_locker_state STATE;
@@ -61,7 +61,7 @@
   @param FLAGS per table operation flags.
   @sa MYSQL_END_TABLE_WAIT.
 */
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   #define MYSQL_START_TABLE_IO_WAIT(LOCKER, STATE, PSI, OP, INDEX, FLAGS) \
     LOCKER= inline_mysql_start_table_io_wait(STATE, PSI, \
                                              OP, INDEX, __FILE__, __LINE__)
@@ -77,7 +77,7 @@
   @param LOCKER the locker
   @sa MYSQL_START_TABLE_IO_WAIT.
 */
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   #define MYSQL_END_TABLE_IO_WAIT(LOCKER) \
     inline_mysql_end_table_io_wait(LOCKER)
 #else
@@ -85,7 +85,7 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
 /**
   Instrumentation calls for MYSQL_START_TABLE_IO_WAIT.
   @sa MYSQL_END_TABLE_IO_WAIT.
@@ -97,13 +97,10 @@ inline_mysql_start_table_io_wait(PSI_table_locker_state *state,
                                  uint index,
                                  const char *src_file, int src_line)
 {
-  struct PSI_table_locker *locker= NULL;
-  if (likely(PSI_server && psi))
-  {
-    locker= PSI_server->get_thread_table_io_locker(state, psi, op, index);
-    if (likely(locker != NULL))
-      PSI_server->start_table_io_wait(locker, src_file, src_line);
-  }
+  struct PSI_table_locker *locker;
+  locker= PSI_CALL(get_thread_table_io_locker)(state, psi, op, index);
+  if (likely(locker != NULL))
+    PSI_CALL(start_table_io_wait)(locker, src_file, src_line);
   return locker;
 }
 
@@ -115,7 +112,7 @@ static inline void
 inline_mysql_end_table_io_wait(struct PSI_table_locker *locker)
 {
   if (likely(locker != NULL))
-    PSI_server->end_table_io_wait(locker);
+    PSI_CALL(end_table_io_wait)(locker);
 }
 #endif
 
@@ -130,7 +127,7 @@ inline_mysql_end_table_io_wait(struct PSI_table_locker *locker)
   @param FLAGS per table operation flags.
   @sa MYSQL_END_TABLE_LOCK_WAIT.
 */
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   #define MYSQL_START_TABLE_LOCK_WAIT(LOCKER, STATE, PSI, OP, FLAGS) \
     LOCKER= inline_mysql_start_table_lock_wait(STATE, PSI, \
                                                OP, FLAGS, __FILE__, __LINE__)
@@ -146,7 +143,7 @@ inline_mysql_end_table_io_wait(struct PSI_table_locker *locker)
   @param LOCKER the locker
   @sa MYSQL_START_TABLE_LOCK_WAIT.
 */
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   #define MYSQL_END_TABLE_LOCK_WAIT(LOCKER) \
     inline_mysql_end_table_lock_wait(LOCKER)
 #else
@@ -154,7 +151,7 @@ inline_mysql_end_table_io_wait(struct PSI_table_locker *locker)
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
 /**
   Instrumentation calls for MYSQL_START_TABLE_LOCK_WAIT.
   @sa MYSQL_END_TABLE_LOCK_WAIT.
@@ -165,13 +162,10 @@ inline_mysql_start_table_lock_wait(PSI_table_locker_state *state,
                                    enum PSI_table_lock_operation op,
                                    ulong flags, const char *src_file, int src_line)
 {
-  struct PSI_table_locker *locker= NULL;
-  if (likely(PSI_server && psi))
-  {
-    locker= PSI_server->get_thread_table_lock_locker(state, psi, op, flags);
-    if (likely(locker != NULL))
-      PSI_server->start_table_lock_wait(locker, src_file, src_line);
-  }
+  struct PSI_table_locker *locker;
+  locker= PSI_CALL(get_thread_table_lock_locker)(state, psi, op, flags);
+  if (likely(locker != NULL))
+    PSI_CALL(start_table_lock_wait)(locker, src_file, src_line);
   return locker;
 }
 
@@ -183,7 +177,7 @@ static inline void
 inline_mysql_end_table_lock_wait(struct PSI_table_locker *locker)
 {
   if (likely(locker != NULL))
-    PSI_server->end_table_lock_wait(locker);
+    PSI_CALL(end_table_lock_wait)(locker);
 }
 #endif
 

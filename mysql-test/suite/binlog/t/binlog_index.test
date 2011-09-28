@@ -6,6 +6,8 @@ source include/not_embedded.inc;
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 source include/have_debug.inc;
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to process registered files that would be purged.');
 call mtr.add_suppression('MSYQL_BIN_LOG::open failed to sync the index file');

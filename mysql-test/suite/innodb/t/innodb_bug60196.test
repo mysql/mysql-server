@@ -1,0 +1,157 @@
+# Bug#60196 - Setting lowercase_table_names to 2 on Windows causing
+# Foreign Key problems after an engine is restarted.
+
+# This test case needs InnoDB, a lowercase file system,
+# lower-case-table-names=2, and cannot use the embedded server
+# because it restarts the server.
+--source include/not_embedded.inc
+--source include/have_lowercase2.inc
+--source include/have_case_insensitive_file_system.inc
+--source include/have_innodb.inc
+
+#
+# Create test data.
+#
+CREATE TABLE Bug_60196_FK1 (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE Bug_60196_FK2 (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE Bug_60196 (
+  FK1_Key INT NOT NULL,
+  FK2_Key INT NOT NULL,
+  PRIMARY KEY (FK2_Key, FK1_Key),
+  KEY FK1_Key (FK1_Key),
+  KEY FK2_Key (FK2_Key),
+  CONSTRAINT FK_FK1 FOREIGN KEY (FK1_Key)
+    REFERENCES Bug_60196_FK1 (Primary_Key)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT FK_FK2 FOREIGN KEY (FK2_Key)
+    REFERENCES Bug_60196_FK2 (Primary_Key)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO Bug_60196_FK1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO Bug_60196_FK2 VALUES (1), (2), (3), (4), (5);
+INSERT INTO Bug_60196 VALUES (1, 1);
+INSERT INTO Bug_60196 VALUES (1, 2);
+INSERT INTO Bug_60196 VALUES (1, 3);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO Bug_60196 VALUES (1, 99);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO Bug_60196 VALUES (99, 1);
+
+SELECT * FROM bug_60196_FK1;
+SELECT * FROM bug_60196_FK2;
+SELECT * FROM bug_60196;
+
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Send a shutdown request to the server
+-- shutdown_server 10
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+--echo #
+--echo # Try to insert more to the example table with foreign keys.
+--echo # Bug60196 causes the foreign key file not to be found after
+--echo # the resstart above.
+--echo #
+SELECT * FROM Bug_60196;
+INSERT INTO Bug_60196 VALUES (2, 1);
+INSERT INTO Bug_60196 VALUES (2, 2);
+INSERT INTO Bug_60196 VALUES (2, 3);
+SELECT * FROM Bug_60196;
+
+--echo
+--echo # Clean up.
+DROP TABLE Bug_60196;
+DROP TABLE Bug_60196_FK1;
+DROP TABLE Bug_60196_FK2;
+
+
+# Bug#60309/12356829
+# MYSQL 5.5.9 FOR MAC OSX HAS BUG WITH FOREIGN KEY CONSTRAINTS
+# This testcase is different from that for Bug#60196 in that the
+# referenced table contains a secondary key.  When the engine is
+# restarted, the referenced table is opened by the purge thread,
+# which does not notice that lower_case_table_names == 2.
+
+#
+# Create test data.
+#
+CREATE TABLE Bug_60309_FK (
+  ID INT PRIMARY KEY,
+  ID2 INT,
+   KEY K2(ID2)
+) ENGINE=InnoDB;
+CREATE TABLE Bug_60309 (
+  ID INT PRIMARY KEY,
+  FK_ID INT,
+  KEY (FK_ID),
+  CONSTRAINT FK FOREIGN KEY (FK_ID) REFERENCES Bug_60309_FK (ID)
+) ENGINE=InnoDB;
+
+INSERT INTO Bug_60309_FK (ID, ID2) VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO Bug_60309 VALUES (1, 1);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO Bug_60309 VALUES (2, 99);
+
+SELECT * FROM Bug_60309_FK;
+SELECT * FROM Bug_60309;
+
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Send a shutdown request to the server
+-- shutdown_server 10
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+--echo #
+--echo # Try to insert more to the example table with foreign keys.
+--echo # Bug60309 causes the foreign key file not to be found after
+--echo # the resstart above.
+--echo #
+SELECT * FROM Bug_60309;
+INSERT INTO Bug_60309 VALUES (2, 2);
+INSERT INTO Bug_60309 VALUES (3, 3);
+SELECT * FROM Bug_60309;
+
+--echo
+--echo # Clean up.
+DROP TABLE Bug_60309;
+DROP TABLE Bug_60309_FK;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -19,10 +19,6 @@
   Low level functions for storing data to be send to the MySQL client.
   The actual communction is handled by the net_xxx functions in net_serv.cc
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
@@ -78,7 +74,8 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const uchar *from, size_t length,
-                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+                              const CHARSET_INFO *from_cs,
+                              const CHARSET_INFO *to_cs)
 {
   uint dummy_errors;
   /* Calculate maxumum possible result length */
@@ -161,14 +158,14 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
     It's one case when we can push an error even though there
     is an OK or EOF already.
   */
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
 
   /* Abort multi-result sets */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
   error= net_send_error_packet(thd, sql_errno, err, sqlstate);
 
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
 
   DBUG_RETURN(error);
 }
@@ -242,7 +239,7 @@ net_send_ok(THD *thd,
     int2store(pos, server_status);
     pos+=2;
   }
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
 
   if (message && message[0])
     pos= net_store_data(pos, (uchar*) message, strlen(message));
@@ -251,7 +248,7 @@ net_send_ok(THD *thd,
     error= net_flush(net);
 
 
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
   DBUG_RETURN(error);
@@ -291,11 +288,11 @@ net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
   /* Set to TRUE if no active vio, to work well in case of --init-file */
   if (net->vio != 0)
   {
-    thd->stmt_da->can_overwrite_status= TRUE;
+    thd->get_stmt_da()->set_overwrite_status(true);
     error= write_eof_packet(thd, net, server_status, statement_warn_count);
     if (!error)
       error= net_flush(net);
-    thd->stmt_da->can_overwrite_status= FALSE;
+    thd->get_stmt_da()->set_overwrite_status(false);
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
   DBUG_RETURN(error);
@@ -368,9 +365,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
     buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
   */
   uint error;
-  uchar converted_err[MYSQL_ERRMSG_SIZE];
-  uint32 converted_err_len;
-  uchar buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
+  char converted_err[MYSQL_ERRMSG_SIZE];
+  char buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
 
   DBUG_ENTER("send_error_packet");
 
@@ -390,19 +386,16 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   {
     /* The first # is to make the protocol backward compatible */
     buff[2]= '#';
-    pos= (uchar*) strmov((char*) buff+3, sqlstate);
+    pos= strmov(buff+3, sqlstate);
   }
 
-  converted_err_len= convert_error_message((char*)converted_err,
-                                           sizeof(converted_err),
-                                           thd->variables.character_set_results,
-                                           err, strlen(err),
-                                           system_charset_info, &error);
-  length= (uint) (strmake((char*) pos, (char*)converted_err,
-                          MYSQL_ERRMSG_SIZE - 1) - (char*) buff);
-  err= (char*) buff;
+  convert_error_message(converted_err, sizeof(converted_err),
+                        thd->variables.character_set_results,
+                        err, strlen(err), system_charset_info, &error);
+  /* Converted error message is always null-terminated. */
+  length= (uint) (strmake(pos, converted_err, MYSQL_ERRMSG_SIZE - 1) - buff);
 
-  DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
+  DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) buff,
                                 length));
 }
 
@@ -490,30 +483,30 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
 void Protocol::end_statement()
 {
   DBUG_ENTER("Protocol::end_statement");
-  DBUG_ASSERT(! thd->stmt_da->is_sent);
+  DBUG_ASSERT(! thd->get_stmt_da()->is_sent());
   bool error= FALSE;
 
   /* Can not be true, but do not take chances in production. */
-  if (thd->stmt_da->is_sent)
+  if (thd->get_stmt_da()->is_sent())
     DBUG_VOID_RETURN;
 
-  switch (thd->stmt_da->status()) {
+  switch (thd->get_stmt_da()->status()) {
   case Diagnostics_area::DA_ERROR:
     /* The query failed, send error to log and abort bootstrap. */
-    error= send_error(thd->stmt_da->sql_errno(),
-                      thd->stmt_da->message(),
-                      thd->stmt_da->get_sqlstate());
+    error= send_error(thd->get_stmt_da()->sql_errno(),
+                      thd->get_stmt_da()->message(),
+                      thd->get_stmt_da()->get_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
     error= send_eof(thd->server_status,
-                    thd->stmt_da->statement_warn_count());
+                    thd->get_stmt_da()->statement_warn_count());
     break;
   case Diagnostics_area::DA_OK:
     error= send_ok(thd->server_status,
-                   thd->stmt_da->statement_warn_count(),
-                   thd->stmt_da->affected_rows(),
-                   thd->stmt_da->last_insert_id(),
-                   thd->stmt_da->message());
+                   thd->get_stmt_da()->statement_warn_count(),
+                   thd->get_stmt_da()->affected_rows(),
+                   thd->get_stmt_da()->last_insert_id(),
+                   thd->get_stmt_da()->message());
     break;
   case Diagnostics_area::DA_DISABLED:
     break;
@@ -524,7 +517,7 @@ void Protocol::end_statement()
     break;
   }
   if (!error)
-    thd->stmt_da->is_sent= TRUE;
+    thd->get_stmt_da()->set_is_sent(true);
   DBUG_VOID_RETURN;
 }
 
@@ -642,9 +635,9 @@ bool Protocol::flush()
 {
 #ifndef EMBEDDED_LIBRARY
   bool error;
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   error= net_flush(&thd->net);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   return error;
 #else
   return 0;
@@ -679,7 +672,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
-  CHARSET_INFO *thd_charset= thd->variables.character_set_results;
+  const CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_result_set_metadata");
 
   if (flags & SEND_NUM_ROWS)
@@ -698,7 +691,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   while ((item=it++))
   {
     char *pos;
-    CHARSET_INFO *cs= system_charset_info;
+    const CHARSET_INFO *cs= system_charset_info;
     Send_field field;
     item->make_field(&field);
 
@@ -805,7 +798,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       Send no warning information, as it will be sent at statement end.
     */
     if (write_eof_packet(thd, &thd->net, thd->server_status,
-                         thd->warning_info->statement_warn_count()))
+                         thd->get_stmt_da()->current_statement_warn_count()))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(prepare_for_send(list->elements));
@@ -881,7 +874,7 @@ bool Protocol::send_result_set_row(List<Item> *row_items)
     1		error
 */
 
-bool Protocol::store(const char *from, CHARSET_INFO *cs)
+bool Protocol::store(const char *from, const CHARSET_INFO *cs)
 {
   if (!from)
     return store_null();
@@ -948,7 +941,8 @@ bool Protocol_text::store_null()
 */
 
 bool Protocol::store_string_aux(const char *from, size_t length,
-                                CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                                const CHARSET_INFO *fromcs,
+                                const CHARSET_INFO *tocs)
 {
   /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
   if (tocs && !my_charset_same(fromcs, tocs) &&
@@ -964,7 +958,8 @@ bool Protocol::store_string_aux(const char *from, size_t length,
 
 
 bool Protocol_text::store(const char *from, size_t length,
-                          CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                          const CHARSET_INFO *fromcs,
+                          const CHARSET_INFO *tocs)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -980,9 +975,9 @@ bool Protocol_text::store(const char *from, size_t length,
 
 
 bool Protocol_text::store(const char *from, size_t length,
-                          CHARSET_INFO *fromcs)
+                          const CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %.*s", field_pos,
                       field_count, (int) length, (length == 0 ? "" : from)));
@@ -1064,7 +1059,7 @@ bool Protocol_text::store_decimal(const my_decimal *d)
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
 #endif
-  char buff[DECIMAL_MAX_STR_LENGTH];
+  char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
   (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
   return net_store_data((uchar*) str.ptr(), str.length());
@@ -1104,7 +1099,7 @@ bool Protocol_text::store(Field *field)
 #endif
   char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff), &my_charset_bin);
-  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   TABLE *table= field->table;
   my_bitmap_map *old_map= 0;
@@ -1265,21 +1260,22 @@ bool Protocol_binary::prepare_for_send(uint num_columns)
 void Protocol_binary::prepare_for_resend()
 {
   packet->length(bit_fields+1);
-  bzero((uchar*) packet->ptr(), 1+bit_fields);
+  memset(const_cast<char*>(packet->ptr()), 0, 1+bit_fields);
   field_pos=0;
 }
 
 
 bool Protocol_binary::store(const char *from, size_t length,
-                            CHARSET_INFO *fromcs)
+                            const CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= thd->variables.character_set_results;
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
 }
 
 bool Protocol_binary::store(const char *from, size_t length,
-                            CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                            const CHARSET_INFO *fromcs,
+                            const CHARSET_INFO *tocs)
 {
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
@@ -1344,7 +1340,7 @@ bool Protocol_binary::store_decimal(const my_decimal *d)
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
 #endif
-  char buff[DECIMAL_MAX_STR_LENGTH];
+  char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
   (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
   return store(str.ptr(), str.length(), str.charset());

@@ -43,6 +43,43 @@ buf_read_page(
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
 	ulint	offset);/*!< in: page number */
 /********************************************************************//**
+High-level function which reads a page asynchronously from a file to the
+buffer buf_pool if it is not already there. Sets the io_fix flag and sets
+an exclusive lock on the buffer frame. The flag is cleared and the x-lock
+released by the i/o-handler thread.
+@return TRUE if page has been read in, FALSE in case of failure */
+UNIV_INTERN
+ibool
+buf_read_page_async(
+/*================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset);/*!< in: page number */
+/********************************************************************//**
+Applies a random read-ahead in buf_pool if there are at least a threshold
+value of accessed pages from the random read-ahead area. Does not read any
+page, not even the one at the position (space, offset), if the read-ahead
+mechanism is not activated. NOTE 1: the calling thread may own latches on
+pages: to avoid deadlocks this function must be written such that it cannot
+end up waiting for these latches! NOTE 2: the calling thread must want
+access to the page given: this rule is set to prevent unintended read-aheads
+performed by ibuf routines, a situation which could result in a deadlock if
+the OS does not support asynchronous i/o.
+@return number of page read requests issued; NOTE that if we read ibuf
+pages, it may happen that the page at the given page number does not
+get read even if we return a positive value!
+@return	number of page read requests issued */
+UNIV_INTERN
+ulint
+buf_read_ahead_random(
+/*==================*/
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes,
+				or 0 */
+	ulint	offset,		/*!< in: page number of a page which
+				the current thread wants to access */
+	ibool	inside_ibuf);	/*!< in: TRUE if we are inside ibuf
+				routine */
+/********************************************************************//**
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note
@@ -70,10 +107,10 @@ UNIV_INTERN
 ulint
 buf_read_ahead_linear(
 /*==================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset);/*!< in: page number of a page; NOTE: the current thread
-			must want access to this page (see NOTE 3 above) */
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
+	ulint	offset,		/*!< in: page number; see NOTE 3 above */
+	ibool	inside_ibuf);	/*!< in: TRUE if we are inside ibuf routine */
 /********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
@@ -132,6 +169,9 @@ invoked */
 #define BUF_READ_IBUF_PAGES_ONLY	131
 /** read any page */
 #define BUF_READ_ANY_PAGE		132
+/** read any page, but ignore (return an error) if a page does not exist
+instead of crashing like BUF_READ_ANY_PAGE does */
+#define BUF_READ_IGNORE_NONEXISTENT_PAGES 1024
 /* @} */
 
 #endif

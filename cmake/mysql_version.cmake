@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 # Global constants, only to be changed between major releases.
 #
 
-SET(SHARED_LIB_MAJOR_VERSION "16")
+SET(SHARED_LIB_MAJOR_VERSION "18")
 SET(PROTOCOL_VERSION "10")
 SET(DOT_FRM_VERSION "6")
 
@@ -94,8 +94,8 @@ ENDIF()
 IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
   SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-${VERSION}")
 ENDIF()
-SET(CPACK_PACKAGE_CONTACT "MySQL Build Team <build@mysql.com>")
-SET(CPACK_PACKAGE_VENDOR "Sun Microsystems, Inc")
+SET(CPACK_PACKAGE_CONTACT "MySQL Release Engineering <mysql-build@oss.oracle.com>")
+SET(CPACK_PACKAGE_VENDOR "Oracle Corporation")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
 INCLUDE(cpack_source_ignore_files)
 

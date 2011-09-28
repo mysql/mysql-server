@@ -1,7 +1,7 @@
 #ifndef MY_COMPILER_INCLUDED
 #define MY_COMPILER_INCLUDED
 
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,6 +139,14 @@ struct my_aligned_storage
 };
 
 #endif /* __cplusplus */
+
+# ifndef MY_ALIGNED
+/*
+  Make sure MY_ALIGNED can be used also on platforms where we don't
+  have a way of aligning data structures.
+*/
+#define MY_ALIGNED(size)
+#endif
 
 #include <my_attribute.h>
 

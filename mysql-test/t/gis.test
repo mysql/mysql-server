@@ -773,7 +773,14 @@ drop table t1;
 #
 # Bug #50574 5.5.x allows spatial indexes on non-spatial 
 #           columns, causing crashes!
+# Bug#11767480 SPATIAL INDEXES ON NON-SPATIAL COLUMNS 
+#              CAUSE CRASHES.
 #
+CREATE TABLE t0 (a BINARY(32) NOT NULL);
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+CREATE SPATIAL INDEX i on t0 (a);
+INSERT INTO t0 VALUES (1);
+
 --error ER_SPATIAL_MUST_HAVE_GEOM_COL
 CREATE TABLE t1(
   col0 BINARY NOT NULL,
@@ -811,8 +818,29 @@ CREATE TABLE t3 (
 );
 
 # cleanup
-DROP TABLE t1;
-DROP TABLE t2;
+DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug#11908153: CRASH AND/OR VALGRIND ERRORS IN FIELD_BLOB::GET_KEY_IMAGE
+--echo #
+
+CREATE TABLE g1
+(a geometry NOT NULL, UNIQUE KEY i (a(151))) engine=myisam;
+
+INSERT INTO g1 VALUES (geomfromtext('point(1 1)'));
+INSERT INTO g1 VALUES (geomfromtext('point(1 2)'));
+
+FLUSH TABLES;
+
+SELECT 1 FROM g1 
+FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
+;
+
+DROP TABLE g1;
+
+
+--echo End of 5.5 tests
+
 
 # Conformance tests
 #

@@ -31,7 +31,9 @@ Created 8/22/1994 Heikki Tuuri
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
-#include "btr0sea.h"
+#ifndef UNIV_HOTBACKUP
+# include "btr0sea.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "page0page.h"
 
 /*************************************************************//**
@@ -223,12 +225,14 @@ ha_insert_for_fold_func(
 		prev_node = prev_node->next;
 	}
 
+#ifndef UNIV_HOTBACKUP
 	/* We are in the process of disabling hash index, do not add
 	new chain node */
 	if (!btr_search_enabled) {
 		ut_ad(!btr_search_fully_disabled);
 		return(TRUE);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	/* We have to allocate a new chain node */
 

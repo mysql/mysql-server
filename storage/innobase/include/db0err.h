@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,8 +64,6 @@ enum db_err {
 	DB_CANNOT_ADD_CONSTRAINT,	/* adding a foreign key constraint
 					to a table failed */
 	DB_CORRUPTION,			/* data structure corruption noticed */
-	DB_COL_APPEARS_TWICE_IN_INDEX,	/* InnoDB cannot handle an index
-					where same column appears twice */
 	DB_CANNOT_DROP_CONSTRAINT,	/* dropping a foreign key constraint
 					from a table failed */
 	DB_NO_SAVEPOINT,		/* no savepoint exists with the given
@@ -110,7 +108,10 @@ enum db_err {
 	DB_PARENT_NO_INDEX,		/* the parent table does not
 					have an index that contains the
 					foreign keys as its prefix columns */
-	DB_END_OF_INDEX,
+	DB_TOO_BIG_INDEX_COL,		/* index column size exceeds maximum
+					limit */
+	DB_INDEX_CORRUPT,		/* we have corrupted index */
+	DB_UNDO_RECORD_TOO_BIG,		/* the undo log record is too big */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
@@ -119,6 +120,7 @@ enum db_err {
 	DB_STRONG_FAIL,
 	DB_ZIP_OVERFLOW,
 	DB_RECORD_NOT_FOUND = 1500,
+	DB_END_OF_INDEX,
 
         /* The following are API only error codes. */
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed

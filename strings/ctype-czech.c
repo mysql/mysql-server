@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* File strings/ctype-czech.c for MySQL.
 
@@ -228,7 +228,7 @@ while (1)						\
   the length of the strings being specified
 */
 
-static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_czech(const CHARSET_INFO *cs __attribute__((unused)),
 			      const uchar *s1, size_t len1, 
 			      const uchar *s2, size_t len2,
                               my_bool s2_is_prefix)
@@ -262,7 +262,7 @@ static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
 */
 
 static
-int my_strnncollsp_czech(CHARSET_INFO * cs, 
+int my_strnncollsp_czech(const CHARSET_INFO *cs, 
                          const uchar *s, size_t slen, 
                          const uchar *t, size_t tlen,
                          my_bool diff_if_only_endspace_difference
@@ -278,7 +278,8 @@ int my_strnncollsp_czech(CHARSET_INFO * cs,
   Returns the number of bytes required for strnxfrm().
 */
 static size_t
-my_strnxfrmlen_czech(CHARSET_INFO *cs __attribute__((unused)), size_t len)
+my_strnxfrmlen_czech(const CHARSET_INFO *cs
+                     __attribute__((unused)), size_t len)
 {
   return len * 4 + 4;
 }
@@ -290,7 +291,7 @@ my_strnxfrmlen_czech(CHARSET_INFO *cs __attribute__((unused)), size_t len)
 */
 
 static size_t
-my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
+my_strnxfrm_czech(const CHARSET_INFO *cs __attribute__((unused)), 
                   uchar *dest, size_t len,
                   uint nweights_arg __attribute__((unused)),
                   const uchar *src, size_t srclen, uint flags)
@@ -314,7 +315,7 @@ my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
   while (value);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
   {
-    bfill(dest + totlen, len - totlen, ' ');
+    memset(dest + totlen, ' ', len - totlen);
     totlen= len;
   }
   return totlen;
@@ -367,7 +368,8 @@ my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
 #define max_sort_char '9'
 
 
-static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
+static my_bool my_like_range_czech(const CHARSET_INFO *cs
+                                   __attribute__((unused)),
 				   const char *ptr,size_t ptr_length,
 				   pbool escape, pbool w_one, pbool w_many,
 				   size_t res_length, char *min_str,

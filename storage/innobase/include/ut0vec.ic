@@ -123,3 +123,17 @@ ib_vector_is_empty(
 {
 	return(ib_vector_size(vec) == 0);
 }
+
+/****************************************************************//**
+Reset the vector to empty. */
+UNIV_INLINE
+void
+ib_vector_reset(
+/*============*/
+	ib_vector_t*	vec)	/*!< in/out: vector */
+{
+	ut_d(memset(vec->data, 0x0, sizeof(*vec->data) * vec->used));
+	UNIV_MEM_INVALID(vec->data, sizeof(*vec->data) * vec->used);
+
+	vec->used = 0;
+}

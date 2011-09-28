@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Please read ha_exmple.cc before reading this file.
@@ -19,10 +19,6 @@
   that are required to be implemented. handler.h has a full list of methods
   that you can implement.
 */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include <mysql.h>
 
@@ -149,7 +145,8 @@ public:
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_NO_PREFIX_CHAR_KEYS | HA_PRIMARY_KEY_REQUIRED_FOR_DELETE |
             HA_NO_TRANSACTIONS /* until fixed by WL#2952 */ |
-            HA_PARTIAL_COLUMN_READ | HA_NULL_IN_KEY);
+            HA_PARTIAL_COLUMN_READ | HA_NULL_IN_KEY |
+            HA_CAN_REPAIR);
   }
   /*
     This is a bitmap of flags that says how the storage engine

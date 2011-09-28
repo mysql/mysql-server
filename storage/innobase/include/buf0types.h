@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,6 +47,8 @@ enum buf_flush {
 	BUF_FLUSH_LRU = 0,		/*!< flush via the LRU list */
 	BUF_FLUSH_LIST,			/*!< flush via the flush list
 					of dirty blocks */
+	BUF_FLUSH_SINGLE_PAGE,		/*!< flush via the LRU list
+					but only a single page */
 	BUF_FLUSH_N_TYPES		/*!< index of last element + 1  */
 };
 
@@ -57,19 +59,31 @@ enum buf_io_fix {
 	BUF_IO_WRITE			/**< write pending */
 };
 
+/** Alternatives for srv_checksum_algorithm, which can be changed by
+setting innodb_checksum_algorithm */
+enum srv_checksum_algorithm_enum {
+	SRV_CHECKSUM_ALGORITHM_CRC32,		/*!< Write crc32, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_CRC32,	/*!< Write crc32, allow crc32
+						when reading */
+	SRV_CHECKSUM_ALGORITHM_INNODB,		/*!< Write innodb, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_INNODB,	/*!< Write innodb, allow
+						innodb when reading */
+	SRV_CHECKSUM_ALGORITHM_NONE,		/*!< Write none, allow crc32,
+						innodb or none when reading */
+	SRV_CHECKSUM_ALGORITHM_STRICT_NONE,	/*!< Write none, allow none
+						when reading */
+};
+
+typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
+
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
-#if UNIV_WORD_SIZE <= 4 /* 32-bit system */
-/** Base-2 logarithm of the smallest buddy block size */
-# define BUF_BUDDY_LOW_SHIFT	6
-#else /* 64-bit system */
-/** Base-2 logarithm of the smallest buddy block size */
-# define BUF_BUDDY_LOW_SHIFT	7
-#endif
+#define BUF_BUDDY_LOW_SHIFT	UNIV_ZIP_SIZE_SHIFT_MIN
+
 #define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
-					/*!< minimum block size in the binary
-					buddy system; must be at least
-					sizeof(buf_page_t) */
+
 #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
 					/*!< number of buddy sizes */
 

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -17,7 +17,7 @@
 /**
   @file
 
-  socket_peercred authentication plugin.
+  auth_socket authentication plugin.
 
   Authentication is successful if the connection is done via a unix socket and
   the owner of the client process matches the user name that was used when
@@ -88,7 +88,8 @@ mysql_declare_plugin(socket_auth)
   0x0100,
   NULL,
   NULL,
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

@@ -13,15 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* compare and test functions */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "item_func.h"             /* Item_int_func, Item_bool_func */
@@ -387,7 +383,8 @@ public:
 
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
   void cleanup()
@@ -439,7 +436,7 @@ public:
 };
 
 class Item_maxmin_subselect;
-
+struct st_join_table;
 /*
   trigcond<param>(arg) ::= param? arg : TRUE
 
@@ -471,9 +468,47 @@ class Item_maxmin_subselect;
 
 class Item_func_trig_cond: public Item_bool_func
 {
-  bool *trig_var;
 public:
-  Item_func_trig_cond(Item *a, bool *f) : Item_bool_func(a) { trig_var= f; }
+  enum enum_trig_type
+  {
+    /**
+       In t1 LEFT JOIN t2, ON can be tested on t2's row only if that row is
+       not NULL-complemented
+    */
+    IS_NOT_NULL_COMPL,
+    /**
+       In t1 LEFT JOIN t2, the WHERE pushed to t2 can be tested only after at
+       least one t2's row has been found
+    */
+    FOUND_MATCH,
+    /**
+       In IN->EXISTS subquery transformation, new predicates are added:
+       WHERE inner_field=outer_field OR inner_field IS NULL,
+       as well as
+       HAVING inner_field IS NOT NULL,
+       are disabled if outer_field is a NULL value
+    */
+    OUTER_FIELD_IS_NOT_NULL
+  };
+private:
+  /** Pointer to trigger variable */
+  bool *trig_var;
+  /** Optional table(s) which are the source of trig_var; for printing */
+  const struct st_join_table *trig_tab;
+  /** Type of trig_var; for printing */
+  enum_trig_type trig_type;
+public:
+  /**
+     @param a             the item for <condition>
+     @param f             pointer to trigger variable
+     @param tab           optional table which is source of 'f',
+                          NULL if not applicable
+     @param trig_type_arg type of 'f'
+  */
+  Item_func_trig_cond(Item *a, bool *f, struct st_join_table *tab,
+                      enum_trig_type trig_type_arg)
+    : Item_bool_func(a), trig_var(f), trig_tab(tab), trig_type(trig_type_arg)
+  {}
   longlong val_int() { return *trig_var ? args[0]->val_int() : 1; }
   enum Functype functype() const { return TRIG_COND_FUNC; };
   const char *func_name() const { return "trigcond"; };
@@ -481,21 +516,24 @@ public:
   bool *get_trig_var() { return trig_var; }
   /* The following is needed for ICP: */
   table_map used_tables() const { return args[0]->used_tables(); }
+  void print(String *str, enum_query_type query_type);
 };
+
 
 class Item_func_not_all :public Item_func_not
 {
   /* allow to check presence of values in max/min optimization */
   Item_sum_hybrid *test_sum_item;
   Item_maxmin_subselect *test_sub_item;
+  Item_subselect *subselect;
 
   bool abort_on_null;
 public:
   bool show;
 
   Item_func_not_all(Item *a)
-    :Item_func_not(a), test_sum_item(0), test_sub_item(0), abort_on_null(0),
-     show(0)
+    :Item_func_not(a), test_sum_item(0), test_sub_item(0), subselect(0),
+     abort_on_null(0), show(0)
     {}
   virtual void top_level_item() { abort_on_null= 1; }
   bool top_level() { return abort_on_null; }
@@ -505,6 +543,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void set_sum_test(Item_sum_hybrid *item) { test_sum_item= item; };
   void set_sub_test(Item_maxmin_subselect *item) { test_sub_item= item; };
+  void set_subselect(Item_subselect *item) { subselect= item; }
   bool empty_underlying_subquery();
   Item *neg_transformer(THD *thd);
 };
@@ -675,7 +714,7 @@ public:
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
 };
 
@@ -781,6 +820,8 @@ public:
   void fix_length_and_dec();
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
+private:
+  void cache_type_info(Item *source);
 };
 
 
@@ -821,12 +862,12 @@ public:
   char *base;
   uint size;
   qsort2_cmp compare;
-  CHARSET_INFO *collation;
+  const CHARSET_INFO *collation;
   uint count;
   uint used_count;
   in_vector() {}
   in_vector(uint elements,uint element_length,qsort2_cmp cmp_func, 
-  	    CHARSET_INFO *cmp_coll)
+  	    const CHARSET_INFO *cmp_coll)
     :base((char*) sql_calloc(elements*element_length)),
      size(element_length), compare(cmp_func), collation(cmp_coll),
      count(elements), used_count(elements) {}
@@ -872,7 +913,7 @@ class in_string :public in_vector
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp;
 public:
-  in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs);
+  in_string(uint elements,qsort2_cmp cmp_func, const CHARSET_INFO *cs);
   ~in_string();
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
@@ -999,14 +1040,14 @@ public:
 class cmp_item :public Sql_alloc
 {
 public:
-  CHARSET_INFO *cmp_charset;
+  const CHARSET_INFO *cmp_charset;
   cmp_item() { cmp_charset= &my_charset_bin; }
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(cmp_item *item)= 0;
-  static cmp_item* get_comparator(Item_result type, CHARSET_INFO *cs);
+  static cmp_item* get_comparator(Item_result type, const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item *tmpl, Item *item)
   {
@@ -1020,8 +1061,8 @@ protected:
   String *value_res;
 public:
   cmp_item_string () {}
-  cmp_item_string (CHARSET_INFO *cs) { cmp_charset= cs; }
-  void set_charset(CHARSET_INFO *cs) { cmp_charset= cs; }
+  cmp_item_string (const CHARSET_INFO *cs) { cmp_charset= cs; }
+  void set_charset(const CHARSET_INFO *cs) { cmp_charset= cs; }
   friend class cmp_item_sort_string;
   friend class cmp_item_sort_string_in_static;
 };
@@ -1034,7 +1075,7 @@ protected:
 public:
   cmp_item_sort_string():
     cmp_item_string() {}
-  cmp_item_sort_string(CHARSET_INFO *cs):
+  cmp_item_sort_string(const CHARSET_INFO *cs):
     cmp_item_string(cs),
     value(value_buff, sizeof(value_buff), cs) {}
   void store_value(Item *item)
@@ -1055,7 +1096,7 @@ public:
     return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   } 
   cmp_item *make_same();
-  void set_charset(CHARSET_INFO *cs)
+  void set_charset(const CHARSET_INFO *cs)
   {
     cmp_charset= cs;
     value.set_quick(value_buff, sizeof(value_buff), cs);
@@ -1151,7 +1192,7 @@ class cmp_item_sort_string_in_static :public cmp_item_string
  protected:
   String value;
 public:
-  cmp_item_sort_string_in_static(CHARSET_INFO *cs):
+  cmp_item_sort_string_in_static(const CHARSET_INFO *cs):
     cmp_item_string(cs) {}
   void store_value(Item *item)
   {
@@ -1221,7 +1262,7 @@ public:
       list.push_back(else_expr_arg);
     }
     set_arguments(list);
-    bzero(&cmp_items, sizeof(cmp_items));
+    memset(&cmp_items, 0, sizeof(cmp_items));
   }
   double val_real();
   longlong val_int();
@@ -1236,7 +1277,7 @@ public:
   const char *func_name() const { return "case"; }
   virtual void print(String *str, enum_query_type query_type);
   Item *find_item(String *str);
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
   void agg_str_lengths(Item *arg);
   void agg_num_lengths(Item *arg);
@@ -1278,7 +1319,7 @@ public:
     :Item_func_opt_neg(list), array(0), have_null(0),
     arg_types_compatible(FALSE)
   {
-    bzero(&cmp_items, sizeof(cmp_items));
+    memset(&cmp_items, 0, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
@@ -1306,7 +1347,7 @@ public:
   const char *func_name() const { return " IN "; }
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 class cmp_item_row :public cmp_item
@@ -1366,6 +1407,8 @@ public:
     else
     {
       args[0]->update_used_tables();
+      with_subselect= args[0]->has_subquery();
+
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
           !with_subselect))
       {
@@ -1377,7 +1420,8 @@ public:
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd);
-  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return args[0]->collation.collation; }
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -1424,7 +1468,8 @@ public:
   { return abort_on_null ? not_null_tables_cache : 0; }
   Item *neg_transformer(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
-  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
 };
 
@@ -1474,7 +1519,7 @@ class Item_func_regex :public Item_bool_func
   bool regex_is_const;
   String prev_regexp;
   DTCollation cmp_collation;
-  CHARSET_INFO *regex_lib_charset;
+  const CHARSET_INFO *regex_lib_charset;
   int regex_lib_flags;
   String conv;
   int regcomp(bool send_error);
@@ -1491,7 +1536,7 @@ public:
     print_op(str, query_type);
   }
 
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 
@@ -1539,7 +1584,8 @@ public:
   table_map used_tables() const;
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
-  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+                      List<Item> &fields);
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                          Item **conds);
   void top_level_item() { abort_on_null=1; }
@@ -1674,7 +1720,7 @@ public:
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
-  CHARSET_INFO *compare_collation() 
+  const CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
   friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 

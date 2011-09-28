@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
 #include "log0recv.h"
@@ -131,11 +132,8 @@ static const ulint	FILE_FORMAT_NAME_N
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
-/* Key to register the trx_sys->lock with performance schema */
-UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
-/* Key to register the trx_sys->read_view_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	read_view_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
+UNIV_INTERN mysql_pfs_key_t	trx_sys_mutex_key;
+#endif /* UNIV_PFS_RWLOCK */
 
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
@@ -182,7 +180,18 @@ trx_doublewrite_init(
 	byte*	doublewrite)	/*!< in: pointer to the doublewrite buf
 				header on trx sys page */
 {
-	trx_doublewrite = mem_alloc(sizeof(trx_doublewrite_t));
+	ulint	buf_size;
+
+	trx_doublewrite = mem_zalloc(sizeof(trx_doublewrite_t));
+
+	/* There are two blocks of same size in the doublewrite
+	buffer. */
+	buf_size = 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
+
+	/* There must be atleast one buffer for single page writes
+	and one buffer for batch writes. */
+	ut_a(srv_doublewrite_batch_size > 0
+	     && srv_doublewrite_batch_size < buf_size);
 
 	/* Since we now start to use the doublewrite buffer, no need to call
 	fsync() after every write to a data file */
@@ -194,18 +203,22 @@ trx_doublewrite_init(
 		     &trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
 	trx_doublewrite->first_free = 0;
+	trx_doublewrite->n_reserved = 0;
 
 	trx_doublewrite->block1 = mach_read_from_4(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK1);
 	trx_doublewrite->block2 = mach_read_from_4(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
-	trx_doublewrite->write_buf_unaligned = ut_malloc(
-		(1 + 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE);
 
+	trx_doublewrite->in_use = mem_zalloc(buf_size * sizeof(ibool));
+
+	trx_doublewrite->write_buf_unaligned = ut_malloc(
+		(1 + buf_size) * UNIV_PAGE_SIZE);
 	trx_doublewrite->write_buf = ut_align(
 		trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE);
-	trx_doublewrite->buf_block_arr = mem_alloc(
-		2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * sizeof(void*));
+
+	trx_doublewrite->buf_block_arr = mem_zalloc(
+		buf_size * sizeof(void*));
 }
 
 /****************************************************************//**
@@ -238,7 +251,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 	mtr_commit(&mtr);
 
 	/* Flush the modified pages to disk and make a checkpoint */
-	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	trx_sys_multiple_tablespace_format = TRUE;
 }
@@ -407,7 +420,10 @@ start_again:
 		mtr_commit(&mtr);
 
 		/* Flush the modified pages to disk and make a checkpoint */
-		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+		log_make_checkpoint_at(LSN_MAX, TRUE);
+
+		/* Remove doublewrite pages from LRU */
+		buf_pool_invalidate();
 
 		fprintf(stderr, "InnoDB: Doublewrite buffer created\n");
 
@@ -641,9 +657,7 @@ trx_in_trx_list(
 {
 	const trx_t*	trx;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_ad(trx_assert_started(in_trx));
 
@@ -668,10 +682,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -1001,7 +1012,9 @@ trx_sys_init_at_db_start(void)
 
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_array_init(sys_header, ib_bh, &mtr);
+	if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		trx_rseg_array_init(sys_header, ib_bh, &mtr);
+	}
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
@@ -1025,7 +1038,7 @@ trx_sys_init_at_db_start(void)
 	the debug code (assertions). We are still running in single threaded
 	bootstrap mode. */
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 		const trx_t*	trx;
@@ -1056,7 +1069,7 @@ trx_sys_init_at_db_start(void)
 			(ullint) trx_sys->max_trx_id);
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	UT_LIST_INIT(trx_sys->view_list);
 
@@ -1066,8 +1079,7 @@ trx_sys_init_at_db_start(void)
 }
 
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh, lock and
-read_view_mutex. */
+Creates the trx_sys instance and initializes ib_bh and mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void)
@@ -1077,10 +1089,7 @@ trx_sys_create(void)
 
 	trx_sys = mem_zalloc(sizeof(*trx_sys));
 
-	rw_lock_create(trx_sys_rw_lock_key, &trx_sys->lock, SYNC_TRX_SYS);
-
-	mutex_create(
-		read_view_mutex_key, &trx_sys->read_view_mutex, SYNC_READ_VIEW);
+	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
 }
 
 /*****************************************************************//**
@@ -1189,7 +1198,7 @@ trx_sys_file_format_id_to_name(
 
 /*****************************************************************//**
 Check for the max file format tag stored on disk. Note: If max_format_id
-is == DICT_TF_FORMAT_MAX + 1 then we only print a warning.
+is == UNIV_FORMAT_MAX + 1 then we only print a warning.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
@@ -1206,15 +1215,15 @@ trx_sys_file_format_max_check(
 	if (format_id == ULINT_UNDEFINED) {
 		/* Format ID was not set. Set it to minimum possible
 		value. */
-		format_id = DICT_TF_FORMAT_MIN;
+		format_id = UNIV_FORMAT_MIN;
 	}
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		" InnoDB: highest supported file format is %s.\n",
-		trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX));
+		trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX));
 
-	if (format_id > DICT_TF_FORMAT_MAX) {
+	if (format_id > UNIV_FORMAT_MAX) {
 
 		ut_a(format_id < FILE_FORMAT_NAME_N);
 
@@ -1222,11 +1231,11 @@ trx_sys_file_format_max_check(
 		fprintf(stderr,
 			" InnoDB: %s: the system tablespace is in a file "
 			"format that this version doesn't support - %s\n",
-			((max_format_id <= DICT_TF_FORMAT_MAX)
+			((max_format_id <= UNIV_FORMAT_MAX)
 				? "Error" : "Warning"),
 			trx_sys_file_format_id_to_name(format_id));
 
-		if (max_format_id <= DICT_TF_FORMAT_MAX) {
+		if (max_format_id <= UNIV_FORMAT_MAX) {
 			return(DB_ERROR);
 		}
 	}
@@ -1255,7 +1264,7 @@ trx_sys_file_format_max_set(
 {
 	ibool		ret = FALSE;
 
-	ut_a(format_id <= DICT_TF_FORMAT_MAX);
+	ut_a(format_id <= UNIV_FORMAT_MAX);
 
 	mutex_enter(&file_format_max.mutex);
 
@@ -1286,7 +1295,7 @@ trx_sys_file_format_tag_init(void)
 
 	/* If format_id is not set then set it to the minimum. */
 	if (format_id == ULINT_UNDEFINED) {
-		trx_sys_file_format_max_set(DICT_TF_FORMAT_MIN, NULL);
+		trx_sys_file_format_max_set(UNIV_FORMAT_MIN, NULL);
 	}
 }
 
@@ -1305,7 +1314,7 @@ trx_sys_file_format_max_upgrade(
 
 	ut_a(name);
 	ut_a(file_format_max.name != NULL);
-	ut_a(format_id <= DICT_TF_FORMAT_MAX);
+	ut_a(format_id <= UNIV_FORMAT_MAX);
 
 	mutex_enter(&file_format_max.mutex);
 
@@ -1342,7 +1351,7 @@ trx_sys_file_format_init(void)
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
-	file_format_max.id = DICT_TF_FORMAT_MIN;
+	file_format_max.id = UNIV_FORMAT_MIN;
 
 	file_format_max.name = trx_sys_file_format_id_to_name(
 		file_format_max.id);
@@ -1359,36 +1368,69 @@ trx_sys_file_format_close(void)
 }
 
 /*********************************************************************
-Creates the rollback segments */
+Creates the rollback segments.
+@return number of rollback segments that are active. */
 UNIV_INTERN
-void
+ulint
 trx_sys_create_rsegs(
 /*=================*/
+	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
 	ulint	n_rsegs)	/*!< number of rollback segments to create */
 {
-	ulint	new_rsegs = 0;
+	mtr_t	mtr;
+	ulint	n_used;
 
-	/* Do not create additional rollback segments if
-	innodb_force_recovery has been set and the database
-	was not shutdown cleanly. */
-	if (!srv_force_recovery && !recv_needed_recovery) {
+	ut_a(n_spaces < TRX_SYS_N_RSEGS);
+	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
+
+	if (srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		return(ULINT_UNDEFINED);
+	}
+
+	/* This is executed in single-threaded mode therefore it is not
+	necessary to use the same mtr in trx_rseg_create(). n_used cannot
+	change while the function is executing. */
+
+	mtr_start(&mtr);
+	n_used = trx_sysf_rseg_find_free(&mtr);
+	mtr_commit(&mtr);
+
+	if (n_used == ULINT_UNDEFINED) {
+		n_used = TRX_SYS_N_RSEGS;
+	}
+
+	/* Do not create additional rollback segments if innodb_force_recovery
+	has been set and the database was not shutdown cleanly. */
+
+	if (!srv_force_recovery && !recv_needed_recovery && n_used < n_rsegs) {
 		ulint	i;
+		ulint	new_rsegs = n_rsegs - n_used;
 
-		for (i = 0;  i < n_rsegs; ++i) {
+		for (i = 0; i < new_rsegs; ++i) {
+			ulint	space;
 
-			if (trx_rseg_create() != NULL) {
-				++new_rsegs;
+			/* Tablespace 0 is the system tablespace. All UNDO
+			log tablespaces start from 1. */
+
+			if (n_spaces > 0) {
+				space = (i % n_spaces) + 1;
+			} else {
+				space = 0; /* System tablespace */
+			}
+
+			if (trx_rseg_create(space) != NULL) {
+				++n_used;
 			} else {
 				break;
 			}
 		}
 	}
 
-	if (new_rsegs > 0) {
-		fprintf(stderr,
-			"InnoDB: %lu rollback segment(s) active.\n",
-		       	new_rsegs);
-	}
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: %lu rollback segment(s) are active.\n",
+		n_used);
+
+	return(n_used);
 }
 
 #else /* !UNIV_HOTBACKUP */
@@ -1424,23 +1466,6 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			+ TRX_SYS_MYSQL_LOG_NAME);
 	}
 }
-
-
-/* THESE ARE COPIED FROM NON-HOTBACKUP PART OF THE INNODB SOURCE TREE
-   (This code duplicaton should be fixed at some point!)
-*/
-
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-/* The offset of the file format tag on the trx system header page */
-#define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
-/* We use these random constants to reduce the probability of reading
-garbage (from previous versions) that maps to an actual format id. We
-use these as bit masks at the time of  reading and writing from/to disk. */
-#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
-#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
-
-/* END OF COPIED DEFINITIONS */
-
 
 /*****************************************************************//**
 Reads the file format id from the first system table space file.
@@ -1480,18 +1505,18 @@ trx_sys_read_file_format_id(
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  ibbackup: Error: trying to read system tablespace file format,\n"
-"  ibbackup: but could not open the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to read system tablespace "
+			"file format,\n"
+			"  ibbackup: but could not open the tablespace "
+			"file %s!\n", pathname);
 		return(FALSE);
 	}
 
 	/* Read the page on which file format is stored */
 
 	success = os_file_read_no_error_handling(
-		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, 0, UNIV_PAGE_SIZE
-	);
+		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
+
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -1499,10 +1524,11 @@ trx_sys_read_file_format_id(
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  ibbackup: Error: trying to read system table space file format,\n"
-"  ibbackup: but failed to read the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to read system tablespace "
+			"file format,\n"
+			"  ibbackup: but failed to read the tablespace "
+			"file %s!\n", pathname);
+
 		os_file_close(file);
 		return(FALSE);
 	}
@@ -1523,7 +1549,6 @@ trx_sys_read_file_format_id(
 
 	return(TRUE);
 }
-
 
 /*****************************************************************//**
 Reads the file format id from the given per-table data file.
@@ -1556,33 +1581,34 @@ trx_sys_read_pertable_file_format_id(
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
-"  ibbackup: Error: trying to read per-table tablespace format,\n"
-"  ibbackup: but could not open the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to read per-table "
+			"tablespace format,\n"
+			"  ibbackup: but could not open the tablespace "
+			"file %s!\n", pathname);
+
 		return(FALSE);
 	}
 
 	/* Read the first page of the per-table datafile */
 
-	success = os_file_read_no_error_handling(
-		file, page, 0, 0, UNIV_PAGE_SIZE
-	);
+	success = os_file_read_no_error_handling(file, page, 0, UNIV_PAGE_SIZE);
+
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
-        
+
 		ut_print_timestamp(stderr);
-        
+
 		fprintf(stderr,
-"  ibbackup: Error: trying to per-table data file format,\n"
-"  ibbackup: but failed to read the tablespace file %s!\n",
-			pathname
-		);
+			"  ibbackup: Error: trying to per-table data file "
+			"format,\n"
+			"  ibbackup: but failed to read the tablespace "
+			"file %s!\n", pathname);
+
 		os_file_close(file);
 		return(FALSE);
 	}
@@ -1634,14 +1660,16 @@ trx_sys_close(void)
 /*===============*/
 {
 	ulint		i;
+	trx_t*		trx;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
-	mutex_enter(&trx_sys->read_view_mutex);
+	mutex_enter(&trx_sys->mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1651,7 +1679,7 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
-	mutex_exit(&trx_sys->read_view_mutex);
+	mutex_exit(&trx_sys->mutex);
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1660,18 +1688,29 @@ trx_sys_close(void)
 
 	/* Free the double write data structures. */
 	ut_a(trx_doublewrite != NULL);
+	ut_ad(trx_doublewrite->n_reserved == 0);
+
 	ut_free(trx_doublewrite->write_buf_unaligned);
 	trx_doublewrite->write_buf_unaligned = NULL;
 
 	mem_free(trx_doublewrite->buf_block_arr);
 	trx_doublewrite->buf_block_arr = NULL;
 
+	mem_free(trx_doublewrite->in_use);
+	trx_doublewrite->in_use = NULL;
+
 	mutex_free(&trx_doublewrite->mutex);
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
 
-	rw_lock_x_lock(&trx_sys->lock);
-	mutex_free(&trx_sys->read_view_mutex);
+	mutex_enter(&trx_sys->mutex);
+
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_sys->n_prepared_trx);
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+		trx_free_prepared(trx);
+	}
 
 	/* There can't be any active transactions. */
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
@@ -1702,18 +1741,17 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
-	rw_lock_free(&trx_sys->lock);
+	mutex_free(&trx_sys->mutex);
 
 	mem_free(trx_sys);
 
 	trx_sys = NULL;
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
-Check if there are any active transactions.
+Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
 UNIV_INTERN
 ulint
@@ -1722,12 +1760,14 @@ trx_sys_any_active_transactions(void)
 {
 	ulint	total_trx = 0;
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
-	       	  + trx_n_mysql_transactions;
+		+ trx_sys->n_mysql_trx;
+	ut_a(total_trx >= trx_sys->n_prepared_trx);
+	total_trx -= trx_sys->n_prepared_trx;
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	return(total_trx);
 }
@@ -1743,10 +1783,7 @@ trx_sys_validate_trx_list(void)
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX)
-	      || rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
@@ -1759,3 +1796,4 @@ trx_sys_validate_trx_list(void)
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

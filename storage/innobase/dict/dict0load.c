@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -54,6 +54,11 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_FOREIGN",
 	"SYS_FOREIGN_COLS"
 };
+
+/* If this flag is TRUE, then we will load the cluster index's (and tables')
+metadata even if it is marked as "corrupted". */
+UNIV_INTERN my_bool     srv_load_corrupted = FALSE;
+
 /****************************************************************//**
 Compare the name of an index column.
 @return	TRUE if the i'th column of index is 'name'. */
@@ -186,11 +191,9 @@ dict_print(void)
 	while (rec) {
 		const char* err_msg;
 
-		err_msg = dict_process_sys_tables_rec(
+		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
 			heap, rec, &table, DICT_TABLE_LOAD_FROM_CACHE
-			| DICT_TABLE_UPDATE_STATS);
-
-		mtr_commit(&mtr);
+			| DICT_TABLE_UPDATE_STATS, &mtr);
 
 		if (!err_msg) {
 			dict_table_print_low(table);
@@ -305,15 +308,17 @@ both monitor table output and information schema innodb_sys_tables output.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
-dict_process_sys_tables_rec(
-/*========================*/
+dict_process_sys_tables_rec_and_mtr_commit(
+/*=======================================*/
 	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_TABLES record */
 	dict_table_t**	table,		/*!< out: dict_table_t to fill */
-	dict_table_info_t status)	/*!< in: status bit controls
+	dict_table_info_t status,	/*!< in: status bit controls
 					options such as whether we shall
 					look for dict_table_t from cache
 					first */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction,
+					will be committed */
 {
 	ulint		len;
 	const char*	field;
@@ -324,12 +329,18 @@ dict_process_sys_tables_rec(
 
 	ut_a(!rec_get_deleted_flag(rec, 0));
 
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
+
 	/* Get the table name */
 	table_name = mem_heap_strdupl(heap, field, len);
 
 	/* If DICT_TABLE_LOAD_FROM_CACHE is set, first check
-	whether there is cached dict_table_t struct first */
+	whether there is cached dict_table_t struct */
 	if (status & DICT_TABLE_LOAD_FROM_CACHE) {
+
+		/* Commit before load the table again */
+		mtr_commit(mtr);
+
 		*table = dict_table_get_low(table_name);
 
 		if (!(*table)) {
@@ -337,6 +348,7 @@ dict_process_sys_tables_rec(
 		}
 	} else {
 		err_msg = dict_load_table_low(table_name, rec, table);
+		mtr_commit(mtr);
 	}
 
 	if (err_msg) {
@@ -605,22 +617,22 @@ dict_sys_tables_get_flags(
 	field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
 	n_cols = mach_read_from_4(field);
 
-	if (UNIV_UNLIKELY(!(n_cols & 0x80000000UL))) {
+	if (UNIV_UNLIKELY(!(n_cols & DICT_N_COLS_COMPACT))) {
 		/* New file formats require ROW_FORMAT=COMPACT. */
 		return(ULINT_UNDEFINED);
 	}
 
 	switch (flags & (DICT_TF_FORMAT_MASK | DICT_TF_COMPACT)) {
 	default:
-	case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT:
-	case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
+	case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
+	case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
 		/* flags should be DICT_TABLE_ORDINARY,
 		or DICT_TF_FORMAT_MASK should be nonzero. */
 		return(ULINT_UNDEFINED);
 
-	case DICT_TF_FORMAT_ZIP << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
-#if DICT_TF_FORMAT_MAX > DICT_TF_FORMAT_ZIP
-# error "missing case labels for DICT_TF_FORMAT_ZIP .. DICT_TF_FORMAT_MAX"
+	case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
+#if UNIV_FORMAT_MAX > UNIV_FORMAT_B
+# error "missing case labels for UNIV_FORMAT_B .. UNIV_FORMAT_MAX"
 #endif
 		/* We support this format. */
 		break;
@@ -632,7 +644,7 @@ dict_sys_tables_get_flags(
 		return(ULINT_UNDEFINED);
 	}
 
-	if (UNIV_UNLIKELY(flags & (~0 << DICT_TF_BITS))) {
+	if (UNIV_UNLIKELY(flags & ~DICT_TF_BIT_MASK)) {
 		/* Some unused bits are set. */
 		return(ULINT_UNDEFINED);
 	}
@@ -746,7 +758,7 @@ loop:
 			ibool	is_temp;
 
 			field = rec_get_nth_field_old(rec, 4, &len);
-			if (0x80000000UL &  mach_read_from_4(field)) {
+			if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
 				/* ROW_FORMAT=COMPACT: read the is_temp
 				flag from SYS_TABLES.MIX_LEN. */
 				field = rec_get_nth_field_old(rec, 7, &len);
@@ -1281,6 +1293,9 @@ err_len:
 		goto err_len;
 	}
 	type = mach_read_from_4(field);
+	if (UNIV_UNLIKELY(type & (~0 << DICT_IT_BITS))) {
+		return("unknown SYS_INDEXES.TYPE bits");
+	}
 
 	field = rec_get_nth_field_old(rec, 7/*SPACE*/, &len);
 	if (UNIV_UNLIKELY(len != 4)) {
@@ -1381,16 +1396,47 @@ dict_load_indexes(
 			goto next_rec;
 		} else if (err_msg) {
 			fprintf(stderr, "InnoDB: %s\n", err_msg);
+			if (ignore_err & DICT_ERR_IGNORE_CORRUPT) {
+				goto next_rec;
+			}
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
 
 		ut_ad(index);
 
+		/* Check whether the index is corrupted */
+		if (dict_index_is_corrupted(index)) {
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: ", stderr);
+			dict_index_name_print(stderr, NULL, index);
+			fputs(" is corrupted\n", stderr);
+
+			if (!srv_load_corrupted
+			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)
+			    && dict_index_is_clust(index)) {
+				dict_mem_index_free(index);
+
+				error = DB_INDEX_CORRUPT;
+				goto func_exit;
+			} else {
+				/* We will load the index if
+				1) srv_load_corrupted is TRUE
+				2) ignore_err is set with
+				DICT_ERR_IGNORE_CORRUPT
+				3) if the index corrupted is a secondary
+				index */
+				ut_print_timestamp(stderr);
+				fputs("  InnoDB: load corrupted index ", stderr);
+				dict_index_name_print(stderr, NULL, index);
+				putc('\n', stderr);
+			}
+		}
+
 		/* We check for unsupported types first, so that the
 		subsequent checks are relevant for the supported types. */
-		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE)) {
-
+		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
+				    | DICT_CORRUPT)) {
 			fprintf(stderr,
 				"InnoDB: Error: unknown type %lu"
 				" of index %s of table %s\n",
@@ -1411,9 +1457,14 @@ dict_load_indexes(
 				/* If caller can tolerate this error,
 				we will continue to load the index and
 				let caller deal with this error. However
-				mark the index and table corrupted */
-				index->corrupted = TRUE;
-				table->corrupted = TRUE;
+				mark the index and table corrupted. We
+				only need to mark such in the index
+				dictionary cache for such metadata corruption,
+				since we would always be able to set it
+				when loading the dictionary cache */
+				dict_set_corrupted_index_cache_only(
+					index, table);
+
 				fprintf(stderr,
 					"InnoDB: Index is corrupt but forcing"
 					" load into data dictionary\n");
@@ -1485,7 +1536,8 @@ dict_load_table_low(
 	ulint		len;
 	ulint		space;
 	ulint		n_cols;
-	ulint		flags;
+	ulint		flags = 0;
+	ulint		flags2 = 0;
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 		return("delete-marked record in SYS_TABLES");
@@ -1567,27 +1619,22 @@ err_len:
 				(ulong) flags);
 			return("incorrect flags in SYS_TABLES");
 		}
-	} else {
-		flags = 0;
 	}
 
 	/* The high-order bit of N_COLS is the "compact format" flag.
 	For tables in that format, MIX_LEN may hold additional flags. */
-	if (n_cols & 0x80000000UL) {
-		ulint	flags2;
-
+	if (n_cols & DICT_N_COLS_COMPACT) {
 		flags |= DICT_TF_COMPACT;
 
-		field = rec_get_nth_field_old(rec, 7, &len);
+		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
 
 		if (UNIV_UNLIKELY(len != 4)) {
-
 			goto err_len;
 		}
 
 		flags2 = mach_read_from_4(field);
 
-		if (flags2 & (~0 << (DICT_TF2_BITS - DICT_TF2_SHIFT))) {
+		if (flags2 & ~DICT_TF2_BIT_MASK) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Warning: table ", stderr);
 			ut_print_filename(stderr, name);
@@ -1596,15 +1643,13 @@ err_len:
 				" has unknown flags %lx.\n",
 				(ulong) flags2);
 
-			flags2 &= ~(~0 << (DICT_TF2_BITS - DICT_TF2_SHIFT));
+			flags2 &= DICT_TF2_BIT_MASK;
 		}
-
-		flags |= flags2 << DICT_TF2_SHIFT;
 	}
 
 	/* See if the tablespace is available. */
-	*table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,
-				       flags);
+	*table = dict_mem_table_create(
+		name, space, n_cols & ~DICT_N_COLS_COMPACT, flags, flags2);
 
 	field = rec_get_nth_field_old(rec, 3/*ID*/, &len);
 	ut_ad(len == 8); /* this was checked earlier */
@@ -1707,11 +1752,10 @@ err_exit:
 		/* The system tablespace is always available. */
 	} else if (!fil_space_for_table_exists_in_mem(
 			   table->space, name,
-			   (table->flags >> DICT_TF2_SHIFT)
-			   & DICT_TF2_TEMPORARY,
+			   table->flags2 & DICT_TF2_TEMPORARY,
 			   FALSE, FALSE)) {
 
-		if (table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT)) {
+		if (table->flags2 & DICT_TF2_TEMPORARY) {
 			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
 		} else {
@@ -1727,7 +1771,7 @@ err_exit:
 			if (!fil_open_single_table_tablespace(
 				TRUE, table->space,
 				table->flags == DICT_TF_COMPACT ? 0 :
-				table->flags & ~(~0 << DICT_TF_BITS), name)) {
+				table->flags, name)) {
 				/* We failed to find a sensible
 				tablespace file */
 
@@ -1751,6 +1795,30 @@ err_exit:
 
 	err = dict_load_indexes(table, heap, ignore_err);
 
+	if (err == DB_INDEX_CORRUPT) {
+		/* Refuse to load the table if the table has a corrupted
+		cluster index */
+		if (!srv_load_corrupted) {
+			fprintf(stderr, "InnoDB: Error: Load table ");
+			ut_print_name(stderr, NULL, TRUE, table->name);
+			fprintf(stderr, " failed, the table has corrupted"
+					" clustered indexes. Turn on"
+					" 'innodb_force_load_corrupted'"
+					" to drop it\n");
+
+			dict_table_remove_from_cache(table);
+			table = NULL;
+			goto func_exit;
+		} else {
+			dict_index_t*	clust_index;
+			clust_index = dict_table_get_first_index(table);
+
+			if (dict_index_is_corrupted(clust_index)) {
+				table->corrupted = TRUE;
+			}
+		}
+	}
+
 	/* Initialize table foreign_child value. Its value could be
 	changed when dict_load_foreigns() is called below */
 	table->fk_max_recusive_level = 0;
@@ -1769,9 +1837,24 @@ err_exit:
 		} else {
 			table->fk_max_recusive_level = 0;
 		}
-	} else if (!srv_force_recovery) {
-		dict_table_remove_from_cache(table);
-		table = NULL;
+	} else {
+		dict_index_t*   index;
+
+		/* Make sure that at least the clustered index was loaded.
+		Otherwise refuse to load the table */
+		index = dict_table_get_first_index(table);
+
+		if (!srv_force_recovery || !index
+		    || !dict_index_is_clust(index)) {
+			dict_table_remove_from_cache(table);
+			table = NULL;
+		} else if (dict_index_is_corrupted(index)) {
+
+			/* It is possible we force to load a corrupted
+			clustered index if srv_load_corrupted is set.
+			Mark the table as corrupted in this case */
+			table->corrupted = TRUE;
+		}
 	}
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {
@@ -1797,9 +1880,11 @@ err_exit:
 		mutex_exit(&dict_foreign_err_mutex);
 	}
 #endif /* 0 */
+func_exit:
 	mem_heap_free(heap);
 
-	ut_ad(ignore_err != DICT_ERR_IGNORE_NONE || table->corrupted == FALSE);
+	ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE
+	      || !table->corrupted);
 
 	return(table);
 }
@@ -2262,10 +2347,12 @@ loop:
 	/* Since table names in SYS_FOREIGN are stored in a case-insensitive
 	order, we have to check that the table name matches also in a binary
 	string comparison. On Unix, MySQL allows table names that only differ
-	in character case. */
+	in character case.  If lower_case_table_names=2 then what is stored
+	may not be the same case, but the previous comparison showed that they
+	match with no-case.  */
 
-	if (0 != ut_memcmp(field, table_name, len)) {
-
+	if ((innobase_get_lower_case_table_names() != 2)
+	    && (0 != ut_memcmp(field, table_name, len))) {
 		goto next_rec;
 	}
 

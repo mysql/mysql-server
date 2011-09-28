@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,14 +21,38 @@
   Miscellaneous global dependencies (declarations).
 */
 
+/** True when the performance schema is initialized. */
 extern bool pfs_initialized;
+/** Total memory allocated by the performance schema, in bytes. */
 extern ulonglong pfs_allocated_memory;
 
 void *pfs_malloc(size_t size, myf flags);
+
+/**
+  Helper, to allocate an array of structures.
+  @param n number of elements in the array.
+  @param T type of an element.
+  @param f flags to use when allocating memory
+*/
 #define PFS_MALLOC_ARRAY(n, T, f) \
   reinterpret_cast<T*> (pfs_malloc((n) * sizeof(T), (f)))
+
+/** Free memory allocated with @sa pfs_malloc. */
 void pfs_free(void *ptr);
 
+
+uint pfs_get_socket_address(char *host,
+                            uint host_len,
+                            uint *port,
+                            const struct sockaddr_storage *src_addr,
+                            socklen_t src_len);
+
+/**
+  Compute a random index value in an interval.
+  @param ptr seed address
+  @param max_size maximun size of the interval
+  @return a random value in [0, max_size-1]
+*/
 inline uint randomized_index(const void *ptr, uint max_size)
 {
   static uint seed1= 0;

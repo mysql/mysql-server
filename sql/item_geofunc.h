@@ -21,10 +21,6 @@
 
 #ifdef HAVE_SPATIAL
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "gcalc_slicescan.h"
 
 class Item_geometry_func: public Item_str_func

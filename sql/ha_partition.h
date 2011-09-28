@@ -1,7 +1,8 @@
 #ifndef HA_PARTITION_INCLUDED
 #define HA_PARTITION_INCLUDED
 
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +17,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef __GNUC__
-#pragma interface				/* gcc class implementation */
-#endif
-
 #include "sql_partition.h"      /* part_id_range, partition_element */
 #include "queues.h"             /* QUEUE */
 
 enum partition_keywords
-{ 
+{
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,
   PKW_COLUMNS
 };
@@ -37,6 +34,16 @@ enum partition_keywords
                                         HA_DUPLICATE_POS | \
                                         HA_CAN_SQL_HANDLER | \
                                         HA_CAN_INSERT_DELAYED)
+
+/* First 4 bytes in the .par file is the number of 32-bit words in the file */
+#define PAR_WORD_SIZE 4
+/* offset to the .par file checksum */
+#define PAR_CHECKSUM_OFFSET 4
+/* offset to the total number of partitions */
+#define PAR_NUM_PARTS_OFFSET 8
+/* offset to the engines array */
+#define PAR_ENGINES_OFFSET 12
+
 class ha_partition :public handler
 {
 private:
@@ -53,7 +60,7 @@ private:
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
   uint m_open_test_lock;                // Open test_if_locked
-  char *m_file_buffer;                  // Buffer with names
+  char *m_file_buffer;                  // Content of the .par file 
   char *m_name_buffer_ptr;		// Pointer to first partition name
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
@@ -115,6 +122,13 @@ private:
   bool m_is_sub_partitioned;             // Is subpartitioned
   bool m_ordered_scan_ongoing;
 
+  /* 
+    If set, this object was created with ha_partition::clone and doesn't
+    "own" the m_part_info structure.
+  */
+  ha_partition *m_is_clone_of;
+  MEM_ROOT *m_clone_mem_root;
+  
   /*
     We keep track if all underlying handlers are MyISAM since MyISAM has a
     great number of extra flags not needed by other handlers.
@@ -148,11 +162,6 @@ private:
   */
   THR_LOCK_DATA lock;                   /* MySQL lock */
 
-  /* 
-    TRUE <=> this object was created with ha_partition::clone and doesn't
-    "own" the m_part_info structure.
-  */
-  bool is_clone;
   bool auto_increment_lock;             /**< lock reading/updating auto_inc */
   /**
     Flag to keep the auto_increment lock through out the statement.
@@ -167,7 +176,7 @@ private:
   /** keep track of locked partitions */
   MY_BITMAP m_locked_partitions;
 public:
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info, bool early)
   {
      m_part_info= part_info;
@@ -186,6 +195,10 @@ public:
   */
     ha_partition(handlerton *hton, TABLE_SHARE * table);
     ha_partition(handlerton *hton, partition_info * part_info);
+    ha_partition(handlerton *hton, TABLE_SHARE *share,
+                 partition_info *part_info_arg,
+                 ha_partition *clone_arg,
+                 MEM_ROOT *clone_mem_root_arg);
    ~ha_partition();
   /*
     A partition handler has no characteristics in itself. It only inherits
@@ -255,7 +268,10 @@ private:
     And one method to read it in.
   */
   bool create_handler_file(const char *name);
-  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root);
+  bool setup_engine_array(MEM_ROOT *mem_root);
+  bool read_par_file(const char *name);
+  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root,
+                             bool is_clone);
   bool new_handlers_from_part_info(MEM_ROOT *mem_root);
   bool create_handlers(MEM_ROOT *mem_root);
   void clear_handler_file();
@@ -284,6 +300,8 @@ public:
     If the object was opened it will also be closed before being deleted.
   */
   virtual int open(const char *name, int mode, uint test_if_locked);
+  virtual void unbind_psi();
+  virtual void rebind_psi();
   virtual int close(void);
 
   /*
@@ -1037,7 +1055,9 @@ public:
     They are used for on-line/fast alter table add/drop index:
     -------------------------------------------------------------------------
   */
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                        handler_add_index **add);
+  virtual int final_add_index(handler_add_index *add, bool commit);
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys);
   virtual int final_drop_index(TABLE *table_arg);

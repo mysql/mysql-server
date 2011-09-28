@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,10 +20,6 @@
   This file defines the NDB Cluster handler: the interface between
   MySQL and NDB Cluster
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "unireg.h"         // REQUIRED: for other includes
@@ -379,11 +375,11 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
     - Used by replication to see if the error was temporary
   */
   if (ndberr->status == NdbError::TemporaryError)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
 			ndberr->code, ndberr->message, "NDB");
   else
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
 			ndberr->code, ndberr->message, "NDB");
   return error;
@@ -650,7 +646,7 @@ static void set_ndb_err(THD *thd, const NdbError &err)
   {
     char buf[FN_REFLEN];
     ndb_error_string(thd_ndb->m_error_code, buf, sizeof(buf));
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
 			thd_ndb->m_error_code, buf, "NDB");
   }
@@ -676,7 +672,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     m_table->setStatusInvalid();
     /* Close other open handlers not used by any thread */
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
     close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -3213,7 +3209,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
         undo_res= write_row((uchar *)old_data);
         if (undo_res)
           push_warning(current_thd, 
-                       MYSQL_ERROR::WARN_LEVEL_WARN, 
+                       Sql_condition::WARN_LEVEL_WARN, 
                        undo_res, 
                        "NDB failed undoing delete at primary key update");
         m_primary_key_update= FALSE;
@@ -4257,7 +4253,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
      implement ndb function which retrives the statistics
      about ndb partitions.
   */
-  bzero((char*) stat_info, sizeof(PARTITION_STATS));
+  memset(stat_info, 0, sizeof(PARTITION_STATS));
   return;
 }
 
@@ -4607,10 +4603,19 @@ void ha_ndbcluster::transaction_checks(THD *thd)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
   {
-    m_transaction_on= FALSE;
     /* Would be simpler if has_transactions() didn't always say "yes" */
-    thd->transaction.all.modified_non_trans_table=
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
+    m_transaction_on= FALSE;
+    /*
+      In the future, after integrating the ndb code-base into trunk,
+      make sure that it is necessary to mark that the transaction
+      has updated a non-transactional table and one cannot simply
+      rely on the fact that the statement's flag is propagated to
+      the transaction upon committing the statement.
+
+      \Alfranio
+    */
+    thd->transaction.stmt.mark_modified_non_trans_table();
+    thd->transaction.merge_unsafe_rollback_flags();
   }
   else if (!thd->transaction.on)
     m_transaction_on= FALSE;
@@ -5423,7 +5428,7 @@ int ha_ndbcluster::create(const char *name,
   {
     if (create_info->storage_media == HA_SM_MEMORY)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
 			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
@@ -5478,7 +5483,7 @@ int ha_ndbcluster::create(const char *name,
     case ROW_TYPE_FIXED:
       if (field_type_forces_var_part(field->type()))
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             ER(ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
@@ -5809,7 +5814,7 @@ int ha_ndbcluster::create_index(const char *name, KEY *key_info,
   case UNIQUE_INDEX:
     if (check_index_fields_not_null(key_info))
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_NULL_COLUMN_IN_INDEX,
 			  "Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan");
     }
@@ -5818,7 +5823,7 @@ int ha_ndbcluster::create_index(const char *name, KEY *key_info,
   case ORDERED_INDEX:
     if (key_info->algorithm == HA_KEY_ALG_HASH)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
 			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
@@ -7290,7 +7295,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
         {
-          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_TABLE_EXISTS_ERROR,
                               "Discover of table %s.%s failed",
                               db, file_name->str);
@@ -7316,7 +7321,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                                       file_name->length);
 	DBUG_ASSERT(record);
 	my_hash_delete(&ndb_tables, record);
-	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			    ER_TABLE_EXISTS_ERROR,
 			    "Local table %s.%s shadows ndb table",
 			    db, file_name->str);
@@ -7536,20 +7541,17 @@ void init_ndbcluster_psi_keys()
   const char* category= "ndbcluster";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_ndbcluster_mutexes);
-  PSI_server->register_mutex(category, all_ndbcluster_mutexes, count);
+  mysql_mutex_register(category, all_ndbcluster_mutexes, count);
 
   count= array_elements(all_ndbcluster_conds);
-  PSI_server->register_cond(category, all_ndbcluster_conds, count);
+  mysql_cond_register(category, all_ndbcluster_conds, count);
 
   count= array_elements(all_ndbcluster_threads);
-  PSI_server->register_thread(category, all_ndbcluster_threads, count);
+  mysql_thread_register(category, all_ndbcluster_threads, count);
 
   count= array_elements(all_ndbcluster_files);
-  PSI_server->register_file(category, all_ndbcluster_files, count);
+  mysql_file_register(category, all_ndbcluster_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -8432,7 +8434,7 @@ int handle_trailing_share(NDB_SHARE *share)
   mysql_mutex_unlock(&ndbcluster_mutex);
 
   TABLE_LIST table_list;
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -8697,7 +8699,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       if (!have_lock)
         mysql_mutex_unlock(&ndbcluster_mutex);
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(*share));
+      my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
       DBUG_RETURN(0);
     }
   }
@@ -8728,8 +8730,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
     // (*share)->table_share->mem_root is freed by free_table_share
     free_table_share((*share)->table_share);
 #ifndef DBUG_OFF
-    bzero((uchar*)(*share)->table_share, sizeof(*(*share)->table_share));
-    bzero((uchar*)(*share)->table, sizeof(*(*share)->table));
+    memset((*share)->table_share, 0, sizeof(*(*share)->table_share));
+    memset((*share)->table, 0, sizeof(*(*share)->table));
     (*share)->table_share= 0;
     (*share)->table= 0;
 #endif
@@ -9040,7 +9042,7 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       cost->io_count= index_only_read_time(keyno, total_rows);
     else
       cost->io_count= read_time(keyno, n_ranges, total_rows);
-    cost->cpu_cost= (double) total_rows / TIME_FOR_COMPARE + 0.01;
+    cost->cpu_cost= total_rows * ROW_EVALUATE_COST + 0.01;
   }
   return total_rows;
 }
@@ -9944,11 +9946,11 @@ char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name, uint name_len)
   }
 err:
   if (ndberr.status == NdbError::TemporaryError)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
 			ndberr.code, ndberr.message, "NDB");
   else
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
 			ndberr.code, ndberr.message, "NDB");
   return 0;
@@ -10074,7 +10076,7 @@ int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
   if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
   {
     push_warning(current_thd,
-                 MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                 Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
     "Ndb might have problems storing the max amount of rows specified");
   }
   return (int)reported_frags;
@@ -10263,7 +10265,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   {
     if (!current_thd->variables.new_mode)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           ER(ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
@@ -11134,7 +11136,8 @@ mysql_declare_plugin(ndbcluster)
   0x0100 /* 1.0 */,
   ndb_status_variables_export,/* status variables                */
   system_variables,           /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 

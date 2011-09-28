@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
 
 #include "sql_priv.h"
 #include "unireg.h"
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
-
 #include "mysql.h"
 #include "sp_head.h"
 #include "sql_cursor.h"
@@ -74,7 +70,7 @@ bool sp_rcontext::init(THD *thd)
   if (init_var_table(thd) || init_var_items())
     return TRUE;
 
-  if (!(m_raised_conditions= new (thd->mem_root) MYSQL_ERROR[handler_count]))
+  if (!(m_raised_conditions= new (thd->mem_root) Sql_condition[handler_count]))
     return TRUE;
 
   for (i= 0; i<handler_count; i++)
@@ -82,12 +78,12 @@ bool sp_rcontext::init(THD *thd)
 
   return
     !(m_handler=
-      (sp_handler_t*)thd->alloc(handler_count * sizeof(sp_handler_t))) ||
+      (sp_handler*)thd->alloc(handler_count * sizeof(sp_handler))) ||
     !(m_hstack=
       (uint*)thd->alloc(handler_count * sizeof(uint))) ||
     !(m_in_handler=
-      (sp_active_handler_t*)thd->alloc(handler_count *
-                                       sizeof(sp_active_handler_t))) ||
+      (sp_active_handler*)thd->alloc(handler_count *
+                                     sizeof(sp_active_handler))) ||
     !(m_cstack=
       (sp_cursor**)thd->alloc(m_root_parsing_ctx->max_cursor_index() *
                               sizeof(sp_cursor*))) ||
@@ -208,7 +204,7 @@ bool
 sp_rcontext::find_handler(THD *thd,
                           uint sql_errno,
                           const char *sqlstate,
-                          MYSQL_ERROR::enum_warning_level level,
+                          Sql_condition::enum_warning_level level,
                           const char *msg)
 {
   int i= m_hcount;
@@ -228,7 +224,7 @@ sp_rcontext::find_handler(THD *thd,
   /* Search handlers from the latest (innermost) to the oldest (outermost) */
   while (i--)
   {
-    sp_cond_type_t *cond= m_handler[i].cond;
+    sp_condition_value *cond= m_handler[i].cond;
     int j= m_ihsp;
 
     /* Check active handlers, to avoid invoking one recursively */
@@ -240,29 +236,29 @@ sp_rcontext::find_handler(THD *thd,
 
     switch (cond->type)
     {
-    case sp_cond_type_t::number:
+    case sp_condition_value::number:
       if (sql_errno == cond->mysqlerr &&
-          (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type_t::number))
+          (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_condition_value::number))
 	m_hfound= i;		// Always the most specific
       break;
-    case sp_cond_type_t::state:
+    case sp_condition_value::state:
       if (strcmp(sqlstate, cond->sqlstate) == 0 &&
-	  (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_cond_type_t::state))
+	  (m_hfound < 0 || m_handler[m_hfound].cond->type > sp_condition_value::state))
 	m_hfound= i;
       break;
-    case sp_cond_type_t::warning:
+    case sp_condition_value::warning:
       if ((IS_WARNING_CONDITION(sqlstate) ||
-           level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+           level == Sql_condition::WARN_LEVEL_WARN) &&
           m_hfound < 0)
 	m_hfound= i;
       break;
-    case sp_cond_type_t::notfound:
+    case sp_condition_value::notfound:
       if (IS_NOT_FOUND_CONDITION(sqlstate) && m_hfound < 0)
 	m_hfound= i;
       break;
-    case sp_cond_type_t::exception:
+    case sp_condition_value::exception:
       if (IS_EXCEPTION_CONDITION(sqlstate) &&
-	  level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
+	  level == Sql_condition::WARN_LEVEL_ERROR &&
 	  m_hfound < 0)
 	m_hfound= i;
       break;
@@ -285,7 +281,7 @@ sp_rcontext::find_handler(THD *thd,
     (warning or "not found") we will simply resume execution.
   */
   if (m_prev_runtime_ctx && IS_EXCEPTION_CONDITION(sqlstate) &&
-      level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+      level == Sql_condition::WARN_LEVEL_ERROR)
   {
     return m_prev_runtime_ctx->find_handler(thd, sql_errno, sqlstate,
                                             level, msg);
@@ -318,7 +314,7 @@ sp_rcontext::pop_cursors(uint count)
 }
 
 void
-sp_rcontext::push_handler(struct sp_cond_type *cond, uint h, int type)
+sp_rcontext::push_handler(sp_condition_value *cond, uint h, int type)
 {
   DBUG_ENTER("sp_rcontext::push_handler");
   DBUG_ASSERT(m_hcount < m_root_parsing_ctx->max_handler_index());
@@ -446,13 +442,13 @@ sp_rcontext::exit_handler()
   DBUG_VOID_RETURN;
 }
 
-MYSQL_ERROR*
+Sql_condition*
 sp_rcontext::raised_condition() const
 {
   if (m_ihsp > 0)
   {
     uint hindex= m_in_handler[m_ihsp - 1].index;
-    MYSQL_ERROR *raised= & m_raised_conditions[hindex];
+    Sql_condition *raised= & m_raised_conditions[hindex];
     return raised;
   }
 
@@ -565,7 +561,7 @@ sp_cursor::destroy()
 
 
 int
-sp_cursor::fetch(THD *thd, List<struct sp_variable> *vars)
+sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 {
   if (! server_side_cursor)
   {
@@ -580,7 +576,7 @@ sp_cursor::fetch(THD *thd, List<struct sp_variable> *vars)
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
-                  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                  push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                ER_UNKNOWN_ERROR,
                                ER(ER_UNKNOWN_ERROR)););
 
@@ -718,9 +714,9 @@ int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
 
 bool Select_fetch_into_spvars::send_data(List<Item> &items)
 {
-  List_iterator_fast<struct sp_variable> spvar_iter(*spvar_list);
+  List_iterator_fast<sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);
-  sp_variable_t *spvar;
+  sp_variable *spvar;
   Item *item;
 
   /* Must be ensured by the caller */

@@ -804,6 +804,7 @@ create table t1 (a int, key a (a));
 insert into t1 (a) values (1), (2), (3), (4), (5);
 create table t2 (a int, key a (a)) select * from t1; 
 create temporary table t3 (a int, key a (a)) select * from t2;
+create temporary table t4 like t3;
 handler t1 open;
 handler t2 open;
 handler t3 open;
@@ -820,6 +821,8 @@ handler t1 read next;
 handler t2 close;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 handler t3 open;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t4 open;
 --echo # After UNLOCK TABLES handlers should be around and
 --echo # we should be able to continue reading through them.
 unlock tables;
@@ -829,7 +832,7 @@ handler t2 read next;
 handler t2 close;
 handler t3 read next;
 handler t3 close;
-drop temporary table t3;
+drop temporary tables t3, t4;
 --echo #
 --echo # Other operations that implicitly close handler:
 --echo #

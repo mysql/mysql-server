@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2006, 2007 MySQL AB
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -178,6 +178,7 @@
 #define SSL_get1_session yaSSL_get1_session
 #define X509_get_notBefore yaX509_get_notBefore
 #define X509_get_notAfter yaX509_get_notAfter
+#define yaSSL_ASN1_TIME_to_string ya_SSL_ASN1_TIME_to_string
 #define MD4_Init yaMD4_Init
 #define MD4_Update yaMD4_Update
 #define MD4_Final yaMD4_Final

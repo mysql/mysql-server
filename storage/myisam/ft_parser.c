@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2005 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
@@ -106,7 +106,7 @@ my_bool ft_boolean_check_syntax_string(const uchar *str)
   3 - right bracket
   4 - stopword found
 */
-uchar ft_get_word(CHARSET_INFO *cs, uchar **start, uchar *end,
+uchar ft_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
                   FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
 {
   uchar *doc=*start;
@@ -199,7 +199,8 @@ ret:
   return param->type;
 }
 
-uchar ft_simple_get_word(CHARSET_INFO *cs, uchar **start, const uchar *end,
+uchar ft_simple_get_word(const CHARSET_INFO *cs, uchar **start,
+                         const uchar *end,
                          FT_WORD *word, my_bool skip_stopwords)
 {
   uchar *doc= *start;
@@ -245,7 +246,7 @@ uchar ft_simple_get_word(CHARSET_INFO *cs, uchar **start, const uchar *end,
   DBUG_RETURN(0);
 }
 
-void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
+void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs)
 {
   DBUG_ENTER("ft_parse_init");
   if (!is_tree_inited(wtree))

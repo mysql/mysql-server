@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_error.h"
 #include "my_decimal.h"                         /* my_decimal */
@@ -50,9 +46,9 @@ protected:
   MEM_ROOT *alloc;
 #endif
   bool net_store_data(const uchar *from, size_t length,
-                      CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
+                      const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
   bool store_string_aux(const char *from, size_t length,
-                        CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
+                        const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
 
   virtual bool send_ok(uint server_status, uint statement_warn_count,
                        ulonglong affected_rows, ulonglong last_insert_id,
@@ -74,7 +70,7 @@ public:
   bool send_result_set_row(List<Item> *row_items);
 
   bool store(I_List<i_string> *str_list);
-  bool store(const char *from, CHARSET_INFO *cs);
+  bool store(const char *from, const CHARSET_INFO *cs);
   String *storage_packet() { return packet; }
   inline void free() { packet->free(); }
   virtual bool write();
@@ -104,9 +100,11 @@ public:
   virtual bool store_long(longlong from)=0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)=0;
   virtual bool store_decimal(const my_decimal *)=0;
-  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs)=0;
+  virtual bool store(const char *from, size_t length,
+                     const CHARSET_INFO *cs)=0;
   virtual bool store(const char *from, size_t length, 
-  		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs)=0;
+                     const CHARSET_INFO *fromcs,
+                     const CHARSET_INFO *tocs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
   virtual bool store(MYSQL_TIME *time)=0;
@@ -149,9 +147,10 @@ public:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store_decimal(const my_decimal *);
-  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
-  		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
+  		     const CHARSET_INFO *fromcs,
+                     const CHARSET_INFO *tocs);
   virtual bool store(MYSQL_TIME *time);
   virtual bool store_date(MYSQL_TIME *time);
   virtual bool store_time(MYSQL_TIME *time);
@@ -186,9 +185,9 @@ public:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store_decimal(const my_decimal *);
-  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
-  		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
+  		     const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
   virtual bool store(MYSQL_TIME *time);
   virtual bool store_date(MYSQL_TIME *time);
   virtual bool store_time(MYSQL_TIME *time);

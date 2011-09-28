@@ -10,10 +10,9 @@ SELECT COUNT(@@SESSION.relay_log_info_repository);
 ERROR HY000: Variable 'relay_log_info_repository' is a GLOBAL variable
 '#---------------------BS_STVARS_002_02----------------------#'
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
-ERROR HY000: Variable 'relay_log_info_repository' is a read only variable
 SELECT @@GLOBAL.relay_log_info_repository;
 @@GLOBAL.relay_log_info_repository
-FILE
+TABLE
 '#---------------------BS_STVARS_002_03----------------------#'
 SELECT @@GLOBAL.relay_log_info_repository = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
@@ -42,3 +41,5 @@ SELECT COUNT(@@GLOBAL.relay_log_info_repository);
 COUNT(@@GLOBAL.relay_log_info_repository)
 1
 1 Expected
+'#---------------------BS_STVARS_002_06----------------------#'
+SET @@GLOBAL.relay_log_info_repository= "FILE";

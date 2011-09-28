@@ -125,13 +125,17 @@ def	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	10	NULL	YES	varc
 def	information_schema	KEY_COLUMN_USAGE	TABLE_CATALOG	4		NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 def	information_schema	KEY_COLUMN_USAGE	TABLE_NAME	6		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	KEY_COLUMN_USAGE	TABLE_SCHEMA	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	4	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	tinyint(1)			select	
+def	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+def	information_schema	OPTIMIZER_TRACE	QUERY	1	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+def	information_schema	OPTIMIZER_TRACE	TRACE	2	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 def	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	PARAMETERS	CHARACTER_SET_NAME	12	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PARAMETERS	COLLATION_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PARAMETERS	DATA_TYPE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PARAMETERS	DTD_IDENTIFIER	14	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	PARAMETERS	NUMERIC_SCALE	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	PARAMETERS	ORDINAL_POSITION	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	PARAMETERS	PARAMETER_MODE	5	NULL	YES	varchar	5	15	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select	
@@ -210,7 +214,7 @@ def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	17	NULL	YES	varchar	64	192	NUL
 def	information_schema	ROUTINES	EXTERNAL_NAME	16	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	ROUTINES	IS_DETERMINISTIC	19		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 def	information_schema	ROUTINES	LAST_ALTERED	24	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-def	information_schema	ROUTINES	NUMERIC_PRECISION	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	ROUTINES	NUMERIC_PRECISION	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	ROUTINES	NUMERIC_SCALE	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	ROUTINES	PARAMETER_STYLE	18		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 def	information_schema	ROUTINES	ROUTINE_BODY	14		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
@@ -374,6 +378,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	datetime	NULL	NULL
 NULL	int	NULL	NULL
+NULL	tinyint	NULL	NULL
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
 SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
@@ -513,6 +518,10 @@ NULL	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	bigint	NU
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_COLUMN_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+1.0000	information_schema	OPTIMIZER_TRACE	QUERY	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
+1.0000	information_schema	OPTIMIZER_TRACE	TRACE	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
+NULL	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	information_schema	PARAMETERS	SPECIFIC_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	PARAMETERS	SPECIFIC_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PARAMETERS	SPECIFIC_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -522,7 +531,7 @@ NULL	information_schema	PARAMETERS	ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int(
 3.0000	information_schema	PARAMETERS	DATA_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
 NULL	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
-NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	PARAMETERS	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	PARAMETERS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PARAMETERS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -591,7 +600,7 @@ NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0000	information_schema	ROUTINES	DATA_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
 NULL	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
-NULL	information_schema	ROUTINES	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	ROUTINES	NUMERIC_PRECISION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	ROUTINES	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	ROUTINES	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)

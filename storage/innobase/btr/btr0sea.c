@@ -852,6 +852,7 @@ btr_search_guess_on_hash(
 	btr_pcur_t	pcur;
 #endif
 	ut_ad(index && info && tuple && cursor && mtr);
+	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad((latch_mode == BTR_SEARCH_LEAF)
 	      || (latch_mode == BTR_MODIFY_LEAF));
 
@@ -1034,7 +1035,11 @@ btr_search_drop_page_hash_index(
 	buf_block_t*	block)	/*!< in: block containing index page,
 				s- or x-latched, or an index page
 				for which we know that
-				block->buf_fix_count == 0 */
+				block->buf_fix_count == 0 or it is an
+				index page which has already been
+				removed from the buf_pool->page_hash
+				i.e.: it is in state
+				BUF_BLOCK_REMOVE_HASH */
 {
 	hash_table_t*		table;
 	ulint			n_fields;
@@ -1082,7 +1087,8 @@ retry:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 	      || rw_lock_own(&(block->lock), RW_LOCK_EX)
-	      || (block->page.buf_fix_count == 0));
+	      || block->page.buf_fix_count == 0
+	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 #endif /* UNIV_SYNC_DEBUG */
 
 	n_fields = block->curr_n_fields;
@@ -1232,8 +1238,8 @@ btr_search_drop_page_hash_when_freed(
 	having to fear a deadlock. */
 
 	block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH, NULL,
-				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
-				&mtr);
+				 BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__,
+				 &mtr);
 	/* Because the buffer pool mutex was released by
 	buf_page_peek_if_search_hashed(), it is possible that the
 	block was removed from the buffer pool by another thread

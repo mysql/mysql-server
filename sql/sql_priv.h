@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 #define WARN_DEPRECATED(Thd,Old,New)                            \
   do {                                                                      \
     if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
+      push_warning_printf(((THD *) Thd), Sql_condition::WARN_LEVEL_WARN,    \
                         ER_WARN_DEPRECATED_SYNTAX,                          \
                         ER(ER_WARN_DEPRECATED_SYNTAX),                      \
                         (Old), (New));                                      \
@@ -101,7 +101,7 @@
 #define OPTION_BEGIN            (1ULL << 20)    // THD, intern
 #define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
 #define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
-#define OPTION_KEEP_LOG         (1ULL << 23)    // THD, user
+/* 23rd bit is unused. It was occupied by OPTION_KEEP_LOG. */
 
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser
@@ -166,11 +166,13 @@
    doing it).
 */
 #define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 7)
-#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 8)
-#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 9)
-#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 10)
-#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 11)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 12)
+#define OPTIMIZER_SWITCH_BNL                       (1ULL << 8)
+#define OPTIMIZER_SWITCH_BKA                       (1ULL << 9)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 10)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 11)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 14)
 
 /**
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
@@ -191,10 +193,12 @@
                                   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
                                   OPTIMIZER_SWITCH_MRR | \
                                   OPTIMIZER_SWITCH_MRR_COST_BASED | \
+                                  OPTIMIZER_SWITCH_BNL | \
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                   OPTIMIZER_SWITCH_FIRSTMATCH)
+
 #else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -203,7 +207,8 @@
                                   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
                                   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
                                   OPTIMIZER_SWITCH_MRR | \
-                                  OPTIMIZER_SWITCH_MRR_COST_BASED)
+                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
+                                  OPTIMIZER_SWITCH_BNL)
 #endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -295,13 +300,6 @@ enum enum_yes_no_unknown
 #endif /* MYSQL_SERVER */
 
 #ifdef MYSQL_SERVER
-/*
-  A set of constants used for checking non aggregated fields and sum
-  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
-*/
-#define NON_AGG_FIELD_USED  1
-#define SUM_FUNC_USED       2
-
 /*
   External variables
 */

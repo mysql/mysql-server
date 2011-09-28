@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,16 +137,34 @@ bool Cached_item_int::cmp(void)
 bool Cached_item_field::cmp(void)
 {
   DBUG_ENTER("Cached_item_field::cmp");
-  bool tmp= field->cmp(buff) != 0;		// This is not a blob!
   DBUG_EXECUTE("info", dbug_print(););
-  if (tmp)
-    field->get_image(buff,length,field->charset());
-  if (null_value != field->is_null())
+
+  bool different= false;
+
+  if (field->is_null())
   {
-    null_value= !null_value;
-    tmp=TRUE;
+    if (!null_value)
+    {
+      different= true;
+      null_value= true;
+    }
   }
-  DBUG_RETURN(tmp);
+  else
+  {
+    if (null_value)
+    {
+      different= true;
+      null_value= false;
+      field->get_image(buff, length, field->charset());
+    }
+    else if (field->cmp(buff))                  // Not a blob: cmp() is OK
+    {
+      different= true;
+      field->get_image(buff, length, field->charset());
+    }
+  }
+
+  DBUG_RETURN(different);
 }
 
 
@@ -175,13 +193,3 @@ bool Cached_item_decimal::cmp()
   }
   return FALSE;
 }
-
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Cached_item>;
-template class List_iterator<Cached_item>;
-#endif

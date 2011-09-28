@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -136,7 +136,7 @@ page_header_set_field(
 	ut_ad(field != PAGE_N_HEAP || (val & 0x7fff) < UNIV_PAGE_SIZE);
 
 	mach_write_to_2(page + PAGE_HEADER + field, val);
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_write_header(page_zip,
 				      page + PAGE_HEADER + field, 2, NULL);
 	}
@@ -211,7 +211,7 @@ page_header_reset_last_insert(
 {
 	ut_ad(page && mtr);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_2(page + (PAGE_HEADER + PAGE_LAST_INSERT), 0);
 		page_zip_write_header(page_zip,
 				      page + (PAGE_HEADER + PAGE_LAST_INSERT),
@@ -419,7 +419,37 @@ page_rec_is_infimum(
 	return(page_rec_is_infimum_low(page_offset(rec)));
 }
 
+/************************************************************//**
+Returns the nth record of the record list.
+This is the inverse function of page_rec_get_n_recs_before().
+@return	nth record */
+UNIV_INLINE
+rec_t*
+page_rec_get_nth(
+/*=============*/
+	page_t*	page,	/*!< in: page */
+	ulint	nth)	/*!< in: nth record */
+{
+	return((rec_t*) page_rec_get_nth_const(page, nth));
+}
+
 #ifndef UNIV_HOTBACKUP
+/************************************************************//**
+Returns the middle record of the records on the page. If there is an
+even number of records in the list, returns the first record of the
+upper half-list.
+@return	middle record */
+UNIV_INLINE
+rec_t*
+page_get_middle_rec(
+/*================*/
+	page_t*	page)	/*!< in: page */
+{
+	ulint	middle = (page_get_n_recs(page) + PAGE_HEAP_NO_USER_LOW) / 2;
+
+	return(page_rec_get_nth(page, middle));
+}
+
 /*************************************************************//**
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -959,6 +989,29 @@ page_get_free_space_of_empty(
 		       - 2 * PAGE_DIR_SLOT_SIZE));
 }
 
+#ifndef UNIV_HOTBACKUP
+/***********************************************************************//**
+Write a 32-bit field in a data dictionary record. */
+UNIV_INLINE
+void
+page_rec_write_field(
+/*=================*/
+	rec_t*	rec,	/*!< in/out: record to update */
+	ulint	i,	/*!< in: index of the field to update */
+	ulint	val,	/*!< in: value to write */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+{
+	byte*	data;
+	ulint	len;
+
+	data = rec_get_nth_field_old(rec, i, &len);
+
+	ut_ad(len == 4);
+
+	mlog_write_ulint(data, val, MLOG_4BYTES, mtr);
+}
+#endif /* !UNIV_HOTBACKUP */
+
 /************************************************************//**
 Each user record on a page, and also the deleted user records in the heap
 takes its size plus the fraction of the dir cell size /
@@ -1058,7 +1111,7 @@ page_mem_free(
 	page_header_set_field(page, page_zip, PAGE_GARBAGE,
 			      garbage + rec_offs_size(offsets));
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_dir_delete(page_zip, rec, index, offsets, free);
 	} else {
 		page_header_set_field(page, page_zip, PAGE_N_RECS,

@@ -6,6 +6,12 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   connection master;
 
   #
+  # Index that is used as an Id to tables that trigger errors.
+  #
+  --let $tt_error_counter=0
+  --let $nt_error_counter=0
+
+  #
   # Creates a T-table that is never dropped.
   #
   --eval CREATE TABLE tt_xx_1 ( id INT ) ENGINE = Innodb
@@ -14,6 +20,37 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   # Creates a N-table that is never dropped.
   #
   --eval CREATE TABLE nt_xx_1 ( id INT ) ENGINE = MyIsam
+
+  #
+  # Creates a T-table that is never dropped.
+  #
+  --eval CREATE TABLE tt_error_1 ( id INT, PRIMARY KEY (id) ) ENGINE = Innodb
+
+  #
+  # Creates a N-table that is never dropped.
+  #
+  --eval CREATE TABLE nt_error_1 ( id INT, PRIMARY KEY (id) ) ENGINE = MyIsam
+
+  #
+  # Creates a T-table that is never dropped.
+  #
+  --eval CREATE TABLE tt_error_2 ( id INT, PRIMARY KEY (id) ) ENGINE = Innodb
+
+  #
+  # Creates a N-table that is never dropped.
+  #
+  --eval CREATE TABLE nt_error_2 ( id INT, PRIMARY KEY (id) ) ENGINE = MyIsam
+
+  #
+  # Create a trigger nt_error_2 --> tt_error_2
+  #
+  DELIMITER |;
+  CREATE TRIGGER tr_i_nt_2_to_tt_2 AFTER INSERT ON nt_error_2 FOR EACH ROW
+  BEGIN
+    DECLARE in_stmt_id INTEGER;
+    INSERT INTO tt_error_2(id) VALUES (NEW.id);
+  END|
+  DELIMITER ;|
 
   #
   # Creates a Temporary N-table that is never dropped.
@@ -162,6 +199,14 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
 
   DROP TABLE IF EXISTS nt_xx_1;
 
+  DROP TABLE IF EXISTS tt_error_1;
+
+  DROP TABLE IF EXISTS nt_error_1;
+
+  DROP TABLE IF EXISTS tt_error_2;
+
+  DROP TABLE IF EXISTS nt_error_2;
+
   --let $n= $tot_table
   while ($n)
   { 
@@ -277,6 +322,30 @@ while (`SELECT HEX(@commands) != HEX('')`)
   {
     --enable_query_log
     eval INSERT INTO nt_xx_1() VALUES (1);
+   --disable_query_log
+  }
+
+  if (`SELECT HEX(@command) = HEX('Te')`)
+  {
+    --enable_query_log
+    --inc $tt_error_counter
+    eval INSERT INTO tt_error_1() VALUES ($tt_error_counter), ($tt_error_counter);
+   --disable_query_log
+  }
+
+  if (`SELECT HEX(@command) = HEX('Ne')`)
+  {
+    --enable_query_log
+    --inc $nt_error_counter
+    eval INSERT INTO nt_error_1() VALUES ($nt_error_counter), ($nt_error_counter);
+   --disable_query_log
+  }
+
+  if (`SELECT HEX(@command) = HEX('NeT-trig')`)
+  {
+    --enable_query_log
+    --inc $nt_error_counter
+    eval INSERT INTO nt_error_1() VALUES ($nt_error_counter), ($nt_error_counter);
    --disable_query_log
   }
 
@@ -869,6 +938,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
   {
     --enable_query_log
     --error 0, ER_GET_ERRMSG
+    --replace_column 2 #
     eval ROLLBACK;
     --disable_query_log
   }

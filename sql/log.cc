@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -239,9 +239,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
   const char *message() const { return m_message; }
 };
 
@@ -249,9 +249,9 @@ bool
 Silence_log_table_errors::handle_condition(THD *,
                                            uint,
                                            const char*,
-                                           MYSQL_ERROR::enum_warning_level,
+                                           Sql_condition::enum_warning_level,
                                            const char* msg,
-                                           MYSQL_ERROR ** cond_hdl)
+                                           Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   strmake(m_message, msg, sizeof(m_message)-1);
@@ -382,7 +382,7 @@ bool Log_to_csv_event_handler::
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
               const char *sql_text, uint sql_text_len,
-              CHARSET_INFO *client_cs)
+              const CHARSET_INFO *client_cs)
 {
   TABLE_LIST table_list;
   TABLE *table;
@@ -562,7 +562,7 @@ bool Log_to_csv_event_handler::
   bool need_rnd_end= FALSE;
   Silence_log_table_errors error_handler;
   Open_tables_backup open_tables_backup;
-  CHARSET_INFO *client_cs= thd->variables.character_set_client;
+  const CHARSET_INFO *client_cs= thd->variables.character_set_client;
   bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
 
@@ -626,10 +626,10 @@ bool Log_to_csv_event_handler::
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
-    if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->sent_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->get_sent_row_count(), TRUE))
       goto err;
     /* rows_examined */
-    if (table->field[SQLT_FIELD_ROWS_EXAMINED]->store((longlong) thd->examined_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_EXAMINED]->store((longlong) thd->get_examined_row_count(), TRUE))
       goto err;
   }
   else
@@ -802,7 +802,7 @@ bool Log_to_file_event_handler::
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
               const char *sql_text, uint sql_text_len,
-              CHARSET_INFO *client_cs)
+              const CHARSET_INFO *client_cs)
 {
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
@@ -1616,7 +1616,7 @@ MYSQL_LOG::MYSQL_LOG()
     called only in main(). Doing initialization here would make it happen
     before main().
   */
-  bzero((char*) &log_file, sizeof(log_file));
+  memset(&log_file, 0, sizeof(log_file));
 }
 
 void MYSQL_LOG::init_pthread_objects()
@@ -1931,8 +1931,8 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
                     "# Query_time: %s  Lock_time: %s"
                     " Rows_sent: %lu  Rows_examined: %lu\n",
                     query_time_buff, lock_time_buff,
-                    (ulong) thd->sent_row_count,
-                    (ulong) thd->examined_row_count) == (uint) -1)
+                    (ulong) thd->get_sent_row_count(),
+                    (ulong) thd->get_examined_row_count()) == (uint) -1)
       tmp_errno= errno;
     if (thd->db && strcmp(thd->db, db))
     {						// Database changed
@@ -2485,7 +2485,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   {
     pg->next=pg+1;
     pg->waiters=0;
-    pg->state=POOL;
+    pg->state=PS_POOL;
     mysql_mutex_init(key_PAGE_lock, &pg->lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
     pg->start=(my_xid *)(data + i*tc_log_page_size);
@@ -2659,7 +2659,7 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   cookie= (ulong)((uchar *)p->ptr - data);      // can never be zero
   *p->ptr++= xid;
   p->free--;
-  p->state= DIRTY;
+  p->state= PS_DIRTY;
 
   /* to sync or not to sync - this is the question */
   mysql_mutex_unlock(&LOCK_active);
@@ -2671,13 +2671,13 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
     p->waiters++;
     /*
       note - it must be while (), not do ... while () here
-      as p->state may be not DIRTY when we come here
+      as p->state may be not PS_DIRTY when we come here
     */
-    while (p->state == DIRTY && syncing)
+    while (p->state == PS_DIRTY && syncing)
       mysql_cond_wait(&p->cond, &LOCK_sync);
     p->waiters--;
-    err= p->state == ERROR;
-    if (p->state != DIRTY)                   // page was synced
+    err= p->state == PS_ERROR;
+    if (p->state != PS_DIRTY)                   // page was synced
     {
       if (p->waiters == 0)
         mysql_cond_signal(&COND_pool);       // in case somebody's waiting
@@ -2715,7 +2715,7 @@ int TC_LOG_MMAP::sync()
   pool_last->next=syncing;
   pool_last=syncing;
   syncing->next=0;
-  syncing->state= err ? ERROR : POOL;
+  syncing->state= err ? PS_ERROR : PS_POOL;
   mysql_cond_broadcast(&syncing->cond);      // signal "sync done"
   mysql_cond_signal(&COND_pool);             // in case somebody's waiting
   mysql_mutex_unlock(&LOCK_pool);
@@ -2824,7 +2824,7 @@ int TC_LOG_MMAP::recover()
     goto err2;
 
   my_hash_free(&xids);
-  bzero(data, (size_t)file_length);
+  memset(data, 0, (size_t)file_length);
   return 0;
 
 err2:

@@ -1,0 +1,23 @@
+select @@global.performance_schema_events_stages_history_size;
+@@global.performance_schema_events_stages_history_size
+15
+select @@session.performance_schema_events_stages_history_size;
+ERROR HY000: Variable 'performance_schema_events_stages_history_size' is a GLOBAL variable
+show global variables like 'performance_schema_events_stages_history_size';
+Variable_name	Value
+performance_schema_events_stages_history_size	15
+show session variables like 'performance_schema_events_stages_history_size';
+Variable_name	Value
+performance_schema_events_stages_history_size	15
+select * from information_schema.global_variables
+where variable_name='performance_schema_events_stages_history_size';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_EVENTS_STAGES_HISTORY_SIZE	15
+select * from information_schema.session_variables
+where variable_name='performance_schema_events_stages_history_size';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_EVENTS_STAGES_HISTORY_SIZE	15
+set global performance_schema_events_stages_history_size=1;
+ERROR HY000: Variable 'performance_schema_events_stages_history_size' is a read only variable
+set session performance_schema_events_stages_history_size=1;
+ERROR HY000: Variable 'performance_schema_events_stages_history_size' is a read only variable

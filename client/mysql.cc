@@ -1,4 +1,5 @@
-/* Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* mysql command tool
  * Commands compatible with mSQL by David J. Hughes
@@ -150,6 +152,7 @@ static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
+static my_bool opt_binary_mode= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -189,7 +192,7 @@ unsigned short terminal_width= 80;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
-static CHARSET_INFO *charset_info= &my_charset_latin1;
+static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
 #include "sslopt-vars.h"
 
@@ -1081,9 +1084,10 @@ static void initialize_readline (char *name);
 static void fix_history(String *final_command);
 #endif
 
-static COMMANDS *find_command(char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated);
+static COMMANDS *find_command(char *name);
+static COMMANDS *find_command(char cmd_name);
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -1096,9 +1100,68 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
-extern "C" sig_handler handle_sigint(int sig);
+extern "C" sig_handler handle_kill_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
 static sig_handler window_resize(int sig);
+#endif
+
+const char DELIMITER_NAME[]= "delimiter";
+const uint DELIMITER_NAME_LEN= sizeof(DELIMITER_NAME) - 1;
+inline bool is_delimiter_command(char *name, ulong len)
+{
+  /*
+    Delimiter command has a parameter, so the length of the whole command
+    is larger than DELIMITER_NAME_LEN.  We don't care the parameter, so
+    only name(first DELIMITER_NAME_LEN bytes) is checked.
+  */
+  return (len >= DELIMITER_NAME_LEN &&
+          !my_strnncoll(charset_info, (uchar*) name, DELIMITER_NAME_LEN,
+                        (uchar *) DELIMITER_NAME, DELIMITER_NAME_LEN));
+}
+
+/**
+   Get the index of a command in the commands array.
+
+   @param cmd_char    Short form command.
+
+   @return int
+     The index of the command is returned if it is found, else -1 is returned.
+*/
+inline int get_command_index(char cmd_char)
+{
+  /*
+    All client-specific commands are in the first part of commands array
+    and have a function to implement it.
+  */
+  for (uint i= 0; *commands[i].func; i++)
+    if (commands[i].cmd_char == cmd_char)
+      return i;
+  return -1;
+}
+
+static int delimiter_index= -1;
+static int charset_index= -1;
+static bool real_binary_mode= FALSE;
+
+#ifdef _WIN32
+BOOL windows_ctrl_handler(DWORD fdwCtrlType)
+{
+  switch (fdwCtrlType)
+  {
+  case CTRL_C_EVENT:
+  case CTRL_BREAK_EVENT:
+    if (!opt_sigint_ignore)
+      handle_kill_signal(SIGINT);
+    /* Indicate that signal has beed handled. */  
+    return TRUE;
+  case CTRL_CLOSE_EVENT:
+  case CTRL_LOGOFF_EVENT:
+  case CTRL_SHUTDOWN_EVENT:
+    handle_kill_signal(SIGINT + 1);
+  }
+  /* Pass signal to the next control handler function. */
+  return FALSE;
+}
 #endif
 
 
@@ -1109,7 +1172,9 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
-  
+
+  charset_index= get_command_index('C');
+  delimiter_index= get_command_index('d');
   delimiter_str= delimiter;
   default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
@@ -1187,7 +1252,7 @@ int main(int argc,char *argv[])
   glob_buffer.realloc(512);
   completion_hash_init(&ht, 128);
   init_alloc_root(&hash_mem_root, 16384, 0);
-  bzero((char*) &mysql, sizeof(mysql));
+  memset(&mysql, 0, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
@@ -1198,11 +1263,17 @@ int main(int argc,char *argv[])
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
 
+#ifndef _WIN32
   if (opt_sigint_ignore)
     signal(SIGINT, SIG_IGN);
   else
-    signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
+    signal(SIGINT, handle_kill_signal);         // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
+  signal(SIGHUP, handle_kill_signal);         // Catch SIGHUP to clean up
+#else
+  SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, TRUE);
+#endif
+
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
   /* Readline will call this if it installs a handler */
@@ -1218,7 +1289,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"), INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1329,16 +1400,17 @@ sig_handler mysql_end(int sig)
   If query is in process, kill query
   no query in process, terminate like previous behavior
  */
-sig_handler handle_sigint(int sig)
+sig_handler handle_kill_signal(int sig)
 {
   char kill_buffer[40];
   MYSQL *kill_mysql= NULL;
+  const char *reason = sig == SIGINT ? "Ctrl-C" : "Terminal close";
 
   /* terminate if no query being executed, or we already tried interrupting */
   /* terminate if no query being executed, or we already tried interrupting */
   if (!executing_query || (interrupted_query == 2))
   {
-    tee_fprintf(stdout, "Ctrl-C -- exit!\n");
+    tee_fprintf(stdout, "%s -- exit!\n", reason);
     goto err;
   }
 
@@ -1346,7 +1418,7 @@ sig_handler handle_sigint(int sig)
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
   {
-    tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
+    tee_fprintf(stdout, "%s -- sorry, cannot connect to server to kill query, giving up ...\n", reason);
     goto err;
   }
 
@@ -1360,10 +1432,11 @@ sig_handler handle_sigint(int sig)
   sprintf(kill_buffer, "KILL %s%lu",
           (interrupted_query == 1) ? "QUERY " : "",
           mysql_thread_id(&mysql));
-  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", 
+              reason, kill_buffer);
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
+  tee_fprintf(stdout, "%s -- query aborted.\n", reason);
 
   return;
 
@@ -1610,12 +1683,19 @@ static struct my_option my_long_options[] =
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
     "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-mode", OPT_BINARY_MODE,
+   "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to '\\n'. "
+   "This switch turns off both features, and also turns off parsing of all client"
+   "commands except \\C and DELIMITER, in non-interactive mode (for input "
+   "piped to mysql or loaded using the 'source' command). This is necessary "
+   "when processing output from mysqlbinlog that may contain blobs.",
+   &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1639,7 +1719,7 @@ static void usage(int version)
 
   if (version)
     return;
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -1887,24 +1967,59 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
+  ulong line_length= 0;
   status.exit_status=1;
 
+  real_binary_mode= !interactive && opt_binary_mode;
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff);
       /*
-        Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
-        Editors like "notepad" put this marker in
-        the very beginning of a text file when
-        you save the file using "Unicode UTF-8" format.
-      */
-      if (line && !line_number &&
-           (uchar) line[0] == 0xEF &&
-           (uchar) line[1] == 0xBB &&
-           (uchar) line[2] == 0xBF)
-        line+= 3;
+        batch_readline can return 0 on EOF or error.
+        In that case, we need to double check that we have a valid
+        line before actually setting line_length to read_length.
+        */
+      line= batch_readline(status.line_buff, real_binary_mode);
+      if (line) 
+      {
+        line_length= status.line_buff->read_length;
+
+        /*
+          ASCII 0x00 is not allowed appearing in queries if it is not in binary
+          mode.
+        */
+        if (!real_binary_mode && strlen(line) != line_length)
+        {
+          status.exit_status= 1;
+          String msg;
+          msg.append("ASCII '\\0' appeared in the statement, but this is not "
+                     "allowed unless option --binary-mode is enabled and mysql is "
+                     "run in non-interactive mode. Set --binary-mode to 1 if ASCII "
+                     "'\\0' is expected. Query: '");
+          msg.append(glob_buffer);
+          msg.append(line);
+          msg.append("'.");
+          put_info(msg.c_ptr(), INFO_ERROR);
+          break;
+        }
+
+        /*
+          Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
+          Editors like "notepad" put this marker in
+          the very beginning of a text file when
+          you save the file using "Unicode UTF-8" format.
+        */
+        if (!line_number &&
+             (uchar) line[0] == 0xEF &&
+             (uchar) line[1] == 0xBB &&
+             (uchar) line[2] == 0xBF)
+        {
+          line+= 3;
+          // decrease the line length accordingly to the 3 bytes chopped
+          line_length -=3;
+        }
+      }
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
@@ -1942,6 +2057,8 @@ static int read_and_execute(bool interactive)
       */
       if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
+
+      line_length= line ? strlen(line) : 0;
     }
     // End of file or system error
     if (!line)
@@ -1958,7 +2075,7 @@ static int read_and_execute(bool interactive)
       (We want to allow help, print and clear anywhere at line start
     */
     if ((named_cmds || glob_buffer.is_empty())
-	&& !ml_comment && !in_string && (com=find_command(line,0)))
+	&& !ml_comment && !in_string && (com= find_command(line)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
 	break;
@@ -1970,7 +2087,7 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer, line, &in_string, &ml_comment,
+    if (add_line(glob_buffer, line, line_length, &in_string, &ml_comment,
                  status.line_buff ? status.line_buff->truncated : 0))
       break;
   }
@@ -1992,70 +2109,130 @@ static int read_and_execute(bool interactive)
   tmpbuf.free();
 #endif
 
+  /*
+    If the function is called by 'source' command, it will return to interactive
+    mode, so real_binary_mode should be FALSE. Otherwise, it will exit the
+    program, it is safe to set real_binary_mode to FALSE.
+  */
+  real_binary_mode= FALSE;
   return status.exit_status;
 }
 
+/**
+   It checks if the input is a short form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode
+   is set, then only \C is searched for.
 
-static COMMANDS *find_command(char *name,char cmd_char)
+   @param cmd_char    A character of one byte.
+
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char cmd_char)
+{
+  DBUG_ENTER("find_command");
+  DBUG_PRINT("enter", ("cmd_char: %d", cmd_char));
+
+  int index= -1;
+
+  /*
+    In binary-mode, we disallow all mysql commands except '\C'
+    and DELIMITER.
+  */
+  if (real_binary_mode)
+  {
+    if (cmd_char == 'C')
+      index= charset_index;
+  }
+  else
+    index= get_command_index(cmd_char);
+
+  if (index >= 0)
+  {
+    DBUG_PRINT("exit",("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
+  }
+  else
+    DBUG_RETURN((COMMANDS *) 0);
+}
+
+/**
+   It checks if the input is a long form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode 
+   is set, then only DELIMITER is searched for.
+
+   @param name    A string.
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char *name)
 {
   uint len;
   char *end;
   DBUG_ENTER("find_command");
-  DBUG_PRINT("enter",("name: '%s'  char: %d", name ? name : "NULL", cmd_char));
 
-  if (!name)
+  DBUG_ASSERT(name != NULL);
+  DBUG_PRINT("enter", ("name: '%s'", name));
+
+  while (my_isspace(charset_info, *name))
+    name++;
+  /*
+    If there is an \\g in the row or if the row has a delimiter but
+    this is not a delimiter command, let add_line() take care of
+    parsing the row and calling find_command().
+  */
+  if ((!real_binary_mode && strstr(name, "\\g")) ||
+      (strstr(name, delimiter) &&
+       !is_delimiter_command(name, DELIMITER_NAME_LEN)))
+      DBUG_RETURN((COMMANDS *) 0);
+
+  if ((end=strcont(name, " \t")))
   {
-    len=0;
-    end=0;
+    len=(uint) (end - name);
+    while (my_isspace(charset_info, *end))
+      end++;
+    if (!*end)
+      end= 0;					// no arguments to function
+  }
+  else
+    len= (uint) strlen(name);
+
+  int index= -1;
+  if (real_binary_mode)
+  {
+    if (is_delimiter_command(name, len))
+      index= delimiter_index;
   }
   else
   {
-    while (my_isspace(charset_info,*name))
-      name++;
     /*
-      If there is an \\g in the row or if the row has a delimiter but
-      this is not a delimiter command, let add_line() take care of
-      parsing the row and calling find_command()
+      All commands are in the first part of commands array and have a function
+      to implement it.
     */
-    if (strstr(name, "\\g") || (strstr(name, delimiter) &&
-                                !(strlen(name) >= 9 &&
-                                  !my_strnncoll(&my_charset_latin1,
-                                                (uchar*) name, 9,
-                                                (const uchar*) "delimiter",
-                                                9))))
-      DBUG_RETURN((COMMANDS *) 0);
-    if ((end=strcont(name," \t")))
+    for (uint i= 0; commands[i].func; i++)
     {
-      len=(uint) (end - name);
-      while (my_isspace(charset_info,*end))
-	end++;
-      if (!*end)
-	end=0;					// no arguments to function
+      if (!my_strnncoll(&my_charset_latin1, (uchar*) name, len,
+                        (uchar*) commands[i].name, len) &&
+          (commands[i].name[len] == '\0') &&
+          (!end || commands[i].takes_params))
+      {
+        index= i;
+        break;
+      }
     }
-    else
-      len=(uint) strlen(name);
   }
 
-  for (uint i= 0; commands[i].name; i++)
+  if (index >= 0)
   {
-    if (commands[i].func &&
-	((name &&
-	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
-				     (uchar*)commands[i].name,len) &&
-	  !commands[i].name[len] &&
-	  (!end || (end && commands[i].takes_params))) ||
-	 (!name && commands[i].cmd_char == cmd_char)))
-    {
-      DBUG_PRINT("exit",("found command: %s", commands[i].name));
-      DBUG_RETURN(&commands[i]);
-    }
+    DBUG_PRINT("exit", ("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
   }
   DBUG_RETURN((COMMANDS *) 0);
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated)
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated)
 {
   uchar inchar;
   char buff[80], *pos, *out;
@@ -2070,10 +2247,11 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
-  char *end_of_line=line+(uint) strlen(line);
+  char *end_of_line= line + line_length;
 
-  for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
+  for (pos= out= line; pos < end_of_line; pos++)
   {
+    inchar= (uchar) *pos;
     if (!preserve_comments)
     {
       // Skip spaces at the beginning of a statement
@@ -2113,7 +2291,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	*out++= (char) inchar;
 	continue;
       }
-      if ((com=find_command(NullS,(char) inchar)))
+      if ((com= find_command((char) inchar)))
       {
         // Flush previously accepted characters
         if (out != line)
@@ -2189,7 +2367,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
       pos--;
 
-      if ((com= find_command(buffer.c_ptr(), 0)))
+      if ((com= find_command(buffer.c_ptr())))
       {
           
         if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
@@ -2303,10 +2481,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   {
     uint length=(uint) (out-line);
 
-    if (!truncated &&
-        (length < 9 || 
-         my_strnncoll (charset_info, 
-                       (uchar *)line, 9, (const uchar *) "delimiter", 9)))
+    if (!truncated && !is_delimiter_command(line, length))
     {
       /* 
         Don't add a new line in case there's a DELIMITER command to be 
@@ -2944,7 +3119,7 @@ static int
 com_charset(String *buffer __attribute__((unused)), char *line)
 {
   char buff[256], *param;
-  CHARSET_INFO * new_cs;
+  const CHARSET_INFO *new_cs;
   strmake(buff, line, sizeof(buff) - 1);
   param= get_arg(buff, 0);
   if (!param || !*param)
@@ -3734,8 +3909,6 @@ com_tee(String *buffer __attribute__((unused)),
 {
   char file_name[FN_REFLEN], *end, *param;
 
-  if (status.batch)
-    return 0;
   while (my_isspace(charset_info,*line))
     line++;
   if (!(param = strchr(line, ' '))) // if outfile wasn't given, use the default
@@ -3961,7 +4134,7 @@ com_connect(String *buffer, char *line)
   bool save_rehash= opt_rehash;
   int error;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   if (buffer)
   {
     /*
@@ -4047,7 +4220,7 @@ static int com_source(String *buffer __attribute__((unused)),
 
   /* Save old status */
   old_status=status;
-  bfill((char*) &status,sizeof(status),(char) 0);
+  memset(&status, 0, sizeof(status));
 
   status.batch=old_status.batch;		// Run in batch mode
   status.line_buff=line_buff;
@@ -4097,7 +4270,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   strmake(buff, line, sizeof(buff) - 1);
   tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)
@@ -4273,8 +4446,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
   mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                 (char*)&opt_ssl_verify_server_cert);
 #endif

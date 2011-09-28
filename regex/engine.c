@@ -64,7 +64,7 @@ struct match {
  */
 static int			/* 0 success, MY_REG_NOMATCH failure */
 matcher(charset,g, str, nmatch, pmatch, eflags)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 register struct re_guts *g;
 char *str;
 size_t nmatch;
@@ -237,7 +237,7 @@ int eflags;
  */
 static char *			/* == stop (success) always */
 dissect(charset, m, start, stop, startst, stopst)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;
@@ -423,7 +423,7 @@ sopno stopst;
  */
 static char *			/* == stop (success) or NULL (failure) */
 backref(charset,m, start, stop, startst, stopst, lev)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;
@@ -629,7 +629,7 @@ sopno lev;			/* PLUS nesting level */
  */
 static char *			/* where tentative match ended, or NULL */
 fast(charset, m, start, stop, startst, stopst)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;
@@ -721,7 +721,7 @@ sopno stopst;
  */
 static char *			/* where it ended */
 slow(charset, m, start, stop, startst, stopst)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 register struct match *m;
 char *start;
 char *stop;

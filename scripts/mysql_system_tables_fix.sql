@@ -1,4 +1,4 @@
--- Copyright (C) 2003, 2010 Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -642,8 +642,9 @@ DROP PREPARE stmt;
 
 drop procedure mysql.die;
 
-ALTER TABLE user ADD plugin char(60) DEFAULT '' NOT NULL,  ADD authentication_string TEXT NOT NULL;
-ALTER TABLE user MODIFY plugin char(60) DEFAULT '' NOT NULL;
+ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
+ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions
@@ -659,3 +660,6 @@ DROP TABLE tmp_proxies_priv;
 # changes was correct
 
 flush privileges;
+
+ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
+ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';

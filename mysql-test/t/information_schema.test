@@ -1,6 +1,9 @@
 # This test  uses grants, which can't get tested for embedded server
 -- source include/not_embedded.inc
 
+#Don't run this test when thread_pool active
+--source include/not_threadpool.inc
+
 # check that CSV engine was compiled in, as the result of the test depends
 # on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
@@ -17,6 +20,11 @@ DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
 --enable_warnings
 
+
+--echo #
+--echo # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
+--echo #
+select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
 
 show variables where variable_name like "skip_show_database";
 grant select, update, execute on test.* to mysqltest_2@localhost;
@@ -742,7 +750,7 @@ create temporary table schemata(f1 char(10));
 # Bug#10708 SP's can use INFORMATION_SCHEMA as ROUTINE_SCHEMA
 #
 delimiter |;
---error ER_BAD_DB_ERROR
+--error ER_DBACCESS_DENIED_ERROR
 CREATE PROCEDURE p1 ()
 BEGIN
   SELECT 'foo' FROM DUAL;
@@ -997,6 +1005,7 @@ drop table t1,t2;
 #
 select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
 (select cast(table_name as char)  from information_schema.tables
+ where table_schema != 'performance_schema'
  order by table_name limit 1) limit 1;
 
 select t.table_name, group_concat(t.table_schema, '.', t.table_name),
@@ -1572,11 +1581,6 @@ drop function f1;
 disconnect con7;
 
 
-
-
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
-
 #
 # Bug #43834    Assertion in Natural_join_column::db_name() on an I_S query
 #
@@ -1640,5 +1644,185 @@ drop view v1;
 
 
 --echo #
+--echo # Test for bug #12828477 - "MDL SUBSYSTEM CREATES BIG OVERHEAD FOR
+--echo #                           CERTAIN QUERIES TO INFORMATION_SCHEMA".
+--echo #
+--echo # Check that metadata locks which are acquired during the process
+--echo # of opening tables/.FRMs/.TRG files while filling I_S table are
+--echo # not kept to the end of statement. Keeping the locks has caused
+--echo # performance problems in cases when big number of tables (.FRMs
+--echo # or .TRG files) were scanned as cost of new lock acquisition has
+--echo # increased linearly.
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+create database mysqltest;
+use mysqltest;
+create table t0 (i int);
+create table t1 (j int);
+create table t2 (k int);
+
+--echo #
+--echo # Test that we don't keep locks in case when we to fill
+--echo # I_S table we perform full-blown table open.
+--echo #
+
+--echo # Acquire lock on 't2' so upcoming RENAME is
+--echo # blocked.
+lock tables t2 read;
+
+--echo #
+--echo # Switching to connection 'con12828477_1'. 
+--echo #
+connect (con12828477_1, localhost, root,,mysqltest);
+--echo # The below RENAME should wait on 't2' while
+--echo # keeping X lock on 't1'.
+--send rename table t1 to t3, t2 to t1, t3 to t2
+
+--echo #
+--echo # Switching to connection 'con12828477_2'. 
+--echo #
+connect (con12828477_2, localhost, root,,mysqltest);
+--echo # Wait while the above RENAME is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t3, t2 to t1, t3 to t2";
+--source include/wait_condition.inc
+
+--echo # Issue query to I_S which will open 't0' and get
+--echo # blocked on 't1' because of RENAME.
+--send select table_name, auto_increment from information_schema.tables where table_schema='mysqltest'
+
+--echo #
+--echo # Switching to connection 'con12828477_3'. 
+--echo #
+connect (con12828477_3, localhost, root,,mysqltest);
+--echo # Wait while the above SELECT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "select table_name, auto_increment from information_schema.tables where table_schema='mysqltest'";
+--source include/wait_condition.inc
+
+--echo #
+--echo # Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+
+--echo #
+--echo # Switching to connection 'default'.
+--echo #
+connection default;
+--echo #
+--echo # Unblock the first RENAME.
+unlock tables;
+
+--echo #
+--echo # Switching to connection 'con12828477_1'. 
+--echo #
+connection con12828477_1;
+--echo # Reap the first RENAME
+--reap
+
+--echo #
+--echo # Switching to connection 'con12828477_2'. 
+--echo #
+connection con12828477_2;
+--echo # Reap SELECT to I_S.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+--echo #
+connection default;
+
+--echo #
+--echo # Now test that we don't keep locks in case when we to fill
+--echo # I_S table we read .FRM or .TRG file only (this was the case
+--echo # for which problem existed).
+--echo #
+
+rename table t4 to t0;
+--echo # Acquire lock on 't2' so upcoming RENAME is
+--echo # blocked.
+lock tables t2 read;
+
+--echo #
+--echo # Switching to connection 'con12828477_1'. 
+--echo #
+connection con12828477_1;
+--echo # The below RENAME should wait on 't2' while
+--echo # keeping X lock on 't1'.
+--send rename table t1 to t3, t2 to t1, t3 to t2
+
+--echo #
+--echo # Switching to connection 'con12828477_2'. 
+--echo #
+connection con12828477_2;
+--echo # Wait while the above RENAME is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t3, t2 to t1, t3 to t2";
+--source include/wait_condition.inc
+
+--echo # Issue query to I_S which will open 't0' and get
+--echo # blocked on 't1' because of RENAME.
+--send select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest'
+
+--echo #
+--echo # Switching to connection 'con12828477_3'. 
+--echo #
+connection con12828477_3;
+--echo # Wait while the above SELECT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest'";
+--source include/wait_condition.inc
+
+--echo #
+--echo # Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+
+--echo #
+--echo # Switching to connection 'default'.
+--echo #
+connection default;
+--echo #
+--echo # Unblock the first RENAME.
+unlock tables;
+
+--echo #
+--echo # Switching to connection 'con12828477_1'. 
+--echo #
+connection con12828477_1;
+--echo # Reap the first RENAME
+--reap
+
+--echo #
+--echo # Switching to connection 'con12828477_2'. 
+--echo #
+connection con12828477_2;
+--echo # Reap SELECT to I_S.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+--echo #
+connection default;
+disconnect con12828477_1;
+disconnect con12828477_2;
+disconnect con12828477_3;
+
+--echo #
+--echo # Clean-up.
+drop database mysqltest;
+
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

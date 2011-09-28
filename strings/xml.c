@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -443,7 +443,7 @@ gt:
 
 void my_xml_parser_create(MY_XML_PARSER *p)
 {
-  bzero((void*)p,sizeof(p[0]));
+  memset(p, 0, sizeof(p[0]));
 }
 
 

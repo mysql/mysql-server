@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #include "sql_parse.h"                       // check_access
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
+#include "sql_base.h"                        // open_temporary_tables
 #include "sql_alter.h"
 
 bool Sql_cmd_alter_table::execute(THD *thd)
@@ -64,10 +65,47 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     DBUG_RETURN(TRUE);                  /* purecov: inspected */
 
   /* If it is a merge table, check privileges for merge children. */
-  if (create_info.merge_list.first &&
-      check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                         create_info.merge_list.first, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
+  if (create_info.merge_list.first)
+  {
+    /*
+      The user must have (SELECT_ACL | UPDATE_ACL | DELETE_ACL) on the
+      underlying base tables, even if there are temporary tables with the same
+      names.
+
+      From user's point of view, it might look as if the user must have these
+      privileges on temporary tables to create a merge table over them. This is
+      one of two cases when a set of privileges is required for operations on
+      temporary tables (see also CREATE TABLE).
+
+      The reason for this behavior stems from the following facts:
+
+        - For merge tables, the underlying table privileges are checked only
+          at CREATE TABLE / ALTER TABLE time.
+
+          In other words, once a merge table is created, the privileges of
+          the underlying tables can be revoked, but the user will still have
+          access to the merge table (provided that the user has privileges on
+          the merge table itself). 
+
+        - Temporary tables shadow base tables.
+
+          I.e. there might be temporary and base tables with the same name, and
+          the temporary table takes the precedence in all operations.
+
+        - For temporary MERGE tables we do not track if their child tables are
+          base or temporary. As result we can't guarantee that privilege check
+          which was done in presence of temporary child will stay relevant later
+          as this temporary table might be removed.
+
+      If SELECT_ACL | UPDATE_ACL | DELETE_ACL privileges were not checked for
+      the underlying *base* tables, it would create a security breach as in
+      Bug#12771903.
+    */
+
+    if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                           create_info.merge_list.first, FALSE, UINT_MAX, FALSE))
+      DBUG_RETURN(TRUE);
+  }
 
   if (check_grant(thd, priv_needed, first_table, FALSE, UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);                  /* purecov: inspected */
@@ -76,7 +114,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   {
     // Rename of table
     TABLE_LIST tmp_table;
-    bzero((char*) &tmp_table,sizeof(tmp_table));
+    memset(&tmp_table, 0, sizeof(tmp_table));
     tmp_table.table_name= lex->name.str;
     tmp_table.db= select_lex->db;
     tmp_table.grant.privilege= priv;
@@ -87,11 +125,11 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 
   /* Don't yet allow changing of symlinks with ALTER TABLE */
   if (create_info.data_file_name)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                         "DATA DIRECTORY");
   if (create_info.index_file_name)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                         "INDEX DIRECTORY");
   create_info.data_file_name= create_info.index_file_name= NULL;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Functions to handle date and time */
@@ -228,7 +228,7 @@ ulong convert_month_to_period(ulong month)
   respected scripts.
 */
 static uint
-to_ascii(CHARSET_INFO *cs,
+to_ascii(const CHARSET_INFO *cs,
          const char *src, uint src_length,
          char *dst, uint dst_length)
                      
@@ -252,7 +252,7 @@ to_ascii(CHARSET_INFO *cs,
 
 
 /* Character set-aware version of str_to_time() */
-bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
+bool str_to_time(const CHARSET_INFO *cs, const char *str,uint length,
                  MYSQL_TIME *l_time, int *warning)
 {
   char cnv[32];
@@ -266,7 +266,7 @@ bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
 
 
 /* Character set-aware version of str_to_datetime() */
-timestamp_type str_to_datetime(CHARSET_INFO *cs,
+timestamp_type str_to_datetime(const CHARSET_INFO *cs,
                                const char *str, uint length,
                                MYSQL_TIME *l_time, uint flags, int *was_cut)
 {
@@ -289,7 +289,7 @@ timestamp_type str_to_datetime(CHARSET_INFO *cs,
 */
 
 timestamp_type
-str_to_datetime_with_warn(CHARSET_INFO *cs,
+str_to_datetime_with_warn(const CHARSET_INFO *cs,
                           const char *str, uint length, MYSQL_TIME *l_time,
                           uint flags)
 {
@@ -303,7 +303,7 @@ str_to_datetime_with_warn(CHARSET_INFO *cs,
                                       MODE_NO_ZERO_DATE))),
                            &was_cut);
   if (was_cut || ts_type <= MYSQL_TIMESTAMP_ERROR)
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
                                  str, length, ts_type,  NullS);
   return ts_type;
 }
@@ -352,13 +352,13 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
     See str_to_time() for more info.
 */
 bool
-str_to_time_with_warn(CHARSET_INFO *cs,
+str_to_time_with_warn(const CHARSET_INFO *cs,
                       const char *str, uint length, MYSQL_TIME *l_time)
 {
   int warning;
   bool ret_val= str_to_time(str, length, l_time, &warning);
   if (ret_val || warning)
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
                                  str, length, MYSQL_TIMESTAMP_TIME, NullS);
   return ret_val;
 }
@@ -788,7 +788,7 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 }
 
 
-void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+void make_truncated_value_warning(THD *thd, Sql_condition::enum_warning_level level,
                                   const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name)
@@ -817,7 +817,7 @@ void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level leve
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, str.c_ptr(), field_name,
-                       (ulong) thd->warning_info->current_row_for_warning());
+                       (ulong) thd->get_stmt_da()->current_row_for_warning());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)
@@ -935,7 +935,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
   return 0;					// Ok
 
 invalid_date:
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                       ER_DATETIME_FUNCTION_OVERFLOW,
                       ER(ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");

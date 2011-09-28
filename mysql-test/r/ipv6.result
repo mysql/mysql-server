@@ -6,13 +6,6 @@ SHOW GRANTS FOR testuser@'::1';
 Grants for testuser@::1
 GRANT USAGE ON *.* TO 'testuser'@'::1' IDENTIFIED BY PASSWORD '*A4B6157319038724E3560894F7F932C8886EBFCF'
 GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'::1'
-SET @nip= inet_aton('::1');
-SELECT @nip;
-@nip
-NULL
-SELECT inet_ntoa(@nip);
-inet_ntoa(@nip)
-NULL
 SELECT USER();
 USER()
 root@localhost
@@ -27,6 +20,94 @@ SELECT USER();
 USER()
 root@localhost
 DROP USER testuser1@'::1';
+SET @nip= inet_aton('::1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
+SELECT inet_ntoa(c1) FROM t1;
+inet_ntoa(c1)
+NULL
+SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c1 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c2) FROM t1;
+inet_ntoa(c2)
+NULL
+SELECT inet_ntoa(CAST(c2 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c2 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c3) FROM t1;
+inet_ntoa(c3)
+NULL
+SELECT inet_ntoa(CAST(c3 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c3 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c4) FROM t1;
+inet_ntoa(c4)
+NULL
+SELECT inet_ntoa(CAST(c4 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c4 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c5) FROM t1;
+inet_ntoa(c5)
+NULL
+SELECT inet_ntoa(CAST(c5 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c5 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c6) FROM t1;
+inet_ntoa(c6)
+NULL
+DROP TABLE IF EXISTS t1;
+SELECT @nip;
+@nip
+NULL
+SELECT inet_ntoa(@nip);
+inet_ntoa(@nip)
+NULL
+SET @nip6= inet6_aton('::1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+INSERT INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
+Warnings:
+Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01' for column 'c6' at row 1
+SELECT inet6_ntoa(c1) FROM t1;
+inet6_ntoa(c1)
+::1
+SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c1 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c2) FROM t1;
+inet6_ntoa(c2)
+NULL
+SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c2 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c3) FROM t1;
+inet6_ntoa(c3)
+::1
+SELECT inet6_ntoa(CAST(c3 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c3 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c4) FROM t1;
+inet6_ntoa(c4)
+NULL
+SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c4 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c5) FROM t1;
+inet6_ntoa(c5)
+NULL
+SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c5 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c6) FROM t1;
+inet6_ntoa(c6)
+NULL
+SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c6 AS BINARY(16)))
+3000::
+DROP TABLE IF EXISTS t1;
+SELECT inet6_ntoa(@nip6);
+inet6_ntoa(@nip6)
+::1
 =============Test of '::1/128' ====================================
 =============Test of '0000:0000:0000:0000:0000:0000:0000:0001' ====
 mysqld is alive
@@ -36,13 +117,6 @@ SHOW GRANTS FOR testuser@'0000:0000:0000:0000:0000:0000:0000:0001';
 Grants for testuser@0000:0000:0000:0000:0000:0000:0000:0001
 GRANT USAGE ON *.* TO 'testuser'@'0000:0000:0000:0000:0000:0000:0000:0001' IDENTIFIED BY PASSWORD '*A4B6157319038724E3560894F7F932C8886EBFCF'
 GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0000:0000:0000:0000:0000:0000:0000:0001'
-SET @nip= inet_aton('0000:0000:0000:0000:0000:0000:0000:0001');
-SELECT @nip;
-@nip
-NULL
-SELECT inet_ntoa(@nip);
-inet_ntoa(@nip)
-NULL
 SELECT USER();
 USER()
 root@localhost
@@ -57,6 +131,94 @@ SELECT USER();
 USER()
 root@localhost
 DROP USER testuser1@'0000:0000:0000:0000:0000:0000:0000:0001';
+SET @nip= inet_aton('0000:0000:0000:0000:0000:0000:0000:0001');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
+SELECT inet_ntoa(c1) FROM t1;
+inet_ntoa(c1)
+NULL
+SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c1 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c2) FROM t1;
+inet_ntoa(c2)
+NULL
+SELECT inet_ntoa(CAST(c2 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c2 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c3) FROM t1;
+inet_ntoa(c3)
+NULL
+SELECT inet_ntoa(CAST(c3 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c3 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c4) FROM t1;
+inet_ntoa(c4)
+NULL
+SELECT inet_ntoa(CAST(c4 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c4 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c5) FROM t1;
+inet_ntoa(c5)
+NULL
+SELECT inet_ntoa(CAST(c5 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c5 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c6) FROM t1;
+inet_ntoa(c6)
+NULL
+DROP TABLE IF EXISTS t1;
+SELECT @nip;
+@nip
+NULL
+SELECT inet_ntoa(@nip);
+inet_ntoa(@nip)
+NULL
+SET @nip6= inet6_aton('0000:0000:0000:0000:0000:0000:0000:0001');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+INSERT INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
+Warnings:
+Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01' for column 'c6' at row 1
+SELECT inet6_ntoa(c1) FROM t1;
+inet6_ntoa(c1)
+::1
+SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c1 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c2) FROM t1;
+inet6_ntoa(c2)
+NULL
+SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c2 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c3) FROM t1;
+inet6_ntoa(c3)
+::1
+SELECT inet6_ntoa(CAST(c3 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c3 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c4) FROM t1;
+inet6_ntoa(c4)
+NULL
+SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c4 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c5) FROM t1;
+inet6_ntoa(c5)
+NULL
+SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c5 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c6) FROM t1;
+inet6_ntoa(c6)
+NULL
+SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c6 AS BINARY(16)))
+3000::
+DROP TABLE IF EXISTS t1;
+SELECT inet6_ntoa(@nip6);
+inet6_ntoa(@nip6)
+::1
 =============Test of '0:0:0:0:0:0:0:1' ============================
 mysqld is alive
 CREATE USER testuser@'0:0:0:0:0:0:0:1' identified by '1234';
@@ -65,13 +227,6 @@ SHOW GRANTS FOR testuser@'0:0:0:0:0:0:0:1';
 Grants for testuser@0:0:0:0:0:0:0:1
 GRANT USAGE ON *.* TO 'testuser'@'0:0:0:0:0:0:0:1' IDENTIFIED BY PASSWORD '*A4B6157319038724E3560894F7F932C8886EBFCF'
 GRANT ALL PRIVILEGES ON `test`.* TO 'testuser'@'0:0:0:0:0:0:0:1'
-SET @nip= inet_aton('0:0:0:0:0:0:0:1');
-SELECT @nip;
-@nip
-NULL
-SELECT inet_ntoa(@nip);
-inet_ntoa(@nip)
-NULL
 SELECT USER();
 USER()
 root@localhost
@@ -86,3 +241,91 @@ SELECT USER();
 USER()
 root@localhost
 DROP USER testuser1@'0:0:0:0:0:0:0:1';
+SET @nip= inet_aton('0:0:0:0:0:0:0:1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
+SELECT inet_ntoa(c1) FROM t1;
+inet_ntoa(c1)
+NULL
+SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c1 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c2) FROM t1;
+inet_ntoa(c2)
+NULL
+SELECT inet_ntoa(CAST(c2 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c2 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c3) FROM t1;
+inet_ntoa(c3)
+NULL
+SELECT inet_ntoa(CAST(c3 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c3 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c4) FROM t1;
+inet_ntoa(c4)
+NULL
+SELECT inet_ntoa(CAST(c4 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c4 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c5) FROM t1;
+inet_ntoa(c5)
+NULL
+SELECT inet_ntoa(CAST(c5 AS UNSIGNED)) FROM t1;
+inet_ntoa(CAST(c5 AS UNSIGNED))
+NULL
+SELECT inet_ntoa(c6) FROM t1;
+inet_ntoa(c6)
+NULL
+DROP TABLE IF EXISTS t1;
+SELECT @nip;
+@nip
+NULL
+SELECT inet_ntoa(@nip);
+inet_ntoa(@nip)
+NULL
+SET @nip6= inet6_aton('0:0:0:0:0:0:0:1');
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+INSERT INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
+Warnings:
+Warning	1366	Incorrect integer value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01' for column 'c6' at row 1
+SELECT inet6_ntoa(c1) FROM t1;
+inet6_ntoa(c1)
+::1
+SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c1 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c2) FROM t1;
+inet6_ntoa(c2)
+NULL
+SELECT inet6_ntoa(CAST(c2 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c2 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c3) FROM t1;
+inet6_ntoa(c3)
+::1
+SELECT inet6_ntoa(CAST(c3 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c3 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c4) FROM t1;
+inet6_ntoa(c4)
+NULL
+SELECT inet6_ntoa(CAST(c4 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c4 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c5) FROM t1;
+inet6_ntoa(c5)
+NULL
+SELECT inet6_ntoa(CAST(c5 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c5 AS BINARY(16)))
+::1
+SELECT inet6_ntoa(c6) FROM t1;
+inet6_ntoa(c6)
+NULL
+SELECT inet6_ntoa(CAST(c6 AS BINARY(16))) FROM t1;
+inet6_ntoa(CAST(c6 AS BINARY(16)))
+3000::
+DROP TABLE IF EXISTS t1;
+SELECT inet6_ntoa(@nip6);
+inet6_ntoa(@nip6)
+::1

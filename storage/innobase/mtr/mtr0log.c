@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -175,7 +175,7 @@ mlog_parse_nbytes(
 		}
 
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_8
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, dval);
@@ -199,7 +199,7 @@ mlog_parse_nbytes(
 			goto corrupt;
 		}
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_1
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, val);
@@ -212,7 +212,7 @@ mlog_parse_nbytes(
 			goto corrupt;
 		}
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_2
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, val);
@@ -222,7 +222,7 @@ mlog_parse_nbytes(
 		break;
 	case MLOG_4BYTES:
 		if (page) {
-			if (UNIV_LIKELY_NULL(page_zip)) {
+			if (page_zip) {
 				mach_write_to_4
 					(((page_zip_des_t*) page_zip)->data
 					 + offset, val);
@@ -420,7 +420,7 @@ mlog_parse_string(
 	}
 
 	if (page) {
-		if (UNIV_LIKELY_NULL(page_zip)) {
+		if (page_zip) {
 			memcpy(((page_zip_des_t*) page_zip)->data
 				+ offset, ptr, len);
 		}
@@ -538,7 +538,7 @@ mlog_parse_index(
 /*=============*/
 	byte*		ptr,	/*!< in: buffer */
 	const byte*	end_ptr,/*!< in: buffer end */
-	ibool		comp,	/*!< in: TRUE=compact record format */
+	ibool		comp,	/*!< in: TRUE=compact row format */
 	dict_index_t**	index)	/*!< out, own: dummy index */
 {
 	ulint		i, n, n_uniq;
@@ -563,7 +563,7 @@ mlog_parse_index(
 		n = n_uniq = 1;
 	}
 	table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n,
-				      comp ? DICT_TF_COMPACT : 0);
+				      comp ? DICT_TF_COMPACT : 0, 0);
 	ind = dict_mem_index_create("LOG_DUMMY", "LOG_DUMMY",
 				    DICT_HDR_SPACE, 0, n);
 	ind->table = table;

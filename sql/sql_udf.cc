@@ -27,10 +27,6 @@
    dynamic functions, so this shouldn't be a real problem.
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_base.h"                           // close_mysql_tables
@@ -119,11 +115,8 @@ static void init_udf_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_udf_rwlocks);
-  PSI_server->register_rwlock(category, all_udf_rwlocks, count);
+  mysql_rwlock_register(category, all_udf_rwlocks, count);
 }
 #endif
 
@@ -392,7 +385,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   udf_func *tmp= (udf_func*) alloc_root(&mem, sizeof(udf_func));
   if (!tmp)
     return 0;
-  bzero((char*) tmp,sizeof(*tmp));
+  memset(tmp, 0, sizeof(*tmp));
   tmp->name = *name; //dup !!
   tmp->dl = dl;
   tmp->returns = ret;

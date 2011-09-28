@@ -104,3 +104,10 @@ create table t1 (s1 varchar(5));
 insert into t1 values ('a'),(null);
 select hex(weight_string(s1)) from t1 order by s1;
 drop table t1;
+
+--echo #
+--echo # BUG#11898467 - SERVER CRASHES ON SELECT HEX(WEIGHT_STRING(STR AS [CHAR|BINARY](N))) IF N IS BIG 
+--echo #
+SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000))); 
+SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000))); 
+

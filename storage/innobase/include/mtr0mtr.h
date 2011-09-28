@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,6 +53,8 @@ first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 #define MTR_MEMO_MODIFY		54
 #define	MTR_MEMO_S_LOCK		55
 #define	MTR_MEMO_X_LOCK		56
+/** The mini-transaction freed a clustered index leaf page. */
+#define MTR_MEMO_FREE_CLUST_LEAF	57
 
 /** @name Log item types
 The log items are declared 'byte' so that the compiler can warn if val
@@ -189,22 +191,25 @@ functions).  The page number parameter was originally written as 0. @{ */
 					MLOG_FILE_CREATE, MLOG_FILE_CREATE2 */
 /* @} */
 
+/* included here because it needs MLOG_LSN defined */
+#include "log0log.h"
+
 /***************************************************************//**
-Starts a mini-transaction and creates a mini-transaction handle
-and buffer in the memory buffer given by the caller.
-@return	mtr buffer which also acts as the mtr handle */
+Starts a mini-transaction. */
 UNIV_INLINE
-mtr_t*
+void
 mtr_start(
 /*======*/
-	mtr_t*	mtr);	/*!< in: memory buffer for the mtr buffer */
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+	__attribute__((nonnull));
 /***************************************************************//**
 Commits a mini-transaction. */
 UNIV_INTERN
 void
 mtr_commit(
 /*=======*/
-	mtr_t*	mtr);	/*!< in: mini-transaction */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */
@@ -213,16 +218,6 @@ ulint
 mtr_set_savepoint(
 /*==============*/
 	mtr_t*	mtr);	/*!< in: mtr */
-/**********************************************************//**
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-UNIV_INTERN
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/*!< in: mtr */
-	ulint	savepoint);	/*!< in: savepoint */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Releases the (index tree) s-latch stored in an mtr memo after a
@@ -363,7 +358,6 @@ mtr_memo_push(
 	void*	object,	/*!< in: object */
 	ulint	type);	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
 
-
 /* Type definition of a mini-transaction memo stack slot. */
 typedef	struct mtr_memo_slot_struct	mtr_memo_slot_t;
 struct mtr_memo_slot_struct{
@@ -378,17 +372,25 @@ struct mtr_struct{
 #endif
 	dyn_array_t	memo;	/*!< memo stack for locks etc. */
 	dyn_array_t	log;	/*!< mini-transaction log */
-	ibool		modifications;
-				/* TRUE if the mtr made modifications to
-				buffer pool pages */
+	unsigned	inside_ibuf:1;
+				/*!< TRUE if inside ibuf changes */
+	unsigned	modifications:1;
+				/*!< TRUE if the mini-transaction
+				modified buffer pool pages */
+	unsigned	freed_clust_leaf:1;
+				/*!< TRUE if MTR_MEMO_FREE_CLUST_LEAF
+				was logged in the mini-transaction */
+	unsigned	made_dirty:1;
+				/*!< TRUE if mtr has made at least
+				one buffer pool page dirty */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */
 	ulint		log_mode; /* specifies which operations should be
 				logged; default value MTR_LOG_ALL */
-	ib_uint64_t	start_lsn;/* start lsn of the possible log entry for
+	lsn_t		start_lsn;/* start lsn of the possible log entry for
 				this mtr */
-	ib_uint64_t	end_lsn;/* end lsn of the possible log entry for
+	lsn_t		end_lsn;/* end lsn of the possible log entry for
 				this mtr */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;

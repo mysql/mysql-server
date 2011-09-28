@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,10 +25,6 @@ ELSE()
 ENDIF() 
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
-  # Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
-  STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS
-    ${CMAKE_CXX_FLAGS})
-
   # MySQL is often compiled/linked with gcc rather than g++
   # (to avoid dependencies on libstdc++.so)
   # This does not work for googletest binaries.
@@ -100,14 +96,22 @@ SET(GTEST_DOWNLOAD_URL
 # "https://clustra.norway.sun.com/~td136807/${GTEST_TARBALL}"
   )
   
+MACRO(HTTP_PROXY_HINT)
+  MESSAGE(STATUS
+    "If you are inside a firewall, you may need to use an http proxy: "
+    "export http_proxy=http://foo.bar.com:80")
+ENDMACRO()
+
+
 IF(NOT GTEST_FOUND)
   IF(NOT ENABLE_DOWNLOADS)
     # Give one-time warning
     IF(NOT ONETIME_GTEST_WARNING)
       MESSAGE(STATUS 
         "Googletest was not found. gtest-based unit tests will be disabled. "
-        "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download and "
-        "build required components from source.")
+        "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download "
+        "and build required components from source.")
+      HTTP_PROXY_HINT()
       SET(ONETIME_GTEST_WARNING 1 CACHE INTERNAL "")
     ENDIF()
     RETURN()
@@ -123,17 +127,30 @@ IF(NOT GTEST_FOUND)
         MARK_AS_ADVANCED(WGET_EXECUTABLE)
         IF(WGET_EXECUTABLE)
           EXECUTE_PROCESS(COMMAND ${WGET_EXECUTABLE} -T 30 ${GTEST_DOWNLOAD_URL}
-            WORKING_DIRECTORY ${DOWNLOAD_ROOT} RESULT_VARIABLE ERR)
-          IF(ERR EQUAL 0)
+            WORKING_DIRECTORY ${DOWNLOAD_ROOT}
+            ERROR_VARIABLE ERR
+            OUTPUT_VARIABLE OUT
+            RESULT_VARIABLE RES
+          )
+          IF(RES EQUAL 0)
             SET(DOWNLOAD_SUCCEEDED 1)
+          ELSE()
+            MESSAGE(STATUS "Download failed, "
+              "command: ${WGET_EXECUTABLE} -T 30 ${GTEST_DOWNLOAD_URL}")
+            MESSAGE(STATUS "stdout: ${OUT}")
+            MESSAGE(STATUS "stderr: ${ERR}")
           ENDIF()
         ENDIF()
       ELSE()
         # Use CMake builtin download capabilities
         FILE(DOWNLOAD ${GTEST_DOWNLOAD_URL}
-          ${DOWNLOAD_ROOT}/${GTEST_TARBALL} 30 STATUS ERR)
+          ${DOWNLOAD_ROOT}/${GTEST_TARBALL} TIMEOUT 30 STATUS ERR)
         IF(ERR EQUAL 0)
           SET(DOWNLOAD_SUCCEEDED 1)
+        ELSE()
+          MESSAGE(STATUS "Download failed, error: ${ERR}")
+          # A failed DOWNLOAD leaves an empty file, remove it
+          FILE(REMOVE ${DOWNLOAD_ROOT}/${GTEST_TARBALL})
         ENDIF()
       ENDIF()
       
@@ -144,6 +161,7 @@ IF(NOT GTEST_FOUND)
         MESSAGE(STATUS 
           "To enable google test, please download ${GTEST_DOWNLOAD_URL} "
           "to the directory ${DOWNLOAD_ROOT}")
+        HTTP_PROXY_HINT()
         RETURN()
       ENDIF()
     ENDIF()
@@ -156,8 +174,10 @@ IF(NOT GTEST_FOUND)
         ERROR_QUIET
       )
   ENDIF()
-  SET(GTEST_DOWNLOADED 1 CACHE INTERNAL "")
-  SET(GTEST_FOUND 1 CACHE INTERNAL "")
+  IF(EXISTS ${GTEST_SOURCE_DIR})
+    SET(GTEST_DOWNLOADED 1 CACHE INTERNAL "")
+    SET(GTEST_FOUND 1 CACHE INTERNAL "")
+  ENDIF()
 ENDIF()
 
 IF(NOT GTEST_FOUND)
@@ -209,19 +229,25 @@ ENDIF()
 # Add tests (link them with gunit library) 
 SET(TESTS
   bounded_queue
+  bounds_checked_array
   dbug
+  decimal
+  dynarray
   mdl
   mdl_mytap
   my_bitmap
-  my_decimal
   my_regex
   sql_list
+  sql_plist
   thread_utils
   )
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
   item
+  my_decimal
+  opt_range
+  opt_trace
 )
 
 FOREACH(test ${TESTS})
@@ -235,9 +261,9 @@ ENDFOREACH()
 
 FOREACH(test ${SERVER_TESTS})
   IF(WIN32)
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc ../../sql/nt_servc.cc)
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc ../../sql/nt_servc.cc)
   ELSE()
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc)
   ENDIF()
   TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex mysys)

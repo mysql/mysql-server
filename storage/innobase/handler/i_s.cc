@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -39,7 +39,7 @@ extern "C" {
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
 #include "buf0buddy.h"	/* for i_s_cmpmem */
-#include "buf0buf.h"	/* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "buf0buf.h"	/* for buf_pool */
 #include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
@@ -51,8 +51,6 @@ extern "C" {
 #include "btr0btr.h"
 #include "page0zip.h"
 }
-
-static const char plugin_author[] = "Oracle Corporation";
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -123,9 +121,9 @@ struct buffer_page_info_struct{
 					/*!< Number of records on Page */
 	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT;
 					/*!< Sum of the sizes of the records */
-	ib_uint64_t	newest_mod;	/*!< Log sequence number of
+	lsn_t		newest_mod;	/*!< Log sequence number of
 					the youngest modification */
-	ib_uint64_t	oldest_mod;	/*!< Log sequence number of
+	lsn_t		oldest_mod;	/*!< Log sequence number of
 					the oldest modification */
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
@@ -143,7 +141,7 @@ typedef struct buffer_page_info_struct	buf_page_info_t;
 #define RETURN_IF_INNODB_NOT_STARTED(plugin_name)			\
 do {									\
 	if (!srv_was_started) {						\
-		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,	\
 				    ER_CANT_FIND_SYSTEM_REC,		\
 				    "InnoDB: SELECTing from "		\
 				    "INFORMATION_SCHEMA.%s but "	\
@@ -153,7 +151,8 @@ do {									\
 	}								\
 } while (0)
 
-#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 && !defined __INTEL_COMPILER
+#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 &&	\
+	!defined __INTEL_COMPILER && !defined __clang__
 #define STRUCT_FLD(name, value)	name: value
 #else
 #define STRUCT_FLD(name, value)	value
@@ -730,7 +729,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_locks */
@@ -996,7 +999,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_lock_waits */
@@ -1149,7 +1156,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Innobase Oy"),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -1179,7 +1186,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /*******************************************************************//**
@@ -1373,7 +1384,7 @@ i_s_cmp_fill_low(
 	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 
-		table->field[0]->store(PAGE_ZIP_MIN_SIZE << i);
+		table->field[0]->store(UNIV_ZIP_SIZE_MIN << i);
 
 		/* The cumulated counts are not protected by any
 		mutex.  Thus, some operation in page0zip.c could
@@ -1512,7 +1523,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
@@ -1562,7 +1577,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table information_schema.innodb_cmpmem. */
@@ -1803,7 +1822,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
@@ -1853,7 +1876,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_metrics */
@@ -2347,7 +2374,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Oracle and/or its affiliates."),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -2377,7 +2404,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INNODB_BUFFER_POOL_STATS. */
@@ -2894,7 +2925,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_stats =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INNODB_BUFFER_POOL_PAGE. */
@@ -3170,10 +3205,17 @@ i_s_innodb_buffer_page_fill(
 			do not want to hold the InnoDB mutex while
 			filling the IS table */
 			if (index) {
+				const char*	name_ptr = index->name;
+
+				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+					name_ptr++;
+				}
+
+				index_name = mem_heap_strdup(heap, name_ptr);
+
 				table_name = mem_heap_strdup(heap,
 							     index->table_name);
 
-				index_name = mem_heap_strdup(heap, index->name);
 			}
 
 			mutex_exit(&dict_sys->mutex);
@@ -3192,8 +3234,9 @@ i_s_innodb_buffer_page_fill(
 			page_info->data_size));
 
 		OK(fields[IDX_BUFFER_PAGE_ZIP_SIZE]->store(
-			page_info->zip_ssize ?
-				 512 << page_info->zip_ssize : 0));
+			page_info->zip_ssize
+			? (UNIV_ZIP_SIZE_MIN >> 1) << page_info->zip_ssize
+			: 0));
 
 #if BUF_PAGE_STATE_BITS > 3
 # error "BUF_PAGE_STATE_BITS > 3, please ensure that all 1<<BUF_PAGE_STATE_BITS values are checked for"
@@ -3340,7 +3383,7 @@ i_s_innodb_buffer_page_get_info(
 
 		page_info->space_id = buf_page_get_space(bpage);
 
-		page_info->page_num = buf_page_get_page_no(bpage);;
+		page_info->page_num = buf_page_get_page_no(bpage);
 
 		page_info->flush_type = bpage->flush_type;
 
@@ -3575,7 +3618,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_page =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 static ST_FIELD_INFO	i_s_innodb_buf_page_lru_fields_info[] =
@@ -3852,10 +3899,16 @@ i_s_innodb_buf_page_lru_fill(
 			do not want to hold the InnoDB mutex while
 			filling the IS table */
 			if (index) {
+				const char*	name_ptr = index->name;
+
+				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+					name_ptr++;
+				}
+
+				index_name = mem_heap_strdup(heap, name_ptr);
+
 				table_name = mem_heap_strdup(heap,
 							     index->table_name);
-
-				index_name = mem_heap_strdup(heap, index->name);
 			}
 
 			mutex_exit(&dict_sys->mutex);
@@ -3948,7 +4001,7 @@ i_s_innodb_fill_buffer_lru(
 	buf_pool_t*		buf_pool,	/*!< in: buffer pool to scan */
 	const ulint		pool_id)	/*!< in: buffer pool id */
 {
-	int			status;
+	int			status = 0;
 	buf_page_info_t*	info_buffer;
 	ulint			lru_pos = 0;
 	const buf_page_t*	bpage;
@@ -3994,10 +4047,10 @@ i_s_innodb_fill_buffer_lru(
 exit:
 	buf_pool_mutex_exit(buf_pool);
 
-	status = i_s_innodb_buf_page_lru_fill(
-		thd, tables, info_buffer, lru_len);
-
 	if (info_buffer) {
+		status = i_s_innodb_buf_page_lru_fill(
+			thd, tables, info_buffer, lru_len);
+
 		my_free(info_buffer);
 	}
 
@@ -4111,7 +4164,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_page_lru =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /*******************************************************************//**
@@ -4249,23 +4306,24 @@ i_s_sys_tables_fill_table(
 
 		/* Create and populate a dict_table_t structure with
 		information from SYS_TABLES row */
-		err_msg = dict_process_sys_tables_rec(
-			heap, rec, &table_rec, DICT_TABLE_LOAD_FROM_RECORD);
+		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
+			heap, rec, &table_rec,
+			DICT_TABLE_LOAD_FROM_RECORD, &mtr);
 
-		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
 		if (!err_msg) {
 			i_s_dict_fill_sys_tables(thd, table_rec, tables->table);
 		} else {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
-		/* Since dict_process_sys_tables_rec() is called with
-		DICT_TABLE_LOAD_FROM_RECORD, the table_rec is created in
-		dict_process_sys_tables_rec(), we will need to free it */
+		/* Since dict_process_sys_tables_rec_and_mtr_commit()
+		is called with DICT_TABLE_LOAD_FROM_RECORD, the table_rec
+		is created in dict_process_sys_tables_rec(), we will
+		need to free it */
 		if (table_rec) {
 			dict_mem_table_free(table_rec);
 		}
@@ -4352,7 +4410,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tables =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
@@ -4530,18 +4592,18 @@ i_s_sys_tables_fill_table_stats(
 
 		/* Fetch the dict_table_t structure corresponding to
 		this SYS_TABLES record */
-		err_msg = dict_process_sys_tables_rec(
-			heap, rec, &table_rec, DICT_TABLE_LOAD_FROM_CACHE);
+		err_msg = dict_process_sys_tables_rec_and_mtr_commit(
+			heap, rec, &table_rec,
+			DICT_TABLE_LOAD_FROM_CACHE, &mtr);
 
-		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
 		if (!err_msg) {
 			i_s_dict_fill_sys_tablestats(thd, table_rec,
 						     tables->table);
 		} else {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -4627,7 +4689,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_INDEXES */
@@ -4714,14 +4780,19 @@ i_s_dict_fill_sys_indexes(
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
+	const char*	name_ptr = index->name;
 
 	DBUG_ENTER("i_s_dict_fill_sys_indexes");
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
+	if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+		name_ptr++;
+	}
 
-	OK(field_store_string(fields[SYS_INDEX_NAME], index->name));
+	OK(field_store_string(fields[SYS_INDEX_NAME], name_ptr));
+
+	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
 
 	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), TRUE));
 
@@ -4775,7 +4846,7 @@ i_s_sys_indexes_fill_table(
 
 	/* Process each record in the table */
 	while (rec) {
-		const char*	err_msg;;
+		const char*	err_msg;
 		table_id_t	table_id;
 		dict_index_t	index_rec;
 
@@ -4791,8 +4862,8 @@ i_s_sys_indexes_fill_table(
 			i_s_dict_fill_sys_indexes(thd, table_id, &index_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -4877,7 +4948,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_indexes =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_COLUMNS */
@@ -5026,8 +5101,8 @@ i_s_sys_columns_fill_table(
 						 &column_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5112,7 +5187,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_columns =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_fields */
 static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
@@ -5233,8 +5312,8 @@ i_s_sys_fields_fill_table(
 						 pos, tables->table);
 			last_id = index_id;
 		} else {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5319,7 +5398,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_fields =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign */
@@ -5454,8 +5537,8 @@ i_s_sys_foreign_fill_table(
 			i_s_dict_fill_sys_foreign(thd, &foreign_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5540,7 +5623,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols */
 static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
@@ -5668,8 +5755,8 @@ i_s_sys_foreign_cols_fill_table(
 				thd, name, for_col_name, ref_col_name, pos,
 				tables->table);
 		} else {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5754,6 +5841,10 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 

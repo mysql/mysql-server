@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,13 +24,24 @@
   performance schema tables (declarations).
 */
 
+/** String, "PERFORMANCE_SCHEMA". */
 extern LEX_STRING PERFORMANCE_SCHEMA_str;
 
+/** String prefix for all mutex instruments. */
 extern LEX_STRING mutex_instrument_prefix;
+/** String prefix for all rwlock instruments. */
 extern LEX_STRING rwlock_instrument_prefix;
+/** String prefix for all cond instruments. */
 extern LEX_STRING cond_instrument_prefix;
+/** String prefix for all thread instruments. */
 extern LEX_STRING thread_instrument_prefix;
+/** String prefix for all file instruments. */
 extern LEX_STRING file_instrument_prefix;
+/** String prefix for all stage instruments. */
+extern LEX_STRING stage_instrument_prefix;
+/** String prefix for all statement instruments. */
+extern LEX_STRING statement_instrument_prefix;
+extern LEX_STRING socket_instrument_prefix;
 
 #endif
 

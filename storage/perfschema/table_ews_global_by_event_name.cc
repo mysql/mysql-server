@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/table_ews_global_by_event_name.cc
@@ -97,7 +97,7 @@ table_ews_global_by_event_name::delete_all_rows(void)
   reset_events_waits_by_instance();
   reset_table_waits_by_table_handle();
   reset_table_waits_by_table();
-  reset_global_wait_stat();
+  reset_events_waits_global();
   return 0;
 }
 
@@ -118,6 +118,8 @@ int table_ews_global_by_event_name::rnd_next(void)
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
+  PFS_socket_class *socket_class;
+  PFS_instr_class *instr_class;
 
   if (global_instr_class_waits_array == NULL)
     return HA_ERR_END_OF_FILE;
@@ -178,6 +180,24 @@ int table_ews_global_by_event_name::rnd_next(void)
         return 0;
       }
       break;
+    case pos_ews_global_by_event_name::VIEW_SOCKET:
+      socket_class= find_socket_class(m_pos.m_index_2);
+      if (socket_class)
+      {
+        make_socket_row(socket_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      break;
+    case pos_ews_global_by_event_name::VIEW_IDLE:
+      instr_class= find_idle_class(m_pos.m_index_2);
+      if (instr_class)
+      {
+        make_idle_row(instr_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      break;
     default:
       break;
     }
@@ -193,6 +213,8 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
+  PFS_socket_class *socket_class;
+  PFS_instr_class *instr_class;
 
   set_position(pos);
 
@@ -240,6 +262,22 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
       make_table_io_row(&global_table_io_class);
     else
       make_table_lock_row(&global_table_lock_class);
+    break;
+  case pos_ews_global_by_event_name::VIEW_SOCKET:
+    socket_class= find_socket_class(m_pos.m_index_2);
+    if (socket_class)
+    {
+      make_socket_row(socket_class);
+      return 0;
+    }
+    break;
+  case pos_ews_global_by_event_name::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_2);
+    if (instr_class)
+    {
+      make_idle_row(instr_class);
+      return 0;
+    }
     break;
   }
 
@@ -321,6 +359,34 @@ void table_ews_global_by_event_name
   
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   m_row.m_stat.set(normalizer, & visitor.m_stat);
+  m_row_exists= true;
+}
+
+void table_ews_global_by_event_name
+::make_socket_row(PFS_socket_class *klass)
+{
+  m_row.m_event_name.make_row(klass);
+
+  PFS_instance_wait_visitor visitor;
+  PFS_instance_iterator::visit_socket_instances(klass, &visitor);
+
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
+  m_row_exists= true;
+}
+
+void table_ews_global_by_event_name
+::make_idle_row(PFS_instr_class *klass)
+{
+  m_row.m_event_name.make_row(klass);
+
+  PFS_connection_wait_visitor visitor(klass);
+  PFS_connection_iterator::visit_global(false, /* hosts */
+                                        false, /* users */
+                                        false, /* accts */
+                                        true,  /* threads */ &visitor);
+  time_normalizer *normalizer= time_normalizer::get(idle_timer);
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
   m_row_exists= true;
 }
 

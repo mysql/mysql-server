@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef STRFUNC_INCLUDED
 #define STRFUNC_INCLUDED
@@ -22,16 +22,18 @@ typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_typelib TYPELIB;
 
-ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
+ulonglong find_set(TYPELIB *lib, const char *x, uint length,
+                   const CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
 ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
                               ulonglong cur_set, ulonglong default_set,
-                              const char *str, uint length, CHARSET_INFO *cs,
+                              const char *str, uint length,
+                              const CHARSET_INFO *cs,
                               char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(const TYPELIB *lib, const char *find, uint length,
                bool part_match);
 uint find_type2(const TYPELIB *lib, const char *find, uint length,
-                CHARSET_INFO *cs);
+                const CHARSET_INFO *cs);
 void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);

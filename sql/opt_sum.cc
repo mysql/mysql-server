@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -212,6 +212,7 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
 /**
   Substitutes constants for some COUNT(), MIN() and MAX() functions.
 
+  @param thd                   thread handler
   @param tables                list of leaves of join table tree
   @param all_fields            All fields to be returned
   @param conds                 WHERE clause
@@ -229,9 +230,12 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
     HA_ERR_KEY_NOT_FOUND on impossible conditions
   @retval
     HA_ERR_... if a deadlock or a lock wait timeout happens, for example
+  @retval
+    ER_...     e.g. ER_SUBQUERY_NO_1_ROW
 */
 
-int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
+int opt_sum_query(THD *thd,
+                  TABLE_LIST *tables, List<Item> &all_fields, Item *conds)
 {
   List_iterator_fast<Item> it(all_fields);
   int const_result= 1;
@@ -239,12 +243,21 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
   ulonglong count= 1;
   bool is_exact_count= TRUE, maybe_exact_count= TRUE;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
-  table_map where_tables= 0;
   Item *item;
   int error;
 
-  if (conds)
-    where_tables= conds->used_tables();
+  DBUG_ENTER("opt_sum_query");
+
+  const table_map where_tables= conds ? conds->used_tables() : 0;
+  /*
+    opt_sum_query() happens at optimization. A subquery is optimized once but
+    executed possibly multiple times.
+    If the value of the set function depends on the join's emptiness (like
+    MIN() does), and the join's emptiness depends on the outer row, we cannot
+    mark the set function as constant:
+   */
+  if (where_tables & OUTER_REF_TABLE_BIT)
+    DBUG_RETURN(0);
 
   /*
     Analyze outer join dependencies, and, if possible, compute the number
@@ -270,7 +283,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
           WHERE t2.field IS NULL;
       */
       if (tl->table->map & where_tables)
-        return 0;
+        DBUG_RETURN(0);
     }
     else
       used_tables|= tl->table->map;
@@ -280,26 +293,28 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
       statistics (cheap), compute the total number of rows. If there are
       no outer table dependencies, this count may be used as the real count.
       Schema tables are filled after this function is invoked, so we can't
-      get row count 
+      get row count.
+      Derived tables aren't filled yet, their number of rows are estimates.
     */
-    if (!(tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) ||
-        tl->schema_table)
+    bool table_filled= !(tl->schema_table || tl->uses_materialization());
+    if ((tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
+        table_filled)
     {
-      maybe_exact_count&= test(!tl->schema_table &&
+      error= tl->fetch_number_of_rows();
+      if(error)
+      {
+        tl->table->file->print_error(error, MYF(ME_FATALERROR));
+        DBUG_RETURN(error);
+      }
+      count*= tl->table->file->stats.records;
+    }
+    else
+    {
+      maybe_exact_count&= test(table_filled &&
                                (tl->table->file->ha_table_flags() &
                                 HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
-    }
-    else
-    {
-      error= tl->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-      if(error)
-      {
-        tl->table->file->print_error(error, MYF(ME_FATALERROR));
-        return error;
-      }
-      count*= tl->table->file->stats.records;
     }
   }
 
@@ -390,10 +405,10 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
           if (error)
 	  {
 	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
-	      return HA_ERR_KEY_NOT_FOUND;	      // No rows matching WHERE
+	      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND); // No rows matching WHERE
 	    /* HA_ERR_LOCK_DEADLOCK or some other error */
  	    table->file->print_error(error, MYF(0));
-            return(error);
+            DBUG_RETURN(error);
 	  }
           removed_tables|= table->map;
         }
@@ -442,6 +457,10 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
         const_result= 0;
     }
   }
+
+  if (thd->is_error())
+    DBUG_RETURN(thd->get_stmt_da()->sql_errno());
+
   /*
     If we have a where clause, we can only ignore searching in the
     tables if MIN/MAX optimisation replaced all used tables
@@ -451,7 +470,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
   */
   if (removed_tables && used_tables != removed_tables)
     const_result= 0;                            // We didn't remove all tables
-  return const_result;
+  DBUG_RETURN(const_result);
 }
 
 
@@ -737,6 +756,12 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
     if (is_null || (is_null_safe_eq && args[1]->is_null()))
     {
+      /*
+        If we have a non-nullable index, we cannot use it,
+        since set_null will be ignored, and we will compare uninitialized data.
+      */
+      if (!part->field->real_maybe_null())
+        DBUG_RETURN(false);
       part->field->set_null();
       *key_ptr= (uchar) 1;
     }
@@ -807,8 +832,9 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   @param[out]    prefix_len  Length of prefix for the search range
 
   @note
-    This function may set table->key_read to 1, which must be reset after
-    index is used! (This can only happen when function returns 1)
+    This function may set field->table->key_read to true,
+    which must be reset after index is used!
+    (This can only happen when function returns 1)
 
   @retval
     0   Index can not be used to optimize MIN(field)/MAX(field)
@@ -823,7 +849,9 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 uint *range_fl, uint *prefix_len)
 {
   if (!(field->flags & PART_KEY_FLAG))
-    return 0;                                        // Not key field
+    return false;                               // Not key field
+
+  DBUG_ENTER("find_key_for_maxmin");
 
   TABLE *table= field->table;
   uint idx= 0;
@@ -848,7 +876,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
          part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {
       if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
-        return 0;
+        DBUG_RETURN(false);
 
       /* Check whether the index component is partial */
       Field *part_field= table->field[part->fieldnr-1];
@@ -897,12 +925,12 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
           */
           if (field->part_of_key.is_set(idx))
             table->set_keyread(TRUE);
-          return 1;
+          DBUG_RETURN(true);
         }
       }
     }
   }
-  return 0;
+  DBUG_RETURN(false);
 }
 
 

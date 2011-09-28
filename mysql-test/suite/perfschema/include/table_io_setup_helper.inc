@@ -64,6 +64,9 @@ truncate table performance_schema.events_waits_history_long;
 # Reset lost counters to a known state
 flush status;
 
+# Make sure there is room to instrument tables from this test.
+flush tables;
+
 # By default, dump table io only for test.
 # A test can overide this
 let $schema_to_dump="test";

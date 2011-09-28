@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is for Chinese character sets GBK, created by Wei He 
    (hewei@mail.ied.ac.cn)
@@ -3475,7 +3475,7 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 
 
 
-int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
+int my_strnncoll_gbk(const CHARSET_INFO *cs __attribute__((unused)),
 		     const uchar *a, size_t a_length,
                      const uchar *b, size_t b_length,
                      my_bool b_is_prefix)
@@ -3486,7 +3486,7 @@ int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
+static int my_strnncollsp_gbk(const CHARSET_INFO * cs __attribute__((unused)),
 			      const uchar *a, size_t a_length, 
 			      const uchar *b, size_t b_length,
                               my_bool diff_if_only_endspace_difference)
@@ -3527,7 +3527,7 @@ static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
 
 
 static size_t
-my_strnxfrm_gbk(CHARSET_INFO *cs,
+my_strnxfrm_gbk(const CHARSET_INFO *cs,
                 uchar *dst, size_t dstlen, uint nweights,
                 const uchar *src, size_t srclen, uint flags)
 {
@@ -3558,13 +3558,14 @@ my_strnxfrm_gbk(CHARSET_INFO *cs,
 }
 
 
-static uint ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_gbk(const CHARSET_INFO *cs __attribute__((unused)),
 		 const char* p, const char *e)
 {
   return (isgbkhead(*(p)) && (e)-(p)>1 && isgbktail(*((p)+1))? 2: 0);
 }
 
-static uint mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_gbk(const CHARSET_INFO *cs __attribute__((unused)),
+                          uint c)
 {
   return (isgbkhead(c)? 2 : 1);
 }
@@ -10674,7 +10675,7 @@ static int func_uni_gbk_onechar(int code){
 }
 
 static int
-my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
+my_wc_mb_gbk(const CHARSET_INFO *cs  __attribute__((unused)),
 	      my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -10700,7 +10701,7 @@ my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static int
-my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_gbk(const CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int hi;
@@ -10731,7 +10732,7 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
   Returns well formed length of a GBK string.
 */
 static
-size_t my_well_formed_len_gbk(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_gbk(const CHARSET_INFO *cs __attribute__((unused)),
                               const char *b, const char *e,
                               size_t pos, int *error)
 {

@@ -178,4 +178,9 @@ DROP FUNCTION b54866_f;
 DROP TABLE test.t2;
 DROP USER 'b54866_user'@'localhost';
 DROP DATABASE b54866;
+include/rpl_reset.inc
+CREATE USER foo IDENTIFIED WITH 'my_plugin';
+ERROR HY000: Plugin 'my_plugin' is not loaded
+# Search for occurrences of CREATE USER in the output from mysqlbinlog
+- Occurrences: 0
 include/rpl_end.inc

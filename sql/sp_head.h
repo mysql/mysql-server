@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,15 +11,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 /*
   It is necessary to include set_var.h instead of item.h because there
@@ -57,7 +53,7 @@ struct sp_label;
 class sp_instr;
 class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
-struct sp_cond_type;
+struct sp_condition_value;
 struct sp_variable;
 
 /*************************************************************************/
@@ -70,7 +66,7 @@ struct sp_variable;
 class Stored_program_creation_ctx :public Default_object_creation_ctx
 {
 public:
-  CHARSET_INFO *get_db_cl()
+  const CHARSET_INFO *get_db_cl()
   {
     return m_db_cl;
   }
@@ -84,9 +80,9 @@ protected:
       m_db_cl(thd->variables.collation_database)
   { }
 
-  Stored_program_creation_ctx(CHARSET_INFO *client_cs,
-                              CHARSET_INFO *connection_cl,
-                              CHARSET_INFO *db_cl)
+  Stored_program_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl,
+                              const CHARSET_INFO *db_cl)
     : Default_object_creation_ctx(client_cs, connection_cl),
       m_db_cl(db_cl)
   { }
@@ -107,7 +103,7 @@ protected:
     Database collation is included into the context because it defines the
     default collation for stored-program variables.
   */
-  CHARSET_INFO *m_db_cl;
+  const CHARSET_INFO *m_db_cl;
 };
 
 /*************************************************************************/
@@ -358,12 +354,12 @@ public:
 
   /// Put the instruction on the backpatch list, associated with the label.
   int
-  push_backpatch(sp_instr *, struct sp_label *);
+  push_backpatch(sp_instr *, sp_label *);
 
   /// Update all instruction with this label in the backpatch list to
   /// the current position.
   void
-  backpatch(struct sp_label *);
+  backpatch(sp_label *);
 
   /// Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
   int
@@ -499,7 +495,7 @@ private:
   DYNAMIC_ARRAY m_instr;	///< The "instructions"
   typedef struct
   {
-    struct sp_label *lab;
+    sp_label *lab;
     sp_instr *instr;
   } bp_t;
   List<bp_t> m_backpatch;	///< Instructions needing backpatching
@@ -560,7 +556,7 @@ public:
 
   /// Should give each a name or type code for debugging purposes?
   sp_instr(uint ip, sp_pcontext *ctx)
-    :Query_arena(0, INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
+    :Query_arena(0, STMT_INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
   {}
 
   virtual ~sp_instr()
@@ -583,17 +579,6 @@ public:
   */
 
   virtual int execute(THD *thd, uint *nextp) = 0;
-
-  /**
-    Execute <code>open_and_lock_tables()</code> for this statement.
-    Open and lock the tables used by this statement, as a pre-requisite
-    to execute the core logic of this instruction with
-    <code>exec_core()</code>.
-    @param thd the current thread
-    @param tables the list of tables to open and lock
-    @return zero on success, non zero on failure.
-  */
-  int exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables);
 
   /**
     Get the continuation destination of this instruction.
@@ -1023,7 +1008,7 @@ class sp_instr_hpush_jump : public sp_instr_jump
 public:
 
   sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int htype, uint fp)
-    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp)
+    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp), m_opt_hpop(0)
   {
     m_cond.empty();
   }
@@ -1045,7 +1030,16 @@ public:
     return m_ip;
   }
 
-  inline void add_condition(struct sp_cond_type *cond)
+  virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
+  {
+    DBUG_ASSERT(!m_dest || !m_opt_hpop);
+    if (!m_dest)
+      m_dest= dest;
+    else
+      m_opt_hpop= dest;
+  }
+
+  inline void add_condition(sp_condition_value *cond)
   {
     m_cond.push_front(cond);
   }
@@ -1054,7 +1048,8 @@ private:
 
   int m_type;			///< Handler type
   uint m_frame;
-  List<struct sp_cond_type> m_cond;
+  uint m_opt_hpop;              // hpop marking end of handler scope.
+  List<sp_condition_value> m_cond;
 
 }; // class sp_instr_hpush_jump : public sp_instr_jump
 
@@ -1247,7 +1242,7 @@ public:
 
   virtual void print(String *str);
 
-  void add_to_varlist(struct sp_variable *var)
+  void add_to_varlist(sp_variable *var)
   {
     m_varlist.push_back(var);
   }
@@ -1255,7 +1250,7 @@ public:
 private:
 
   uint m_cursor;
-  List<struct sp_variable> m_varlist;
+  List<sp_variable> m_varlist;
 
 }; // class sp_instr_cfetch : public sp_instr
 
@@ -1353,6 +1348,8 @@ sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
+
+bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access);
 
 /**
   @} (end of group Stored_Routines)

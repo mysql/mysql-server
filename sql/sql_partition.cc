@@ -188,7 +188,7 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
     item                                New converted item
 */
 
-Item* convert_charset_partition_constant(Item *item, CHARSET_INFO *cs)
+Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
 {
   THD *thd= current_thd;
   Name_resolution_context *context= &thd->lex->current_select->context;
@@ -1084,8 +1084,6 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
-  uint8 saved_full_group_by_flag;
-  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (init_lex_with_single_table(thd, table, &lex))
@@ -1110,19 +1108,22 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
-  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
-  saved_allow_sum_func= thd->lex->allow_sum_func;
-  thd->lex->allow_sum_func= 0;
+  {
+    const bool save_agg_field= thd->lex->current_select->non_agg_field_used();
+    const bool save_agg_func=  thd->lex->current_select->agg_func_used();
+    const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
+    thd->lex->allow_sum_func= 0;
 
-  error= func_expr->fix_fields(thd, (Item**)&func_expr);
+    error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
-  /*
-    Restore full_group_by_flag and allow_sum_func,
-    fix_fields should not affect mysql_select later, see Bug#46923.
-  */
-  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
-  thd->lex->allow_sum_func= saved_allow_sum_func;
-
+    /*
+      Restore agg_field/agg_func  and allow_sum_func,
+      fix_fields should not affect mysql_select later, see Bug#46923.
+    */
+    thd->lex->current_select->set_non_agg_field_used(save_agg_field);
+    thd->lex->current_select->set_agg_func_used(save_agg_func);
+    thd->lex->allow_sum_func= saved_allow_sum_func;
+  }
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
@@ -1152,7 +1153,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
       goto end;
     }
     else
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
                    ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
   }
@@ -1646,7 +1647,7 @@ bool field_is_partition_charset(Field *field)
       !(field->type() == MYSQL_TYPE_VARCHAR))
     return FALSE;
   {
-    CHARSET_INFO *cs= ((Field_str*)field)->charset();
+    const CHARSET_INFO *cs= ((Field_str*)field)->charset();
     if (!(field->type() == MYSQL_TYPE_STRING) ||
         !(cs->state & MY_CS_BINSORT))
       return TRUE;
@@ -1689,7 +1690,7 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
     */
     if (field_is_partition_charset(field))
     {
-      CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      const CHARSET_INFO *cs= ((Field_str*)field)->charset();
       if (!ok_with_charsets ||
           cs->mbmaxlen > 1 ||
           cs->strxfrm_multiply > 1)
@@ -2266,7 +2267,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
       else
       {
         String *res;
-        CHARSET_INFO *field_cs;
+        const CHARSET_INFO *field_cs;
         bool need_cs_check= FALSE;
         Item_result result_type= STRING_RESULT;
 
@@ -2899,7 +2900,7 @@ static void copy_to_part_field_buffers(Field **ptr,
     restore_ptr++;
     if (!field->maybe_null() || !field->is_null())
     {
-      CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      const CHARSET_INFO *cs= ((Field_str*)field)->charset();
       uint max_len= field->pack_length();
       uint data_len= field->data_length();
       uchar *field_buf= *field_bufs;
@@ -4051,7 +4052,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
   part_spec->start_part= 0;
   part_spec->end_part= num_parts - 1;
   if ((index < MAX_KEY) && 
-       key_spec->flag == (uint)HA_READ_KEY_EXACT &&
+       key_spec && key_spec->flag == (uint)HA_READ_KEY_EXACT &&
        part_info->some_fields_in_PF.is_set(index))
   {
     key_info= table->key_info+index;
@@ -4268,7 +4269,8 @@ bool mysql_unpack_partition(THD *thd,
 {
   bool result= TRUE;
   partition_info *part_info;
-  CHARSET_INFO *old_character_set_client= thd->variables.character_set_client;
+  const CHARSET_INFO *old_character_set_client=
+    thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
   DBUG_ENTER("mysql_unpack_partition");
@@ -6529,14 +6531,14 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
       if (drop_partition)
       {
         /* Table is still ok, but we left a shadow frm file behind. */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s",
            "Operation was unsuccessful, table is still intact,",
            "but it is possible that a shadow frm file was left behind");
       }
       else
       {
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s %s %s",
            "Operation was unsuccessful, table is still intact,",
            "but it is possible that a shadow frm file was left behind.",
@@ -6552,7 +6554,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
            Failed during install of shadow frm file, table isn't intact
            and dropped partitions are still there
         */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s %s",
           "Failed during alter of partitions, table is no longer intact.",
           "The frm file is in an unknown state, and a backup",
@@ -6566,7 +6568,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
           ask the user to perform the action manually. We remove the log
           records and ask the user to perform the action manually.
         */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s",
               "Failed during drop of partitions, table is intact.",
               "Manual drop of remaining partitions is required");
@@ -6578,7 +6580,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
           certainly in a very bad state so we give user warning and disable
           the table by writing an ancient frm version into it.
         */
-        push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,
+        push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,
                             "%s %s %s",
            "Failed during renaming of partitions. We are now in a position",
            "where table is not reusable",
@@ -6607,7 +6609,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
         even though we reported an error the operation was successfully
         completed.
       */
-      push_warning_printf(lpt->thd, MYSQL_ERROR::WARN_LEVEL_WARN, 1,"%s %s",
+      push_warning_printf(lpt->thd, Sql_condition::WARN_LEVEL_WARN, 1,"%s %s",
          "Operation was successfully completed by failure handling,",
          "after failure of normal operation");
     }
@@ -7142,7 +7144,7 @@ void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
 
 void mem_alloc_error(size_t size)
 {
-  my_error(ER_OUTOFMEMORY, MYF(0), size);
+  my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(size));
 }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE

@@ -1478,7 +1478,7 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
       /**
        * Init header
        */
-      bzero(header, 4*eh_words);
+      memset(header, 0, 4*eh_words);
       header->m_table = req.request.table_id;
       header->m_fragment_id = req.request.fragment_id;
       

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+*/
 
 #include "client_priv.h"
 #include <sslopt-vars.h>
@@ -92,7 +94,7 @@ static struct my_option my_long_options[]=
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
@@ -109,7 +111,7 @@ static struct my_option my_long_options[]=
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -241,6 +243,7 @@ get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
 
   case '?':
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
     puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
@@ -608,7 +611,7 @@ static int upgrade_already_done(void)
     Read from file, don't care if it fails since it
     will be detected by the strncmp
   */
-  bzero(buf, sizeof(buf));
+  memset(buf, 0, sizeof(buf));
   res= fgets(buf, sizeof(buf), in);
 
   my_fclose(in, MYF(0));

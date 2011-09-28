@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,11 +108,8 @@ static void init_servers_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_servers_cache_rwlocks);
-  PSI_server->register_rwlock(category, all_servers_cache_rwlocks, count);
+  mysql_rwlock_register(category, all_servers_cache_rwlocks, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -264,9 +261,9 @@ bool servers_reload(THD *thd)
       Execution might have been interrupted; only print the error message
       if an error condition has been raised.
     */
-    if (thd->stmt_da->is_error())
+    if (thd->get_stmt_da()->is_error())
       sql_print_error("Can't open and lock privilege tables: %s",
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
     return_val= FALSE;
     goto end;
   }
@@ -630,7 +627,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
@@ -1059,7 +1056,7 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 

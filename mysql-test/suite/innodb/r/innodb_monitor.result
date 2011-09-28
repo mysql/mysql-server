@@ -38,25 +38,47 @@ buffer_pages_written	enabled
 buffer_pages_read	enabled
 buffer_data_reads	enabled
 buffer_data_written	enabled
-buffer_flush_adaptive_flushes	disabled
-buffer_flush_adaptive_pages	disabled
-buffer_flush_async_flushes	disabled
-buffer_flush_async_pages	disabled
-buffer_flush_sync_flushes	disabled
-buffer_flush_sync_pages	disabled
-buffer_flush_max_dirty_flushes	disabled
-buffer_flush_max_dirty_pages	disabled
-buffer_flush_free_margin_flushes	disabled
-buffer_flush_free_margin_pages	disabled
-buffer_flush_io_capacity_pct	disabled
 buffer_flush_batch_scanned	disabled
 buffer_flush_batch_num_scan	disabled
 buffer_flush_batch_scanned_per_call	disabled
 buffer_flush_batch_total_pages	disabled
 buffer_flush_batches	disabled
 buffer_flush_batch_pages	disabled
-buffer_flush_by_lru	disabled
-buffer_flush_by_list	disabled
+buffer_flush_neighbor_total_pages	disabled
+buffer_flush_neighbor	disabled
+buffer_flush_neighbor_pages	disabled
+buffer_flush_max_dirty_total_pages	disabled
+buffer_flush_max_dirty	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_adaptive_total_pages	disabled
+buffer_flush_adaptive	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_total_pages	disabled
+buffer_flush_async	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_total_pages	disabled
+buffer_flush_sync	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_background_total_pages	disabled
+buffer_flush_background	disabled
+buffer_flush_background_pages	disabled
+buffer_LRU_batch_scanned	disabled
+buffer_LRU_batch_num_scan	disabled
+buffer_LRU_batch_scanned_per_call	disabled
+buffer_LRU_batch_total_pages	disabled
+buffer_LRU_batches	disabled
+buffer_LRU_batch_pages	disabled
+buffer_LRU_single_flush_scanned	disabled
+buffer_LRU_single_flush_num_scan	disabled
+buffer_LRU_single_flush_scanned_per_call	disabled
+buffer_LRU_single_flush_failure_count	disabled
+buffer_LRU_get_free_search	disabled
+buffer_LRU_search_scanned	disabled
+buffer_LRU_search_num_scan	disabled
+buffer_LRU_search_scanned_per_call	disabled
+buffer_LRU_unzip_search_scanned	disabled
+buffer_LRU_unzip_search_num_scan	disabled
+buffer_LRU_unzip_search_scanned_per_call	disabled
 buffer_page_read_index_leaf	disabled
 buffer_page_read_index_non_leaf	disabled
 buffer_page_read_index_ibuf_leaf	disabled
@@ -110,6 +132,7 @@ trx_undo_slots_cached	disabled
 trx_rseg_curent_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
+purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
 log_checkpoints	disabled
@@ -172,6 +195,10 @@ dml_inserts	enabled
 dml_deletes	enabled
 dml_updates	enabled
 ddl_background_drop_tables	disabled
+icp_attempts	disabled
+icp_no_match	disabled
+icp_out_of_range	disabled
+icp_match	disabled
 set global innodb_monitor_enable = all;
 select name, status from information_schema.innodb_metrics;
 name	status
@@ -213,25 +240,47 @@ buffer_pages_written	enabled
 buffer_pages_read	enabled
 buffer_data_reads	enabled
 buffer_data_written	enabled
-buffer_flush_adaptive_flushes	enabled
-buffer_flush_adaptive_pages	enabled
-buffer_flush_async_flushes	enabled
-buffer_flush_async_pages	enabled
-buffer_flush_sync_flushes	enabled
-buffer_flush_sync_pages	enabled
-buffer_flush_max_dirty_flushes	enabled
-buffer_flush_max_dirty_pages	enabled
-buffer_flush_free_margin_flushes	enabled
-buffer_flush_free_margin_pages	enabled
-buffer_flush_io_capacity_pct	enabled
 buffer_flush_batch_scanned	enabled
 buffer_flush_batch_num_scan	enabled
 buffer_flush_batch_scanned_per_call	enabled
 buffer_flush_batch_total_pages	enabled
 buffer_flush_batches	enabled
 buffer_flush_batch_pages	enabled
-buffer_flush_by_lru	enabled
-buffer_flush_by_list	enabled
+buffer_flush_neighbor_total_pages	enabled
+buffer_flush_neighbor	enabled
+buffer_flush_neighbor_pages	enabled
+buffer_flush_max_dirty_total_pages	enabled
+buffer_flush_max_dirty	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_adaptive_total_pages	enabled
+buffer_flush_adaptive	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_total_pages	enabled
+buffer_flush_async	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_total_pages	enabled
+buffer_flush_sync	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_background_total_pages	enabled
+buffer_flush_background	enabled
+buffer_flush_background_pages	enabled
+buffer_LRU_batch_scanned	enabled
+buffer_LRU_batch_num_scan	enabled
+buffer_LRU_batch_scanned_per_call	enabled
+buffer_LRU_batch_total_pages	enabled
+buffer_LRU_batches	enabled
+buffer_LRU_batch_pages	enabled
+buffer_LRU_single_flush_scanned	enabled
+buffer_LRU_single_flush_num_scan	enabled
+buffer_LRU_single_flush_scanned_per_call	enabled
+buffer_LRU_single_flush_failure_count	enabled
+buffer_LRU_get_free_search	enabled
+buffer_LRU_search_scanned	enabled
+buffer_LRU_search_num_scan	enabled
+buffer_LRU_search_scanned_per_call	enabled
+buffer_LRU_unzip_search_scanned	enabled
+buffer_LRU_unzip_search_num_scan	enabled
+buffer_LRU_unzip_search_scanned_per_call	enabled
 buffer_page_read_index_leaf	enabled
 buffer_page_read_index_non_leaf	enabled
 buffer_page_read_index_ibuf_leaf	enabled
@@ -285,6 +334,7 @@ trx_undo_slots_cached	enabled
 trx_rseg_curent_size	enabled
 purge_del_mark_records	enabled
 purge_upd_exist_or_extern_records	enabled
+purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
 log_checkpoints	enabled
@@ -347,6 +397,10 @@ dml_inserts	enabled
 dml_deletes	enabled
 dml_updates	enabled
 ddl_background_drop_tables	enabled
+icp_attempts	enabled
+icp_no_match	enabled
+icp_out_of_range	enabled
+icp_match	enabled
 set global innodb_monitor_enable = aaa;
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of 'aaa'
 set global innodb_monitor_disable = All;
@@ -390,25 +444,47 @@ buffer_pages_written	disabled
 buffer_pages_read	disabled
 buffer_data_reads	disabled
 buffer_data_written	disabled
-buffer_flush_adaptive_flushes	disabled
-buffer_flush_adaptive_pages	disabled
-buffer_flush_async_flushes	disabled
-buffer_flush_async_pages	disabled
-buffer_flush_sync_flushes	disabled
-buffer_flush_sync_pages	disabled
-buffer_flush_max_dirty_flushes	disabled
-buffer_flush_max_dirty_pages	disabled
-buffer_flush_free_margin_flushes	disabled
-buffer_flush_free_margin_pages	disabled
-buffer_flush_io_capacity_pct	disabled
 buffer_flush_batch_scanned	disabled
 buffer_flush_batch_num_scan	disabled
 buffer_flush_batch_scanned_per_call	disabled
 buffer_flush_batch_total_pages	disabled
 buffer_flush_batches	disabled
 buffer_flush_batch_pages	disabled
-buffer_flush_by_lru	disabled
-buffer_flush_by_list	disabled
+buffer_flush_neighbor_total_pages	disabled
+buffer_flush_neighbor	disabled
+buffer_flush_neighbor_pages	disabled
+buffer_flush_max_dirty_total_pages	disabled
+buffer_flush_max_dirty	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_adaptive_total_pages	disabled
+buffer_flush_adaptive	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_total_pages	disabled
+buffer_flush_async	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_total_pages	disabled
+buffer_flush_sync	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_background_total_pages	disabled
+buffer_flush_background	disabled
+buffer_flush_background_pages	disabled
+buffer_LRU_batch_scanned	disabled
+buffer_LRU_batch_num_scan	disabled
+buffer_LRU_batch_scanned_per_call	disabled
+buffer_LRU_batch_total_pages	disabled
+buffer_LRU_batches	disabled
+buffer_LRU_batch_pages	disabled
+buffer_LRU_single_flush_scanned	disabled
+buffer_LRU_single_flush_num_scan	disabled
+buffer_LRU_single_flush_scanned_per_call	disabled
+buffer_LRU_single_flush_failure_count	disabled
+buffer_LRU_get_free_search	disabled
+buffer_LRU_search_scanned	disabled
+buffer_LRU_search_num_scan	disabled
+buffer_LRU_search_scanned_per_call	disabled
+buffer_LRU_unzip_search_scanned	disabled
+buffer_LRU_unzip_search_num_scan	disabled
+buffer_LRU_unzip_search_scanned_per_call	disabled
 buffer_page_read_index_leaf	disabled
 buffer_page_read_index_non_leaf	disabled
 buffer_page_read_index_ibuf_leaf	disabled
@@ -462,6 +538,7 @@ trx_undo_slots_cached	disabled
 trx_rseg_curent_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
+purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
 log_checkpoints	disabled
@@ -524,6 +601,10 @@ dml_inserts	disabled
 dml_deletes	disabled
 dml_updates	disabled
 ddl_background_drop_tables	disabled
+icp_attempts	disabled
+icp_no_match	disabled
+icp_out_of_range	disabled
+icp_match	disabled
 set global innodb_monitor_reset_all = all;
 select name, count, status from information_schema.innodb_metrics;
 name	count	status
@@ -565,25 +646,47 @@ buffer_pages_written	0	disabled
 buffer_pages_read	0	disabled
 buffer_data_reads	0	disabled
 buffer_data_written	0	disabled
-buffer_flush_adaptive_flushes	0	disabled
-buffer_flush_adaptive_pages	0	disabled
-buffer_flush_async_flushes	0	disabled
-buffer_flush_async_pages	0	disabled
-buffer_flush_sync_flushes	0	disabled
-buffer_flush_sync_pages	0	disabled
-buffer_flush_max_dirty_flushes	0	disabled
-buffer_flush_max_dirty_pages	0	disabled
-buffer_flush_free_margin_flushes	0	disabled
-buffer_flush_free_margin_pages	0	disabled
-buffer_flush_io_capacity_pct	0	disabled
 buffer_flush_batch_scanned	0	disabled
 buffer_flush_batch_num_scan	0	disabled
 buffer_flush_batch_scanned_per_call	0	disabled
 buffer_flush_batch_total_pages	0	disabled
 buffer_flush_batches	0	disabled
 buffer_flush_batch_pages	0	disabled
-buffer_flush_by_lru	0	disabled
-buffer_flush_by_list	0	disabled
+buffer_flush_neighbor_total_pages	0	disabled
+buffer_flush_neighbor	0	disabled
+buffer_flush_neighbor_pages	0	disabled
+buffer_flush_max_dirty_total_pages	0	disabled
+buffer_flush_max_dirty	0	disabled
+buffer_flush_max_dirty_pages	0	disabled
+buffer_flush_adaptive_total_pages	0	disabled
+buffer_flush_adaptive	0	disabled
+buffer_flush_adaptive_pages	0	disabled
+buffer_flush_async_total_pages	0	disabled
+buffer_flush_async	0	disabled
+buffer_flush_async_pages	0	disabled
+buffer_flush_sync_total_pages	0	disabled
+buffer_flush_sync	0	disabled
+buffer_flush_sync_pages	0	disabled
+buffer_flush_background_total_pages	0	disabled
+buffer_flush_background	0	disabled
+buffer_flush_background_pages	0	disabled
+buffer_LRU_batch_scanned	0	disabled
+buffer_LRU_batch_num_scan	0	disabled
+buffer_LRU_batch_scanned_per_call	0	disabled
+buffer_LRU_batch_total_pages	0	disabled
+buffer_LRU_batches	0	disabled
+buffer_LRU_batch_pages	0	disabled
+buffer_LRU_single_flush_scanned	0	disabled
+buffer_LRU_single_flush_num_scan	0	disabled
+buffer_LRU_single_flush_scanned_per_call	0	disabled
+buffer_LRU_single_flush_failure_count	0	disabled
+buffer_LRU_get_free_search	0	disabled
+buffer_LRU_search_scanned	0	disabled
+buffer_LRU_search_num_scan	0	disabled
+buffer_LRU_search_scanned_per_call	0	disabled
+buffer_LRU_unzip_search_scanned	0	disabled
+buffer_LRU_unzip_search_num_scan	0	disabled
+buffer_LRU_unzip_search_scanned_per_call	0	disabled
 buffer_page_read_index_leaf	0	disabled
 buffer_page_read_index_non_leaf	0	disabled
 buffer_page_read_index_ibuf_leaf	0	disabled
@@ -637,6 +740,7 @@ trx_undo_slots_cached	0	disabled
 trx_rseg_curent_size	0	disabled
 purge_del_mark_records	0	disabled
 purge_upd_exist_or_extern_records	0	disabled
+purge_invoked	0	disabled
 purge_undo_log_pages	0	disabled
 purge_dml_delay_usec	0	disabled
 log_checkpoints	0	disabled
@@ -699,6 +803,10 @@ dml_inserts	0	disabled
 dml_deletes	0	disabled
 dml_updates	0	disabled
 ddl_background_drop_tables	0	disabled
+icp_attempts	0	disabled
+icp_no_match	0	disabled
+icp_out_of_range	0	disabled
+icp_match	0	disabled
 set  global innodb_monitor_enable = "%lock%";
 select name, status from information_schema.innodb_metrics
 where name like "%lock%";
@@ -794,25 +902,47 @@ buffer_pages_written	enabled
 buffer_pages_read	enabled
 buffer_data_reads	enabled
 buffer_data_written	enabled
-buffer_flush_adaptive_flushes	enabled
-buffer_flush_adaptive_pages	enabled
-buffer_flush_async_flushes	enabled
-buffer_flush_async_pages	enabled
-buffer_flush_sync_flushes	enabled
-buffer_flush_sync_pages	enabled
-buffer_flush_max_dirty_flushes	enabled
-buffer_flush_max_dirty_pages	enabled
-buffer_flush_free_margin_flushes	enabled
-buffer_flush_free_margin_pages	enabled
-buffer_flush_io_capacity_pct	enabled
 buffer_flush_batch_scanned	enabled
 buffer_flush_batch_num_scan	enabled
 buffer_flush_batch_scanned_per_call	enabled
 buffer_flush_batch_total_pages	enabled
 buffer_flush_batches	enabled
 buffer_flush_batch_pages	enabled
-buffer_flush_by_lru	enabled
-buffer_flush_by_list	enabled
+buffer_flush_neighbor_total_pages	enabled
+buffer_flush_neighbor	enabled
+buffer_flush_neighbor_pages	enabled
+buffer_flush_max_dirty_total_pages	enabled
+buffer_flush_max_dirty	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_adaptive_total_pages	enabled
+buffer_flush_adaptive	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_total_pages	enabled
+buffer_flush_async	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_total_pages	enabled
+buffer_flush_sync	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_background_total_pages	enabled
+buffer_flush_background	enabled
+buffer_flush_background_pages	enabled
+buffer_LRU_batch_scanned	enabled
+buffer_LRU_batch_num_scan	enabled
+buffer_LRU_batch_scanned_per_call	enabled
+buffer_LRU_batch_total_pages	enabled
+buffer_LRU_batches	enabled
+buffer_LRU_batch_pages	enabled
+buffer_LRU_single_flush_scanned	enabled
+buffer_LRU_single_flush_num_scan	enabled
+buffer_LRU_single_flush_scanned_per_call	enabled
+buffer_LRU_single_flush_failure_count	enabled
+buffer_LRU_get_free_search	enabled
+buffer_LRU_search_scanned	enabled
+buffer_LRU_search_num_scan	enabled
+buffer_LRU_search_scanned_per_call	enabled
+buffer_LRU_unzip_search_scanned	enabled
+buffer_LRU_unzip_search_num_scan	enabled
+buffer_LRU_unzip_search_scanned_per_call	enabled
 buffer_page_read_index_leaf	enabled
 buffer_page_read_index_non_leaf	enabled
 buffer_page_read_index_ibuf_leaf	enabled
@@ -866,6 +996,7 @@ trx_undo_slots_cached	enabled
 trx_rseg_curent_size	enabled
 purge_del_mark_records	enabled
 purge_upd_exist_or_extern_records	enabled
+purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
 log_checkpoints	enabled
@@ -928,6 +1059,10 @@ dml_inserts	enabled
 dml_deletes	enabled
 dml_updates	enabled
 ddl_background_drop_tables	enabled
+icp_attempts	enabled
+icp_no_match	enabled
+icp_out_of_range	enabled
+icp_match	enabled
 set global innodb_monitor_disable="%%%%%";
 select name, status from information_schema.innodb_metrics;
 name	status
@@ -969,25 +1104,47 @@ buffer_pages_written	disabled
 buffer_pages_read	disabled
 buffer_data_reads	disabled
 buffer_data_written	disabled
-buffer_flush_adaptive_flushes	disabled
-buffer_flush_adaptive_pages	disabled
-buffer_flush_async_flushes	disabled
-buffer_flush_async_pages	disabled
-buffer_flush_sync_flushes	disabled
-buffer_flush_sync_pages	disabled
-buffer_flush_max_dirty_flushes	disabled
-buffer_flush_max_dirty_pages	disabled
-buffer_flush_free_margin_flushes	disabled
-buffer_flush_free_margin_pages	disabled
-buffer_flush_io_capacity_pct	disabled
 buffer_flush_batch_scanned	disabled
 buffer_flush_batch_num_scan	disabled
 buffer_flush_batch_scanned_per_call	disabled
 buffer_flush_batch_total_pages	disabled
 buffer_flush_batches	disabled
 buffer_flush_batch_pages	disabled
-buffer_flush_by_lru	disabled
-buffer_flush_by_list	disabled
+buffer_flush_neighbor_total_pages	disabled
+buffer_flush_neighbor	disabled
+buffer_flush_neighbor_pages	disabled
+buffer_flush_max_dirty_total_pages	disabled
+buffer_flush_max_dirty	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_adaptive_total_pages	disabled
+buffer_flush_adaptive	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_total_pages	disabled
+buffer_flush_async	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_total_pages	disabled
+buffer_flush_sync	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_background_total_pages	disabled
+buffer_flush_background	disabled
+buffer_flush_background_pages	disabled
+buffer_LRU_batch_scanned	disabled
+buffer_LRU_batch_num_scan	disabled
+buffer_LRU_batch_scanned_per_call	disabled
+buffer_LRU_batch_total_pages	disabled
+buffer_LRU_batches	disabled
+buffer_LRU_batch_pages	disabled
+buffer_LRU_single_flush_scanned	disabled
+buffer_LRU_single_flush_num_scan	disabled
+buffer_LRU_single_flush_scanned_per_call	disabled
+buffer_LRU_single_flush_failure_count	disabled
+buffer_LRU_get_free_search	disabled
+buffer_LRU_search_scanned	disabled
+buffer_LRU_search_num_scan	disabled
+buffer_LRU_search_scanned_per_call	disabled
+buffer_LRU_unzip_search_scanned	disabled
+buffer_LRU_unzip_search_num_scan	disabled
+buffer_LRU_unzip_search_scanned_per_call	disabled
 buffer_page_read_index_leaf	disabled
 buffer_page_read_index_non_leaf	disabled
 buffer_page_read_index_ibuf_leaf	disabled
@@ -1041,6 +1198,7 @@ trx_undo_slots_cached	disabled
 trx_rseg_curent_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
+purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
 log_checkpoints	disabled
@@ -1103,6 +1261,10 @@ dml_inserts	disabled
 dml_deletes	disabled
 dml_updates	disabled
 ddl_background_drop_tables	disabled
+icp_attempts	disabled
+icp_no_match	disabled
+icp_out_of_range	disabled
+icp_match	disabled
 set global innodb_monitor_enable="%";
 select name, status from information_schema.innodb_metrics;
 name	status
@@ -1144,25 +1306,47 @@ buffer_pages_written	enabled
 buffer_pages_read	enabled
 buffer_data_reads	enabled
 buffer_data_written	enabled
-buffer_flush_adaptive_flushes	enabled
-buffer_flush_adaptive_pages	enabled
-buffer_flush_async_flushes	enabled
-buffer_flush_async_pages	enabled
-buffer_flush_sync_flushes	enabled
-buffer_flush_sync_pages	enabled
-buffer_flush_max_dirty_flushes	enabled
-buffer_flush_max_dirty_pages	enabled
-buffer_flush_free_margin_flushes	enabled
-buffer_flush_free_margin_pages	enabled
-buffer_flush_io_capacity_pct	enabled
 buffer_flush_batch_scanned	enabled
 buffer_flush_batch_num_scan	enabled
 buffer_flush_batch_scanned_per_call	enabled
 buffer_flush_batch_total_pages	enabled
 buffer_flush_batches	enabled
 buffer_flush_batch_pages	enabled
-buffer_flush_by_lru	enabled
-buffer_flush_by_list	enabled
+buffer_flush_neighbor_total_pages	enabled
+buffer_flush_neighbor	enabled
+buffer_flush_neighbor_pages	enabled
+buffer_flush_max_dirty_total_pages	enabled
+buffer_flush_max_dirty	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_adaptive_total_pages	enabled
+buffer_flush_adaptive	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_total_pages	enabled
+buffer_flush_async	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_total_pages	enabled
+buffer_flush_sync	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_background_total_pages	enabled
+buffer_flush_background	enabled
+buffer_flush_background_pages	enabled
+buffer_LRU_batch_scanned	enabled
+buffer_LRU_batch_num_scan	enabled
+buffer_LRU_batch_scanned_per_call	enabled
+buffer_LRU_batch_total_pages	enabled
+buffer_LRU_batches	enabled
+buffer_LRU_batch_pages	enabled
+buffer_LRU_single_flush_scanned	enabled
+buffer_LRU_single_flush_num_scan	enabled
+buffer_LRU_single_flush_scanned_per_call	enabled
+buffer_LRU_single_flush_failure_count	enabled
+buffer_LRU_get_free_search	enabled
+buffer_LRU_search_scanned	enabled
+buffer_LRU_search_num_scan	enabled
+buffer_LRU_search_scanned_per_call	enabled
+buffer_LRU_unzip_search_scanned	enabled
+buffer_LRU_unzip_search_num_scan	enabled
+buffer_LRU_unzip_search_scanned_per_call	enabled
 buffer_page_read_index_leaf	enabled
 buffer_page_read_index_non_leaf	enabled
 buffer_page_read_index_ibuf_leaf	enabled
@@ -1216,6 +1400,7 @@ trx_undo_slots_cached	enabled
 trx_rseg_curent_size	enabled
 purge_del_mark_records	enabled
 purge_upd_exist_or_extern_records	enabled
+purge_invoked	enabled
 purge_undo_log_pages	enabled
 purge_dml_delay_usec	enabled
 log_checkpoints	enabled
@@ -1278,6 +1463,10 @@ dml_inserts	enabled
 dml_deletes	enabled
 dml_updates	enabled
 ddl_background_drop_tables	enabled
+icp_attempts	enabled
+icp_no_match	enabled
+icp_out_of_range	enabled
+icp_match	enabled
 set global innodb_monitor_disable="%_%";
 select name, status from information_schema.innodb_metrics;
 name	status
@@ -1319,25 +1508,47 @@ buffer_pages_written	disabled
 buffer_pages_read	disabled
 buffer_data_reads	disabled
 buffer_data_written	disabled
-buffer_flush_adaptive_flushes	disabled
-buffer_flush_adaptive_pages	disabled
-buffer_flush_async_flushes	disabled
-buffer_flush_async_pages	disabled
-buffer_flush_sync_flushes	disabled
-buffer_flush_sync_pages	disabled
-buffer_flush_max_dirty_flushes	disabled
-buffer_flush_max_dirty_pages	disabled
-buffer_flush_free_margin_flushes	disabled
-buffer_flush_free_margin_pages	disabled
-buffer_flush_io_capacity_pct	disabled
 buffer_flush_batch_scanned	disabled
 buffer_flush_batch_num_scan	disabled
 buffer_flush_batch_scanned_per_call	disabled
 buffer_flush_batch_total_pages	disabled
 buffer_flush_batches	disabled
 buffer_flush_batch_pages	disabled
-buffer_flush_by_lru	disabled
-buffer_flush_by_list	disabled
+buffer_flush_neighbor_total_pages	disabled
+buffer_flush_neighbor	disabled
+buffer_flush_neighbor_pages	disabled
+buffer_flush_max_dirty_total_pages	disabled
+buffer_flush_max_dirty	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_adaptive_total_pages	disabled
+buffer_flush_adaptive	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_total_pages	disabled
+buffer_flush_async	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_total_pages	disabled
+buffer_flush_sync	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_background_total_pages	disabled
+buffer_flush_background	disabled
+buffer_flush_background_pages	disabled
+buffer_LRU_batch_scanned	disabled
+buffer_LRU_batch_num_scan	disabled
+buffer_LRU_batch_scanned_per_call	disabled
+buffer_LRU_batch_total_pages	disabled
+buffer_LRU_batches	disabled
+buffer_LRU_batch_pages	disabled
+buffer_LRU_single_flush_scanned	disabled
+buffer_LRU_single_flush_num_scan	disabled
+buffer_LRU_single_flush_scanned_per_call	disabled
+buffer_LRU_single_flush_failure_count	disabled
+buffer_LRU_get_free_search	disabled
+buffer_LRU_search_scanned	disabled
+buffer_LRU_search_num_scan	disabled
+buffer_LRU_search_scanned_per_call	disabled
+buffer_LRU_unzip_search_scanned	disabled
+buffer_LRU_unzip_search_num_scan	disabled
+buffer_LRU_unzip_search_scanned_per_call	disabled
 buffer_page_read_index_leaf	disabled
 buffer_page_read_index_non_leaf	disabled
 buffer_page_read_index_ibuf_leaf	disabled
@@ -1391,6 +1602,7 @@ trx_undo_slots_cached	disabled
 trx_rseg_curent_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
+purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
 log_checkpoints	disabled
@@ -1453,6 +1665,10 @@ dml_inserts	disabled
 dml_deletes	disabled
 dml_updates	disabled
 ddl_background_drop_tables	disabled
+icp_attempts	disabled
+icp_no_match	disabled
+icp_out_of_range	disabled
+icp_match	disabled
 set global innodb_monitor_enable="log%%%%";
 select name, status from information_schema.innodb_metrics;
 name	status
@@ -1494,25 +1710,47 @@ buffer_pages_written	disabled
 buffer_pages_read	disabled
 buffer_data_reads	disabled
 buffer_data_written	disabled
-buffer_flush_adaptive_flushes	disabled
-buffer_flush_adaptive_pages	disabled
-buffer_flush_async_flushes	disabled
-buffer_flush_async_pages	disabled
-buffer_flush_sync_flushes	disabled
-buffer_flush_sync_pages	disabled
-buffer_flush_max_dirty_flushes	disabled
-buffer_flush_max_dirty_pages	disabled
-buffer_flush_free_margin_flushes	disabled
-buffer_flush_free_margin_pages	disabled
-buffer_flush_io_capacity_pct	disabled
 buffer_flush_batch_scanned	disabled
 buffer_flush_batch_num_scan	disabled
 buffer_flush_batch_scanned_per_call	disabled
 buffer_flush_batch_total_pages	disabled
 buffer_flush_batches	disabled
 buffer_flush_batch_pages	disabled
-buffer_flush_by_lru	disabled
-buffer_flush_by_list	disabled
+buffer_flush_neighbor_total_pages	disabled
+buffer_flush_neighbor	disabled
+buffer_flush_neighbor_pages	disabled
+buffer_flush_max_dirty_total_pages	disabled
+buffer_flush_max_dirty	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_adaptive_total_pages	disabled
+buffer_flush_adaptive	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_total_pages	disabled
+buffer_flush_async	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_total_pages	disabled
+buffer_flush_sync	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_background_total_pages	disabled
+buffer_flush_background	disabled
+buffer_flush_background_pages	disabled
+buffer_LRU_batch_scanned	disabled
+buffer_LRU_batch_num_scan	disabled
+buffer_LRU_batch_scanned_per_call	disabled
+buffer_LRU_batch_total_pages	disabled
+buffer_LRU_batches	disabled
+buffer_LRU_batch_pages	disabled
+buffer_LRU_single_flush_scanned	disabled
+buffer_LRU_single_flush_num_scan	disabled
+buffer_LRU_single_flush_scanned_per_call	disabled
+buffer_LRU_single_flush_failure_count	disabled
+buffer_LRU_get_free_search	disabled
+buffer_LRU_search_scanned	disabled
+buffer_LRU_search_num_scan	disabled
+buffer_LRU_search_scanned_per_call	disabled
+buffer_LRU_unzip_search_scanned	disabled
+buffer_LRU_unzip_search_num_scan	disabled
+buffer_LRU_unzip_search_scanned_per_call	disabled
 buffer_page_read_index_leaf	disabled
 buffer_page_read_index_non_leaf	disabled
 buffer_page_read_index_ibuf_leaf	disabled
@@ -1566,6 +1804,7 @@ trx_undo_slots_cached	disabled
 trx_rseg_curent_size	disabled
 purge_del_mark_records	disabled
 purge_upd_exist_or_extern_records	disabled
+purge_invoked	disabled
 purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
 log_checkpoints	enabled
@@ -1628,6 +1867,10 @@ dml_inserts	disabled
 dml_deletes	disabled
 dml_updates	disabled
 ddl_background_drop_tables	disabled
+icp_attempts	disabled
+icp_no_match	disabled
+icp_out_of_range	disabled
+icp_match	disabled
 set global innodb_monitor_enable="os_%a_fs_ncs";
 set global innodb_monitor_enable="os%pending%";
 select name, status from information_schema.innodb_metrics
@@ -1866,6 +2109,30 @@ where name like "file_num_open_files";
 name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
 file_num_open_files	3	3	3	3	3	3	enabled
 set global innodb_monitor_disable = file_num_open_files;
+set global innodb_monitor_enable = "icp%";
+create table monitor_test(a char(3), b int, c char(2),
+primary key (a(1), c(1)), key(b)) engine = innodb;
+insert into monitor_test values("13", 2, "aa");
+select a from monitor_test where b < 1 for update;
+a
+select name, count from information_schema.innodb_metrics
+where name like "icp%";
+name	count
+icp_attempts	1
+icp_no_match	0
+icp_out_of_range	1
+icp_match	0
+select a from monitor_test where b < 3 for update;
+a
+13
+select name, count from information_schema.innodb_metrics
+where name like "icp%";
+name	count
+icp_attempts	2
+icp_no_match	0
+icp_out_of_range	1
+icp_match	1
+drop table monitor_test;
 set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;
 set global innodb_monitor_reset = default;

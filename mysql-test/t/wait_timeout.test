@@ -137,6 +137,62 @@ disconnect con1;
 # The last connect is to keep tools checking the current test happy.
 connect (default,localhost,root,,test,,);
 
+--echo #
+--echo # Bug#54790: Use of non-blocking mode for sockets limits performance
+--echo #
+
+--echo #
+--echo # Test UNIX domain sockets timeout.
+--echo #
+
+--echo # Open con1 and set a timeout.
+connect(con1,localhost,root,,);
+
+LET $ID= `SELECT connection_id()`;
+SET @@SESSION.wait_timeout = 2;
+
+--echo # Wait for con1 to be disconnected.
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE ID = $ID;
+--source include/wait_condition.inc
+
+--echo # Check that con1 has been disconnected.
+connection con1;
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+SELECT 1;
+
+disconnect con1;
+connection default;
+
+--echo #
+--echo # Test TCP/IP sockets timeout.
+--echo #
+
+--echo # Open con1 and set a timeout.
+connect(con1,127.0.0.1,root,,);
+
+LET $ID= `SELECT connection_id()`;
+SET @@SESSION.wait_timeout = 2;
+
+--echo # Wait for con1 to be disconnected.
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE ID = $ID;
+--source include/wait_condition.inc
+
+--echo # Check that con1 has been disconnected.
+connection con1;
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+SELECT 1;
+
+disconnect con1;
+connection default;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

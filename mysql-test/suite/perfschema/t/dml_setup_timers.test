@@ -18,6 +18,16 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+# Set to a known state
+update performance_schema.setup_timers
+  set timer_name='CYCLE' where name="wait";
+update performance_schema.setup_timers
+  set timer_name='NANOSECOND' where name="stage";
+update performance_schema.setup_timers
+  set timer_name='NANOSECOND' where name="statement";
+update performance_schema.setup_timers
+  set timer_name='MICROSECOND' where name="idle";
+
 select * from performance_schema.setup_timers;
 
 select * from performance_schema.setup_timers
@@ -54,4 +64,17 @@ UNLOCK TABLES;
 
 LOCK TABLES performance_schema.setup_timers WRITE;
 UNLOCK TABLES;
+
+# Cleanup, restore the default values
+
+update performance_schema.setup_timers
+ set timer_name='CYCLE' where name="wait";
+update performance_schema.setup_timers
+ set timer_name='NANOSECOND' where name="stage";
+update performance_schema.setup_timers
+ set timer_name='NANOSECOND' where name="statement";
+update performance_schema.setup_timers
+  set timer_name='MICROSECOND' where name="idle";
+
+select * from performance_schema.setup_timers;
 

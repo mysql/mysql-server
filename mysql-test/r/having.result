@@ -12,7 +12,7 @@ explain extended select count(a) as b from t1 where a=0 having b >=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select count(NULL) AS `b` from dual where 0 having (`b` >= 0)
+Note	1003	/* select#1 */ select count(NULL) AS `b` from dual where 0 having (`b` >= 0)
 drop table t1;
 CREATE TABLE t1 (
 raw_id int(10) NOT NULL default '0',
@@ -472,7 +472,7 @@ HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
 Warnings:
-Note	1003	select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
+Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
 EXPLAIN EXTENDED
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
@@ -483,7 +483,7 @@ HAVING (table2.f2 = 8);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
 Warnings:
-Note	1003	select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
+Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
 DROP TABLE t1;
 #
 # Bug#52336 Segfault / crash in 5.1 copy_fields (param=0x9872980) at sql_select.cc:15355
@@ -547,6 +547,28 @@ FROM t1 JOIN t2 ON t2.f2 LIKE 'x'
 HAVING field1 < 7;
 field1
 DROP TABLE t1,t2;
+#
+# Bug#48916 Server incorrectly processing HAVING clauses with an ORDER BY clause
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES (1, 0), (2, 1), (3, 2);
+CREATE TABLE t2 (f1 INT, f2 INT);
+SELECT t1.f1
+FROM t1
+HAVING (3, 2) IN (SELECT f1, f2 FROM t2) AND t1.f1  >= 0
+ORDER BY t1.f1;
+f1
+SELECT t1.f1
+FROM t1
+HAVING (3, 2) IN (SELECT 4, 2) AND t1.f1  >= 0
+ORDER BY t1.f1;
+f1
+SELECT t1.f1
+FROM t1
+HAVING 2 IN (SELECT f2 FROM t2) AND t1.f1  >= 0
+ORDER BY t1.f1;
+f1
+DROP TABLE t1,t2;
 End of 5.1 tests
 #
 # BUG#46077 "wrong result: HAVING + ORDER BY + MyISAM + ICP
@@ -567,3 +589,27 @@ pk	field1
 1	7
 drop table `t1`;
 End of 5.5 tests
+#
+# Bug#12402590 ASSERT AT PROTOCOL::END_STATEMENT ON MYSQL-TRUNK
+#              RUNNING RQG_OPT_SUBQUERY TEST
+#
+CREATE TABLE t2 (
+f1 INT,
+PRIMARY KEY (f1)
+);
+INSERT INTO t2 VALUES (1), (2);
+CREATE TABLE t1 (
+f1 INT,
+f2 VARCHAR(1),
+f3 VARCHAR(1),
+PRIMARY KEY (f1),
+KEY (f2, f1)
+);
+INSERT INTO t1 VALUES (8, 'g', 'g'), (11, 'a', 'a');
+SELECT t1.f1 FROM t1 JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f3 AND t1.f2 IN ('f')
+HAVING (1 ,6) IN (SELECT 3, 6)
+ORDER BY t1.f1;
+f1
+DROP TABLE t1, t2;
+End of 5.6 tests

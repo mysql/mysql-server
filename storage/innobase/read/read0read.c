@@ -167,11 +167,10 @@ For details see: row_vers_old_has_index_entry() and row_purge_poss_sec()
 Some additional issues:
 
 What if trx_sys->view_list == NULL and some transaction T1 and Purge both
-try to open read_view at same time. Both can get trx_sys->lock in S mode.
+try to open read_view at same time. Only one can acquire trx_sys->mutex.
 In which order will the views be opened? Should it matter? If no, why?
 
-The order does not matter. Since both purge and transaction T1 will get the
-trx_sys->lock in S mode, no new transactions can be created and no running
+The order does not matter. No new transactions can be created and no running
 transaction can commit or rollback (or free views).
 */
 
@@ -186,9 +185,7 @@ read_view_validate(
 {
 	ulint	i;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
@@ -209,11 +206,7 @@ read_view_list_validate(void)
 	const read_view_t*	view;
 	const read_view_t*	prev_view = NULL;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-
-	mutex_enter(&trx_sys->read_view_mutex);
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	for (view = UT_LIST_GET_FIRST(trx_sys->view_list);
 	     view != NULL;
@@ -222,8 +215,6 @@ read_view_list_validate(void)
 		ut_a(prev_view == NULL
 		     || prev_view->low_limit_no >= view->low_limit_no);
 	}
-
-	mutex_exit(&trx_sys->read_view_mutex);
 
 	return(TRUE);
 }
@@ -267,10 +258,7 @@ read_view_clone(
 	read_view_t*	clone;
 	read_view_t*	new_view;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&trx_sys->read_view_mutex));
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* Allocate space for two views. */
 
@@ -308,12 +296,8 @@ read_view_add(
 	read_view_t*	elem;
 	read_view_t*	prev_elem;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 	ut_ad(read_view_validate(view));
-
-	mutex_enter(&trx_sys->read_view_mutex);
 
 	/* Find the correct slot for insertion. */
 	for (elem = UT_LIST_GET_FIRST(trx_sys->view_list), prev_elem = NULL;
@@ -328,8 +312,6 @@ read_view_add(
 		UT_LIST_INSERT_AFTER(
 			view_list, trx_sys->view_list, prev_elem, view);
 	}
-
-	mutex_exit(&trx_sys->read_view_mutex);
 
 	ut_ad(read_view_list_validate());
 }
@@ -351,9 +333,7 @@ read_view_open_now_low(
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	view = read_view_create_low(n_trx, heap);
 
@@ -377,7 +357,7 @@ read_view_open_now_low(
 		ut_ad(trx->in_trx_list);
 
 		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->lock. It may change
+		while we are holding the trx_sys->mutex. It may change
 		from ACTIVE to PREPARED or COMMITTED. */
 
 		if (trx->id != cr_trx_id
@@ -392,7 +372,7 @@ read_view_open_now_low(
 			transaction starts, we initialize trx->no to
 			IB_ULONGLONG_MAX. */
 
-			/* trx->no is protected by trx_sys->lock, which
+			/* trx->no is protected by trx_sys->mutex, which
 			we are holding. It is assigned by trx_commit()
 			before lock_trx_release_locks() assigns
 			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
@@ -414,7 +394,10 @@ read_view_open_now_low(
 		view->up_limit_id = view->low_limit_id;
 	}
 
-	read_view_add(view);
+	/* Purge views are not added to the view list. */
+	if (cr_trx_id > 0) {
+		read_view_add(view);
+	}
 
 	return(view);
 }
@@ -434,11 +417,11 @@ read_view_open_now(
 {
 	read_view_t*	view;
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	view = read_view_open_now_low(cr_trx_id, heap);
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	return(view);
 }
@@ -462,19 +445,15 @@ read_view_purge_open(
 	trx_id_t	creator_trx_id;
 	ulint		insert_done	= 0;
 
-	rw_lock_s_lock(&trx_sys->lock);
-
-	mutex_enter(&trx_sys->read_view_mutex);
+	mutex_enter(&trx_sys->mutex);
 
 	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
 
 	if (oldest_view == NULL) {
 
-		mutex_exit(&trx_sys->read_view_mutex);
-
 		view = read_view_open_now_low(0, heap);
 
-		rw_lock_s_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 
 		return(view);
 	}
@@ -483,9 +462,9 @@ read_view_purge_open(
 
 	oldest_view = read_view_clone(oldest_view, heap);
 
-	mutex_exit(&trx_sys->read_view_mutex);
-
 	ut_ad(read_view_validate(oldest_view));
+
+	mutex_exit(&trx_sys->mutex);
 
 	ut_a(oldest_view->creator_trx_id > 0);
 	creator_trx_id = oldest_view->creator_trx_id;
@@ -515,8 +494,6 @@ read_view_purge_open(
 		view->trx_ids[i] = oldest_view->trx_ids[i - 1];
 	}
 
-	ut_ad(read_view_validate(view));
-
 	view->creator_trx_id = 0;
 
 	view->low_limit_no = oldest_view->low_limit_no;
@@ -530,10 +507,6 @@ read_view_purge_open(
 		view->up_limit_id = oldest_view->up_limit_id;
 	}
 
-	read_view_add(view);
-
-	rw_lock_s_unlock(&trx_sys->lock);
-
 	return(view);
 }
 
@@ -545,25 +518,15 @@ read_view_remove(
 /*=============*/
 	read_view_t*	view)	/*!< in: read view */
 {
-	/* We acquire an S lock for the debug validate code. */
-	ut_d(rw_lock_s_lock(&trx_sys->lock));
+	mutex_enter(&trx_sys->mutex);
 
 	ut_ad(read_view_validate(view));
 
-	ut_d(rw_lock_s_unlock(&trx_sys->lock));
-
-	mutex_enter(&trx_sys->read_view_mutex);
-
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
-
-	mutex_exit(&trx_sys->read_view_mutex);
-
-	/* We acquire an S lock for the debug validate code. */
-	ut_d(rw_lock_s_lock(&trx_sys->lock));
 
 	ut_ad(read_view_list_validate());
 
-	ut_d(rw_lock_s_unlock(&trx_sys->lock));
+	mutex_exit(&trx_sys->mutex);
 }
 
 /*********************************************************************//**
@@ -656,7 +619,7 @@ read_cursor_view_create_for_mysql(
 
 	cr_trx->n_mysql_tables_in_use = 0;
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
@@ -681,7 +644,7 @@ read_cursor_view_create_for_mysql(
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->lock. It may change
+		while we are holding the trx_sys->mutex. It may change
 		from ACTIVE to PREPARED or COMMITTED. */
 		if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 			ut_a(n_trx < view->n_trx_ids);
@@ -694,7 +657,7 @@ read_cursor_view_create_for_mysql(
 			transaction starts, we initialize trx->no to
 			IB_ULONGLONG_MAX. */
 
-			/* trx->no is protected by trx_sys->lock, which
+			/* trx->no is protected by trx_sys->mutex, which
 			we are holding. It is assigned by trx_commit()
 			before lock_trx_release_locks() assigns
 			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
@@ -718,7 +681,7 @@ read_cursor_view_create_for_mysql(
 
 	read_view_add(view);
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	return(curview);
 }
@@ -761,7 +724,7 @@ read_cursor_set_for_mysql(
 {
 	ut_a(trx);
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	if (UNIV_LIKELY(curview != NULL)) {
 		trx->read_view = curview->read_view;
@@ -771,5 +734,5 @@ read_cursor_set_for_mysql(
 
 	ut_ad(read_view_validate(trx->read_view));
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 }

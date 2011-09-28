@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,8 +156,4 @@ bool process_key_caches(process_key_cache_t func)
   }
   return 0;
 }
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List_iterator<NAMED_ILINK>;
-#endif
 

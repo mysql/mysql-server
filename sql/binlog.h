@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,16 @@ class Format_description_log_event;
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
+#ifdef HAVE_PSI_INTERFACE
+  /** The instrumentation key to use for @ LOCK_index. */
+  PSI_mutex_key m_key_LOCK_index;
+  /** The instrumentation key to use for @ update_cond. */
+  PSI_cond_key m_key_update_cond;
+  /** The instrumentation key to use for opening the log file. */
+  PSI_file_key m_key_file_log;
+  /** The instrumentation key to use for opening the log index file. */
+  PSI_file_key m_key_file_log_index;
+#endif
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_prep_xids;
@@ -96,8 +106,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   int new_file_impl(bool need_lock);
 
 public:
-  MYSQL_LOG::generate_name;
-  MYSQL_LOG::is_open;
+  using MYSQL_LOG::generate_name;
+  using MYSQL_LOG::is_open;
 
   /* This is relay log */
   bool is_relay_log;
@@ -155,6 +165,19 @@ public:
     on exit() - but only during the correct shutdown process
   */
 
+#ifdef HAVE_PSI_INTERFACE
+  void set_psi_keys(PSI_mutex_key key_LOCK_index,
+                    PSI_cond_key key_update_cond,
+                    PSI_file_key key_file_log,
+                    PSI_file_key key_file_log_index)
+  {
+    m_key_LOCK_index= key_LOCK_index;
+    m_key_update_cond= key_update_cond;
+    m_key_file_log= key_file_log;
+    m_key_file_log_index= key_file_log_index;
+  }
+#endif
+
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
@@ -187,7 +210,7 @@ public:
   }
   void set_max_size(ulong max_size_arg);
   void signal_update();
-  void wait_for_update_relay_log(THD* thd);
+  int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
   void set_need_start_event() { need_start_event = 1; }
   void init(bool no_auto_events_arg, ulong max_size);
@@ -206,12 +229,13 @@ public:
   int new_file();
 
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-
-  bool write_incident(THD *thd, bool lock);
+  bool write(THD *thd, IO_CACHE *cache, bool incident, bool prepared);
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
+  bool write_incident(THD *thd, bool lock);
+  bool write_incident(Incident_log_event *ev, bool lock);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
   void stop_union_events(THD *thd);
@@ -297,11 +321,10 @@ extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(const THD *thd);
-bool use_trans_cache(const THD* thd, bool is_transactional);
 bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
-bool trans_has_updated_non_trans_table(const THD* thd);
-bool stmt_has_updated_non_trans_table(const THD* thd);
+bool trans_cannot_safely_rollback(const THD* thd);
+bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
 File open_binlog(IO_CACHE *log, const char *log_file_name,

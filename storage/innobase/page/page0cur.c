@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1173,21 +1173,22 @@ page_cur_insert_rec_zip_reorg(
 	ulint		pos;
 
 	/* Recompress or reorganize and recompress the page. */
-	if (UNIV_LIKELY(page_zip_compress(page_zip, page, index, mtr))) {
+	if (page_zip_compress(page_zip, page, index, mtr)) {
 		return(rec);
 	}
 
 	/* Before trying to reorganize the page,
 	store the number of preceding records on the page. */
 	pos = page_rec_get_n_recs_before(rec);
+	ut_ad(pos > 0);
 
 	if (page_zip_reorganize(block, index, mtr)) {
 		/* The page was reorganized: Find rec by seeking to pos,
 		and update *current_rec. */
-		rec = page + PAGE_NEW_INFIMUM;
-
-		while (--pos) {
-			rec = page + rec_get_next_offs(rec, TRUE);
+		if (pos > 1) {
+			rec = page_rec_get_nth(page, pos - 1);
+		} else {
+			rec = page + PAGE_NEW_INFIMUM;
 		}
 
 		*current_rec = rec;
@@ -1283,6 +1284,12 @@ page_cur_insert_rec_zip(
 			insert_rec = page_cur_insert_rec_zip_reorg(
 				current_rec, block, index, insert_rec,
 				page, page_zip, mtr);
+#ifdef UNIV_DEBUG
+			if (insert_rec) {
+				rec_offs_make_valid(
+					insert_rec, index, offsets);
+			}
+#endif /* UNIV_DEBUG */
 		}
 
 		return(insert_rec);

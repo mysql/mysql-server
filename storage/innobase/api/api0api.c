@@ -564,8 +564,6 @@ ib_trx_start(
 
 	ut_a(ib_trx_level <= IB_TRX_SERIALIZABLE);
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-
 	trx_start_if_not_started(trx);
 
 	trx->isolation_level = ib_trx_level;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Mallocs for used in threads */
@@ -41,7 +41,7 @@ void *sql_calloc(size_t size)
 {
   void *ptr;
   if ((ptr=sql_alloc(size)))
-    bzero(ptr,size);
+    memset(ptr, 0, size);
   return ptr;
 }
 
@@ -78,9 +78,9 @@ void* sql_memdup(const void *ptr, size_t len)
 
 
 char *sql_strmake_with_convert(const char *str, size_t arg_length,
-			       CHARSET_INFO *from_cs,
+			       const CHARSET_INFO *from_cs,
 			       size_t max_res_length,
-			       CHARSET_INFO *to_cs, size_t *result_length)
+			       const CHARSET_INFO *to_cs, size_t *result_length)
 {
   char *pos;
   size_t new_length= to_cs->mbmaxlen*arg_length;

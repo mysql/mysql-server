@@ -1,4 +1,5 @@
-/* Copyright (C) 2001-2006 MySQL AB, 2009 Sun Microsystems, Inc
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* Common defines for all clients */
 
@@ -75,6 +77,7 @@ enum options_client
   OPT_SLAP_POST_SYSTEM,
   OPT_SLAP_COMMIT,
   OPT_SLAP_DETACH,
+  OPT_SLAP_NO_DROP,
   OPT_MYSQL_REPLACE_INTO, OPT_BASE64_OUTPUT_MODE, OPT_SERVER_ID,
   OPT_FIX_TABLE_NAMES, OPT_FIX_DB_NAMES, OPT_SSL_VERIFY_SERVER_CERT,
   OPT_AUTO_VERTICAL_OUTPUT,
@@ -86,6 +89,8 @@ enum options_client
   OPT_DEFAULT_PLUGIN,
   OPT_RAW_OUTPUT, OPT_WAIT_SERVER_ID, OPT_STOP_NEVER,
   OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
+  OPT_BINARY_MODE,
+  OPT_SSL_CRL, OPT_SSL_CRLPATH,
   OPT_MAX_CLIENT_OPTION
 };
 

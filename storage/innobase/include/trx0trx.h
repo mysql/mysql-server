@@ -31,6 +31,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
+#include "log0log.h"
 #include "usr0types.h"
 #include "que0types.h"
 #include "mem0mem.h"
@@ -41,13 +42,9 @@ Created 3/26/1996 Heikki Tuuri
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
-/** Number of transactions currently allocated for MySQL: protected by
-trx_sys->lock */
-extern ulint	trx_n_mysql_transactions;
-
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
-UNIV_INTERN
+UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
@@ -92,18 +89,26 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 /********************************************************************//**
-Frees a transaction object for MySQL. */
-UNIV_INTERN
-void
-trx_free_for_mysql(
-/*===============*/
-	trx_t*	trx);	/*!< in, own: trx object */
-/********************************************************************//**
 Frees a transaction object of a background operation of the master thread. */
 UNIV_INTERN
 void
 trx_free_for_background(
 /*====================*/
+	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	UNIV_COLD __attribute__((nonnull));
+/********************************************************************//**
+Frees a transaction object for MySQL. */
+UNIV_INTERN
+void
+trx_free_for_mysql(
+/*===============*/
 	trx_t*	trx);	/*!< in, own: trx object */
 /****************************************************************//**
 Creates trx objects for transactions and initializes the trx list of
@@ -233,7 +238,7 @@ trx_commit_step(
 
 /**********************************************************************//**
 Prints info about a transaction.
-Caller must hold trx_sys->lock. */
+Caller must hold trx_sys->mutex. */
 UNIV_INTERN
 void
 trx_print_low(
@@ -255,7 +260,7 @@ trx_print_low(
 
 /**********************************************************************//**
 Prints info about a transaction.
-The caller must hold lock_sys->mutex and trx_sys->lock.
+The caller must hold lock_sys->mutex and trx_sys->mutex.
 When possible, use trx_print() instead. */
 UNIV_INTERN
 void
@@ -269,7 +274,7 @@ trx_print_latched(
 
 /**********************************************************************//**
 Prints info about a transaction.
-Acquires and releases lock_sys->mutex and trx_sys->lock. */
+Acquires and releases lock_sys->mutex and trx_sys->mutex. */
 UNIV_INTERN
 void
 trx_print(
@@ -317,7 +322,7 @@ trx_set_dict_operation(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determines if a transaction is in the given state.
-The caller must hold trx_sys->lock, or it must be the thread
+The caller must hold trx_sys->mutex, or it must be the thread
 that is serving a running transaction.
 A running transaction must be in trx_sys->trx_list.
 @return	TRUE if trx->state == state */
@@ -334,7 +339,7 @@ trx_state_eq(
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
 Asserts that a transaction has been started.
-The caller must hold trx_sys->lock.
+The caller must hold trx_sys->mutex.
 @return TRUE if started */
 UNIV_INTERN
 ibool
@@ -448,12 +453,12 @@ struct trx_lock_struct {
 					hold lock_sys->mutex, except when
 					they are holding trx->mutex and
 					wait_lock==NULL */
-	ulint		deadlock_mark;	/*!< a mark field used in deadlock
-					checking algorithm. This is only
-					covered by the lock_sys->mutex. */
+	ib_uint64_t	deadlock_mark;	/*!< A mark field that is initialized
+					to and checked against lock_mark_counter
+					by lock_deadlock_recursive(). */
 	ibool		was_chosen_as_deadlock_victim;
 					/*!< when the transaction decides to
-				       	wait for a lock, it sets this to FALSE;
+					wait for a lock, it sets this to FALSE;
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE.
@@ -463,7 +468,7 @@ struct trx_lock_struct {
 
 	que_thr_t*	wait_thr;	/*!< query thread belonging to this
 					trx that is in QUE_THR_LOCK_WAIT
-				       	state. For threads suspended in a
+					state. For threads suspended in a
 					lock wait, this is protected by
 					lock_sys->mutex. Otherwise, this may
 					only be modified by the thread that is
@@ -478,6 +483,21 @@ struct trx_lock_struct {
 					insertions are protected by trx->mutex
 					and lock_sys->mutex; removals are
 					protected by lock_sys->mutex */
+
+	ib_vector_t*	table_locks;	/*!< All table locks requested by this
+					transaction, including AUTOINC locks */
+
+	ibool		cancel;		/*!< TRUE if the transaction is being
+					rolled back either via deadlock
+					detection or due to lock timeout. The
+					caller has to acquire the trx_t::mutex
+					in order to cancel the locks. In
+					lock_trx_table_locks_remove() we
+					check for this cancel of a transaction's
+					locks and avoid reacquiring the trx
+					mutex to prevent recursive deadlocks.
+					Protected by both the lock sys mutex
+					and the trx_t::mutex. */
 };
 
 #define TRX_MAGIC_N	91118598
@@ -510,15 +530,15 @@ so without holding any mutex. The following are exceptions to this:
 
 * trx_rollback_resurrected() may access resurrected (connectionless)
 transactions while the system is already processing new user
-transactions. The trx_sys->lock prevents a race condition between it
+transactions. The trx_sys->mutex prevents a race condition between it
 and lock_trx_release_locks() [invoked by trx_commit()].
 
 * trx_print_low() may access transactions not associated with the current
-thread. The caller must be holding trx_sys->lock and lock_sys->mutex.
+thread. The caller must be holding trx_sys->mutex and lock_sys->mutex.
 
 * When a transaction handle is in the trx_sys->mysql_trx_list or
 trx_sys->trx_list, some of its fields must not be modified without
-holding trx_sys->lock exclusively.
+holding trx_sys->mutex exclusively.
 
 * The locking code (in particular, lock_deadlock_recursive() and
 lock_rec_convert_impl_to_expl()) will access transactions associated
@@ -529,10 +549,9 @@ struct trx_struct{
 	ulint		magic_n;
 
 	mutex_t		mutex;		/*!< Mutex protecting the fields
-				       	state and lock
+					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
-
 	trx_state_t	state;		/*!< State of the trx from the point
 					of view of concurrency control:
 					TRX_STATE_NOT_STARTED (!in_trx_list),
@@ -544,7 +563,7 @@ struct trx_struct{
 					and ACTIVE->PREPARED->COMMITTED
 					are possible when trx->in_trx_list.
 					The transition ACTIVE->PREPARED is
-					not protected by any mutex.
+					protected by trx_sys->mutex.
 					The transitions ACTIVE->COMMITTED
 					and PREPARED->COMMITTED are protected
 					by lock_sys->mutex and trx->mutex.
@@ -552,7 +571,7 @@ struct trx_struct{
 					When trx->in_mysql_trx_list
 					but not trx->in_trx_list, only
 					the transition NOT_STARTED->ACTIVE
-					is possible, under trx_sys->lock.
+					is possible, under trx_sys->mutex.
 
 					Transitions to ACTIVE or NOT_STARTED
 					occur when !trx->in_trx_list. */
@@ -562,7 +581,7 @@ struct trx_struct{
 					or both */
 	ulint		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back,
-					protected by trx_sys->lock when
+					protected by trx_sys->mutex when
 					trx->in_trx_list holds */
 
 	/* These fields are not protected by any mutex. */
@@ -576,13 +595,13 @@ struct trx_struct{
 					set this FALSE */
 	/*------------------------------*/
 	/* MySQL has a transaction coordinator to coordinate two phase
-       	commit between multiple storage engines and the binary log. When
-       	an engine participates in a transaction, it's responsible for
-       	registering itself using the trans_register_ha() API. */
+	commit between multiple storage engines and the binary log. When
+	an engine participates in a transaction, it's responsible for
+	registering itself using the trans_register_ha() API. */
 	unsigned	is_registered:1;/* This flag is set to 1 after the
-				       	transaction has been registered with
-				       	the coordinator using the XA API, and
-				       	is set to 0 after commit or rollback. */
+					transaction has been registered with
+					the coordinator using the XA API, and
+					is set to 0 after commit or rollback. */
 	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
 					this is set to 1 then registered should
 					also be set to 1. This is used in the
@@ -608,10 +627,10 @@ struct trx_struct{
 					mutex. */
 	ulint		must_flush_log_later;/*!< this flag is set to TRUE in
 					trx_commit() if flush_log_later was
-				       	TRUE, and there were modifications by
-				       	the transaction; in that case we must
-				       	flush the log in
-				       	trx_commit_complete_for_mysql() */
+					TRUE, and there were modifications by
+					the transaction; in that case we must
+					flush the log in
+					trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	ulint		has_search_latch;
 					/*!< TRUE if this trx has latched the
@@ -649,7 +668,7 @@ struct trx_struct{
 					max trx id shortly before the
 					transaction is moved to
 					COMMITTED_IN_MEMORY state.
-					Protected by trx_sys_t::lock
+					Protected by trx_sys_t::mutex
 					when trx->in_trx_list. Initially
 					set to IB_ULONGLONG_MAX. */
 
@@ -660,7 +679,7 @@ struct trx_struct{
 	XID		xid;		/*!< X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
+	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					is TRUE, or 0. */
 	/*------------------------------*/
@@ -671,14 +690,10 @@ struct trx_struct{
 					contains a pointer to the latest file
 					name; this is NULL if binlog is not
 					used */
-	ib_int64_t	mysql_log_offset;/*!< if MySQL binlog is used, this
-					 field contains the end offset of the
-					 binlog entry */
-	os_thread_id_t	mysql_thread_id;/*!< id of the MySQL thread associated
-					with this transaction object */
-	ulint		mysql_process_no;/*!< since in Linux, 'top' reports
-					process id's and not thread id's, we
-					store the process number too */
+	ib_int64_t	mysql_log_offset;
+					/*!< if MySQL binlog is used, this
+					field contains the end offset of the
+					binlog entry */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /*!< number of Innobase tables
 					used in the processing of the current
@@ -690,13 +705,13 @@ struct trx_struct{
 	/*------------------------------*/
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/*!< list of transactions;
-					protected by trx_sys->lock */
+					protected by trx_sys->mutex */
 #ifdef UNIV_DEBUG
 	ibool		in_trx_list;	/*!< TRUE if in trx_sys->trx_list */
 #endif /* UNIV_DEBUG */
 	UT_LIST_NODE_T(trx_t)
 			mysql_trx_list;	/*!< list of transactions created for
-					MySQL; protected by trx_sys->lock */
+					MySQL; protected by trx_sys->mutex */
 #ifdef UNIV_DEBUG
 	ibool		in_mysql_trx_list;
 					/*!< TRUE if in
@@ -868,6 +883,24 @@ struct commit_node_struct{
 #define trx_mutex_exit(t) do {			\
 	mutex_exit(&t->mutex);			\
 } while (0)
+
+/** @brief The latch protecting the adaptive search system
+
+This latch protects the
+(1) hash index;
+(2) columns of a record to which we have a pointer in the hash index;
+
+but does NOT protect:
+
+(3) next record offset field in a record;
+(4) next or previous records on the same page.
+
+Bear in mind (3) and (4) when using the hash index.
+*/
+extern rw_lock_t*	btr_search_latch_temp;
+
+/** The latch protecting the adaptive search system */
+#define btr_search_latch	(*btr_search_latch_temp)
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

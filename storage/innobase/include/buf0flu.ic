@@ -35,7 +35,7 @@ buf_flush_insert_into_flush_list(
 /*=============================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	buf_block_t*	block,		/*!< in/out: block which is modified */
-	ib_uint64_t	lsn);		/*!< in: oldest modification */
+	lsn_t		lsn);		/*!< in: oldest modification */
 /********************************************************************//**
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
@@ -46,7 +46,7 @@ buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	buf_block_t*	block,		/*!< in/out: block which is modified */
-	ib_uint64_t	lsn);		/*!< in: oldest modification */
+	lsn_t		lsn);		/*!< in: oldest modification */
 
 /********************************************************************//**
 This function should be called at a mini-transaction commit, if a page was
@@ -70,7 +70,7 @@ buf_flush_note_modification(
 
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 	ut_ad(!buf_flush_list_mutex_own(buf_pool));
-	ut_ad(log_flush_order_mutex_own());
+	ut_ad(!mtr->made_dirty || log_flush_order_mutex_own());
 
 	ut_ad(mtr->start_lsn != 0);
 	ut_ad(mtr->modifications);
@@ -81,6 +81,8 @@ buf_flush_note_modification(
 	block->page.newest_modification = mtr->end_lsn;
 
 	if (!block->page.oldest_modification) {
+		ut_a(mtr->made_dirty);
+		ut_ad(log_flush_order_mutex_own());
 		buf_flush_insert_into_flush_list(
 			buf_pool, block, mtr->start_lsn);
 	} else {
@@ -99,9 +101,9 @@ void
 buf_flush_recv_note_modification(
 /*=============================*/
 	buf_block_t*	block,		/*!< in: block which is modified */
-	ib_uint64_t	start_lsn,	/*!< in: start lsn of the first mtr in a
+	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
 					set of mtr's */
-	ib_uint64_t	end_lsn)	/*!< in: end lsn of the last mtr in the
+	lsn_t		end_lsn)	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);

@@ -1,5 +1,4 @@
-/*
-   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; see the file COPYING. If not, write to the
-   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
-   MA  02110-1301  USA.
-*/
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* yaSSL internal source implements SSL supporting types not specified in the
  * draft along with type conversion functions.
@@ -72,6 +68,8 @@
 
 #endif // YASSL_PURE_C
 
+/* for the definition of get_tty_password() */
+#include <mysql/get_password.h>
 
 namespace yaSSL {
 
@@ -308,7 +306,7 @@ SSL::SSL(SSL_CTX* ctx)
             SetError(YasslError(err));
             return;
         }
-        else if (serverSide) {
+        else if (serverSide && !(ctx->GetCiphers().setSuites_)) {
             // remove RSA or DSA suites depending on cert key type
             ProtocolVersion pv = secure_.get_connection().version_;
             
@@ -1440,12 +1438,12 @@ void SSL_SESSION::CopyX509(X509* x)
 
     X509_NAME* issuer   = x->GetIssuer();
     X509_NAME* subject  = x->GetSubject();
-    ASN1_STRING* before = x->GetBefore();
-    ASN1_STRING* after  = x->GetAfter();
+    ASN1_TIME* before = x->GetBefore();
+    ASN1_TIME* after  = x->GetAfter();
 
     peerX509_ = NEW_YS X509(issuer->GetName(), issuer->GetLength(),
-        subject->GetName(), subject->GetLength(), (const char*) before->data,
-        before->length, (const char*) after->data, after->length);
+        subject->GetName(), subject->GetLength(),
+        before, after);
 }
 
 
@@ -1803,8 +1801,46 @@ bool SSL_METHOD::multipleProtocol() const
 }
 
 
+/** Implement a my_strdup replacement, so we can reuse get_password() */
+extern "C" char *yassl_mysql_strdup(const char *from, int)
+{
+  return from ? strdup(from) : NULL;
+}
+
+
+static int
+default_password_callback(char * buffer, int size_arg, int rwflag,
+                          void * /* unused: callback_data */)
+{
+  char *passwd;
+  size_t passwd_len, size= (size_t) size_arg;
+
+  passwd= ::yassl_mysql_get_tty_password_ext("Enter PEM pass phrase:", 
+                                             yassl_mysql_strdup);
+
+  if (!passwd)
+    return 0;
+
+  passwd_len= strlen(passwd);
+
+  if (!passwd_len)
+    return 0;
+
+  if (size > 0)
+  {
+    size_t result_len= size - 1 > passwd_len ? 
+      passwd_len : size - 1;
+    memcpy(buffer, passwd, result_len);
+    buffer[result_len]= 0;
+  }
+  free(passwd);
+  return passwd_len;
+}
+
+
 SSL_CTX::SSL_CTX(SSL_METHOD* meth) 
-    : method_(meth), certificate_(0), privateKey_(0), passwordCb_(0),
+    : method_(meth), certificate_(0), privateKey_(0), 
+      passwordCb_(default_password_callback),
       userData_(0), sessionCacheOff_(false), sessionCacheFlushOff_(false),
       verifyCallback_(0)
 {}
@@ -2378,9 +2414,10 @@ size_t X509_NAME::GetLength() const
 
 
 X509::X509(const char* i, size_t iSz, const char* s, size_t sSz,
-           const char* b, int bSz, const char* a, int aSz)
+           ASN1_STRING *b, ASN1_STRING *a)
     : issuer_(i, iSz), subject_(s, sSz),
-      beforeDate_(b, bSz), afterDate_(a, aSz)
+      beforeDate_((char *) b->data, b->length, b->type),
+      afterDate_((char *) a->data, a->length, a->type)
 {}
 
 
@@ -2396,13 +2433,13 @@ X509_NAME* X509::GetSubject()
 }
 
 
-ASN1_STRING* X509::GetBefore()
+ASN1_TIME* X509::GetBefore()
 {
     return beforeDate_.GetString();
 }
 
 
-ASN1_STRING* X509::GetAfter()
+ASN1_TIME* X509::GetAfter()
 {
     return afterDate_.GetString();
 }
@@ -2430,12 +2467,12 @@ ASN1_STRING* X509_NAME::GetEntry(int i)
 }
 
 
-StringHolder::StringHolder(const char* str, int sz)
+StringHolder::StringHolder(const char* str, int sz, byte type)
 {
     asnString_.length = sz;
     asnString_.data = NEW_YS byte[sz + 1];
     memcpy(asnString_.data, str, sz);
-    asnString_.type = 0;  // not used for now
+    asnString_.type = type;
 }
 
 
@@ -2567,14 +2604,3 @@ extern "C" void yaSSL_CleanUp()
     yaSSL::sessionsInstance = 0;
     yaSSL::errorsInstance = 0;
 }
-
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-namespace mySTL {
-template yaSSL::yassl_int_cpp_local1::SumData for_each<mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData>(mySTL::list<yaSSL::input_buffer*>::iterator, mySTL::list<yaSSL::input_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumData);
-template yaSSL::yassl_int_cpp_local1::SumBuffer for_each<mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer>(mySTL::list<yaSSL::output_buffer*>::iterator, mySTL::list<yaSSL::output_buffer*>::iterator, yaSSL::yassl_int_cpp_local1::SumBuffer);
-template mySTL::list<yaSSL::SSL_SESSION*>::iterator find_if<mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match>(mySTL::list<yaSSL::SSL_SESSION*>::iterator, mySTL::list<yaSSL::SSL_SESSION*>::iterator, yaSSL::yassl_int_cpp_local2::sess_match);
-template mySTL::list<yaSSL::ThreadError>::iterator find_if<mySTL::list<yaSSL::ThreadError>::iterator, yaSSL::yassl_int_cpp_local2::thr_match>(mySTL::list<yaSSL::ThreadError>::iterator, mySTL::list<yaSSL::ThreadError>::iterator, yaSSL::yassl_int_cpp_local2::thr_match);
-}
-#endif
-

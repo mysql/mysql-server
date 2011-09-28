@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* There may be prolems include all of theese. Try to test in
    configure with ones are needed? */
@@ -36,31 +37,19 @@
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-/*  This is needed for the definitions of bzero... on solaris */
-#if defined(HAVE_STRINGS_H)
-#include <strings.h>
-#endif
-
 /*  This is needed for the definitions of memcpy... on solaris */
 #if defined(HAVE_MEMORY_H) && !defined(__cplusplus)
 #include <memory.h>
 #endif
 
+#define bfill please_use_memset_rather_than_bfill()
+#define bzero please_use_memset_rather_than_bzero()
+
 #if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
 # define memcpy(d, s, n)	bcopy ((s), (d), (n))
-# define memset(A,C,B)		bfill((A),(B),(C))
 # define memmove(d, s, n)	bmove ((d), (s), (n))
 #elif defined(HAVE_MEMMOVE)
 # define bmove(d, s, n)		memmove((d), (s), (n))
-#endif
-
-/* Unixware 7 */
-#if !defined(HAVE_BFILL)
-# define bfill(A,B,C)           memset((A),(C),(B))
-#endif
-
-#if !defined(bzero) && !defined(HAVE_BZERO)
-# define bzero(A,B)             memset((A),0,(B))
 #endif
 
 #if defined(__cplusplus)

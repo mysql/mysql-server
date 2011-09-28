@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
 
 #ifndef _sql_cursor_h_
 #define _sql_cursor_h_
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                              /* gcc class interface */
-#endif
 
 #include "sql_class.h"                          /* Query_arena */
 
@@ -46,7 +42,7 @@ protected:
   select_result *result;
 public:
   Server_side_cursor(MEM_ROOT *mem_root_arg, select_result *result_arg)
-    :Query_arena(mem_root_arg, INITIALIZED), result(result_arg)
+    :Query_arena(mem_root_arg, STMT_INITIALIZED), result(result_arg)
   {}
 
   virtual bool is_open() const= 0;

@@ -18,6 +18,7 @@
 --source include/have_binlog_format_mixed.inc
 
 call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo
 
@@ -25,7 +26,7 @@ call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal 
 let $connect_retry= 20;
 
 --echo *** Preparing ***
---connection slave
+sync_slave_with_master;
 
 --disable_query_log
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
@@ -327,6 +328,8 @@ INSERT INTO t1 VALUES (1, 'on slave', NULL);
 --connection master
 INSERT INTO t1 VALUES (1, 'on master', NULL);
 --connection slave
+call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on query.* Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 let $slave_errno= ER_DUP_ENTRY
 --source include/wait_for_slave_sql_error.inc
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
