@@ -71,6 +71,13 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
 
   /* Build the Record Specification */
   specs[index].column = column;
+  
+  /* The CAS is manipulated using Record::getPointer() and must be aligned */
+  if(col_type == COL_STORE_CAS)  {
+    int bad_offset = rec_size % 8;
+    if(bad_offset) rec_size += (8 - bad_offset);
+  }
+  
   specs[index].offset = rec_size;  /* use the current record size */
   if(column->getNullable()) {
     specs[index].nullbit_byte_offset = n_nullable / 8;

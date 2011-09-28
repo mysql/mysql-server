@@ -884,9 +884,9 @@ void * S::Connection::run_ndb_poll_thread() {
         in_flight--;
         assert(in_flight >= 0);
         Ndb *db = ready_list[i];
-        db->pollNdb(0, 1);
         inst = (NdbInstance *) db->getCustomData();
         DEBUG_PRINT("Polling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
+        db->pollNdb(0, 1);
 
         if(inst->wqitem->base.reschedule) {
           DEBUG_PRINT("Rescheduling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);

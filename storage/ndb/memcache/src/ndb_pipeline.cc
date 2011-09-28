@@ -378,6 +378,7 @@ void init_allocator(ndb_pipeline *self) {
   if(workitem_class_id > 8) 
     malloc_new_slab(& self->alligator[workitem_class_id]);   /* for workitems */
   malloc_new_slab(& self->alligator[13]);  /* The 8KB class, for row buffers */
+  malloc_new_slab(& self->alligator[14]);  /* The 16KB class for 13K rows */
 }
 
 
