@@ -328,8 +328,9 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
   {
     for (int i= 0; i < n_subgroups; i++)
     {
-      Cached_subgroup *cs= get_unsafe_pointer(i);
-      DBUG_ASSERT(cs->type == ANONYMOUS_SUBGROUP || (cs->sidno > 0 && cs->gno > 0));
+      DBUG_ASSERT(get_unsafe_pointer(i)->type == ANONYMOUS_SUBGROUP || 
+                  (get_unsafe_pointer(i)->sidno > 0 && 
+                   get_unsafe_pointer(i)->gno > 0));
     }
   }
 #endif
