@@ -518,9 +518,6 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
 
 void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
-
-  assert(tx->getNdb()->getCustomData() == wqitem);
-
   ndb_pipeline * & pipeline = wqitem->pipeline;
   status_block * return_status;
   bool tx_did_match = false;
