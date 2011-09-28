@@ -191,17 +191,23 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
                             const struct timespec * abstime)
 {
 #ifdef NDB_WIN
+  /**
+   * mysys windows wrapper of pthread_cond_timedwait
+   *   does not have a const argument for the timespec
+   */
   struct timespec tmp = *abstime;
-  abstime = &tmp;
+  struct timespec * waitarg = &tmp;
+#else
+  const struct timespec * waitarg = abstime;
 #endif
 
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
 
 #ifdef NDB_MUTEX_STRUCT
-  return pthread_cond_timedwait(&p_cond->cond, &p_mutex->mutex, abstime);
+  return pthread_cond_timedwait(&p_cond->cond, &p_mutex->mutex, waitarg);
 #else
-  return pthread_cond_timedwait(&p_cond->cond, p_mutex, abstime);
+  return pthread_cond_timedwait(&p_cond->cond, p_mutex, waitarg);
 #endif
 }
 
