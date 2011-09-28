@@ -18,6 +18,9 @@
 #include "debug_sync.h"
 #include <hash.h>
 #include <mysqld_error.h>
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
+#include <mysql/psi/mysql_stage.h>
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_MDL_map_mutex;
@@ -51,20 +54,18 @@ static PSI_cond_info all_mdl_conds[]=
 */
 static void init_mdl_psi_keys(void)
 {
-  const char *category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_mdl_mutexes);
-  PSI_server->register_mutex(category, all_mdl_mutexes, count);
+  mysql_mutex_register("sql", all_mdl_mutexes, count);
 
   count= array_elements(all_mdl_rwlocks);
-  PSI_server->register_rwlock(category, all_mdl_rwlocks, count);
+  mysql_rwlock_register("sql", all_mdl_rwlocks, count);
 
   count= array_elements(all_mdl_conds);
-  PSI_server->register_cond(category, all_mdl_conds, count);
+  mysql_cond_register("sql", all_mdl_conds, count);
+
+  MDL_key::init_psi_keys();
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -74,17 +75,34 @@ static void init_mdl_psi_keys(void)
   belonging to certain namespace.
 */
 
-const char *MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
+PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
 {
-  "Waiting for global read lock",
-  "Waiting for schema metadata lock",
-  "Waiting for table metadata lock",
-  "Waiting for stored function metadata lock",
-  "Waiting for stored procedure metadata lock",
-  "Waiting for trigger metadata lock",
-  "Waiting for event metadata lock",
-  "Waiting for commit lock"
+  {0, "Waiting for global read lock", 0},
+  {0, "Waiting for schema metadata lock", 0},
+  {0, "Waiting for table metadata lock", 0},
+  {0, "Waiting for stored function metadata lock", 0},
+  {0, "Waiting for stored procedure metadata lock", 0},
+  {0, "Waiting for trigger metadata lock", 0},
+  {0, "Waiting for event metadata lock", 0},
+  {0, "Waiting for commit lock", 0}
 };
+
+#ifdef HAVE_PSI_INTERFACE
+void MDL_key::init_psi_keys()
+{
+  int i;
+  int count;
+  PSI_stage_info *info;
+
+  count= array_elements(MDL_key::m_namespace_to_wait_state_name);
+  for (i= 0; i<count; i++)
+  {
+    /* mysql_stage_register wants an array of pointers, registering 1 by 1. */
+    info= & MDL_key::m_namespace_to_wait_state_name[i];
+    mysql_stage_register("sql", &info, 1);
+  }
+}
+#endif
 
 static bool mdl_initialized= 0;
 
@@ -964,20 +982,25 @@ void MDL_wait::reset_status()
 
 MDL_wait::enum_wait_status
 MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
-                     bool set_status_on_timeout, const char *wait_state_name)
+                     bool set_status_on_timeout,
+                     const PSI_stage_info *wait_state_name)
 {
-  const char *old_msg;
+  PSI_stage_info old_stage;
   enum_wait_status result;
   int wait_result= 0;
 
   mysql_mutex_lock(&m_LOCK_wait_status);
 
-  old_msg= owner->enter_cond(&m_COND_wait_status, &m_LOCK_wait_status,
-                             wait_state_name);
+  owner->ENTER_COND(&m_COND_wait_status, &m_LOCK_wait_status,
+                    wait_state_name, & old_stage);
+  thd_wait_begin(NULL, THD_WAIT_META_DATA_LOCK);
   while (!m_wait_status && !owner->is_killed() &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
+  {
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
+  }
+  thd_wait_end(NULL);
 
   if (m_wait_status == EMPTY)
   {
@@ -1000,7 +1023,7 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   }
   result= m_wait_status;
 
-  owner->exit_cond(old_msg);
+  owner->EXIT_COND(& old_stage);
 
   return result;
 }

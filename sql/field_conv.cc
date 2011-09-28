@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -86,7 +86,7 @@ static void do_field_to_null_str(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
   {
-    bzero(copy->to_ptr,copy->from_length);
+    memset(copy->to_ptr, 0, copy->from_length);
     copy->to_null_ptr[0]=1;			// Always bit 1
   }
   else
@@ -102,7 +102,7 @@ static void do_outer_field_to_null_str(Copy_field *copy)
   if (*copy->null_row ||
       (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
-    bzero(copy->to_ptr,copy->from_length);
+    memset(copy->to_ptr, 0, copy->from_length);
     copy->to_null_ptr[0]=1;			// Always bit 1
   }
   else
@@ -125,7 +125,7 @@ set_field_to_null(Field *field)
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    field->set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
     return 0;
@@ -178,7 +178,10 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     ((Field_timestamp*) field)->set_time();
     return 0;					// Ok to set time to NULL
   }
+  
+  // Note: we ignore any potential failure of reset() here.
   field->reset();
+
   if (field == field->table->next_number_field)
   {
     field->table->auto_increment_field_not_null= FALSE;
@@ -186,7 +189,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   }
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
+    field->set_warning(Sql_condition::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
     return 0;
@@ -240,7 +243,7 @@ static void do_copy_not_null(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
   {
-    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                 WARN_DATA_TRUNCATED, 1);
     copy->to_field->reset();
   }
@@ -373,7 +376,7 @@ static void do_field_decimal(Copy_field *copy)
 
 static void do_cut_string(Copy_field *copy)
 {
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->to_length);
 
   /* Check if we loosed any important characters */
@@ -382,7 +385,7 @@ static void do_cut_string(Copy_field *copy)
                      (char*) copy->from_ptr + copy->from_length,
                      MY_SEQ_SPACES) < copy->from_length - copy->to_length)
   {
-    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                 WARN_DATA_TRUNCATED, 1);
   }
 }
@@ -396,7 +399,7 @@ static void do_cut_string(Copy_field *copy)
 static void do_cut_string_complex(Copy_field *copy)
 {						// Shorter string field
   int well_formed_error;
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   const uchar *from_end= copy->from_ptr + copy->from_length;
   uint copy_length= cs->cset->well_formed_len(cs,
                                               (char*) copy->from_ptr,
@@ -413,7 +416,7 @@ static void do_cut_string_complex(Copy_field *copy)
                      (char*) from_end,
                      MY_SEQ_SPACES) < (copy->from_length - copy_length))
   {
-    copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                 WARN_DATA_TRUNCATED, 1);
   }
 
@@ -427,7 +430,7 @@ static void do_cut_string_complex(Copy_field *copy)
 
 static void do_expand_binary(Copy_field *copy)
 {
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
   cs->cset->fill(cs, (char*) copy->to_ptr+copy->from_length,
                      copy->to_length-copy->from_length, '\0');
@@ -437,7 +440,7 @@ static void do_expand_binary(Copy_field *copy)
 
 static void do_expand_string(Copy_field *copy)
 {
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
   cs->cset->fill(cs, (char*) copy->to_ptr+copy->from_length,
                      copy->to_length-copy->from_length, ' ');
@@ -451,7 +454,7 @@ static void do_varstring1(Copy_field *copy)
   {
     length=copy->to_length - 1;
     if (copy->from_field->table->in_use->count_cuted_fields)
-      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
   *(uchar*) copy->to_ptr= (uchar) length;
@@ -462,7 +465,7 @@ static void do_varstring1(Copy_field *copy)
 static void do_varstring1_mb(Copy_field *copy)
 {
   int well_formed_error;
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   uint from_length= (uint) *(uchar*) copy->from_ptr;
   const uchar *from_ptr= copy->from_ptr + 1;
   uint to_char_length= (copy->to_length - 1) / cs->mbmaxlen;
@@ -472,7 +475,7 @@ static void do_varstring1_mb(Copy_field *copy)
   if (length < from_length)
   {
     if (current_thd->count_cuted_fields)
-      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
   *copy->to_ptr= (uchar) length;
@@ -487,7 +490,7 @@ static void do_varstring2(Copy_field *copy)
   {
     length=copy->to_length-HA_KEY_BLOB_LENGTH;
     if (copy->from_field->table->in_use->count_cuted_fields)
-      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
   int2store(copy->to_ptr,length);
@@ -499,7 +502,7 @@ static void do_varstring2(Copy_field *copy)
 static void do_varstring2_mb(Copy_field *copy)
 {
   int well_formed_error;
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   uint char_length= (copy->to_length - HA_KEY_BLOB_LENGTH) / cs->mbmaxlen;
   uint from_length= uint2korr(copy->from_ptr);
   const uchar *from_beg= copy->from_ptr + HA_KEY_BLOB_LENGTH;
@@ -509,7 +512,7 @@ static void do_varstring2_mb(Copy_field *copy)
   if (length < from_length)
   {
     if (current_thd->count_cuted_fields)
-      copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }  
   int2store(copy->to_ptr, length);

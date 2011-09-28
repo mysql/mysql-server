@@ -1,11 +1,6 @@
 eval CREATE USER testuser@'$IPv6' identified by '1234';
 eval GRANT ALL ON test.* TO testuser@'$IPv6';
 eval SHOW GRANTS FOR testuser@'$IPv6';
-# deliver NULL instead of a valid number, see bug#34037
-eval SET @nip= inet_aton('$IPv6');
-SELECT @nip;
-SELECT inet_ntoa(@nip);
-# delivers a wrong value, see bug#34037
 --replace_result ::1 localhost
 SELECT USER();
 --replace_result ::1 localhost

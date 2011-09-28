@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include <m_string.h>
@@ -110,8 +110,11 @@ int main(void)
   test1("Positional arguments octal: <7777>",
         "Positional arguments octal: <%1$o>", 07777);
 
+  /* Can't use int arguments, as they may be different size from pointers */
+
   test1("Padding and %p <0x12> <0x034> <0x0000ab> <    0xcd>",
-        "Padding and %%p <%04p> <%05p> <%08p> <%8p>", 0x12, 0x34, 0xab, 0xcd);
+        "Padding and %%p <%04p> <%05p> <%08p> <%8p>",
+        (void*) 0x12, (void*) 0x34, (void*) 0xab, (void*) 0xcd);
 
   test1("F with a width (ignored) and precision: <12.34568>",
         "F with a width (ignored) and precision: <%10.5f>", 12.3456789);

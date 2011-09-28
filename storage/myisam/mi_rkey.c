@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Read record based on a key */
 
@@ -193,7 +193,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   /* Store last used key as a base for read next */
   memcpy(info->lastkey,key_buff,pack_key_length);
   info->last_rkey_length= pack_key_length;
-  bzero((char*) info->lastkey+pack_key_length,info->s->base.rec_reflength);
+  memset(info->lastkey+pack_key_length, 0, info->s->base.rec_reflength);
   info->lastkey_length=pack_key_length+info->s->base.rec_reflength;
 
   if (search_flag == HA_READ_AFTER_KEY)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
 
@@ -378,10 +378,6 @@
 #include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                          // gcc: Class implementation
-#endif
-
 #include "ha_federated.h"
 #include "probes_mysql.h"
 
@@ -445,11 +441,8 @@ static void init_federated_psi_keys(void)
   const char* category= "federated";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_federated_mutexes);
-  PSI_server->register_mutex(category, all_federated_mutexes, count);
+  mysql_mutex_register(category, all_federated_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -905,7 +898,7 @@ ha_federated::ha_federated(handlerton *hton,
   mysql(0), stored_result(0)
 {
   trx_next= 0;
-  bzero(&bulk_insert, sizeof(bulk_insert));
+  memset(&bulk_insert, 0, sizeof(bulk_insert));
 }
 
 
@@ -3481,6 +3474,7 @@ mysql_declare_plugin(federated)
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;

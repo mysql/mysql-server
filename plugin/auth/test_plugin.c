@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -146,7 +146,8 @@ mysql_declare_plugin(test_plugin)
   0x0100,
   NULL,
   NULL,
-  NULL
+  NULL,
+  0,
 },
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -160,7 +161,8 @@ mysql_declare_plugin(test_plugin)
   0x0100,
   NULL,
   NULL,
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

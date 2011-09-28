@@ -71,6 +71,13 @@ source include/wait_for_slave_io_error.inc;
 # now to avoid restarting IO-thread to re-enter it.
 # There will be a new IO thread forked out with its @@session.debug
 # unset.
+
+#
+# Note, due to # Bug#11765758 - 58754
+# make sure the slave threads stand still (SQL thread in this context)
+# while @@global.debug is being updated.
+#
+
 eval set @@global.debug = "-d,$dbug_sync_point";
 
 --let $rpl_server_number= 1

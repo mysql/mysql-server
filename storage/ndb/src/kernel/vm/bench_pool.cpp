@@ -98,7 +98,7 @@ test_pool(R& pool, Uint32 cnt, Uint32 loops)
 {
   Ptr<T> ptr;
   Uint32 *arr = (Uint32*)alloca(cnt * sizeof(Uint32));
-  bzero(arr, cnt * sizeof(Uint32));
+  memset(arr, 0, cnt * sizeof(Uint32));
   if (tests & T_SEIZE)
   {
     Uint64 sum = 0;

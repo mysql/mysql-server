@@ -1,0 +1,122 @@
+#
+# BUG#60111 storage type for table not saved in .frm
+#
+
+#
+# Check that the table options for TABLESPACE and STORAGE
+# are printed in SHOW CREATE TABLE
+#
+
+# TABLESPACE only
+CREATE TABLE t1(a int) TABLESPACE ts ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# TABLESPACE + STORAGE DISK
+CREATE TABLE t1(a int) TABLESPACE ts STORAGE DISK ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# TABLESPACE + STORAGE MEMORY
+CREATE TABLE t1(a int) TABLESPACE ts STORAGE MEMORY ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# STORAGE MEMORY only
+CREATE TABLE t1(a int) STORAGE MEMORY ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# STORAGE DISK only
+CREATE TABLE t1(a int) STORAGE DISK ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
+# Check that the table options for TABLESPACE and STORAGE
+# are kept in an ALTER
+#
+
+# TABLESPACE only
+CREATE TABLE t1(a int) TABLESPACE ts ENGINE=MyISAM;
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# TABLESPACE and STORAGE DISK
+CREATE TABLE t1(a int) TABLESPACE ts STORAGE DISK ENGINE=MyISAM;
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+#
+# Check that the table options for TABLESPACE and STORAGE
+# can be changed with an ALTER
+#
+
+# TABLESPACE only
+CREATE TABLE t1(a int) ENGINE=MyISAM;
+
+ALTER TABLE t1 TABLESPACE ts;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 TABLESPACE ts2;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+# STORAGE only
+CREATE TABLE t1(a int) ENGINE=MyISAM;
+
+ALTER TABLE t1 STORAGE MEMORY;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 STORAGE DISK;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+# TABLESPACE and STORAGE
+CREATE TABLE t1(a int) ENGINE=MyISAM;
+
+ALTER TABLE t1 STORAGE MEMORY TABLESPACE ts;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 STORAGE DISK TABLESPACE ts2;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+#
+# Check that it's possible to read a .frm fle created
+# by MySQL Cluster 7.0(which introduced the new "format
+# section) with this statement:
+#
+# CREATE TABLE cluster_7022_table
+# (
+#   a int primary key,
+#   b int,
+#   c int STORAGE DISK,
+#   d int STORAGE MEMORY NOT NULL,
+#   e int COLUMN_FORMAT DYNAMIC,
+#   f int COLUMN_FORMAT FIXED,
+#   g int COLUMN_FORMAT DEFAULT,
+#   h int STORAGE DISK COLUMN_FORMAT DYNAMIC NOT NULL,
+#   i int STORAGE MEMORY COLUMN_FORMAT DYNAMIC,
+#   j int STORAGE DISK COLUMN_FORMAT FIXED,
+#   k int STORAGE MEMORY COLUMN_FORMAT FIXED
+# ) STORAGE DISK TABLESPACE the_tablespacename ENGINE=MyISAM;
+#
+# NOTE! The column level properties will not yet show up
+# in SHOW CREATE TABLE of MySQL Server(although they are
+# visible in .trace file)
+#
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+copy_file std_data/cluster_7022_table.frm $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/cluster_7022_table.MYD $MYSQLD_DATADIR/test/t1.MYD;
+copy_file std_data/cluster_7022_table.MYI $MYSQLD_DATADIR/test/t1.MYI;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

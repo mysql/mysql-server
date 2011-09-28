@@ -57,16 +57,18 @@ dict_mem_fill_index_struct(
 		index->fields = NULL;
 	}
 
-        index->type = type;
+	/* Assign a ulint to a 4-bit-mapped field.
+	Only the low-order 4 bits are assigned. */
+	index->type = type;
 #ifndef UNIV_HOTBACKUP
-        index->space = (unsigned int) space;
-        index->page = FIL_NULL;
+	index->space = (unsigned int) space;
+	index->page = FIL_NULL;
 #endif /* !UNIV_HOTBACKUP */
-        index->table_name = table_name;
-        index->n_fields = (unsigned int) n_fields;
-        /* The '1 +' above prevents allocation
-        of an empty mem block */
+	index->table_name = table_name;
+	index->n_fields = (unsigned int) n_fields;
+	/* The '1 +' above prevents allocation
+	of an empty mem block */
 #ifdef UNIV_DEBUG
-        index->magic_n = DICT_INDEX_MAGIC_N;
+	index->magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
 }

@@ -847,8 +847,7 @@ CALL mtr.add_suppression("Out of sort memory");
 --error ER_OUT_OF_SORTMEMORY
 select * from t1 order by b;
 drop table t1;
-
-
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 --echo #
 --echo # Bug #39844: Query Crash Mysql Server 5.0.67
 --echo #
@@ -1706,6 +1705,13 @@ EXPLAIN SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
 SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#11765255 58201:
+--echo # VALGRIND/CRASH WHEN ORDERING BY MULTIPLE AGGREGATE FUNCTIONS
+--echo #
+
+select 1 order by max(1) + min(1);
 
 --echo End of 5.1 tests
 

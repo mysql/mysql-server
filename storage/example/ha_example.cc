@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file ha_example.cc
@@ -87,10 +87,6 @@
     -Brian
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation        // gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "ha_example.h"
@@ -140,11 +136,8 @@ static void init_example_psi_keys()
   const char* category= "example";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_example_mutexes);
-  PSI_server->register_mutex(category, all_example_mutexes, count);
+  mysql_mutex_register(category, all_example_mutexes, count);
 }
 #endif
 
@@ -984,7 +977,7 @@ static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
   my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
-              "enum_var is %u, ulong_var is %lu, %.6b", // %b is MySQL extension
+              "enum_var is %lu, ulong_var is %lu, %.6b", // %b is MySQL extension
               srv_enum_var, srv_ulong_var, "really");
   return 0;
 }
@@ -1008,6 +1001,7 @@ mysql_declare_plugin(example)
   0x0001 /* 0.1 */,
   func_status,                                  /* status variables */
   example_system_variables,                     /* system variables */
-  NULL                                          /* config options */
+  NULL,                                         /* config options */
+  0,                                            /* flags */
 }
 mysql_declare_plugin_end;

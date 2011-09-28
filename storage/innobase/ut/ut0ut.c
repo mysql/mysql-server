@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle Corpn. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -24,6 +24,7 @@ Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
 #include "ut0ut.h"
+#include "ut0sort.h"
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
@@ -92,26 +93,6 @@ ut_gettimeofday(
 reimplement this function. */
 #define	ut_gettimeofday		gettimeofday
 #endif
-
-/********************************************************//**
-Gets the high 32 bits in a ulint. That is makes a shift >> 32,
-but since there seem to be compiler bugs in both gcc and Visual C++,
-we do this by a special conversion.
-@return	a >> 32 */
-UNIV_INTERN
-ulint
-ut_get_high32(
-/*==========*/
-	ulint	a)	/*!< in: ulint */
-{
-	ib_int64_t	i;
-
-	i = (ib_int64_t)a;
-
-	i = i >> 32;
-
-	return((ulint)i);
-}
 
 /**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
@@ -245,16 +226,16 @@ ut_print_timestamp(
 		(int)cal_tm.wMinute,
 		(int)cal_tm.wSecond);
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
@@ -288,16 +269,16 @@ ut_sprintf_timestamp(
 		(int)cal_tm.wMinute,
 		(int)cal_tm.wSecond);
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
@@ -333,16 +314,16 @@ ut_sprintf_timestamp_without_extra_chars(
 		(int)cal_tm.wMinute,
 		(int)cal_tm.wSecond);
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
@@ -374,16 +355,16 @@ ut_get_year_month_day(
 	*month = (ulint)cal_tm.wMonth;
 	*day = (ulint)cal_tm.wDay;
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	*year = (ulint)cal_tm_ptr->tm_year + 1900;
@@ -452,6 +433,21 @@ ut_print_buf(
 	}
 
 	putc(';', file);
+}
+
+/**********************************************************************//**
+Sort function for ulint arrays. */
+UNIV_INTERN
+void
+ut_ulint_sort(
+/*==========*/
+	ulint*	arr,		/*!< in/out: array to sort */
+	ulint*	aux_arr,	/*!< in/out: aux array to use in sort */
+	ulint	low,		/*!< in: lower bound */
+	ulint	high)		/*!< in: upper bound */
+{
+	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
+			      ut_ulint_cmp);
 }
 
 /*************************************************************//**
@@ -579,6 +575,26 @@ ut_copy_file(
 #ifdef __WIN__
 # include <stdarg.h>
 /**********************************************************************//**
+A substitute for vsnprintf(3), formatted output conversion into
+a limited buffer. Note: this function DOES NOT return the number of
+characters that would have been printed if the buffer was unlimited because
+VC's _vsnprintf() returns -1 in this case and we would need to call
+_vscprintf() in addition to estimate that but we would need another copy
+of "ap" for that and VC does not provide va_copy(). */
+UNIV_INTERN
+void
+ut_vsnprintf(
+/*=========*/
+	char*		str,	/*!< out: string */
+	size_t		size,	/*!< in: str size */
+	const char*	fmt,	/*!< in: format */
+	va_list		ap)	/*!< in: format values */
+{
+	_vsnprintf(str, size, fmt, ap);
+	str[size - 1] = '\0';
+}
+
+/**********************************************************************//**
 A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
 @return number of characters that would have been printed if the size
@@ -662,6 +678,8 @@ ut_strerr(
 		return("Table is being used");
 	case DB_TOO_BIG_RECORD:
 		return("Record too big");
+	case DB_TOO_BIG_INDEX_COL:
+		return("Index columns size too big");
 	case DB_LOCK_WAIT_TIMEOUT:
 		return("Lock wait timeout");
 	case DB_NO_REFERENCED_ROW:
@@ -672,8 +690,6 @@ ut_strerr(
 		return("Cannot add constraint");
 	case DB_CORRUPTION:
 		return("Data structure corruption");
-	case DB_COL_APPEARS_TWICE_IN_INDEX:
-		return("Column appears twice in index");
 	case DB_CANNOT_DROP_CONSTRAINT:
 		return("Cannot drop constraint");
 	case DB_NO_SAVEPOINT:
@@ -712,6 +728,10 @@ ut_strerr(
 		return("No index on referencing keys in referencing table");
 	case DB_PARENT_NO_INDEX:
 		return("No index on referenced keys in referenced table");
+	case DB_INDEX_CORRUPT:
+		return("Index corrupted");
+	case DB_UNDO_RECORD_TOO_BIG:
+		return("Undo record too big");
 	case DB_END_OF_INDEX:
 		return("End of index");
 	case DB_DATA_MISMATCH:

@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Analog of DYNAMIC_ARRAY that never reallocs
@@ -42,7 +42,7 @@
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {
-  bzero(array, sizeof(*array));
+  memset(array, 0, sizeof(*array));
   array->size_of_element= element_size;
   my_atomic_rwlock_init(&array->lock);
 }

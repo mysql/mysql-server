@@ -74,6 +74,8 @@ extern ulint	os_n_pending_writes;
 
 #endif
 
+/** File offset in bytes */
+typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
 /** File handle */
 # define os_file_t	HANDLE
@@ -102,14 +104,28 @@ log. */
 
 #define OS_FILE_LOG_BLOCK_SIZE		512
 
-/** Options for file_create @{ */
-#define	OS_FILE_OPEN			51
-#define	OS_FILE_CREATE			52
-#define OS_FILE_OVERWRITE		53
-#define OS_FILE_OPEN_RAW		54
-#define	OS_FILE_CREATE_PATH		55
-#define	OS_FILE_OPEN_RETRY		56	/* for os_file_create() on
-						the first ibdata file */
+/** Options for os_file_create_func @{ */
+typedef enum os_file_create_enum {
+	OS_FILE_OPEN = 51,		/*!< to open an existing file (if
+					doesn't exist, error) */
+	OS_FILE_CREATE,			/*!< to create new file (if
+					exists, error) */
+	OS_FILE_OVERWRITE,		/*!< to create a new file, if exists
+					the overwrite old file */
+	OS_FILE_OPEN_RAW,		/*!< to open a raw device or disk
+					partition */
+	OS_FILE_CREATE_PATH,		/*!< to create the directories */
+	OS_FILE_OPEN_RETRY,		/*!< open with retry */
+
+	/** Flags that can be combined with the above values. Please ensure
+	that the above values stay below 128. */
+
+	OS_FILE_ON_ERROR_NO_EXIT = 128,	/*!< do not exit on unknown errors */
+	OS_FILE_ON_ERROR_SILENT = 256	/*!< don't print diagnostic messages to
+					the log unless it is a fatal error,
+					this flag is only used if
+					ON_ERROR_NO_EXIT is set */
+} os_file_create_t;
 
 #define OS_FILE_READ_ONLY		333
 #define	OS_FILE_READ_WRITE		444
@@ -204,20 +220,18 @@ used to register actual file read, write and flush */
 # define register_pfs_file_open_begin(state, locker, key, op, name,	\
 				      src_file, src_line)		\
 do {									\
-	if (PSI_server) {						\
-		locker = PSI_server->get_thread_file_name_locker(	\
-			state, key, op, name, &locker);			\
-		if (locker) {						\
-			PSI_server->start_file_open_wait(		\
-				locker, src_file, src_line);		\
-		}							\
+	locker = PSI_CALL(get_thread_file_name_locker)(			\
+		state, key, op, name, &locker);				\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_CALL(start_file_open_wait)(				\
+			locker, src_file, src_line);			\
 	}								\
 } while (0)
 
 # define register_pfs_file_open_end(locker, file)			\
 do {									\
-	if (locker) {							\
-		PSI_server->end_file_open_wait_and_bind_to_descriptor(	\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_CALL(end_file_open_wait_and_bind_to_descriptor)(	\
 			locker, file);					\
 	}								\
 } while (0)
@@ -225,20 +239,18 @@ do {									\
 # define register_pfs_file_io_begin(state, locker, file, count, op,	\
 				    src_file, src_line)			\
 do {									\
-	if (PSI_server) {						\
-		locker = PSI_server->get_thread_file_descriptor_locker(	\
-			state, file, op);				\
-		if (locker) {						\
-			PSI_server->start_file_wait(			\
-				locker, count, src_file, src_line);	\
-		}							\
+	locker = PSI_CALL(get_thread_file_descriptor_locker)(		\
+		state, file, op);					\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_CALL(start_file_wait)(				\
+			locker, count, src_file, src_line);		\
 	}								\
 } while (0)
 
 # define register_pfs_file_io_end(locker, count)			\
 do {									\
-	if (locker) {							\
-		PSI_server->end_file_wait(locker, count);		\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_CALL(end_file_wait)(locker, count);			\
 	}								\
 } while (0)
 #endif /* UNIV_PFS_IO  */
@@ -276,24 +288,20 @@ The wrapper functions have the prefix of "innodb_". */
 # define os_file_close(file)						\
 	pfs_os_file_close_func(file, __FILE__, __LINE__)
 
-# define os_aio(type, mode, name, file, buf, offset, offset_high,	\
+# define os_aio(type, mode, name, file, buf, offset,			\
 		n, message1, message2)					\
 	pfs_os_aio_func(type, mode, name, file, buf, offset,		\
-			offset_high, n, message1, message2,		\
-			__FILE__, __LINE__)
+			n, message1, message2, __FILE__, __LINE__)
 
-# define os_file_read(file, buf, offset, offset_high, n)		\
-	pfs_os_file_read_func(file, buf, offset, offset_high, n,	\
-			      __FILE__, __LINE__)
+# define os_file_read(file, buf, offset, n)				\
+	pfs_os_file_read_func(file, buf, offset, n, __FILE__, __LINE__)
 
-# define os_file_read_no_error_handling(file, buf, offset,		\
-					offset_high, n)			\
-	pfs_os_file_read_no_error_handling_func(file, buf, offset,	\
-						offset_high, n,		\
+# define os_file_read_no_error_handling(file, buf, offset, n)		\
+	pfs_os_file_read_no_error_handling_func(file, buf, offset, n,	\
 						__FILE__, __LINE__)
 
-# define os_file_write(name, file, buf, offset, offset_high, n)		\
-	pfs_os_file_write_func(name, file, buf, offset, offset_high,	\
+# define os_file_write(name, file, buf, offset, n)	\
+	pfs_os_file_write_func(name, file, buf, offset,	\
 			       n, __FILE__, __LINE__)
 
 # define os_file_flush(file)						\
@@ -308,7 +316,7 @@ to original un-instrumented file I/O APIs */
 # define os_file_create(key, name, create, purpose, type, success)	\
 	os_file_create_func(name, create, purpose, type, success)
 
-# define os_file_create_simple(key, name, create, access, success)	\
+# define os_file_create_simple(key, name, create_mode, access, success)	\
 	os_file_create_simple_func(name, create_mode, access, success)
 
 # define os_file_create_simple_no_error_handling(			\
@@ -318,20 +326,18 @@ to original un-instrumented file I/O APIs */
 
 # define os_file_close(file)	os_file_close_func(file)
 
-# define os_aio(type, mode, name, file, buf, offset, offset_high,	\
-	       n, message1, message2)					\
-	os_aio_func(type, mode, name, file, buf, offset, offset_high, n,\
+# define os_aio(type, mode, name, file, buf, offset, n, message1, message2) \
+	os_aio_func(type, mode, name, file, buf, offset, n,		\
 		    message1, message2)
 
-# define os_file_read(file, buf, offset, offset_high, n)		\
-	os_file_read_func(file, buf, offset, offset_high, n)
+# define os_file_read(file, buf, offset, n)	\
+	os_file_read_func(file, buf, offset, n)
 
-# define os_file_read_no_error_handling(file, buf, offset,		\
-				       offset_high, n)			\
-	os_file_read_no_error_handling_func(file, buf, offset, offset_high, n)
+# define os_file_read_no_error_handling(file, buf, offset, n)		\
+	os_file_read_no_error_handling_func(file, buf, offset, n)
 
-# define os_file_write(name, file, buf, offset, offset_high, n)		\
-	os_file_write_func(name, file, buf, offset, offset_high, n)
+# define os_file_write(name, file, buf, offset, n)			\
+	os_file_write_func(name, file, buf, offset, n)
 
 # define os_file_flush(file)	os_file_flush_func(file)
 
@@ -461,13 +467,8 @@ os_file_create_simple_func(
 /*=======================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file is
-				opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error), or
-				OS_FILE_CREATE_PATH if new file
-				(if exists, error) and subdirectories along
-				its path are created (if needed)*/
+	os_file_create_t
+			create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
@@ -483,15 +484,14 @@ os_file_create_simple_no_error_handling_func(
 /*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
-				is opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error) */
+	os_file_create_t
+			create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
-	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
+	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
+	__attribute__((nonnull, warn_unused_result));
 /****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
 UNIV_INTERN
@@ -515,14 +515,8 @@ os_file_create_func(
 /*================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
-				is opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error),
-				OS_FILE_OVERWRITE if a new file is created
-				or an old overwritten;
-				OS_FILE_OPEN_RAW, if a raw device or disk
-				partition should be opened */
+	os_file_create_t
+			create_mode,/*!< in: create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;
@@ -531,7 +525,8 @@ os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
-	ibool*		success);/*!< out: TRUE if succeed, FALSE if error */
+	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
@@ -539,7 +534,8 @@ UNIV_INTERN
 ibool
 os_file_delete(
 /*===========*/
-	const char*	name);	/*!< in: file path as a null-terminated string */
+	const char*	name);	/*!< in: file path as a null-terminated
+				string */
 
 /***********************************************************************//**
 Deletes a file if it exists. The file has to be closed before calling this.
@@ -548,7 +544,8 @@ UNIV_INTERN
 ibool
 os_file_delete_if_exists(
 /*=====================*/
-	const char*	name);	/*!< in: file path as a null-terminated string */
+	const char*	name);	/*!< in: file path as a null-terminated
+				string */
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_rename(), not directly
 this function!
@@ -589,18 +586,14 @@ pfs_os_file_create_simple_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file is
-				opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error), or
-				OS_FILE_CREATE_PATH if new file
-				(if exists, error) and subdirectories along
-				its path are created (if needed)*/
+	os_file_create_t
+			create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
-	ulint		src_line);/*!< in: line where the func invoked */
+	ulint		src_line)/*!< in: line where the func invoked */
+	__attribute__((nonnull, warn_unused_result));
 
 /****************************************************************//**
 NOTE! Please use the corresponding macro
@@ -617,17 +610,16 @@ pfs_os_file_create_simple_no_error_handling_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
-				is opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error) */
+	os_file_create_t
+			create_mode, /*!< in: file create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
 	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
-	ulint		src_line);/*!< in: line where the func invoked */
+	ulint		src_line)/*!< in: line where the func invoked */
+	__attribute__((nonnull, warn_unused_result));
 
 /****************************************************************//**
 NOTE! Please use the corresponding macro os_file_create(), not directly
@@ -643,14 +635,8 @@ pfs_os_file_create_func(
 	mysql_pfs_key_t key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
-				is opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error),
-				OS_FILE_OVERWRITE if a new file is created
-				or an old overwritten;
-				OS_FILE_OPEN_RAW, if a raw device or disk
-				partition should be opened */
+	os_file_create_t
+			create_mode,/*!< in: file create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;
@@ -661,7 +647,8 @@ pfs_os_file_create_func(
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
-	ulint		src_line);/*!< in: line where the func invoked */
+	ulint		src_line)/*!< in: line where the func invoked */
+	__attribute__((nonnull, warn_unused_result));
 
 /***********************************************************************//**
 NOTE! Please use the corresponding macro os_file_close(), not directly
@@ -687,10 +674,7 @@ pfs_os_file_read_func(
 /*==================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
@@ -708,10 +692,7 @@ pfs_os_file_read_no_error_handling_func(
 /*====================================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
@@ -733,10 +714,7 @@ pfs_os_aio_func(
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read or write */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
@@ -762,10 +740,7 @@ pfs_os_file_write_func(
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
 	const void*	buf,	/*!< in: buffer from which to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to write */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n,	/*!< in: number of bytes to write */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
@@ -814,23 +789,13 @@ os_file_close_no_error_handling(
 #endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
-@return	TRUE if success */
+@return	file size, or (os_offset_t) -1 on failure */
 UNIV_INTERN
-ibool
+os_offset_t
 os_file_get_size(
 /*=============*/
-	os_file_t	file,	/*!< in: handle to a file */
-	ulint*		size,	/*!< out: least significant 32 bits of file
-				size */
-	ulint*		size_high);/*!< out: most significant 32 bits of size */
-/***********************************************************************//**
-Gets file size as a 64-bit integer ib_int64_t.
-@return	size in bytes, -1 if error */
-UNIV_INTERN
-ib_int64_t
-os_file_get_size_as_iblonglong(
-/*===========================*/
-	os_file_t	file);	/*!< in: handle to a file */
+	os_file_t	file)	/*!< in: handle to a file */
+	__attribute__((warn_unused_result));
 /***********************************************************************//**
 Write the specified number of zeros to a newly created file.
 @return	TRUE if success */
@@ -841,9 +806,8 @@ os_file_set_size(
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
-	ulint		size,	/*!< in: least significant 32 bits of file
-				size */
-	ulint		size_high);/*!< in: most significant 32 bits of size */
+	os_offset_t	size)	/*!< in: file size */
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Truncates a file at its current position.
 @return	TRUE if success */
@@ -883,10 +847,7 @@ os_file_read_func(
 /*==============*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n);	/*!< in: number of bytes to read */
 /*******************************************************************//**
 Rewind file to its start, read at most size - 1 bytes from it to str, and
@@ -911,10 +872,7 @@ os_file_read_no_error_handling_func(
 /*================================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n);	/*!< in: number of bytes to read */
 
 /*******************************************************************//**
@@ -930,10 +888,7 @@ os_file_write_func(
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
 	const void*	buf,	/*!< in: buffer from which to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to write */
-	ulint		offset_high,/*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n);	/*!< in: number of bytes to write */
 /*******************************************************************//**
 Check the existence and type of the given file.
@@ -1037,10 +992,7 @@ os_aio_func(
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read or from which
 				to write */
-	ulint		offset,	/*!< in: least significant 32 bits of file
-				offset where to read or write */
-	ulint		offset_high, /*!< in: most significant 32 bits of
-				offset */
+	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed

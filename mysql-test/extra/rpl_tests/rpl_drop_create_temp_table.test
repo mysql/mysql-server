@@ -2,7 +2,67 @@
 #  In this test case, we check how changes to temporary tables are written
 #  to the binary log.
 #
-#  (TODO --- GET INFO AS SOON AS THE SITE IS AVAILABLE)
+#
+# B - Begin
+# C - Commit
+# R - Rollback
+#
+#
+# T - Inserts a row into a T-table
+# N-Temp - Inserts a row into a temporary N-table.
+#
+#
+# T-SELECT-N-Temp - Selects from a temporary N-table and inserts
+#                   into a T-table.
+# N-SELECT-N-Temp - Selects from a temporary N-table and inserts
+#                   into a N-table.
+# T-SELECT-T-Temp - Selects from a temporary T-table and inserts
+#                   into a T-table.
+# N-SELECT-T-Temp - Selects from a temporary T-table and inserts
+#                   into a N-table.
+
+# Create-N-Temp - Creates a temporary N-table if a temporary N-table
+#                 was dropped before
+# Create-T-Temp - Creates a temporary T-table if a temporary T-table
+#                 was dropped before
+#
+#
+# Drop-Temp-T-Temp - Drops a temporary T-table if there is any
+# Drop-Temp-N-Temp - Drops a temporary N-table if there is any
+# Drop-Temp-TN-Temp - Drops both a temporary T-table and N-table if there
+#                     is any
+# Drop-Temp-TT-Temp - Drops two temporary T-tables if there is any
+# Drop-Temp-NN-Temp - Drops two temporary N-tables if there is any
+# Drop-Temp-Xe-Temp - Tries to drop a temporary table that does not exist
+# Drop-Temp-NXe-Temp - Drops a temporary N-table if there is any and
+#                      a temporary table that does not exist
+# Drop-Temp-TXe-Temp - Drops a temporary T-table if there is any and
+#                      a temporary table that does not exist
+#
+#
+# Drop-Temp-If-Xe-Temp - Tries to drop a temporary table that does not exist
+# Drop-Temp-If-TXe-Temp - Drops a temporary T-table if there is any and
+#                         a temporary table that does not exist
+#
+#
+# Drop-T - Drops a T-table if there is any
+# Drop-N - Drops a  N-table if there is any
+# Drop-Xe - Tries to drop a table that does not exist
+# Drop-TXe - Drops a T-table if there is any and a table that does
+#            not exist
+# Drop-NXe - Drops a N-table if there is any and a table that does
+#            not exist
+# Drop-TN - Drops both a T-table and N-table if there is any
+# Drop-TT - Drops two T-tables if there is any
+# Drop-NN - Drops two N-tables if there is any
+# Drop-N-TN-Temp - Drops a N-table and both a temporary T-table and
+#                  N-table if there is any
+#
+#
+# Drop-If-Xe - Tries to drop a table that does not exist
+# Drop-If-TXe - Drops a T-table if there is any and a table that does
+#               not exist
+#
 #
 # This test uses the commands available at:
 #   extra/rpl_tests/rpl_drop_create_temp_table.inc
@@ -61,7 +121,6 @@ SET @commands= 'Drop-Temp-TT-Temp';
 
 SET @commands= 'Drop-Temp-NN-Temp';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
-
 
 --echo
 --echo #
@@ -133,6 +192,14 @@ SET @commands= 'B T Drop-Temp-NN-Temp C';
 SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp C';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
 --echo
 --echo #
@@ -204,6 +271,14 @@ SET @commands= 'B T Drop-Temp-NN-Temp R';
 SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp R';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Ne R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp Te R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B T Drop-Temp-NN-Temp N Drop-Temp-NN-Temp NeT-trig R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
 --echo #########################################################################
 --echo #                   2 - Tables dropped by "DROP TABLE"
@@ -321,6 +396,15 @@ SET @commands= 'B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-
 SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp C';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
 --echo
 --echo #
 --echo #3) Generates in the binlog what follows:
@@ -331,6 +415,14 @@ SET @commands= 'B T Drop-Temp-N-Temp Create-N-Temp Drop-Temp-N-Temp Drop-Temp-N-
 SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp R';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Ne R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp Te R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B Drop-Temp-T-Temp Create-T-Temp Drop-Temp-T-Temp Drop-Temp-T-Temp NeT-trig R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
 --echo #########################################################################
 --echo #                     4 -  CHANGING TEMPORARY TABLES
@@ -353,6 +445,15 @@ SET @commands= 'B N N-Temp N-SELECT-T-Temp N-Temp C';
 SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp C';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Ne C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Te C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig C';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
 --echo
 --echo
 --echo #
@@ -368,6 +469,15 @@ SET @commands= 'B N N-Temp N-SELECT-T-Temp N-Temp R';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
 SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Ne R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp Te R';
+--source extra/rpl_tests/rpl_drop_create_temp_table.inc
+
+SET @commands= 'B N N-Temp T-SELECT-T-Temp N-Temp NeT-trig R';
 --source extra/rpl_tests/rpl_drop_create_temp_table.inc
 
 --echo ###################################################################################

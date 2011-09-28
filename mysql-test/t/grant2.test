@@ -667,5 +667,367 @@ USE test;
 
 --echo End of 5.1 tests
 
+
+--echo 
+--echo # --
+--echo # -- Bug#11746602: 27480 - Extend CREATE TEMPORARY TABLES privilege to
+--echo # -- allow temp table operations
+--echo # --
+--echo # -- Bug#12771903: User with create temporary tables priv only has full
+--echo # -- access to a regular table
+--echo # --
+--echo
+
+--echo ############################################################################
+--echo # Setup environment.
+--echo ###########################################################################
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest_db1;
+DROP DATABASE IF EXISTS mysqltest_db2;
+--enable_warnings
+
+CREATE DATABASE mysqltest_db1;
+CREATE DATABASE mysqltest_db2;
+
+--echo # mysqltest_u1@localhost has CREATE_TMP_ACL, FILE_ACL and EXECUTE_ACL only
+--echo # (EXECUTE_ACL is needed to call p0, and FILE_ACL is needed for SELECT
+--echo # OUTFILE/LOAD DATA INFILE).
+GRANT FILE ON *.* TO mysqltest_u1@localhost;
+GRANT CREATE TEMPORARY TABLES, EXECUTE ON mysqltest_db1.* TO mysqltest_u1@localhost;
+
+--echo # mysqltest_u2@localhost has all privileges but CREATE_TMP_ACL.
+GRANT ALL PRIVILEGES ON mysqltest_db1.* TO mysqltest_u2@localhost;
+REVOKE CREATE TEMPORARY TABLES ON mysqltest_db1.* FROM mysqltest_u2@localhost;
+
+--echo # mysqltest_u3@localhost has CREATE_TMP_ACL & EXECUTE_ACL.
+--echo # This user is required to check SUID-stored-routines.
+GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u3@localhost;
+GRANT EXECUTE ON mysqltest_db1.* TO mysqltest_u3@localhost;
+
+--echo # mysqltest_u4@localhost has only EXECUTE_ACL.
+--echo # We need this user to check that once created temporary tables
+--echo # are accessible by anyone.
+GRANT EXECUTE ON mysqltest_db1.* TO mysqltest_u4@localhost;
+
+--echo # mysqltest_u5@localhost has CREATE_TMP_ACL and SELECT_ACL, UPDATE_ACL,
+--echo # DELETE_ACL on mysqltest_db1; and only CREATE_TMP_ACL on mysqltest_db2.
+--echo # By means of this user we check privileges required for merge tables.
+GRANT CREATE TEMPORARY TABLES ON mysqltest_db1.* TO mysqltest_u5@localhost;
+GRANT CREATE TEMPORARY TABLES ON mysqltest_db2.* TO mysqltest_u5@localhost;
+GRANT SELECT, UPDATE, DELETE ON mysqltest_db1.* TO mysqltest_u5@localhost;
+
+--echo # Create stored routine to test how privilege checking is done for its
+--echo # arguments.
+CREATE PROCEDURE mysqltest_db1.p0(i INT) SELECT i;
+
+--echo # Create SUID-stored-routines.
+CREATE DEFINER = mysqltest_u3@localhost PROCEDURE mysqltest_db1.p1()
+  CREATE TEMPORARY TABLE t4(x INT);
+
+CREATE DEFINER = mysqltest_u3@localhost PROCEDURE mysqltest_db1.p2()
+  INSERT INTO t4 VALUES (1), (2), (3);
+
+CREATE DEFINER = mysqltest_u3@localhost PROCEDURE mysqltest_db1.p3()
+  SELECT * FROM t4 ORDER BY x;
+
+--echo # We need separate key cache to test CACHE INDEX and LOAD INDEX.
+SET GLOBAL keycache1.key_buffer_size = 128 * 1024;
+
+CREATE TABLE mysqltest_db2.t2_1(a INT);
+
+--echo ###########################################################################
+--echo # Check that CREATE_TMP_ACL is enough to issue almost any supported
+--echo # SQL-statement against temporary tables (loosely follow order in
+--echo # sql_command enum).
+--echo ###########################################################################
+
+--echo
+--echo # -- connect con1, mysqltest_u1@localhost, mysqltest_db1
+--connect (con1,localhost,mysqltest_u1,,mysqltest_db1)
+
+--echo #
+--echo # Variants of CREATE TABLE.
+--echo #
+CREATE TEMPORARY TABLE t1(a INT);
+CREATE TEMPORARY TABLE t2 LIKE t1;
+CREATE TEMPORARY TABLE t3(a INT, b INT, PRIMARY KEY (a));
+CREATE TEMPORARY TABLE t4 SELECT * FROM t1;
+--echo # Check that we do *not* allow creation of MERGE table with underlying
+--echo # temporary table without additional privileges.
+CREATE TEMPORARY TABLE t5(a INT) ENGINE = MyISAM;
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE TEMPORARY TABLE t6(a INT) ENGINE = MERGE UNION = (t5);
+--echo # Check that we allow creation of MERGE table with no underlying table
+--echo # without additional privileges.
+CREATE TEMPORARY TABLE t6(a INT) ENGINE = MERGE UNION = ();
+
+--echo #
+--echo # SELECT.
+--echo #
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT * FROM t1 ORDER BY a;
+
+--echo #
+--echo # CREATE/DROP INDEX.
+--echo #
+CREATE INDEX idx1 ON t3(b);
+DROP INDEX idx1 ON t3;
+
+--echo #
+--echo # ALTER TABLE.
+--echo # 
+ALTER TABLE t4 ADD COLUMN b INT;
+--echo # Check that we allow altering of MERGE table with no underlying
+--echo # without additional privileges.
+ALTER TABLE t6 UNION = ();
+--echo # Check that we do *not* allow altering of MERGE table with underlying
+--echo # temporary table without additional privileges.
+--error ER_TABLEACCESS_DENIED_ERROR
+ALTER TABLE t6 UNION = (t5);
+
+--echo #
+--echo # Simple INSERT and INSERT ... SELECT.
+--echo #
+INSERT INTO t1 VALUES (4);
+INSERT INTO t2 SELECT a FROM t1;
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+--echo #
+--echo # UPDATE and multi-UPDATE.
+--echo #
+UPDATE t1 SET a = a * 10;
+UPDATE t1 SET a = 100 WHERE a = 10;
+UPDATE t1, t2 SET t1.a = 200 WHERE t1.a = t2.a * 10 AND t1.a = 20;
+SELECT * FROM t1 ORDER BY a;
+
+--echo #
+--echo # DELETE and multi-DELETE.
+--echo #
+DELETE FROM t1 WHERE a = 100;
+DELETE t1 FROM t1, t2 WHERE t1.a = t2.a * 100 AND t1.a = 200;
+SELECT * FROM t1 ORDER BY a;
+
+--echo #
+--echo # TRUNCATE TABLE.
+--echo #
+TRUNCATE TABLE t1;
+SELECT * FROM t1 ORDER BY a;
+
+--echo #
+--echo # SHOW COLUMNS/DESCRIBE and SHOW KEYS.
+--echo #
+SHOW COLUMNS FROM t1;
+SHOW KEYS FROM t3;
+
+--echo #
+--echo # SHOW CREATE TABLE.
+--echo #
+SHOW CREATE TABLE t1;
+
+--echo #
+--echo # LOAD DATA INFILE (also SELECT INTO OUTFILE).
+--echo #
+INSERT INTO t1 VALUES (1), (2), (3);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT a INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/bug27480.txt' FROM t1 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug27480.txt' INTO TABLE t1
+--remove_file $MYSQLTEST_VARDIR/tmp/bug27480.txt
+SELECT * FROM t1 ORDER BY a;
+
+--echo #
+--echo # SET.
+--echo #
+SET @a := (SELECT COUNT(*) FROM t1);
+SELECT @a;
+
+--echo #
+--echo # LOCK TABLES.
+--echo #
+LOCK TABLES t1 READ;
+UNLOCK TABLES;
+
+--echo #
+--echo # CHECK/REPAIR/ANALYZE/OPTIMIZE and CHECKSUM.
+--echo #
+ANALYZE TABLE t1;
+CHECK TABLE t1;
+OPTIMIZE TABLE t1;
+REPAIR TABLE t1;
+
+--echo #
+--echo # REPLACE and REPLACE ... SELECT.
+--echo #
+INSERT INTO t3 VALUES (1, 111), (2, 222), (3, 333);
+REPLACE INTO t3 VALUES (1, 1111), (4, 444), (0, 001);
+REPLACE INTO t2 SELECT b FROM t3;
+SELECT * FROM t2 ORDER BY a;
+SELECT * FROM t3 ORDER BY a;
+
+--echo #
+--echo # CACHE and LOAD INDEX.
+--echo #
+CACHE INDEX t3 IN keycache1;
+LOAD INDEX INTO CACHE t3;
+
+--echo #
+--echo # RENAME (doesn't work for temporary tables, thus should fail).
+--echo #
+--error ER_TABLEACCESS_DENIED_ERROR
+RENAME TABLE t3 TO t3_1;
+
+--echo #
+--echo # HANDLER OPEN/READ/CLOSE.
+--echo #
+HANDLER t1 OPEN;
+HANDLER t1 READ NEXT;
+HANDLER t1 CLOSE;
+
+--echo #
+--echo # DO.
+--echo #
+DO (SELECT COUNT(*) FROM t1);
+
+--echo #
+--echo # CHECKSUM TABLE.
+--echo #
+DELETE FROM t1;
+CHECKSUM TABLE t1;
+
+--echo #
+--echo # CALL.
+--echo #
+CALL p0((SELECT COUNT(*) FROM t1));
+
+--echo #
+--echo # PREPARE, EXECUTE and DEALLOCATE.
+--echo #
+PREPARE stmt1 FROM 'SELECT * FROM t1 ORDER BY a';
+PREPARE stmt2 FROM 'SELECT * FROM t2 ORDER BY a';
+EXECUTE stmt1;
+EXECUTE stmt2;
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+
+--echo #
+--echo # DROP TABLE and DROP TEMPORARY TABLE.
+--echo #
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1(a INT);
+DROP TEMPORARY TABLE t1;
+
+
+--echo ###########################################################################
+--echo # - Check that even having all privileges but CREATE_TMP_ACL is not enough
+--echo #   to create temporary tables.
+--echo # - Check that creation/working with temporary tables is possible via
+--echo #   SUID-stored-routines.
+--echo # - Check that even outside of SUID context we can access temporary
+--echo #   table once it is created.
+--echo ###########################################################################
+
+--echo
+--echo # -- connect con2, mysqltest_u2@localhost, mysqltest_db1
+--connect (con2,localhost,mysqltest_u2,,mysqltest_db1)
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE TEMPORARY TABLE t2(a INT);
+
+CALL p1();
+
+CALL p2();
+
+CALL p3();
+  
+--echo # Check that once table is created it can be accessed even
+--echo # outside of such a SUID context.
+INSERT INTO t4 VALUES (4);
+UPDATE t4 SET x = 10 WHERE x = 1;
+DELETE FROM t4 WHERE x < 3;
+SELECT * FROM t4 ORDER BY x;
+DROP TEMPORARY TABLE t4;
+
+--echo ###########################################################################
+--echo # - Check that once table is created it can be accessed from within any
+--echo #   context, even by user without any privileges on tables.
+--echo ###########################################################################
+
+--echo
+--echo # -- connect con3, mysqltest_u4@localhost, mysqltest_db1
+--connect (con3,localhost,mysqltest_u4,,mysqltest_db1)
+
+CALL p1();
+INSERT INTO t4 VALUES (4);
+UPDATE t4 SET x = 10 WHERE x = 1;
+DELETE FROM t4 WHERE x < 3;
+SELECT * FROM t4 ORDER BY x;
+DROP TEMPORARY TABLE t4;
+
+--echo ###########################################################################
+--echo # Check special case for MERGE-tables:
+--echo #   - CREATE_TMP_ACL is required to create a temporary merge table;
+--echo #   - SELECT_ACL, UPDATE_ACL and DELETE_ACL are required to include
+--echo #     a temporary table into the underlying-table-list.
+--echo ###########################################################################
+
+--echo
+--echo # -- connect con4, mysqltest_u5@localhost, mysqltest_db1
+--connect (con4,localhost,mysqltest_u5,,mysqltest_db1)
+
+CREATE TEMPORARY TABLE t7(a INT);
+CREATE TEMPORARY TABLE t8(a INT);
+CREATE TEMPORARY TABLE t9(a INT);
+CREATE TEMPORARY TABLE t10(a INT) ENGINE = MERGE UNION = (t7, t8);
+
+ALTER TABLE t10 UNION = (t9);
+--error ER_TABLEACCESS_DENIED_ERROR
+ALTER TABLE t10 UNION = (mysqltest_db2.t2_1);
+
+CREATE TEMPORARY TABLE mysqltest_db2.t2_2(a INT) ENGINE = MERGE UNION = (t7, t8);
+
+ALTER TABLE mysqltest_db2.t2_2 UNION = (t9);
+ALTER TABLE mysqltest_db2.t2_2 UNION = ();
+
+DROP TEMPORARY TABLE mysqltest_db2.t2_2;
+DROP TEMPORARY TABLE t10;
+
+DROP TEMPORARY TABLE t7;
+DROP TEMPORARY TABLE t8;
+DROP TEMPORARY TABLE t9;
+
+--echo ###########################################################################
+--echo # That's all. Cleanup.
+--echo ###########################################################################
+
+--echo
+--echo # -- connection: default
+--connection default
+
+--echo # -- disconnect con1
+--echo # All remaining temporary tables are automatically dropped.
+--disconnect con1
+
+--echo # -- disconnect con2
+--disconnect con2
+
+--echo # -- disconnect con3
+--disconnect con3
+
+--echo # -- disconnect con4
+--disconnect con4
+
+SET GLOBAL keycache1.key_buffer_size = 0;
+DROP DATABASE mysqltest_db1;
+DROP DATABASE mysqltest_db2;
+DROP USER mysqltest_u1@localhost;
+DROP USER mysqltest_u2@localhost;
+DROP USER mysqltest_u3@localhost;
+DROP USER mysqltest_u4@localhost;
+DROP USER mysqltest_u5@localhost;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

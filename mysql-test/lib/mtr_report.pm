@@ -32,7 +32,9 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 use mtr_match;
 use My::Platform;
 use POSIX qw[ _exit ];
+use IO::Handle qw[ flush ];
 require "mtr_io.pl";
+use mtr_results;
 
 my $tot_real_time= 0;
 
@@ -72,7 +74,7 @@ sub _mtr_report_test_name ($) {
   print _name(). _timestamp();
   printf "%-40s ", $tname;
   my $worker = $tinfo->{worker};
-  printf "w$worker " if $worker;
+  print "w$worker " if defined $worker;
 
   return $tname;
 }
@@ -95,6 +97,7 @@ sub mtr_report_test_passed ($) {
   {
     $timer_str= mtr_fromfile("$::opt_vardir/log/timer");
     $tinfo->{timer}= $timer_str;
+    resfile_test_info('duration', $timer_str) if $::opt_resfile;
   }
 
   # Big warning if status already set
@@ -300,6 +303,7 @@ sub mtr_report_stats ($$;$) {
 	       time - $BASETIME, "seconds executing testcases");
   }
 
+  resfile_global("duration", time - $BASETIME) if $::opt_resfile;
 
   my $warnlog= "$::opt_vardir/log/warnings";
   if ( -f $warnlog )
@@ -487,6 +491,7 @@ sub mtr_warning (@) {
 
 # Print error to screen and then exit
 sub mtr_error (@) {
+  IO::Handle::flush(\*STDOUT) if IS_WINDOWS;
   print STDERR _name(). _timestamp().
     "mysql-test-run: *** ERROR: ". join(" ", @_). "\n";
   if (IS_WINDOWS)

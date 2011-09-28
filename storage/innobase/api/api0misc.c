@@ -54,8 +54,6 @@ ib_trx_lock_table_with_retry(
 	mem_heap_t*	heap;
 	sel_node_t*	node;
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-
 	heap = mem_heap_create(512);
 
 	trx->op_info = "setting table lock";
@@ -138,7 +136,7 @@ handle_new_error:
 
         switch (err) {
         case DB_LOCK_WAIT_TIMEOUT:
-                       trx_general_rollback_for_mysql(trx, NULL);
+                       trx_rollback_for_mysql(trx);
                        break;
                 /* fall through */
         case DB_DUPLICATE_KEY:
@@ -153,7 +151,7 @@ handle_new_error:
                         /* Roll back the latest, possibly incomplete
                         insertion or update */
 
-			trx_general_rollback_for_mysql(trx, savept);
+			trx_rollback_to_savepoint(trx, savept);
                 }
                 break;
         case DB_LOCK_WAIT:
@@ -174,7 +172,7 @@ handle_new_error:
                 /* Roll back the whole transaction; this resolution was added
                 to version 3.23.43 */
 
-                trx_general_rollback_for_mysql(trx, NULL);
+                trx_rollback_for_mysql(trx);
                 break;
 
         case DB_MUST_GET_MORE_FILE_SPACE:

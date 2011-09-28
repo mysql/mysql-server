@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #ifdef HAVE_OPENSSL
@@ -50,6 +50,9 @@ main(	int	argc __attribute__((unused)),
 	Vio* client_vio=0;
 	int err;
 	char	xbuf[100]="Ohohhhhoh1234";
+        enum enum_ssl_init_error ssl_init_error;
+        unsigned long ssl_error;
+
 	MY_INIT(argv[0]);
         DBUG_PROCESS(argv[0]);
         DBUG_PUSH(default_dbug_option);
@@ -60,7 +63,8 @@ main(	int	argc __attribute__((unused)),
 	if (ca_path!=0)
 		printf("CApath          : %s\n", ca_path);
 
-	ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file, ca_path, cipher);
+	ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file, ca_path, cipher,
+                                              &ssl_init_error);
 	if(!ssl_connector) {
                  fatal_error("client:new_VioSSLConnectorFd failed");
 	}
@@ -81,7 +85,7 @@ main(	int	argc __attribute__((unused)),
 	/* ----------------------------------------------- */
 	/* Now we have TCP conncetion. Start SSL negotiation. */
 	read(client_vio->sd,xbuf, sizeof(xbuf));
-        sslconnect(ssl_connector,client_vio,60L);
+        sslconnect(ssl_connector,client_vio,60L,&ssl_error);
 	err = vio_read(client_vio,xbuf, sizeof(xbuf));
 	if (err<=0) {
 		my_free(ssl_connector);

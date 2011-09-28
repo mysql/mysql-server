@@ -20,7 +20,7 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_acl.h"                        // fill_schema_*_privileges
-#include "sql_select.h"                         // For select_describe
+#include "sql_select.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
 #include "sql_table.h"                        // filename_to_tablename,
@@ -42,6 +42,7 @@
 #include "sp_pcontext.h"
 #include "set_var.h"
 #include "sql_trigger.h"
+#include "sql_derived.h"
 #include "authors.h"
 #include "contributors.h"
 #include "sql_partition.h"
@@ -53,6 +54,7 @@
 #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
 #include "debug_sync.h"
 #include "datadict.h"   // dd_frm_type()
+#include "opt_trace.h"     // Optimizer trace information schema tables
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -104,7 +106,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
-                                          CHARSET_INFO *cs,
+                                          const CHARSET_INFO *cs,
                                           bool use_hex);
 #endif
 
@@ -382,6 +384,230 @@ bool mysqld_show_privileges(THD *thd)
 }
 
 
+/** Hash of LEX_STRINGs used to search for ignored db directories. */
+static HASH ignore_db_dirs_hash;
+
+/** 
+  An array of LEX_STRING pointers to collect the options at 
+  option parsing time.
+*/
+static DYNAMIC_ARRAY ignore_db_dirs_array;
+
+/**
+  A value for the read only system variable to show a list of
+  ignored directories.
+*/
+char *opt_ignore_db_dirs= NULL;
+
+
+/**
+  Sets up the data structures for collection of directories at option
+  processing time.
+  We need to collect the directories in an array first, because
+  we need the character sets initialized before setting up the hash.
+
+  @return state
+  @retval TRUE  failed
+  @retval FALSE success
+*/
+
+bool
+ignore_db_dirs_init()
+{
+  return my_init_dynamic_array(&ignore_db_dirs_array, sizeof(LEX_STRING *),
+                               0, 0);
+}
+
+
+/**
+  Retrieves the key (the string itself) from the LEX_STRING hash members.
+
+  Needed by hash_init().
+
+  @param     data         the data element from the hash
+  @param out len_ret      Placeholder to return the length of the key
+  @param                  unused
+  @return                 a pointer to the key
+*/
+
+static uchar *
+db_dirs_hash_get_key(const uchar *data, size_t *len_ret,
+                     my_bool __attribute__((unused)))
+{
+  LEX_STRING *e= (LEX_STRING *) data;
+
+  *len_ret= e->length;
+  return (uchar *) e->str;
+}
+
+
+/**
+  Wrap a directory name into a LEX_STRING and push it to the array.
+
+  Called at option processing time for each --ignore-db-dir option.
+
+  @param    path  the name of the directory to push
+  @return state
+  @retval TRUE  failed
+  @retval FALSE success
+*/
+
+bool
+push_ignored_db_dir(char *path)
+{
+  LEX_STRING *new_elt;
+  char *new_elt_buffer;
+  size_t path_len= strlen(path);
+
+  if (!path_len || path_len >= FN_REFLEN)
+    return true;
+
+  // No need to normalize, it's only a directory name, not a path.
+  if (!my_multi_malloc(0,
+                       &new_elt, sizeof(LEX_STRING),
+                       &new_elt_buffer, path_len + 1,
+                       NullS))
+    return true;
+  new_elt->str= new_elt_buffer;
+  memcpy(new_elt_buffer, path, path_len);
+  new_elt_buffer[path_len]= 0;
+  new_elt->length= path_len;
+  return insert_dynamic(&ignore_db_dirs_array, &new_elt);
+}
+
+
+/**
+  Clean up the directory ignore options accumulated so far.
+
+  Called at option processing time for each --ignore-db-dir option
+  with an empty argument.
+*/
+
+void
+ignore_db_dirs_reset()
+{
+  LEX_STRING **elt;
+  while (NULL!= (elt= (LEX_STRING **) pop_dynamic(&ignore_db_dirs_array)))
+    if (elt && *elt)
+      my_free(*elt);
+}
+
+
+/**
+  Free the directory ignore option variables.
+
+  Called at server shutdown.
+*/
+
+void
+ignore_db_dirs_free()
+{
+  if (opt_ignore_db_dirs)
+    my_free(opt_ignore_db_dirs);
+  ignore_db_dirs_reset();
+  delete_dynamic(&ignore_db_dirs_array);
+  my_hash_free(&ignore_db_dirs_hash);
+}
+
+
+/**
+  Initialize the ignore db directories hash and status variable from
+  the options collected in the array.
+
+  Called when option processing is over and the server's in-memory 
+  structures are fully initialized.
+
+  @return state
+  @retval TRUE  failed
+  @retval FALSE success
+*/
+
+bool
+ignore_db_dirs_process_additions()
+{
+  ulong i;
+  size_t len;
+  char *ptr;
+  LEX_STRING *dir;
+
+  DBUG_ASSERT(opt_ignore_db_dirs == NULL);
+
+  if (my_hash_init(&ignore_db_dirs_hash, 
+                   lower_case_table_names ?
+                     character_set_filesystem : &my_charset_bin,
+                   0, 0, 0, db_dirs_hash_get_key,
+                   my_free,
+                   HASH_UNIQUE))
+    return true;
+
+  /* len starts from 1 because of the terminating zero. */
+  len= 1;
+  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  {
+    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    len+= dir->length + 1;                      // +1 for the comma
+  }
+
+  /* No delimiter for the last directory. */
+  if (len > 1)
+    len--;
+
+  /* +1 the terminating zero */
+  ptr= opt_ignore_db_dirs= (char *) my_malloc(len + 1, MYF(0));
+  if (!ptr)
+    return true;
+
+  /* Make sure we have an empty string to start with. */
+  *ptr= 0;
+
+  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  {
+    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *) dir))
+      return true;
+    ptr= strnmov(ptr, dir->str, dir->length);
+    if (i + 1 < ignore_db_dirs_array.elements)
+      ptr= strmov(ptr, ",");
+
+    /*
+      Set the transferred array element to NULL to avoid double free
+      in case of error.
+    */
+    dir= NULL;
+    set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+  }
+
+  /* make sure the string is terminated */
+  DBUG_ASSERT(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
+  *ptr= 0;
+
+  /* 
+    It's OK to empty the array here as the allocated elements are
+    referenced through the hash now.
+  */
+  reset_dynamic(&ignore_db_dirs_array);
+
+  return false;
+}
+
+
+/**
+  Check if a directory name is in the hash of ignored directories.
+
+  @return search result
+  @retval TRUE  found
+  @retval FALSE not found
+*/
+
+static inline bool
+is_in_ignore_db_dirs_list(const char *directory)
+{
+  return ignore_db_dirs_hash.records &&
+    NULL != my_hash_search(&ignore_db_dirs_hash, (const uchar *) directory, 
+                           strlen(directory));
+}
+
+
 /*
   find_files() - find files in a given directory.
 
@@ -407,11 +633,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
            const char *path, const char *wild, bool dir)
 {
   uint i;
-  char *ext;
   MY_DIR *dirp;
-  FILEINFO *file;
-  LEX_STRING *file_name= 0;
-  uint file_name_len;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
@@ -429,7 +651,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
 
 
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
@@ -443,15 +665,23 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
     char uname[NAME_LEN + 1];                   /* Unencoded name */
+    FILEINFO *file;
+    LEX_STRING *file_name= 0;
+    uint file_name_len;
+    char *ext;
+
     file=dirp->dir_entry+i;
     if (dir)
     {                                           /* Return databases */
-      if ((file->name[0] == '.' && 
-          ((file->name[1] == '.' && file->name[2] == '\0') ||
-            file->name[1] == '\0')))
-        continue;                               /* . or .. */
+      /*
+        Ignore all the directories having names that start with a  dot (.).
+        This covers '.' and '..' and other cases like e.g. '.mysqlgui'.
+        Note that since 5.1 database directory names can't start with a
+        dot (.) thanks to table name encoding.
+      */
+      if (file->name[0]  == '.')
+        continue;
 #ifdef USE_SYMDIR
-      char *ext;
       char buff[FN_REFLEN];
       if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
       {
@@ -469,20 +699,9 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       if (!MY_S_ISDIR(file->mystat->st_mode))
         continue;
 
-      file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));
-      if (wild)
-      {
-	if (lower_case_table_names)
-	{
-          if (my_wildcmp(files_charset_info,
-                         uname, uname + file_name_len,
-                         wild, wild + wild_length,
-                         wild_prefix, wild_one,wild_many))
-            continue;
-	}
-	else if (wild_compare(uname, wild, 0))
-	  continue;
-      }
+      if (is_in_ignore_db_dirs_list(file->name))
+        continue;
+
     }
     else
     {
@@ -491,21 +710,24 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
           is_prefix(file->name, tmp_file_prefix))
         continue;
       *ext=0;
-      file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));
-      if (wild)
-      {
-	if (lower_case_table_names)
-	{
-          if (my_wildcmp(files_charset_info,
-                         uname, uname + file_name_len,
-                         wild, wild + wild_length,
-                         wild_prefix, wild_one,wild_many))
-            continue;
-	}
-	else if (wild_compare(uname, wild, 0))
-	  continue;
-      }
     }
+
+    file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));
+
+    if (wild)
+    {
+      if (lower_case_table_names)
+      {
+        if (my_wildcmp(files_charset_info,
+                       uname, uname + file_name_len,
+                       wild, wild + wild_length,
+                       wild_prefix, wild_one,wild_many))
+          continue;
+      }
+      else if (wild_compare(uname, wild, 0))
+        continue;
+    }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Don't show tables where we don't have any privileges */
     if (db && !(col_access & TABLE_ACLS))
@@ -600,8 +822,8 @@ public:
   }
 
   bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
-                        MYSQL_ERROR::enum_warning_level level,
-                        const char *message, MYSQL_ERROR ** /* cond_hdl */)
+                        Sql_condition::enum_warning_level level,
+                        const char *message, Sql_condition ** /* cond_hdl */)
   {
     /*
        The handler does not handle the errors raised by itself.
@@ -631,7 +853,7 @@ public:
 
     case ER_NO_SUCH_TABLE:
       /* Established behavior: warn if underlying tables are missing. */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
@@ -641,7 +863,7 @@ public:
 
     case ER_SP_DOES_NOT_EXIST:
       /* Established behavior: warn if underlying functions are missing. */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
@@ -879,7 +1101,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
                                      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
     DBUG_VOID_RETURN;
   table= table_list->table;
-
+  /* Create derived tables result table prior to reading it's fields list. */
+  mysql_handle_single_derived(thd->lex, table_list, &mysql_derived_create);
   List<Item> field_list;
 
   Field **ptr,*field;
@@ -1300,7 +1523,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info= table->key_info;
-  bzero((char*) &create_info, sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   /* Allow update_create_info to update row type */
   create_info.row_type= share->row_type;
   file->update_create_info(&create_info);
@@ -1383,17 +1606,24 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
     show_table_options= TRUE;
-    /*
-      Get possible table space definitions and append them
-      to the CREATE TABLE statement
-    */
 
-    if ((for_str= file->get_tablespace_name(thd,0,0)))
+    /* TABLESPACE and STORAGE */
+    if (share->tablespace ||
+        share->default_storage_media != HA_SM_DEFAULT)
     {
-      packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
-      packet->append(for_str, strlen(for_str));
-      packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
-      my_free(for_str);
+      packet->append(STRING_WITH_LEN(" /*!50100"));
+      if (share->tablespace)
+      {
+        packet->append(STRING_WITH_LEN(" TABLESPACE "));
+        packet->append(share->tablespace, strlen(share->tablespace));
+      }
+
+      if (share->default_storage_media == HA_SM_DISK)
+        packet->append(STRING_WITH_LEN(" STORAGE DISK"));
+      if (share->default_storage_media == HA_SM_MEMORY)
+        packet->append(STRING_WITH_LEN(" STORAGE MEMORY"));
+
+      packet->append(STRING_WITH_LEN(" */"));
     }
 
     /*
@@ -1744,10 +1974,6 @@ public:
   CSET_STRING query_string;
 };
 
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List<thread_info>;
-#endif
-
 static const char *thread_state_info(THD *tmp)
 {
 #ifndef EMBEDDED_LIBRARY
@@ -2011,7 +2237,7 @@ static void shrink_var_array(DYNAMIC_ARRAY *array)
       all[a++]= all[b];
   if (a)
   {
-    bzero(all+a, sizeof(SHOW_VAR)); // writing NULL-element to the end
+    memset(all+a, 0, sizeof(SHOW_VAR)); // writing NULL-element to the end
     array->elements= a;
   }
   else // array is completely empty - delete it
@@ -2081,7 +2307,7 @@ void reset_status_vars()
   for (; ptr < last; ptr++)
   {
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
-    if (ptr->type == SHOW_LONG)
+    if (ptr->type == SHOW_LONG || ptr->type == SHOW_SIGNED_LONG)
       *(ulong*) ptr->value= 0;
   }  
 }
@@ -2184,7 +2410,7 @@ static bool show_status_array(THD *thd, const char *wild,
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool res= FALSE;
-  CHARSET_INFO *charset= system_charset_info;
+  const CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;  
@@ -2258,6 +2484,9 @@ static bool show_status_array(THD *thd, const char *wild,
         case SHOW_LONG:
         case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
           end= int10_to_str(*(long*) value, buff, 10);
+          break;
+        case SHOW_SIGNED_LONG:
+          end= int10_to_str(*(long*) value, buff, -10);
           break;
         case SHOW_LONGLONG_STATUS:
           value= ((char *) status_var + (ulong) value);
@@ -2405,12 +2634,11 @@ bool schema_table_store_record(THD *thd, TABLE *table)
 }
 
 
-int make_table_list(THD *thd, SELECT_LEX *sel,
-                    LEX_STRING *db_name, LEX_STRING *table_name)
+static int make_table_list(THD *thd, SELECT_LEX *sel,
+                           LEX_STRING *db_name, LEX_STRING *table_name)
 {
   Table_ident *table_ident;
   table_ident= new Table_ident(thd, *db_name, *table_name, 1);
-  sel->init_query();
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
@@ -2674,7 +2902,7 @@ bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   bool rc= 0;
 
-  bzero((char*) lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
+  memset(lookup_field_values, 0, sizeof(LOOKUP_FIELD_VALUES));
   switch (lex->sql_command) {
   case SQLCOM_SHOW_DATABASES:
     if (wild)
@@ -2980,91 +3208,201 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
 
 
 /**
-  @brief          Fill I_S table for SHOW COLUMNS|INDEX commands
+  Fill I_S table with data obtained by performing full-blown table open.
 
-  @param[in]      thd                      thread handler
-  @param[in]      tables                   TABLE_LIST for I_S table
-  @param[in]      schema_table             pointer to I_S structure
-  @param[in]      can_deadlock             Indicates that deadlocks are possible
-                                           due to metadata locks, so to avoid
-                                           them we should not wait in case if
-                                           conflicting lock is present.
-  @param[in]      open_tables_state_backup pointer to Open_tables_backup object
-                                           which is used to save|restore original
-                                           status of variables related to
-                                           open tables state
+  @param  thd                       Thread handler.
+  @param  is_show_fields_or_keys    Indicates whether it is a legacy SHOW
+                                    COLUMNS or SHOW KEYS statement.
+  @param  table                     TABLE object for I_S table to be filled.
+  @param  schema_table              I_S table description structure.
+  @param  orig_db_name              Database name.
+  @param  orig_table_name           Table name.
+  @param  open_tables_state_backup  Open_tables_state object which is used
+                                    to save/restore original status of
+                                    variables related to open tables state.
+  @param  can_deadlock              Indicates that deadlocks are possible
+                                    due to metadata locks, so to avoid
+                                    them we should not wait in case if
+                                    conflicting lock is present.
 
-  @return         Operation status
-    @retval       0           success
-    @retval       1           error
+  @retval FALSE - Success.
+  @retval TRUE  - Failure.
 */
-
-static int 
-fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
-                              ST_SCHEMA_TABLE *schema_table,
-                              bool can_deadlock,
-                              Open_tables_backup *open_tables_state_backup)
+static bool
+fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
+                          TABLE *table, ST_SCHEMA_TABLE *schema_table,
+                          LEX_STRING *orig_db_name,
+                          LEX_STRING *orig_table_name,
+                          Open_tables_backup *open_tables_state_backup,
+                          bool can_deadlock)
 {
-  LEX *lex= thd->lex;
-  bool res;
-  LEX_STRING tmp_lex_string, tmp_lex_string1, *db_name, *table_name;
-  enum_sql_command save_sql_command= lex->sql_command;
-  TABLE_LIST *show_table_list= tables->schema_select_lex->table_list.first;
-  TABLE *table= tables->table;
-  int error= 1;
-  DBUG_ENTER("fill_schema_show");
+  Query_arena i_s_arena(thd->mem_root,
+                        Query_arena::STMT_CONVENTIONAL_EXECUTION),
+              backup_arena, *old_arena;
+  LEX *old_lex= thd->lex, temp_lex, *lex;
+  LEX_STRING db_name, table_name;
+  TABLE_LIST *table_list;
+  bool result= true;
 
-  lex->all_selects_list= tables->schema_select_lex;
+  DBUG_ENTER("fill_schema_table_by_open");
   /*
-    Restore thd->temporary_tables to be able to process
-    temporary tables(only for 'show index' & 'show columns').
-    This should be changed when processing of temporary tables for
-    I_S tables will be done.
+    When a view is opened its structures are allocated on a permanent
+    statement arena and linked into the LEX tree for the current statement
+    (this happens even in cases when view is handled through TEMPTABLE
+    algorithm).
+
+    To prevent this process from unnecessary hogging of memory in the permanent
+    arena of our I_S query and to avoid damaging its LEX we use temporary
+    arena and LEX for table/view opening.
+
+    Use temporary arena instead of statement permanent arena. Also make
+    it active arena and save original one for successive restoring.
   */
-  thd->temporary_tables= open_tables_state_backup->temporary_tables;
+  old_arena= thd->stmt_arena;
+  thd->stmt_arena= &i_s_arena;
+  thd->set_n_backup_active_arena(&i_s_arena, &backup_arena);
+
+  /* Prepare temporary LEX. */
+  thd->lex= lex= &temp_lex;
+  lex_start(thd);
+
+  /* Disable constant subquery evaluation as we won't be locking tables. */
+  lex->context_analysis_only= CONTEXT_ANALYSIS_ONLY_VIEW;
+
+  /*
+    Some of process_table() functions rely on wildcard being passed from
+    old LEX (or at least being initialized).
+  */
+  lex->wild= old_lex->wild;
+
+  /*
+    Since make_table_list() might change database and table name passed
+    to it we create copies of orig_db_name and orig_table_name here.
+    These copies are used for make_table_list() while unaltered values
+    are passed to process_table() functions.
+  */
+  if (!thd->make_lex_string(&db_name, orig_db_name->str,
+                            orig_db_name->length, FALSE) ||
+      !thd->make_lex_string(&table_name, orig_table_name->str,
+                            orig_table_name->length, FALSE))
+    goto end;
+
+  /*
+    Create table list element for table to be open. Link it with the
+    temporary LEX. The latter is required to correctly open views and
+    produce table describing their structure.
+  */
+  if (make_table_list(thd, &lex->select_lex, &db_name, &table_name))
+    goto end;
+
+  table_list= lex->select_lex.table_list.first;
+
+  if (is_show_fields_or_keys)
+  {
+    /*
+      Restore thd->temporary_tables to be able to process
+      temporary tables (only for 'show index' & 'show columns').
+      This should be changed when processing of temporary tables for
+      I_S tables will be done.
+    */
+    thd->temporary_tables= open_tables_state_backup->temporary_tables;
+  }
+  else
+  {
+    /*
+      Apply optimization flags for table opening which are relevant for
+      this I_S table. We can't do this for SHOW COLUMNS/KEYS because of
+      backward compatibility.
+    */
+    table_list->i_s_requested_object= schema_table->i_s_requested_object;
+  }
+
   /*
     Let us set fake sql_command so views won't try to merge
     themselves into main statement. If we don't do this,
     SELECT * from information_schema.xxxx will cause problems.
-    SQLCOM_SHOW_FIELDS is used because it satisfies 'only_view_structure()' 
+    SQLCOM_SHOW_FIELDS is used because it satisfies
+    'only_view_structure()'.
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
-  res= open_normal_and_derived_tables(thd, show_table_list,
-                                      (MYSQL_OPEN_IGNORE_FLUSH |
-                                       MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
-                                       (can_deadlock ?
-                                        MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
-  lex->sql_command= save_sql_command;
+
+  result= open_temporary_tables(thd, table_list);
+
+  if (!result)
+  {
+    result= open_normal_and_derived_tables(thd, table_list,
+                                           (MYSQL_OPEN_IGNORE_FLUSH |
+                                            MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+                                            (can_deadlock ?
+                                             MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
+    lex->select_lex.handle_derived(lex, &mysql_derived_create);
+  }
+  /*
+    Restore old value of sql_command back as it is being looked at in
+    process_table() function.
+  */
+  lex->sql_command= old_lex->sql_command;
 
   DEBUG_SYNC(thd, "after_open_table_ignore_flush");
 
   /*
-    get_all_tables() returns 1 on failure and 0 on success thus
-    return only these and not the result code of ::process_table()
+    XXX:  show_table_list has a flag i_is_requested,
+    and when it's set, open_normal_and_derived_tables()
+    can return an error without setting an error message
+    in THD, which is a hack. This is why we have to
+    check for res, then for thd->is_error() and only then
+    for thd->main_da.sql_errno().
 
-    We should use show_table_list->alias instead of 
-    show_table_list->table_name because table_name
-    could be changed during opening of I_S tables. It's safe
-    to use alias because alias contains original table name 
-    in this case(this part of code is used only for 
-    'show columns' & 'show statistics' commands).
+    Again we don't do this for SHOW COLUMNS/KEYS because
+    of backward compatibility.
   */
-   table_name= thd->make_lex_string(&tmp_lex_string1, show_table_list->alias,
-                                    strlen(show_table_list->alias), FALSE);
-   if (!show_table_list->view)
-     db_name= thd->make_lex_string(&tmp_lex_string, show_table_list->db,
-                                   show_table_list->db_length, FALSE);
-   else
-     db_name= &show_table_list->view_db;
-      
+  if (!is_show_fields_or_keys && result && thd->is_error() &&
+      thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
+  {
+    /*
+      Hide error for a non-existing table.
+      For example, this error can occur when we use a where condition
+      with a db name and table, but the table does not exist.
+    */
+    result= false;
+    thd->clear_error();
+  }
+  else
+  {
+    result= schema_table->process_table(thd, table_list,
+                                        table, result,
+                                        orig_db_name,
+                                        orig_table_name);
+  }
 
-   error= test(schema_table->process_table(thd, show_table_list,
-                                           table, res, db_name,
-                                           table_name));
-   thd->temporary_tables= 0;
-   close_tables_for_reopen(thd, &show_table_list,
-                           open_tables_state_backup->mdl_system_tables_svp);
-   DBUG_RETURN(error);
+
+end:
+  lex->unit.cleanup();
+
+  /* Restore original LEX value, statement's arena and THD arena values. */
+  lex_end(thd->lex);
+
+  if (i_s_arena.free_list)
+    i_s_arena.free_items();
+
+  /*
+    For safety reset list of open temporary tables before closing
+    all tables open within this Open_tables_state.
+  */
+  thd->temporary_tables= NULL;
+  close_thread_tables(thd);
+  /*
+    Release metadata lock we might have acquired.
+    See comment in fill_schema_table_from_frm() for details.
+  */
+  thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
+
+  thd->lex= old_lex;
+
+  thd->stmt_arena= old_arena;
+  thd->restore_active_arena(&i_s_arena, &backup_arena);
+
+  DBUG_RETURN(result);
 }
 
 
@@ -3113,7 +3451,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     default:
       DBUG_ASSERT(0);
     }
-    if (thd->is_error() && thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
+    if (thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
     {
       thd->clear_error();
       return 0;
@@ -3239,6 +3577,9 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
   @param[in]      schema_table_idx         I_S table index
+  @param[in]      open_tables_state_backup Open_tables_state object which is used
+                                           to save/restore original state of metadata
+                                           locks.
   @param[in]      can_deadlock             Indicates that deadlocks are possible
                                            due to metadata locks, so to avoid
                                            them we should not wait in case if
@@ -3256,6 +3597,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
                                       LEX_STRING *db_name,
                                       LEX_STRING *table_name,
                                       enum enum_schema_tables schema_table_idx,
+                                      Open_tables_backup *open_tables_state_backup,
                                       bool can_deadlock)
 {
   TABLE *table= tables->table;
@@ -3265,12 +3607,12 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   uint res= 0;
   int not_used;
   my_hash_value_type hash_value;
-  char key[MAX_DBKEY_LENGTH];
+  const char *key;
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
-  bzero((char*) &table_list, sizeof(TABLE_LIST));
-  bzero((char*) &tbl, sizeof(TABLE));
+  memset(&table_list, 0, sizeof(TABLE_LIST));
+  memset(&tbl, 0, sizeof(TABLE));
 
   if (lower_case_table_names)
   {
@@ -3316,7 +3658,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     */
     DBUG_ASSERT(can_deadlock);
 
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WARN_I_S_SKIPPED_TABLE,
                         ER(ER_WARN_I_S_SKIPPED_TABLE),
                         table_list.db, table_list.table_name);
@@ -3338,7 +3680,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     goto end;
   }
 
-  key_length= create_table_def_key(thd, key, &table_list, 0);
+  key_length= get_table_def_key(&table_list, &key);
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
@@ -3401,16 +3743,69 @@ end_share:
 
 end_unlock:
   mysql_mutex_unlock(&LOCK_open);
-  /*
-    Don't release the MDL lock, it can be part of a transaction.
-    If it is not, it will be released by the call to
-    MDL_context::rollback_to_savepoint() in the caller.
-  */
 
 end:
+  /*
+    Release metadata lock we might have acquired.
+
+    Without this step metadata locks acquired for each table processed
+    will be accumulated. In situation when a lot of tables are processed
+    by I_S query this will result in transaction with too many metadata
+    locks. As result performance of acquisition of new lock will suffer.
+
+    Of course, the fact that we don't hold metadata lock on tables which
+    were processed till the end of I_S query makes execution less isolated
+    from concurrent DDL. Consequently one might get 'dirty' results from
+    such a query. But we have never promised serializability of I_S queries
+    anyway.
+
+    We don't have any tables open since we took backup, so rolling back to
+    savepoint is safe.
+  */
+  DBUG_ASSERT(thd->open_tables == NULL);
+  thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
   thd->clear_error();
   return res;
 }
+
+
+/**
+  Trigger_error_handler is intended to intercept and silence SQL conditions
+  that might happen during trigger loading for SHOW statements.
+  The potential SQL conditions are:
+
+    - ER_PARSE_ERROR -- this error is thrown if a trigger definition file
+      is damaged or contains invalid CREATE TRIGGER statement. That should
+      not happen in normal life.
+
+    - ER_TRG_NO_DEFINER -- this warning is thrown when we're loading a
+      trigger created/imported in/from the version of MySQL, which does not
+      support trigger definers.
+
+    - ER_TRG_NO_CREATION_CTX -- this warning is thrown when we're loading a
+      trigger created/imported in/from the version of MySQL, which does not
+      support trigger creation contexts.
+*/
+
+class Trigger_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_warning_level level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl)
+  {
+    if (sql_errno == ER_PARSE_ERROR ||
+        sql_errno == ER_TRG_NO_DEFINER ||
+        sql_errno == ER_TRG_NO_CREATION_CTX)
+      return true;
+
+    return false;
+  }
+};
+
 
 
 /**
@@ -3436,10 +3831,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
-  SELECT_LEX *old_all_select_lex= lex->all_selects_list;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
-  SELECT_LEX sel;
   LOOKUP_FIELD_VALUES lookup_field_vals;
   LEX_STRING *db_name, *table_name;
   bool with_i_schema;
@@ -3447,11 +3840,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   List<LEX_STRING> db_names;
   List_iterator_fast<LEX_STRING> it(db_names);
   Item *partial_cond= 0;
-  uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_backup open_tables_state_backup;
-  uint8 save_context_analysis_only= lex->context_analysis_only;
-  Query_tables_list query_tables_list_backup;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
 #endif
@@ -3469,15 +3859,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
     encountered and skip table with emitting an appropriate warning.
   */
   can_deadlock= thd->mdl_context.has_locks();
-
-  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
-  lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  /*
-    Restore Query_tables_list::sql_command value, which was reset
-    above, as ST_SCHEMA_TABLE::process_table() functions often rely
-    that this value reflects which SHOW statement is executed.
-  */
-  lex->sql_command= query_tables_list_backup.sql_command;
 
   /*
     We should not introduce deadlocks even if we already have some
@@ -3498,9 +3879,19 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   */
   if (lsel && lsel->table_list.first)
   {
-    error= fill_schema_show_cols_or_idxs(thd, tables, schema_table,
-                                         can_deadlock,
-                                         &open_tables_state_backup);
+    LEX_STRING db_name, table_name;
+
+    db_name.str= lsel->table_list.first->db;
+    db_name.length= lsel->table_list.first->db_length;
+
+    table_name.str= lsel->table_list.first->table_name;
+    table_name.length= lsel->table_list.first->table_name_length;
+
+    error= fill_schema_table_by_open(thd, TRUE,
+                                     table, schema_table,
+                                     &db_name, &table_name,
+                                     &open_tables_state_backup,
+                                     can_deadlock);
     goto err;
   }
 
@@ -3562,7 +3953,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
         acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0))
 #endif
     {
-      thd->no_warnings_for_error= 1;
       List<LEX_STRING> table_names;
       int res= make_table_name_list(thd, &table_names, lex,
                                     &lookup_field_vals,
@@ -3611,77 +4001,35 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
             if (!(table_open_method & ~OPEN_FRM_ONLY) &&
                 !with_i_schema)
             {
-              if (!fill_schema_table_from_frm(thd, tables, schema_table, db_name,
-                                              table_name, schema_table_idx,
-                                              can_deadlock))
+              /*
+                Here we need to filter out warnings, which can happen
+                during loading of triggers in fill_schema_table_from_frm(),
+                because we don't need those warnings to pollute output of
+                SELECT from I_S / SHOW-statements.
+              */
+
+              Trigger_error_handler err_handler;
+              thd->push_internal_handler(&err_handler);
+
+              int res= fill_schema_table_from_frm(thd, tables, schema_table,
+                                                  db_name, table_name,
+                                                  schema_table_idx,
+                                                  &open_tables_state_backup,
+                                                  can_deadlock);
+
+              thd->pop_internal_handler();
+
+              if (!res)
                 continue;
             }
 
-            int res;
-            LEX_STRING tmp_lex_string, orig_db_name;
-            /*
-              Set the parent lex of 'sel' because it is needed by
-              sel.init_query() which is called inside make_table_list.
-            */
-            thd->no_warnings_for_error= 1;
-            sel.parent_lex= lex;
-            /* db_name can be changed in make_table_list() func */
-            if (!thd->make_lex_string(&orig_db_name, db_name->str,
-                                      db_name->length, FALSE))
-              goto err;
-            if (make_table_list(thd, &sel, db_name, table_name))
-              goto err;
-            TABLE_LIST *show_table_list= sel.table_list.first;
-            lex->all_selects_list= &sel;
-            lex->derived_tables= 0;
-            lex->sql_command= SQLCOM_SHOW_FIELDS;
-            show_table_list->i_s_requested_object=
-              schema_table->i_s_requested_object;
             DEBUG_SYNC(thd, "before_open_in_get_all_tables");
-            res= open_normal_and_derived_tables(thd, show_table_list,
-                   (MYSQL_OPEN_IGNORE_FLUSH |
-                    MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
-                    (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
-            lex->sql_command= query_tables_list_backup.sql_command;
-            /*
-              XXX:  show_table_list has a flag i_is_requested,
-              and when it's set, open_normal_and_derived_tables()
-              can return an error without setting an error message
-              in THD, which is a hack. This is why we have to
-              check for res, then for thd->is_error() only then
-              for thd->stmt_da->sql_errno().
-            */
-            if (res && thd->is_error() &&
-                thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
-            {
-              /*
-                Hide error for not existing table.
-                This error can occur for example when we use
-                where condition with db name and table name and this
-                table does not exist.
-              */
-              res= 0;
-              thd->clear_error();
-            }
-            else
-            {
-              /*
-                We should use show_table_list->alias instead of 
-                show_table_list->table_name because table_name
-                could be changed during opening of I_S tables. It's safe
-                to use alias because alias contains original table name 
-                in this case.
-              */
-              thd->make_lex_string(&tmp_lex_string, show_table_list->alias,
-                                   strlen(show_table_list->alias), FALSE);
-              res= schema_table->process_table(thd, show_table_list, table,
-                                               res, &orig_db_name,
-                                               &tmp_lex_string);
-              close_tables_for_reopen(thd, &show_table_list,
-                                      open_tables_state_backup.mdl_system_tables_svp);
-            }
-            DBUG_ASSERT(!lex->query_tables_own_last);
-            if (res)
+
+            if (fill_schema_table_by_open(thd, FALSE,
+                                          table, schema_table,
+                                          db_name, table_name,
+                                          &open_tables_state_backup,
+                                          can_deadlock))
               goto err;
           }
         }
@@ -3697,16 +4045,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   error= 0;
 err:
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
-  lex->restore_backup_query_tables_list(&query_tables_list_backup);
-  lex->derived_tables= derived_tables;
-  lex->all_selects_list= old_all_select_lex;
-  lex->context_analysis_only= save_context_analysis_only;
+
   DBUG_RETURN(error);
 }
 
 
 bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
-                          CHARSET_INFO *cs)
+                          const CHARSET_INFO *cs)
 {
   restore_record(table, s->default_values);
   table->field[0]->store(STRING_WITH_LEN("def"), system_charset_info);
@@ -4023,13 +4368,13 @@ err:
       column with the error text, and clear the error so that the operation
       can continue.
     */
-    const char *error= thd->is_error() ? thd->stmt_da->message() : "";
+    const char *error= thd->is_error() ? thd->get_stmt_da()->message() : "";
     table->field[20]->store(error, strlen(error), cs);
 
     if (thd->is_error())
     {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
     }
   }
@@ -4185,8 +4530,8 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         rather than in SHOW COLUMNS
       */
       if (thd->is_error())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
     }
@@ -4510,7 +4855,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   bool free_sp_head;
   DBUG_ENTER("store_schema_params");
 
-  bzero((char*) &tbl, sizeof(TABLE));
+  memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
   init_tmp_table_share(thd, &share, "", 0, "", path);
 
@@ -4581,16 +4926,16 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
     for (uint i= 0 ; i < params ; i++)
     {
       const char *tmp_buff;
-      sp_variable_t *spvar= spcont->find_variable(i);
+      sp_variable *spvar= spcont->find_variable(i);
       field_def= &spvar->field_def;
       switch (spvar->mode) {
-      case sp_param_in:
+      case sp_variable::MODE_IN:
         tmp_buff= "IN";
         break;
-      case sp_param_out:
+      case sp_variable::MODE_OUT:
         tmp_buff= "OUT";
         break;
-      case sp_param_inout:
+      case sp_variable::MODE_INOUT:
         tmp_buff= "INOUT";
         break;
       default:
@@ -4706,7 +5051,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
           Field *field;
           Create_field *field_def= &sp->m_return_field_def;
 
-          bzero((char*) &tbl, sizeof(TABLE));
+          memset(&tbl, 0, sizeof(TABLE));
           (void) build_table_filename(path, sizeof(path), "", "", "", 0);
           init_tmp_table_share(thd, &share, "", 0, "", path);
           field= make_field(&share, (uchar*) 0, field_def->length,
@@ -4739,11 +5084,11 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       copy_field_as_string(table->field[21],
                            proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]);
 
-      bzero((char *)&time, sizeof(time));
+      memset(&time, 0, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_CREATED])->
         get_time(&time);
       table->field[22]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      bzero((char *)&time, sizeof(time));
+      memset(&time, 0, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_MODIFIED])->
         get_time(&time);
       table->field[23]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
@@ -4786,7 +5131,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   strxmov(definer, thd->security_ctx->priv_user, "@",
           thd->security_ctx->priv_host, NullS);
   /* We use this TABLE_LIST instance only for checking of privileges. */
-  bzero((char*) &proc_tables,sizeof(proc_tables));
+  memset(&proc_tables, 0, sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
   proc_tables.db_length= 5;
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
@@ -4846,8 +5191,8 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         rather than in SHOW KEYS
       */
       if (thd->is_error())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
     }
@@ -5065,8 +5410,8 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
     if (res && thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
   }
   if (res)
     thd->clear_error();
@@ -5099,8 +5444,8 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5202,8 +5547,8 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5283,8 +5628,8 @@ static int get_schema_key_column_usage_record(THD *thd,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5406,7 +5751,7 @@ int get_cs_converted_part_value_from_string(THD *thd,
                                             Item *item,
                                             String *input_str,
                                             String *output_str,
-                                            CHARSET_INFO *cs,
+                                            const CHARSET_INFO *cs,
                                             bool use_hex)
 {
   if (item->result_type() == INT_RESULT)
@@ -5495,12 +5840,9 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
                               strlen(part_elem->tablespace_name), cs);
     else
     {
-      char *ts= showing_table->file->get_tablespace_name(thd,0,0);
+      char *ts= showing_table->s->tablespace;
       if(ts)
-      {
         table->field[24]->store(ts, strlen(ts), cs);
-        my_free(ts);
-      }
       else
         table->field[24]->set_null();
     }
@@ -5573,8 +5915,8 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6102,8 +6444,8 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6665,6 +7007,83 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 }
 
 
+/**
+  Fill INFORMATION_SCHEMA-table, leave correct Diagnostics_area /
+  Warning_info state after itself.
+
+  This function is a wrapper around ST_SCHEMA_TABLE::fill_table(), which
+  may "partially silence" some errors. The thing is that during
+  fill_table() many errors might be emitted. These errors stem from the
+  nature of fill_table().
+
+  For example, SELECT ... FROM INFORMATION_SCHEMA.xxx WHERE TABLE_NAME = 'xxx'
+  results in a number of 'Table <db name>.xxx does not exist' errors,
+  because fill_table() tries to open the 'xxx' table in every possible
+  database.
+
+  Those errors are cleared (the error status is cleared from
+  Diagnostics_area) inside fill_table(), but they remain in Warning_info
+  (Warning_info is not cleared because it may contain useful warnings).
+
+  This function is responsible for making sure that Warning_info does not
+  contain warnings corresponding to the cleared errors.
+
+  @note: THD::no_warnings_for_error used to be set before calling
+  fill_table(), thus those errors didn't go to Warning_info. This is not
+  the case now (THD::no_warnings_for_error was eliminated as a hack), so we
+  need to take care of those warnings here.
+
+  @param thd            Thread context.
+  @param table_list     I_S table.
+  @param join_table     JOIN/SELECT table.
+
+  @return Error status.
+  @retval TRUE Error.
+  @retval FALSE Success.
+*/
+static bool do_fill_table(THD *thd,
+                          TABLE_LIST *table_list,
+                          JOIN_TAB *join_table)
+{
+  // NOTE: fill_table() may generate many "useless" warnings, which will be
+  // ignored afterwards. On the other hand, there might be "useful"
+  // warnings, which should be presented to the user. Warning_info usually
+  // stores no more than THD::variables.max_error_count warnings.
+  // The problem is that "useless warnings" may occupy all the slots in the
+  // Warning_info, so "useful warnings" get rejected. In order to avoid
+  // that problem we create a Warning_info instance, which is capable of
+  // storing "unlimited" number of warnings.
+  Diagnostics_area *da= thd->get_stmt_da();
+  Warning_info wi_tmp(thd->query_id, true);
+
+  da->push_warning_info(&wi_tmp);
+
+  bool res= table_list->schema_table->fill_table(
+    thd, table_list, join_table->condition());
+
+  da->pop_warning_info();
+
+  // Pass an error if any.
+
+  if (da->is_error())
+  {
+    da->push_warning(thd,
+                     da->sql_errno(),
+                     da->get_sqlstate(),
+                     Sql_condition::WARN_LEVEL_ERROR,
+                     da->message());
+  }
+
+  // Pass warnings (if any).
+  //
+  // Filter out warnings with WARN_LEVEL_ERROR level, because they
+  // correspond to the errors which were filtered out in fill_table().
+  da->copy_non_errors_from_wi(thd, &wi_tmp);
+
+  return res;
+}
+
+
 /*
   Fill temporary schema tables before SELECT
 
@@ -6687,7 +7106,6 @@ bool get_schema_tables_result(JOIN *join,
   bool result= 0;
   DBUG_ENTER("get_schema_tables_result");
 
-  thd->no_warnings_for_error= 1;
   for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
   {  
     if (!tab->table || !tab->table->pos_in_table_list)
@@ -6738,20 +7156,16 @@ bool get_schema_tables_result(JOIN *join,
       else
         table_list->table->file->stats.records= 0;
 
-      if (table_list->schema_table->fill_table(thd, table_list,
-                                               tab->select_cond))
+      if (do_fill_table(thd, table_list, tab))
       {
         result= 1;
         join->error= 1;
-        tab->read_record.file= table_list->table->file;
         table_list->schema_table_state= executed_place;
         break;
       }
-      tab->read_record.file= table_list->table->file;
       table_list->schema_table_state= executed_place;
     }
   }
-  thd->no_warnings_for_error= 0;
   DBUG_RETURN(result);
 }
 
@@ -6977,7 +7391,8 @@ ST_FIELD_INFO proc_fields_info[]=
   {"DATA_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
+  {"NUMERIC_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
@@ -7387,7 +7802,8 @@ ST_FIELD_INFO parameters_fields_info[]=
   {"DATA_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
-  {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
+  {"NUMERIC_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FULL_TABLE},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
@@ -7419,6 +7835,11 @@ ST_FIELD_INFO tablespaces_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
+
+#ifdef OPTIMIZER_TRACE
+/** For creating fields of information_schema.OPTIMIZER_TRACE */
+extern ST_FIELD_INFO optimizer_trace_info[];
+#endif
 
 /*
   Description of ST_FIELD_INFO in table.h
@@ -7460,6 +7881,11 @@ ST_SCHEMA_TABLE schema_tables[]=
    OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
+#ifdef OPTIMIZER_TRACE
+  {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
+    fill_optimizer_trace_info, make_optimizer_trace_table_for_show,
+    NULL, -1, -1, false, 0},
+#endif
   {"PARAMETERS", parameters_fields_info, create_schema_table,
    fill_schema_proc, 0, 0, -1, -1, 0, 0},
   {"PARTITIONS", partitions_fields_info, create_schema_table,
@@ -7515,11 +7941,6 @@ ST_SCHEMA_TABLE schema_tables[]=
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List_iterator_fast<char>;
-template class List<char>;
-#endif
 
 int initialize_schema_table(st_plugin_int *plugin)
 {
@@ -7607,7 +8028,7 @@ static bool show_create_trigger_impl(THD *thd,
   LEX_STRING trg_connection_cl_name;
   LEX_STRING trg_db_cl_name;
 
-  CHARSET_INFO *trg_client_cs;
+  const CHARSET_INFO *trg_client_cs;
 
   /*
     TODO: Check privileges here. This functionality will be added by
@@ -7806,7 +8227,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   /*
     Open the table by name in order to load Table_triggers_list object.
   */
-  if (open_tables(thd, &lst, &num_tables, MYSQL_OPEN_SKIP_TEMPORARY |
+  if (open_tables(thd, &lst, &num_tables,
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),
@@ -7936,7 +8357,7 @@ void initialize_information_schema_acl()
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
-                                          CHARSET_INFO *cs,
+                                          const CHARSET_INFO *cs,
                                           bool use_hex)
 {
 

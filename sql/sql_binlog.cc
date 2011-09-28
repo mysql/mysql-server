@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +159,7 @@ void mysql_client_binlog_statement(THD* thd)
   Relay_log_info *rli= thd->rli_fake;
   if (!rli)
   {
-    if ((rli= Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE)))
+    if ((rli= Rpl_info_factory::create_rli(INFO_REPOSITORY_FILE, FALSE)))
     {
       thd->rli_fake= rli;
       rli->info_thd= thd;
@@ -284,16 +285,14 @@ void mysql_client_binlog_statement(THD* thd)
         will be used to read info about the relay log's format; it
         will be deleted when the SQL thread does not need it,
         i.e. when this thread terminates.
+        ROWS_QUERY_LOG_EVENT if present in rli is deleted at the end
+        of the event.
       */
-      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+      if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
+          ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
       {
-        if (thd->variables.binlog_rows_query_log_events)
-          handle_rows_query_log_event(ev, rli);
-        if (ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
-        {
-          delete ev;
-          ev= NULL;
-        }
+        delete ev;
+        ev= NULL;
       }
       if (err)
       {
@@ -301,7 +300,7 @@ void mysql_client_binlog_statement(THD* thd)
           TODO: Maybe a better error message since the BINLOG statement
           now contains several events.
         */
-        my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
         goto end;
       }
     }

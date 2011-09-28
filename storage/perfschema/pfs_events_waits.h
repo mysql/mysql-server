@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include "pfs_column_types.h"
 #include "pfs_lock.h"
+#include "pfs_events.h"
 
 struct PFS_mutex;
 struct PFS_rwlock;
@@ -30,8 +31,12 @@ struct PFS_cond;
 struct PFS_table;
 struct PFS_file;
 struct PFS_thread;
+struct PFS_socket;
 struct PFS_instr_class;
 struct PFS_table_share;
+struct PFS_account;
+struct PFS_user;
+struct PFS_host;
 
 /** Class of a wait event. */
 enum events_waits_class
@@ -41,11 +46,13 @@ enum events_waits_class
   WAIT_CLASS_RWLOCK,
   WAIT_CLASS_COND,
   WAIT_CLASS_TABLE,
-  WAIT_CLASS_FILE
+  WAIT_CLASS_FILE,
+  WAIT_CLASS_SOCKET,
+  WAIT_CLASS_IDLE
 };
 
 /** A wait event record. */
-struct PFS_events_waits
+struct PFS_events_waits : public PFS_events
 {
   /**
     The type of wait.
@@ -61,36 +68,18 @@ struct PFS_events_waits
   events_waits_class m_wait_class;
   /** Executing thread. */
   PFS_thread *m_thread;
-  /** Instrument metadata. */
-  PFS_instr_class *m_class;
-  /** Event id. */
-  ulonglong m_event_id;
-  /** Nesting event id. */
-  ulonglong m_nesting_event_id;
-  /**
-    Timer start.
-    This member is populated only if m_timed is true.
-  */
-  ulonglong m_timer_start;
-  /**
-    Timer end.
-    This member is populated only if m_timed is true.
-  */
-  ulonglong m_timer_end;
   /** Object type */
   enum_object_type m_object_type;
   /** Table share, for table operations only. */
   PFS_table_share *m_weak_table_share;
   /** File, for file operations only. */
   PFS_file *m_weak_file;
+  /** Socket, for socket operations only. */
+  PFS_socket *m_weak_socket;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
   /** Address in memory of the object instance waited on. */
   const void *m_object_instance_addr;
-  /** Location of the instrumentation in the source code (file name). */
-  const char *m_source_file;
-  /** Location of the instrumentation in the source code (line number). */
-  uint m_source_line;
   /** Operation performed. */
   enum_operation_type m_operation;
   /**
@@ -128,6 +117,14 @@ void cleanup_events_waits_history_long();
 void reset_events_waits_current();
 void reset_events_waits_history();
 void reset_events_waits_history_long();
+void reset_events_waits_by_thread();
+void reset_events_waits_by_account();
+void reset_events_waits_by_user();
+void reset_events_waits_by_host();
+void reset_events_waits_global();
+void aggregate_account_waits(PFS_account *account);
+void aggregate_user_waits(PFS_user *user);
+void aggregate_host_waits(PFS_host *host);
 
 void reset_table_waits_by_table();
 void reset_table_io_waits_by_table();

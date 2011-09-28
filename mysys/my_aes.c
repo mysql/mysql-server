@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /*
@@ -65,7 +65,7 @@ static int my_aes_create_key(KEYINSTANCE *aes_key,
   const char *sptr;			/* Start of the working key */
   const char *key_end=key+key_length;	/* Working key boundary*/
 
-  bzero((char*) rkey,AES_KEY_LENGTH/8);      /* Set initial key  */
+  memset(rkey, 0, AES_KEY_LENGTH/8);      /* Set initial key  */
 
   for (ptr= rkey, sptr= key; sptr < key_end; ptr++,sptr++)
   {
@@ -149,7 +149,7 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
   /* Encode the rest. We always have incomplete block */
   pad_len = AES_BLOCK_SIZE - (source_length - AES_BLOCK_SIZE*num_blocks);
   memcpy(block, source, 16 - pad_len);
-  bfill(block + AES_BLOCK_SIZE - pad_len, pad_len, pad_len);
+  memset(block + AES_BLOCK_SIZE - pad_len, pad_len,  pad_len);
   rijndaelEncrypt(aes_key.rk, aes_key.nr, block, (uint8*) dest);
   return AES_BLOCK_SIZE*(num_blocks + 1);
 }

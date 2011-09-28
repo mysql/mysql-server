@@ -46,6 +46,8 @@ Created 1/20/1994 Heikki Tuuri
 #include <ctype.h>
 #endif
 
+#include <stdarg.h> /* for va_list */
+
 /** Index name prefix in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'
 /** Index name prefix in fast index creation, as a string constant */
@@ -98,16 +100,6 @@ do {								\
 #define UT_MIN(a, b)	((a) < (b) ? (a) : (b))
 #define UT_MAX(a, b)	((a) > (b) ? (a) : (b))
 
-/********************************************************//**
-Gets the high 32 bits in a ulint. That is makes a shift >> 32,
-but since there seem to be compiler bugs in both gcc and Visual C++,
-we do this by a special conversion.
-@return	a >> 32 */
-UNIV_INTERN
-ulint
-ut_get_high32(
-/*==========*/
-	ulint	a);	/*!< in: ulint */
 /******************************************************//**
 Calculates the minimum of two ulints.
 @return	minimum */
@@ -279,7 +271,8 @@ UNIV_INTERN
 void
 ut_print_timestamp(
 /*===============*/
-	FILE*  file); /*!< in: file where to print */
+	FILE*	file)	/*!< in: file where to print */
+	UNIV_COLD __attribute__((nonnull));
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 UNIV_INTERN
@@ -382,6 +375,22 @@ ut_copy_file(
 
 #ifdef __WIN__
 /**********************************************************************//**
+A substitute for vsnprintf(3), formatted output conversion into
+a limited buffer. Note: this function DOES NOT return the number of
+characters that would have been printed if the buffer was unlimited because
+VC's _vsnprintf() returns -1 in this case and we would need to call
+_vscprintf() in addition to estimate that but we would need another copy
+of "ap" for that and VC does not provide va_copy(). */
+UNIV_INTERN
+void
+ut_vsnprintf(
+/*=========*/
+	char*		str,	/*!< out: string */
+	size_t		size,	/*!< in: str size */
+	const char*	fmt,	/*!< in: format */
+	va_list		ap);	/*!< in: format values */
+
+/**********************************************************************//**
 A substitute for snprintf(3), formatted output conversion into
 a limited buffer.
 @return number of characters that would have been printed if the size
@@ -395,6 +404,15 @@ ut_snprintf(
 	const char*	fmt,	/*!< in: format */
 	...);			/*!< in: format values */
 #else
+/**********************************************************************//**
+A wrapper for vsnprintf(3), formatted output conversion into
+a limited buffer. Note: this function DOES NOT return the number of
+characters that would have been printed if the buffer was unlimited because
+VC's _vsnprintf() returns -1 in this case and we would need to call
+_vscprintf() in addition to estimate that but we would need another copy
+of "ap" for that and VC does not provide va_copy(). */
+# define ut_vsnprintf(buf, size, fmt, ap)	\
+	((void) vsnprintf(buf, size, fmt, ap))
 /**********************************************************************//**
 A wrapper for snprintf(3), formatted output conversion into
 a limited buffer. */
@@ -410,6 +428,18 @@ const char*
 ut_strerr(
 /*======*/
 	enum db_err	num);	/*!< in: error number */
+
+/****************************************************************
+Sort function for ulint arrays. */
+UNIV_INTERN
+void
+ut_ulint_sort(
+/*==========*/
+	ulint*	arr,		/*!< in/out: array to sort */
+	ulint*	aux_arr,	/*!< in/out: aux array to use in sort */
+	ulint	low,		/*!< in: lower bound */
+	ulint	high)		/*!< in: upper bound */
+	__attribute__((nonnull));
 
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"

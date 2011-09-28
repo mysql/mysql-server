@@ -173,12 +173,24 @@ IF(ENABLE_DEBUG_SYNC)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
 ENDIF() 
  
+OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
+IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
+ENDIF()
+
 OPTION(ENABLED_LOCAL_INFILE
  "If we should should enable LOAD DATA LOCAL by default" ${IF_WIN})
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(WITH_FAST_MUTEXES "Compile with fast mutexes" OFF)
 MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
+
+OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
+
+OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
+MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
 
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)

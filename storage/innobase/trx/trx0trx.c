@@ -39,7 +39,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "thr0loc.h"
 #include "btr0sea.h"
 #include "os0proc.h"
 #include "trx0xa.h"
@@ -49,10 +48,6 @@ Created 3/26/1996 Heikki Tuuri
 
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
-
-/** Number of transactions currently allocated for MySQL: protected by
-trx_sys->lock */
-UNIV_INTERN ulint		trx_n_mysql_transactions = 0;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
@@ -97,7 +92,8 @@ trx_t*
 trx_create(void)
 /*============*/
 {
-	trx_t*	trx;
+	trx_t*		trx;
+	mem_heap_t*	heap;
 
 	trx = mem_zalloc(sizeof(*trx));
 
@@ -135,9 +131,15 @@ trx_create(void)
 
 	trx->op_info = "";
 
+	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
+
 	/* Remember to free the vector explicitly in trx_free(). */
-	trx->autoinc_locks = ib_vector_create(
-		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
+	trx->autoinc_locks = ib_vector_create(heap, 4);
+
+	/* Remember to free the vector explicitly in trx_free(). */
+	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 128);
+
+	trx->lock.table_locks = ib_vector_create(heap, 32);
 
 	return(trx);
 }
@@ -170,35 +172,16 @@ trx_allocate_for_mysql(void)
 
 	trx = trx_allocate_for_background();
 
-	rw_lock_x_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
-	++trx_n_mysql_transactions;
+	trx_sys->n_mysql_trx++;
 
 	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
-	rw_lock_x_unlock(&trx_sys->lock);
-
-	trx->mysql_thread_id = os_thread_get_curr_id();
-
-	trx->mysql_process_no = os_proc_get_number();
+	mutex_exit(&trx_sys->mutex);
 
 	return(trx);
-}
-
-/********************************************************************//**
-Releases the search latch if trx has reserved it. */
-UNIV_INTERN
-void
-trx_search_latch_release_if_reserved(
-/*=================================*/
-	trx_t*	   trx) /*!< in: transaction */
-{
-	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
-
-		trx->has_search_latch = FALSE;
-	}
 }
 
 /********************************************************************//**
@@ -207,6 +190,52 @@ static
 void
 trx_free(
 /*=====*/
+	trx_t*	trx)	/*!< in, own: trx object */
+{
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+	ut_ad(!trx->in_trx_list);
+
+	mutex_free(&trx->undo_mutex);
+
+	if (trx->undo_no_arr != NULL) {
+		trx_undo_arr_free(trx->undo_no_arr);
+	}
+
+	ut_a(trx->lock.wait_lock == NULL);
+	ut_a(trx->lock.wait_thr == NULL);
+
+	ut_a(!trx->has_search_latch);
+
+	ut_a(trx->dict_operation_lock_mode == 0);
+
+	if (trx->lock.lock_heap) {
+		mem_heap_free(trx->lock.lock_heap);
+	}
+
+	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+	if (trx->global_read_view_heap) {
+		mem_heap_free(trx->global_read_view_heap);
+	}
+
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->autoinc_locks);
+
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->lock.table_locks);
+
+	mutex_free(&trx->mutex);
+
+	mem_free(trx);
+}
+
+/********************************************************************//**
+Frees a transaction object of a background operation of the master thread. */
+UNIV_INTERN
+void
+trx_free_for_background(
+/*====================*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
 	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
@@ -237,63 +266,31 @@ trx_free(
 		putc('\n', stderr);
 	}
 
-	trx_mutex_enter(trx);
-
-	ut_a(trx->magic_n == TRX_MAGIC_N);
-
-	trx->magic_n = 11112222;
-
 	ut_a(trx->state == TRX_STATE_NOT_STARTED);
-
-	mutex_free(&trx->undo_mutex);
-
 	ut_a(trx->insert_undo == NULL);
 	ut_a(trx->update_undo == NULL);
-
-	if (trx->undo_no_arr != NULL) {
-		trx_undo_arr_free(trx->undo_no_arr);
-	}
-
-	ut_a(trx->lock.wait_lock == NULL);
-	ut_a(trx->lock.wait_thr == NULL);
-
-	ut_a(!trx->has_search_latch);
-
-	ut_a(trx->dict_operation_lock_mode == 0);
-
-	if (trx->lock.lock_heap) {
-		mem_heap_free(trx->lock.lock_heap);
-	}
-
-	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-	if (trx->global_read_view_heap) {
-		mem_heap_free(trx->global_read_view_heap);
-	}
-
-	trx->global_read_view = NULL;
-
 	ut_a(trx->read_view == NULL);
 
-	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->autoinc_locks);
-
-	trx_mutex_exit(trx);
-
-	mutex_free(&trx->mutex);
-
-	mem_free(trx);
+	trx_free(trx);
 }
 
 /********************************************************************//**
-Frees a transaction object of a background operation of the master thread. */
+At shutdown, frees a transaction object that is in the PREPARED state. */
 UNIV_INTERN
 void
-trx_free_for_background(
-/*====================*/
+trx_free_prepared(
+/*==============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
+	ut_ad(mutex_own(&trx_sys->mutex));
+
+	ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+
+	trx_undo_free_prepared(trx);
+	ut_ad(trx->in_trx_list);
+	ut_d(trx->in_trx_list = FALSE);
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 	trx_free(trx);
 }
 
@@ -305,7 +302,7 @@ trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	rw_lock_x_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	ut_ad(trx->in_mysql_trx_list);
 	ut_d(trx->in_mysql_trx_list = FALSE);
@@ -313,9 +310,9 @@ trx_free_for_mysql(
 
 	ut_ad(trx_sys_validate_trx_list());
 
-	--trx_n_mysql_transactions;
+	trx_sys->n_mysql_trx--;
 
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	trx_free_for_background(trx);
 }
@@ -390,7 +387,7 @@ trx_resurrect_insert(
 	trx->is_recovered = TRUE;
 
 	/* This is single-threaded startup code, we do not need the
-	protection of trx->mutex or trx_sys->lock here. */
+	protection of trx->mutex or trx_sys->mutex here. */
 
 	if (undo->state != TRX_UNDO_ACTIVE) {
 
@@ -406,6 +403,7 @@ trx_resurrect_insert(
 			if (srv_force_recovery == 0) {
 
 				trx->state = TRX_STATE_PREPARED;
+				trx_sys->n_prepared_trx++;
 			} else {
 				fprintf(stderr,
 					"InnoDB: Since innodb_force_recovery"
@@ -456,14 +454,19 @@ trx_resurrect_update_in_prepared_state(
 	const trx_undo_t*	undo)	/*!< in: update UNDO record */
 {
 	/* This is single-threaded startup code, we do not need the
-	protection of trx->mutex or trx_sys->lock here. */
+	protection of trx->mutex or trx_sys->mutex here. */
 
 	if (undo->state == TRX_UNDO_PREPARED) {
 		fprintf(stderr,
-			"InnoDB: Transaction " TRX_ID_FMT 
+			"InnoDB: Transaction " TRX_ID_FMT
 			" was in the XA prepared state.\n", trx->id);
 
 		if (srv_force_recovery == 0) {
+			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
+				trx_sys->n_prepared_trx++;
+			} else {
+				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+			}
 
 			trx->state = TRX_STATE_PREPARED;
 		} else {
@@ -496,7 +499,7 @@ trx_resurrect_update(
 	trx->is_recovered = TRUE;
 
 	/* This is single-threaded startup code, we do not need the
-	protection of trx->mutex or trx_sys->lock here. */
+	protection of trx->mutex or trx_sys->mutex here. */
 
 	if (undo->state != TRX_UNDO_ACTIVE) {
 		trx_resurrect_update_in_prepared_state(trx, undo);
@@ -555,7 +558,7 @@ trx_lists_init_at_db_start(void)
 			continue;
 		}
 
-		/* Ressurrect transactions that were doing inserts. */
+		/* Resurrect transactions that were doing inserts. */
 		for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_list);
 		     undo != NULL;
 		     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
@@ -574,9 +577,9 @@ trx_lists_init_at_db_start(void)
 			ibool	trx_created;
 
 			/* Check the trx_sys->trx_list first. */
-			rw_lock_s_lock(&trx_sys->lock);
+			mutex_enter(&trx_sys->mutex);
 			trx = trx_get_on_id(undo->trx_id);
-			rw_lock_s_unlock(&trx_sys->lock);
+			mutex_exit(&trx_sys->mutex);
 
 			if (trx == NULL) {
 				trx = trx_allocate_for_background();
@@ -601,11 +604,17 @@ UNIV_INLINE
 trx_rseg_t*
 trx_assign_rseg(
 /*============*/
-	ulint	max_undo_logs)	/*!< in: maximum number of UNDO logs to use */
+	ulint	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
+	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
 	ulint		i;
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
+
+	if (srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		ut_a(max_undo_logs == ULINT_UNDEFINED);
+		return(NULL);
+	}
 
 	/* This breaks true round robin but that should be OK. */
 
@@ -614,11 +623,15 @@ trx_assign_rseg(
 	i = latest_rseg++;
         i %= max_undo_logs;
 
-	/* Note: The assumtion here is that there can't be any gaps in
+	/* Note: The assumption here is that there can't be any gaps in
 	the array. Once we implement more flexible rollback segment
 	management this may not hold. The assertion checks for that case. */
 
 	ut_a(trx_sys->rseg_array[0] != NULL);
+
+	/* Skip the system tablespace if we have more than one tablespace
+	defined for rollback segments. We want all UNDO records to be in
+	the non-system tablespaces. */
 
 	do {
 		rseg = trx_sys->rseg_array[i];
@@ -626,7 +639,10 @@ trx_assign_rseg(
 
 		i = (rseg == NULL) ? 0 : i + 1;
 
-	} while (rseg == NULL);
+	} while (rseg == NULL
+		 || (rseg->space == 0
+		     && n_tablespaces > 0
+		     && trx_sys->rseg_array[1] != NULL));
 
 	return(rseg);
 }
@@ -650,7 +666,7 @@ trx_start_low(
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
 	read_view_open_now: */
 
-	rseg = trx_assign_rseg(srv_rollback_segments);
+	rseg = trx_assign_rseg(srv_undo_logs, srv_undo_tablespaces);
 
 	trx->no = IB_ULONGLONG_MAX;
 
@@ -659,11 +675,14 @@ trx_start_low(
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
 
-	rw_lock_x_lock(&trx_sys->lock);
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	ut_a(ib_vector_is_empty(trx->lock.table_locks));
+
+	mutex_enter(&trx_sys->mutex);
 
 	/* If this transaction came from trx_allocate_for_mysql(),
 	trx->in_mysql_trx_list would hold. In that case, the trx->state
-	change must be protected by the trx_sys->lock, so that
+	change must be protected by the trx_sys->mutex, so that
 	lock_print_info_all_transactions() will have a consistent view. */
 
 	trx->state = TRX_STATE_ACTIVE;
@@ -676,7 +695,7 @@ trx_start_low(
 
 	ut_ad(trx_sys_validate_trx_list());
 
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -695,7 +714,7 @@ trx_serialisation_number_get(
 
 	ut_ad(mutex_own(&rseg->mutex));
 
-	rw_lock_x_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	trx->no = trx_sys_get_new_trx_id();
 
@@ -713,19 +732,19 @@ trx_serialisation_number_get(
 
 		mutex_enter(&purge_sys->bh_mutex);
 
-		/* This is to reduce the pressure on the trx_sys_t::lock
+		/* This is to reduce the pressure on the trx_sys_t::mutex
 		though in reality it should make very little (read no)
 		difference because this code path is only taken when the
 		rbs is empty. */
 
-		rw_lock_x_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 
 		ptr = ib_bh_push(purge_sys->ib_bh, &rseg_queue);
 		ut_a(ptr);
 
 		mutex_exit(&purge_sys->bh_mutex);
 	} else {
-		rw_lock_x_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 	}
 }
 
@@ -734,7 +753,7 @@ Assign the transaction its history serialisation number and write the
 update UNDO log record to the assigned rollback segment.
 @return the LSN of the UNDO log write. */
 static
-ib_uint64_t
+lsn_t
 trx_write_serialisation_history(
 /*============================*/
 	trx_t*		trx)	/*!< in: transaction */
@@ -837,7 +856,7 @@ trx_commit(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	trx_named_savept_t*	savep;
-	ib_uint64_t		lsn = 0;
+	lsn_t			lsn = 0;
 
 	ut_ad(trx->in_trx_list);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
@@ -855,20 +874,21 @@ trx_commit(
 	/* Remove the transaction from the list of active transactions
 	now that it no longer holds any user locks. */
 
-	rw_lock_x_lock(&trx_sys->lock);
+	ut_ad(trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
+	mutex_enter(&trx_sys->mutex);
 	ut_ad(trx->in_trx_list);
 	ut_d(trx->in_trx_list = FALSE);
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
 	/* If this transaction came from trx_allocate_for_mysql(),
 	trx->in_mysql_trx_list would hold. In that case, the
-	trx->state change must be protected by trx_sys->lock, so that
+	trx->state change must be protected by trx_sys->mutex, so that
 	lock_print_info_all_transactions() will have a consistent view. */
 
 	trx->state = TRX_STATE_NOT_STARTED;
 	ut_ad(trx_sys_validate_trx_list());
 	MONITOR_INC(MONITOR_TRX_COMMIT);
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	if (trx->global_read_view != NULL) {
 		read_view_remove(trx->global_read_view);
@@ -980,13 +1000,13 @@ trx_cleanup_at_db_startup(
 	trx->undo_no = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
 
-	rw_lock_x_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 	ut_ad(trx->in_trx_list);
 	ut_d(trx->in_trx_list = FALSE);
 
-	rw_lock_x_unlock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	/* Change the transaction state without mutex protection, now
 	that it no longer is in the trx_list. Recovered transactions
@@ -1033,7 +1053,7 @@ trx_commit_or_rollback_prepare(
 /*===========================*/
 	trx_t*	trx)		/*!< in/out: transaction */
 {
-	/* We are reading trx->state without holding trx_sys->lock
+	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the commit or rollback should be invoked for a
 	running (or recovered prepared) transaction that is associated
 	with the current thread. */
@@ -1188,7 +1208,7 @@ trx_commit_complete_for_mysql(
 /*==========================*/
 	trx_t*	trx)	/*!< in: trx handle */
 {
-	ib_uint64_t	lsn	= trx->commit_lsn;
+	lsn_t	lsn	= trx->commit_lsn;
 
 	ut_a(trx);
 
@@ -1252,7 +1272,7 @@ trx_mark_sql_stat_end(
 
 /**********************************************************************//**
 Prints info about a transaction.
-Caller must hold trx_sys->lock. */
+Caller must hold trx_sys->mutex. */
 UNIV_INTERN
 void
 trx_print_low(
@@ -1274,14 +1294,12 @@ trx_print_low(
 	ibool		newline;
 	const char*	op_info;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
 
 	/* trx->state cannot change from or to NOT_STARTED while we
-	are holding the trx_sys->lock. It may change from ACTIVE to
+	are holding the trx_sys->mutex. It may change from ACTIVE to
 	PREPARED or COMMITTED. */
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
@@ -1302,11 +1320,6 @@ trx_print_low(
 	fprintf(f, ", state %lu", (ulong) trx->state);
 	ut_ad(0);
 state_ok:
-#ifdef UNIV_LINUX
-	fprintf(f, ", process no %lu", trx->mysql_process_no);
-#endif
-	fprintf(f, ", OS thread id %lu",
-		(ulong) os_thread_pf(trx->mysql_thread_id));
 
 	/* prevent a race condition */
 	op_info = trx->op_info;
@@ -1384,7 +1397,7 @@ state_ok:
 
 /**********************************************************************//**
 Prints info about a transaction.
-The caller must hold lock_sys->mutex and trx_sys->lock.
+The caller must hold lock_sys->mutex and trx_sys->mutex.
 When possible, use trx_print() instead. */
 UNIV_INTERN
 void
@@ -1396,9 +1409,7 @@ trx_print_latched(
 					or 0 to use the default max length */
 {
 	ut_ad(lock_mutex_own());
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	trx_print_low(f, trx, max_query_len,
 		      lock_number_of_rows_locked(&trx->lock),
@@ -1408,7 +1419,7 @@ trx_print_latched(
 
 /**********************************************************************//**
 Prints info about a transaction.
-Acquires and releases lock_sys->mutex and trx_sys->lock. */
+Acquires and releases lock_sys->mutex and trx_sys->mutex. */
 UNIV_INTERN
 void
 trx_print(
@@ -1428,16 +1439,16 @@ trx_print(
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 	lock_mutex_exit();
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 	trx_print_low(f, trx, max_query_len,
 		      n_lock_rec, n_lock_struct, heap_size);
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 }
 
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Asserts that a transaction has been started.
-The caller must hold trx_sys->lock.
+The caller must hold trx_sys->mutex.
 @return TRUE if started */
 UNIV_INTERN
 ibool
@@ -1445,12 +1456,10 @@ trx_assert_started(
 /*===============*/
 	const trx_t*	trx)	/*!< in: transaction */
 {
-# ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-# endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* trx->state cannot change from or to NOT_STARTED while we
-	are holding trx_sys->lock. It may change from ACTIVE to
+	are holding trx_sys->mutex. It may change from ACTIVE to
 	PREPARED. Unless we are holding lock_sys->mutex, it may also
 	change to COMMITTED. */
 
@@ -1522,7 +1531,7 @@ trx_prepare(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx_rseg_t*	rseg;
-	ib_uint64_t	lsn;
+	lsn_t		lsn;
 	mtr_t		mtr;
 
 	rseg = trx->rseg;
@@ -1571,7 +1580,10 @@ trx_prepare(
 
 	/*--------------------------------------*/
 	ut_a(trx->state == TRX_STATE_ACTIVE);
+	mutex_enter(&trx_sys->mutex);
 	trx->state = TRX_STATE_PREPARED;
+	trx_sys->n_prepared_trx++;
+	mutex_exit(&trx_sys->mutex);
 	/*--------------------------------------*/
 
 	if (lsn) {
@@ -1654,14 +1666,14 @@ trx_recover_for_mysql(
 	/* We should set those transactions which are in the prepared state
 	to the xid_list */
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		/* trx->state cannot change from or to NOT_STARTED
-		while we are holding the trx_sys->lock. It may change
+		while we are holding the trx_sys->mutex. It may change
 		to PREPARED, but not if trx->is_recovered. It may also
 		change to COMMITTED. */
 		if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
@@ -1694,7 +1706,7 @@ trx_recover_for_mysql(
 		}
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	if (count > 0){
 		ut_print_timestamp(stderr);
@@ -1726,7 +1738,7 @@ trx_get_trx_by_xid(
 		return(NULL);
 	}
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
@@ -1737,7 +1749,8 @@ trx_get_trx_by_xid(
 		of gtrid_length+bqual_length bytes should be
 		the same */
 
-		if (trx_state_eq(trx, TRX_STATE_PREPARED)
+		if (trx->is_recovered
+		    && trx_state_eq(trx, TRX_STATE_PREPARED)
 		    && xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
 		    && memcmp(xid->data, trx->xid.data,
@@ -1751,7 +1764,7 @@ trx_get_trx_by_xid(
 		}
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	return(trx);
 }

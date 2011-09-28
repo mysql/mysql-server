@@ -744,8 +744,8 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    bzero(partition0, sizeof(partition0));
-    bzero(partition1, sizeof(partition1));
+    memset(partition0, 0, sizeof(partition0));
+    memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
@@ -853,8 +853,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    bzero(partition0, sizeof(partition0));
-    bzero(partition1, sizeof(partition1));
+    memset(partition0, 0, sizeof(partition0));
+    memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);

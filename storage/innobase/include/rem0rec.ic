@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mach0data.h"
 #include "ut0byte.h"
 #include "dict0dict.h"
+#include "btr0types.h"
 
 /* Compact flag ORed to the extra size returned by rec_get_offsets() */
 #define REC_OFFS_COMPACT	((ulint) 1 << 31)
@@ -571,7 +572,7 @@ rec_set_n_owned_new(
 {
 	rec_set_bit_field_1(rec, n_owned, REC_NEW_N_OWNED,
 			    REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
-	if (UNIV_LIKELY_NULL(page_zip)
+	if (page_zip
 	    && UNIV_LIKELY(rec_get_status(rec)
 			   != REC_STATUS_SUPREMUM)) {
 		page_zip_rec_set_owned(page_zip, rec, n_owned);
@@ -684,15 +685,13 @@ rec_get_deleted_flag(
 	ulint		comp)	/*!< in: nonzero=compact page format */
 {
 	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
-		return(UNIV_UNLIKELY(
-			       rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
-						   REC_INFO_DELETED_FLAG,
-						   REC_INFO_BITS_SHIFT)));
+		return(rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
+					   REC_INFO_DELETED_FLAG,
+					   REC_INFO_BITS_SHIFT));
 	} else {
-		return(UNIV_UNLIKELY(
-			       rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
-						   REC_INFO_DELETED_FLAG,
-						   REC_INFO_BITS_SHIFT)));
+		return(rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
+					   REC_INFO_DELETED_FLAG,
+					   REC_INFO_BITS_SHIFT));
 	}
 }
 
@@ -740,7 +739,7 @@ rec_set_deleted_flag_new(
 
 	rec_set_info_bits_new(rec, val);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_rec_set_deleted(page_zip, rec, flag);
 	}
 }
@@ -1040,7 +1039,7 @@ rec_get_nth_field_offs(
 	ut_ad(n < rec_offs_n_fields(offsets));
 	ut_ad(len);
 
-	if (UNIV_UNLIKELY(n == 0)) {
+	if (n == 0) {
 		offs = 0;
 	} else {
 		offs = rec_offs_base(offsets)[n] & REC_OFFS_MASK;
@@ -1084,8 +1083,46 @@ rec_offs_any_extern(
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
-	return(UNIV_UNLIKELY(*rec_offs_base(offsets) & REC_OFFS_EXTERNAL));
+	return(*rec_offs_base(offsets) & REC_OFFS_EXTERNAL);
 }
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/******************************************************//**
+Determine if the offsets are for a record containing null BLOB pointers.
+@return	first field containing a null BLOB pointer, or NULL if none found */
+UNIV_INLINE
+const byte*
+rec_offs_any_null_extern(
+/*=====================*/
+	const rec_t*	rec,		/*!< in: record */
+	const ulint*	offsets)	/*!< in: rec_get_offsets(rec) */
+{
+	ulint	i;
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+	if (!rec_offs_any_extern(offsets)) {
+		return(NULL);
+	}
+
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		if (rec_offs_nth_extern(offsets, i)) {
+			ulint		len;
+			const byte*	field
+				= rec_get_nth_field(rec, offsets, i, &len);
+
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			if (!memcmp(field + len
+				    - BTR_EXTERN_FIELD_REF_SIZE,
+				    field_ref_zero,
+				    BTR_EXTERN_FIELD_REF_SIZE)) {
+				return(field);
+			}
+		}
+	}
+
+	return(NULL);
+}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 /******************************************************//**
 Returns nonzero if the extern bit is set in nth field of rec.
@@ -1099,8 +1136,7 @@ rec_offs_nth_extern(
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
-	return(UNIV_UNLIKELY(rec_offs_base(offsets)[1 + n]
-			     & REC_OFFS_EXTERNAL));
+	return(rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL);
 }
 
 /******************************************************//**
@@ -1115,8 +1151,7 @@ rec_offs_nth_sql_null(
 {
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
-	return(UNIV_UNLIKELY(rec_offs_base(offsets)[1 + n]
-			     & REC_OFFS_SQL_NULL));
+	return(rec_offs_base(offsets)[1 + n] & REC_OFFS_SQL_NULL);
 }
 
 /******************************************************//**
@@ -1355,7 +1390,7 @@ rec_set_nth_field(
 	ut_ad(rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	if (UNIV_UNLIKELY(len == UNIV_SQL_NULL)) {
+	if (len == UNIV_SQL_NULL) {
 		if (!rec_offs_nth_sql_null(offsets, n)) {
 			ut_a(!rec_offs_comp(offsets));
 			rec_set_nth_field_sql_null(rec, n);
@@ -1462,6 +1497,7 @@ rec_offs_size(
 	return(rec_offs_data_size(offsets) + rec_offs_extra_size(offsets));
 }
 
+#ifdef UNIV_DEBUG
 /**********************************************************//**
 Returns a pointer to the end of the record.
 @return	pointer to end */
@@ -1469,11 +1505,11 @@ UNIV_INLINE
 byte*
 rec_get_end(
 /*========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	return(rec + rec_offs_data_size(offsets));
+	return((rec_t*) rec + rec_offs_data_size(offsets));
 }
 
 /**********************************************************//**
@@ -1483,12 +1519,13 @@ UNIV_INLINE
 byte*
 rec_get_start(
 /*==========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	return(rec - rec_offs_extra_size(offsets));
+	return((rec_t*) rec - rec_offs_extra_size(offsets));
 }
+#endif /* UNIV_DEBUG */
 
 /***************************************************************//**
 Copies a physical record to a buffer.
@@ -1555,7 +1592,7 @@ rec_get_converted_size(
 	ut_ad(dtuple);
 	ut_ad(dtuple_check_typed(dtuple));
 
-	ut_ad(index->type & DICT_UNIVERSAL
+	ut_ad(dict_index_is_univ(index)
 	      || dtuple_get_n_fields(dtuple)
 	      == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
 		   == REC_STATUS_NODE_PTR)

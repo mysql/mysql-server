@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -47,35 +47,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "read0read.h"
 #include "ut0mem.h"
 
-/*********************************************************************//**
-Gets the offset of trx id field, in bytes relative to the origin of
-a clustered index record.
-@return	offset of DATA_TRX_ID */
-UNIV_INTERN
-ulint
-row_get_trx_id_offset(
-/*==================*/
-	const rec_t*	rec __attribute__((unused)),
-				/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
-{
-	ulint	pos;
-	ulint	offset;
-	ulint	len;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-
-	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-
-	offset = rec_get_nth_field_offs(offsets, pos, &len);
-
-	ut_ad(len == DATA_TRX_ID_LEN);
-
-	return(offset);
-}
-
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
@@ -104,7 +75,7 @@ row_build_index_entry(
 	entry_len = dict_index_get_n_fields(index);
 	entry = dtuple_create(heap, entry_len);
 
-	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
+	if (dict_index_is_univ(index)) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
 		/* There may only be externally stored columns
 		in a clustered index B-tree of a user table. */
@@ -130,15 +101,30 @@ row_build_index_entry(
 
 		dfield_copy(dfield, dfield2);
 
-		if (dfield_is_null(dfield) || ind_field->prefix_len == 0) {
+		if (dfield_is_null(dfield)) {
 			continue;
 		}
 
-		/* If a column prefix index, take only the prefix.
-		Prefix-indexed columns may be externally stored. */
+		if (ind_field->prefix_len == 0
+		    && (!dfield_is_ext(dfield)
+			|| dict_index_is_clust(index))) {
+			/* The dfield_copy() above suffices for
+			columns that are stored in-page, or for
+			clustered index record columns that are not
+			part of a column prefix in the PRIMARY KEY. */
+			continue;
+		}
+
+		/* If the column is stored externally (off-page) in
+		the clustered index, it must be an ordering field in
+		the secondary index.  In the Antelope format, only
+		prefix-indexed columns may be stored off-page in the
+		clustered index record. In the Barracuda format, also
+		fully indexed long CHAR or VARCHAR columns may be
+		stored off-page. */
 		ut_ad(col->ord_part);
 
-		if (UNIV_LIKELY_NULL(ext)) {
+		if (ext) {
 			/* See if the column is stored externally. */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);
@@ -148,17 +134,41 @@ row_build_index_entry(
 				}
 				dfield_set_data(dfield, buf, len);
 			}
+
+			if (ind_field->prefix_len == 0) {
+				/* In the Barracuda format
+				(ROW_FORMAT=DYNAMIC or
+				ROW_FORMAT=COMPRESSED), we can have a
+				secondary index on an entire column
+				that is stored off-page in the
+				clustered index. As this is not a
+				prefix index (prefix_len == 0),
+				include the entire off-page column in
+				the secondary index record. */
+				continue;
+			}
 		} else if (dfield_is_ext(dfield)) {
+			/* This table is either in Antelope format
+			(ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT)
+			or a purge record where the ordered part of
+			the field is not external.
+			In Antelope, the maximum column prefix
+			index length is 767 bytes, and the clustered
+			index record contains a 768-byte prefix of
+			each off-page column. */
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(ind_field->prefix_len <= len
-			     || dict_index_is_clust(index));
+			dfield_set_len(dfield, len);
 		}
 
-		len = dtype_get_at_most_n_mbchars(
-			col->prtype, col->mbminmaxlen,
-			ind_field->prefix_len, len, dfield_get_data(dfield));
-		dfield_set_len(dfield, len);
+		/* If a column prefix index, take only the prefix. */
+		if (ind_field->prefix_len) {
+			len = dtype_get_at_most_n_mbchars(
+				col->prtype, col->mbminmaxlen,
+				ind_field->prefix_len, len,
+				dfield_get_data(dfield));
+			dfield_set_len(dfield, len);
+		}
 	}
 
 	ut_ad(dtuple_check_typed(entry));
@@ -223,6 +233,7 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -230,6 +241,23 @@ row_build(
 	} else {
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	if (rec_offs_any_null_extern(rec, offsets)) {
+		/* This condition can occur during crash recovery
+		before trx_rollback_active() has completed execution.
+
+		This condition is possible if the server crashed
+		during an insert or update-by-delete-and-insert before
+		btr_store_big_rec_extern_fields() did mtr_commit() all
+		BLOB pointers to the freshly inserted clustered index
+		record. */
+		ut_a(trx_assert_recovered(
+			     row_get_rec_trx_id(rec, index, offsets)));
+		ut_a(trx_undo_roll_ptr_is_insert(
+			     row_get_rec_roll_ptr(rec, index, offsets)));
+	}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
@@ -299,10 +327,9 @@ row_build(
 		768-byte prefix of each externally stored
 		column. No cache is needed. */
 		ut_ad(dict_table_get_format(index->table)
-		      < DICT_TF_FORMAT_ZIP);
+		      < UNIV_FORMAT_B);
 	} else if (j) {
-		*ext = row_ext_create(j, ext_cols, row,
-				      dict_table_zip_size(index->table),
+		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
 				      heap);
 	} else {
 		*ext = NULL;
@@ -415,6 +442,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	} else {
+		ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}
 
 	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);
@@ -993,6 +1024,8 @@ test_row_raw_format_int()
 	ulint	ret;
 	char	buf[128];
 	ibool	format_in_hex;
+	speedo_t speedo;
+	ulint	i;
 
 #define CALL_AND_TEST(data, data_len, prtype, buf, buf_size,\
 		      ret_expected, buf_expected, format_in_hex_expected)\
@@ -1174,9 +1207,6 @@ test_row_raw_format_int()
 #endif
 
 	/* speed test */
-
-	speedo_t	speedo;
-	ulint		i;
 
 	speedo_reset(&speedo);
 

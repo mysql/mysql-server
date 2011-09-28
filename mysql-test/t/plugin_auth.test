@@ -6,6 +6,12 @@ CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password su
 query_vertical SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
   FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
 
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+
+SET GLOBAL log_output =       'TABLE';
+SET GLOBAL general_log=       'ON';
+
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 
@@ -299,9 +305,15 @@ connection default;
 --echo # in connection default
 disconnect plug_con;
 
+--echo WL#5706 -- show the above got logged/rewritten correctly
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('% IDENTIFIED ','WITH%');
+
 --echo ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
+
+SET GLOBAL log_output=  @old_log_output;
+SET GLOBAL general_log= @old_general_log;
 --echo ## END @@external_user tests
 
 --echo #
@@ -433,5 +445,140 @@ select USER(),CURRENT_USER();
 connection default;
 disconnect cleartext_con;
 DROP USER uplain@localhost;
+
+--echo #
+--echo # Bug #59038 : mysql.user.authentication_string column 
+--echo #   causes configuration wizard to fail
+
+INSERT INTO mysql.user(
+  Host, 
+  User, 
+  Password,  
+  Select_priv, 
+  Insert_priv,
+  Update_priv, 
+  Delete_priv, 
+  Create_priv, 
+  Drop_priv,  
+  Reload_priv, 
+  Shutdown_priv,
+  Process_priv, 
+  File_priv, 
+  Grant_priv, 
+  References_priv,  
+  Index_priv, 
+  Alter_priv,
+  Show_db_priv, 
+  Super_priv, 
+  Create_tmp_table_priv, 
+  Lock_tables_priv,  
+  Execute_priv,
+  Repl_slave_priv, 
+  Repl_client_priv, 
+  /*!50001 
+  Create_view_priv, 
+  Show_view_priv, 
+  Create_routine_priv, 
+  Alter_routine_priv, 
+  Create_user_priv, 
+  */ 
+  ssl_type, 
+  ssl_cipher,
+  x509_issuer, 
+  x509_subject, 
+  max_questions, 
+  max_updates, 
+  max_connections)
+VALUES (
+  'localhost', 
+  'inserttest', '', 
+  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
+  'Y', 'Y',  'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 
+  /*!50001 'Y', 'Y', 'Y', 'Y', 'Y', */'', '', '', '', '0', '0', '0');
+FLUSH PRIVILEGES;
+DROP USER inserttest@localhost;
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE 
+  COLUMN_NAME IN ('authentication_string', 'plugin') AND 
+  TABLE_NAME='user' AND
+  TABLE_SCHEMA='mysql'
+ORDER BY COLUMN_NAME;
+
+
+--echo #
+--echo # Bug #11936829: diff. between mysql.user (authentication_string) 
+--echo #   in fresh and upgraded 5.5.11
+--echo #
+
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
+    COLUMN_NAME IN ('plugin', 'authentication_string')
+  ORDER BY COLUMN_NAME;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
+ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
+
+--echo Run mysql_upgrade on a 5.5.10 external authentication column layout
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
+    COLUMN_NAME IN ('plugin', 'authentication_string')
+  ORDER BY COLUMN_NAME;
+
+
+--echo #
+--echo # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
+--echo #
+
+CREATE USER bug12610784@localhost; 
+SET PASSWORD FOR bug12610784@localhost = PASSWORD('secret');
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(b12610784,localhost,bug12610784,,test);
+--enable_query_log
+connect(b12610784,localhost,bug12610784,secret,test);
+connection default;
+disconnect b12610784;
+DROP USER bug12610784@localhost;
+
+--echo #
+--echo # Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
+--echo #  .-> USING PASSWORD: NO 
+
+--echo # shoud contain "using password=yes"
+--error 1
+--exec $MYSQL -uunknown -punknown 2>&1
+
+--echo # shoud contain "using password=no"
+--error 1
+--exec $MYSQL -uunknown 2>&1
+
+--echo # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
+--echo #   AUTHENTICATION SETTINGS
+--echo #
+
+CREATE USER bug12818542@localhost 
+  IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
+CREATE USER bug12818542_dest@localhost 
+  IDENTIFIED BY 'bug12818542_dest_passwd';
+GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
+
+connect(bug12818542_con,localhost,bug12818542,bug12818542_dest);
+connection bug12818542_con;
+SELECT USER(),CURRENT_USER();
+
+SET PASSWORD = PASSWORD('bruhaha');
+
+connection default;
+disconnect bug12818542_con;
+
+connect(bug12818542_con2,localhost,bug12818542,bug12818542_dest);
+connection bug12818542_con2;
+SELECT USER(),CURRENT_USER();
+
+connection default;
+disconnect bug12818542_con2;
+
+DROP USER bug12818542@localhost;
+DROP USER bug12818542_dest@localhost;
 
 --echo End of 5.5 tests

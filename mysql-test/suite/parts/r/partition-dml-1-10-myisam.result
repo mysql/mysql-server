@@ -92,26 +92,26 @@ EXECUTE st2 USING @var1;
 connection session1;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-1	p0-29-upd-1
-2	p0-29-upd-1
 3	p0-29-upd-1
-4	p0-29-upd-1
 21	p0-29-upd-2
-22	p0-29-upd-2
-23	p0-29-upd-2
 24	p0-29-upd-2
+1	p0-29-upd-1
+4	p0-29-upd-1
+22	p0-29-upd-2
+2	p0-29-upd-1
+23	p0-29-upd-2
 DEALLOCATE PREPARE st1;
 connection session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-1	p0-29-upd-1
-2	p0-29-upd-1
 3	p0-29-upd-1
-4	p0-29-upd-1
 21	p0-29-upd-2
-22	p0-29-upd-2
-23	p0-29-upd-2
 24	p0-29-upd-2
+1	p0-29-upd-1
+4	p0-29-upd-1
+22	p0-29-upd-2
+2	p0-29-upd-1
+23	p0-29-upd-2
 COMMIT WORK;
 DEALLOCATE PREPARE st2;
 connection default;
@@ -119,14 +119,14 @@ disconnect session1;
 disconnect session2;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-1	p0-29-upd-1
-2	p0-29-upd-1
 3	p0-29-upd-1
-4	p0-29-upd-1
 21	p0-29-upd-2
-22	p0-29-upd-2
-23	p0-29-upd-2
 24	p0-29-upd-2
+1	p0-29-upd-1
+4	p0-29-upd-1
+22	p0-29-upd-2
+2	p0-29-upd-1
+23	p0-29-upd-2
 DROP TABLE t1;
 DROP USER test_user_1;
 DROP USER test_user_2;

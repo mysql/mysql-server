@@ -1,4 +1,5 @@
-/* Copyright (C) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,10 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 /* class for the the myisam handler */
 
@@ -54,7 +51,7 @@ class ha_myisam: public handler
  public:
   ha_myisam(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_myisam() {}
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const { return "MyISAM"; }
   const char *index_type(uint key_number);
   const char **bas_ext() const;

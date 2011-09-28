@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "sql_table.h"                          // primary_key_name
 #include "sql_base.h"               // REPORT_ALL_ERRORS, setup_tables
 #include "opt_range.h"              // SQL_SELECT
+#include "opt_trace.h"              // Opt_trace_object
 #include "records.h"          // init_read_record, end_read_record
 
 struct st_find_field
@@ -284,10 +285,12 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   Field *rtopic_id, *rkey_id;
   DBUG_ENTER("get_topics_for_keyword");
 
-  if ((iindex_topic= find_type((char*) primary_key_name,
-			       &topics->s->keynames, 1+2)-1)<0 ||
-      (iindex_relations= find_type((char*) primary_key_name,
-				   &relations->s->keynames, 1+2)-1)<0)
+  if ((iindex_topic=
+       find_type(primary_key_name, &topics->s->keynames,
+                 FIND_TYPE_NO_PREFIX) - 1) < 0 ||
+      (iindex_relations=
+       find_type(primary_key_name, &relations->s->keynames,
+                 FIND_TYPE_NO_PREFIX) - 1) < 0)
   {
     my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
     DBUG_RETURN(-1);
@@ -575,6 +578,9 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
   table->covering_keys.clear_all();
 
   SQL_SELECT *res= make_select(table, 0, 0, cond, 0, error);
+
+  // Wrapper for correct JSON in optimizer trace
+  Opt_trace_object wrapper(&thd->opt_trace);
   if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)) ||
       (res && res->quick && res->quick->reset()))
   {

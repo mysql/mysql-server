@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 /**
@@ -20,10 +22,6 @@
   @brief
   This file implements classes defined in field.h
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "sql_select.h"
@@ -44,15 +42,9 @@
 // Maximum allowed exponent value for converting string to decimal
 #define MAX_EXPONENT 1024
 
-/*****************************************************************************
-  Instansiate templates and static variables
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Create_field>;
-template class List_iterator<Create_field>;
-#endif
-
+/**
+  Static variables
+*/
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 
@@ -996,7 +988,8 @@ static Item_result field_types_result_type [FIELDTYPE_NUM]=
 */
 
 static bool
-test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
+test_if_important_data(const CHARSET_INFO *cs, const char *str,
+                       const char *strend)
 {
   if (cs != &my_charset_bin)
     str+= cs->cset->scan(cs, str, strend, MY_SEQ_SPACES);
@@ -1057,7 +1050,8 @@ Item_result Field::result_merge_type(enum_field_types field_type)
   @param row_num     (for *_FOR_FIELD) row number
  */
 static void push_numerical_conversion_warning(THD* thd, const char* str, 
-                                              uint length, CHARSET_INFO* cs,
+                                              uint length,
+                                              const CHARSET_INFO* cs,
                                               const char* typestr, int error,
                                               const char* field_name="UNKNOWN",
                                               ulong row_num=0)
@@ -1068,7 +1062,7 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
 
     String tmp(buf, sizeof(buf), cs);
     tmp.copy(str, length, cs);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         error, ER(error), typestr, tmp.c_ptr(),
                         field_name, row_num);
 }
@@ -1132,7 +1126,7 @@ void Field_num::prepend_zeros(String *value)
     bmove_upp((uchar*) value->ptr()+field_length,
               (uchar*) value->ptr()+value->length(),
 	      value->length());
-    bfill((uchar*) value->ptr(),diff,'0');
+    memset(const_cast<char*>(value->ptr()), '0', diff);
     value->length(field_length);
     (void) value->c_ptr_quick();		// Avoid warnings in purify
   }
@@ -1160,24 +1154,25 @@ void Field_num::prepend_zeros(String *value)
     2   error: garbage at the end of string.
 */
 
-int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length, 
+int Field_num::check_int(const CHARSET_INFO *cs, const char *str, int length, 
                          const char *int_end, int error)
 {
   /* Test if we get an empty string or wrong integer */
   if (str == int_end || error == MY_ERRNO_EDOM)
   {
     ErrConvString err(str, length, cs);
-    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(table->in_use, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "integer", err.ptr(), field_name,
-                        (ulong) table->in_use->warning_info->current_row_for_warning());
+                        (ulong) table->in_use->get_stmt_da()->
+                        current_row_for_warning());
     return 1;
   }
   /* Test if we have garbage at the end of the given string. */
   if (test_if_important_data(cs, int_end, str + length))
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     return 2;
   }
   return 0;
@@ -1207,7 +1202,7 @@ int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length,
     1   error
 */
 
-bool Field_num::get_int(CHARSET_INFO *cs, const char *from, uint len,
+bool Field_num::get_int(const CHARSET_INFO *cs, const char *from, uint len,
                         longlong *rnd, ulonglong unsigned_max, 
                         longlong signed_min, longlong signed_max)
 {
@@ -1245,7 +1240,7 @@ bool Field_num::get_int(CHARSET_INFO *cs, const char *from, uint len,
   return 0;
 
 out_of_range:
-  set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+  set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
   return 1;
 }
 
@@ -1265,12 +1260,12 @@ int Field::warn_if_overflow(int op_result)
 {
   if (op_result == E_DEC_OVERFLOW)
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   if (op_result == E_DEC_TRUNCATED)
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
     /* We return 0 here as this is not a critical issue */
   }
   return 0;
@@ -1286,7 +1281,7 @@ int Field::warn_if_overflow(int op_result)
 String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_bin;
+  const CHARSET_INFO *cs= &my_charset_bin;
   uint length;
   longlong value= val_int();
 
@@ -1328,7 +1323,7 @@ void Field::hash(ulong *nr, ulong *nr2)
   else
   {
     uint len= pack_length();
-    CHARSET_INFO *cs= sort_charset();
+    const CHARSET_INFO *cs= sort_charset();
     cs->coll->hash_sort(cs, ptr, len, nr, nr2);
   }
 }
@@ -1411,7 +1406,7 @@ bool Field::compatible_field_size(uint field_metadata,
 }
 
 
-int Field::store(const char *to, uint length, CHARSET_INFO *cs,
+int Field::store(const char *to, uint length, const CHARSET_INFO *cs,
                  enum_check_fields check_level)
 {
   int res;
@@ -1601,7 +1596,7 @@ longlong Field::convert_decimal2longlong(const my_decimal *val,
   {
     if (val->sign())
     {
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       i= 0;
       *err= 1;
     }
@@ -1673,7 +1668,8 @@ my_decimal* Field_num::val_decimal(my_decimal *decimal_value)
 
 Field_str::Field_str(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
                      uchar null_bit_arg, utype unireg_check_arg,
-                     const char *field_name_arg, CHARSET_INFO *charset_arg)
+                     const char *field_name_arg,
+                     const CHARSET_INFO *charset_arg)
   :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
          unireg_check_arg, field_name_arg)
 {
@@ -1872,7 +1868,7 @@ void Field_decimal::overflow(bool negative)
   uint len=field_length;
   uchar *to=ptr, filler= '9';
 
-  set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+  set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
   if (negative)
   {
     if (!unsigned_flag)
@@ -1892,21 +1888,22 @@ void Field_decimal::overflow(bool negative)
 	*/
 	uint whole_part=field_length- (dec ? dec+2 : 1);
 	// Fill with spaces up to the first digit
-	bfill(to, whole_part, ' ');
+	memset(to, ' ', whole_part);
 	to+=  whole_part;
 	len-= whole_part;
 	// The main code will also handle the 0 before the decimal point
       }
     }
   }
-  bfill(to, len, filler);
+  memset(to, filler, len);
   if (dec)
     ptr[field_length-dec-1]='.';
   return;
 }
 
 
-int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
+int Field_decimal::store(const char *from_arg, uint len,
+                         const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -1980,7 +1977,7 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     from++;
   if (from == end)
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     is_cuted_fields_incr=1;
   }
   else if (*from == '+' || *from == '-')	// Found some sign ?
@@ -2056,7 +2053,7 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
     for (;from != end && my_isspace(&my_charset_bin, *from); from++) ;
     if (from != end)                     // If still something left, warn
     {
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       is_cuted_fields_incr=1;
     }
   }
@@ -2234,7 +2231,7 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
         if (tmp_char != '0')			// Losing a non zero digit ?
         {
           if (!is_cuted_fields_incr)
-            set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+            set_warning(Sql_condition::WARN_LEVEL_WARN, 
                         WARN_DATA_TRUNCATED, 1);
           return 0;
         }
@@ -2257,7 +2254,7 @@ int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
             This is a note, not a warning, as we don't want to abort
             when we cut decimals in strict mode
           */
-	  set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+	  set_warning(Sql_condition::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
         }
         return 0;
       }
@@ -2341,7 +2338,7 @@ int Field_decimal::store(longlong nr, bool unsigned_val)
   if (dec)
   {
     to[length]='.';
-    bfill(to+length+1,dec,'0');
+    memset(to + length + 1, '0', dec);
   }
   return 0;
 }
@@ -2451,7 +2448,7 @@ void Field_decimal::sort_string(uchar *to,uint length)
 
 void Field_decimal::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   uint tmp=field_length;
   if (!unsigned_flag)
     tmp--;
@@ -2598,7 +2595,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   DBUG_ENTER("Field_new_decimal::store_value");
 #ifndef DBUG_OFF
   {
-    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("enter", ("value: %s", dbug_decimal_as_string(dbug_buff, decimal_value)));
   }
 #endif
@@ -2607,13 +2604,13 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   if (unsigned_flag && decimal_value->sign())
   {
     DBUG_PRINT("info", ("unsigned overflow"));
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error= 1;
     decimal_value= &decimal_zero;
   }
 #ifndef DBUG_OFF
   {
-    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("info", ("saving with precision %d  scale: %d  value %s",
                         (int)precision, (int)dec,
                         dbug_decimal_as_string(dbug_buff, decimal_value)));
@@ -2636,7 +2633,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
 
 
 int Field_new_decimal::store(const char *from, uint length,
-                             CHARSET_INFO *charset_arg)
+                             const CHARSET_INFO *charset_arg)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int err;
@@ -2650,31 +2647,32 @@ int Field_new_decimal::store(const char *from, uint length,
       table->in_use->abort_on_warning)
   {
     ErrConvString errmsg(from, length, &my_charset_bin);
-    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(table->in_use, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "decimal", errmsg.ptr(), field_name,
-                        (ulong) table->in_use->warning_info->current_row_for_warning());
+                        (ulong) table->in_use->get_stmt_da()->
+                        current_row_for_warning());
 
     DBUG_RETURN(err);
   }
 
   switch (err) {
   case E_DEC_TRUNCATED:
-    set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
     break;
   case E_DEC_OVERFLOW:
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     set_value_on_overflow(&decimal_value, decimal_value.sign());
     break;
   case E_DEC_BAD_NUM:
     {
       ErrConvString errmsg(from, length, &my_charset_bin);
-      push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(table->in_use, Sql_condition::WARN_LEVEL_WARN,
                           ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                           ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                           "decimal", errmsg.ptr(), field_name,
-                          (ulong) table->in_use->warning_info->
+                          (ulong) table->in_use->get_stmt_da()->
                           current_row_for_warning());
       my_decimal_set_zero(&decimal_value);
       break;
@@ -2682,7 +2680,7 @@ int Field_new_decimal::store(const char *from, uint length,
   }
 
 #ifndef DBUG_OFF
-  char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+  char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
   DBUG_PRINT("enter", ("value: %s",
                        dbug_decimal_as_string(dbug_buff, &decimal_value)));
 #endif
@@ -2818,7 +2816,7 @@ void Field_new_decimal::sort_string(uchar *buff,
 
 void Field_new_decimal::sql_type(String &str) const
 {
-  CHARSET_INFO *cs= str.charset();
+  const CHARSET_INFO *cs= str.charset();
   str.length(cs->cset->snprintf(cs, (char*) str.ptr(), str.alloced_length(),
                                 "decimal(%d,%d)", precision, (int)dec));
   add_zerofill_and_unsigned(str);
@@ -2962,7 +2960,7 @@ Field_new_decimal::unpack(uchar* to,
 ** tiny int
 ****************************************************************************/
 
-int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_tiny::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error;
@@ -2984,13 +2982,13 @@ int Field_tiny::store(double nr)
     if (nr < 0.0)
     {
       *ptr=0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > 255.0)
     {
       *ptr=(char) 255;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3001,13 +2999,13 @@ int Field_tiny::store(double nr)
     if (nr < -128.0)
     {
       *ptr= (char) -128;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > 127.0)
     {
       *ptr=127;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3027,13 +3025,13 @@ int Field_tiny::store(longlong nr, bool unsigned_val)
     if (nr < 0 && !unsigned_val)
     {
       *ptr= 0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if ((ulonglong) nr > (ulonglong) 255)
     {
       *ptr= (char) 255;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3046,13 +3044,13 @@ int Field_tiny::store(longlong nr, bool unsigned_val)
     if (nr < -128)
     {
       *ptr= (char) -128;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > 127)
     {
       *ptr=127;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3084,7 +3082,7 @@ String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,5*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3128,7 +3126,7 @@ void Field_tiny::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_tiny::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "tinyint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3138,7 +3136,7 @@ void Field_tiny::sql_type(String &res) const
  Field type short int (2 byte)
 ****************************************************************************/
 
-int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_short::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int store_tmp;
@@ -3170,13 +3168,13 @@ int Field_short::store(double nr)
     if (nr < 0)
     {
       res=0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > (double) UINT_MAX16)
     {
       res=(int16) UINT_MAX16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3187,13 +3185,13 @@ int Field_short::store(double nr)
     if (nr < (double) INT_MIN16)
     {
       res=INT_MIN16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > (double) INT_MAX16)
     {
       res=INT_MAX16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3222,13 +3220,13 @@ int Field_short::store(longlong nr, bool unsigned_val)
     if (nr < 0L && !unsigned_val)
     {
       res=0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if ((ulonglong) nr > (ulonglong) UINT_MAX16)
     {
       res=(int16) UINT_MAX16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3242,13 +3240,13 @@ int Field_short::store(longlong nr, bool unsigned_val)
     if (nr < INT_MIN16)
     {
       res=INT_MIN16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > (longlong) INT_MAX16)
     {
       res=INT_MAX16;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3297,7 +3295,7 @@ String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,7*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3375,7 +3373,7 @@ void Field_short::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_short::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "smallint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3386,7 +3384,7 @@ void Field_short::sql_type(String &res) const
   Field type medium int (3 byte)
 ****************************************************************************/
 
-int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_medium::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int store_tmp;
@@ -3410,14 +3408,14 @@ int Field_medium::store(double nr)
     if (nr < 0)
     {
       int3store(ptr,0);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr >= (double) (long) (1L << 24))
     {
       uint32 tmp=(uint32) (1L << 24)-1L;
       int3store(ptr,tmp);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3429,14 +3427,14 @@ int Field_medium::store(double nr)
     {
       long tmp=(long) INT_MIN24;
       int3store(ptr,tmp);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > (double) INT_MAX24)
     {
       long tmp=(long) INT_MAX24;
       int3store(ptr,tmp);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3456,14 +3454,14 @@ int Field_medium::store(longlong nr, bool unsigned_val)
     if (nr < 0 && !unsigned_val)
     {
       int3store(ptr,0);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if ((ulonglong) nr >= (ulonglong) (long) (1L << 24))
     {
       long tmp= (long) (1L << 24)-1L;
       int3store(ptr,tmp);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3478,14 +3476,14 @@ int Field_medium::store(longlong nr, bool unsigned_val)
     {
       long tmp= (long) INT_MIN24;
       int3store(ptr,tmp);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (nr > (longlong) INT_MAX24)
     {
       long tmp=(long) INT_MAX24;
       int3store(ptr,tmp);
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3515,7 +3513,7 @@ String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,10*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3567,7 +3565,7 @@ void Field_medium::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_medium::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(), 
 			  "mediumint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3577,7 +3575,7 @@ void Field_medium::sql_type(String &res) const
 ** long int
 ****************************************************************************/
 
-int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_long::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   long store_tmp;
@@ -3614,7 +3612,7 @@ int Field_long::store(double nr)
     else if (nr > (double) UINT_MAX32)
     {
       res= UINT_MAX32;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
@@ -3636,7 +3634,7 @@ int Field_long::store(double nr)
       res=(int32) (longlong) nr;
   }
   if (error)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -3689,7 +3687,7 @@ int Field_long::store(longlong nr, bool unsigned_val)
       res=(int32) nr;
   }
   if (error)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -3735,7 +3733,7 @@ String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,12*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3815,7 +3813,7 @@ void Field_long::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_long::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "int(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3825,7 +3823,7 @@ void Field_long::sql_type(String &res) const
  Field type longlong int (8 bytes)
 ****************************************************************************/
 
-int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_longlong::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= 0;
@@ -3835,7 +3833,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   tmp= cs->cset->strntoull10rnd(cs,from,len,unsigned_flag,&end,&error);
   if (error == MY_ERRNO_ERANGE)
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error= 1;
   }
   else if (table->in_use->count_cuted_fields && 
@@ -3893,7 +3891,7 @@ int Field_longlong::store(double nr)
       res=(longlong) nr;
   }
   if (error)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -3921,7 +3919,7 @@ int Field_longlong::store(longlong nr, bool unsigned_val)
     if (unsigned_flag != unsigned_val)
     {
       nr= unsigned_flag ? (ulonglong) 0 : (ulonglong) LONGLONG_MAX;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
   }
@@ -3977,7 +3975,7 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,22*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -4065,7 +4063,7 @@ void Field_longlong::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_longlong::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "bigint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -4117,7 +4115,7 @@ Field_real::unpack(uchar *to, const uchar *from,
   single precision float
 ****************************************************************************/
 
-int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_float::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   int error;
   char *end;
@@ -4125,7 +4123,7 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
   if (error || (!len || ((uint) (end-from) != len &&
                 table->in_use->count_cuted_fields)))
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_warning(Sql_condition::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
     error= error ? 1 : 2;
   }
@@ -4269,7 +4267,7 @@ void Field_float::sort_string(uchar *to,uint length __attribute__((unused)))
   if (nr == (float) 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    bzero((char*) tmp+1,sizeof(nr)-1);
+    memset(tmp+1, 0, sizeof(nr)-1);
   }
   else
   {
@@ -4327,7 +4325,7 @@ void Field_float::sql_type(String &res) const
   }
   else
   {
-    CHARSET_INFO *cs= res.charset();
+    const CHARSET_INFO *cs= res.charset();
     res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			    "float(%d,%d)",(int) field_length,dec));
   }
@@ -4339,7 +4337,7 @@ void Field_float::sql_type(String &res) const
   double precision floating point numbers
 ****************************************************************************/
 
-int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_double::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   int error;
   char *end;
@@ -4347,7 +4345,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   if (error || (!len || ((uint) (end-from) != len &&
                 table->in_use->count_cuted_fields)))
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_warning(Sql_condition::WARN_LEVEL_WARN,
                 (error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED), 1);
     error= error ? 1 : 2;
   }
@@ -4394,13 +4392,13 @@ int Field_real::truncate(double *nr, double max_value)
   {
     res= 0;
     set_null();
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     goto end;
   }
   else if (unsigned_flag && res < 0)
   {
     res= 0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     goto end;
   }
 
@@ -4425,12 +4423,12 @@ int Field_real::truncate(double *nr, double max_value)
   if (res < -max_value)
   {
    res= -max_value;
-   set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+   set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
   }
   else if (res > max_value)
   {
     res= max_value;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
   }
   else
     error= 0;
@@ -4495,7 +4493,7 @@ warn:
     String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
     str= val_str(&tmp, 0);
     ErrConvString err(str);
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -4611,7 +4609,7 @@ int Field_double::do_save_field_metadata(uchar *metadata_ptr)
 
 void Field_double::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   if (dec == NOT_FIXED_DEC)
   {
     res.set_ascii(STRING_WITH_LEN("double"));
@@ -4674,7 +4672,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
 				 TABLE_SHARE *share,
-				 CHARSET_INFO *cs)
+				 const CHARSET_INFO *cs)
   :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	     unireg_check_arg, field_name_arg, cs)
 {
@@ -4693,7 +4691,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 
 Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                  const char *field_name_arg,
-                                 CHARSET_INFO *cs)
+                                 const CHARSET_INFO *cs)
   :Field_str((uchar*) 0, MAX_DATETIME_WIDTH,
              maybe_null_arg ? (uchar*) "": 0, 0,
 	     NONE, field_name_arg, cs)
@@ -4740,7 +4738,7 @@ timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
 }
 
 
-int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_timestamp::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   MYSQL_TIME l_time;
@@ -4760,7 +4758,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   if (error || !have_smth_to_conv)
   {
     error= 1;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_DATETIME, 1);
   }
 
@@ -4769,14 +4767,14 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   {
     if (!(tmp= TIME_to_timestamp(thd, &l_time, &in_dst_time_gap)))
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                            ER_WARN_DATA_OUT_OF_RANGE,
                            from, len, MYSQL_TIMESTAMP_DATETIME, !error);
       error= 1;
     }
     else if (in_dst_time_gap)
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                            ER_WARN_INVALID_TIMESTAMP,
                            from, len, MYSQL_TIMESTAMP_DATETIME, !error);
       error= 1;
@@ -4792,7 +4790,7 @@ int Field_timestamp::store(double nr)
   int error= 0;
   if (nr < 0 || nr > 99991231235959.0)
   {
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATETIME);
     nr= 0;					// Avoid overflow on buff
@@ -4825,20 +4823,20 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
   {
     if (!(timestamp= TIME_to_timestamp(thd, &l_time, &in_dst_time_gap)))
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                            ER_WARN_DATA_OUT_OF_RANGE,
                            nr, MYSQL_TIMESTAMP_DATETIME, 1);
       error= 1;
     }
     if (in_dst_time_gap)
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                            ER_WARN_INVALID_TIMESTAMP,
                            nr, MYSQL_TIMESTAMP_DATETIME, 1);
       error= 1;
     }
   } else if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          WARN_DATA_TRUNCATED,
                          nr, MYSQL_TIMESTAMP_DATETIME, 1);
 
@@ -4967,7 +4965,7 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {				      /* Zero time is "000000" */
     if (fuzzydate & TIME_NO_ZERO_DATE)
       return 1;
-    bzero((char*) ltime,sizeof(*ltime));
+    memset(ltime, 0, sizeof(*ltime));
   }
   else
   {
@@ -5051,7 +5049,7 @@ void Field_timestamp::set_time()
 ** Stored as a 3 byte unsigned int
 ****************************************************************************/
 
-int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_time::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   MYSQL_TIME ltime;
   long tmp;
@@ -5062,21 +5060,21 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   {
     tmp=0L;
     error= 2;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_TIME, 1);
   }
   else
   {
     if (warning & MYSQL_TIME_WARN_TRUNCATED)
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                            WARN_DATA_TRUNCATED,
                            from, len, MYSQL_TIMESTAMP_TIME, 1);
       error= 1;
     }
     if (warning & MYSQL_TIME_WARN_OUT_OF_RANGE)
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_OUT_OF_RANGE,
                            from, len, MYSQL_TIMESTAMP_TIME, !error);
       error= 1;
@@ -5111,14 +5109,14 @@ int Field_time::store(double nr)
   if (nr > (double)TIME_MAX_VALUE)
   {
     tmp= TIME_MAX_VALUE;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
   }
   else if (nr < (double)-TIME_MAX_VALUE)
   {
     tmp= -TIME_MAX_VALUE;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
   }
@@ -5130,7 +5128,7 @@ int Field_time::store(double nr)
     if (tmp % 100 > 59 || tmp/100 % 100 > 59)
     {
       tmp=0;
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_OUT_OF_RANGE, nr,
                            MYSQL_TIMESTAMP_TIME);
       error= 1;
@@ -5149,7 +5147,7 @@ int Field_time::store(longlong nr, bool unsigned_val)
   if (nr < (longlong) -TIME_MAX_VALUE && !unsigned_val)
   {
     tmp= -TIME_MAX_VALUE;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr,
                          MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
@@ -5157,7 +5155,7 @@ int Field_time::store(longlong nr, bool unsigned_val)
   else if (nr > (longlong) TIME_MAX_VALUE || (nr < 0 && unsigned_val))
   {
     tmp= TIME_MAX_VALUE;
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr,
                          MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
@@ -5168,7 +5166,7 @@ int Field_time::store(longlong nr, bool unsigned_val)
     if (tmp % 100 > 59 || tmp/100 % 100 > 59)
     {
       tmp=0;
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_OUT_OF_RANGE, nr,
                            MYSQL_TIMESTAMP_TIME, 1);
       error= 1;
@@ -5234,10 +5232,10 @@ bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   THD *thd= table ? table->in_use : current_thd;
   if (!(fuzzydate & TIME_FUZZY_DATE))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WARN_DATA_OUT_OF_RANGE,
                         ER(ER_WARN_DATA_OUT_OF_RANGE), field_name,
-                        thd->warning_info->current_row_for_warning());
+                        thd->get_stmt_da()->current_row_for_warning());
     return 1;
   }
   return Field_time::get_time(ltime);
@@ -5300,7 +5298,7 @@ void Field_time::sql_type(String &res) const
 ** Can handle 2 byte or 4 byte years!
 ****************************************************************************/
 
-int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
+int Field_year::store(const char *from, uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char *end;
@@ -5311,7 +5309,7 @@ int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
       error == MY_ERRNO_ERANGE)
   {
     *ptr=0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   if (table->in_use->count_cuted_fields && 
@@ -5354,7 +5352,7 @@ int Field_year::store(longlong nr, bool unsigned_val)
   if (nr < 0 || (nr >= 100 && nr <= 1900) || nr > 2155)
   {
     *ptr= 0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   if (nr != 0 || field_length != 4)		// 0000 -> 0; 00 -> 2000
@@ -5386,6 +5384,7 @@ double Field_year::val_real(void)
 longlong Field_year::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(field_length == 2 || field_length == 4);
   int tmp= (int) ptr[0];
   if (field_length != 4)
     tmp%=100;					// Return last 2 char
@@ -5398,6 +5397,7 @@ longlong Field_year::val_int(void)
 String *Field_year::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  DBUG_ASSERT(field_length < 5);
   val_buffer->alloc(5);
   val_buffer->length(field_length);
   char *to=(char*) val_buffer->ptr();
@@ -5409,7 +5409,7 @@ String *Field_year::val_str(String *val_buffer,
 
 void Field_year::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*)res.ptr(),res.alloced_length(),
 			  "year(%d)",(int) field_length));
 }
@@ -5422,7 +5422,7 @@ void Field_year::sql_type(String &res) const
 ** Stored as a 4 byte unsigned int
 ****************************************************************************/
 
-int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
+int Field_date::store(const char *from, uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   MYSQL_TIME l_time;
@@ -5443,7 +5443,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
     tmp=(uint32) l_time.year*10000L + (uint32) (l_time.month*100+l_time.day);
 
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_DATE, 1);
 
 #ifdef WORDS_BIGENDIAN
@@ -5466,7 +5466,7 @@ int Field_date::store(double nr)
   if (nr < 0.0 || nr > 99991231.0)
   {
     tmp= LL(0);
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATE);
   }
@@ -5501,7 +5501,7 @@ int Field_date::store(longlong nr, bool unsigned_val)
     nr= (longlong) floor(nr/1000000.0);         // Timestamp to date
 
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          error == 2 ? ER_WARN_DATA_OUT_OF_RANGE :
                          WARN_DATA_TRUNCATED, initial_nr,
                          MYSQL_TIMESTAMP_DATETIME, 1);
@@ -5582,7 +5582,7 @@ String *Field_date::val_str(String *val_buffer,
 
 bool Field_date::get_time(MYSQL_TIME *ltime)
 {
-  bzero((char *)ltime, sizeof(MYSQL_TIME));
+  memset(ltime, 0, sizeof(MYSQL_TIME));
   return 0;
 }
 
@@ -5657,7 +5657,7 @@ void Field_date::sql_type(String &res) const
        store function.
 */
 
-int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_newdate::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   long tmp;
@@ -5684,8 +5684,8 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   }
 
   if (error)
-    set_datetime_warning(error == 3 ? MYSQL_ERROR::WARN_LEVEL_NOTE :
-                         MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(error == 3 ? Sql_condition::WARN_LEVEL_NOTE :
+                         Sql_condition::WARN_LEVEL_WARN,
                          WARN_DATA_TRUNCATED,
                          from, len, MYSQL_TIMESTAMP_DATE, 1);
 
@@ -5699,7 +5699,7 @@ int Field_newdate::store(double nr)
   if (nr < 0.0 || nr > 99991231235959.0)
   {
     int3store(ptr,(int32) 0);
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          WARN_DATA_TRUNCATED, nr, MYSQL_TIMESTAMP_DATE);
     return 1;
   }
@@ -5732,8 +5732,8 @@ int Field_newdate::store(longlong nr, bool unsigned_val)
     error= 3;
 
   if (error)
-    set_datetime_warning(error == 3 ? MYSQL_ERROR::WARN_LEVEL_NOTE :
-                         MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(error == 3 ? Sql_condition::WARN_LEVEL_NOTE :
+                         Sql_condition::WARN_LEVEL_WARN,
                          error == 2 ? 
                          ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED,
                          nr,MYSQL_TIMESTAMP_DATE, 1);
@@ -5762,7 +5762,7 @@ int Field_newdate::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
       String str(buff, sizeof(buff), &my_charset_latin1);
       tmp= 0;
       make_date((DATE_TIME_FORMAT *) 0, ltime, &str);
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                            str.ptr(), str.length(), MYSQL_TIMESTAMP_DATE, 1);
     }
     if (!error && ltime->time_type != MYSQL_TIMESTAMP_DATE &&
@@ -5771,7 +5771,7 @@ int Field_newdate::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
       char buff[MAX_DATE_STRING_REP_LENGTH];
       String str(buff, sizeof(buff), &my_charset_latin1);
       make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_NOTE,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_NOTE,
                            WARN_DATA_TRUNCATED,
                            str.ptr(), str.length(), MYSQL_TIMESTAMP_DATE, 1);
       error= 3;
@@ -5781,7 +5781,7 @@ int Field_newdate::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
   {
     tmp=0;
     error= 1;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
   }
   int3store(ptr,tmp);
   return error;
@@ -5891,7 +5891,7 @@ void Field_newdate::sql_type(String &res) const
 ** Stored as a 8 byte unsigned int. Should sometimes be change to a 6 byte int.
 ****************************************************************************/
 
-int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_datetime::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   MYSQL_TIME time_tmp;
@@ -5912,7 +5912,7 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
     error= 1;                                 // Fix if invalid zero date
 
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
                          from, len, MYSQL_TIMESTAMP_DATETIME, 1);
 
@@ -5933,7 +5933,7 @@ int Field_datetime::store(double nr)
   int error= 0;
   if (nr < 0.0 || nr > 99991231235959.0)
   {
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATETIME);
     nr= 0.0;
@@ -5965,7 +5965,7 @@ int Field_datetime::store(longlong nr, bool unsigned_val)
   }
 
   if (error)
-    set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+    set_datetime_warning(Sql_condition::WARN_LEVEL_WARN,
                          error == 2 ? ER_WARN_DATA_OUT_OF_RANGE :
                          WARN_DATA_TRUNCATED, initial_nr,
                          MYSQL_TIMESTAMP_DATETIME, 1);
@@ -6006,7 +6006,7 @@ int Field_datetime::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
       String str(buff, sizeof(buff), &my_charset_latin1);
       tmp= 0;
       make_datetime((DATE_TIME_FORMAT *) 0, ltime, &str);
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+      set_datetime_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                            str.ptr(), str.length(), MYSQL_TIMESTAMP_DATETIME,1);
     }
   }
@@ -6014,7 +6014,7 @@ int Field_datetime::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
   {
     tmp=0;
     error= 1;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
   }
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
@@ -6217,7 +6217,7 @@ check_string_copy_error(Field_str *field,
                         const char *well_formed_error_pos,
                         const char *cannot_convert_error_pos,
                         const char *end,
-                        CHARSET_INFO *cs)
+                        const CHARSET_INFO *cs)
 {
   const char *pos;
   char tmp[32];
@@ -6230,11 +6230,11 @@ check_string_copy_error(Field_str *field,
   convert_to_printable(tmp, sizeof(tmp), pos, (end - pos), cs, 6);
 
   push_warning_printf(thd,
-                      MYSQL_ERROR::WARN_LEVEL_WARN,
+                      Sql_condition::WARN_LEVEL_WARN,
                       ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field->field_name,
-                      thd->warning_info->current_row_for_warning());
+                      thd->get_stmt_da()->current_row_for_warning());
   return TRUE;
 }
 
@@ -6268,14 +6268,14 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
     if (test_if_important_data(field_charset, pstr, end))
     {
       if (table->in_use->abort_on_warning)
-        set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
+        set_warning(Sql_condition::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
       else
-        set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+        set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       return 2;
     }
     else if (count_spaces)
     { /* If we lost only spaces then produce a NOTE, not a WARNING */
-      set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+      set_warning(Sql_condition::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
       return 2;
     }
   }
@@ -6285,7 +6285,7 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
 
 	/* Copy a string and fill with space */
 
-int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_string::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   uint copy_length;
@@ -6341,9 +6341,9 @@ int Field_str::store(double nr)
   if (error)
   {
     if (table->in_use->abort_on_warning)
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
     else
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
   }
   return store(buff, length, &my_charset_numeric);
 }
@@ -6370,7 +6370,7 @@ int Field_string::store(longlong nr, bool unsigned_val)
 {
   char buff[64];
   int  l;
-  CHARSET_INFO *cs=charset();
+  const CHARSET_INFO *cs=charset();
   l= (cs->cset->longlong10_to_str)(cs,buff,sizeof(buff),
                                    unsigned_val ? 10 : -10, nr);
   return Field_string::store(buff,(uint)l,cs);
@@ -6396,7 +6396,7 @@ double Field_string::val_real(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   double result;
   
   result=  my_strntod(cs,(char*) ptr,field_length,&end,&error);
@@ -6406,7 +6406,7 @@ double Field_string::val_real(void)
                                           (char*) ptr + field_length))))
   {
     ErrConvString err((char*) ptr, field_length, cs);
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
                         err.ptr());
@@ -6420,7 +6420,7 @@ longlong Field_string::val_int(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   longlong result;
 
   result= my_strntoll(cs, (char*) ptr,field_length,10,&end,&error);
@@ -6430,7 +6430,7 @@ longlong Field_string::val_int(void)
                                           (char*) ptr + field_length))))
   {
     ErrConvString err((char*) ptr, field_length, cs);
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER(ER_TRUNCATED_WRONG_VALUE),
                         "INTEGER", err.ptr());
@@ -6466,7 +6466,7 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
   if (!table->in_use->no_errors && err)
   {
     ErrConvString errmsg((char*) ptr, field_length, charset());
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE, 
                         ER(ER_TRUNCATED_WRONG_VALUE),
                         "DECIMAL", errmsg.ptr());
@@ -6502,7 +6502,7 @@ Field_string::compatible_field_size(uint field_metadata,
 {
 #ifdef HAVE_REPLICATION
   const Check_field_param check_param = { this };
-  if (rpl_master_has_bug(rli_arg, 37426, TRUE,
+  if (!is_mts_worker(rli_arg->info_thd) && rpl_master_has_bug(rli_arg, 37426, TRUE,
                          check_field_for_37426, &check_param))
     return FALSE;                        // Not compatible field sizes
 #endif
@@ -6548,7 +6548,7 @@ void Field_string::sort_string(uchar *to,uint length)
 void Field_string::sql_type(String &res) const
 {
   THD *thd= table->in_use;
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   ulong length;
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
@@ -6793,7 +6793,8 @@ int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
   return 2;
 }
 
-int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_varstring::store(const char *from,uint length,
+                           const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   uint copy_length;
@@ -6843,7 +6844,7 @@ double Field_varstring::val_real(void)
   int error;
   char *end;
   double result;
-  CHARSET_INFO* cs= charset();
+  const CHARSET_INFO* cs= charset();
   
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
   result= my_strntod(cs, (char*)ptr+length_bytes, length, &end, &error);
@@ -6865,7 +6866,7 @@ longlong Field_varstring::val_int(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
   longlong result= my_strntoll(cs, (char*) ptr+length_bytes, length, 10,
@@ -6895,7 +6896,7 @@ String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
 my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
   int error= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr+length_bytes, length,
                  cs, decimal_value);
@@ -7018,7 +7019,7 @@ enum ha_base_keytype Field_varstring::key_type() const
 void Field_varstring::sql_type(String &res) const
 {
   THD *thd= table->in_use;
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   ulong length;
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
@@ -7135,7 +7136,7 @@ uint Field_varstring::get_key_image(uchar *buff, uint length, imagetype type)
       Must clear this as we do a memcmp in opt_range.cc to detect
       identical keys
     */
-    bzero(buff+HA_KEY_BLOB_LENGTH+f_length, (length-f_length));
+    memset(buff+HA_KEY_BLOB_LENGTH+f_length, 0, (length-f_length));
   }
   return HA_KEY_BLOB_LENGTH+f_length;
 }
@@ -7227,7 +7228,7 @@ void Field_varstring::hash(ulong *nr, ulong *nr2)
   else
   {
     uint len=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-    CHARSET_INFO *cs= charset();
+    const CHARSET_INFO *cs= charset();
     cs->coll->hash_sort(cs, ptr + length_bytes, len, nr, nr2);
   }
 }
@@ -7242,7 +7243,7 @@ void Field_varstring::hash(ulong *nr, ulong *nr2)
 Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
                        TABLE_SHARE *share, uint blob_pack_length,
-		       CHARSET_INFO *cs)
+		       const CHARSET_INFO *cs)
   :Field_longstr(ptr_arg, BLOB_PACK_LENGTH_TO_MAX_LENGH(blob_pack_length),
                  null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
                  cs),
@@ -7355,7 +7356,7 @@ void Field_blob::put_length(uchar *pos, uint32 length)
 }
 
 
-int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   uint copy_length, new_length;
@@ -7367,7 +7368,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 
   if (!length)
   {
-    bzero(ptr,Field_blob::pack_length());
+    memset(ptr, 0, Field_blob::pack_length());
     return 0;
   }
 
@@ -7435,14 +7436,14 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 
 oom_error:
   /* Fatal OOM error */
-  bzero(ptr,Field_blob::pack_length());
+  memset(ptr, 0, Field_blob::pack_length());
   return -1; 
 }
 
 
 int Field_blob::store(double nr)
 {
-  CHARSET_INFO *cs=charset();
+  const CHARSET_INFO *cs=charset();
   value.set_real(nr, NOT_FIXED_DEC, cs);
   return Field_blob::store(value.ptr(),(uint) value.length(), cs);
 }
@@ -7450,7 +7451,7 @@ int Field_blob::store(double nr)
 
 int Field_blob::store(longlong nr, bool unsigned_val)
 {
-  CHARSET_INFO *cs=charset();
+  const CHARSET_INFO *cs=charset();
   value.set_int(nr, unsigned_val, cs);
   return Field_blob::store(value.ptr(), (uint) value.length(), cs);
 }
@@ -7462,7 +7463,7 @@ double Field_blob::val_real(void)
   int not_used;
   char *end_not_used, *blob;
   uint32 length;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
 
   memcpy(&blob, ptr+packlength, sizeof(char*));
   if (!blob)
@@ -7578,13 +7579,13 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
 
     if (blob_length < SRID_SIZE)
     {
-      bzero(buff, image_length);
+      memset(buff, 0, image_length);
       return image_length;
     }
     get_ptr(&blob);
     gobj= Geometry::construct(&buffer, (char*) blob, blob_length);
     if (!gobj || gobj->get_mbr(&mbr, &dummy))
-      bzero(buff, image_length);
+      memset(buff, 0, image_length);
     else
     {
       float8store(buff,    mbr.xmin);
@@ -7608,7 +7609,7 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
       Must clear this as we do a memcmp in opt_range.cc to detect
       identical keys
     */
-    bzero(buff+HA_KEY_BLOB_LENGTH+blob_length, (length-blob_length));
+    memset(buff+HA_KEY_BLOB_LENGTH+blob_length, 0, (length-blob_length));
     length=(uint) blob_length;
   }
   int2store(buff,length);
@@ -7630,7 +7631,7 @@ int Field_blob::key_cmp(const uchar *key_ptr, uint max_key_length)
   uchar *blob1;
   uint blob_length=get_length(ptr);
   memcpy(&blob1, ptr+packlength, sizeof(char*));
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   uint local_char_length= max_key_length / cs->mbmaxlen;
   local_char_length= my_charpos(cs, blob1, blob1+blob_length,
                                 local_char_length);
@@ -7679,7 +7680,7 @@ void Field_blob::sort_string(uchar *to,uint length)
   uint blob_length=get_length();
 
   if (!blob_length)
-    bzero(to,length);
+    memset(to, 0, length);
   else
   {
     if (field_charset == &my_charset_bin)
@@ -7836,7 +7837,7 @@ uint Field_blob::is_equal(Create_field *new_field)
 
 void Field_geom::sql_type(String &res) const
 {
-  CHARSET_INFO *cs= &my_charset_latin1;
+  const CHARSET_INFO *cs= &my_charset_latin1;
   switch (geom_type)
   {
     case GEOM_POINT:
@@ -7890,10 +7891,10 @@ int Field_geom::store_decimal(const my_decimal *)
 }
 
 
-int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
+int Field_geom::store(const char *from, uint length, const CHARSET_INFO *cs)
 {
   if (!length)
-    bzero(ptr, Field_blob::pack_length());
+    memset(ptr, 0, Field_blob::pack_length());
   else
   {
     if (from == Geometry::bad_geometry_data.ptr())
@@ -7917,7 +7918,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
   return 0;
 
 err:
-  bzero(ptr, Field_blob::pack_length());  
+  memset(ptr, 0, Field_blob::pack_length());  
   my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
              ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
   return -1;
@@ -7986,7 +7987,7 @@ void Field_enum::store_type(ulonglong value)
     (if there isn't a empty value in the enum)
 */
 
-int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_enum::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int err= 0;
@@ -8016,13 +8017,13 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
       if (err || end != from+length || tmp > typelib->count)
       {
 	tmp=0;
-	set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+	set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
       }
       if (!table->in_use->count_cuted_fields)
         err= 0;
     }
     else
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
   }
   store_type((ulonglong) tmp);
   return err;
@@ -8041,7 +8042,7 @@ int Field_enum::store(longlong nr, bool unsigned_val)
   int error= 0;
   if ((ulonglong) nr > typelib->count || nr == 0)
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     if (nr != 0 || table->in_use->count_cuted_fields)
     {
       nr= 0;
@@ -8204,7 +8205,7 @@ Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table,
 */
 
 
-int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_set::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   bool got_warning= 0;
@@ -8234,11 +8235,11 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
     {
       tmp=0;      
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     }
   }
   else if (got_warning)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
   store_type(tmp);
   return err;
 }
@@ -8258,7 +8259,7 @@ int Field_set::store(longlong nr, bool unsigned_val)
   if ((ulonglong) nr > max_nr)
   {
     nr&= max_nr;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     error=1;
   }
   store_type((ulonglong) nr);
@@ -8337,7 +8338,8 @@ bool Field::eq_def(Field *field)
   @return TRUE if the type names of t1 match those of t2. FALSE otherwise.
 */
 
-static bool compare_type_names(CHARSET_INFO *charset, TYPELIB *t1, TYPELIB *t2)
+static bool compare_type_names(const CHARSET_INFO *charset,
+                               TYPELIB *t1, TYPELIB *t2)
 {
   for (uint i= 0; i < t1->count; i++)
     if (my_strnncoll(charset,
@@ -8552,7 +8554,7 @@ void Field_bit::hash(ulong *nr, ulong *nr2)
   }
   else
   {
-    CHARSET_INFO *cs= &my_charset_bin;
+    const CHARSET_INFO *cs= &my_charset_bin;
     longlong value= Field_bit::val_int();
     uchar tmp[8];
     mi_int8store(tmp,value);
@@ -8615,7 +8617,7 @@ uint Field_bit::is_equal(Create_field *new_field)
 }
 
                        
-int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
+int Field_bit::store(const char *from, uint length, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
@@ -8630,9 +8632,9 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
     set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
     if (table->in_use->really_abort_on_warning())
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
     else
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
   /* delta is >= -1 here */
@@ -8640,7 +8642,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
   {
     if (bit_len)
       clr_rec_bits(bit_ptr, bit_ofs, bit_len);
-    bzero(ptr, delta);
+    memset(ptr, 0, delta);
     memcpy(ptr + delta, from, length);
   }
   else if (delta == 0)
@@ -8907,7 +8909,7 @@ Field_bit::compatible_field_size(uint field_metadata,
 
 void Field_bit::sql_type(String &res) const
 {
-  CHARSET_INFO *cs= res.charset();
+  const CHARSET_INFO *cs= res.charset();
   ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
                                    "bit(%d)", (int) field_length);
   res.length((uint) length);
@@ -9008,7 +9010,7 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
   */
   uint new_len= (field_length + 7) / 8;
   char *value= (char *)my_alloca(new_len);
-  bzero(value, new_len);
+  memset(value, 0, new_len);
   uint len= from_len + ((from_bit_len > 0) ? 1 : 0);
   memcpy(value + (new_len - len), from, len);
   /*
@@ -9053,7 +9055,8 @@ Field_bit_as_char::Field_bit_as_char(uchar *ptr_arg, uint32 len_arg,
 }
 
 
-int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
+int Field_bit_as_char::store(const char *from, uint length,
+                             const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
@@ -9069,12 +9072,12 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
     if (bits)
       *ptr&= ((1 << bits) - 1); /* set first uchar */
     if (table->in_use->really_abort_on_warning())
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
     else
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
-  bzero(ptr, delta);
+  memset(ptr, 0, delta);
   memcpy(ptr + delta, from, length);
   return 0;
 }
@@ -9082,7 +9085,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
 
 void Field_bit_as_char::sql_type(String &res) const
 {
-  CHARSET_INFO *cs= res.charset();
+  const CHARSET_INFO *cs= res.charset();
   ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
                                    "bit(%d)", (int) field_length);
   res.length((uint) length);
@@ -9187,8 +9190,9 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     pack_flag= FIELDFLAG_INTERVAL;
     break;
 
-  case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
+    DBUG_ASSERT(decimals_arg <= DECIMAL_MAX_SCALE);
+  case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
     pack_flag= FIELDFLAG_NUMBER |
@@ -9280,7 +9284,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                         uint fld_type_modifier, Item *fld_default_value,
                         Item *fld_on_update_value, LEX_STRING *fld_comment,
                         char *fld_change, List<String> *fld_interval_list,
-                        CHARSET_INFO *fld_charset, uint fld_geom_type)
+                        const CHARSET_INFO *fld_charset, uint fld_geom_type)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -9297,7 +9301,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   if (decimals >= NOT_FIXED_DEC)
   {
     my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
-             NOT_FIXED_DEC-1);
+             static_cast<ulong>(NOT_FIXED_DEC - 1));
     DBUG_RETURN(TRUE);
   }
 
@@ -9367,8 +9371,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     my_decimal_trim(&length, &decimals);
     if (length > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), length, fld_name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(length),
+               fld_name, static_cast<ulong>(DECIMAL_MAX_PRECISION));
       DBUG_RETURN(TRUE);
     }
     if (length < decimals)
@@ -9418,7 +9422,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
         /*
           Otherwise a default of '' is just a warning.
         */
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_BLOB_CANT_HAVE_DEFAULT,
                             ER(ER_BLOB_CANT_HAVE_DEFAULT),
                             fld_name);
@@ -9592,7 +9596,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       if (length > MAX_BIT_FIELD_LENGTH)
       {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
-                 MAX_BIT_FIELD_LENGTH);
+                 static_cast<ulong>(MAX_BIT_FIELD_LENGTH));
         DBUG_RETURN(TRUE);
       }
       pack_length= (length + 7) / 8;
@@ -9715,7 +9719,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
 		  enum_field_types field_type,
-		  CHARSET_INFO *field_charset,
+		  const CHARSET_INFO *field_charset,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,
@@ -10067,7 +10071,7 @@ uint32 Field_blob::max_display_length()
 */
 
 bool 
-Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
+Field::set_warning(Sql_condition::enum_warning_level level, uint code,
                    int cuted_increment)
 {
   /*
@@ -10079,10 +10083,10 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
   {
     thd->cuted_fields+= cuted_increment;
     push_warning_printf(thd, level, code, ER(code), field_name,
-                        thd->warning_info->current_row_for_warning());
+                        thd->get_stmt_da()->current_row_for_warning());
     return 0;
   }
-  return level >= MYSQL_ERROR::WARN_LEVEL_WARN;
+  return level >= Sql_condition::WARN_LEVEL_WARN;
 }
 
 
@@ -10103,13 +10107,13 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
 */
 
 void 
-Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code, 
+Field::set_datetime_warning(Sql_condition::enum_warning_level level, uint code, 
                             const char *str, uint str_length, 
                             timestamp_type ts_type, int cuted_increment)
 {
   THD *thd= table ? table->in_use : current_thd;
   if ((thd->really_abort_on_warning() &&
-       level >= MYSQL_ERROR::WARN_LEVEL_WARN) ||
+       level >= Sql_condition::WARN_LEVEL_WARN) ||
       set_warning(level, code, cuted_increment))
     make_truncated_value_warning(thd, level, str, str_length, ts_type,
                                  field_name);
@@ -10132,7 +10136,7 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
 */
 
 void 
-Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code, 
+Field::set_datetime_warning(Sql_condition::enum_warning_level level, uint code, 
                             longlong nr, timestamp_type ts_type,
                             int cuted_increment)
 {
@@ -10163,7 +10167,7 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
 */
 
 void 
-Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code, 
+Field::set_datetime_warning(Sql_condition::enum_warning_level level, uint code, 
                             double nr, timestamp_type ts_type)
 {
   THD *thd= table ? table->in_use : current_thd;

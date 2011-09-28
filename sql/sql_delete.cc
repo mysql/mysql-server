@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Delete of records tables.
@@ -35,6 +35,8 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "transaction.h"
+#include "opt_trace.h"                          // Opt_trace_object
+#include "opt_explain.h"
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
 
@@ -60,6 +62,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   ha_rows	deleted= 0;
   bool          reverse= FALSE;
   bool          skip_record;
+  bool          need_sort= FALSE;
+  bool          err= true;
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
   uint usable_index= MAX_KEY;
@@ -76,7 +80,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 	     table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);
   }
-  thd_proc_info(thd, "init");
+  THD_STAGE_INFO(thd, stage_init);
   table->map=1;
 
   if (mysql_prepare_delete(thd, table_list, &conds))
@@ -89,7 +93,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     List<Item>   fields;
     List<Item>   all_fields;
 
-    bzero((char*) &tables,sizeof(tables));
+    memset(&tables, 0, sizeof(tables));
     tables.table = table;
     tables.alias = table_list->alias;
 
@@ -144,6 +148,13 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->stats.records;
+
+    if (thd->lex->describe)
+    {
+      err= explain_no_table(thd, "Deleting all rows", maybe_deleted);
+      goto exit_without_my_ok;
+    }
+
     DBUG_PRINT("debug", ("Trying to use delete_all_rows()"));
     if (!(error=table->file->ha_delete_all_rows()))
     {
@@ -169,14 +180,28 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     Item::cond_result result;
     conds= remove_eq_conds(thd, conds, &result);
     if (result == Item::COND_FALSE)             // Impossible where
+    {
       limit= 0;
+
+      if (thd->lex->describe)
+      {
+        err= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
+    }
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (prune_partitions(thd, table, conds))
   {
+    /* No matching records */
+    if (thd->lex->describe)
+    {
+      err= explain_no_table(thd, "No matching rows after partition pruning");
+      goto exit_without_my_ok;
+    }
+
     free_underlaid_joins(thd, select_lex);
-    // No matching record
     my_ok(thd, 0);
     DBUG_RETURN(0);
   }
@@ -190,21 +215,27 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
     DBUG_RETURN(TRUE);
-  if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
-  {
-    delete select;
-    free_underlaid_joins(thd, select_lex);
-    /* 
-      Error was already created by quick select evaluation (check_quick()).
-      TODO: Add error code output parameter to Item::val_xxx() methods.
-      Currently they rely on the user checking DA for
-      errors when unwinding the stack after calling Item::val_xxx().
-    */
-    if (thd->is_error())
-      DBUG_RETURN(TRUE);
-    my_ok(thd, 0);
-    DBUG_RETURN(0);				// Nothing to delete
-  }
+
+  { // Enter scope for optimizer trace wrapper
+    Opt_trace_object wrapper(&thd->opt_trace);
+    wrapper.add_utf8_table(table);
+
+    if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
+    {
+      delete select;
+      free_underlaid_joins(thd, select_lex);
+      /*
+         Error was already created by quick select evaluation (check_quick()).
+         TODO: Add error code output parameter to Item::val_xxx() methods.
+         Currently they rely on the user checking DA for
+         errors when unwinding the stack after calling Item::val_xxx().
+      */
+      if (thd->is_error())
+        DBUG_RETURN(true);
+      my_ok(thd, 0);
+      DBUG_RETURN(false);                       // Nothing to delete
+    }
+  } // Ends scope for optimizer trace wrapper
 
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -219,23 +250,33 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       DBUG_RETURN(TRUE);
     }
   }
+
+  if (order)
+  {
+    table->update_const_key_parts(conds);
+    order= simple_remove_const(order, conds);
+
+    usable_index= get_index_for_order(order, table, select, limit,
+                                      &need_sort, &reverse);
+  }
+
+  if (thd->lex->describe)
+  {
+    err= explain_single_table_modification(thd, table, select, usable_index,
+                                           limit, false, need_sort);
+    goto exit_without_my_ok;
+  }
+
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);
 
-  if (order)
+  if (need_sort)
   {
     uint         length= 0;
     SORT_FIELD  *sortorder;
     ha_rows examined_rows;
     ha_rows found_rows;
     
-    table->update_const_key_parts(conds);
-    order= simple_remove_const(order, conds);
-
-    bool need_sort;
-    usable_index= get_index_for_order(order, table, select, limit,
-                                      &need_sort, &reverse);
-    if (need_sort)
     {
       DBUG_ASSERT(usable_index == MAX_KEY);
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
@@ -252,7 +293,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         free_underlaid_joins(thd, &thd->lex->select_lex);
         DBUG_RETURN(TRUE);
       }
-      thd->examined_row_count+= examined_rows;
+      thd->inc_examined_row_count(examined_rows);
       /*
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
@@ -276,7 +317,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
   init_ftfuncs(thd, select_lex, 1);
-  thd_proc_info(thd, "updating");
+  THD_STAGE_INFO(thd, stage_updating);
 
   if (table->triggers &&
       table->triggers->has_triggers(TRG_EVENT_DELETE,
@@ -299,7 +340,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
-    thd->examined_row_count++;
+    thd->inc_examined_row_count(1);
     // thd->is_error() is tested to disallow delete row on error
     if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
@@ -355,12 +396,13 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       table->file->print_error(loc_error,MYF(0));
     error=1;
   }
-  thd_proc_info(thd, "end");
+  THD_STAGE_INFO(thd, stage_end);
   end_read_record(&info);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
 
 cleanup:
+  DBUG_ASSERT(!thd->lex->describe);
   /*
     Invalidate the table in the query cache if something changed. This must
     be before binlog writing and ha_autocommit_...
@@ -374,11 +416,10 @@ cleanup:
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
-    thd->transaction.stmt.modified_non_trans_table=
-      thd->transaction.all.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.mark_modified_non_trans_table();
   
   /* See similar binlogging code in sql_update.cc, for comments */
-  if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
+  if ((error < 0) || thd->transaction.stmt.cannot_safely_rollback())
   {
     if (mysql_bin_log.is_open())
     {
@@ -405,7 +446,7 @@ cleanup:
       }
     }
   }
-  DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
+  DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.cannot_safely_rollback());
   free_underlaid_joins(thd, select_lex);
   if (error < 0 || 
       (thd->lex->ignore && !thd->is_error() && !thd->is_fatal_error))
@@ -414,6 +455,11 @@ cleanup:
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
   DBUG_RETURN(thd->is_error() || thd->killed);
+
+exit_without_my_ok:
+  delete select;
+  free_underlaid_joins(thd, select_lex);
+  DBUG_RETURN((err || thd->is_error() || thd->killed) ? 1 : 0);
 }
 
 
@@ -475,7 +521,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 
 #define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 
-extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
+extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
 {
   handler *file= (handler*)arg;
   return file->cmp_ref((const uchar*)a, (const uchar*)b);
@@ -580,7 +626,7 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("multi_delete::prepare");
   unit= u;
   do_delete= 1;
-  thd_proc_info(thd, "deleting from main table");
+  THD_STAGE_INFO(thd, stage_deleting_from_main_table);
   DBUG_RETURN(0);
 }
 
@@ -729,7 +775,7 @@ bool multi_delete::send_data(List<Item> &values)
       {
         deleted++;
         if (!table->file->has_transactions())
-          thd->transaction.stmt.modified_non_trans_table= TRUE;
+          thd->transaction.stmt.mark_modified_non_trans_table();
         if (table->triggers &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                               TRG_ACTION_AFTER, FALSE))
@@ -776,15 +822,12 @@ void multi_delete::abort_result_set()
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      (!thd->transaction.stmt.modified_non_trans_table && !deleted))
+      (!thd->transaction.stmt.cannot_safely_rollback() && !deleted))
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
   if (deleted)
     query_cache_invalidate3(thd, delete_tables, 1);
-
-  if (thd->transaction.stmt.modified_non_trans_table)
-    thd->transaction.all.modified_non_trans_table= TRUE;
 
   /*
     If rows from the first table only has been deleted and it is
@@ -806,7 +849,7 @@ void multi_delete::abort_result_set()
     DBUG_VOID_RETURN;
   }
   
-  if (thd->transaction.stmt.modified_non_trans_table)
+  if (thd->transaction.stmt.cannot_safely_rollback())
   {
     /* 
        there is only side effects; to binlog with the error
@@ -943,7 +986,7 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
     }
   }
   if (last_deleted != deleted && !table->file->has_transactions())
-    thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.mark_modified_non_trans_table();
 
   end_read_record(&info);
 
@@ -960,7 +1003,7 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
 bool multi_delete::send_eof()
 {
   THD::killed_state killed_status= THD::NOT_KILLED;
-  thd_proc_info(thd, "deleting from reference tables");
+  THD_STAGE_INFO(thd, stage_deleting_from_reference_tables);
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
   int local_error= do_deletes();		// returns 0 if success
@@ -969,10 +1012,7 @@ bool multi_delete::send_eof()
   local_error= local_error || error;
   killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
   /* reset used flags */
-  thd_proc_info(thd, "end");
-
-  if (thd->transaction.stmt.modified_non_trans_table)
-    thd->transaction.all.modified_non_trans_table= TRUE;
+  THD_STAGE_INFO(thd, stage_end);
 
   /*
     We must invalidate the query cache before binlog writing and
@@ -982,7 +1022,7 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  if ((local_error == 0) || thd->transaction.stmt.modified_non_trans_table)
+  if ((local_error == 0) || thd->transaction.stmt.cannot_safely_rollback())
   {
     if (mysql_bin_log.is_open())
     {

@@ -149,10 +149,6 @@ USE db_storedproc_1;
 
 drop user 'user_1'@'localhost';
 DROP PROCEDURE sp3;
-# This drop function shouldn't generated a warning as the
-# privileges should have been removed when the user was
-# dropped. Reported as Bug#36544 DROP USER does not remove
-# stored function privileges
 DROP FUNCTION fn1;
 
 

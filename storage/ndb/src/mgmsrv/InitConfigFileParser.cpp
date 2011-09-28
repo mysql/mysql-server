@@ -757,7 +757,7 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
   }
 
   struct my_option end;
-  bzero(&end, sizeof(end));
+  memset(&end, 0, sizeof(end));
   copy.push_back(end);
 
   if (load_defaults(copy, groups))
@@ -776,7 +776,7 @@ InitConfigFileParser::parse_mycnf()
   {
     {
       struct my_option opt;
-      bzero(&opt, sizeof(opt));
+      memset(&opt, 0, sizeof(opt));
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
@@ -815,7 +815,7 @@ InitConfigFileParser::parse_mycnf()
   Uint32 idx = options.size();
   {
     struct my_option opt;
-    bzero(&opt, sizeof(opt));
+    memset(&opt, 0, sizeof(opt));
     opt.name = "ndbd";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
@@ -844,7 +844,7 @@ InitConfigFileParser::parse_mycnf()
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
-    bzero(&opt, sizeof(opt));
+    memset(&opt, 0, sizeof(opt));
     options.push_back(opt);
 
     ndbd = &options[idx];

@@ -36,11 +36,14 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0rbt.h"
 #include "os0proc.h"
+#include "log0log.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
 #define BUF_GET			10	/*!< get always */
 #define	BUF_GET_IF_IN_POOL	11	/*!< get if in pool */
+#define BUF_PEEK_IF_IN_POOL	12	/*!< get if in pool, do not make
+					the block young in the LRU list */
 #define BUF_GET_NO_LATCH	14	/*!< get and bufferfix, but
 					set no latch; we have
 					separated this case, because
@@ -51,6 +54,9 @@ Created 11/5/1995 Heikki Tuuri
 					/*!< Get the page only if it's in the
 					buffer pool, if not then set a watch
 					on the page. */
+#define BUF_GET_POSSIBLY_FREED		16
+					/*!< Like BUF_GET, but do not mind
+					if the file page has been freed. */
 /* @} */
 /** @name Modes for buf_page_get_known_nowait */
 /* @{ */
@@ -139,6 +145,10 @@ struct buf_pool_info_struct{
 	ulint	n_pend_reads;		/*!< buf_pool->n_pend_reads, pages
 					pending read */
 	ulint	n_pending_flush_lru;	/*!< Pages pending flush in LRU */
+	ulint	n_pending_flush_single_page;/*!< Pages pending to be
+					flushed as part of single page
+					flushes issued by various user
+					threads */
 	ulint	n_pending_flush_list;	/*!< Pages pending flush in FLUSH
 					LIST */
 	ulint	n_pages_made_young;	/*!< number of pages made young */
@@ -147,6 +157,8 @@ struct buf_pool_info_struct{
 	ulint	n_pages_created;	/*!< buf_pool->n_pages_created */
 	ulint	n_pages_written;	/*!< buf_pool->n_pages_written */
 	ulint	n_page_gets;		/*!< buf_pool->n_page_gets */
+	ulint	n_ra_pages_read_rnd;	/*!< buf_pool->n_ra_pages_read_rnd,
+					number of pages readahead */
 	ulint	n_ra_pages_read;	/*!< buf_pool->n_ra_pages_read, number
 					of pages readahead */
 	ulint	n_ra_pages_evicted;	/*!< buf_pool->n_ra_pages_evicted,
@@ -171,6 +183,8 @@ struct buf_pool_info_struct{
 					last printout */
 
 	/* Statistics about read ahead algorithm.  */
+	double	pages_readahead_rnd_rate;/*!< random readahead rate in pages per
+					second */
 	double	pages_readahead_rate;	/*!< readahead rate in pages per
 					second */
 	double	pages_evicted_rate;	/*!< rate of readahead page evicted
@@ -246,12 +260,6 @@ buf_relocate(
 				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
 	buf_page_t*	dpage)	/*!< in/out: destination control block */
 	__attribute__((nonnull));
-/********************************************************************//**
-Resizes the buffer pool. */
-UNIV_INTERN
-void
-buf_pool_resize(void);
-/*=================*/
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return	size in bytes */
@@ -271,9 +279,26 @@ Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return	oldest modification in pool, zero if none */
 UNIV_INTERN
-ib_uint64_t
+lsn_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
+/********************************************************************//**
+Allocates a buf_page_t descriptor. This function must succeed. In case
+of failure we assert in this function. */
+UNIV_INLINE
+buf_page_t*
+buf_page_alloc_descriptor(void)
+/*===========================*/
+	__attribute__((malloc));
+/********************************************************************//**
+Free a buf_page_t descriptor. */
+UNIV_INLINE
+void
+buf_page_free_descriptor(
+/*=====================*/
+	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
+	__attribute__((nonnull));
+
 /********************************************************************//**
 Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
@@ -328,8 +353,7 @@ buf_page_optimistic_get(
 /*====================*/
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/*!< in: guessed block */
-	ib_uint64_t	modify_clock,/*!< in: modify clock value if mode is
-				..._GUESS_ON_CLOCK */
+	ib_uint64_t	modify_clock,/*!< in: modify clock value */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
@@ -401,7 +425,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH or
+				BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH or
 				BUF_GET_IF_IN_POOL_OR_WATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
@@ -476,15 +500,6 @@ buf_page_peek(
 /*==========*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
-/********************************************************************//**
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-UNIV_INTERN
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
@@ -531,6 +546,18 @@ buf_block_get_freed_page_clock(
 	__attribute__((pure));
 
 /********************************************************************//**
+Tells if a block is still close enough to the MRU end of the LRU list
+meaning that it is not in danger of getting evicted and also implying
+that it has been accessed recently.
+Note that this is for heuristics only and does not reserve buffer pool
+mutex.
+@return	TRUE if block is close to MRU end of LRU */
+UNIV_INLINE
+ibool
+buf_page_peek_if_young(
+/*===================*/
+	const buf_page_t*	bpage);	/*!< in: block */
+/********************************************************************//**
 Recommends a move of a block to the start of the LRU list if there is danger
 of dropping from the buffer pool. NOTE: does not reserve the buffer pool
 mutex.
@@ -556,7 +583,7 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
 UNIV_INLINE
-ib_uint64_t
+lsn_t
 buf_page_get_newest_modification(
 /*=============================*/
 	const buf_page_t*	bpage);	/*!< in: block containing the
@@ -582,29 +609,31 @@ buf_block_get_modify_clock(
 #else /* !UNIV_HOTBACKUP */
 # define buf_block_modify_clock_inc(block) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
-/********************************************************************//**
-Calculates a page checksum which is stored to the page when it is written
-to a file. Note that we must be careful to calculate the same value
-on 32-bit and 64-bit architectures.
-@return	checksum */
-UNIV_INTERN
-ulint
-buf_calc_page_new_checksum(
+/*******************************************************************//**
+Increments the bufferfix count. */
+UNIV_INLINE
+void
+buf_block_buf_fix_inc_func(
 /*=======================*/
-	const byte*	page);	/*!< in: buffer page */
-/********************************************************************//**
-In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
-looked at the first few bytes of the page. This calculates that old
-checksum.
-NOTE: we must first store the new formula checksum to
-FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
-because this takes that field as an input!
-@return	checksum */
-UNIV_INTERN
-ulint
-buf_calc_page_old_checksum(
-/*=======================*/
-	const byte*	 page);	/*!< in: buffer page */
+#ifdef UNIV_SYNC_DEBUG
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line */
+#endif /* UNIV_SYNC_DEBUG */
+	buf_block_t*	block)	/*!< in/out: block to bufferfix */
+	__attribute__((nonnull));
+#ifdef UNIV_SYNC_DEBUG
+/** Increments the bufferfix count.
+@param b	in/out: block to bufferfix
+@param f	in: file name where requested
+@param l	in: line number where requested */
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
+#else /* UNIV_SYNC_DEBUG */
+/** Increments the bufferfix count.
+@param b	in/out: block to bufferfix
+@param f	in: file name where requested
+@param l	in: line number where requested */
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
+#endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**
 Checks if a page is corrupt.
 @return	TRUE if corrupted */
@@ -673,8 +702,9 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size);	/*!< in: compressed page size, or
+	ulint		zip_size)	/*!< in: compressed page size, or
 					0 for uncompressed pages */
+	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Decompress a block.
 @return	TRUE if successful */
@@ -695,12 +725,12 @@ buf_get_latched_pages_number(void);
 /*==============================*/
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
-Returns the number of pending buf pool ios.
-@return	number of pending I/O operations */
+Returns the number of pending buf pool read ios.
+@return	number of pending read I/O operations */
 UNIV_INTERN
 ulint
-buf_get_n_pending_ios(void);
-/*=======================*/
+buf_get_n_pending_read_ios(void);
+/*============================*/
 /*********************************************************************//**
 Prints info of the buffer i/o. */
 UNIV_INTERN
@@ -1037,7 +1067,7 @@ buf_block_get_zip_size(
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
-	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
+	((block)->page.zip.data ? &(block)->page.zip : NULL)
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Gets the block to whose frame the pointer is pointing to.
@@ -1256,7 +1286,7 @@ ulint
 buf_get_free_list_len(void);
 /*=======================*/
 
-/********************************************************************
+/********************************************************************//**
 Determine if a block is a sentinel for a buffer pool watch.
 @return	TRUE if a sentinel for a buffer pool watch, FALSE if not */
 UNIV_INTERN
@@ -1445,13 +1475,13 @@ struct buf_page_struct{
 					should hold: in_free_list
 					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
-	ib_uint64_t	newest_modification;
+	lsn_t		newest_modification;
 					/*!< log sequence number of
 					the youngest modification to
 					this block, zero if not
 					modified. Protected by block
 					mutex */
-	ib_uint64_t	oldest_modification;
+	lsn_t		oldest_modification;
 					/*!< log sequence number of
 					the START of the log entry
 					written of the oldest
@@ -1493,8 +1523,10 @@ struct buf_page_struct{
 	/* @} */
 # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
-					/*!< this is set to TRUE when fsp
-					frees a page in buffer pool */
+					/*!< this is set to TRUE when
+					fsp frees a page in buffer pool;
+					protected by buf_pool->zip_mutex
+					or buf_block_struct::mutex. */
 # endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
@@ -1652,6 +1684,8 @@ struct buf_pool_stat_struct{
 	ulint	n_pages_written;/*!< number write operations */
 	ulint	n_pages_created;/*!< number of pages created
 				in the pool with no read */
+	ulint	n_ra_pages_read_rnd;/*!< number of pages read in
+				as part of random read ahead */
 	ulint	n_ra_pages_read;/*!< number of pages read in
 				as part of read ahead */
 	ulint	n_ra_pages_evicted;/*!< number of read ahead
@@ -1783,10 +1817,16 @@ struct buf_pool_struct{
 					to read this for heuristic
 					purposes without holding any
 					mutex or latch */
-	ulint		LRU_flush_ended;/*!< when an LRU flush ends for a page,
-					this is incremented by one; this is
-					set to zero when a buffer block is
-					allocated */
+	ibool		try_LRU_scan;	/*!< Set to FALSE when an LRU
+					scan for free block fails. This
+					flag is used to avoid repeated
+					scans of LRU list when we know
+					that there is no free block
+					available in the scan depth for
+					eviction. Set to TRUE whenever
+					we flush a batch from the
+					buffer pool. Protected by the
+					buf_pool->mutex */
 	/* @} */
 
 	/** @name LRU replacement algorithm fields */
@@ -1798,7 +1838,7 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t) LRU;
 					/*!< base node of the LRU list */
 	buf_page_t*	LRU_old;	/*!< pointer to the about
-					buf_LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
+					LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
 					oldest blocks in the LRU list;
 					NULL if LRU length less than
 					BUF_LRU_OLD_MIN_LEN;
@@ -1822,8 +1862,10 @@ struct buf_pool_struct{
 	frames and buf_page_t descriptors of blocks that exist
 	in the buffer pool only in compressed form. */
 	/* @{ */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/*!< buddy free lists */
 
@@ -1835,8 +1877,8 @@ struct buf_pool_struct{
 #if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
 # error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
 #endif
-#if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
-# error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
+#if BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN
+# error "BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN"
 #endif
 	/* @} */
 };

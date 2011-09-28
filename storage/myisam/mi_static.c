@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002, 2004-2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Static variables for MyISAM library. All definied here for easy making of
@@ -118,23 +118,20 @@ void init_myisam_psi_keys()
   const char* category= "myisam";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_myisam_mutexes);
-  PSI_server->register_mutex(category, all_myisam_mutexes, count);
+  mysql_mutex_register(category, all_myisam_mutexes, count);
 
   count= array_elements(all_myisam_rwlocks);
-  PSI_server->register_rwlock(category, all_myisam_rwlocks, count);
+  mysql_rwlock_register(category, all_myisam_rwlocks, count);
 
   count= array_elements(all_myisam_conds);
-  PSI_server->register_cond(category, all_myisam_conds, count);
+  mysql_cond_register(category, all_myisam_conds, count);
 
   count= array_elements(all_myisam_files);
-  PSI_server->register_file(category, all_myisam_files, count);
+  mysql_file_register(category, all_myisam_files, count);
 
   count= array_elements(all_myisam_threads);
-  PSI_server->register_thread(category, all_myisam_threads, count);
+  mysql_thread_register(category, all_myisam_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

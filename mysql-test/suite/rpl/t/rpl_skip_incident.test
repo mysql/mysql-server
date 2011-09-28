@@ -1,0 +1,28 @@
+--source include/master-slave.inc
+--source include/have_debug.inc
+
+--echo **** On Master ****
+CREATE TABLE t1 (a INT);
+
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT * FROM t1;
+
+# This will generate an incident log event and store it in the binary
+# log before the replace statement.
+REPLACE INTO t1 VALUES (4);
+
+--sync_slave_with_master
+
+# Now, we should have inserted the row into the table and the slave
+# should be running. We should also have rotated to a new binary log.
+
+SELECT * FROM t1;
+source include/check_slave_is_running.inc;
+
+connection master;
+
+--echo Should have two binary logs here
+--source include/show_binary_logs.inc
+DROP TABLE t1;
+--sync_slave_with_master
+--source include/rpl_end.inc

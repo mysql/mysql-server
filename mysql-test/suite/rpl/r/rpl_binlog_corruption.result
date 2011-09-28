@@ -1,6 +1,7 @@
 include/master-slave.inc
 [connection master]
 call mtr.add_suppression('Found invalid event in binary log');
+call mtr.add_suppression('Slave SQL.*Relay log read failure: Could not parse relay log event entry.* 1594');
 ==== Initialize ====
 include/stop_slave.inc
 RESET SLAVE;

@@ -1,7 +1,7 @@
 #ifndef DEBUG_SYNC_INCLUDED
 #define DEBUG_SYNC_INCLUDED
 
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,10 +22,6 @@
   Declarations for the Debug Sync Facility. See debug_sync.cc for details.
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                      /* gcc class implementation */
-#endif
-
 #include <my_global.h>
 
 class THD;
@@ -39,7 +35,7 @@ class THD;
              } while (0)
 
 /* Command line option --debug-sync-timeout. See mysqld.cc. */
-extern uint opt_debug_sync_timeout;
+extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
 
 /* Default WAIT_FOR timeout if command line option is given without argument. */
 #define DEBUG_SYNC_DEFAULT_WAIT_TIMEOUT 300

@@ -340,6 +340,28 @@ where name like "file_num_open_files";
 
 set global innodb_monitor_disable = file_num_open_files;
 
+# Test ICP module counters
+set global innodb_monitor_enable = "icp%";
+
+create table monitor_test(a char(3), b int, c char(2),
+primary key (a(1), c(1)), key(b)) engine = innodb;
+
+insert into monitor_test values("13", 2, "aa");
+
+select a from monitor_test where b < 1 for update;
+
+# should have icp_attempts = 1 and icp_out_of_range = 1
+select name, count from information_schema.innodb_metrics
+where name like "icp%";
+
+# should have icp_attempts = 2 and icp_match = 1
+select a from monitor_test where b < 3 for update;
+
+select name, count from information_schema.innodb_metrics
+where name like "icp%";
+
+drop table monitor_test;
+
 -- disable_warnings
 set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;

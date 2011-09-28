@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2005 MySQL AB
+/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
@@ -39,7 +39,7 @@ typedef struct st_all_in_one
 {
   MI_INFO    *info;
   uint	      keynr;
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   uchar      *keybuff;
   TREE	      dtree;
 } ALL_IN_ONE;
@@ -72,7 +72,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   uchar        *keybuff=aio->keybuff;
   MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
   my_off_t     key_root=info->s->state.key_root[aio->keynr];
-  uint         extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  uint         extra= HA_FT_WLEN + info->s->rec_reflength;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
 #else
@@ -229,7 +229,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   if (! (ftparser_param= ftparser_call_initializer(info, keynr, 0)))
     goto err;
 
-  bzero(&wtree,sizeof(wtree));
+  memset(&wtree, 0, sizeof(wtree));
 
   init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
             NULL, NULL);

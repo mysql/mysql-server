@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -14,8 +14,8 @@
 #
 # You should have received a copy of the GNU Library General Public
 # License along with this library; if not, write to the Free
-# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-# MA 02111-1307, USA
+# Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+# MA 02110-1301, USA
 
 die()
 {
@@ -293,7 +293,8 @@ extended_usage()
     version string suffix: [none]
 
   All packages except Classic include support for user-defined
-  partitioning.
+  partitioning. All packages include support for Performance
+  Schema.
 
   If --with-debug is used, an additional "-debug" is appended to the
   version string.

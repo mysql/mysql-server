@@ -1,0 +1,3 @@
+--character-sets-dir=$MYSQL_TEST_DIR/std_data/
+--default-storage-engine=InnoDB
+

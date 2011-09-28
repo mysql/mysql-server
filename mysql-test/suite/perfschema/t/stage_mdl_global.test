@@ -1,0 +1,69 @@
+# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for the performance schema
+#
+
+--source ../include/stage_setup.inc
+
+connect (con1, localhost, user1, , );
+
+flush tables with read lock;
+
+connect (con2, localhost, user2, , );
+
+# Will wait on con1, "Waiting for global read lock"
+--send
+insert into test.t1 values (1), (2), (3);
+
+--connection default
+
+# user1: Wait for the statement to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user1'
+  and PROCESSLIST_COMMAND = 'Sleep';
+--source include/wait_condition.inc
+
+# user2: Wait for the insert to block
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user2'
+  and PROCESSLIST_STATE = 'Waiting for global read lock';
+--source include/wait_condition.inc
+
+call dump_one_thread('user1');
+call dump_one_thread('user2');
+
+--connection con1
+unlock tables;
+
+--disconnect con1
+
+--connection con2
+--reap
+
+--disconnect con2
+
+--connection default
+
+# Wait for the disconnects to complete
+let $wait_condition=
+  select count(*) = 0 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+--source include/wait_condition.inc
+
+--source ../include/stage_cleanup.inc
+

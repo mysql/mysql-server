@@ -17,10 +17,6 @@
   This file defines the NDB Cluster handler engine_condition_pushdown
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
 #include "my_global.h"                          // WITH_*
@@ -1374,7 +1370,7 @@ ha_ndbcluster_cond::generate_scan_filter(NdbScanOperation *op)
       {
         // err.message has static storage
         DBUG_PRINT("info", ("%s", err.message));
-        push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
                      err.code, err.message);
         ret=0;
       }

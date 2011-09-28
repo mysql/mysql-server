@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #ifdef HAVE_OPENSSL
@@ -60,6 +60,9 @@ int main(int argc, char **argv)
   struct st_VioSSLConnectorFd* ssl_connector=0; 
   Vio* client_vio=0;
   Vio* server_vio=0;
+  enum enum_ssl_init_error ssl_init_error;
+  unsigned long ssl_error;
+
   MY_INIT(argv[0]);
   DBUG_PROCESS(argv[0]);
   DBUG_PUSH(default_dbug_option);
@@ -92,14 +95,14 @@ int main(int argc, char **argv)
   ssl_acceptor = new_VioSSLAcceptorFd(server_key, server_cert, ca_file,
 				      ca_path);
   ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file,
-					ca_path);
+					ca_path, &ssl_init_error);
 
   client_vio = (Vio*)my_malloc(sizeof(struct st_vio),MYF(0));
   client_vio->sd = sv[0];
-  sslconnect(ssl_connector,client_vio);
+  sslconnect(ssl_connector,client_vio,&ssl_error);
   server_vio = (Vio*)my_malloc(sizeof(struct st_vio),MYF(0));
   server_vio->sd = sv[1];
-  sslaccept(ssl_acceptor,server_vio);
+  sslaccept(ssl_acceptor,server_vio,&ssl_error);
 
   printf("Socketpair: %d , %d\n", client_vio->sd, server_vio->sd);
 

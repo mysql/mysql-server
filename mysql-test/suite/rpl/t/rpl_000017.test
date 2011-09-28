@@ -8,6 +8,7 @@
 # --skip-slave-start.
 
 --source include/not_windows.inc
+--source include/not_master_info_table.inc
 
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc

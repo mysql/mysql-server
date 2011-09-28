@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This is the include file that should be included 'first' in every C file. */
 
@@ -45,11 +46,6 @@
 #undef __WIN32__
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
-
-/* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#define USE_PRAGMA_INTERFACE
-#endif
 
 #if defined(__OpenBSD__) && (OpenBSD >= 200411)
 #define HAVE_ERRNO_AS_DEFINE
@@ -131,6 +127,7 @@
 /* Define missing access() modes. */
 #define F_OK 0
 #define W_OK 2
+#define R_OK 4                        /* Test for read permission.  */
 
 /* Define missing file locking constants. */
 #define F_RDLCK 1
@@ -285,7 +282,7 @@ C_MODE_END
 #define ulonglong2double(A) my_ulonglong2double(A)
 #define my_off_t2double(A)  my_ulonglong2double(A)
 C_MODE_START
-double my_ulonglong2double(unsigned long long A);
+inline double my_ulonglong2double(unsigned long long A) { return (double A); }
 C_MODE_END
 #endif /* _AIX */
 
@@ -301,9 +298,6 @@ C_MODE_END
 #undef HAVE_PWRITE
 #endif
 
-#ifdef UNDEF_HAVE_GETHOSTBYNAME_R		/* For OSF4.x */
-#undef HAVE_GETHOSTBYNAME_R
-#endif
 #ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
 #undef HAVE_INITGROUPS
 #endif
@@ -544,7 +538,7 @@ typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
 C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
-typedef int	(*qsort_cmp2)(void*, const void *,const void *);
+typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
 C_MODE_END
 #define qsort_t RETQSORTTYPE	/* Broken GCC cant handle typedef !!!! */
 #ifdef HAVE_SYS_SOCKET_H
@@ -605,6 +599,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'\\'
 #define FN_LIBCHAR2	'/'
 #define FN_DIRSEP       "/\\"               /* Valid directory separators */
+#define FN_EXEEXT   ".exe"
+#define FN_SOEXT    ".dll"
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
@@ -613,6 +609,8 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
 #define FN_DIRSEP       "/"     /* Valid directory separators */
+#define FN_EXEEXT   ""
+#define FN_SOEXT    ".so"
 #define FN_ROOTDIR	"/"
 #endif
 
@@ -972,9 +970,10 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
-#define SOCKET_ETIMEDOUT WSAETIMEDOUT
 #define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCKET_EADDRINUSE WSAEADDRINUSE
+#define SOCKET_ETIMEDOUT WSAETIMEDOUT
+#define SOCKET_ECONNRESET WSAECONNRESET
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #else /* Unix */
@@ -982,9 +981,10 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 #define closesocket(A)	close(A)
 #define SOCKET_EINTR	EINTR
 #define SOCKET_EAGAIN	EAGAIN
-#define SOCKET_ETIMEDOUT SOCKET_EINTR
 #define SOCKET_EWOULDBLOCK EWOULDBLOCK
 #define SOCKET_EADDRINUSE EADDRINUSE
+#define SOCKET_ETIMEDOUT ETIMEDOUT
+#define SOCKET_ECONNRESET ECONNRESET
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #endif

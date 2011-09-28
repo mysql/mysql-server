@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001, 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Static variables for pisam library. All definied here for easy making of
@@ -48,14 +48,11 @@ void init_myisammrg_psi_keys()
   const char* category= "myisammrg";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_myisammrg_mutexes);
-  PSI_server->register_mutex(category, all_myisammrg_mutexes, count);
+  mysql_mutex_register(category, all_myisammrg_mutexes, count);
 
   count= array_elements(all_myisammrg_files);
-  PSI_server->register_file(category, all_myisammrg_files, count);
+  mysql_file_register(category, all_myisammrg_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
+
+typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 /**
   MASTER_DELAY can be at most (1 << 31) - 1.
@@ -52,6 +54,9 @@
 #define SLAVE_NET_TIMEOUT  3600
 
 #define MAX_SLAVE_ERROR    2000
+
+#define MTS_WORKER_UNDEF ((ulong) -1)
+#define MTS_MAX_WORKERS  1024
 
 // Forward declarations
 class Relay_log_info;
@@ -237,6 +242,9 @@ extern char *master_ssl_cipher, *master_ssl_key;
        
 extern I_List<THD> threads;
 
+bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups);
+bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
+                            bool force, bool locked);
 #endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */

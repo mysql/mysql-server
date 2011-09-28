@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -59,6 +59,24 @@ typedef unsigned int PFS_sync_key;
 typedef unsigned int PFS_thread_key;
 /** Key, naming a file instrument. */
 typedef unsigned int PFS_file_key;
+/** Key, naming a stage instrument. */
+typedef unsigned int PFS_stage_key;
+/** Key, naming a statement instrument. */
+typedef unsigned int PFS_statement_key;
+/** Key, naming a socket instrument. */
+typedef unsigned int PFS_socket_key;
+
+enum PFS_class_type
+{
+  PFS_CLASS_MUTEX=  1,
+  PFS_CLASS_RWLOCK= 2,
+  PFS_CLASS_COND=   3,
+  PFS_CLASS_FILE=   4,
+  PFS_CLASS_TABLE=  5,
+  PFS_CLASS_STAGE=  6,
+  PFS_CLASS_STATEMENT= 7,
+  PFS_CLASS_SOCKET= 8
+};
 
 struct PFS_thread;
 
@@ -67,31 +85,51 @@ extern uint rwlock_class_start;
 extern uint cond_class_start;
 extern uint file_class_start;
 extern uint table_class_start;
-extern uint max_instrument_class;
+extern uint socket_class_start;
+extern uint wait_class_max;
 
 /** Information for all instrumentation. */
 struct PFS_instr_class
 {
-  /** Instrument name. */
-  char m_name[PFS_MAX_INFO_NAME_LENGTH];
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /** Instrument flags. */
-  int m_flags;
+  /** Class type */
+  PFS_class_type m_type;
   /** True if this instrument is enabled. */
   bool m_enabled;
   /** True if this instrument is timed. */
   bool m_timed;
+  /** Instrument flags. */
+  int m_flags;
   /**
     Instrument name index.
     Self index in:
-    - EVENTS_WAITS_SUMMARY_*_BY_EVENT_NAME
+    - EVENTS_WAITS_SUMMARY_*_BY_EVENT_NAME for waits
+    - EVENTS_STAGES_SUMMARY_*_BY_EVENT_NAME for stages
+    - EVENTS_STATEMENTS_SUMMARY_*_BY_EVENT_NAME for statements
   */
   uint m_event_name_index;
+  /** Instrument name. */
+  char m_name[PFS_MAX_INFO_NAME_LENGTH];
+  /** Length in bytes of @c m_name. */
+  uint m_name_length;
 
   bool is_singleton() const
   {
     return m_flags & PSI_FLAG_GLOBAL;
+  }
+  static void set_enabled(PFS_instr_class *pfs, bool enabled);
+  static void set_timed(PFS_instr_class *pfs, bool timed);
+
+  bool is_deferred() const
+  {
+    switch(m_type)
+    {
+      case PFS_CLASS_SOCKET:
+        return true;
+        break;
+      default:
+        return false;
+        break;
+    };
   }
 };
 
@@ -105,8 +143,6 @@ struct PFS_mutex_class : public PFS_instr_class
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_lock_stat;
-  /** Self index in @c mutex_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_mutex *m_singleton;
 };
@@ -126,8 +162,6 @@ struct PFS_rwlock_class : public PFS_instr_class
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_write_lock_stat;
-  /** Self index in @c rwlock_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_rwlock *m_singleton;
 };
@@ -142,8 +176,6 @@ struct PFS_cond_class : public PFS_instr_class
     This statistic is not exposed in user visible tables yet.
   */
   PFS_cond_stat m_cond_stat;
-  /** Self index in @c cond_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_cond *m_singleton;
 };
@@ -151,14 +183,14 @@ struct PFS_cond_class : public PFS_instr_class
 /** Instrumentation metadata of a thread. */
 struct PFS_thread_class
 {
-  /** Thread instrument name. */
-  char m_name[PFS_MAX_INFO_NAME_LENGTH];
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
   /** True if this thread instrument is enabled. */
   bool m_enabled;
   /** Singleton instance. */
   PFS_thread *m_singleton;
+  /** Thread instrument name. */
+  char m_name[PFS_MAX_INFO_NAME_LENGTH];
+  /** Length in bytes of @c m_name. */
+  uint m_name_length;
 };
 
 /** Key identifying a table share. */
@@ -225,10 +257,20 @@ public:
     PFS_atomic::add_32(& m_refcount, -1);
   }
 
-  /** Setup object refresh version. */
-  uint m_setup_objects_version;
+  void refresh_setup_object_flags(PFS_thread *thread);
+
   /** Internal lock. */
   pfs_lock m_lock;
+  /**
+    True if table instrumentation is enabled.
+    This flag is computed from the content of table setup_objects.
+  */
+  bool m_enabled;
+  /**
+    True if table instrumentation is timed.
+    This flag is computed from the content of table setup_objects.
+  */
+  bool m_timed;
   /** Search key. */
   PFS_table_share_key m_key;
   /** Schema name. */
@@ -239,15 +281,10 @@ public:
   const char *m_table_name;
   /** Length in bytes of @c m_table_name. */
   uint m_table_name_length;
-  /** True if this table instrument is enabled. */
-  bool m_enabled;
-  /** True if this table instrument is timed. */
-  bool m_timed;
-  bool m_purge;
-  /** Table statistics. */
-  PFS_table_stat m_table_stat;
   /** Number of indexes. */
   uint m_key_count;
+  /** Table statistics. */
+  PFS_table_stat m_table_stat;
   /** Index names. */
   PFS_table_key m_keys[MAX_KEY];
 
@@ -268,6 +305,11 @@ extern PFS_instr_class global_table_io_class;
 */
 extern PFS_instr_class global_table_lock_class;
 
+/**
+  Instrument controlling all idle waits.
+*/
+extern PFS_instr_class global_idle_class;
+
 struct PFS_file;
 
 /** Instrumentation metadata for a file. */
@@ -275,10 +317,33 @@ struct PFS_file_class : public PFS_instr_class
 {
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
-  /** Self index in @c file_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_file *m_singleton;
+};
+
+/** Instrumentation metadata for a stage. */
+struct PFS_stage_class : public PFS_instr_class
+{
+  /** Stage usage statistics. */
+  PFS_stage_stat m_stage_stat;
+};
+
+/** Instrumentation metadata for a statement. */
+struct PFS_statement_class : public PFS_instr_class
+{
+};
+
+struct  PFS_socket;
+
+/** Instrumentation metadata for a socket. */
+struct PFS_socket_class : public PFS_instr_class
+{
+  /** Socket usage statistics. */
+  PFS_socket_stat m_socket_stat;
+  /** Self index in @c socket_class_array. */
+  uint m_index;
+  /** Singleton instance. */
+  PFS_socket *m_singleton;
 };
 
 void init_event_name_sizing(const PFS_global_param *param);
@@ -296,6 +361,12 @@ int init_table_share_hash();
 void cleanup_table_share_hash();
 int init_file_class(uint file_class_sizing);
 void cleanup_file_class();
+int init_stage_class(uint stage_class_sizing);
+void cleanup_stage_class();
+int init_statement_class(uint statement_class_sizing);
+void cleanup_statement_class();
+int init_socket_class(uint socket_class_sizing);
+void cleanup_socket_class();
 
 PFS_sync_key register_mutex_class(const char *name, uint name_length,
                                   int flags);
@@ -312,6 +383,15 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
 PFS_file_key register_file_class(const char *name, uint name_length,
                                  int flags);
 
+PFS_stage_key register_stage_class(const char *name, uint name_length,
+                                   int flags);
+
+PFS_statement_key register_statement_class(const char *name, uint name_length,
+                                           int flags);
+
+PFS_socket_key register_socket_class(const char *name, uint name_length,
+                                     int flags);
+
 PFS_mutex_class *find_mutex_class(PSI_mutex_key key);
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe);
 PFS_rwlock_class *find_rwlock_class(PSI_rwlock_key key);
@@ -322,16 +402,21 @@ PFS_thread_class *find_thread_class(PSI_thread_key key);
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe);
 PFS_file_class *find_file_class(PSI_file_key key);
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe);
-const char *sanitize_table_schema_name(const char *unsafe);
-const char *sanitize_table_object_name(const char *unsafe);
+PFS_stage_class *find_stage_class(PSI_stage_key key);
+PFS_stage_class *sanitize_stage_class(PFS_stage_class *unsafe);
+PFS_statement_class *find_statement_class(PSI_statement_key key);
+PFS_statement_class *sanitize_statement_class(PFS_statement_class *unsafe);
 PFS_instr_class *find_table_class(uint index);
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe);
+PFS_socket_class *find_socket_class(PSI_socket_key key);
+PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe);
+PFS_instr_class *find_idle_class(uint index);
+PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
                                             const TABLE_SHARE *share);
 void release_table_share(PFS_table_share *pfs);
-void purge_table_share(PFS_thread *thread, PFS_table_share *pfs);
 void drop_table_share(PFS_thread *thread,
                       bool temporary,
                       const char *schema_name, uint schema_name_length,
@@ -349,11 +434,28 @@ extern ulong thread_class_max;
 extern ulong thread_class_lost;
 extern ulong file_class_max;
 extern ulong file_class_lost;
+extern ulong stage_class_max;
+extern ulong stage_class_lost;
+extern ulong statement_class_max;
+extern ulong statement_class_lost;
+extern ulong socket_class_max;
+extern ulong socket_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
+
+/* Exposing the data directly, for iterators. */
+
+extern PFS_mutex_class *mutex_class_array;
+extern PFS_rwlock_class *rwlock_class_array;
+extern PFS_cond_class *cond_class_array;
+extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
 
 void reset_file_class_io();
+void reset_socket_class_io();
+
+/** Update derived flags for all table shares. */
+void update_table_share_derived_flags(PFS_thread *thread);
 
 /** @} */
 #endif

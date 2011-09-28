@@ -1,3 +1,4 @@
+--source include/not_threadpool.inc
 #
 # Test the --thread-handler=no-threads option
 #

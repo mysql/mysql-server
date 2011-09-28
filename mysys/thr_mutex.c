@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 
@@ -57,7 +57,7 @@ int safe_mutex_init(safe_mutex_t *mp,
 		    const char *file,
 		    uint line)
 {
-  bzero((char*) mp,sizeof(*mp));
+  memset(mp, 0, sizeof(*mp));
   pthread_mutex_init(&mp->global,MY_MUTEX_INIT_ERRCHK);
   pthread_mutex_init(&mp->mutex,attr);
   /* Mark that mutex is initialized */

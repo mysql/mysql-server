@@ -64,6 +64,7 @@ SET(SQL_SHARED_SOURCES
   item_sum.cc
   item_timefunc.cc 
   item_xmlfunc.cc 
+  item_inetfunc.cc
   key.cc
   keycaches.cc
   lock.cc
@@ -72,8 +73,11 @@ SET(SQL_SHARED_SOURCES
   mf_iocache.cc
   my_decimal.cc
   net_serv.cc
+  opt_explain.cc
   opt_range.cc
   opt_sum.cc 
+  opt_trace.cc
+  opt_trace2server.cc
   parse_file.cc
   partition_info.cc
   password.c
@@ -125,6 +129,7 @@ SET(SQL_SHARED_SOURCES
   sql_profile.cc
   sql_reload.cc
   sql_rename.cc 
+  sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
   sql_show.cc
@@ -198,11 +203,13 @@ ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
 		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
-		  rpl_info_table_access.cc server_ids.h)
+		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
+		  rpl_info_dummy.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib
-  filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
+  filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc
+  )
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 
@@ -213,6 +220,21 @@ ELSE()
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+
+OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
+MARK_AS_ADVANCED(DEBUG_EXTNAME)
+
+IF(DEBUG_EXTNAME)
+  SET_TARGET_PROPERTIES(mysqld PROPERTIES DEBUG_OUTPUT_NAME "mysqld-debug")
+ENDIF()
+
+IF(APPLE) 
+  # Add CoreServices framework since some dloadable plugins may need it 
+  FIND_LIBRARY(CORESERVICES NAMES CoreServices) 
+  IF(CORESERVICES) 
+    TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES}) 
+  ENDIF() 
+ENDIF() 
 
 IF(NOT WITHOUT_DYNAMIC_PLUGINS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -271,10 +293,17 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
-INSTALL_DEBUG_TARGET(mysqld 
-  DESTINATION ${INSTALL_SBINDIR} 
-  PDB_DESTINATION ${INSTALL_SBINDIR}/debug
-  RENAME mysqld-debug)
+IF(DEBUG_EXTNAME)
+  INSTALL_DEBUG_TARGET(mysqld 
+    DESTINATION ${INSTALL_SBINDIR} 
+    PDB_DESTINATION ${INSTALL_SBINDIR}
+    SUFFIX "-debug")
+ELSE()
+  INSTALL_DEBUG_TARGET(mysqld 
+    DESTINATION ${INSTALL_SBINDIR} 
+    PDB_DESTINATION ${INSTALL_SBINDIR}/debug
+    RENAME mysqld-debug)
+ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 

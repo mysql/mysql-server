@@ -1,0 +1,11 @@
+SET @orig = @@global.innodb_buffer_pool_load_now;
+SELECT @orig;
+@orig
+0
+SET GLOBAL innodb_buffer_pool_dump_now = ON;
+SET GLOBAL innodb_buffer_pool_load_now = ON;
+SELECT variable_value
+FROM information_schema.global_status
+WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
+variable_value
+Buffer pool(s) load completed at TIMESTAMP_NOW

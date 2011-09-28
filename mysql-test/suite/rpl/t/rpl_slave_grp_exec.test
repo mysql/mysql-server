@@ -62,9 +62,23 @@ SELECT * FROM t2 ORDER BY a;
 SELECT * FROM t3 ORDER BY a;
 
 --connection slave
+call mtr.add_suppression("Slave SQL.*Table .test.t3. doesn.t exist.* Error_code: 1146");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
+# in MTS case error is either of two:
+#--let $slave_sql_errno= 1146,1593
+# whereas in the single-threaded case:
 # 1146 = ER_NO_SUCH_TABLE
---let $slave_sql_errno= 1146
---source include/wait_for_slave_sql_error.inc
+#--let $slave_sql_errno= 1146
+
+--source include/wait_for_slave_sql_to_stop.inc
+let $slave_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
+{
+    --echo Unexpected error: $slave_sql_errno
+    --die
+}
+
 SHOW TABLES LIKE 't%';
 if (`SELECT @@BINLOG_FORMAT = 'ROW'`) {
 --replace_regex /AA/AA_for_row_or_XX_for_stmt_mixed/
@@ -110,8 +124,18 @@ UPDATE t1 SET b = 'X' WHERE a = 2;
 
 --connection slave
 # 1146 = ER_NO_SUCH_TABLE
---let $slave_sql_errno= 1146
---source include/wait_for_slave_sql_error.inc
+# in MTS case error is either of two:
+#--let $slave_sql_errno= 1146,1593
+# whereas in the single-threaded case:
+#--let $slave_sql_errno= 1146
+
+--source include/wait_for_slave_sql_to_stop.inc
+let $slave_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
+{
+    --echo Unexpected error: $slave_sql_errno
+    --die
+}
 
 --connection master
 SELECT * FROM t1 ORDER BY a;
@@ -125,6 +149,8 @@ SELECT * FROM t2 ORDER BY a;
 
 --source include/stop_slave_io.inc
 RENAME TABLE t3_bak TO t3;
+
+# TODO: recovery. Alfranio it fails to recover here.
 --source include/start_slave.inc
 
 --connection master
@@ -156,8 +182,19 @@ COMMIT;
 
 --connection slave
 # 1146 = ER_NO_SUCH_TABLE
---let $slave_sql_errno= 1146
---source include/wait_for_slave_sql_error.inc
+# in MTS case error is either of two:
+#--let $slave_sql_errno= 1146,1593
+# whereas in the single-threaded case:
+#--let $slave_sql_errno= 1146
+
+--source include/wait_for_slave_sql_to_stop.inc
+let $slave_sql_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+if (`select $slave_sql_errno != 1146 and $slave_sql_errno != 1593`)
+{
+    --echo Unexpected error: $slave_sql_errno
+    --die
+}
+
 
 --connection master
 SELECT * FROM t1 ORDER BY a;

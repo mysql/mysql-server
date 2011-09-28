@@ -103,25 +103,23 @@ extern mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 extern mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 extern mysql_pfs_key_t	srv_threads_mutex_key;
 extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
-extern mysql_pfs_key_t	syn_arr_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	sync_thread_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
 extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
-extern mysql_pfs_key_t	thr_local_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
 extern mysql_pfs_key_t	lock_sys_wait_mutex_key;
-extern mysql_pfs_key_t	trx_sys_rw_lock_key;
-extern mysql_pfs_key_t	read_view_mutex_key;
+extern mysql_pfs_key_t	trx_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+#ifndef HAVE_ATOMIC_BUILTINS
 extern mysql_pfs_key_t	srv_conc_mutex_key;
+#endif /* !HAVE_ATOMIC_BUILTINS */
 extern mysql_pfs_key_t	event_os_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t	os_mutex_key;
-
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**
@@ -411,8 +409,10 @@ void
 sync_thread_add_level(
 /*==================*/
 	void*	latch,	/*!< in: pointer to a mutex or an rw-lock */
-	ulint	level);	/*!< in: level in the latching order; if
+	ulint	level,	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
+	ibool	relock)	/*!< in: TRUE if re-entering an x-lock */
+	__attribute__((nonnull));
 /******************************************************************//**
 Removes a latch from the thread level array if it is found there.
 @return TRUE if found in the array; it is no error if the latch is
@@ -424,13 +424,6 @@ sync_thread_reset_level(
 /*====================*/
 	void*	latch);	/*!< in: pointer to a mutex or an rw-lock */
 /******************************************************************//**
-Checks that the level array for the current thread is empty.
-@return	TRUE if empty */
-UNIV_INTERN
-ibool
-sync_thread_levels_empty(void);
-/*==========================*/
-/******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @return	a matching latch, or NULL if not found */
@@ -441,17 +434,33 @@ sync_thread_levels_contains(
 	ulint	level);			/*!< in: latching order level
 					(SYNC_DICT, ...)*/
 /******************************************************************//**
-Checks if the level array for the current thread is empty.
+Checks that the level array for the current thread is empty.
 @return	a latch, or NULL if empty except the exceptions specified below */
 UNIV_INTERN
 void*
 sync_thread_levels_nonempty_gen(
 /*============================*/
-	ibool	dict_mutex_allowed);	/*!< in: TRUE if dictionary mutex is
-					allowed to be owned by the thread,
-					also purge_is_running mutex is
-					allowed */
-#define sync_thread_levels_empty_gen(d) (!sync_thread_levels_nonempty_gen(d))
+	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
+					allowed to be owned by the thread */
+	__attribute__((warn_unused_result));
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for data dictionary latches. */
+#define sync_thread_levels_empty_except_dict()		\
+	(!sync_thread_levels_nonempty_gen(TRUE))
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for the btr_search_latch.
+@return	a latch, or NULL if empty except the exceptions specified below */
+UNIV_INTERN
+void*
+sync_thread_levels_nonempty_trx(
+/*============================*/
+	ibool	has_search_latch)
+				/*!< in: TRUE if and only if the thread
+				is supposed to hold btr_search_latch */
+	__attribute__((warn_unused_result));
+
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
 UNIV_INTERN
@@ -597,7 +606,7 @@ V
 lock_sys_mutex				Mutex protecting lock_sys_t
 |
 V
-trx_sys->lock				RW-lock protecting trx_sys_t
+trx_sys->mutex				Mutex protecting trx_sys_t
 |
 V
 Threads mutex				Background thread scheduling mutex
@@ -651,10 +660,6 @@ or row lock! */
 #define SYNC_DICT_HEADER	995
 #define SYNC_IBUF_HEADER	914
 #define SYNC_IBUF_PESS_INSERT_MUTEX 912
-#define SYNC_IBUF_MUTEX		910	/* ibuf mutex is really below
-					SYNC_FSP_PAGE: we assign a value this
-					high only to make the program to pass
-					the debug checks */
 /*-------------------------------*/
 #define	SYNC_INDEX_TREE		900
 #define SYNC_TREE_NODE_NEW	892
@@ -670,8 +675,11 @@ or row lock! */
 #define	SYNC_FSP		400
 #define	SYNC_FSP_PAGE		395
 /*------------------------------------- Insert buffer headers */
-/*------------------------------------- ibuf_mutex */
+#define SYNC_IBUF_MUTEX		370	/* ibuf_mutex */
 /*------------------------------------- Insert buffer tree */
+#define SYNC_IBUF_INDEX_TREE	360
+#define SYNC_IBUF_TREE_NODE_NEW	359
+#define SYNC_IBUF_TREE_NODE	358
 #define	SYNC_IBUF_BITMAP_MUTEX	351
 #define	SYNC_IBUF_BITMAP	350
 /*------------------------------------- MySQL query cache mutex */
@@ -681,7 +689,6 @@ or row lock! */
 #define SYNC_LOCK_SYS		299
 #define SYNC_TRX_SYS		298
 #define SYNC_TRX		297
-#define SYNC_READ_VIEW		296
 #define SYNC_THREADS		295
 #define SYNC_REC_LOCK		294
 #define SYNC_TRX_SYS_HEADER	290
@@ -703,7 +710,6 @@ or row lock! */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
-#define SYNC_THR_LOCAL		133
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130
 
@@ -768,11 +774,6 @@ struct mutex_struct {
 #endif
 };
 
-/** The global array of wait cells for implementation of the databases own
-mutexes and read-write locks. */
-extern sync_array_t*	sync_primary_wait_array;/* Appears here for
-						debugging purposes only! */
-
 /** Constant determining how long spin wait is continued before suspending
 the thread. A value 600 rounds on a 1995 100 MHz Pentium seems to correspond
 to 20 microseconds. */
@@ -807,7 +808,7 @@ os_atomic_dec_ulint_func(
 /*=====================*/
 	mutex_t*		mutex,		/*!< in: mutex guarding the
 						decrement */
-	ulint*			var,		/*!< in/out: variable to
+	volatile ulint*		var,		/*!< in/out: variable to
 						decrement */
 	ulint			delta);		/*!< in: delta to decrement */
 /**********************************************************//**
@@ -818,7 +819,7 @@ os_atomic_inc_ulint_func(
 /*=====================*/
 	mutex_t*		mutex,		/*!< in: mutex guarding the
 						increment */
-	ulint*			var,		/*!< in/out: variable to
+	volatile ulint*		var,		/*!< in/out: variable to
 						increment */
 	ulint			delta);		/*!< in: delta to increment */
 #endif /* !HAVE_ATOMIC_BUILTINS */

@@ -8,8 +8,15 @@
 if (`SELECT HEX(@commands) = HEX('configure')`)
 {
   connection master;
+  
+  --disable_query_log
+  if ($database_name != 'test')
+  {
+    --eval CREATE DATABASE $database_name
+  }
+  --eval use $database_name
+  --enable_query_log
 
-  SET SQL_LOG_BIN=0;
   eval CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
   eval CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
   eval CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -22,26 +29,6 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   eval CREATE TABLE tt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
   eval CREATE TABLE tt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
   eval CREATE TABLE tt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
-  eval SET SQL_LOG_BIN=1;
-
-  connection slave;
-
-  SET SQL_LOG_BIN=0;
-  eval CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-  eval CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-  eval CREATE TABLE nt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-  eval CREATE TABLE nt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-  eval CREATE TABLE nt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-  eval CREATE TABLE nt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
-  eval CREATE TABLE tt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
-  eval CREATE TABLE tt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
-  eval CREATE TABLE tt_3 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
-  eval CREATE TABLE tt_4 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
-  eval CREATE TABLE tt_5 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
-  eval CREATE TABLE tt_6 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = $engine_type;
-  SET SQL_LOG_BIN=1;
-
-  connection master;
 
   INSERT INTO nt_1(trans_id, stmt_id) VALUES(1,1);
   INSERT INTO nt_2(trans_id, stmt_id) VALUES(1,1);
@@ -150,6 +137,10 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
 {
   connection master;
 
+  --disable_query_log
+  --eval use $database_name
+  --enable_query_log
+
   DROP TABLE tt_1;
   DROP TABLE tt_2;
   DROP TABLE tt_3;
@@ -169,6 +160,13 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
   DROP FUNCTION fc_i_tt_5_suc;
   DROP FUNCTION fc_i_nt_5_suc;
 
+  --disable_query_log
+  if ($database_name != 'test')
+  {
+    --eval DROP DATABASE $database_name
+  }
+  --enable_query_log
+
   sync_slave_with_master;
 
   SET @commands= '';
@@ -176,6 +174,10 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
 
 while (`SELECT HEX(@commands) != HEX('')`)
 {
+  --disable_query_log
+  --eval use $database_name
+  --enable_query_log
+
   --disable_query_log
   SET @command= SUBSTRING_INDEX(@commands, ' ', 1);
   let $command= `SELECT @command`;
@@ -525,6 +527,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
   }
   if (`SELECT HEX(@command) = HEX('R')`)
   {
+    --replace_column 2 #
     --error 0, ER_GET_ERRMSG
     eval ROLLBACK;
   }
@@ -539,7 +542,8 @@ while (`SELECT HEX(@commands) != HEX('')`)
     {
       --dec $sn
     }
-     eval ROLLBACK TO S_$sn;
+    --replace_column 2 #
+    eval ROLLBACK TO S_$sn;
   }
   if (`SELECT HEX(@command) = HEX('Cn')`)
   {

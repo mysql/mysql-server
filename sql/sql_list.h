@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,15 +20,11 @@
 #include "m_string.h" /* for TRASH */
 
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 void *sql_alloc(size_t);
 
 #include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,
                                           MY_FAE, MY_ALLOW_ZERO_PTR */
-#include "m_string.h"                           /* bfill */
+#include "m_string.h"
 #include "thr_malloc.h"                         /* sql_alloc */
 
 /* mysql standard class memory allocator */
@@ -166,6 +162,21 @@ struct list_node :public Sql_alloc
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
 
+/**
+  Comparison function for list sorting.
+
+  @param n1   Info of 1st node
+  @param n2   Info of 2nd node
+  @param arg  Additional info
+
+  @return
+    -1  n1 < n2
+     0  n1 == n2
+     1  n1 > n2
+*/
+
+typedef int (*Node_cmp_func)(void *n1, void *n2, void *arg);
+
 class base_list :public Sql_alloc
 {
 protected:
@@ -285,6 +296,38 @@ public:
     }
   }
   /**
+    @brief
+    Sort the list
+
+    @param cmp  node comparison function
+    @param arg  additional info to be passed to comparison function
+
+    @details
+    The function sorts list nodes by an exchange sort algorithm.
+    The order of list nodes isn't changed, values of info fields are
+    swapped instead. Due to this, list iterators that are initialized before
+    sort could be safely used after sort, i.e they wouldn't cause a crash.
+    As this isn't an effective algorithm the list to be sorted is supposed to
+    be short.
+  */
+  void sort(Node_cmp_func cmp, void *arg)
+  {
+    if (elements < 2)
+      return;
+    for (list_node *n1= first; n1 && n1 != &end_of_list; n1= n1->next)
+    {
+      for (list_node *n2= n1->next; n2 && n2 != &end_of_list; n2= n2->next)
+      {
+        if ((*cmp)(n1->info, n2->info, arg) > 0)
+        {
+          void *tmp= n1->info;
+          n1->info= n2->info;
+          n2->info= tmp;
+        }
+      }
+    }
+  }
+  /**
     Swap two lists.
   */
   inline void swap(base_list &rhs)
@@ -361,7 +404,6 @@ protected:
       last= &new_node->next;
   }
 };
-
 
 class base_list_iterator
 {
@@ -479,6 +521,17 @@ public:
     }
     empty();
   }
+  /**
+    @brief
+    Sort the list according to provided comparison function
+
+    @param cmp  node comparison function
+    @param arg  additional info to be passed to comparison function
+  * /
+  inline void sort(Node_cmp_func cmp, void *arg)
+  {
+    base_list::sort(cmp, arg);
+  }*/
 };
 
 

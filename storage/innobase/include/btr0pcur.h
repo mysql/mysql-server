@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -151,7 +151,7 @@ UNIV_INLINE
 ulint
 btr_pcur_get_up_match(
 /*==================*/
-	btr_pcur_t*	cursor); /*!< in: memory buffer for persistent cursor */
+	const btr_pcur_t*	cursor); /*!< in: persistent cursor */
 /**************************************************************//**
 Gets the low_match value for a pcur after a search.
 @return number of matched fields at the cursor or to the right if
@@ -160,7 +160,7 @@ UNIV_INLINE
 ulint
 btr_pcur_get_low_match(
 /*===================*/
-	btr_pcur_t*	cursor); /*!< in: memory buffer for persistent cursor */
+	const btr_pcur_t*	cursor); /*!< in: persistent cursor */
 /**************************************************************//**
 If mode is PAGE_CUR_G or PAGE_CUR_GE, opens a persistent cursor on the first
 user record satisfying the search condition, in the case PAGE_CUR_L or
@@ -245,18 +245,6 @@ btr_pcur_restore_position_func(
 	mtr_t*		mtr);		/*!< in: mtr */
 #define btr_pcur_restore_position(l,cur,mtr)				\
 	btr_pcur_restore_position_func(l,cur,__FILE__,__LINE__,mtr)
-/**************************************************************//**
-If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
-releases the page latch and bufferfix reserved by the cursor.
-NOTE! In the case of BTR_LEAF_MODIFY, there should not exist changes
-made by the current mini-transaction to the data protected by the
-cursor latch, as then the latch must not be released until mtr_commit. */
-UNIV_INTERN
-void
-btr_pcur_release_leaf(
-/*==================*/
-	btr_pcur_t*	cursor, /*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in: mtr */
 /*********************************************************//**
 Gets the rel_pos field for a cursor whose position has been stored.
 @return	BTR_PCUR_ON, ... */
@@ -265,28 +253,11 @@ ulint
 btr_pcur_get_rel_pos(
 /*=================*/
 	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
-/*********************************************************//**
-Sets the mtr field for a pcur. */
-UNIV_INLINE
-void
-btr_pcur_set_mtr(
-/*=============*/
-	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in, own: mtr */
-/*********************************************************//**
-Gets the mtr field for a pcur.
-@return	mtr */
-UNIV_INLINE
-mtr_t*
-btr_pcur_get_mtr(
-/*=============*/
-	btr_pcur_t*	cursor);	/*!< in: persistent cursor */
 /**************************************************************//**
 Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
-that is, the cursor becomes detached. If there have been modifications
-to the page where pcur is positioned, this can be used instead of
-btr_pcur_release_leaf. Function btr_pcur_store_position should be used
-before calling this, if restoration of cursor is wanted later. */
+that is, the cursor becomes detached.
+Function btr_pcur_store_position should be used before calling this,
+if restoration of cursor is wanted later. */
 UNIV_INLINE
 void
 btr_pcur_commit_specify_mtr(
@@ -388,10 +359,6 @@ page_cur_t*
 btr_pcur_get_page_cur(
 /*==================*/
 	const btr_pcur_t*	cursor);	/*!< in: persistent cursor */
-#else /* UNIV_DEBUG */
-# define btr_pcur_get_btr_cur(cursor) (&(cursor)->btr_cur)
-# define btr_pcur_get_page_cur(cursor) (&(cursor)->btr_cur.page_cur)
-#endif /* UNIV_DEBUG */
 /*********************************************************//**
 Returns the page of a persistent cursor.
 @return	pointer to the page */
@@ -399,7 +366,7 @@ UNIV_INLINE
 page_t*
 btr_pcur_get_page(
 /*==============*/
-	btr_pcur_t*	cursor);/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the buffer block of a persistent cursor.
 @return	pointer to the block */
@@ -407,7 +374,7 @@ UNIV_INLINE
 buf_block_t*
 btr_pcur_get_block(
 /*===============*/
-	btr_pcur_t*	cursor);/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the record of a persistent cursor.
 @return	pointer to the record */
@@ -415,7 +382,14 @@ UNIV_INLINE
 rec_t*
 btr_pcur_get_rec(
 /*=============*/
-	btr_pcur_t*	cursor);/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
+#else /* UNIV_DEBUG */
+# define btr_pcur_get_btr_cur(cursor) (&(cursor)->btr_cur)
+# define btr_pcur_get_page_cur(cursor) (&(cursor)->btr_cur.page_cur)
+# define btr_pcur_get_page(cursor) ((cursor)->btr_cur.page_cur.block->frame)
+# define btr_pcur_get_block(cursor) ((cursor)->btr_cur.page_cur.block)
+# define btr_pcur_get_rec(cursor) ((cursor)->btr_cur.page_cur.rec)
+#endif /* UNIV_DEBUG */
 /*********************************************************//**
 Checks if the persistent cursor is on a user record. */
 UNIV_INLINE
@@ -518,9 +492,6 @@ struct btr_pcur_struct{
 	/* NOTE that the following fields may possess dynamically allocated
 	memory which should be freed if not needed anymore! */
 
-	mtr_t*		mtr;		/*!< NULL, or this field may contain
-					a mini-transaction which holds the
-					latch on the cursor page */
 	byte*		old_rec_buf;	/*!< NULL, or a dynamically allocated
 					buffer for old_rec */
 	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf

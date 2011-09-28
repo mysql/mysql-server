@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,8 +154,8 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
         or hold any type of lock in a session,
         since this would be a DOS attack.
       */
-      if (t->reginfo.lock_type >= TL_READ_NO_INSERT ||
-          thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+      if ((t->reginfo.lock_type >= TL_READ_NO_INSERT ||
+          thd->lex->sql_command == SQLCOM_LOCK_TABLES))
       {
           my_error(ER_CANT_LOCK_RPL_INFO_TABLE, MYF(0));
           DBUG_RETURN(1);
@@ -321,7 +321,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
   if (! (sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
     DBUG_RETURN(NULL);
 
-  thd_proc_info(thd, "System lock");
+  THD_STAGE_INFO(thd, stage_system_lock);
   DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
   if (sql_lock->table_count && lock_external(thd, sql_lock->table,
                                              sql_lock->table_count))
@@ -348,8 +348,6 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
       my_error(rc, MYF(0));
   }
 end:
-  thd_proc_info(thd, 0);
-
   if (thd->killed)
   {
     thd->send_kill_message();

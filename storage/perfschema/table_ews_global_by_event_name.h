@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TABLE_EWS_GLOBAL_BY_EVENT_NAME_H
 #define TABLE_EWS_GLOBAL_BY_EVENT_NAME_H
@@ -105,6 +105,8 @@ protected:
   void make_file_row(PFS_file_class *klass);
   void make_table_io_row(PFS_instr_class *klass);
   void make_table_lock_row(PFS_instr_class *klass);
+  void make_socket_row(PFS_socket_class *klass);
+  void make_idle_row(PFS_instr_class *klass);
 
 private:
   /** Table share lock. */

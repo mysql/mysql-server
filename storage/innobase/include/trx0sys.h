@@ -132,8 +132,7 @@ ib_bh_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh, lock and
-read_view_mutex. */
+Creates the trx_sys instance and initializes ib_bh and mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void);
@@ -161,16 +160,6 @@ trx_sys_get_nth_rseg(
 /*=================*/
 	trx_sys_t*	sys,	/*!< in: trx system */
 	ulint		n);	/*!< in: index of slot */
-/***************************************************************//**
-Sets the pointer in the nth slot of the rseg array. */
-UNIV_INLINE
-void
-trx_sys_set_nth_rseg(
-/*=================*/
-	trx_sys_t*	sys,	/*!< in/out: trx system */
-	ulint		n,	/*!< in: index of slot */
-	trx_rseg_t*	rseg);	/*!< in: pointer to rseg object, NULL if slot
-				not in use */
 /**********************************************************************//**
 Gets a pointer to the transaction system file copy and x-locks its page.
 @return	pointer to system file copy, page x-locked */
@@ -263,7 +252,7 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
-The caller must be holding trx_sys->lock.
+The caller must be holding trx_sys->mutex.
 @return	the trx handle or NULL if not found;
 the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
@@ -294,7 +283,7 @@ trx_list_get_min_trx_id(void);
 /*=========================*/
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
-trx_sys->lock in shared mode. If the caller is not holding
+trx_sys->mutex in shared mode. If the caller is not holding
 lock_sys->mutex, the transaction may already have been committed.
 @return	transaction instance if active, or NULL;
 the pointer must not be dereferenced unless lock_sys->mutex was
@@ -328,8 +317,20 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	const trx_t*	in_trx);/*!< in: transaction */
+	const trx_t*	in_trx)		/*!< in: transaction */
+	__attribute__((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/***********************************************************//**
+Assert that a transaction has been recovered.
+@return TRUE */
+UNIV_INLINE
+ibool
+trx_assert_recovered(
+/*=================*/
+	trx_id_t	trx_id)		/*!< in: transaction identifier */
+	__attribute__((warn_unused_result));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
@@ -379,14 +380,12 @@ UNIV_INTERN
 void
 trx_sys_file_format_tag_init(void);
 /*==============================*/
-#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Shutdown/Close the transaction system. */
 UNIV_INTERN
 void
 trx_sys_close(void);
 /*===============*/
-#endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
@@ -406,31 +405,30 @@ trx_sys_file_format_max_set(
 	ulint		format_id,	/*!< in: file format id */
 	const char**	name);		/*!< out: max file format name or
 					NULL if not needed. */
-/*****************************************************************//**
-Get the name representation of the file format from its id.
-@return	pointer to the max format name */
-UNIV_INTERN
-const char*
-trx_sys_file_format_max_get(void);
-/*=============================*/
-/*****************************************************************//**
-Check for the max file format tag stored on disk.
-@return	DB_SUCCESS or error code */
+/*********************************************************************
+Creates the rollback segments
+@return number of rollback segments that are active. */
 UNIV_INTERN
 ulint
-trx_sys_file_format_max_check(
-/*==========================*/
-	ulint		max_format_id);	/*!< in: the max format id to check */
-/********************************************************************//**
-Update the file format tag in the system tablespace only if the given
-format id is greater than the known max id.
-@return	TRUE if format_id was bigger than the known max id */
+trx_sys_create_rsegs(
+/*=================*/
+	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
+	ulint	n_rsegs);	/*!< number of rollback segments to create */
+/*****************************************************************//**
+Get the number of transaction in the system, independent of their state.
+@return count of transactions in trx_sys_t::trx_list */
+UNIV_INLINE
+ulint
+trx_sys_get_n_trx(void);
+/*===================*/
+
+/*********************************************************************
+Check if there are any active (non-prepared) transactions.
+@return total number of active transactions or 0 if none */
 UNIV_INTERN
-ibool
-trx_sys_file_format_max_upgrade(
-/*============================*/
-	const char**	name,		/*!< out: max file format name */
-	ulint		format_id);	/*!< in: file format identifier */
+ulint
+trx_sys_any_active_transactions(void);
+/*=================================*/
 #else /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
@@ -467,6 +465,32 @@ trx_sys_read_pertable_file_format_id(
 				datafile */
 	ulint *format_id);	/*!< out: file format of the per-table
 				data file */
+#endif /* !UNIV_HOTBACKUP */
+/*****************************************************************//**
+Get the name representation of the file format from its id.
+@return	pointer to the max format name */
+UNIV_INTERN
+const char*
+trx_sys_file_format_max_get(void);
+/*=============================*/
+/*****************************************************************//**
+Check for the max file format tag stored on disk.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+ulint
+trx_sys_file_format_max_check(
+/*==========================*/
+	ulint		max_format_id);	/*!< in: the max format id to check */
+/********************************************************************//**
+Update the file format tag in the system tablespace only if the given
+format id is greater than the known max id.
+@return	TRUE if format_id was bigger than the known max id */
+UNIV_INTERN
+ibool
+trx_sys_file_format_max_upgrade(
+/*============================*/
+	const char**	name,		/*!< out: max file format name */
+	ulint		format_id);	/*!< in: file format identifier */
 /*****************************************************************//**
 Get the name representation of the file format from its id.
 @return	pointer to the name */
@@ -475,31 +499,6 @@ const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
 	const ulint	id);	/*!< in: id of the file format */
-
-#endif /* !UNIV_HOTBACKUP */
-
-/*********************************************************************
-Creates the rollback segments */
-UNIV_INTERN
-void
-trx_sys_create_rsegs(
-/*=================*/
-	ulint	n_rsegs);	/*!< number of rollback segments to create */
-/*****************************************************************//**
-Get the number of transaction in the system, independent of their state.
-@return count of transactions in trx_sys_t::trx_list */
-UNIV_INLINE
-ulint
-trx_sys_get_n_trx(void);
-/*===================*/
-
-/*********************************************************************
-Check if there are any active transactions.
-@return total number of active transactions or 0 if none */
-UNIV_INTERN
-ulint
-trx_sys_any_active_transactions(void);
-/*=================================*/
 
 #ifdef UNIV_DEBUG
 /*************************************************************//**
@@ -619,7 +618,7 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 /** If this is not yet set to TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
 we must reset the doublewrite buffer, because starting from 4.1.x the
 space id of a data page is stored into
-FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
+FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
 #define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED (24 + FSEG_HEADER_SIZE)
 
 /*-------------------------------------------------------------*/
@@ -632,7 +631,6 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
 /* @} */
 
-#ifndef UNIV_HOTBACKUP
 /** File format tag */
 /* @{ */
 /** The offset of the file format tag on the trx system header page
@@ -651,6 +649,7 @@ identifier is added to this 64-bit constant. */
 	 | TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW)
 /* @} */
 
+#ifndef UNIV_HOTBACKUP
 /** Doublewrite control struct */
 struct trx_doublewrite_struct{
 	mutex_t	mutex;		/*!< mutex protecting the first_free field and
@@ -660,6 +659,14 @@ struct trx_doublewrite_struct{
 	ulint	block2;		/*!< page number of the second block */
 	ulint	first_free;	/*!< first free position in write_buf measured
 				in units of UNIV_PAGE_SIZE */
+	ulint	n_reserved;	/*!< number of slots currently reserved
+				for single page flushes. */
+	ibool*	in_use;		/*!< flag used to indicate if a slot is
+				in use. Only used for single page
+				flushes. */
+	ibool	batch_running;	/*!< set to TRUE if currently a batch
+				is being written from the doublewrite
+				buffer. */
 	byte*	write_buf;	/*!< write buffer used in writing to the
 				doublewrite buffer, aligned to an
 				address divisible by UNIV_PAGE_SIZE
@@ -674,9 +681,13 @@ struct trx_doublewrite_struct{
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
 
-	rw_lock_t	lock;		/*!< read-write lock protecting most
-					fields in this structure except when
-					noted otherwise */
+	mutex_t		mutex;		/*!< mutex protecting most fields in
+					this structure except when noted
+					otherwise */
+	ulint		n_mysql_trx;	/*!< Number of transactions currently
+					allocated for MySQL */
+	ulint		n_prepared_trx;	/*!< Number of transactions currently
+					in the XA PREPARED state */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
@@ -687,7 +698,7 @@ struct trx_sys_struct{
 	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
 					/*!< List of transactions created
 					for MySQL */
-	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
+	trx_rseg_t*	const rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
 					segments; NULL if slot not in use;
 					created and destroyed in
@@ -698,7 +709,6 @@ struct trx_sys_struct{
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
-	mutex_t		read_view_mutex;/*!< Protects the view_list */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted
 					on trx no, biggest first */

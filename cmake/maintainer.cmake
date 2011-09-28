@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ ENDMACRO()
 # Setup G++ (GNU C++ compiler) warning options.
 MACRO(SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS)
   SET(MY_MAINTAINER_CXX_WARNINGS
-      "${MY_MAINTAINER_WARNINGS} -Wno-unused-parameter"
+      "${MY_MAINTAINER_WARNINGS} -Wno-unused-parameter -Woverloaded-virtual"
       CACHE STRING "C++ warning options used in maintainer builds.")
 ENDMACRO()
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -27,6 +27,7 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
 #include "rem0types.h"
+#include "srv0srv.h"
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -144,7 +145,7 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
+	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT */
 {
 	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
 					col->mbminmaxlen, comp));
@@ -249,7 +250,7 @@ dict_index_is_clust(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_CLUSTERED));
+	return(index->type & DICT_CLUSTERED);
 }
 /********************************************************************//**
 Check whether the index is unique.
@@ -263,7 +264,7 @@ dict_index_is_unique(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_UNIQUE));
+	return(index->type & DICT_UNIQUE);
 }
 
 /********************************************************************//**
@@ -282,6 +283,21 @@ dict_index_is_ibuf(
 }
 
 /********************************************************************//**
+Check whether the index is an universal index tree.
+@return	nonzero for universal tree, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_is_univ(
+/*===============*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UNIV_UNLIKELY(index->type & DICT_UNIVERSAL));
+}
+
+/********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE
@@ -297,7 +313,7 @@ dict_index_is_sec_or_ibuf(
 
 	type = index->type;
 
-	return(UNIV_LIKELY(!(type & DICT_CLUSTERED) || (type & DICT_IBUF)));
+	return(!(type & DICT_CLUSTERED) || (type & DICT_IBUF));
 }
 
 /********************************************************************//**
@@ -466,11 +482,11 @@ dict_table_flags_to_zip_size(
 {
 	ulint	zip_size = flags & DICT_TF_ZSSIZE_MASK;
 
-	if (UNIV_UNLIKELY(zip_size)) {
-		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+	if (zip_size) {
+		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
 			 << (zip_size >> DICT_TF_ZSSIZE_SHIFT));
 
-		ut_ad(zip_size <= UNIV_PAGE_SIZE);
+		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	}
 
 	return(zip_size);
@@ -490,6 +506,7 @@ dict_table_zip_size(
 	return(dict_table_flags_to_zip_size(table->flags));
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
@@ -532,6 +549,8 @@ dict_table_x_unlock_indexes(
 		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
+
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system.
@@ -641,7 +660,7 @@ dict_index_get_sys_col_pos(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(!(index->type & DICT_UNIVERSAL));
+	ut_ad(!dict_index_is_univ(index));
 
 	if (dict_index_is_clust(index)) {
 
@@ -815,6 +834,62 @@ dict_index_get_space_reserve(void)
 /*==============================*/
 {
 	return(UNIV_PAGE_SIZE / 16);
+}
+
+/**********************************************************************//**
+Determine bytes of column prefix to be stored in the undo log. Please
+note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+needs to be stored in the undo log.
+@return bytes of column prefix to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_field_len_store_undo(
+/*==========================*/
+	dict_table_t*		table,	/*!< in: table */
+	const dict_col_t*	col)	/*!< in: column which index prefix
+					is based on */
+{
+	ulint	prefix_len = 0;
+
+	if (dict_table_get_format(table) >= UNIV_FORMAT_B)
+	{
+		prefix_len = col->max_prefix
+			? col->max_prefix
+			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	}
+
+	return(prefix_len);
+}
+
+/********************************************************************//**
+Check whether the table is corrupted.
+@return	nonzero for corrupted table, zero for valid tables */
+UNIV_INLINE
+ulint
+dict_table_is_corrupted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(UNIV_UNLIKELY(table->corrupted));
+}
+
+/********************************************************************//**
+Check whether the index is corrupted.
+@return	nonzero for corrupted index, zero for valid indexes */
+UNIV_INLINE
+ulint
+dict_index_is_corrupted(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UNIV_UNLIKELY((index->type & DICT_CORRUPT)
+	       || (index->table && index->table->corrupted)));
 }
 
 #endif /* !UNIV_HOTBACKUP */

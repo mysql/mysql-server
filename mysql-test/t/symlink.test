@@ -277,3 +277,24 @@ SELECT * FROM mysql.user;
 --remove_file $MYSQL_TMP_DIR/mysql
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Test for bug #11759990 - "52354: 'CREATE TABLE .. LIKE ... '
+--echo #                           STATEMENTS FAIL".
+--echo #
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval create table t1 (a int primary key) engine=myisam
+      data directory="$MYSQLTEST_VARDIR/tmp"
+      index directory="$MYSQLTEST_VARDIR/run";
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+show create table t1;
+--echo # CREATE TABLE LIKE statement on table with INDEX/DATA DIRECTORY
+--echo # options should not fail. Per documentation newly created table
+--echo # should not inherit value of these options from the original table.
+create table t2 like t1;
+show create table t2;
+drop tables t1, t2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -20,10 +20,6 @@
   @brief
   Sum functions (COUNT, MIN...)
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "sql_select.h"
@@ -259,10 +255,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
           in_sum_func->outer_fields.push_back(field);
         }
         else
-          sel->full_group_by_flag|= NON_AGG_FIELD_USED;
+          sel->set_non_agg_field_used(true);
       }
       if (sel->nest_level > aggr_level &&
-          (sel->full_group_by_flag & SUM_FUNC_USED) &&
+          (sel->agg_func_used()) &&
           !sel->group_list.elements)
       {
         my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
@@ -271,7 +267,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       }
     }
   }
-  aggr_sel->full_group_by_flag|= SUM_FUNC_USED;
+  aggr_sel->set_agg_func_used(true);
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
   return FALSE;
@@ -533,10 +529,12 @@ void Item_sum::update_used_tables ()
   if (!forced_const)
   {
     used_tables_cache= 0;
+    with_subselect= false;
     for (uint i=0 ; i < arg_count ; i++)
     {
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
+      with_subselect|= args[i]->has_subquery();
     }
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
@@ -686,9 +684,10 @@ C_MODE_START
 
 /* Declarations for auxilary C-callbacks */
 
-static int simple_raw_key_cmp(void* arg, const void* key1, const void* key2)
+static int simple_raw_key_cmp(const void* arg,
+                              const void* key1, const void* key2)
 {
-    return memcmp(key1, key2, *(uint *) arg);
+    return memcmp(key1, key2, *(const uint *) arg);
 }
 
 
@@ -1108,7 +1107,8 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    if (args[i]->fix_fields(thd, args + i) || args[i]->check_cols(1))
+    if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
+        args[i]->check_cols(1))
       return TRUE;
     set_if_bigger(decimals, args[i]->decimals);
     maybe_null |= args[i]->maybe_null;
@@ -1145,16 +1145,12 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
   switch (hybrid_type= item->result_type()) {
   case INT_RESULT:
-    max_length= 20;
-    break;
   case DECIMAL_RESULT:
+  case STRING_RESULT:
     max_length= item->max_length;
     break;
   case REAL_RESULT:
     max_length= float_length(decimals);
-    break;
-  case STRING_RESULT:
-    max_length= item->max_length;
     break;
   case ROW_RESULT:
   default:
@@ -1850,7 +1846,7 @@ void Item_sum_variance::reset_field()
   nr= args[0]->val_real();              /* sets null_value as side-effect */
 
   if (args[0]->null_value)
-    bzero(res,sizeof(double)*2+sizeof(longlong));
+    memset(res, 0, sizeof(double)*2+sizeof(longlong));
   else
   {
     /* Serialize format is (double)m, (double)s, (longlong)count */
@@ -1903,7 +1899,10 @@ double Item_sum_hybrid::val_real()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0.0;
-  return value->val_real();
+  double retval= value->val_real();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0.0);
+  return retval;
 }
 
 longlong Item_sum_hybrid::val_int()
@@ -1911,7 +1910,10 @@ longlong Item_sum_hybrid::val_int()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_int();
+  longlong retval= value->val_int();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0);
+  return retval;
 }
 
 
@@ -1920,7 +1922,10 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_decimal(val);
+  my_decimal *retval= value->val_decimal(val);
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == NULL);
+  return retval;
 }
 
 
@@ -1930,7 +1935,10 @@ Item_sum_hybrid::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_str(str);
+  String *retval= value->val_str(str);
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == NULL);
+  return retval;
 }
 
 
@@ -2226,7 +2234,7 @@ void Item_sum_avg::reset_field()
     double nr= args[0]->val_real();
 
     if (args[0]->null_value)
-      bzero(res,sizeof(double)+sizeof(longlong));
+      memset(res, 0, sizeof(double)+sizeof(longlong));
     else
     {
       longlong tmp= 1;
@@ -2819,7 +2827,7 @@ String *Item_sum_udf_str::val_str(String *str)
 */
 
 extern "C"
-int group_concat_key_cmp_with_distinct(void* arg, const void* key1, 
+int group_concat_key_cmp_with_distinct(const void* arg, const void* key1, 
                                        const void* key2)
 {
   Item_func_group_concat *item_func= (Item_func_group_concat*)arg;
@@ -2854,10 +2862,10 @@ int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
 */
 
 extern "C"
-int group_concat_key_cmp_with_order(void* arg, const void* key1, 
+int group_concat_key_cmp_with_order(const void* arg, const void* key1, 
                                     const void* key2)
 {
-  Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
+  const Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
   ORDER **order_item, **end;
   TABLE *table= grp_item->table;
 
@@ -2882,7 +2890,8 @@ int group_concat_key_cmp_with_order(void* arg, const void* key1,
       uint offset= (field->offset(field->table->record[0]) -
                     table->s->null_bytes);
       if ((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
-        return (*order_item)->asc ? res : -res;
+        return ((*order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
+          
     }
   }
   /*
@@ -2949,7 +2958,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
   if (result->length() > item->max_length)
   {
     int well_formed_error;
-    CHARSET_INFO *cs= item->collation.collation;
+    const CHARSET_INFO *cs= item->collation.collation;
     const char *ptr= result->ptr();
     uint add_length;
     /*
@@ -2964,7 +2973,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
                                           &well_formed_error);
     result->length(old_length + add_length);
     item->warning_for_row= TRUE;
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
                         item->row_count);
 
@@ -3300,7 +3309,8 @@ bool Item_func_group_concat::setup(THD *thd)
     tmp table columns.
   */
   if (arg_count_order &&
-      setup_order(thd, args, context->table_list, list, all_fields, *order))
+      setup_order(thd, Ref_ptr_array(args, arg_count),
+                  context->table_list, list, all_fields, *order))
     DBUG_RETURN(TRUE);
 
   count_field_types(select_lex, tmp_table_param, all_fields, 0);
@@ -3423,7 +3433,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
       if (i)
         str->append(',');
       orig_args[i + arg_count_field]->print(str, query_type);
-      if (order[i]->asc)
+      if (order[i]->direction == ORDER::ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else
         str->append(STRING_WITH_LEN(" DESC"));

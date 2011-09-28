@@ -81,7 +81,7 @@ while (`$_query`)
   sleep 0.1;
   let $_show_status_value= query_get_value("SHOW $status_type STATUS LIKE '$status_var'", Value, 1);
   let $_query= SELECT NOT('$_show_status_value' $_status_var_comparsion '$status_var_value');
-  if ($is_number)
+  if ($_is_number)
   {
     let $_query= SELECT NOT($_show_status_value $_status_var_comparsion $status_var_value);
   }

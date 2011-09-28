@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -134,6 +134,12 @@ CACHE INTERNAL "Functions exported by client API"
 
 )
 
+IF(WIN32)
+  ADD_SUBDIRECTORY(authentication_win)
+  SET(WITH_AUTHENTICATION_WIN 1)
+  ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
+ENDIF(WIN32)
+
 SET(CLIENT_SOURCES
   get_password.c 
   libmysql.c
@@ -150,6 +156,10 @@ DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
 
 SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBDL})
+
+IF(WITH_AUTHENTICATION_WIN)
+  LIST(APPEND LIBS auth_win_client)
+ENDIF(WITH_AUTHENTICATION_WIN)
 
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Test av locking */
 
@@ -62,9 +62,9 @@ int main(int argc,char **argv)
   MY_INIT(argv[0]);
   get_options(argc,argv);
 
-  bzero((char*) keyinfo,sizeof(keyinfo));
-  bzero((char*) recinfo,sizeof(recinfo));
-  bzero((char*) keyseg,sizeof(keyseg));
+  memset(keyinfo, 0, sizeof(keyinfo));
+  memset(recinfo, 0, sizeof(recinfo));
+  memset(keyseg, 0, sizeof(keyseg));
   keyinfo[0].seg= &keyseg[0][0];
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=8;
@@ -416,7 +416,7 @@ int test_update(MI_INFO *file,int id,int lock_type)
       return 1;
     }
   }
-  bzero((char*) &new_record,sizeof(new_record));
+  memset(&new_record, 0, sizeof(new_record));
   strmov((char*) new_record.text,"Updated");
 
   found=next=prev=update=0;

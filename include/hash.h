@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Dynamic hashing of record with different key-length */
 
@@ -97,7 +97,7 @@ my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
 void my_hash_replace(HASH *hash, HASH_SEARCH_STATE *state, uchar *new_row);
 my_bool my_hash_check(HASH *hash); /* Only in debug library */
 
-#define my_hash_clear(H) bzero((char*) (H), sizeof(*(H)))
+#define my_hash_clear(H) memset((H), 0, sizeof(*(H)))
 #define my_hash_inited(H) ((H)->blength != 0)
 #define my_hash_init_opt(A,B,C,D,E,F,G,H) \
           (!my_hash_inited(A) && _my_hash_init(A,0,B,C,D,E,F,G,H))

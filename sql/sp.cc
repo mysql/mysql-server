@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -201,9 +203,9 @@ private:
     : Stored_program_creation_ctx(thd)
   { }
 
-  Stored_routine_creation_ctx(CHARSET_INFO *client_cs,
-                              CHARSET_INFO *connection_cl,
-                              CHARSET_INFO *db_cl)
+  Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl,
+                              const CHARSET_INFO *db_cl)
     : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
   { }
 };
@@ -214,8 +216,8 @@ private:
 
 bool load_charset(MEM_ROOT *mem_root,
                   Field *field,
-                  CHARSET_INFO *dflt_cs,
-                  CHARSET_INFO **cs)
+                  const CHARSET_INFO *dflt_cs,
+                  const CHARSET_INFO **cs)
 {
   String cs_name;
 
@@ -240,8 +242,8 @@ bool load_charset(MEM_ROOT *mem_root,
 
 bool load_collation(MEM_ROOT *mem_root,
                     Field *field,
-                    CHARSET_INFO *dflt_cl,
-                    CHARSET_INFO **cl)
+                    const CHARSET_INFO *dflt_cl,
+                    const CHARSET_INFO **cl)
 {
   String cl_name;
 
@@ -271,9 +273,9 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
 {
   /* Load character set/collation attributes. */
 
-  CHARSET_INFO *client_cs;
-  CHARSET_INFO *connection_cl;
-  CHARSET_INFO *db_cl;
+  const CHARSET_INFO *client_cs;
+  const CHARSET_INFO *connection_cl;
+  const CHARSET_INFO *db_cl;
 
   const char *db_name= thd->strmake(name->m_db.str, name->m_db.length);
   const char *sr_name= thd->strmake(name->m_name.str, name->m_name.length);
@@ -322,7 +324,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   if (invalid_creation_ctx)
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        Sql_condition::WARN_LEVEL_WARN,
                         ER_SR_INVALID_CREATION_CTX,
                         ER(ER_SR_INVALID_CREATION_CTX),
                         (const char *) db_name,
@@ -563,7 +565,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     goto done;
   }
 
-  bzero((char *)&chistics, sizeof(chistics));
+  memset(&chistics, 0, sizeof(chistics));
   if ((ptr= get_field(thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_ACCESS])) == NULL)
   {
@@ -677,9 +679,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
 };
 
 bool
@@ -687,13 +689,13 @@ Silence_deprecated_warning::handle_condition(
   THD *,
   uint sql_errno,
   const char*,
-  MYSQL_ERROR::enum_warning_level level,
+  Sql_condition::enum_warning_level level,
   const char*,
-  MYSQL_ERROR ** cond_hdl)
+  Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
-      level == MYSQL_ERROR::WARN_LEVEL_WARN)
+      level == Sql_condition::WARN_LEVEL_WARN)
     return TRUE;
 
   return FALSE;
@@ -756,6 +758,43 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
 }
 
 
+class Bad_db_error_handler : public Internal_error_handler
+{
+public:
+  Bad_db_error_handler()
+    :m_error_caught(false)
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_warning_level level,
+                                const char* message,
+                                Sql_condition ** cond_hdl);
+
+  bool error_caught() const { return m_error_caught; }
+
+private:
+  bool m_error_caught;
+};
+
+bool
+Bad_db_error_handler::handle_condition(THD *thd,
+                                       uint sql_errno,
+                                       const char* sqlstate,
+                                       Sql_condition::enum_warning_level level,
+                                       const char* message,
+                                       Sql_condition ** cond_hdl)
+{
+  if (sql_errno == ER_BAD_DB_ERROR)
+  {
+    m_error_caught= true;
+    return true;
+  }
+  return false;
+}
+
+
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 sql_mode_t sql_mode, const char *params, const char *returns,
@@ -769,7 +808,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
-  
+  Bad_db_error_handler db_not_exists_handler;
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING definer_user_name= { definer_user_name_holder,
                                   USERNAME_LENGTH };
@@ -808,6 +847,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
     goto end;
   }
 
+  thd->push_internal_handler(&db_not_exists_handler);
   /*
     Change the current database (if needed).
 
@@ -818,6 +858,15 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                           &cur_db_changed))
   {
     ret= SP_INTERNAL_ERROR;
+    thd->pop_internal_handler();
+    goto end;
+  }
+  thd->pop_internal_handler();
+  if (db_not_exists_handler.error_caught())
+  {
+    ret= SP_INTERNAL_ERROR;
+    my_error(ER_BAD_DB_ERROR, MYF(0), name->m_db.str);
+
     goto end;
   }
 
@@ -870,8 +919,8 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   TABLE table;
   TABLE_SHARE share;
   Field *field;
-  bzero((char*) &table, sizeof(table));
-  bzero((char*) &share, sizeof(share));
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
   table.in_use= thd;
   table.s = &share;
   field= sp->create_result_field(0, 0, &table);
@@ -925,7 +974,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
-  CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
+  const CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
 
   enum_check_fields saved_count_cuted_fields;
 
@@ -1150,6 +1199,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       }
       /* restore sql_mode when binloging */
       thd->variables.sql_mode= saved_mode;
+      thd->add_to_binlog_accessed_dbs(sp->m_db.str);
       /* Such a statement can always go directly to binlog, no trans cache */
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                             log_query.c_ptr(), log_query.length(),
@@ -1223,6 +1273,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 
   if (ret == SP_OK)
   {
+    thd->add_to_binlog_accessed_dbs(name->m_db.str);
     if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
       ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
@@ -1367,9 +1418,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
+                        Sql_condition ** cond_hdl)
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE_V2 ||
@@ -1696,7 +1747,8 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
 
   @param thd Thread handler
   @param routines List of needles in the hay stack
-  @param any Any of the needles are good enough
+  @param is_proc  Indicates whether routines in the list are procedures
+                  or functions.
 
   @return
     @retval FALSE Found.
@@ -1704,7 +1756,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
 */
 
 bool
-sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any)
+sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
 {
   TABLE_LIST *routine;
   bool sp_object_found;
@@ -1720,17 +1772,14 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any)
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name, true);
     name->init_qname(thd);
-    sp_object_found= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
-                                     &thd->sp_proc_cache, FALSE) != NULL ||
-                     sp_find_routine(thd, TYPE_ENUM_FUNCTION, name,
-                                     &thd->sp_func_cache, FALSE) != NULL;
-    thd->warning_info->clear_warning_info(thd->query_id);
-    if (sp_object_found)
-    {
-      if (any)
-        break;
-    }
-    else if (!any)
+    sp_object_found= is_proc ? sp_find_routine(thd, TYPE_ENUM_PROCEDURE,
+                                               name, &thd->sp_proc_cache,
+                                               FALSE) != NULL :
+                               sp_find_routine(thd, TYPE_ENUM_FUNCTION,
+                                               name, &thd->sp_func_cache,
+                                               FALSE) != NULL;
+    thd->get_stmt_da()->clear_warning_info(thd->query_id);
+    if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
                routine->table_name);
@@ -2203,7 +2252,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   Stored_program_creation_ctx *creation_ctx= 
     Stored_routine_creation_ctx::load_from_db(thd, &sp_name_obj, proc_table);
   sp_body= (type == TYPE_ENUM_FUNCTION ? "RETURN NULL" : "BEGIN END");
-  bzero((char*) &sp_chistics, sizeof(sp_chistics));
+  memset(&sp_chistics, 0, sizeof(sp_chistics));
   defstr.set_charset(creation_ctx->get_client_cs());
   if (!create_string(thd, &defstr, type, 
                      sp_db_str.str, sp_db_str.length, 

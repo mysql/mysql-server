@@ -1,6 +1,7 @@
 set global innodb_support_xa=default;
 set session innodb_support_xa=default;
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_TMP_STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
 drop procedure if exists p1;
 create table t1 (
@@ -187,7 +188,7 @@ min(7)
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 select min(7) from t2i join t1i;
 min(7)
 NULL
@@ -203,7 +204,7 @@ max(7)
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
 select max(7) from t2i join t1i;
 max(7)
 NULL
@@ -1737,8 +1738,8 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	5	const	5	Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ref	c3,c2	c3	5	const	2	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
 ENGINE=InnoDB;
@@ -1751,8 +1752,8 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	9	const	5	Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ref	c3,c2	c3	9	const	2	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
 KEY (c3), KEY (c2, c3))
@@ -1766,8 +1767,8 @@ EXPLAIN
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	7	const	5	Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ref	c3,c2	c3	7	const	2	Using where; Using filesort
 DROP TABLE t1;
 End of 5.1 tests
 #
@@ -2681,7 +2682,7 @@ SELECT COUNT(*) FROM
 (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
 WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	1536	
 2	DERIVED	t1	index_merge	PRIMARY,idx	idx,PRIMARY	5,4	NULL	1536	Using sort_union(idx,PRIMARY); Using where
 SELECT COUNT(*) FROM
 (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
@@ -2690,7 +2691,6 @@ COUNT(*)
 1537
 SET SESSION sort_buffer_size = DEFAULT;
 DROP TABLE t1;
-End of 5.1 tests
 #
 # Test for bug #39932 "create table fails if column for FK is in different
 #                      case than in corr index".
@@ -2711,6 +2711,23 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2, t1;
+#
+# Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
+#                           UPDATE_ROW, TEMPORARY TABLE, TABLE LOCK".
+#
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (c int) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+LOCK TABLES t1 READ;
+# Even though temporary table was locked for READ we
+# still allow writes to it to be compatible with MyISAM.
+# This is possible since due to fact that temporary tables
+# are specific to connection and therefore locking for them
+# is irrelevant.
+UPDATE t1 SET c = 5;
+UNLOCK TABLES;
+DROP TEMPORARY TABLE t1;
+End of 5.1 tests
 #
 # Bug#49604 "6.0 processing compound WHERE clause incorrectly 
 #            with Innodb - extra rows"
@@ -2776,17 +2793,15 @@ CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
 CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('1'), (NULL);
 INSERT INTO t2 VALUES (1, '1');
-set optimizer_join_cache_level=1;
 EXPLAIN
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	1	Using where; Using index
 SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
 b
 1
-set optimizer_join_cache_level=default;
 DROP TABLE t1,t2;
 #
 # BUG#48093: 6.0 Server not processing equivalent IN clauses properly 
@@ -2829,5 +2844,28 @@ ENGINE=InnoDB
 PACK_KEYS=0;
 CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);
+DROP TABLE t1;
+#
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+#
+# Check that OPTIMIZE table works for temporary InnoDB tables.
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (a INT) ENGINE=InnoDB;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+DROP TABLE t1;
+#
+# Bug#11762345 54927: DROPPING AND ADDING AN INDEX IN ONE
+#              COMMAND CAN FAIL IN INNODB PLUGIN 1.0
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id int, a  int, b  int, PRIMARY KEY (id),
+INDEX a (a)) ENGINE=innodb;
+ALTER TABLE t1 DROP INDEX a, ADD INDEX a (b, a);
+ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
 DROP TABLE t1;
 End of 6.0 tests

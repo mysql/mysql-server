@@ -367,7 +367,7 @@ DbUtil::runQuery(const char* sql,
 
   uint params= mysql_stmt_param_count(stmt);
   MYSQL_BIND bind_param[params];
-  bzero(bind_param, sizeof(bind_param));
+  memset(bind_param, 0, sizeof(bind_param));
 
   for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
   {
@@ -437,7 +437,7 @@ DbUtil::runQuery(const char* sql,
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
     uint num_fields= mysql_num_fields(res);
     MYSQL_BIND bind_result[num_fields];
-    bzero(bind_result, sizeof(bind_result));
+    memset(bind_result, 0, sizeof(bind_result));
 
     for (uint i= 0; i < num_fields; i++)
     {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,17 @@ typedef struct st_typelib {	/* Different types saved here */
 extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
                              const char *option);
-extern int find_type(char *x, const TYPELIB *typelib, unsigned int full_name);
+#define FIND_TYPE_BASIC           0
+/** makes @c find_type() require the whole name, no prefix */
+#define FIND_TYPE_NO_PREFIX      (1 << 0)
+/** always implicitely on, so unused, but old code may pass it */
+#define FIND_TYPE_NO_OVERWRITE   (1 << 1)
+/** makes @c find_type() accept a number */
+#define FIND_TYPE_ALLOW_NUMBER   (1 << 2)
+/** makes @c find_type() treat ',' as terminator */
+#define FIND_TYPE_COMMA_TERM     (1 << 3)
+
+extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);
 extern void make_type(char *to,unsigned int nr,TYPELIB *typelib);
 extern const char *get_type(TYPELIB *typelib,unsigned int nr);
 extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);

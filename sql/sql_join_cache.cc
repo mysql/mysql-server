@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -22,10 +22,6 @@
   @defgroup Query_Optimizer  Query Optimizer
   @{
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "sql_select.h"
@@ -752,8 +748,8 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
       return FALSE;
       /*
         If this is changed so that embedded keys may contain nullable
-        components, get_next_key() willhave to test ref->null_rejecting in the
-        "embedded keys" case too.
+        components, get_next_key() and put_record() will have to test
+        ref->null_rejecting in the "embedded keys" case too.
       */
     }
   }
@@ -1261,12 +1257,18 @@ bool JOIN_CACHE::get_record()
     prev_rec_ptr= prev_cache->get_rec_ref(pos);
   }
   curr_rec_pos= pos;
-  res= (read_all_record_fields() == -1);
+  res= (read_some_record_fields() == -1);
   if (!res) 
   { // There are more records to read
     pos+= referenced_fields*size_of_fld_ofs;
     if (prev_cache)
+    {
+      /*
+        read_some_record_fields() didn't read fields stored in previous
+        buffers, read them now:
+      */
       prev_cache->get_record_by_pos(prev_rec_ptr);
+    }
   } 
   return res; 
 }
@@ -1294,7 +1296,7 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 {
   uchar *save_pos= pos;
   pos= rec_ptr;
-  read_all_record_fields();
+  read_some_record_fields();
   pos= save_pos;
   if (prev_cache)
   {
@@ -1336,35 +1338,37 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
 }
 
 
-/* 
-  Read all flag and data fields of a record from the join buffer
+/**
+  Read some flag and data fields of a record from the join buffer.
 
-  SYNOPSIS
-    read_all_record_fields()
+  Reads all fields (flag and data fields) stored in this join buffer, for the
+  current record (at 'pos'). If the buffer is incremental, fields of this
+  record which are stored in previous join buffers are _not_ read so remain
+  unknown: caller must then make sure to call this function on previous
+  buffers too.
 
-  DESCRIPTION
-    The function reads all flag and data fields of a record from the join
-    buffer into the corresponding record buffers.
-    The fields are read starting from the position 'pos' which is
-    supposed to point to the beginning og the first record field.
-    The function increments the value of 'pos' by the length of the
-    read data. 
+  The fields are read starting from the position 'pos' which is
+  supposed to point to the beginning of the first record field.
+  The function increments the value of 'pos' by the length of the
+  read data.
 
-  RETURN
-    (-1) - if there are no more records in the join buffer
-    length of the data read from the join buffer - otherwise
+  Flag fields are copied back to their source; data fields are copied to the
+  record's buffer.
+
+  @retval (-1)   if there are no more records in the join buffer
+  @retval <>(-1) length of the data read from the join buffer
 */
 
-int JOIN_CACHE::read_all_record_fields()
+int JOIN_CACHE::read_some_record_fields()
 {
   uchar *init_pos= pos;
   
   if (pos > last_rec_pos || !records)
     return -1;
 
-  /* First match flag, read null bitmaps and null_row flag for each table */
-  read_flag_fields();
- 
+  // First match flag, read null bitmaps and null_row flag
+  read_some_flag_fields();
+
   /* Now read the remaining table fields if needed */
   CACHE_FIELD *copy= field_descr+flag_fields;
   CACHE_FIELD *copy_end= field_descr+fields;
@@ -1376,26 +1380,22 @@ int JOIN_CACHE::read_all_record_fields()
 }
 
 
-/* 
-  Read all flag fields of a record from the join buffer
+/**
+  Read some flag fields of a record from the join buffer.
 
-  SYNOPSIS
-    read_flag_fields()
+  Reads all flag fields stored in this join buffer, for the current record (at
+  'pos'). If the buffer is incremental, flag fields of this record which are
+  stored in previous join buffers are _not_ read so remain unknown: caller
+  must then make sure to call this function on previous buffers too.
 
-  DESCRIPTION
-    The function reads all flag fields of a record from the join
-    buffer into the corresponding record buffers.
-    The fields are read starting from the position 'pos'.
-    The function increments the value of 'pos' by the length of the
-    read data. 
+  The flag fields are read starting from the position 'pos'.
+  The function increments the value of 'pos' by the length of the
+  read data.
 
-  RETURN
-    length of the data read from the join buffer
+  Flag fields are copied back to their source.
 */
-
-uint JOIN_CACHE::read_flag_fields()
+void JOIN_CACHE::read_some_flag_fields()
 {
-  uchar *init_pos= pos;
   CACHE_FIELD *copy= field_descr;
   CACHE_FIELD *copy_end= copy+flag_fields;
   for ( ; copy < copy_end; copy++)
@@ -1403,7 +1403,6 @@ uint JOIN_CACHE::read_flag_fields()
     memcpy(copy->str, pos, copy->length);
     pos+= copy->length;
   }
-  return (pos-init_pos);
 }
 
 
@@ -1641,7 +1640,6 @@ void JOIN_CACHE::restore_last_record()
 
 enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 {
-  JOIN_TAB *tab;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
   DBUG_ENTER("JOIN_CACHE::join_records");
@@ -1671,7 +1669,8 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       }
       join_tab->not_null_compl= FALSE;
       /* Prepare for generation of null complementing extensions */
-      for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
+      for (JOIN_TAB *tab= join_tab->first_inner;
+           tab <= join_tab->last_inner; tab++)
         tab->first_unmatched= join_tab->first_inner;
     }
   }
@@ -1701,30 +1700,31 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
     if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
       goto finish;
   }
-  if (outer_join_first_inner)
-  {
-    /* 
-      All null complemented rows have been already generated for all
-      outer records from join buffer. Restore the state of the
-      first_unmatched values to 0 to avoid another null complementing.
-    */
-    for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
-      tab->first_unmatched= 0;
-  } 
- 
+
   if (skip_last)
   {
     DBUG_ASSERT(!is_key_access());
     /*
        Restore the last record from the join buffer to generate
-       all extentions for it.
+       all extensions for it.
     */
     get_record();		               
   }
 
 finish:
+  if (outer_join_first_inner)
+  {
+    /*
+      All null complemented rows have been already generated for all
+      outer records from join buffer. Restore the state of the
+      first_unmatched values to 0 to avoid another null complementing.
+    */
+    for (JOIN_TAB *tab= join_tab->first_inner;
+         tab <= join_tab->last_inner; tab++)
+      tab->first_unmatched= NULL;
+  }
   restore_last_record();
-  reset(TRUE);
+  reset(true);
   DBUG_RETURN(rc);
 }
 
@@ -1761,7 +1761,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 {
   uint cnt;
   int error;
-  JOIN_TAB *tab;
   READ_RECORD *info;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   SQL_SELECT *select= join_tab->cache_select;
@@ -1781,25 +1780,19 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   if (skip_last)     
     put_record();     
  
-  if (join_tab->use_quick == 2 && join_tab->select->quick)
-  { 
+  if (join_tab->use_quick == QS_DYNAMIC_RANGE && join_tab->select->quick)
     /* A dynamic range access was used last. Clean up after it */
-    delete join_tab->select->quick;
-    join_tab->select->quick= 0;
-  }
+    join_tab->select->set_quick(NULL);
 
-  for (tab= join->join_tab; tab != join_tab ; tab++)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
+  /* Materialize table prior reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized &&
+      (error= (*join_tab->materialize_table)(join_tab)))
+    return NESTED_LOOP_ERROR;
 
   /* Start retrieving all records of the joined table */
-  if ((error= join_init_read_record(join_tab))) 
-  {
-    rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
-    goto finish;
-  }
+  if ((error= (*join_tab->read_first_record)(join_tab))) 
+    return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
 
   info= &join_tab->read_record;
   do
@@ -1811,8 +1804,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     {
       /* The user has aborted the execution of the query */
       join->thd->send_kill_message();
-      rc= NESTED_LOOP_KILLED;
-      goto finish; 
+      return NESTED_LOOP_KILLED;
     }
     
     /* 
@@ -1826,10 +1818,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
                              (!select->skip_record(join->thd, &skip_record) &&
                               !skip_record));
       if (select && join->thd->is_error())
-      {
-        rc= NESTED_LOOP_ERROR;
-        goto finish;
-      }
+        return NESTED_LOOP_ERROR;
       if (consider_record)
       {
         /* Prepare to read records from the join buffer */
@@ -1847,7 +1836,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
             get_record();
             rc= generate_full_extensions(get_curr_rec());
             if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-              goto finish;   
+              return rc;
           }
         }
       }
@@ -1856,9 +1845,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 
   if (error > 0)				// Fatal error
     rc= NESTED_LOOP_ERROR; 
-finish:                  
-  for (tab= join->join_tab; tab != join_tab ; tab++)
-    tab->table->status= tab->status;
   return rc;
 }
 
@@ -2297,9 +2283,15 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   if (!records)
     return NESTED_LOOP_OK;  
                    
+  /* Materialize table prior reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized &&
+      (error= (*join_tab->materialize_table)(join_tab)))
+    return NESTED_LOOP_ERROR;
+
   rc= init_join_matching_records(&seq_funcs, records);
   if (rc != NESTED_LOOP_OK)
-    goto finish;
+    return rc;
 
   while (!(error= file->multi_range_read_next((char **) &rec_ptr)))
   {
@@ -2307,8 +2299,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
     {
       /* The user has aborted the execution of the query */
       join->thd->send_kill_message();
-      rc= NESTED_LOOP_KILLED; 
-      goto finish;
+      return NESTED_LOOP_KILLED;
     }
     if (join_tab->keep_current_rowid)
       join_tab->table->file->position(join_tab->table->record[0]);
@@ -2323,14 +2314,13 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
       get_record_by_pos(rec_ptr);
       rc= generate_full_extensions(rec_ptr);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	goto finish;   
+        return rc;
     }
   }
 
   if (error > 0 && error != HA_ERR_END_OF_FILE)	   
     return NESTED_LOOP_ERROR; 
-finish:                  
-  return end_join_matching_records(rc);
+  return rc;
 }
 
 
@@ -2375,12 +2365,6 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
   /* Dynamic range access is never used with BKA */
   DBUG_ASSERT(join_tab->use_quick != 2);
 
-  for (JOIN_TAB *tab =join->join_tab; tab != join_tab ; tab++)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
-
   init_mrr_buff();
 
   /* 
@@ -2397,28 +2381,26 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 }
 
 
-/* 
-  Finish searching for records that match records from the join buffer
+/**
+  Reads all flag fields of a positioned record from the join buffer.
+  Including all flag fields (of this record) stored in the previous join
+  buffers.
 
-  SYNOPSIS
-    end_join_matching_records()
-      rc      return code passed by the join_matching_records function
-
-  DESCRIPTION
-    This function perform final actions on searching for all matches for
-    the records from the join buffer and building all full join extensions
-    of the records with these matches. 
-    
-  RETURN
-    return code rc passed to the function as a parameter
-*/
-
-enum_nested_loop_state 
-JOIN_CACHE_BKA::end_join_matching_records(enum_nested_loop_state rc)
+  @param rec_ptr  position of the first field of the record in the join buffer
+ */
+void JOIN_CACHE::read_all_flag_fields_by_pos(uchar *rec_ptr)
 {
-  for (JOIN_TAB *tab=join->join_tab; tab != join_tab ; tab++)
-    tab->table->status= tab->status;
-  return rc;  
+  uchar * const save_pos= pos;
+  pos= rec_ptr;
+  read_some_flag_fields();                      // moves 'pos'...
+  pos= save_pos;                                // ... so we restore it.
+  if (prev_cache)
+  {
+    // position of this record in previous join buffer:
+    rec_ptr= prev_cache->get_rec_ref(rec_ptr);
+    // recurse into previous buffer to read missing flag fields
+    prev_cache->read_all_flag_fields_by_pos(rec_ptr);
+  }
 }
 
 
@@ -2468,7 +2450,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
 
   /*
     Read keys until find non-ignorable one or EOF.
-    Unlike in JOIN_CACHE::read_all_record_fields()), pos>=last_rec_pos means
+    Unlike in JOIN_CACHE::read_some_record_fields()), pos>=last_rec_pos means
     EOF, because we are not at fields' start, and previous record's fields
     might be empty.
   */
@@ -2480,13 +2462,20 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
     init_pos= pos;
 
     /* Read a reference to the previous cache if any */
+    uchar *prev_rec_ptr= NULL;
     if (prev_cache)
+    {
       pos+= prev_cache->get_size_of_rec_offset();
+      // position of this record in previous buffer:
+      prev_rec_ptr= prev_cache->get_rec_ref(pos);
+    }
 
     curr_rec_pos= pos;
 
-    /* Read all flag fields of the record */
-    read_flag_fields();
+    // Read all flag fields of the record, in two steps:
+    read_some_flag_fields();      // 1) flag fields stored in this buffer
+    if (prev_cache)               // 2) flag fields stored in previous buffers
+      prev_cache->read_all_flag_fields_by_pos(prev_rec_ptr);
 
     if (use_emb_key)
     {
@@ -2708,27 +2697,38 @@ void JOIN_CACHE_BKA_UNIQUE::reset(bool for_writing)
 
 bool JOIN_CACHE_BKA_UNIQUE::put_record()
 {
-  bool is_full;
   uchar *key;
   uint key_len= key_length;
   uchar *key_ref_ptr;
-  uchar *link= 0;
   TABLE_REF *ref= &join_tab->ref;
   uchar *next_ref_ptr= pos;
-
   pos+= get_size_of_rec_offset();
-  /* Write the record into the join buffer */  
-  if (prev_cache)
-    link= prev_cache->get_curr_rec_link();
-  write_record_data(link, &is_full);
+
+  // Write record to join buffer
+  bool is_full= JOIN_CACHE::put_record();
 
   if (use_emb_key)
-    key= get_curr_emb_key();
+  {
+     key= get_curr_emb_key();
+    // Embedded is not used if one of the key columns is nullable
+  }
   else
   {
     /* Build the key over the fields read into the record buffers */ 
     cp_buffer_from_ref(join->thd, join_tab->table, ref);
     key= ref->key_buff;
+    if (ref->impossible_null_ref())
+    {
+      /*
+        The row just put into the buffer has a NULL-value for one of
+        the ref-columns and the ref access is NULL-rejecting, this key cannot
+        give a match. So we don't insert it into the hash table.
+        We still stored the record into the buffer (put_record() call above),
+        or we would later miss NULL-complementing of this record.
+      */
+      DBUG_PRINT("info", ("JOIN_CACHE_BKA_UNIQUE::put_record null_rejected"));
+      return is_full;
+    }
   }
 
   /* Look for the key in the hash table */
@@ -2933,7 +2933,7 @@ uint JOIN_CACHE_BKA_UNIQUE::get_hash_idx(uchar* key, uint key_len)
 void JOIN_CACHE_BKA_UNIQUE:: cleanup_hash_table()
 {
   last_key_entry= hash_table;
-  bzero(hash_table, (buff+buff_size)-hash_table);
+  memset(hash_table, 0, (buff+buff_size)-hash_table);
   key_entries= 0;
 }
 
@@ -3192,7 +3192,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
                    
   rc= init_join_matching_records(&seq_funcs, key_entries);
   if (rc != NESTED_LOOP_OK)
-    goto finish;
+    return rc;
 
   while (!(error= file->multi_range_read_next((char **) &key_chain_ptr)))
   {
@@ -3227,8 +3227,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
       {
         /* The user has aborted the execution of the query */
         join->thd->send_kill_message();
-        rc= NESTED_LOOP_KILLED; 
-        goto finish;
+        return NESTED_LOOP_KILLED;
       }
       /* 
         If only the first match is needed and it has been already found
@@ -3241,7 +3240,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
         get_record_by_pos(rec_ptr);
         rc= generate_full_extensions(rec_ptr);
         if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	  goto finish;   
+          return rc;
       }
     }
     while (next_rec_ref_ptr != last_rec_ref_ptr); 
@@ -3249,8 +3248,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
 
   if (error > 0 && error != HA_ERR_END_OF_FILE)	   
     return NESTED_LOOP_ERROR; 
-finish:                  
-  return end_join_matching_records(rc);
+  return rc;
 }
 
 
@@ -3308,53 +3306,18 @@ bool JOIN_CACHE_BKA_UNIQUE::check_all_match_flags_for_key(uchar *key_chain_ptr)
 */
 
 uint JOIN_CACHE_BKA_UNIQUE::get_next_key(uchar ** key)
-{  
+{
+  if (curr_key_entry == last_key_entry)
+    return 0;
 
-  uint len= 0;
+  curr_key_entry-= key_entry_length;
 
-  /* Read keys until find non-ignorable one or EOF */
-  while((curr_key_entry > last_key_entry) && (len == 0))
-  {
-    curr_key_entry-= key_entry_length;
+  *key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
 
-    *key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
+  DBUG_ASSERT(*key >= buff && *key < hash_table);
 
-    DBUG_ASSERT(*key >= buff && *key < hash_table);
-
-    len= key_length;
-    DBUG_ASSERT(len != 0);
-    const TABLE_REF *ref= &join_tab->ref;
-    if (ref->null_rejecting != 0)
-    {
-      /*
-        Unlike JOIN_CACHE_BKA::get_next_key(), we have a key just read from
-        a buffer, not up-to-date fields pointed to by "ref". So we cannot use
-        ref->null_rejected(), must inspect the key.
-      */
-      const KEY *key_info= join_tab->table->key_info + ref->key;
-      const uchar *ptr= *key;
-#ifndef DBUG_OFF
-      const uchar *key_end= ptr + key_length;
-#endif
-      for (uint i= 0 ; i < ref->key_parts ; i++)
-      {
-        KEY_PART_INFO *key_part= key_info->key_part + i;
-        if (key_part->null_bit && ptr[0] && (ref->null_rejecting & 1 << i))
-        {
-          DBUG_PRINT("info", ("JOIN_CACHE_BKA_UNIQUE::get_next_key null_rejected"));
-          len= 0;
-          break;
-        }
-        ptr+= key_part->store_length;
-        DBUG_ASSERT(ptr <= key_end);
-      }
-      if (len != 0)
-        DBUG_ASSERT(ptr == key_end); /* should have read the full key */
-    }
-  }
-  return len;
+  return key_length;
 }
-
 
 /**
   Check matching to a partial join record from the join buffer, an

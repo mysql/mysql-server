@@ -33,7 +33,7 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
-ID	root	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	root	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 SELECT * FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
@@ -52,7 +52,7 @@ CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO) 
 ERROR HY000: CHECK OPTION on non-updatable view 'test.v_processlist'
 CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO) AS SELECT * FROM processlist;
 UPDATE test.v_processlist SET TIME=NOW() WHERE id = 1;
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ERROR HY000: The target table v_processlist of the UPDATE is not updatable
 DROP VIEW test.v_processlist;
 UPDATE processlist SET user='any_user'  WHERE id=1 ;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -104,7 +104,7 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM processlist  ORDER BY id
@@ -120,7 +120,7 @@ CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO) 
 ERROR HY000: CHECK OPTION on non-updatable view 'test.v_processlist'
 CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO) AS SELECT * FROM processlist;
 UPDATE test.v_processlist SET TIME=NOW() WHERE id = 1;
-ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
+ERROR HY000: The target table v_processlist of the UPDATE is not updatable
 DROP VIEW test.v_processlist;
 UPDATE processlist SET user='any_user'  WHERE id=1 ;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
@@ -169,7 +169,7 @@ Grants for ddicttestuser1@localhost
 GRANT PROCESS ON *.* TO 'ddicttestuser1'@'localhost' IDENTIFIED BY PASSWORD '*22DA61451703738F203CDB9DB041ACBA1F4760B1'
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -184,7 +184,7 @@ SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -208,7 +208,7 @@ Id	User	Host	db	Command	Time	State	Info
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID		HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID		HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID		HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -232,7 +232,7 @@ SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -272,7 +272,7 @@ Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -298,7 +298,7 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -352,7 +352,7 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -381,7 +381,7 @@ GRANT USAGE ON *.* TO 'ddicttestuser2'@'localhost' IDENTIFIED BY PASSWORD '*22DA
 SHOW processlist;
 Id	User	Host	db	Command	Time	State	Info
 ID	ddicttestuser2	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -410,7 +410,7 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
@@ -446,7 +446,7 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	NULL	SHOW processlist
+ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ID	ddicttestuser1	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist

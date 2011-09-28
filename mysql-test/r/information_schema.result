@@ -1,5 +1,13 @@
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
+#
+# Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
+#
+select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
+table_name	data_type	column_type
+COLUMNS	bigint	bigint(21) unsigned
+PARAMETERS	bigint	bigint(21) unsigned
+ROUTINES	bigint	bigint(21) unsigned
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -56,6 +64,7 @@ FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
 KEY_COLUMN_USAGE
+OPTIMIZER_TRACE
 PARAMETERS
 PARTITIONS
 PLUGINS
@@ -92,6 +101,7 @@ proxies_priv
 servers
 slave_master_info
 slave_relay_log_info
+slave_worker_info
 slow_log
 tables_priv
 time_zone
@@ -307,7 +317,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	
-1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer (Block Nested Loop)
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) AND a.ROUTINE_SCHEMA='test' order by 1;
 ROUTINE_NAME	name
@@ -781,6 +791,8 @@ table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	EVENTS	EVENT_DEFINITION
+information_schema	OPTIMIZER_TRACE	QUERY
+information_schema	OPTIMIZER_TRACE	TRACE
 information_schema	PARAMETERS	DTD_IDENTIFIER
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
@@ -877,8 +889,8 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	30
-mysql	25
+information_schema	31
+mysql	26
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1103,7 +1115,7 @@ CREATE PROCEDURE p1 ()
 BEGIN
 SELECT 'foo' FROM DUAL;
 END |
-ERROR 42000: Unknown database 'information_schema'
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 select ROUTINE_NAME from routines where ROUTINE_SCHEMA='information_schema';
 ROUTINE_NAME
 grant all on information_schema.* to 'user1'@'localhost';
@@ -1281,7 +1293,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases; Using filesort
 explain select * from (select table_name from information_schema.tables) as a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
 drop view v1;
 create table t1 (f1 int(11));
@@ -1296,7 +1308,8 @@ t2
 drop table t1,t2;
 select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
 (select cast(table_name as char)  from information_schema.tables
-order by table_name limit 1) limit 1;
+where table_schema != 'performance_schema'
+ order by table_name limit 1) limit 1;
 f1
 1
 select t.table_name, group_concat(t.table_schema, '.', t.table_name),
@@ -1327,6 +1340,7 @@ FILES	information_schema.FILES	1
 GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
 GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
 PLUGINS	information_schema.PLUGINS	1
@@ -1484,7 +1498,7 @@ from information_schema.tables a, information_schema.columns b
 where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	a	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Skip_open_table; Scanned 0 databases
-1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer (Block Nested Loop)
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'mysqltest';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
@@ -1566,7 +1580,7 @@ explain extended select 1 from information_schema.tables;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
 Warnings:
-Note	1003	select 1 AS `1` from `information_schema`.`tables`
+Note	1003	/* select#1 */ select 1 AS `1` from `information_schema`.`tables`
 use information_schema;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
@@ -1888,6 +1902,120 @@ unlock tables;
 # --> connection default
 drop table t1;
 drop view v1;
+#
+# Test for bug #12828477 - "MDL SUBSYSTEM CREATES BIG OVERHEAD FOR
+#                           CERTAIN QUERIES TO INFORMATION_SCHEMA".
+#
+# Check that metadata locks which are acquired during the process
+# of opening tables/.FRMs/.TRG files while filling I_S table are
+# not kept to the end of statement. Keeping the locks has caused
+# performance problems in cases when big number of tables (.FRMs
+# or .TRG files) were scanned as cost of new lock acquisition has
+# increased linearly.
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table t0 (i int);
+create table t1 (j int);
+create table t2 (k int);
+#
+# Test that we don't keep locks in case when we to fill
+# I_S table we perform full-blown table open.
+#
+# Acquire lock on 't2' so upcoming RENAME is
+# blocked.
+lock tables t2 read;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# The below RENAME should wait on 't2' while
+# keeping X lock on 't1'.
+rename table t1 to t3, t2 to t1, t3 to t2;
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Wait while the above RENAME is blocked.
+# Issue query to I_S which will open 't0' and get
+# blocked on 't1' because of RENAME.
+select table_name, auto_increment from information_schema.tables where table_schema='mysqltest';
+#
+# Switching to connection 'con12828477_3'. 
+#
+# Wait while the above SELECT is blocked.
+#
+# Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+#
+# Switching to connection 'default'.
+#
+#
+# Unblock the first RENAME.
+unlock tables;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# Reap the first RENAME
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Reap SELECT to I_S.
+table_name	auto_increment
+t0	NULL
+t1	NULL
+t2	NULL
+#
+# Switching to connection 'default'.
+#
+#
+# Now test that we don't keep locks in case when we to fill
+# I_S table we read .FRM or .TRG file only (this was the case
+# for which problem existed).
+#
+rename table t4 to t0;
+# Acquire lock on 't2' so upcoming RENAME is
+# blocked.
+lock tables t2 read;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# The below RENAME should wait on 't2' while
+# keeping X lock on 't1'.
+rename table t1 to t3, t2 to t1, t3 to t2;
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Wait while the above RENAME is blocked.
+# Issue query to I_S which will open 't0' and get
+# blocked on 't1' because of RENAME.
+select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest';
+#
+# Switching to connection 'con12828477_3'. 
+#
+# Wait while the above SELECT is blocked.
+#
+# Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+#
+# Switching to connection 'default'.
+#
+#
+# Unblock the first RENAME.
+unlock tables;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# Reap the first RENAME
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Reap SELECT to I_S.
+event_object_table	trigger_name
+#
+# Switching to connection 'default'.
+#
+#
+# Clean-up.
+drop database mysqltest;
 #
 # End of 5.5 tests
 #

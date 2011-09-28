@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <my_global.h>
 #include <m_string.h>
@@ -696,7 +696,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       break;
     case GET_ENUM:
       {
-        int type= find_type(argument, opts->typelib, 2);
+        int type= find_type(argument, opts->typelib, FIND_TYPE_BASIC);
         if (type == 0)
         {
           /*
@@ -899,6 +899,35 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
   return getopt_ll_limit_value(num, optp, NULL);
 }
 
+
+/**
+  Maximum possible value for an integer GET_* variable type
+  @param  var_type  type of integer variable (GET_*)
+  @returns  maximum possible value for this type
+ */
+ulonglong max_of_int_range(int var_type)
+{
+  switch (var_type)
+  {
+  case GET_INT:
+    return INT_MAX;
+  case GET_LONG:
+    return LONG_MAX;
+  case GET_LL:
+    return LONGLONG_MAX;
+  case GET_UINT:
+    return UINT_MAX;
+  case GET_ULONG:
+    return ULONG_MAX;
+  case GET_ULL:
+    return ULONGLONG_MAX;
+  default:
+    DBUG_ASSERT(0);
+    return 0;
+  }
+}
+
+
 /*
   function: getopt_ll_limit_value
 
@@ -913,6 +942,8 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   my_bool adjusted= FALSE;
   char buf1[255], buf2[255];
   ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
+  const longlong max_of_type=
+    (longlong)max_of_int_range(optp->var_type & GET_TYPE_MASK);
 
   if (num > 0 && ((ulonglong) num > (ulonglong) optp->max_value) &&
       optp->max_value) /* if max value is not set -> no upper limit */
@@ -921,26 +952,10 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
     adjusted= TRUE;
   }
 
-  switch ((optp->var_type & GET_TYPE_MASK)) {
-  case GET_INT:
-    if (num > (longlong) INT_MAX)
-    {
-      num= ((longlong) INT_MAX);
-      adjusted= TRUE;
-    }
-    break;
-  case GET_LONG:
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-    if (num > (longlong) LONG_MAX)
-    {
-      num= ((longlong) LONG_MAX);
-      adjusted= TRUE;
-    }
-#endif
-    break;
-  default:
-    DBUG_ASSERT((optp->var_type & GET_TYPE_MASK) == GET_LL);
-    break;
+  if (num > max_of_type)
+  {
+    num= max_of_type;
+    adjusted= TRUE;
   }
 
   num= (num / block_size);
@@ -982,6 +997,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   my_bool adjusted= FALSE;
   ulonglong old= num;
   char buf1[255], buf2[255];
+  const ulonglong max_of_type=
+    max_of_int_range(optp->var_type & GET_TYPE_MASK);
 
   if ((ulonglong) num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
@@ -990,26 +1007,10 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
     adjusted= TRUE;
   }
 
-  switch ((optp->var_type & GET_TYPE_MASK)) {
-  case GET_UINT:
-    if (num > (ulonglong) UINT_MAX)
-    {
-      num= ((ulonglong) UINT_MAX);
-      adjusted= TRUE;
-    }
-    break;
-  case GET_ULONG:
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-    if (num > (ulonglong) ULONG_MAX)
-    {
-      num= ((ulonglong) ULONG_MAX);
-      adjusted= TRUE;
-    }
-#endif
-    break;
-  default:
-    DBUG_ASSERT((optp->var_type & GET_TYPE_MASK) == GET_ULL);
-    break;
+  if (num > max_of_type)
+  {
+    num= max_of_type;
+    adjusted= TRUE;
   }
 
   if (optp->block_size > 1)

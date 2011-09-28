@@ -1,5 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
+   Copyright (c) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -353,20 +354,30 @@ static PSI_cond_info all_semisync_conds[]=
 {
   { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0}
 };
+#endif /* HAVE_PSI_INTERFACE */
+
+PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave=
+{ 0, "Waiting for semi-sync ACK from slave", 0};
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_stage_info *all_semisync_stages[]=
+{
+  & stage_waiting_for_semi_sync_ack_from_slave
+};
 
 static void init_semisync_psi_keys(void)
 {
   const char* category= "semisync";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_semisync_mutexes);
-  PSI_server->register_mutex(category, all_semisync_mutexes, count);
+  mysql_mutex_register(category, all_semisync_mutexes, count);
 
   count= array_elements(all_semisync_conds);
-  PSI_server->register_cond(category, all_semisync_conds, count);
+  mysql_cond_register(category, all_semisync_conds, count);
+
+  count= array_elements(all_semisync_stages);
+  mysql_stage_register(category, all_semisync_stages, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -428,6 +439,7 @@ mysql_declare_plugin(semi_sync_master)
   0x0100 /* 1.0 */,
   semi_sync_master_status_vars,	/* status variables */
   semi_sync_master_system_vars,	/* system variables */
-  NULL                        /* config options                  */
+  NULL,                         /* config options */
+  0,                            /* flags */
 }
 mysql_declare_plugin_end;

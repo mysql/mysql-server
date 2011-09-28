@@ -23,10 +23,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
   Innodb
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "dict0stats.h"
 
 /* Structure defines translation table between mysql index and innodb
@@ -217,7 +213,9 @@ class ha_innobase: public handler
 	bool primary_key_is_clustered();
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
 	/** Fast index creation (smart ALTER TABLE) @see handler0alter.cc @{ */
-	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+		      handler_add_index **add);
+	int final_add_index(handler_add_index *add, bool commit);
 	int prepare_drop_index(TABLE *table_arg, uint *key_num,
 			       uint num_of_keys);
 	int final_drop_index(TABLE *table_arg);
@@ -392,15 +390,14 @@ innobase_trx_allocate(
 This function checks each index name for a table against reserved
 system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
-and returns true. */
+and returns true.
+@return true if the index name matches the reserved name */
 extern "C"
 bool
 innobase_index_name_is_reserved(
 /*============================*/
-					/* out: true if the index name
-					matches the reserved name */
-	const trx_t*	trx,		/* in: InnoDB transaction handle */
-	const KEY*	key_info,	/* in: Indexes to be created */
-	ulint		num_of_keys);	/* in: Number of indexes to
+	THD*		thd,		/*!< in/out: MySQL connection */
+	const KEY*	key_info,	/*!< in: Indexes to be created */
+	ulint		num_of_keys);	/*!< in: Number of indexes to
 					be created. */
 

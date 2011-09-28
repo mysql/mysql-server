@@ -1,0 +1,117 @@
+CREATE TABLE Bug_60196_FK1 (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE Bug_60196_FK2 (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE Bug_60196 (
+FK1_Key INT NOT NULL,
+FK2_Key INT NOT NULL,
+PRIMARY KEY (FK2_Key, FK1_Key),
+KEY FK1_Key (FK1_Key),
+KEY FK2_Key (FK2_Key),
+CONSTRAINT FK_FK1 FOREIGN KEY (FK1_Key)
+REFERENCES Bug_60196_FK1 (Primary_Key)
+ON DELETE CASCADE
+ON UPDATE CASCADE,
+CONSTRAINT FK_FK2 FOREIGN KEY (FK2_Key)
+REFERENCES Bug_60196_FK2 (Primary_Key)
+ON DELETE CASCADE
+ON UPDATE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO Bug_60196_FK1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO Bug_60196_FK2 VALUES (1), (2), (3), (4), (5);
+INSERT INTO Bug_60196 VALUES (1, 1);
+INSERT INTO Bug_60196 VALUES (1, 2);
+INSERT INTO Bug_60196 VALUES (1, 3);
+INSERT INTO Bug_60196 VALUES (1, 99);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60196`, CONSTRAINT `FK_FK2` FOREIGN KEY (`FK2_Key`) REFERENCES `Bug_60196_FK2` (`Primary_Key`) ON DELETE CASCADE ON UPDATE CASCADE)
+INSERT INTO Bug_60196 VALUES (99, 1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60196`, CONSTRAINT `FK_FK1` FOREIGN KEY (`FK1_Key`) REFERENCES `Bug_60196_FK1` (`Primary_Key`) ON DELETE CASCADE ON UPDATE CASCADE)
+SELECT * FROM bug_60196_FK1;
+Primary_Key
+1
+2
+3
+4
+5
+SELECT * FROM bug_60196_FK2;
+Primary_Key
+1
+2
+3
+4
+5
+SELECT * FROM bug_60196;
+FK1_Key	FK2_Key
+1	1
+1	2
+1	3
+# Stop server
+# Restart server.
+#
+# Try to insert more to the example table with foreign keys.
+# Bug60196 causes the foreign key file not to be found after
+# the resstart above.
+#
+SELECT * FROM Bug_60196;
+FK1_Key	FK2_Key
+1	1
+1	2
+1	3
+INSERT INTO Bug_60196 VALUES (2, 1);
+INSERT INTO Bug_60196 VALUES (2, 2);
+INSERT INTO Bug_60196 VALUES (2, 3);
+SELECT * FROM Bug_60196;
+FK1_Key	FK2_Key
+1	1
+1	2
+1	3
+2	1
+2	2
+2	3
+
+# Clean up.
+DROP TABLE Bug_60196;
+DROP TABLE Bug_60196_FK1;
+DROP TABLE Bug_60196_FK2;
+CREATE TABLE Bug_60309_FK (
+ID INT PRIMARY KEY,
+ID2 INT,
+KEY K2(ID2)
+) ENGINE=InnoDB;
+CREATE TABLE Bug_60309 (
+ID INT PRIMARY KEY,
+FK_ID INT,
+KEY (FK_ID),
+CONSTRAINT FK FOREIGN KEY (FK_ID) REFERENCES Bug_60309_FK (ID)
+) ENGINE=InnoDB;
+INSERT INTO Bug_60309_FK (ID, ID2) VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO Bug_60309 VALUES (1, 1);
+INSERT INTO Bug_60309 VALUES (2, 99);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`bug_60309`, CONSTRAINT `FK` FOREIGN KEY (`FK_ID`) REFERENCES `Bug_60309_FK` (`ID`))
+SELECT * FROM Bug_60309_FK;
+ID	ID2
+1	1
+2	2
+3	3
+SELECT * FROM Bug_60309;
+ID	FK_ID
+1	1
+# Stop server
+# Restart server.
+#
+# Try to insert more to the example table with foreign keys.
+# Bug60309 causes the foreign key file not to be found after
+# the resstart above.
+#
+SELECT * FROM Bug_60309;
+ID	FK_ID
+1	1
+INSERT INTO Bug_60309 VALUES (2, 2);
+INSERT INTO Bug_60309 VALUES (3, 3);
+SELECT * FROM Bug_60309;
+ID	FK_ID
+1	1
+2	2
+3	3
+
+# Clean up.
+DROP TABLE Bug_60309;
+DROP TABLE Bug_60309_FK;

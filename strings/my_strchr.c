@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include "m_string.h"
@@ -60,7 +60,7 @@ end:                                                                    \
   frequently.
 */
 
-char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
+char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
                 pchar c)
 {
   uint mbl;
@@ -97,8 +97,8 @@ char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
   in 'reject'.
 */
 
-size_t my_strcspn(CHARSET_INFO *cs, const char *str, const char *str_end,
-                  const char *reject)
+size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
+                  const char *str_end, const char *reject)
 {
   SCAN_STRING(cs, str, str_end, reject, strlen(reject), EQU);
 }

@@ -1,19 +1,19 @@
 SET @global_start_value = @@global.innodb_purge_batch_size;
 SELECT @global_start_value;
 @global_start_value
-20
+300
 '#--------------------FN_DYNVARS_046_01------------------------#'
 SET @@global.innodb_purge_batch_size = 1;
 SET @@global.innodb_purge_batch_size = DEFAULT;
 SELECT @@global.innodb_purge_batch_size;
 @@global.innodb_purge_batch_size
-20
+300
 '#---------------------FN_DYNVARS_046_02-------------------------#'
 SET innodb_purge_batch_size = 1;
 ERROR HY000: Variable 'innodb_purge_batch_size' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@innodb_purge_batch_size;
 @@innodb_purge_batch_size
-20
+300
 SELECT local.innodb_purge_batch_size;
 ERROR 42S02: Unknown table 'local' in field list
 SET global innodb_purge_batch_size = 1;
@@ -95,4 +95,4 @@ SELECT @@global.innodb_purge_batch_size;
 SET @@global.innodb_purge_batch_size = @global_start_value;
 SELECT @@global.innodb_purge_batch_size;
 @@global.innodb_purge_batch_size
-20
+300

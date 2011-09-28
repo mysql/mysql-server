@@ -1,7 +1,7 @@
 #ifndef SQL_ACL_INCLUDED
 #define SQL_ACL_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,6 +95,14 @@
  CREATE_ACL | DROP_ACL | ALTER_ACL | INDEX_ACL | \
  TRIGGER_ACL | REFERENCES_ACL | GRANT_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
 
+/**
+  Table-level privileges which are automatically "granted" to everyone on
+  existing temporary tables (CREATE_ACL is necessary for ALTER ... RENAME).
+*/
+#define TMP_TABLE_ACLS \
+(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
+ INDEX_ACL | ALTER_ACL)
+
 /*
   Defines to change the above bits to how things are stored in tables
   This is needed as the 'host' and 'db' table is missing a few privileges
@@ -172,10 +180,16 @@ enum mysql_db_table_field
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
+extern const char *command_array[];
+extern uint        command_lengths[];
+
 
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
+void append_user(String *str, LEX_USER *user, bool comma, bool passwd);
+void append_int(String *str, const char *txt, size_t len,
+                long val, int cond);
 my_bool  acl_init(bool dont_read_acl_tables);
 my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);

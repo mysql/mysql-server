@@ -19,6 +19,7 @@
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
+-- source include/not_mts_slave_parallel_workers.inc
 
 # Test is dependent on binlog positions
 

@@ -58,7 +58,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "buf0lru.h"
 #include "ha_prototypes.h"
 
-#include "my_handler.h" /* enum icp_result */
+#include "my_compare.h" /* enum icp_result */
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -101,12 +101,22 @@ row_sel_sec_rec_is_for_blob(
 	ulint		clust_len,	/*!< in: length of clust_field */
 	const byte*	sec_field,	/*!< in: column in secondary index */
 	ulint		sec_len,	/*!< in: length of sec_field */
-	ulint		zip_size)	/*!< in: compressed page size, or 0 */
+	ulint		prefix_len,	/*!< in: index column prefix length
+					in bytes */
+	dict_table_t*	table)		/*!< in: table */
 {
 	ulint	len;
-	byte	buf[DICT_MAX_INDEX_COL_LEN];
+	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
+	ulint	zip_size = dict_table_flags_to_zip_size(table->flags);
 
+	/* This function should never be invoked on an Antelope format
+	table, because they should always contain enough prefix in the
+	clustered index record. */
+	ut_ad(dict_table_get_format(table) >= UNIV_FORMAT_B);
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+	ut_ad(prefix_len >= sec_len);
+	ut_ad(prefix_len > 0);
+	ut_a(prefix_len <= sizeof buf);
 
 	if (UNIV_UNLIKELY
 	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -118,7 +128,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
+	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
 						      zip_size,
 						      clust_field, clust_len);
 
@@ -132,7 +142,7 @@ row_sel_sec_rec_is_for_blob(
 	}
 
 	len = dtype_get_at_most_n_mbchars(prtype, mbminmaxlen,
-					  sec_len, len, (const char*) buf);
+					  prefix_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
@@ -224,8 +234,8 @@ row_sel_sec_rec_is_for_clust_rec(
 					    col->mbminmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
-					    dict_table_zip_size(
-						    clust_index->table))) {
+					    ifield->prefix_len,
+					    clust_index->table)) {
 					goto inequal;
 				}
 
@@ -494,7 +504,7 @@ sel_col_prefetch_buf_alloc(
 		sel_buf = column->prefetch_buf + i;
 
 		sel_buf->data = NULL;
-
+		sel_buf->len = 0;
 		sel_buf->val_buf_size = 0;
 	}
 }
@@ -519,6 +529,8 @@ sel_col_prefetch_buf_free(
 			mem_free(sel_buf->data);
 		}
 	}
+
+	mem_free(prefetch_buf);
 }
 
 /*********************************************************************//**
@@ -526,8 +538,8 @@ Pops the column values for a prefetched, cached row from the column prefetch
 buffers and places them to the val fields in the column nodes. */
 static
 void
-sel_pop_prefetched_row(
-/*===================*/
+sel_dequeue_prefetched_row(
+/*=======================*/
 	plan_t*	plan)	/*!< in: plan node for a table */
 {
 	sym_node_t*	column;
@@ -588,8 +600,8 @@ Pushes the column values for a prefetched, cached row to the column prefetch
 buffers from the val fields in the column nodes. */
 UNIV_INLINE
 void
-sel_push_prefetched_row(
-/*====================*/
+sel_enqueue_prefetched_row(
+/*=======================*/
 	plan_t*	plan)	/*!< in: plan node for a table */
 {
 	sym_node_t*	column;
@@ -1365,7 +1377,7 @@ table_loop:
 	index = plan->index;
 
 	if (plan->n_rows_prefetched > 0) {
-		sel_pop_prefetched_row(plan);
+		sel_dequeue_prefetched_row(plan);
 
 		goto next_table_no_mtr;
 	}
@@ -1811,13 +1823,13 @@ skip_lock:
 		goto next_table;
 	}
 
-	sel_push_prefetched_row(plan);
+	sel_enqueue_prefetched_row(plan);
 
 	if (plan->n_rows_prefetched == SEL_MAX_N_PREFETCH) {
 
 		/* The prefetch buffer is now full */
 
-		sel_pop_prefetched_row(plan);
+		sel_dequeue_prefetched_row(plan);
 
 		goto next_table;
 	}
@@ -1916,7 +1928,7 @@ table_exhausted:
 	if (plan->n_rows_prefetched > 0) {
 		/* The table became exhausted during a prefetch */
 
-		sel_pop_prefetched_row(plan);
+		sel_dequeue_prefetched_row(plan);
 
 		goto next_table_no_mtr;
 	}
@@ -1962,7 +1974,7 @@ stop_for_a_while:
 	mtr_commit(&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 	err = DB_SUCCESS;
 	goto func_exit;
@@ -1982,7 +1994,7 @@ commit_mtr_for_a_while:
 	mtr_has_extra_clust_latch = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 	goto table_loop;
@@ -1999,7 +2011,7 @@ lock_wait_or_error:
 	mtr_commit(&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 func_exit:
@@ -2573,6 +2585,8 @@ row_sel_field_store_in_mysql_format_func(
 
 	ut_ad(len != UNIV_SQL_NULL);
 	UNIV_MEM_ASSERT_RW(data, len);
+	UNIV_MEM_ASSERT_W(dest, templ->mysql_col_len);
+	UNIV_MEM_INVALID(dest, templ->mysql_col_len);
 
 	switch (templ->type) {
 		const byte*	field_end;
@@ -2611,14 +2625,16 @@ row_sel_field_store_in_mysql_format_func(
 
 			dest = row_mysql_store_true_var_len(
 				dest, len, templ->mysql_length_bytes);
+			/* Copy the actual data. Leave the rest of the
+			buffer uninitialized. */
+			memcpy(dest, data, len);
+			break;
 		}
 
 		/* Copy the actual data */
 		ut_memcpy(dest, data, len);
 
-		/* Pad with trailing spaces. We pad with spaces also the
-		unused end of a >= 5.0.3 true VARCHAR column, just in case
-		MySQL expects its contents to be deterministic. */
+		/* Pad with trailing spaces. */
 
 		pad = dest + len;
 
@@ -2662,8 +2678,18 @@ row_sel_field_store_in_mysql_format_func(
 		ut_ad(templ->mysql_col_len >= len);
 		ut_ad(templ->mbmaxlen >= templ->mbminlen);
 
+		/* If field_no equals to templ->icp_rec_field_no,
+		we are examining a row pointed by "icp_rec_field_no".
+		There is possibility that icp_rec_field_no refers to
+		a field in a secondary index while templ->rec_field_no
+		points to field in a primary index. The length
+		should still be equal, unless the field pointed
+		by icp_rec_field_no has a prefix */
 		ut_ad(templ->mbmaxlen > templ->mbminlen
-		      || templ->mysql_col_len == len);
+		      || templ->mysql_col_len == len
+		      || (field_no == templ->icp_rec_field_no
+			  && field->prefix_len > 0));
+
 		/* The following assertion would fail for old tables
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
@@ -3219,37 +3245,66 @@ sel_restore_position_for_mysql(
 }
 
 /********************************************************************//**
+Copies a cached field for MySQL from the fetch cache. */
+static
+void
+row_sel_copy_cached_field_for_mysql(
+/*================================*/
+	byte*			buf,	/*!< in/out: row buffer */
+	const byte*		cache,	/*!< in: cached row */
+	const mysql_row_templ_t*templ)	/*!< in: column template */
+{
+	ulint	len;
+
+	buf += templ->mysql_col_offset;
+	cache += templ->mysql_col_offset;
+
+	UNIV_MEM_ASSERT_W(buf, templ->mysql_col_len);
+
+	if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR
+	    && templ->type != DATA_INT) {
+		/* Check for != DATA_INT to make sure we do
+		not treat MySQL ENUM or SET as a true VARCHAR!
+		Find the actual length of the true VARCHAR field. */
+		row_mysql_read_true_varchar(
+			&len, cache, templ->mysql_length_bytes);
+		len += templ->mysql_length_bytes;
+		UNIV_MEM_INVALID(buf, templ->mysql_col_len);
+	} else {
+		len = templ->mysql_col_len;
+	}
+
+	ut_memcpy(buf, cache, len);
+}
+
+/********************************************************************//**
 Pops a cached row for MySQL from the fetch cache. */
 UNIV_INLINE
 void
-row_sel_pop_cached_row_for_mysql(
-/*=============================*/
+row_sel_dequeue_cached_row_for_mysql(
+/*=================================*/
 	byte*		buf,		/*!< in/out: buffer where to copy the
 					row */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct */
 {
 	ulint			i;
 	const mysql_row_templ_t*templ;
-	byte*			cached_rec;
+	const byte*		cached_rec;
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
+
+	UNIV_MEM_ASSERT_W(buf, prebuilt->mysql_row_len);
+
+	cached_rec = prebuilt->fetch_cache[prebuilt->fetch_cache_first];
 
 	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
 		/* Copy cache record field by field, don't touch fields that
 		are not covered by current key */
-		cached_rec = prebuilt->fetch_cache[
-			prebuilt->fetch_cache_first];
 
 		for (i = 0; i < prebuilt->n_template; i++) {
 			templ = prebuilt->mysql_template + i;
-#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
-			UNIV_MEM_ASSERT_RW(cached_rec
-					   + templ->mysql_col_offset,
-					   templ->mysql_col_len);
-#endif
-			ut_memcpy(buf + templ->mysql_col_offset,
-				  cached_rec + templ->mysql_col_offset,
-				  templ->mysql_col_len);
+			row_sel_copy_cached_field_for_mysql(
+				buf, cached_rec, templ);
 			/* Copy NULL bit of the current field from cached_rec
 			to buf */
 			if (templ->mysql_null_bit_mask) {
@@ -3259,17 +3314,24 @@ row_sel_pop_cached_row_for_mysql(
 					& (byte)templ->mysql_null_bit_mask;
 			}
 		}
+	} else if (prebuilt->mysql_prefix_len > 63) {
+		/* The record is long. Copy it field by field, in case
+		there are some long VARCHAR column of which only a
+		small length is being used. */
+		UNIV_MEM_INVALID(buf, prebuilt->mysql_prefix_len);
+
+		/* First copy the NULL bits. */
+		ut_memcpy(buf, cached_rec, prebuilt->null_bitmap_len);
+		/* Then copy the requested fields. */
+
+		for (i = 0; i < prebuilt->n_template; i++) {
+			row_sel_copy_cached_field_for_mysql(
+				buf, cached_rec, prebuilt->mysql_template + i);
+		}
+	} else {
+		ut_memcpy(buf, cached_rec, prebuilt->mysql_prefix_len);
 	}
-	else {
-#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
-		UNIV_MEM_ASSERT_RW(prebuilt->fetch_cache
-				   [prebuilt->fetch_cache_first],
-				   prebuilt->mysql_prefix_len);
-#endif
-		ut_memcpy(buf,
-			  prebuilt->fetch_cache[prebuilt->fetch_cache_first],
-			  prebuilt->mysql_prefix_len);
-	}
+
 	prebuilt->n_fetch_cached--;
 	prebuilt->fetch_cache_first++;
 
@@ -3279,45 +3341,81 @@ row_sel_pop_cached_row_for_mysql(
 }
 
 /********************************************************************//**
-Pushes a row for MySQL to the fetch cache. */
+Initialise the prefetch cache. */
 UNIV_INLINE
 void
-row_sel_push_cache_row_for_mysql(
-/*=============================*/
-	byte*		mysql_rec,	/*!< in/out: MySQL record */
+row_sel_prefetch_cache_init(
+/*========================*/
 	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
 {
-	ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
-	ut_a(!prebuilt->templ_contains_blob);
+	ulint	i;
+	ulint	sz;
+	byte*	ptr;
 
-	if (UNIV_UNLIKELY(prebuilt->fetch_cache[0] == NULL)) {
-		ulint	i;
+	/* Reserve space for the magic number. */
+	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
+	ptr = mem_alloc(sz);
+
+	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
+
+		/* A user has reported memory corruption in these
+		buffers in Linux. Put magic numbers there to help
+		to track a possible bug. */
+
+		mach_write_to_4(ptr, ROW_PREBUILT_FETCH_MAGIC_N);
+		ptr += 4;
+
+		prebuilt->fetch_cache[i] = ptr;
+		ptr += prebuilt->mysql_row_len;
+
+		mach_write_to_4(ptr, ROW_PREBUILT_FETCH_MAGIC_N);
+		ptr += 4;
+	}
+}
+
+/********************************************************************//**
+Get the last fetch cache buffer from the queue.
+@return pointer to buffer. */
+UNIV_INLINE
+byte*
+row_sel_fetch_last_buf(
+/*===================*/
+	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
+{
+	ut_ad(!prebuilt->templ_contains_blob);
+	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+
+	if (prebuilt->fetch_cache[0] == NULL) {
 		/* Allocate memory for the fetch cache */
 		ut_ad(prebuilt->n_fetch_cached == 0);
 
-		for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-			byte*	buf;
-
-			/* A user has reported memory corruption in these
-			buffers in Linux. Put magic numbers there to help
-			to track a possible bug. */
-
-			buf = mem_alloc(prebuilt->mysql_row_len + 8);
-
-			prebuilt->fetch_cache[i] = buf + 4;
-
-			mach_write_to_4(buf, ROW_PREBUILT_FETCH_MAGIC_N);
-			mach_write_to_4(buf + 4 + prebuilt->mysql_row_len,
-					ROW_PREBUILT_FETCH_MAGIC_N);
-		}
+		row_sel_prefetch_cache_init(prebuilt);
 	}
 
 	ut_ad(prebuilt->fetch_cache_first == 0);
 	UNIV_MEM_INVALID(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
 			 prebuilt->mysql_row_len);
 
-	memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
-	       mysql_rec, prebuilt->mysql_row_len);
+	return(prebuilt->fetch_cache[prebuilt->n_fetch_cached]);
+}
+
+/********************************************************************//**
+Pushes a row for MySQL to the fetch cache. */
+UNIV_INLINE
+void
+row_sel_enqueue_cache_row_for_mysql(
+/*================================*/
+	byte*		mysql_rec,	/*!< in/out: MySQL record */
+	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
+{
+	/* For non ICP code path the row should already exist in the
+	next fetch cache slot. */
+
+	if (prebuilt->idx_cond != NULL) {
+		byte*	dest = row_sel_fetch_last_buf(prebuilt);
+
+		ut_memcpy(dest, mysql_rec, prebuilt->mysql_row_len);
+	}
 
 	++prebuilt->n_fetch_cached;
 }
@@ -3423,6 +3521,8 @@ row_search_idx_cond_check(
 		return(ICP_MATCH);
 	}
 
+	MONITOR_INC(MONITOR_ICP_ATTEMPTS);
+
 	/* Convert to MySQL format those fields that are needed for
 	evaluating the index condition. */
 
@@ -3459,12 +3559,16 @@ row_search_idx_cond_check(
 				    mysql_rec, prebuilt, rec, FALSE,
 				    prebuilt->index, offsets)) {
 				ut_ad(dict_index_is_clust(prebuilt->index));
-				result = ICP_NO_MATCH;
+				return(ICP_NO_MATCH);
 			}
 		}
-		/* fall through */
+		MONITOR_INC(MONITOR_ICP_MATCH);
+		return(result);
 	case ICP_NO_MATCH:
+		MONITOR_INC(MONITOR_ICP_NO_MATCH);
+		return(result);
 	case ICP_OUT_OF_RANGE:
+		MONITOR_INC(MONITOR_ICP_OUT_OF_RANGE);
 		return(result);
 	}
 
@@ -3537,8 +3641,6 @@ row_search_for_mysql(
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
-	ut_ad(trx->mysql_thd == NULL
-	      || trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
 		ut_print_timestamp(stderr);
@@ -3555,12 +3657,25 @@ row_search_for_mysql(
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 		return(DB_ERROR);
 	}
 
 	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
 
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 		return(DB_MISSING_HISTORY);
+	}
+
+	if (dict_index_is_corrupted(index)) {
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+		return(DB_CORRUPTION);
 	}
 
 	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
@@ -3663,7 +3778,7 @@ row_search_for_mysql(
 			prebuilt->fetch_cache_first = 0;
 
 		} else if (UNIV_LIKELY(prebuilt->n_fetch_cached > 0)) {
-			row_sel_pop_cached_row_for_mysql(buf, prebuilt);
+			row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
 
 			prebuilt->n_rows_fetched++;
 
@@ -4287,8 +4402,7 @@ wrong_offs:
 		if (!set_also_gap_locks
 		    || srv_locks_unsafe_for_binlog
 		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    || (unique_search
-			&& !UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp)))) {
+		    || (unique_search && !rec_get_deleted_flag(rec, comp))) {
 
 			goto no_gap_lock;
 		} else {
@@ -4475,7 +4589,7 @@ locks_ok:
 	point that rec is on a buffer pool page. Functions like
 	page_rec_is_comp() cannot be used! */
 
-	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp))) {
+	if (rec_get_deleted_flag(rec, comp)) {
 
 		/* The record is delete-marked: we can skip it */
 
@@ -4573,7 +4687,7 @@ requires_clust_rec:
 			goto lock_wait_or_error;
 		}
 
-		if (UNIV_UNLIKELY(rec_get_deleted_flag(clust_rec, comp))) {
+		if (rec_get_deleted_flag(clust_rec, comp)) {
 
 			/* The record is delete marked: we can skip it */
 
@@ -4655,7 +4769,8 @@ requires_clust_rec:
 
 		if (!prebuilt->idx_cond
 		    && !row_sel_store_mysql_rec(
-			    buf, prebuilt, result_rec,
+			    row_sel_fetch_last_buf(prebuilt),
+			    prebuilt, result_rec,
 			    result_rec != rec,
 			    result_rec != rec ? clust_index : index,
 			    offsets)) {
@@ -4670,7 +4785,7 @@ requires_clust_rec:
 			goto next_rec;
 		}
 
-		row_sel_push_cache_row_for_mysql(buf, prebuilt);
+		row_sel_enqueue_cache_row_for_mysql(buf, prebuilt);
 
 		if (prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
 			goto next_rec;
@@ -4906,7 +5021,7 @@ normal_return:
 	mtr_commit(&mtr);
 
 	if (prebuilt->n_fetch_cached > 0) {
-		row_sel_pop_cached_row_for_mysql(buf, prebuilt);
+		row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
 
 		err = DB_SUCCESS;
 	}
@@ -4939,6 +5054,10 @@ func_exit:
 			prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 		}
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 	return(err);
 }
 

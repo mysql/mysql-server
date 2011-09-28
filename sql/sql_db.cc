@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* create and drop of databases */
@@ -40,6 +41,7 @@
 #ifdef __WIN__
 #include <direct.h>
 #endif
+#include "debug_sync.h"
 
 #define MAX_DROP_TABLE_Q_LEN      1024
 
@@ -58,7 +60,7 @@ static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
 static void mysql_change_db_impl(THD *thd,
                                  LEX_STRING *new_db_name,
                                  ulong new_db_access,
-                                 CHARSET_INFO *new_db_charset);
+                                 const CHARSET_INFO *new_db_charset);
 
 
 /* Database options hash */
@@ -71,7 +73,7 @@ typedef struct my_dbopt_st
 {
   char *name;			/* Database name                  */
   uint name_length;		/* Database length name           */
-  CHARSET_INFO *charset;	/* Database default character set */
+  const CHARSET_INFO *charset;	/* Database default character set */
 } my_dbopt_t;
 
 
@@ -128,11 +130,8 @@ static void init_database_names_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_database_names_rwlocks);
-  PSI_server->register_rwlock(category, all_database_names_rwlocks, count);
+  mysql_rwlock_register(category, all_database_names_rwlocks, count);
 }
 #endif
 
@@ -363,7 +362,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   bool error=1;
   uint nbytes;
 
-  bzero((char*) create,sizeof(*create));
+  memset(create, 0, sizeof(*create));
   create->default_table_charset= thd->variables.collation_server;
 
   /* Check if options for this database are already in the hash */
@@ -492,7 +491,7 @@ bool load_db_opt_by_name(THD *thd, const char *db_name,
     set, even if the database does not exist.
 */
 
-CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
+const CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
 {
   HA_CREATE_INFO db_info;
 
@@ -571,7 +570,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       error= -1;
       goto exit;
     }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
 			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
     error= 0;
     goto not_silent;
@@ -660,7 +659,7 @@ not_silent:
       */
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
-
+      thd->add_to_binlog_accessed_dbs(db);
       /*
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema
@@ -788,7 +787,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     else
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
 			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
       error= false;
       goto update_binlog;
@@ -817,8 +816,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
 
   /* Lock all tables and stored routines about to be dropped. */
-  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
-                       MYSQL_OPEN_SKIP_TEMPORARY) ||
+  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0) ||
       lock_db_routines(thd, db))
     goto exit;
 
@@ -834,12 +832,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
 
   thd->push_internal_handler(&err_handler);
-  if (thd->killed ||
-      (tables && mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
-  {
-    tables= NULL;
-  }
-  else
+  if (!thd->killed &&
+      !(tables &&
+        mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
   {
     /*
       We temporarily disable the binary log while dropping the objects
@@ -924,7 +919,7 @@ update_binlog:
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
     my_ok(thd, deleted_tables);
   }
-  else if (mysql_bin_log.is_open())
+  else if (mysql_bin_log.is_open() && !silent)
   {
     char *query, *query_pos, *query_end, *query_data_start;
     TABLE_LIST *tbl;
@@ -939,6 +934,16 @@ update_binlog:
     for (tbl= tables; tbl; tbl= tbl->next_local)
     {
       uint tbl_name_len;
+      bool exists;
+
+      // Only write drop table to the binlog for tables that no longer exist.
+      if (check_if_table_exists(thd, tbl, &exists))
+      {
+        error= true;
+        goto exit;
+      }
+      if (exists)
+        continue;
 
       /* 3 for the quotes and the comma*/
       tbl_name_len= strlen(tbl->table_name) + 3;
@@ -964,6 +969,7 @@ update_binlog:
 
     if (query_pos != query_data_start)
     {
+      thd->add_to_binlog_accessed_dbs(db);
       /*
         These DDL methods and logging are protected with the exclusive
         metadata lock on the schema.
@@ -1039,9 +1045,9 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
     }
     if (!(extension= strrchr(file->name, '.')))
       extension= strend(file->name);
-    if (find_type(extension, &deletable_extentions,1+2) <= 0)
+    if (find_type(extension, &deletable_extentions, FIND_TYPE_NO_PREFIX) <= 0)
     {
-      if (find_type(extension, ha_known_exts(),1+2) <= 0)
+      if (find_type(extension, ha_known_exts(), FIND_TYPE_NO_PREFIX) <= 0)
 	*found_other_files= true;
       continue;
     }
@@ -1253,7 +1259,7 @@ err:
 static void mysql_change_db_impl(THD *thd,
                                  LEX_STRING *new_db_name,
                                  ulong new_db_access,
-                                 CHARSET_INFO *new_db_charset)
+                                 const CHARSET_INFO *new_db_charset)
 {
   /* 1. Change current database in THD. */
 
@@ -1427,7 +1433,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
   Security_context *sctx= thd->security_ctx;
   ulong db_access= sctx->db_access;
-  CHARSET_INFO *db_default_cl;
+  const CHARSET_INFO *db_default_cl;
 
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'", new_db_name->str));
@@ -1530,13 +1536,15 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   }
 #endif
 
+  DEBUG_SYNC(thd, "before_db_dir_check");
+
   if (check_db_dir_existence(new_db_file_name.str))
   {
     if (force_switch)
     {
       /* Throw a warning and free new_db_file_name. */
 
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                           ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
                           new_db_file_name.str);
 

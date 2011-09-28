@@ -848,7 +848,7 @@ explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_d
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select period_add('9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,'9404') AS `period_diff(199505,"9404")`,from_days(to_days('960101')) AS `from_days(to_days("960101"))`,dayofmonth('1997-01-02') AS `dayofmonth("1997-01-02")`,month('1997-01-02') AS `month("1997-01-02")`,monthname('1972-03-04') AS `monthname("1972-03-04")`,dayofyear('0000-00-00') AS `dayofyear("0000-00-00")`,hour('1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute('23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week('1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek('2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year('98-02-03') AS `year("98-02-03")`,(weekday(curdate()) - weekday(now())) AS `weekday(curdate())-weekday(now())`,dayname('1962-03-03') AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec('0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format('1997-01-02 03:04:05','%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp('1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,('1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,('1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,('1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from '1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,('1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`
+Note	1003	/* select#1 */ select period_add('9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,'9404') AS `period_diff(199505,"9404")`,from_days(to_days('960101')) AS `from_days(to_days("960101"))`,dayofmonth('1997-01-02') AS `dayofmonth("1997-01-02")`,month('1997-01-02') AS `month("1997-01-02")`,monthname('1972-03-04') AS `monthname("1972-03-04")`,dayofyear('0000-00-00') AS `dayofyear("0000-00-00")`,hour('1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute('23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week('1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek('2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year('98-02-03') AS `year("98-02-03")`,(weekday(curdate()) - weekday(now())) AS `weekday(curdate())-weekday(now())`,dayname('1962-03-03') AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec('0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format('1997-01-02 03:04:05','%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp('1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,('1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,('1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,('1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from '1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,('1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`
 SET @TMP='2007-08-01 12:22:49';
 CREATE TABLE t1 (d DATETIME);
 INSERT INTO t1 VALUES ('2007-08-01 12:22:59');
@@ -1347,6 +1347,63 @@ Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 DROP TABLE t1;
+#
+# Bug#11766112  59151:UNINITIALIZED VALUES IN EXTRACT_DATE_TIME WITH STR_TO_DATE(SPACE(..) ...
+#
+SELECT STR_TO_DATE(SPACE(2),'1');
+STR_TO_DATE(SPACE(2),'1')
+0000-00-00
+#
+# Bug#11765216  58154: UNINITIALIZED VARIABLE FORMAT IN STR_TO_DATE FUNCTION
+#
+SET GLOBAL SQL_MODE='';
+DO  STR_TO_DATE((''), FROM_DAYS(@@GLOBAL.SQL_MODE));
+SET GLOBAL SQL_MODE=DEFAULT;
+#
+# Bug#11766087  59125: VALGRIND UNINITIALISED VALUE WARNING IN ULL2DEC, LONGLONG2DECIMAL
+#
+SELECT FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1);
+FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1)
+NULL
+#
+# Bug#11766126  59166: ANOTHER DATETIME VALGRIND UNINITIALIZED WARNING
+#
+SELECT CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025));
+CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025))
+NULL
+#
+# Bug#11766124  59164: VALGRIND: UNINITIALIZED VALUE IN NUMBER_TO_DATETIME
+#
+SELECT ADDDATE(MONTH(FROM_UNIXTIME(NULL)),INTERVAL 1 HOUR);
+ADDDATE(MONTH(FROM_UNIXTIME(NULL)),INTERVAL 1 HOUR)
+NULL
+#
+# Bug#11889186  60503: CRASH IN MAKE_DATE_TIME WITH DATE_FORMAT / STR_TO_DATE COMBINATION
+#
+SELECT DATE_FORMAT('0000-00-11', '%W');
+DATE_FORMAT('0000-00-11', '%W')
+NULL
+SELECT DATE_FORMAT('0000-00-11', '%a');
+DATE_FORMAT('0000-00-11', '%a')
+NULL
+SELECT DATE_FORMAT('0000-00-11', '%w');
+DATE_FORMAT('0000-00-11', '%w')
+NULL
+#
+# Bug#12403504  AFTER FIX FOR #11889186 : ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0
+#
+SELECT MAKEDATE(11111111,1);
+MAKEDATE(11111111,1)
+NULL
+SELECT WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1);
+WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1)
+NULL
+#
+# Bug#12584302 AFTER FIX FOR #12403504: ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0,
+#
+DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
 End of 5.1 tests
 #
 # BUG#43578 "MyISAM&Maria gives wrong rows with range access
@@ -1408,3 +1465,15 @@ NULL	1	NULL
 SET storage_engine=NULL;
 ERROR 42000: Variable 'storage_engine' can't be set to the value of 'NULL'
 #
+# Bug #59686 crash in String::copy() with time data type
+#
+SELECT min(timestampadd(month, 1>'', from_days('%Z')));
+min(timestampadd(month, 1>'', from_days('%Z')))
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '%Z'
+create table t1(a time);
+insert into t1 values ('00:00:00'),('00:01:00');
+select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
+1
+drop table t1;

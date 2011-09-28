@@ -15606,7 +15606,7 @@ void Dblqh::invalidateLogAfterLastGCI(Signal* signal) {
     /**
      * Make page really empty
      */
-    bzero(logPagePtr.p, sizeof(LogPageRecord));
+    memset(logPagePtr.p, 0, sizeof(LogPageRecord));
     writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
 		    ZPAGE_SIZE - 1, __LINE__);
 

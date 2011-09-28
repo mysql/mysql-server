@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
 ** example file of UDF (user definable functions) that are dynamicly loaded
@@ -132,7 +132,6 @@ typedef long long longlong;
 /* when compiled as standalone */
 #include <string.h>
 #define strmov(a,b) stpcpy(a,b)
-#define bzero(a,b) memset(a,0,b)
 #endif
 #endif
 #include <mysql.h>
@@ -653,7 +652,7 @@ my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
     strmov(message,"Couldn't allocate memory");
     return 1;
   }
-  bzero(initid->ptr,sizeof(longlong));
+  memset(initid->ptr, 0, sizeof(longlong));
   /* 
     sequence() is a non-deterministic function : it has different value 
     even if called with the same arguments.
