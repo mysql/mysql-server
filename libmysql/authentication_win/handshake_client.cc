@@ -323,13 +323,13 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     int opt_val= opt ? atoi(opt) : 0;
     if (opt && !opt_val)
     {
-      if (!strncasecmp("on", opt, 2))    opt_val= 1;
-      if (!strncasecmp("yes", opt, 3))   opt_val= 1;
-      if (!strncasecmp("true", opt, 4))  opt_val= 1;
-      if (!strncasecmp("debug", opt, 5)) opt_val= 2;
-      if (!strncasecmp("dbug", opt, 4))  opt_val= 2;
+      if (!strncasecmp("on", opt, 2))    opt_val= 2;
+      if (!strncasecmp("yes", opt, 3))   opt_val= 2;
+      if (!strncasecmp("true", opt, 4))  opt_val= 2;
+      if (!strncasecmp("debug", opt, 5)) opt_val= 4;
+      if (!strncasecmp("dbug", opt, 4))  opt_val= 4;
     }
-    opt_auth_win_client_log= opt_val;
+    set_log_level(opt_val);
   }
 
   ERROR_LOG(INFO, ("Authentication handshake for account %s", mysql->user));

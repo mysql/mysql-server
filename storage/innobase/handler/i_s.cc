@@ -729,7 +729,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_locks */
@@ -995,7 +999,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_lock_waits */
@@ -1178,7 +1186,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /*******************************************************************//**
@@ -1511,7 +1523,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
@@ -1561,7 +1577,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table information_schema.innodb_cmpmem. */
@@ -1802,7 +1822,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
@@ -1852,7 +1876,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_metrics */
@@ -2376,7 +2404,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INNODB_BUFFER_POOL_STATS. */
@@ -2893,7 +2925,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_stats =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INNODB_BUFFER_POOL_PAGE. */
@@ -3582,7 +3618,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_page =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 static ST_FIELD_INFO	i_s_innodb_buf_page_lru_fields_info[] =
@@ -4124,7 +4164,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_page_lru =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /*******************************************************************//**
@@ -4366,7 +4410,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tables =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
@@ -4641,7 +4689,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_INDEXES */
@@ -4896,7 +4948,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_indexes =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_COLUMNS */
@@ -5131,7 +5187,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_columns =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_fields */
 static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
@@ -5338,7 +5398,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_fields =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign */
@@ -5559,7 +5623,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols */
 static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
@@ -5773,6 +5841,10 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 

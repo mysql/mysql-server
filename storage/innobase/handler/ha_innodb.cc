@@ -4382,25 +4382,6 @@ field_in_record_is_null(
 	return(0);
 }
 
-/**************************************************************//**
-Sets a field in a record to SQL NULL. Uses the record format
-information in table to track the null bit in record. */
-static inline
-void
-set_field_in_record_to_null(
-/*========================*/
-	TABLE*	table,	/*!< in: MySQL table object */
-	Field*	field,	/*!< in: MySQL field object */
-	char*	record)	/*!< in: a row in MySQL format */
-{
-	int	null_offset;
-
-	null_offset = (uint) ((char*) field->null_ptr
-		    - (char*) table->record[0]);
-
-	record[null_offset] = record[null_offset] | field->null_bit;
-}
-
 /*************************************************************//**
 InnoDB uses this function to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. NOTE that the prototype
@@ -8314,9 +8295,13 @@ innobase_get_mysql_key_number_for_index(
 	unsigned int		i;
 
  	ut_a(index);
+	/*
+	ut_ad(strcmp(index->table->name, ib_table->name) == 0);
+	*/
 
-	/* If index does not belong to the table of share structure. Search
-	index->table instead */
+	/* If index does not belong to the table object of share structure
+	(ib_table comes from the share structure) search the index->table
+	object instead */
 	if (index->table != ib_table) {
 		i = 0;
 		ind = dict_table_get_first_index(index->table);
@@ -13035,7 +13020,8 @@ mysql_declare_plugin(innobase)
   INNODB_VERSION_SHORT,
   innodb_status_variables_export,/* status variables             */
   innobase_system_variables, /* system variables */
-  NULL /* reserved */
+  NULL, /* reserved */
+  0,    /* flags */
 },
 i_s_innodb_trx,
 i_s_innodb_locks,
