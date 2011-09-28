@@ -3069,17 +3069,7 @@ static const ulong index_type_flags[]=
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER |
-  /*
-    NOTE 1: our ordered indexes are not really clustered
-    but since accesing data when scanning index is free
-    it's a good approxiamtion
-
-    NOTE 2: We really should consider DD attributes here too
-    (for which there is IO to read data when scanning index)
-    but that will need to handled later...
-  */
-  HA_CLUSTERED_INDEX,
+  HA_READ_ORDER,
 
   /* UNIQUE_INDEX */
   HA_ONLY_WHOLE_INDEX,
@@ -3088,15 +3078,13 @@ static const ulong index_type_flags[]=
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER |
-  HA_CLUSTERED_INDEX,
+  HA_READ_ORDER,
 
   /* ORDERED_INDEX */
   HA_READ_NEXT |
   HA_READ_PREV |
   HA_READ_RANGE |
-  HA_READ_ORDER |
-  HA_CLUSTERED_INDEX
+  HA_READ_ORDER
 };
 
 static const int index_flags_size= sizeof(index_type_flags)/sizeof(ulong);
@@ -3134,9 +3122,24 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
 bool
 ha_ndbcluster::primary_key_is_clustered()
 {
-  if (table->s->primary_key != MAX_KEY)
-    return test(index_flags(table->s->primary_key, 0, 0) & HA_CLUSTERED_INDEX);
-  return FALSE;
+
+  if (table->s->primary_key == MAX_KEY)
+    return false;
+
+  /*
+    NOTE 1: our ordered indexes are not really clustered
+    but since accesing data when scanning index is free
+    it's a good approximation
+
+    NOTE 2: We really should consider DD attributes here too
+    (for which there is IO to read data when scanning index)
+    but that will need to be handled later...
+  */
+  const ndb_index_type idx_type =
+    get_index_type_from_table(table->s->primary_key);
+  return (idx_type == PRIMARY_KEY_ORDERED_INDEX ||
+          idx_type == UNIQUE_ORDERED_INDEX ||
+          idx_type ==  ORDERED_INDEX);
 }
 
 bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
