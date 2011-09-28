@@ -1349,7 +1349,7 @@ dict_stats_update_persistent(
 
 	if (index == NULL) {
 		/* Table definition is corrupt */
-		return DB_CORRUPTION;
+		return(DB_CORRUPTION);
 	}
 
 	dict_stats_analyze_index(index);
