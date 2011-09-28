@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# FIXME:  Solaris doesn't have whoami and "kill" doesn't work as used here.
+
 prefix=@CMAKE_INSTALL_PREFIX@
 bindir=@INSTALL_BINDIR@
 libexecdir=@INSTALL_SBINDIR@

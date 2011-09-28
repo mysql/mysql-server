@@ -99,6 +99,7 @@ class Record {
   /* Private methods */
   const Record & operator=(const Record &) const;
   void build_null_bitmap();
+  void pad_offset_for_alignment();
 };
 
 

@@ -26,28 +26,32 @@
 
 #include "ndbmemcache_global.h"
 
-// FOR INTEGER TYPES: x86 allows unaligned access, but most other machines do not.
-// FOR FLOATING POINT TYPES: access must be aligned on all architectures
-#define LOAD_UNALIGNED(Type, x, buf) \
+/* Assign x := *buf, assuming correct alignment */
+#define LOAD_ALIGNED_DATA(Type, x, buf) \
 Type x = *((Type *) buf);
 
-#define STORE_UNALIGNED(Type, x, buf) \
+/* Assign *buf := x, assuming correct alignment */
+#define STORE_ALIGNED_DATA(Type, x, buf) \
 *((Type *) buf) = (Type) x;
 
-#define LOAD_ALIGNED(Type, x, buf) \
+/* Assign x := *buf */
+#define ALIGN_AND_LOAD(Type, x, buf) \
 Type x; \
 memcpy(&x, buf, sizeof(x));
 
-#define STORE_ALIGNED(Type, x, buf) \
+/* Assign *buf := x */
+#define ALIGN_AND_STORE(Type, x, buf) \
 Type tmp_value = (Type) x; \
 memcpy(buf, &tmp_value, sizeof(tmp_value));
 
+// FOR INTEGER TYPES, x86 allows unaligned access, but most other machines do not.
+// (FOR FLOATING POINT TYPES: access must be aligned on all architectures)
 #if defined(__i386) || defined(__x86_64)
-#define LOAD_FOR_ARCHITECTURE LOAD_UNALIGNED
-#define STORE_FOR_ARCHITECTURE STORE_UNALIGNED 
+#define LOAD_FOR_ARCHITECTURE LOAD_ALIGNED_DATA
+#define STORE_FOR_ARCHITECTURE STORE_ALIGNED_DATA
 #else
-#define LOAD_FOR_ARCHITECTURE LOAD_ALIGNED
-#define STORE_FOR_ARCHITECTURE STORE_ALIGNED
+#define LOAD_FOR_ARCHITECTURE ALIGN_AND_LOAD
+#define STORE_FOR_ARCHITECTURE ALIGN_AND_STORE
 #endif
 
 
@@ -72,6 +76,7 @@ enum {  /* These can be returned by readFromNdb() or writeToNdb() */
    All functions return 1 on success and DTH_xxx values on error 
 */
 typedef struct {
+  int alignment;  //  specify 1-, 2-, or 4- byte alignment in record
   int (*read_int32)(Int32 & result, const void * const buf);
   int (*write_int32)(Int32 value, void * const buf);
 } NumericHandler;
