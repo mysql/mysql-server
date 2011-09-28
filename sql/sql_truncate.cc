@@ -252,7 +252,6 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
   handlerton *table_type= table->s->db_type();
-
   DBUG_ENTER("recreate_temporary_table");
 
   memset(&create_info, 0, sizeof(create_info));
