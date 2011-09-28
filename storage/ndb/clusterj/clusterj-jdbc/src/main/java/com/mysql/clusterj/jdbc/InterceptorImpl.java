@@ -17,8 +17,10 @@
 
 package com.mysql.clusterj.jdbc;
 
+import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.SessionFactory;
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
 import com.mysql.clusterj.core.spi.SessionSPI;
@@ -28,7 +30,10 @@ import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.jdbc.Connection;
 import com.mysql.jdbc.ResultSetInternalMethods;
+import com.mysql.jdbc.ServerPreparedStatement;
 import com.mysql.jdbc.Statement;
+import com.mysql.jdbc.ServerPreparedStatement.BatchedBindValues;
+import com.mysql.jdbc.ServerPreparedStatement.BindValue;
 import com.mysql.clusterj.jdbc.antlr.ANTLRNoCaseStringStream;
 import com.mysql.clusterj.jdbc.antlr.MySQL51Parser;
 import com.mysql.clusterj.jdbc.antlr.MySQL51Lexer;
@@ -40,6 +45,8 @@ import com.mysql.clusterj.jdbc.antlr.node.WhereNode;
 import com.mysql.clusterj.query.Predicate;
 
 import com.mysql.clusterj.jdbc.SQLExecutor.Executor;
+
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.util.ArrayList;
@@ -244,29 +251,45 @@ public class InterceptorImpl {
     public ResultSetInternalMethods preProcess(String sql, Statement statement,
             Connection connection) throws SQLException {
         assertReady();
+        if (logger.isDebugEnabled() && statement != null) 
+            logger.debug(statement.getClass().getName() + ": " + sql);
         if (statement instanceof com.mysql.jdbc.PreparedStatement) {
             com.mysql.jdbc.PreparedStatement preparedStatement =
                 (com.mysql.jdbc.PreparedStatement)statement;
             // key must be interned because we are using IdentityHashMap
-            String preparedSql = preparedStatement.getPreparedSql().intern();
+            // TODO: in case of DELETE, the SQL has already been rewritten at this point, 
+            // and the original SQL is gone
+            // so the key in the table is the rewritten DELETE SQL -- not what we want at all
+            String nonRewrittenSql = preparedStatement.getNonRewrittenSql();
+            String internedSql = nonRewrittenSql.intern();
+            
             // see if we have a parsed version of this query
             Executor sQLExecutor = null;
             synchronized(parsedSqlMap) {
-                sQLExecutor = parsedSqlMap.get(preparedSql);
+                sQLExecutor = parsedSqlMap.get(internedSql);
             }
             // if no cached SQLExecutor, create it, which might take some time
             if (sQLExecutor == null) {
-                sQLExecutor = createSQLExecutor(preparedSql);
+                sQLExecutor = createSQLExecutor(internedSql);
                 if (sQLExecutor != null) {
                     // multiple thread might have created a SQLExecutor but it's ok
                     synchronized(parsedSqlMap) {
-                        parsedSqlMap.put(preparedSql, sQLExecutor);
+                        parsedSqlMap.put(internedSql, sQLExecutor);
                     }
                 }
             }
-            return sQLExecutor.execute(this, preparedStatement.getParameterBindings());
+            try {
+                return sQLExecutor.execute(this, preparedStatement);
+            } catch (Throwable t) {
+                t.printStackTrace();
+                return null;
+            }
+        } else {
+            if (logger.isDebugEnabled() && statement != null) 
+                logger.debug(statement.getClass().getName() + " is not instanceof com.mysql.jdbc.PreparedStatement");
+            // not a prepared statement; won't execute this
+            return null;
         }
-        return null;
     }
 
     /**
@@ -323,6 +346,14 @@ public class InterceptorImpl {
                     result = new SQLExecutor.Noop();
                     break;
                 }
+                boolean forUpdate = null != (CommonTree)root.getFirstChildWithType(MySQL51Parser.FOR);
+                boolean lockShared = null != (CommonTree)root.getFirstChildWithType(MySQL51Parser.LOCK);
+                LockMode lockMode = LockMode.READ_COMMITTED;
+                if (forUpdate) {
+                    lockMode = LockMode.EXCLUSIVE;
+                } else if (lockShared) {
+                    lockMode = LockMode.SHARED;
+                }
                 getSession();
                 dictionary = session.getDictionary();
                 domainTypeHandler = getDomainTypeHandler(tableName, dictionary);
@@ -343,14 +374,15 @@ public class InterceptorImpl {
                 queryDomainType = (QueryDomainTypeImpl<?>) session.createQueryDomainType(domainTypeHandler);
                 if (whereNode == null) {
                     // no where clause (select all rows)
-                    result = new SQLExecutor.Select(domainTypeHandler, columnNames, queryDomainType);
+                    result = new SQLExecutor.Select(domainTypeHandler, columnNames, queryDomainType, lockMode);
                 } else {
                     // create a predicate from the tree
                     Predicate predicate = whereNode.getPredicate(queryDomainType);
                     if (predicate != null) {
                         // where clause that can be executed by clusterj
                         queryDomainType.where(predicate);
-                        result = new SQLExecutor.Select(domainTypeHandler, columnNames, queryDomainType);
+                        int numberOfParameters = whereNode.getNumberOfParameters();
+                        result = new SQLExecutor.Select(domainTypeHandler, columnNames, queryDomainType, lockMode, numberOfParameters);
                         whereType = "clusterj";
                     } else {
                         // where clause that cannot be executed by clusterj
@@ -461,7 +493,7 @@ public class InterceptorImpl {
         lexer.setErrorListener(new QueuingErrorListener(lexer));
         tokens.getTokens();
         if (lexer.getErrorListener().hasErrors()) {
-            logger.warn(local.message("ERR_Lexing_SQ",preparedSql));
+            logger.warn(local.message("ERR_Lexing_SQL",preparedSql));
             return result;
         }
         PlaceholderNode.resetId();

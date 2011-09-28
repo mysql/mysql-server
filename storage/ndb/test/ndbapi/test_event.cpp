@@ -168,7 +168,7 @@ Uint32 setAnyValue(Ndb* ndb, NdbTransaction* trans, int rowid, int updVal)
 {
   /* XOR 2 32bit words of transid together */
   Uint64 transId = trans->getTransactionId();
-  return transId ^ (transId >> 32);
+  return (Uint32)(transId ^ (transId >> 32));
 }
 
 bool checkAnyValueTransId(Uint64 transId, Uint32 anyValue)

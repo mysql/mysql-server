@@ -192,7 +192,7 @@ int main(int argc, char** argv){
     }
     HugoQueryBuilder builder(&MyNdb, tables.getBase(), mask);
     builder.setJoinLevel(_depth);
-    const NdbQueryDef * q = builder.createQuery(&MyNdb);
+    const NdbQueryDef * q = builder.createQuery();
     if (_verbose >= 2)
     {
       q->print(); ndbout << endl;

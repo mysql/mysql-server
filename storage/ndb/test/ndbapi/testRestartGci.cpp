@@ -546,7 +546,7 @@ int runUpdateVerifyGCI(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(rowGci != NULL);
 
     /* Define an update op to set the next GCI */
-    CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, loopCount+1) == 0);
+    CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, (int)(loopCount+1)) == 0);
 
     if (hugoOps.execute_Commit(pNdb) != 0)
     {
