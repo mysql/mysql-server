@@ -180,13 +180,6 @@
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
 
-#ifndef MCP_WL4784
-/*
-  no IO if read data when scan index
-  i.e index is covering
-*/
-#define HA_CLUSTERED_INDEX      512
-#endif
 
 /*
   bits in alter_table_flags:
@@ -414,32 +407,6 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
-
-#ifndef MCP_WL4784
-namespace AQP {
-  class Join_plan;
-};
-
-/* Flag used for for test_push_flag() */
-enum ha_push_flag {
-
-  /* Handler want to block const table optimization */
-  HA_PUSH_BLOCK_CONST_TABLE
-
-  /* Handler reports a pushed join as having multiple dependencies 
-     if its results does not only depend on the root operation:
-     ie. results from some child operations does not only depend
-     on results from the root operation and/or other child operations
-     within this pushed join 
-   */
-  ,HA_PUSH_MULTIPLE_DEPENDENCY
-
-  /* Handler is unable to return the result in sorted order using an
-     ordered index on the parent operation.
-   */
-  ,HA_PUSH_NO_ORDERED_INDEX
-};
-#endif
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -848,10 +815,6 @@ struct handlerton
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
 
-#ifndef MCP_WL4784
-   int (*make_pushed_join)(handlerton *hton, THD* thd,
-                           AQP::Join_plan* plan);
-#endif
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
    int (*global_schema_func)(THD* thd, bool lock, void* args);
 #endif
@@ -2232,41 +2195,6 @@ public:
 
  virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
 
-#ifndef MCP_WL4784
-  /**
-    Reports #tables included in pushed join which this
-    handler instance is part of. ==0 -> Not pushed
-  */
-  virtual uint number_of_pushed_joins() const
-  { return 0; }
-
-  /**
-    If this handler instance is part of a pushed join sequence
-    returned TABLE instance being root of the pushed query?
-  */
-  virtual const TABLE* root_of_pushed_join() const
-  { return NULL; }
-
-  /**
-    If this handler instance is a child in a pushed join sequence
-    returned TABLE instance being my parent?
-  */
-  virtual const TABLE* parent_of_pushed_join() const
-  { return NULL; }
-
-  virtual bool test_push_flag(enum ha_push_flag flag) const
-  {
-    return FALSE;
-  }
-
-  virtual int index_read_pushed(uchar * buf, const uchar * key,
-                             key_part_map keypart_map)
-  { return  HA_ERR_WRONG_COMMAND; }
-
-  virtual int index_next_pushed(uchar * buf)
-  { return  HA_ERR_WRONG_COMMAND; }
-#endif
-
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
@@ -2658,11 +2586,6 @@ int ha_enable_transaction(THD *thd, bool on);
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
-
-#ifndef MCP_WL4784
-/* Build pushed joins in handlers implementing this feature */
-int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan);
-#endif
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);
