@@ -4683,7 +4683,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  thd->thd_marker.emb_on_expr_nest= NULL;
   if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   {
     if (lex->describe)
@@ -5506,7 +5505,6 @@ void THD::reset_for_next_command()
   thd->get_stmt_da()->reset_for_next_command();
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
