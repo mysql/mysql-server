@@ -113,9 +113,6 @@ class Master_info : public Slave_reporting_capability
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
 
-#ifndef MCP_WL4080
-  uint64 master_epoch;
-#endif
 #ifndef MCP_WL3127
   char bind_addr[HOSTNAME_LENGTH+1];
 #endif
