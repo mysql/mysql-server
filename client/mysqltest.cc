@@ -1361,7 +1361,14 @@ static void cleanup_and_exit(int exit_code)
     }
   }
 
+  /* exit() appears to be not 100% reliable on Windows under some conditions */
+#ifdef __WIN__
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
+#else
   exit(exit_code);
+#endif
 }
 
 void print_file_stack()
