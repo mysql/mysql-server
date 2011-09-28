@@ -170,6 +170,7 @@ TEST_F(TraceContentTest, NormalUsage)
       }
       ota.add_alnum("one string element");
       ota.add(true);
+      ota.add_hex(12318421343459ULL);
     }
     oto.add("yet another key", -1000LL);
     {
@@ -192,7 +193,8 @@ TEST_F(TraceContentTest, NormalUsage)
     "      \"another key\": 100\n"
     "    },\n"
     "    \"one string element\",\n"
-    "    true\n"
+    "    true,\n"
+    "    0x0b341b20dce3\n"
     "  ] /* one array */,\n"
     "  \"yet another key\": -1000,\n"
     "  \"another array\": [\n"
