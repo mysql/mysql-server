@@ -38,6 +38,10 @@
 #include <sys/procset.h>
 #endif
 
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+#include "NdbMutex_DeadlockDetector.h"
+#endif
+
 static int g_min_prio = 0;
 static int g_max_prio = 0;
 static int g_prio = 0;
@@ -65,6 +69,9 @@ struct NdbThread
   char thread_name[16];
   NDB_THREAD_FUNC * func;
   void * object;
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  struct ndb_mutex_thr_state m_mutex_thr_state;
+#endif
 };
 
 #ifdef NDB_SHM_TRANSPORTER
@@ -141,6 +148,11 @@ ndb_thread_wrapper(void* _ss){
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
       settid(ss);
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+      ndb_mutex_thread_init(&ss->m_mutex_thr_state);
+#endif
+
       NdbMutex_Lock(g_ndb_thread_mutex);
       ss->inited = 1;
       NdbCondition_Signal(g_ndb_thread_condition);
@@ -154,12 +166,22 @@ ndb_thread_wrapper(void* _ss){
   }
 }
 
+static struct NdbThread* g_main_thread = 0;
 
 struct NdbThread*
 NdbThread_CreateObject(const char * name)
 {
   struct NdbThread* tmpThread;
   DBUG_ENTER("NdbThread_Create");
+
+  if (g_main_thread != 0)
+  {
+    if (name)
+    {
+      strnmov(g_main_thread->thread_name, name, sizeof(tmpThread->thread_name));
+    }
+    DBUG_RETURN(g_main_thread);
+  }
 
   tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
   if (tmpThread == NULL)
@@ -183,7 +205,12 @@ NdbThread_CreateObject(const char * name)
   settid(tmpThread);
   tmpThread->inited = 1;
 
-  return tmpThread;
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  ndb_mutex_thread_init(&tmpThread->m_mutex_thr_state);
+#endif
+
+  g_main_thread = tmpThread;
+  DBUG_RETURN(tmpThread);
 }
 
 struct NdbThread*
@@ -239,7 +266,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->object= p_thread_arg;
 
   NdbMutex_Lock(g_ndb_thread_mutex);
-  result = pthread_create(&tmpThread->thread, 
+  result = pthread_create(&tmpThread->thread,
 			  &thread_attr,
   		          ndb_thread_wrapper,
   		          tmpThread);
@@ -250,7 +277,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   {
     NdbMem_Free((char *)tmpThread);
     NdbMutex_Unlock(g_ndb_thread_mutex);
-    return 0;
+    DBUG_RETURN(0);
   }
 
   if (thread_prio == NDB_THREAD_PRIO_HIGH && f_high_prio_set)
@@ -471,7 +498,11 @@ NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
   return error_no;
 }
 
+#ifndef NDB_MUTEX_DEADLOCK_DETECTOR
 static pthread_key(void*, tls_keys[NDB_THREAD_TLS_MAX]);
+#else
+static pthread_key(void*, tls_keys[NDB_THREAD_TLS_MAX + 1]);
+#endif
 
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key)
 {
@@ -490,6 +521,10 @@ NdbThread_Init()
   g_ndb_thread_condition = NdbCondition_Create();
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_MAX]), NULL);
+#endif
+  NdbThread_CreateObject(0);
   return 0;
 }
 
