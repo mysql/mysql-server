@@ -304,14 +304,6 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 
-#ifndef MCP_WL4784
-/*
-  no IO if read data when scan index
-  i.e index is covering
-*/
-#define HA_CLUSTERED_INDEX      256
-#endif
-
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
 #define HA_KEY_SWITCH_ALL          1
