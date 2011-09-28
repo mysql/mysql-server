@@ -206,11 +206,12 @@ foreach my $option (@ARGV)
                  ($option =~ /enable/ ? "1" : "0");
     next;
   }
-  if ($option =~ /with-gcov/)
+  if ($option =~ /with-comment=/)
   {
-      $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
-      next;
+    $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
+    next;
   }
+#ifndef MCP_NDB_BUILD_INTEGRATION
   if ($option =~ /with-classpath=/)
   {
     $cmakeargs = $cmakeargs." \"-DWITH_CLASSPATH=".substr($option,15)."\"";
@@ -225,6 +226,12 @@ foreach my $option (@ARGV)
   {
     $cmakeargs = $cmakeargs." \"-DWITH_NDB_CCFLAGS=".substr($option,17)."\"";
     next;
+  }
+#endif
+  if ($option =~ /with-gcov/)
+  {
+      $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
+      next;
   }
 
   $option = uc($option);
