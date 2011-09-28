@@ -281,7 +281,7 @@ namespace AQP
 
       case AT_TABLE_SCAN:
         DBUG_ASSERT(get_join_tab()->table->file->stats.records>0.0);
-        return get_join_tab()->table->file->stats.records;
+        return static_cast<double>(get_join_tab()->table->file->stats.records);
 
       default:
         return 99999999.0;
