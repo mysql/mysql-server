@@ -130,17 +130,16 @@ template<typename T> int dth_encode_fp(ENCODE_ARGS);
 impl_writeToNdb dth_encode_decimal;
 
 /* Native Numeric Handlers */
-NumericHandler dth_native_int8   = {1, dth_read32<Int8>,  dth_write32<Int8>  };
-NumericHandler dth_native_int16  = {2, dth_read32<Int16>, dth_write32<Int16> };
-NumericHandler dth_native_int32  = {4, dth_read32<Int32>, dth_write32<Int32> };
-NumericHandler dth_native_uint8  = {1, dth_read32<Uint8>,  dth_write32<Uint8> };
-NumericHandler dth_native_uint16 = {2, dth_read32<Uint16>, dth_write32<Uint16>};
-NumericHandler dth_native_uint32 = {4, dth_read32<Uint32>, dth_write32<Uint32>};
-NumericHandler dth_native_year   = {1, dth_read32_year, dth_write32_year };
-NumericHandler dth_native_medium = {1, dth_read32_medium, dth_write32_medium };
+NumericHandler dth_native_int8   = { dth_read32<Int8>,  dth_write32<Int8>  };
+NumericHandler dth_native_int16  = { dth_read32<Int16>, dth_write32<Int16> };
+NumericHandler dth_native_int32  = { dth_read32<Int32>, dth_write32<Int32> };
+NumericHandler dth_native_uint8  = { dth_read32<Uint8>,  dth_write32<Uint8> };
+NumericHandler dth_native_uint16 = { dth_read32<Uint16>, dth_write32<Uint16>};
+NumericHandler dth_native_uint32 = { dth_read32<Uint32>, dth_write32<Uint32>};
+NumericHandler dth_native_year   = { dth_read32_year, dth_write32_year };
+NumericHandler dth_native_medium = { dth_read32_medium, dth_write32_medium };
 NumericHandler dth_native_medium_unsigned = 
-                 { 1, dth_read32_medium_unsigned, dth_write32_medium_unsigned };
-NumericHandler dth_native_64     = {8, NULL, NULL };                 
+                 { dth_read32_medium_unsigned, dth_write32_medium_unsigned };
 
 
 /***** Singleton Handlers *****/
@@ -220,7 +219,7 @@ DataTypeHandler Handler_Bigint = {
   dth_decode_bigint,
   dth_length_s<Int64>,
   dth_encode_bigint,
-  & dth_native_64, 
+  0, 
   false
 };
 
@@ -260,7 +259,7 @@ DataTypeHandler Handler_BigIntUnsigned = {
   dth_decode_ubigint,
   dth_length_u<Uint64>,
   dth_encode_ubigint,
-  & dth_native_64,   /* also see setUint64Value() in Record.cc */
+  0,   /* but see setUint64Value() in Record.cc */
   false
 };
 
@@ -1042,8 +1041,8 @@ int dth_decode_datetime(const NdbDictionary::Column *, char * &str, const void *
   Int32 int_date, int_time;
   time_helper tm = { 0,0,0,0,0,0,0, false };
   
-  /* Read the datetime from the buffer.  It may not be aligned.  */
-  LOAD_FOR_ARCHITECTURE(Uint64, int_datetime, buf);
+  /* Read the datetime from the buffer. */
+  LOAD_ALIGNED_DATA(Uint64, int_datetime, buf);
   
   /* Factor it out */
   int_date = int_datetime / 1000000;
@@ -1072,7 +1071,7 @@ int dth_encode_datetime(const NdbDictionary::Column *, size_t len,
   if(! safe_strtoull(copybuff.ptr, &int_datetime)) return DTH_NUMERIC_OVERFLOW;
   
   /* Store it */
-  STORE_FOR_ARCHITECTURE(Uint64, int_datetime, buf);
+  STORE_ALIGNED_DATA(Uint64, int_datetime, buf);
   
   return 1;
 }
@@ -1087,7 +1086,7 @@ int dth_encode_datetime(const NdbDictionary::Column *, size_t len,
 */ 
 int dth_decode_float(const NdbDictionary::Column *col, 
                      char * &str, const void *buf) {
-  ALIGN_AND_LOAD(float, fval, buf);
+  LOAD_ALIGNED_DATA(float, fval, buf);
 
   double dval = fval;
   return sprintf(str, "%G", dval);
@@ -1096,21 +1095,21 @@ int dth_decode_float(const NdbDictionary::Column *col,
 size_t dth_length_float(const NdbDictionary::Column *col,
                         const void *buf) {
   char stack_copy[16];
-  ALIGN_AND_LOAD(float, fval, buf);
+  LOAD_ALIGNED_DATA(float, fval, buf);
   double dval = fval;
   return snprintf(stack_copy, 16, "%G", dval);
 }
 
 int dth_decode_double(const NdbDictionary::Column *col, 
                      char * &str, const void *buf) {
-  ALIGN_AND_LOAD(double, dval, buf);
+  LOAD_ALIGNED_DATA(double, dval, buf);
   return sprintf(str, "%.10F", dval);
 }
 
 size_t dth_length_double(const NdbDictionary::Column *col,
                          const void *buf) {
   char stack_copy[30];
-  ALIGN_AND_LOAD(double, dval, buf);
+  LOAD_ALIGNED_DATA(double, dval, buf);
   return snprintf(stack_copy, 30, "%.10F", dval);
 }
 
@@ -1124,7 +1123,7 @@ template <typename FPTYPE> int dth_encode_fp(const NdbDictionary::Column *col,
     return DTH_NUMERIC_OVERFLOW;
   }
   
-  ALIGN_AND_STORE(FPTYPE, dval, buf);
+  STORE_ALIGNED_DATA(FPTYPE, dval, buf);
   return len;
 }
 

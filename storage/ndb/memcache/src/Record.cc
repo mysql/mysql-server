@@ -293,14 +293,17 @@ void Record::pad_offset_for_alignment() {
   if(index == map[COL_STORE_CAS]) {  // CAS column requires 8-byte alignment
     alignment = 8;
   }
-  else if(handlers[index]->native_handler) {
-    alignment = handlers[index]->native_handler->alignment;
+  else if(! handlers[index]->contains_string) {
+    alignment = specs[index].column->getSize();
   }
-  
-  /* Insert padding */
-  if(alignment > 1) {  
-    int bad_offset = rec_size % alignment;
-    if(bad_offset) 
-      rec_size += (alignment - bad_offset);
+
+  switch(alignment) {
+    case 2: case 4: case 8: case 16:  /* insert padding */
+      int bad_offset = rec_size % alignment;
+      if(bad_offset) 
+        rec_size += (alignment - bad_offset);
+      break;
+    default:
+      break;
   }
 }
