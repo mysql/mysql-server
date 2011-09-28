@@ -20,11 +20,25 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#ifndef MYSQL_SERVER
+#define MYSQL_SERVER
+#endif
+
 #include "sql_priv.h"
 #include "sql_select.h"
 #include "abstract_query_plan.h"
 
 
+#ifdef NDB_WITHOUT_JOIN_PUSHDOWN
+static bool
+test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
+			bool no_changes, const key_map *map)
+{
+  // Stub used when compiling AQP as part of ndbcluster, never called 
+  assert(false);
+  return false;
+}
+#endif
 
 namespace AQP
 {
