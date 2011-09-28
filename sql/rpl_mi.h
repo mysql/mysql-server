@@ -109,10 +109,6 @@ public:
   char master_uuid[UUID_LENGTH+1];
   char bind_addr[HOSTNAME_LENGTH+1];
 
-#ifndef MCP_WL4080
-  uint64 master_epoch;
-#endif
-
   int init_info();
   void end_info();
   int flush_info(bool force= FALSE);
