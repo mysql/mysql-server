@@ -281,7 +281,7 @@ Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
 /**
   This class determines the optimal join order for tables within
   a basic query block, ie a query specification clause, possibly extended
-  /  with semi-joined tables from embedded subqueries.
+  with semi-joined tables from embedded subqueries.
 
   This class takes as prerequisite a join class where all dependencies among
   tables have been sorted out, all possible access paths have been
