@@ -32,6 +32,8 @@ int g_ndb_init_need_monotonic = 0;
 
 static int ndb_init_called = 0;
 
+extern "C" void NdbMutex_SysInit();
+extern "C" void NdbMutex_SysEnd();
 extern "C" void NdbCondition_initialize(int need_monotonic);
 extern "C" void NdbTick_Init(int need_monotonic);
 extern "C" int NdbThread_Init();
@@ -45,6 +47,7 @@ void
 ndb_init_internal()
 {
   NdbOut_Init();
+  NdbMutex_SysInit();
   if (!g_ndb_connection_mutex)
     g_ndb_connection_mutex = NdbMutex_Create();
   if (!g_eventLogger)
@@ -88,7 +91,6 @@ ndb_init()
 void
 ndb_end_internal()
 {
-  NdbThread_End();
   if (g_ndb_connection_mutex) 
   {
     NdbMutex_Destroy(g_ndb_connection_mutex);
@@ -96,6 +98,9 @@ ndb_end_internal()
   }
   if (g_eventLogger)
     destroy_event_logger(&g_eventLogger);
+
+  NdbThread_End();
+  NdbMutex_SysEnd();
 }
 
 void

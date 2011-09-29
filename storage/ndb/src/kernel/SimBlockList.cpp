@@ -49,6 +49,8 @@
 #include <BackupProxy.hpp>
 #include <RestoreProxy.hpp>
 #include <PgmanProxy.hpp>
+#include <DbtcProxy.hpp>
+#include <DbspjProxy.hpp>
 #include <mt.hpp>
 
 #ifndef VM_TRACE
@@ -128,7 +130,10 @@ SimBlockList::load(EmulatorData& data){
     theList[8]  = NEW_BLOCK(Dblqh)(ctx);
   else
     theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
-  theList[9]  = NEW_BLOCK(Dbtc)(ctx);
+  if (globalData.ndbMtTcThreads == 0)
+    theList[9]  = NEW_BLOCK(Dbtc)(ctx);
+  else
+    theList[9] = NEW_BLOCK(DbtcProxy)(ctx);
   if (!mtLqh)
     theList[10] = NEW_BLOCK(Dbtup)(ctx);
   else
@@ -151,17 +156,11 @@ SimBlockList::load(EmulatorData& data){
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   theList[19] = NEW_BLOCK(Dbinfo)(ctx);
-  theList[20]  = NEW_BLOCK(Dbspj)(ctx);
+  if (globalData.ndbMtTcThreads == 0)
+    theList[20]  = NEW_BLOCK(Dbspj)(ctx);
+  else
+    theList[20]  = NEW_BLOCK(DbspjProxy)(ctx);
   assert(NO_OF_BLOCKS == 21);
-
-  if (globalData.isNdbMt) {
-    add_main_thr_map();
-    if (globalData.isNdbMtLqh) {
-      for (int i = 0; i < noOfBlocks; i++)
-        theList[i]->loadWorkers();
-    }
-    finalize_thr_map();
-  }
 
   // Check that all blocks could be created
   for (int i = 0; i < noOfBlocks; i++)
@@ -171,6 +170,14 @@ SimBlockList::load(EmulatorData& data){
       ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
                 "Failed to create block", "");
     }
+  }
+
+  if (globalData.isNdbMt)
+  {
+    add_main_thr_map();
+    for (int i = 0; i < noOfBlocks; i++)
+      theList[i]->loadWorkers();
+    finalize_thr_map();
   }
 }
 
