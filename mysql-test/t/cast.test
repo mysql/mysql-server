@@ -407,3 +407,8 @@ insert into t1 values ('11:22:33','2011-12-13','2011-12-13 11:22:33');
 select cast(f1 as unsigned), cast(f2 as unsigned), cast(f3 as unsigned) from t1;
 drop table t1;
 
+#
+# CAST(... AS DATE) and invalid dates
+#
+SELECT CAST(TIME('10:20:30') AS DATE) + INTERVAL 1 DAY;
+

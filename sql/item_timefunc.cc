@@ -2304,7 +2304,17 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     return 1;
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return 0;
+
+  int unused;
+  if (check_date(ltime, ltime->year || ltime->month || ltime->day,
+                 fuzzy_date, &unused))
+  {
+    Lazy_string_time str(ltime);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 &str, MYSQL_TIMESTAMP_DATE, 0);
+    return (null_value= 1);
+  }
+  return (null_value= 0);
 }
 
 

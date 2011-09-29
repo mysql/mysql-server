@@ -733,3 +733,8 @@ select cast(f1 as unsigned), cast(f2 as unsigned), cast(f3 as unsigned) from t1;
 cast(f1 as unsigned)	cast(f2 as unsigned)	cast(f3 as unsigned)
 112233	20111213	20111213112233
 drop table t1;
+SELECT CAST(TIME('10:20:30') AS DATE) + INTERVAL 1 DAY;
+CAST(TIME('10:20:30') AS DATE) + INTERVAL 1 DAY
+NULL
+Warnings:
+Warning	1292	Truncated incorrect date value: '0000-00-00'

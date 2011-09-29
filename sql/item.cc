@@ -5982,7 +5982,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_TIMESTAMP:
   {
     MYSQL_TIME tm;
-    get_date(&tm, TIME_FUZZY_DATE);
+    get_date(&tm, TIME_FUZZY_DATE | sql_mode_for_dates());
     if (!null_value)
     {
       if (f_type == MYSQL_TYPE_DATE)
