@@ -6074,11 +6074,15 @@ Options to run test on running server
 
 Options for debugging the product
 
+  boot-dbx              Start bootstrap server in dbx
+  boot-ddd              Start bootstrap server in ddd
+  boot-gdb              Start bootstrap server in gdb
+  client-dbx            Start mysqltest client in dbx
   client-ddd            Start mysqltest client in ddd
   client-debugger=NAME  Start mysqltest in the selected debugger
   client-gdb            Start mysqltest client in gdb
-  client-dbx            Start mysqltest client in dbx
-  ddd                   Start mysqld in ddd
+  dbx                   Start the mysqld(s) in dbx
+  ddd                   Start the mysqld(s) in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
                         "query,info,error,enter,exit"
@@ -6086,7 +6090,6 @@ Options for debugging the product
                         tracing
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
-  dbx                   Start the mysqld(s) in dbx
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
