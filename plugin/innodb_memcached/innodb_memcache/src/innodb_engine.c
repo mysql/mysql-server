@@ -171,6 +171,10 @@ innodb_initialize(
 
 	innodb_eng->enable_binlog = my_eng_config->enable_binlog;
 
+	if (innodb_eng->enable_binlog) {
+		innodb_eng->enable_binlog = innodb_cb_binlog_enabled();
+	}
+
 	UT_LIST_INIT(innodb_eng->conn_data);
 	pthread_mutex_init(&innodb_eng->conn_mutex, NULL);
 

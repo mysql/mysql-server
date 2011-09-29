@@ -55,6 +55,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #error IB_TRUE != TRUE or IB_FALSE != FALSE
 #endif
 
+my_bool ib_binlog_enabled = FALSE;
 
 /* Protected by the schema lock */
 typedef struct ib_db_format_t {
@@ -3630,3 +3631,15 @@ ib_close_thd(
 
 	return(DB_SUCCESS);
 }
+/*****************************************************************//**
+Check whether binlog is enabled (innodb_direct_access_enable_binlog
+is set to TRUE)
+@return TRUE if enabled */
+UNIV_INTERN
+int
+ib_is_binlog_enabled()
+/*==================*/
+{
+	return((int) ib_binlog_enabled);
+}
+

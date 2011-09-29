@@ -81,6 +81,7 @@ extern "C" {
 #include "dict0dict.h"
 #include "srv0mon.h"
 #include "api0api.h"
+#include "api0misc.h"
 }
 
 #include "ha_innodb.h"
@@ -173,7 +174,6 @@ static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
-
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -420,7 +420,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
-	(ib_cb_t) ib_close_thd
+	(ib_cb_t) ib_close_thd,
+	(ib_cb_t) ib_is_binlog_enabled
 };
 	
 /** "GEN_CLUST_INDEX" is the name reserved for Innodb default
@@ -12902,6 +12903,11 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(direct_access_enable_binlog, ib_binlog_enabled,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable binlog for applications direct access InnoDB through InnoDB APIs",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
   "Buffer changes to reduce random access: "
@@ -12991,6 +12997,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(direct_access_enable_binlog),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),
