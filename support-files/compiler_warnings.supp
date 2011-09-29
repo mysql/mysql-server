@@ -120,17 +120,17 @@ mysql/readline.cc : C4101: 'input_file_stat' : unreferenced local variable
 #
 # 
 #
-.*/sys_vars.h: C4244 .* conversion .* possible loss of data
-.*/mi_dynrec.c : C4244 .* conversion .* possible loss of data
-.*/mi_check.c : C4244 .* conversion .* possible loss of data
-.*/sys_vars.cc : C4244 .* conversion .* possible loss of data
-.*/partition_info.cc : C4244 .* conversion .* possible loss of data
-.*/sql_time.cc : C4244 .* conversion .* possible loss of data
-.*/sql_view.cc : C4244 .* conversion .* possible loss of data
-.*/event_db_repository.cc : C4244 .* conversion .* possible loss of data
-.*/sql_trigger.cc : C4244 .* conversion .* possible loss of data
-.*/sql_table.cc : C4244 .* conversion .* possible loss of data
-.*/sql_show.cc : C4244 .* conversion .* possible loss of data
+.*/sys_vars.h             : .*C4244.* conversion .* possible loss of data
+.*/mi_dynrec.c            : .*C4244.* conversion .* possible loss of data
+.*/mi_check.c             : .*C4244.* conversion .* possible loss of data
+.*/sys_vars.cc            : .*C4244.* conversion .* possible loss of data
+.*/partition_info.cc      : .*C4244.* conversion .* possible loss of data
+.*/sql_time.cc            : .*C4244.* conversion .* possible loss of data
+.*/sql_view.cc            : .*C4244.* conversion .* possible loss of data
+.*/event_db_repository.cc : .*C4244.* conversion .* possible loss of data
+.*/sql_trigger.cc         : .*C4244.* conversion .* possible loss of data
+.*/sql_table.cc           : .*C4244.* conversion .* possible loss of data
+.*/sql_show.cc            : .*C4244.* conversion .* possible loss of data
 
 
 # const qualifiers
