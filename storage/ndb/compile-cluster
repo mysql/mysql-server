@@ -92,7 +92,7 @@ my $cmake_version_id;
 
   if ($opt_build_type)
   {
-    push(@opt_build_type_arg, "--cmake-args=-G \"" . $opt_build_type . "\"");
+    push(@opt_build_type_arg, "--cmake-args=\"-G " . $opt_build_type . "\"");
   }
 
   cmd($^X, @args, @ARGV, @opt_build_type_arg);
