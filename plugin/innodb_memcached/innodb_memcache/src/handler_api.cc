@@ -51,6 +51,8 @@ handler_create_thd(void)
 	threads.append(thd);
 	mysql_mutex_unlock(&LOCK_thread_count);
 
+	thd->binlog_setup_trx_data();
+
 	/* set binlog_format to "ROW" */
 	thd->set_current_stmt_binlog_format_row();
 
