@@ -37,7 +37,7 @@ typedef   signed __int64 Int64;
 #else
 typedef unsigned long long Uint64;
 typedef   signed long long Int64;
-#define NDB_EXPORT __attribute__ ((visibility ("default")))
+#define NDB_EXPORT
 #endif
 
 typedef   signed char  Int8;

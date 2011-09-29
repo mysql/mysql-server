@@ -28,7 +28,7 @@ class PollGuard;
  * @class NdbScanOperation
  * @brief Class of scan operations for use in transactions.  
  */
-class NDB_EXPORT NdbScanOperation : public NdbOperation {
+class NdbScanOperation : public NdbOperation {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
   friend class NdbTransaction;

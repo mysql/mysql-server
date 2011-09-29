@@ -103,7 +103,7 @@ class NdbQueryOperationImpl;
  * possible to mix the usage of global and local cursors.
  *
  ************************************************************************/
-class NDB_EXPORT NdbQuery
+class NdbQuery
 {
 private:
   // Only constructable through ::buildQuery() 
@@ -228,7 +228,7 @@ private:
 
 
 
-class NDB_EXPORT NdbQueryOperation
+class NdbQueryOperation
 {
 private:
   // Only constructable through executing a NdbQueryDef
@@ -445,7 +445,7 @@ private:
 }; // class NdbQueryOperation
 
  
-class NDB_EXPORT NdbQueryParamValue
+class NdbQueryParamValue
 {
 public:
 

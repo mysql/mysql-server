@@ -70,7 +70,7 @@ extern "C" {
    */
   NDB_SOCKET_TYPE ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
 
-  NDB_EXPORT int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
+  int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
 
   /**
    * Set configuration
