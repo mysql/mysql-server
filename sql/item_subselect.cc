@@ -3369,14 +3369,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   if (!(tmp_tab->ref.key_buff=
         (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
       !(tmp_tab->ref.key_copy=
-        (store_key**) thd->alloc((sizeof(store_key*) *
-                                  (tmp_key_parts + 1)))) ||
+        (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
       !(tmp_tab->ref.items=
         (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
     DBUG_RETURN(TRUE);
 
-  KEY_PART_INFO *cur_key_part= tmp_key->key_part;
-  store_key **ref_key= tmp_tab->ref.key_copy;
   uchar *cur_ref_buff= tmp_tab->ref.key_buff;
 
   /*
@@ -3409,16 +3406,20 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   context->first_name_resolution_table=
     context->last_name_resolution_table= tmp_table_ref;
   
-  for (uint i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
+  KEY_PART_INFO *key_parts= tmp_key->key_part;
+  for (uint part_no= 0; part_no < tmp_key_parts; part_no++)
   {
-    Item_func_eq *eq_cond; /* New equi-join condition for the current column. */
+    /* New equi-join condition for the current column. */
+    Item_func_eq *eq_cond; 
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
-    int null_count= test(cur_key_part->field->real_maybe_null());
-    tmp_tab->ref.items[i]= item_in->left_expr->element_index(i);
+    int null_count= test(key_parts[part_no].field->real_maybe_null());
+    tmp_tab->ref.items[part_no]= item_in->left_expr->element_index(part_no);
 
-    if (!(right_col_item= new Item_field(thd, context, cur_key_part->field)) ||
-        !(eq_cond= new Item_func_eq(tmp_tab->ref.items[i], right_col_item)) ||
+    if (!(right_col_item= new Item_field(thd, context, 
+                                         key_parts[part_no].field)) ||
+        !(eq_cond= new Item_func_eq(tmp_tab->ref.items[part_no],
+                                    right_col_item)) ||
         ((Item_cond_and*)cond)->add(eq_cond))
     {
       delete cond;
@@ -3426,19 +3427,20 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       DBUG_RETURN(TRUE);
     }
 
-    *ref_key= new store_key_item(thd, cur_key_part->field,
-                                 /* TODO:
-                                    the NULL byte is taken into account in
-                                    cur_key_part->store_length, so instead of
-                                    cur_ref_buff + test(maybe_null), we could
-                                    use that information instead.
-                                 */
-                                 cur_ref_buff + null_count,
-                                 null_count ? cur_ref_buff : 0,
-                                 cur_key_part->length, tmp_tab->ref.items[i]);
-    cur_ref_buff+= cur_key_part->store_length;
+    tmp_tab->ref.key_copy[part_no]= 
+      new store_key_item(thd, key_parts[part_no].field,
+                         /* TODO:
+                            the NULL byte is taken into account in
+                            key_parts[part_no].store_length, so instead of
+                            cur_ref_buff + test(maybe_null), we could
+                            use that information instead.
+                         */
+                         cur_ref_buff + null_count,
+                         null_count ? cur_ref_buff : 0,
+                         key_parts[part_no].length,
+                         tmp_tab->ref.items[part_no]);
+    cur_ref_buff+= key_parts[part_no].store_length;
   }
-  *ref_key= NULL; /* End marker. */
   tmp_tab->ref.key_err= 1;
   tmp_tab->ref.key_parts= tmp_key_parts;
 
