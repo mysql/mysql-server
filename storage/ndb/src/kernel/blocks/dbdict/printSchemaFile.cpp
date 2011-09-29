@@ -244,7 +244,7 @@ NDB_COMMAND(printSchemafile,
       exitcode = 1;
       continue;
     }
-    const Uint32 bytes = sbuf.st_size;
+    const Uint32 bytes = (Uint32)sbuf.st_size;
     
     Uint32 * buf = new Uint32[bytes/4+1];
     
