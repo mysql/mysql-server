@@ -313,8 +313,8 @@ bool Configuration::fetch_meta_record(QueryPlan *plan, const char *version) {
 
   Operation op(plan, OP_READ);
 
-  op.key_buffer = new char[op.requiredKeyBuffer()];
-  op.buffer = new char[op.requiredBuffer()];
+  op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
+  op.buffer     = (char *) malloc(op.requiredBuffer());
   
   NdbTransaction *tx = db->startTransaction();
 
@@ -326,8 +326,8 @@ bool Configuration::fetch_meta_record(QueryPlan *plan, const char *version) {
     result = true;
   tx->close();
   
-  delete[] op.key_buffer;
-  delete[] op.buffer;
+  free(op.key_buffer);
+  free(op.buffer);
   return result;
 }
 
