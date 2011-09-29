@@ -1314,6 +1314,7 @@ mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-test/*.ds?
 mysql-test/*.vcproj
 mysql-test/.DS_Store
+mysql-test/collections/default.release
 mysql-test/funcs_1.log
 mysql-test/funcs_1.tar
 mysql-test/gmon.out
