@@ -299,7 +299,7 @@ void Record::pad_offset_for_alignment() {
   }
 
   switch(alignment) {
-    case 2: case 4: case 8: case 16:  /* insert padding */
+    case 2: case 4: case 8:   /* insert padding */
       bad_offset = rec_size % alignment;
       if(bad_offset) 
         rec_size += (alignment - bad_offset);

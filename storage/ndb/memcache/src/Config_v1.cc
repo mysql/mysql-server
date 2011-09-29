@@ -200,8 +200,8 @@ int config_v1::get_server_role_id() {
   QueryPlan plan(conf.db, &spec); 
   Operation op(&plan, OP_READ);
   
-  op.key_buffer = new char[op.requiredKeyBuffer()];
-  op.buffer = new char[op.requiredBuffer()];
+  op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
+  op.buffer =     (char *) malloc(op.requiredBuffer());
   NdbTransaction *tx = conf.db->startTransaction();
   
   op.clearKeyNullBits();
@@ -219,8 +219,8 @@ int config_v1::get_server_role_id() {
   }
   
   tx->close();
-  delete[] op.key_buffer;
-  delete[] op.buffer;
+  free(op.key_buffer);
+  free(op.buffer);
   
   DEBUG_PRINT("Name: \"%s\" -- ID: %d", conf.server_role, val);
   return val;
@@ -390,8 +390,8 @@ TableSpec * config_v1::get_container_record(char *name) {
   QueryPlan plan(conf.db, &spec); 
   Operation op(&plan, OP_READ);
   
-  op.key_buffer = new char[op.requiredKeyBuffer()];
-  op.buffer = new char[op.requiredBuffer()];
+  op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
+  op.buffer     = (char *) malloc(op.requiredBuffer());
   NdbTransaction *tx = conf.db->startTransaction();
   
   op.clearKeyNullBits();
@@ -458,8 +458,8 @@ TableSpec * config_v1::get_container_record(char *name) {
   }
   
   tx->close();
-  delete[] op.key_buffer;
-  delete[] op.buffer;
+  free(op.key_buffer);
+  free(op.buffer);
   
   return container;
 }
@@ -483,7 +483,7 @@ bool config_v1::get_prefixes(int role_id) {
   
   // `server_role_id` INT UNSIGNED NOT NULL DEFAULT 0,
   // PRIMARY KEY (`server_role_id`, `key_prefix`) )
-  op.key_buffer = new char[op.requiredKeyBuffer()];
+  op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.setKeyPartInt(COL_STORE_KEY, role_id);
   
   NdbIndexScanOperation::IndexBound bound;
@@ -524,7 +524,7 @@ bool config_v1::get_prefixes(int role_id) {
       if(! container_spec) {
         logger->log(LOG_WARNING, 0, "Cannot find container \"%s\" for "
                     "key prefix \"%s\".\n", container, key_prefix);
-        delete[] op.key_buffer;
+        free(op.key_buffer);
         return false;      
       }
     }
@@ -535,7 +535,7 @@ bool config_v1::get_prefixes(int role_id) {
     }
   } /* while(res=scan->nextResult()) */
   
-  delete[] op.key_buffer;  
+  free(op.key_buffer);
   return true;
 }
 
@@ -634,8 +634,8 @@ void config_v1::log_signon() {
   QueryPlan plan(conf.db, &spec);
   
   Operation op(&plan, OPERATION_SET);
-  op.buffer = new char[op.requiredBuffer()];
-  op.key_buffer = new char[op.requiredKeyBuffer()];
+  op.buffer     = (char *) malloc(op.requiredBuffer());
+  op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.clearNullBits();
   op.setKeyPartInt(COL_STORE_KEY,   conf.db->getNodeId());  // node ID (in key)
   op.setColumnInt(COL_STORE_KEY,    conf.db->getNodeId());  // node ID (in row)
@@ -648,8 +648,8 @@ void config_v1::log_signon() {
   tx->execute(NdbTransaction::Commit);
   tx->getGCI(&signon_gci);
   
-  delete[] op.key_buffer;
-  delete[] op.buffer;
+  free(op.key_buffer);
+  free(op.buffer);
   return;
 }
 
