@@ -1,8 +1,6 @@
 # CHAR
 
 --source suite/ndb_memcache/include/have_memcache.inc
-
-
 --source suite/ndb_memcache/include/memcached_wait_for_ready.inc
 
 
@@ -48,7 +46,7 @@ my $r = $mc->connect("localhost",$port);
 # online reconfiguration -- jdd, 14 Aug. 2011
 sleep(1);
 
-my $cf_gen = $mc->wait_for_reconf(2);
+my $cf_gen = $mc->wait_for_reconf();
 
 if($cf_gen > 0) {
   # test CHAR key with VARCHAR value

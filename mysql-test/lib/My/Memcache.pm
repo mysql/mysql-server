@@ -33,14 +33,19 @@
 ###  $mc->incr(key, amount)             returns the new value or undef
 ###  $mc->decr(key, amount)             like incr
 ###
-###  $mc->wait_for_reconf(gen)
-###    Wait for NDB/Memcache to complete online reconfiguration up to 
-###    config generation $gen or greater.  Returns the generation number of 
-###    the running configuration, or zero on timeout/error. 
+###  $mc->note_config_version() 
+###    Store the generation number of the running config in the filesystem,
+###    for later use by wait_for_reconf()
+### 
+###  $mc->wait_for_reconf()
+###    Wait for NDB/Memcache to complete online reconfiguration.  
+###    Returns the generation number of the newly running configuration, 
+###    or zero on timeout/error. 
 
 use strict;
 use lib 'lib';
 use IO::Socket::INET;
+use IO::File;
 use Carp;
 use mtr_report;            # for main::mtr_verbose()
 
@@ -51,7 +56,7 @@ package My::Memcache;
 
 sub new {
   my $pkg = shift;
-  bless { "created" => 1 , "error" => "" }, $pkg;
+  bless { "created" => 1 , "error" => "" , "cf_gen" => 0 }, $pkg;
 }
 
 sub connect {
@@ -83,12 +88,55 @@ sub DESTROY {
   my $self = shift;
   $self->{connection}->close();
 }
+
+
+sub note_config_version {
+  my $self = shift;
+
+  my $vardir = $ENV{MYSQLTEST_VARDIR};
+  # Fetch the memcached current config generation number and save it
+  my %stats = $self->stats("reconf");
+  my $F = IO::File->new("$vardir/tmp/memcache_cf_gen", "w") or die;
+  my $ver = $stats{"Running"};
+  print $F "$ver\n";
+  $F->close();
+
+  $self->{cf_gen} = $ver;
+}
+
+
+sub wait_for_reconf {
+  my $self = shift;
+
+  if($self->{cf_gen} == 0) { 
+    my $cfgen = 0;
+    my $vardir = $ENV{MYSQLTEST_VARDIR};
+    my $F = IO::File->new("$vardir/tmp/memcache_cf_gen", "r");
+    if(defined $F) {
+      chomp($cfgen = <$F>);
+      undef $F;
+    }
+    $self->{cf_gen} = $cfgen;
+  }
   
-# wait_for_reconf($cf_gen)
+  print STDERR "Config generation is : " . $self->{cf_gen} . "\n";
+  my $wait_for = $self->{cf_gen} + 1 ;
+  print STDERR "Waiting for: $wait_for \n";
+  
+  my $new_gen = $self->wait_for_config_generation($wait_for);
+  if($new_gen > 0) {
+    $self->{cf_gen} = $new_gen;
+  }
+  
+  return $new_gen;
+}
+  
+
+# wait_for_config_generation($cf_gen)
 # Wait until memcached is running config generation >= to $cf_gen
 # Returns 0 on error/timeout, or the actual running generation number
 #
-sub wait_for_reconf {
+sub wait_for_config_generation {
   my $self = shift;
   my $cf_gen = shift;
   my $ready = 0;
@@ -241,7 +289,7 @@ sub stats {
   return %response;
 }
 
-# Try to rovide consistent error messagees across ascii & binary protocols
+# Try to provide consistent error messagees across ascii & binary protocols
 sub normalize_error {
   my $self = shift;
   my %error_message = (

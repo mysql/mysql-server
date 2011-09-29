@@ -7,9 +7,7 @@
 # INT       UNSIGNED   tt016
 # BIGINT    UNSIGNED   tt017
 
---source suite/ndb_memcache/include/memcached_wait_for_ready.inc
 --source suite/ndb_memcache/include/datatypes_tables.inc
---real_sleep 1
 --perl
 
 use strict;
@@ -18,41 +16,38 @@ use My::Memcache;
 my $mc = My::Memcache->new();
 my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
 my $r = $mc->connect("localhost",$port);
-my $cf_gen = $mc->wait_for_reconf(2);
 
-if($cf_gen > 0) {
+foreach my $test ( "tt013", "tt014", "tt015", "tt016", "tt017") {
+    
+  $mc->set("$test:0" ,  0);
+  $mc->set("$test:1" ,  1);
+  $mc->set("$test:2" ,  2);
+  
+  # Test that you can't store -1 in an unsigned column
+  $mc->set("$test:-1", -1);
+  ($mc->{error} eq "VALUE_TOO_LARGE") || die "$test:-1 " . $mc->{error};
+  
+  ($mc->get("$test:0") == 0)   || die "get failed $test/0";
+  ($mc->get("$test:1") == 1)   || die "get failed $test/1";
+  
+}
+  
+# Overflow tests 
+($mc->set("tt013:3", 300) == 0)  || die "expected overflow (TINY)";
+($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
 
-  foreach my $test ( "tt013", "tt014", "tt015", "tt016", "tt017") {
-    
-    $mc->set("$test:0" ,  0);
-    $mc->set("$test:1" ,  1);
-    $mc->set("$test:2" ,  2);
-    
-    # Test that you can't store -1 in an unsigned column
-    $mc->set("$test:-1", -1);
-    ($mc->{error} eq "VALUE_TOO_LARGE") || die "$test:-1 " . $mc->{error};
-    
-    ($mc->get("$test:0") == 0)   || die "get failed $test/0";
-    ($mc->get("$test:1") == 1)   || die "get failed $test/1";
-    
-  }
-  
-  # Overflow tests 
-  ($mc->set("tt013:3", 300) == 0)  || die "expected overflow (TINY)";
-  ($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
-  
-  ($mc->set("tt014:3", 80000) == 0)  || die "expected overflow (SMALL)";
-  ($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
-  
-  ($mc->set("tt015:3", 40000000) == 0)  || die "expected overflow (MEDIUM)";
-  ($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
+($mc->set("tt014:3", 80000) == 0)  || die "expected overflow (SMALL)";
+($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
+
+($mc->set("tt015:3", 40000000) == 0)  || die "expected overflow (MEDIUM)";
+($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
 
 #  INT overflow test is disabled because strotoul() on linux does not
 #  set ERANGE as the spec says it should.  Therefore as currently implemented
 #  overflow detection is unreliable.
 #  ($mc->set("tt016:3", 2**34) == 0)  || die "expected overflow (INT)";
 #  ($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
-}
+
 
 EOF
 

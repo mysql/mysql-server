@@ -2,9 +2,11 @@
 --disable_query_log
 --disable_result_log
 
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+
 use ndbmemcache;
 let $done = query_get_value (select key_prefix k from key_prefixes where container = 'tt001', k, 1);
-if($done != "tt001:") 
+if ($done != "tt001:") 
 {
                 
 set default_storage_engine = ndbcluster;
@@ -49,6 +51,7 @@ UPDATE memcache_server_roles set update_timestamp = now()
 DROP VIEW tv_tablist;
 
 --real_sleep 1
+--source suite/ndb_memcache/include/wait_for_reconf.inc
 }
 
 --enable_query_log
