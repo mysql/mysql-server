@@ -162,3 +162,4 @@ myisampack/myisampack.c               : .*C4090.*
 my_print_defaults/my_print_defaults.c : .*C4090.*
 myisamchk/myisamchk.c                 : .*C4090.*
 mysqlimport/mysqlimport.c             : .*C4090.*
+mysqlcheck/mysqlcheck.c               : .*C4090.*
