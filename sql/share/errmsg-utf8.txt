@@ -6421,6 +6421,24 @@ ER_INDEX_CORRUPT
 ER_UNDO_RECORD_TOO_BIG
   eng "Undo log record is too big."
 
+ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT
+  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE
+  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_REPLACE_SELECT
+ eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT
+  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT
+  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_UPDATE_IGNORE
+  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
 ER_PLUGIN_NO_UNINSTALL
   eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
 
