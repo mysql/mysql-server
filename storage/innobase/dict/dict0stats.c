@@ -786,7 +786,7 @@ dict_stats_analyze_index_below_cur(
 	ib_uint64_t	n_diff; /* the result */
 	ulint		size;
 
-	index = cur->index;
+	index = btr_cur_get_index(cur);
 
 	/* Allocate offsets for the record and the node pointer, for
 	node pointer records. In a secondary index, the node pointer
