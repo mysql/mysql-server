@@ -646,6 +646,8 @@ bool Group_set::contains_group(rpl_sidno sidno, rpl_gno gno) const
 int Group_set::to_string(char *buf, const Group_set::String_format *sf) const
 {
   DBUG_ENTER("Group_set::to_string");
+  if (sf == NULL)
+    sf= &default_string_format;;
   rpl_sidno map_max_sidno= sid_map->get_max_sidno();
   memcpy(buf, sf->begin, sf->begin_length);
   char *s= buf + sf->begin_length;
@@ -735,6 +737,8 @@ static int get_string_length(rpl_gno gno)
 
 int Group_set::get_string_length(const Group_set::String_format *sf) const
 {
+  if (sf == NULL)
+    sf= &default_string_format;
   if (cached_string_length == -1 || cached_string_format != sf)
   {
     int n_sids= 0, n_intervals= 0, n_long_intervals= 0;

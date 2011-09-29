@@ -220,9 +220,11 @@ enum_read_status Compact_coder::read_string(Reader *reader, uchar *buf,
                                             bool null_terminated)
 {
   DBUG_ENTER("Compact_coder::read_string(Reader *, uchar *, size_t *, size_t, bool)");
+  ulonglong length_ulonglong;
   if (null_terminated)
     max_length--;
-  PROPAGATE_READ_STATUS(read_unsigned(reader, length, max_length));
+  PROPAGATE_READ_STATUS(read_unsigned(reader, &length_ulonglong, max_length));
+  *length= (size_t) length_ulonglong;
   PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, *length));
   buf[*length]= 0;
   DBUG_RETURN(READ_OK);
