@@ -5561,4 +5561,85 @@ WHERE t1.k < ALL(
 DROP TABLE t1, t2, t3; 
 
 --echo #
+--echo # Bug#12838171: 51VS56: TRANSFORMED IN()+SUBQ QUERY 
+--echo #               PRODUCES EMPTY RESULT ON 5.6, 1 ROW ON 5.1
+--echo #
+CREATE TABLE ot (
+  col_int_nokey int(11), 
+  col_varchar_nokey varchar(1)
+) ;
 
+INSERT INTO ot VALUES (1,'x');
+
+CREATE TABLE it (
+  col_int_key int(11), 
+  col_varchar_key varchar(1), 
+  KEY idx_cvk_cik (col_varchar_key,col_int_key)
+) ;
+
+INSERT INTO it VALUES (NULL,'x'), (NULL,'f');
+
+--echo
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE col_int_key IS NULL);
+
+--echo
+EXPLAIN EXTENDED
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE col_int_key IS NULL);
+
+--echo
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE coalesce(col_int_nokey, 1) );
+
+--echo
+EXPLAIN EXTENDED
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE coalesce(col_int_nokey, 1) );
+
+DROP TABLE it;
+
+CREATE TABLE it (
+   col_int_key int(11),
+   col_varchar_key varchar(1),
+   col_varchar_key2 varchar(1),
+   KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+   KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+
+INSERT INTO it VALUES (NULL,'x','x'), (NULL,'f','f');
+
+SELECT col_int_nokey
+FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+    (SELECT col_varchar_key, col_varchar_key2
+     FROM it
+     WHERE col_int_key IS NULL);
+
+--echo
+EXPLAIN EXTENDED
+SELECT col_int_nokey
+FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+    (SELECT col_varchar_key, col_varchar_key2
+     FROM it
+     WHERE col_int_key IS NULL);
+
+--echo
+DROP TABLE it, ot;
