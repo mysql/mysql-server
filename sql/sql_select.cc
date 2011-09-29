@@ -7239,7 +7239,8 @@ static bool are_tables_local(JOIN_TAB *jtab, table_map used_tables)
       except the const tables.
     */
     table_map local_tables= jtab->emb_sj_nest->nested_join->used_tables |
-                            jtab->join->const_table_map;
+                            jtab->join->const_table_map |
+                            OUTER_REF_TABLE_BIT;
     return !test(used_tables & ~local_tables);
   }
 

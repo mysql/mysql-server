@@ -1370,3 +1370,32 @@ WHERE 'h' IN (SELECT f6
 DROP TABLE t1,t3,t4;
 set optimizer_switch=@tmp_860300;
 
+--echo #
+--echo # BUG#860535: Assertion `keypart_map' failed in mi_rkey with semijoin
+--echo #
+set @tmp_860535=@@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off';
+CREATE TABLE t1 (f3 int) ;
+INSERT INTO t1 VALUES (1),(7);
+
+CREATE TABLE t2 (f3 int , f5 varchar(1), KEY (f3)) ;
+INSERT INTO t2 VALUES (7,'b');
+
+CREATE TABLE t3 (f3 int , f4 varchar(1) , KEY(f3), KEY (f4,f3)) ;
+INSERT INTO t3 VALUES (1,'t'),(7,'g');
+
+CREATE TABLE t4
+SELECT f3
+FROM t1 WHERE ( f3 ) NOT IN (
+        SELECT f3
+        FROM t2
+        WHERE f5 IN (
+                SELECT f4
+                FROM t3
+                WHERE t3.f3 < 3
+        )
+);
+SELECT * FROM t4;
+DROP TABLE t1, t2, t3, t4;
+set optimizer_switch=@tmp_860535;
+
