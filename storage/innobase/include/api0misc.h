@@ -25,6 +25,9 @@ This file contains the functions that don't have a proper home yet.
 #include "que0que.h"
 #include "trx0trx.h"
 
+/** Whether binlog is enabled for applications using InnoDB APIs */
+extern my_bool                  ib_binlog_enabled;
+
 /**********************************************************************
 Create a temporary file using the OS specific function. */
 UNIV_INTERN

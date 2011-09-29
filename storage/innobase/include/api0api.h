@@ -19,7 +19,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #define INNOBASE_API_H
 
 #include "db0err.h"
-//#include "univ.i"
 
 /* API_BEGIN_INCLUDE */
 #include <stdio.h>
@@ -1758,6 +1757,14 @@ ib_close_thd(
 	void*		thd);	/*!< in: handle to the MySQL thread of the user
 				whose resources should be free'd */
 
+/*****************************************************************//**
+Check whether binlog is enabled (innodb_direct_access_enable_binlog
+is set to TRUE)
+@return TRUE if enabled */
+
+int
+ib_is_binlog_enabled();
+/*==================*/
 /*****************************************************************//**
 Check whether the table name conforms to our requirements. Currently
 we only do a simple check for the presence of a '/'.

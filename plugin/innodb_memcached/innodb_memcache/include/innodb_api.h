@@ -425,5 +425,13 @@ innodb_cb_cursor_open_index_using_name(
 	const char*	index_name,	/*!< in: secondary index name */
 	ib_crsr_t*	ib_crsr,	/*!< out,own: InnoDB index cursor */
 	int*		idx_type,	/*!< out: index is cluster index */
-	ib_id_t*        idx_id);	/*!< out: index id */
+	ib_id_t*	idx_id);	/*!< out: index id */
+/*****************************************************************//**
+Check whether the binlog option is turned on
+(innodb_direct_access_enable_binlog)
+@return TRUE if on */
+bool
+innodb_cb_binlog_enabled();
+/*======================*/
+
 #endif

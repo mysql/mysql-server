@@ -301,6 +301,11 @@ ib_err_t
 
 typedef
 ib_err_t
+(*CB_BINLOG_ENABLED)();
+/*==================*/
+
+typedef
+ib_err_t
 (*CB_CURSOR_OPEN_INDEX_USING_NAME)(
 /*===============================*/
 	ib_crsr_t	ib_open_crsr,
@@ -349,5 +354,6 @@ CB_CURSOR_FIRST			ib_cb_cursor_first;
 CB_CURSOR_LAST			ib_cb_cursor_last;
 CB_CURSOR_OPEN_INDEX_USING_NAME	ib_cb_cursor_open_index_using_name;
 CB_CLOSE_THD			ib_cb_close_thd;
+CB_BINLOG_ENABLED		ib_cb_binlog_enabled;
 
 #endif

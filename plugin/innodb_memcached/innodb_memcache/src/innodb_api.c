@@ -76,7 +76,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_col_get_name,
 	(ib_cb_t*) &ib_cb_table_truncate,
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
-	(ib_cb_t*) &ib_cb_close_thd
+	(ib_cb_t*) &ib_cb_close_thd,
+	(ib_cb_t*) &ib_cb_binlog_enabled
 };
 
 /*************************************************************//**
@@ -1488,4 +1489,15 @@ innodb_cb_cursor_open_index_using_name(
 {
 	return(ib_cb_cursor_open_index_using_name(ib_open_crsr, index_name,
 						  ib_crsr, idx_type, idx_id));
+}
+
+/*****************************************************************//**
+Check whether the binlog option is turned on
+(innodb_direct_access_enable_binlog)
+@return TRUE if on */
+bool
+innodb_cb_binlog_enabled()
+/*======================*/
+{
+	return((bool) ib_cb_binlog_enabled());
 }
