@@ -123,7 +123,12 @@ typedef struct st_table_ref : public Sql_alloc
   int           key;                      ///< key no
   uchar         *key_buff;                ///< value to look for with key
   uchar         *key_buff2;               ///< key_buff+key_length
-  store_key     **key_copy;               //
+  /**
+     Used to store the value from each keypart field. These values are
+     used for ref access. If key_copy[key_part] == NULL it means that
+     the value is constant and does not need to be reevaluated
+  */
+  store_key     **key_copy;
   Item          **items;                  ///< val()'s for each keypart
   /*  
     Array of pointers to trigger variables. Some/all of the pointers may be
