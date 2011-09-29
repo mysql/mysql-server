@@ -32,7 +32,7 @@
  *        the future! 
  * 
  */
-class NdbScanFilter {
+class NDB_EXPORT NdbScanFilter {
 public:
   /**
    * Constructor

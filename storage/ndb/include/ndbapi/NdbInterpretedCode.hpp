@@ -69,7 +69,7 @@ class NdbColumnImpl;
        The NdbScanFilter API is a more stable Api for defining scan-filter
        style programs.
 */
-class NdbInterpretedCode
+class NDB_EXPORT NdbInterpretedCode
 {
 public:
   /**

@@ -227,7 +227,7 @@ extern "C" {
    *         and <var>node_group</var> are relevant only for database nodes,
    *         i.e. <var>node_type</var> == @ref NDB_MGM_NODE_TYPE_NDB.
    */
-  struct ndb_mgm_node_state {
+  struct NDB_EXPORT ndb_mgm_node_state {
     /** NDB Cluster node ID*/
     int node_id;
     /** Type of NDB Cluster node*/
@@ -270,7 +270,7 @@ extern "C" {
    *   State of all nodes in the cluster; returned from 
    *   ndb_mgm_get_status()
    */
-  struct ndb_mgm_cluster_state {
+  struct NDB_EXPORT ndb_mgm_cluster_state {
     /** Number of entries in the node_states array */
     int no_of_nodes;
     /** An array with node_states*/
@@ -284,7 +284,7 @@ extern "C" {
   /**
    *   Default reply from the server (reserved for future use)
    */
-  struct ndb_mgm_reply {
+  struct NDB_EXPORT ndb_mgm_reply {
     /** 0 if successful, otherwise error code. */
     int return_code;
     /** Error or reply message.*/
@@ -318,12 +318,12 @@ extern "C" {
   };
 #endif
 
-  struct ndb_mgm_severity {
+  struct NDB_EXPORT ndb_mgm_severity {
     enum ndb_mgm_event_severity category;
     unsigned int value;
   };
 
-  struct ndb_mgm_loglevel {
+  struct NDB_EXPORT ndb_mgm_loglevel {
     enum ndb_mgm_event_category category;
     unsigned int value;
   };
@@ -342,7 +342,7 @@ extern "C" {
    * @param   handle        Management handle
    * @return                Latest error code
    */
-  int ndb_mgm_get_latest_error(const NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_get_latest_error(const NdbMgmHandle handle);
 
   /**
    * Get the most recent general error message associated with a handle
@@ -350,7 +350,7 @@ extern "C" {
    * @param   handle        Management handle.
    * @return                Latest error message
    */
-  const char * ndb_mgm_get_latest_error_msg(const NdbMgmHandle handle);
+  NDB_EXPORT const char * ndb_mgm_get_latest_error_msg(const NdbMgmHandle handle);
 
   /**
    * Get the most recent error description associated with a handle
@@ -361,7 +361,7 @@ extern "C" {
    * @param   handle        Management handle.
    * @return                Latest error description
    */
-  const char * ndb_mgm_get_latest_error_desc(const NdbMgmHandle handle);
+  NDB_EXPORT const char * ndb_mgm_get_latest_error_desc(const NdbMgmHandle handle);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
@@ -371,13 +371,13 @@ extern "C" {
    * @return                Latest internal source code line of latest error
    * @deprecated
    */
-  int ndb_mgm_get_latest_error_line(const NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_get_latest_error_line(const NdbMgmHandle handle);
 #endif
 
   /**
    * Set error stream
    */
-  void ndb_mgm_set_error_stream(NdbMgmHandle, FILE *);
+  NDB_EXPORT void ndb_mgm_set_error_stream(NdbMgmHandle, FILE *);
 
 
   /** @} *********************************************************************/
@@ -392,14 +392,14 @@ extern "C" {
    * @return                 A management handle<br>
    *                         or <var>NULL</var> if no management handle could be created.
    */
-  NdbMgmHandle ndb_mgm_create_handle();
+  NDB_EXPORT NdbMgmHandle ndb_mgm_create_handle();
 
   /**
    * Destroy a management server handle.
    *
    * @param   handle        Management handle
    */
-  void ndb_mgm_destroy_handle(NdbMgmHandle * handle);
+  NDB_EXPORT void ndb_mgm_destroy_handle(NdbMgmHandle * handle);
 
   /**
    * Set a name of the handle.  Name is reported in cluster log.
@@ -407,7 +407,7 @@ extern "C" {
    * @param   handle        Management handle
    * @param   name          Name
    */
-  void ndb_mgm_set_name(NdbMgmHandle handle, const char *name);
+  NDB_EXPORT void ndb_mgm_set_name(NdbMgmHandle handle, const char *name);
 
   /**
    * Set 'ignore_sigpipe' behaviour
@@ -424,7 +424,7 @@ extern "C" {
    *                        0 - Don't ignore SIGPIPE
    *                        1 - Ignore SIGPIPE(default)
    */
-  int ndb_mgm_set_ignore_sigpipe(NdbMgmHandle handle, int val);
+  NDB_EXPORT int ndb_mgm_set_ignore_sigpipe(NdbMgmHandle handle, int val);
 
   /** @} *********************************************************************/
   /**
@@ -449,7 +449,7 @@ extern "C" {
    * <host> is a string containing a valid network host address
    * @endcode
    */
-  int ndb_mgm_set_connectstring(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_set_connectstring(NdbMgmHandle handle,
 				const char *connect_string);
 
   /**
@@ -462,9 +462,9 @@ extern "C" {
    *
    * @return                < 0 on error
    */
-  int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle);
 
-  int ndb_mgm_set_configuration_nodeid(NdbMgmHandle handle, int nodeid);
+  NDB_EXPORT int ndb_mgm_set_configuration_nodeid(NdbMgmHandle handle, int nodeid);
 
   /**
    * Set local bindaddress
@@ -473,7 +473,7 @@ extern "C" {
    * @note Error on binding local address will not be reported until connect
    * @return 0 on success
    */
-  int ndb_mgm_set_bindaddress(NdbMgmHandle, const char * arg);
+  NDB_EXPORT int ndb_mgm_set_bindaddress(NdbMgmHandle, const char * arg);
 
   /**
    * Gets the connectstring used for a connection
@@ -488,7 +488,7 @@ extern "C" {
    *
    * @return                 connectstring (same as <var>buf</var>)
    */
-  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
+  NDB_EXPORT const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
    * DEPRECATED: use ndb_mgm_set_timeout instead.
@@ -497,7 +497,7 @@ extern "C" {
    * @param seconds number of seconds
    * @return non-zero on success
    */
-  int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds);
+  NDB_EXPORT int ndb_mgm_set_connect_timeout(NdbMgmHandle handle, unsigned int seconds);
 
   /**
    * Sets the number of milliseconds for timeout of network operations
@@ -509,7 +509,7 @@ extern "C" {
    * @param timeout_ms number of milliseconds
    * @return zero on success
    */
-  int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int timeout_ms);
+  NDB_EXPORT int ndb_mgm_set_timeout(NdbMgmHandle handle, unsigned int timeout_ms);
 
   /**
    * Connects to a management server. Connectstring is set by
@@ -529,7 +529,7 @@ extern "C" {
    *
    * @return                -1 on error.
    */
-  int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
+  NDB_EXPORT int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 		      int retry_delay_in_seconds, int verbose);
   /**
    * Return true if connected.
@@ -537,7 +537,7 @@ extern "C" {
    * @param   handle        Management handle
    * @return  0 if not connected, non-zero if connected.
    */
-  int ndb_mgm_is_connected(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_is_connected(NdbMgmHandle handle);
 
   /**
    * Disconnects from a management server
@@ -545,7 +545,7 @@ extern "C" {
    * @param  handle         Management handle.
    * @return                -1 on error.
    */
-  int ndb_mgm_disconnect(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_disconnect(NdbMgmHandle handle);
 
   /**
    * Gets connection node ID
@@ -555,7 +555,7 @@ extern "C" {
    * @return                 Node ID; 0 indicates that no node ID has been
    *                         specified
    */
-  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
 
   /**
    * Gets connection port
@@ -564,7 +564,7 @@ extern "C" {
    *
    * @return                 port
    */
-  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_get_connected_port(NdbMgmHandle handle);
 
   /**
    * Gets connection host
@@ -573,7 +573,7 @@ extern "C" {
    *
    * @return                 hostname
    */
-  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
+  NDB_EXPORT const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
 
   /**
    * Gets connection bind address
@@ -582,7 +582,7 @@ extern "C" {
    *
    * @return                 hostname
    */
-  const char *ndb_mgm_get_connected_bind_address(NdbMgmHandle handle);
+  NDB_EXPORT const char *ndb_mgm_get_connected_bind_address(NdbMgmHandle handle);
 
   /**
    * Get the version of the mgm server we're talking to.
@@ -599,7 +599,7 @@ extern "C" {
    *
    * @return  0 for error and 1 for success
    */
-  int ndb_mgm_get_version(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_get_version(NdbMgmHandle handle,
                           int *major, int *minor, int* build,
                           int len, char* str);
 
@@ -616,7 +616,7 @@ extern "C" {
    * @param   type          Node type as string.
    * @return                NDB_MGM_NODE_TYPE_UNKNOWN if invalid string.
    */
-  enum ndb_mgm_node_type ndb_mgm_match_node_type(const char * type);
+  NDB_EXPORT enum ndb_mgm_node_type ndb_mgm_match_node_type(const char * type);
 
   /**
    * Converts an ndb_mgm_node_type to a string
@@ -624,7 +624,7 @@ extern "C" {
    * @param   type          Node type.
    * @return                <var>NULL</var> if invalid ID.
    */
-  const char * ndb_mgm_get_node_type_string(enum ndb_mgm_node_type type);
+  NDB_EXPORT const char * ndb_mgm_get_node_type_string(enum ndb_mgm_node_type type);
 
   /**
    * Converts an ndb_mgm_node_type to a alias string
@@ -632,7 +632,7 @@ extern "C" {
    * @param   type          Node type.
    * @return                <var>NULL</var> if the ID is invalid.
    */
-  const char * ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type,
+  NDB_EXPORT const char * ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type,
 						  const char **str);
 
   /**
@@ -641,7 +641,7 @@ extern "C" {
    * @param   status        NDB node status string.
    * @return                NDB_MGM_NODE_STATUS_UNKNOWN if invalid string.
    */
-  enum ndb_mgm_node_status ndb_mgm_match_node_status(const char * status);
+  NDB_EXPORT enum ndb_mgm_node_status ndb_mgm_match_node_status(const char * status);
 
   /**
    * Converts an ID to a string
@@ -649,11 +649,11 @@ extern "C" {
    * @param   status        NDB node status.
    * @return                <var>NULL</var> if invalid ID.
    */
-  const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
+  NDB_EXPORT const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
-  const char * ndb_mgm_get_event_severity_string(enum ndb_mgm_event_severity);
-  enum ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
-  const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
+  NDB_EXPORT const char * ndb_mgm_get_event_severity_string(enum ndb_mgm_event_severity);
+  NDB_EXPORT enum ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
+  NDB_EXPORT const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
 #endif
 
   /** @} *********************************************************************/
@@ -671,7 +671,7 @@ extern "C" {
    *
    * @return                Cluster state (or <var>NULL</var> on error).
    */
-  struct ndb_mgm_cluster_state * ndb_mgm_get_status(NdbMgmHandle handle);
+  NDB_EXPORT struct ndb_mgm_cluster_state * ndb_mgm_get_status(NdbMgmHandle handle);
 
 
   /**
@@ -688,10 +688,10 @@ extern "C" {
    *
    * @return                Cluster state (or <var>NULL</var> on error).
    */
-  struct ndb_mgm_cluster_state * 
+  NDB_EXPORT struct ndb_mgm_cluster_state *
   ndb_mgm_get_status2(NdbMgmHandle handle,
                       const enum ndb_mgm_node_type types[]);
-                      
+
 
 
   /**
@@ -704,7 +704,7 @@ extern "C" {
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
-  int ndb_mgm_dump_state(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_dump_state(NdbMgmHandle handle,
 			 int nodeId,
 			 const int * args,
 			 int num_args,
@@ -717,7 +717,7 @@ extern "C" {
    * @param nodeId of the node for which the configuration is requested.
    * @return the current configuration from the requested node.
    */
-  struct ndb_mgm_configuration *
+  NDB_EXPORT struct ndb_mgm_configuration *
   ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
                                       int nodeid);
 
@@ -743,7 +743,7 @@ extern "C" {
    * @note    This function is equivalent
    *          to calling ndb_mgm_stop2(handle, no_of_nodes, node_list, 0)
    */
-  int ndb_mgm_stop(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_stop(NdbMgmHandle handle, int no_of_nodes,
 		   const int * node_list);
 
   /**
@@ -760,7 +760,7 @@ extern "C" {
    *
    * @return                Number of nodes stopped (-1 on error).
    */
-  int ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes,
 		    const int * node_list, int abort);
 
   /**
@@ -781,7 +781,7 @@ extern "C" {
    *
    * @return                Number of nodes stopped (-1 on error).
    */
-  int ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes,
 		    const int * node_list, int abort, int *disconnect);
 
   /**
@@ -804,7 +804,7 @@ extern "C" {
    *
    * @return                Number of nodes stopped (-1 on error).
    */
-   int ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes,
 		    const int * node_list, int abort, int force,
                     int *disconnect);
 
@@ -823,7 +823,7 @@ extern "C" {
    * @note    This function is equivalent to calling
    *          ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
    */
-  int ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes,
 		      const int * node_list);
 
   /**
@@ -843,7 +843,7 @@ extern "C" {
    *
    * @return                Number of nodes stopped (-1 on error).
    */
-  int ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes,
 		       const int * node_list, int initial,
 		       int nostart, int abort);
 
@@ -868,7 +868,7 @@ extern "C" {
    *
    * @return                Number of nodes stopped (-1 on error).
    */
-  int ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes,
 		       const int * node_list, int initial,
 		       int nostart, int abort, int *disconnect);
 
@@ -895,7 +895,7 @@ extern "C" {
    *
    * @return                Number of nodes stopped (-1 on error).
    */
-  int ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes,
+  NDB_EXPORT int ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes,
 		       const int * node_list, int initial,
 		       int nostart, int abort, int force, int *disconnect);
 
@@ -917,7 +917,7 @@ extern "C" {
    *          waiting for a START management command which will
    *          actually enable the database node
    */
-  int ndb_mgm_start(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_start(NdbMgmHandle handle,
 		    int no_of_nodes,
 		    const int * node_list);
 
@@ -937,7 +937,7 @@ extern "C" {
    *
    * @return                -1 on error.
    */
-  int ndb_mgm_set_clusterlog_severity_filter(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_set_clusterlog_severity_filter(NdbMgmHandle handle,
 					     enum ndb_mgm_event_severity severity,
 					     int enable,
 					     struct ndb_mgm_reply* reply);
@@ -960,7 +960,7 @@ extern "C" {
    * @param severity_size   The size of the vector (NDB_MGM_EVENT_SEVERITY_ALL)
    * @return                Number of returned severities or -1 on error
    */
-  int ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle,
 					     struct ndb_mgm_severity* severity,
 					     unsigned int severity_size);
 
@@ -982,7 +982,7 @@ extern "C" {
    *                        whether the cluster log
    *                        is disabled or enabled.
    */
-  const unsigned int *ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle);
+  NDB_EXPORT const unsigned int *ndb_mgm_get_clusterlog_severity_filter_old(NdbMgmHandle handle);
 #endif
 
   /**
@@ -995,7 +995,7 @@ extern "C" {
    * @param   reply         Reply message.
    * @return                -1 on error.
    */
-  int ndb_mgm_set_clusterlog_loglevel(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_set_clusterlog_loglevel(NdbMgmHandle handle,
 				      int nodeId,
 				      enum ndb_mgm_event_category category,
 				      int level,
@@ -1012,7 +1012,7 @@ extern "C" {
    * @param loglevel_size   The size of the vector (MGM_LOGLEVELS)
    * @return                Number of returned loglevels or -1 on error
    */
-  int ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle,
 				      struct ndb_mgm_loglevel* loglevel,
 				      unsigned int loglevel_size);
 
@@ -1025,7 +1025,7 @@ extern "C" {
    *                        where each element contains
    *                        loglevel of corresponding category
    */
-  const unsigned int *ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle);
+  NDB_EXPORT const unsigned int *ndb_mgm_get_clusterlog_loglevel_old(NdbMgmHandle handle);
 #endif
 
 
@@ -1046,9 +1046,9 @@ extern "C" {
    * @return fd    filedescriptor to read events from
    */
 #ifdef NDB_WIN
-  SOCKET ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+  NDB_EXPORT SOCKET ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
 #else
-  int ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+  NDB_EXPORT int ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1062,7 +1062,7 @@ extern "C" {
    * @param   reply         Reply message.
    * @return                -1 on error.
    */
-  int ndb_mgm_set_loglevel_node(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_set_loglevel_node(NdbMgmHandle handle,
 				int nodeId,
 				enum ndb_mgm_event_category category,
 				int level,
@@ -1083,9 +1083,9 @@ extern "C" {
    *
    * @return       NdbLogEventHandle
    */
-  NdbLogEventHandle ndb_mgm_create_logevent_handle(NdbMgmHandle,
+  NDB_EXPORT NdbLogEventHandle ndb_mgm_create_logevent_handle(NdbMgmHandle,
 						   const int filter[]);
-  void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle*);
+  NDB_EXPORT void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle*);
 
   /**
    * Retrieve filedescriptor from NdbLogEventHandle.  May be used in
@@ -1096,9 +1096,9 @@ extern "C" {
    * @return       filedescriptor, -1 on failure.
    */
 #ifdef NDB_WIN
-  SOCKET ndb_logevent_get_fd(const NdbLogEventHandle);
+  NDB_EXPORT SOCKET ndb_logevent_get_fd(const NdbLogEventHandle);
 #else
-  int ndb_logevent_get_fd(const NdbLogEventHandle);
+  NDB_EXPORT int ndb_logevent_get_fd(const NdbLogEventHandle);
 #endif
 
   /**
@@ -1112,7 +1112,7 @@ extern "C" {
    *
    * @note Return value <=0 will leave dst untouched
    */
-  int ndb_logevent_get_next(const NdbLogEventHandle,
+  NDB_EXPORT int ndb_logevent_get_next(const NdbLogEventHandle,
 			    struct ndb_logevent *dst,
 			    unsigned timeout_in_milliseconds);
 
@@ -1121,14 +1121,14 @@ extern "C" {
    *
    * @return     error code
    */
-  int ndb_logevent_get_latest_error(const NdbLogEventHandle);
+  NDB_EXPORT int ndb_logevent_get_latest_error(const NdbLogEventHandle);
 
   /**
    * Retrieve laterst error message
    *
    * @return     error message
    */
-  const char *ndb_logevent_get_latest_error_msg(const NdbLogEventHandle);
+  NDB_EXPORT const char *ndb_logevent_get_latest_error_msg(const NdbLogEventHandle);
 
 
   /** @} *********************************************************************/
@@ -1150,7 +1150,7 @@ extern "C" {
    * @note                    backup_id will not be returned if
    *                          wait_completed == 0
    */
-  int ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
+  NDB_EXPORT int ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 			   unsigned int* backup_id,
 			   struct ndb_mgm_reply* reply);
 
@@ -1168,7 +1168,7 @@ extern "C" {
    * @note                    backup_id will not be returned if
    *                          wait_completed == 0
    */
-  int ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
+  NDB_EXPORT int ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
 			   unsigned int* backup_id,
 			   struct ndb_mgm_reply* reply,
 			   unsigned int input_backupId);
@@ -1188,7 +1188,7 @@ extern "C" {
    * @note                    backup_id will not be returned if
    *                          wait_completed == 0
    */
-  int ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+  NDB_EXPORT int ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
 			   unsigned int* backup_id,
 			   struct ndb_mgm_reply* reply,
 			   unsigned int input_backupId,
@@ -1202,7 +1202,7 @@ extern "C" {
    * @param   reply         Reply message.
    * @return                -1 on error.
    */
-  int ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backup_id,
+  NDB_EXPORT int ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backup_id,
 			   struct ndb_mgm_reply* reply);
 
 
@@ -1220,7 +1220,7 @@ extern "C" {
    * @param   reply         Reply message.
    * @return                -1 on error.
    */
-  int ndb_mgm_enter_single_user(NdbMgmHandle handle, unsigned int nodeId,
+  NDB_EXPORT int ndb_mgm_enter_single_user(NdbMgmHandle handle, unsigned int nodeId,
 				struct ndb_mgm_reply* reply);
 
   /**
@@ -1231,7 +1231,7 @@ extern "C" {
    *
    * @return                -1 on error.
    */
-  int ndb_mgm_exit_single_user(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_exit_single_user(NdbMgmHandle handle,
 			       struct ndb_mgm_reply* reply);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1251,11 +1251,11 @@ extern "C" {
    *
    * @note The caller is responsible for calling ndb_mgm_destroy_configuration()
    */
-  struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
+  NDB_EXPORT struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
 							   unsigned version);
-  void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
+  NDB_EXPORT void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
 
-  int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
 			   unsigned version, int nodetype, int log_event);
 
   /**
@@ -1273,7 +1273,7 @@ extern "C" {
    *
    * @note you still have to destroy the NdbMgmHandle.
    */
-  int ndb_mgm_end_session(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_end_session(NdbMgmHandle handle);
 
   /**
    * ndb_mgm_get_fd
@@ -1288,41 +1288,41 @@ extern "C" {
    *
    */
 #ifdef NDB_WIN
-  SOCKET ndb_mgm_get_fd(NdbMgmHandle handle);
+  NDB_EXPORT SOCKET ndb_mgm_get_fd(NdbMgmHandle handle);
 #else
-  int ndb_mgm_get_fd(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_get_fd(NdbMgmHandle handle);
 #endif
 
   /**
    * Get the node id of the mgm server we're connected to
    */
-  Uint32 ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle);
+  NDB_EXPORT Uint32 ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle);
 
   /**
    * Config iterator
    */
   typedef struct ndb_mgm_configuration_iterator ndb_mgm_configuration_iterator;
 
-  ndb_mgm_configuration_iterator* ndb_mgm_create_configuration_iterator
+  NDB_EXPORT ndb_mgm_configuration_iterator* ndb_mgm_create_configuration_iterator
   (struct ndb_mgm_configuration *, unsigned type_of_section);
-  void ndb_mgm_destroy_iterator(ndb_mgm_configuration_iterator*);
+  NDB_EXPORT void ndb_mgm_destroy_iterator(ndb_mgm_configuration_iterator*);
 
-  int ndb_mgm_first(ndb_mgm_configuration_iterator*);
-  int ndb_mgm_next(ndb_mgm_configuration_iterator*);
-  int ndb_mgm_valid(const ndb_mgm_configuration_iterator*);
-  int ndb_mgm_find(ndb_mgm_configuration_iterator*,
+  NDB_EXPORT int ndb_mgm_first(ndb_mgm_configuration_iterator*);
+  NDB_EXPORT int ndb_mgm_next(ndb_mgm_configuration_iterator*);
+  NDB_EXPORT int ndb_mgm_valid(const ndb_mgm_configuration_iterator*);
+  NDB_EXPORT int ndb_mgm_find(ndb_mgm_configuration_iterator*,
 		   int param, unsigned value);
 
-  int ndb_mgm_get_int_parameter(const ndb_mgm_configuration_iterator*,
+  NDB_EXPORT int ndb_mgm_get_int_parameter(const ndb_mgm_configuration_iterator*,
 				int param, unsigned * value);
-  int ndb_mgm_get_int64_parameter(const ndb_mgm_configuration_iterator*,
+  NDB_EXPORT int ndb_mgm_get_int64_parameter(const ndb_mgm_configuration_iterator*,
 				  int param, Uint64 * value);
-  int ndb_mgm_get_string_parameter(const ndb_mgm_configuration_iterator*,
+  NDB_EXPORT int ndb_mgm_get_string_parameter(const ndb_mgm_configuration_iterator*,
 				   int param, const char  ** value);
-  int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
-  int ndb_mgm_check_connection(NdbMgmHandle handle);
+  NDB_EXPORT int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
+  NDB_EXPORT int ndb_mgm_check_connection(NdbMgmHandle handle);
 
-  int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length);
+  NDB_EXPORT int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length);
 
   struct ndb_mgm_param_info
   {
@@ -1333,12 +1333,12 @@ extern "C" {
              size_t * size);
 #endif
 
-  int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
                                int * nodes,
                                int * ng,
                                struct ndb_mgm_reply* mgmreply);
 
-  int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
+  NDB_EXPORT int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
                              int ng,
                              struct ndb_mgm_reply* mgmreply);
 
@@ -1382,7 +1382,7 @@ extern "C" {
    *   memoryusage or baclupstatus for the whole cluster,
    *   returned from ndb_mgm_dump_events()
    */
-  struct ndb_mgm_events {
+  struct NDB_EXPORT ndb_mgm_events {
     /** Number of entries in the logevents array */
     int no_of_events;
     /** Array of ndb_logevents  */
@@ -1411,7 +1411,7 @@ extern "C" {
    * @return                struct with array of ndb_logevent's
    *                        (or <var>NULL</var> on error).
    */
-  struct ndb_mgm_events*
+  NDB_EXPORT struct ndb_mgm_events*
   ndb_mgm_dump_events(NdbMgmHandle handle, enum Ndb_logevent_type type,
                       int no_of_nodes, const int * node_list);
 

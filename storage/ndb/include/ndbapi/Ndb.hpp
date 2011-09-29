@@ -1049,7 +1049,7 @@ typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
  */
 #endif
 
-class Ndb
+class NDB_EXPORT Ndb
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbReceiver;
@@ -1352,7 +1352,7 @@ public:
    * passed as an array, with the last part's ptr == NULL.
    * 
    */
-  struct Key_part_ptr
+  struct NDB_EXPORT Key_part_ptr
   {
     const void * ptr;
     unsigned len;
@@ -1378,7 +1378,7 @@ public:
    *
    */
 
-  struct PartitionSpec
+  struct NDB_EXPORT PartitionSpec
   {
     enum SpecType
     {

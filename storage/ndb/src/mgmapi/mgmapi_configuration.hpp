@@ -21,11 +21,11 @@
 
 #include <ConfigValues.hpp>
 
-struct ndb_mgm_configuration {
+struct NDB_EXPORT ndb_mgm_configuration {
   ConfigValues m_config;
 };
 
-struct ndb_mgm_configuration_iterator {
+struct NDB_EXPORT ndb_mgm_configuration_iterator {
   Uint32 m_sectionNo;
   Uint32 m_typeOfSection;
   ConfigValues::ConstIterator m_config;

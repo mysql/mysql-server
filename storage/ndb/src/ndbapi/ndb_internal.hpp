@@ -18,10 +18,12 @@
 #ifndef NDB_INTERNAL_HPP
 #define NDB_INTERNAL_HPP
 
+#include <ndb_types.h>
+
 /**
  * This class exposes non-public funcionality to various test/utility programs
  */
-class Ndb_internal
+class NDB_EXPORT Ndb_internal
 {
 public:
   Ndb_internal() {}

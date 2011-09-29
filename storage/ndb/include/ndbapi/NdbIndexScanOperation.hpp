@@ -25,7 +25,7 @@
  * @class NdbIndexScanOperation
  * @brief Class of scan operations for use to scan ordered index
  */
-class NdbIndexScanOperation : public NdbScanOperation {
+class NDB_EXPORT NdbIndexScanOperation : public NdbScanOperation {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
   friend class NdbTransaction;

@@ -27,7 +27,7 @@ class NdbResultSet;
  * @class NdbIndexOperation
  * @brief Class of index operations for use in transactions
  */
-class NdbIndexOperation : public NdbOperation
+class NDB_EXPORT NdbIndexOperation : public NdbOperation
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;

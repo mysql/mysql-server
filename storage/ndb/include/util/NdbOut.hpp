@@ -47,14 +47,10 @@
        ndbout_c("Hello World %d\n", 1);
 */
 
-class NdbOut;
 class OutputStream;
 class NullOutputStream;
 
-/*  Declare a static variable of NdbOut as ndbout */
-extern NdbOut ndbout, ndberr;
-
-class NdbOut
+class NDB_EXPORT NdbOut
 {
 public:
   NdbOut& operator<<(NdbOut& (* _f)(NdbOut&));
@@ -93,9 +89,12 @@ private:
   bool m_autoflush;
 };
 
+/*  Declare a static variable of NdbOut as ndbout */
+NDB_EXPORT extern NdbOut ndbout, ndberr;
+
 #ifdef NDB_WIN
 typedef int(*NdbOutF)(char*);
-extern NdbOutF ndbout_svc;
+extern NDB_EXPORT NdbOutF ndbout_svc;
 #endif
 
 inline NdbOut& NdbOut::operator<<(NdbOut& (* _f)(NdbOut&)) {
@@ -119,11 +118,13 @@ inline NdbOut& dec(NdbOut& _NdbOut) {
   return _NdbOut.setHexFormat(0);
 }
 extern "C"
+NDB_EXPORT
 void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 extern "C"
+NDB_EXPORT
 void vndbout_c(const char * fmt, va_list ap);
 
-class FilteredNdbOut : public NdbOut {
+class NDB_EXPORT FilteredNdbOut : public NdbOut {
 public:
   FilteredNdbOut(OutputStream &, int threshold = 0, int level = 0);
   virtual ~FilteredNdbOut();
@@ -141,7 +142,7 @@ private:
 };
 
 #else
-void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+NDB_EXPORT void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 #endif
 
 #endif
