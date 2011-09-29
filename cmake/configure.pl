@@ -223,7 +223,7 @@ foreach my $option (@ARGV)
   }
   if ($option =~ /cmake-args=/)
   {
-    $cmakeargs = $cmakeargs." \"".substr($option,11)."\"";
+    $cmakeargs = $cmakeargs." ".substr($option,11);
     next;
   }
   if ($option =~ /with-gcov/)
