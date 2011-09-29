@@ -395,28 +395,6 @@ DataTypeHandler * getDataTypeHandlerForColumn(const NdbDictionary::Column *col) 
   }
 }
 
-/* 
- * getColumnRecordSize() 
- */
-size_t getColumnRecordSize(const NdbDictionary::Column *col) {
-  switch(col->getType()) {
-    case NdbDictionary::Column::Varchar:      
-    case NdbDictionary::Column::Varbinary:
-      return col->getLength() + 1;
-    
-    case NdbDictionary::Column::Longvarchar:
-    case NdbDictionary::Column::Longvarbinary:    
-      return col->getLength() + 2;
-
-    case NdbDictionary::Column::Char:
-    case NdbDictionary::Column::Binary:
-      return col->getLength();
-
-    default:
-      return col->getSizeInBytes();
-  }
-}
-
 
 /******************* IMPLEMENTATIONS *******************/
 /***** UNSUPPORTED COLUMN TYPE ******/

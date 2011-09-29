@@ -62,6 +62,7 @@ class Record {
                 const NdbDictionary::Table *);
   bool complete(NdbDictionary::Dictionary *, 
                 const NdbDictionary::Index *);
+  void debug_dump();
 
   /* const public methods that operate on an (external) data buffer */
   void clearNullBits(char *data) const;
