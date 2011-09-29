@@ -1557,8 +1557,7 @@ public:
     @param string_format String_format object that specifies
     separators in the resulting text.
   */
-  int get_string_length(const String_format *string_format=
-                        &default_string_format) const;
+  int get_string_length(const String_format *string_format= NULL) const;
   /**
     Encodes this Group_set as a string.
 
@@ -1568,8 +1567,7 @@ public:
     separators in the resulting text.
     @return Length of the generated string.
   */
-  int to_string(char *buf, const String_format *string_format=
-                &default_string_format) const;
+  int to_string(char *buf, const String_format *string_format= NULL) const;
   /// The default String_format: the format understood by add(const char *).
   static const String_format default_string_format;
   /**
