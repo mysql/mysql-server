@@ -35,17 +35,14 @@ Created Jan 06, 2010 Vasil Dimov
 #include "data0type.h" /* dtype_t */
 #include "db0err.h" /* db_err */
 #include "dyn0dyn.h" /* dyn_array* */
-#include "lock0lock.h" /* lock_table_by_name() */
 #include "pars0pars.h" /* pars_info_create() */
 #include "pars0types.h" /* pars_info_t */
 #include "que0que.h" /* que_eval_sql() */
-#include "rem0cmp.h" /* cmp_rec_rec_with_match() */
-#include "rem0types.h" /* REC_MAX_N_FIELDS */
+#include "rem0cmp.h" /* REC_MAX_N_FIELDS,cmp_rec_rec_with_match() */
 #include "row0sel.h" /* sel_node_struct */
 #include "row0types.h" /* sel_node_t */
 #include "trx0trx.h" /* trx_create() */
 #include "trx0roll.h" /* trx_rollback_to_savepoint() */
-#include "usr0types.h" /* sess_t */
 #include "ut0rnd.h" /* ut_rnd_interval() */
 
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
@@ -378,9 +375,9 @@ dict_stats_analyze_index_level(
 	dtuple_t*	dtuple;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	page_t*		page;
-	rec_t*		rec;
-	rec_t*		prev_rec;
+	const page_t*	page;
+	const rec_t*	rec;
+	const rec_t*	prev_rec;
 	byte*		prev_rec_buf = NULL;
 	ulint		prev_rec_buf_size = 0;
 	ulint		i;
@@ -430,7 +427,7 @@ dict_stats_analyze_index_level(
 	as such, if we are on a non-leaf level */
 	ut_a(level == 0
 	     || (REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
-		     page_rec_get_next(page_get_infimum_rec(page)),
+		     page_rec_get_next_const(page_get_infimum_rec(page)),
 		     page_is_comp(page))));
 
 	if (btr_pcur_is_before_first_on_page(&pcur)) {
@@ -465,7 +462,7 @@ dict_stats_analyze_index_level(
 		rec = btr_pcur_get_rec(&pcur);
 
 		/* increment the pages counter at the end of each page */
-		if (page_rec_is_supremum(page_rec_get_next(rec))) {
+		if (page_rec_is_supremum(page_rec_get_next_const(rec))) {
 
 			(*total_pages)++;
 		}
@@ -540,7 +537,7 @@ dict_stats_analyze_index_level(
 			}
 		}
 
-		if (page_rec_is_supremum(page_rec_get_next(rec))) {
+		if (page_rec_is_supremum(page_rec_get_next_const(rec))) {
 			/* end of a page has been reached */
 
 			/* we need to copy the record instead of assigning
@@ -910,7 +907,7 @@ dict_stats_analyze_index_for_n_prefix(
 	dtuple_t*	dtuple;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	page_t*		page;
+	const page_t*	page;
 	ib_uint64_t	rec_idx;
 	ib_uint64_t	last_idx_on_level;
 	ib_uint64_t	n_recs_to_dive_below;
@@ -958,7 +955,8 @@ dict_stats_analyze_index_for_n_prefix(
 	/* check whether the first record on the leftmost page is marked
 	as such, if we are on a non-leaf level */
 	ut_a(level == 0 || REC_INFO_MIN_REC_FLAG
-	     & rec_get_info_bits(page_rec_get_next(page_get_infimum_rec(page)),
+	     & rec_get_info_bits(page_rec_get_next_const(
+					 page_get_infimum_rec(page)),
 				 page_is_comp(page)));
 
 	if (btr_pcur_is_before_first_on_page(&pcur)) {
