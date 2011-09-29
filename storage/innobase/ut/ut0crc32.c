@@ -92,6 +92,12 @@ static ibool		ut_crc32_slice8_table_initialized = FALSE;
 /* Flag that tells whether the CPU supports CRC32 or not */
 static ibool		ut_crc32_sse2_enabled = FALSE;
 
+ib_uint32_t
+(*ut_crc32)(
+/*========*/
+	const byte*	buf,	/*!< in: data over which to calculate CRC32 */
+	ulint		len);	/*!< in: data length */
+
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
 not have support for it. */

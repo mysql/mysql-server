@@ -27,9 +27,15 @@ Created Aug 11, 2011 Vasil Dimov
 
 #include "fil0fil.h" /* FIL_* */
 #include "srv0srv.h" /* SRV_CHECKSUM_* */
-#include "ut0crc32.h" /* ut_crc32() */
 #include "ut0rnd.h" /* ut_fold_binary() */
 #include "buf0types.h"
+
+extern
+ib_uint32_t
+(*ut_crc32)(
+/*========*/
+	const byte*	buf,	/*!< in: data over which to calculate CRC32 */
+	ulint		len);	/*!< in: data length */
 
 /** the macro MYSQL_SYSVAR_ENUM() requires "long unsigned int" and if we
 use srv_checksum_algorithm_t here then we get a compiler error:

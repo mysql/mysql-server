@@ -79,7 +79,7 @@ ERROR: Missing --plugin_dir option.
 #
 # Show the help.
 #
-mysql_plugin  Ver V.V.VV Distrib XX.XX.XX
+mysql_plugin  Ver V.V.VV Distrib XX.XX.XX-labs-innodb-memcached
 Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
 Enable or disable plugins.
@@ -107,4 +107,4 @@ Options:
   -V, --version       Output version information and exit.
 
 
-mysql_plugin  Ver V.V.VV Distrib XX.XX.XX
+mysql_plugin  Ver V.V.VV Distrib XX.XX.XX-labs-innodb-memcached

@@ -35,7 +35,14 @@ in mysql code). */
 #include "buf0checksum.h" /* buf_calc_page_*() */
 #include "fil0fil.h" /* FIL_* */
 #include "mach0data.h" /* mach_read_from_4() */
-#include "ut0crc32.h" /* ut_crc32_init() */
+#include "ut0crc32.h"
+
+extern
+ib_uint32_t
+(*ut_crc32)(
+/*========*/
+	const byte*	buf,	/*!< in: data over which to calculate CRC32 */
+	ulint		len);	/*!< in: data length */
 
 #else /* INNOCHECKSUM_SOLARIS */
 
@@ -215,6 +222,14 @@ ut_print_timestamp(
 /* } ut0ut.c */
 
 /* ut0crc32.h { */
+/********************************************************************//**
+Initializes the data structures used by ut_crc32(). Does not do any
+allocations, would not hurt if called twice, but would be pointless. */
+UNIV_INTERN
+void
+ut_crc32_init();
+/*===========*/
+
 /********************************************************************//**
 Calculates CRC32.
 @return CRC32 (CRC-32C, using the GF(2) primitive polynomial 0x11EDC6F41,
