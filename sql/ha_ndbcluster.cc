@@ -3010,7 +3010,7 @@ ha_ndbcluster::primary_key_is_clustered()
     get_index_type_from_table(table->s->primary_key);
   return (idx_type == PRIMARY_KEY_ORDERED_INDEX ||
           idx_type == UNIQUE_ORDERED_INDEX ||
-          idx_type ==  ORDERED_INDEX);
+          idx_type == ORDERED_INDEX);
 }
 
 bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
