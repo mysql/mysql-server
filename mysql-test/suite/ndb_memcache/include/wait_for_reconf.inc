@@ -1,19 +1,15 @@
 #
-# Wait for the memcached server to be ready
+# Wait for the memcached server to finish online reconfiguration
 #
 
--- perl WAIT_READY
+--perl RECONF_SCRIPT
 
+  use strict;
   use lib "lib/";
-  use IO::File;
   use My::Memcache;
-
   my $mc = My::Memcache->new();
   my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
   my $r = $mc->connect("localhost",$port);
-  die unless($r);
+  $mc->wait_for_reconf() if ($r);
 
-  $mc->get("dummy");
-  $mc->note_config_version();
-
-WAIT_READY
+RECONF_SCRIPT
