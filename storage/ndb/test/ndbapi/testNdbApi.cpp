@@ -4826,8 +4826,8 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
       }
 
       ndbout << "Restart cluster" << endl;
-      if (restarter.restartAll(Uint32(NdbRestarter::NRRF_NOSTART |
-                                      NdbRestarter::NRRF_ABORT)) != 0)
+      if (restarter.restartAll2(Uint32(NdbRestarter::NRRF_NOSTART |
+                                       NdbRestarter::NRRF_ABORT)) != 0)
       {
         g_err << "Failed to restartAll" << endl;
         result = NDBT_FAILED;
