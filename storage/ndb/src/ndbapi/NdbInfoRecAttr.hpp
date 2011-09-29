@@ -19,7 +19,7 @@
 #ifndef NdbInfoRecAttr_H
 #define NdbInfoRecAttr_H
 
-class NDB_EXPORT NdbInfoRecAttr {
+class NdbInfoRecAttr {
 public:
   const void* ptr() const {
     return m_data;

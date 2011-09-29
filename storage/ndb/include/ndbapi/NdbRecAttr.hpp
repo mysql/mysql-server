@@ -71,7 +71,7 @@ class NdbOperation;
  *
  * @note Variable-sized attributes are not yet supported.
  */
-class NDB_EXPORT NdbRecAttr
+class NdbRecAttr
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbOperation;
@@ -461,9 +461,9 @@ NdbRecAttr::setUNDEFINED()
   m_size_in_bytes= -1;
 }
 
-NDB_EXPORT class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);
+class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);
 
-class NDB_EXPORT NdbRecordPrintFormat : public NdbDictionary::NdbDataPrintFormat
+class NdbRecordPrintFormat : public NdbDictionary::NdbDataPrintFormat
 {
 public:
   NdbRecordPrintFormat() : NdbDataPrintFormat() {};
@@ -472,7 +472,6 @@ public:
 
 /* See also NdbDictionary::printFormattedValue() */
 
-NDB_EXPORT
 NdbOut&
 ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
                            const NdbRecordPrintFormat &f);

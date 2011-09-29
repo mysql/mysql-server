@@ -142,7 +142,7 @@ enum ExecType {
 
 class NdbRecord;
 
-class NDB_EXPORT NdbTransaction
+class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;

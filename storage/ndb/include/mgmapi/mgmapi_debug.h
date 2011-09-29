@@ -31,7 +31,7 @@ extern "C" {
    * @param reply the reply message.
    * @return 0 if successful.
    */
-  NDB_EXPORT int ndb_mgm_start_signallog(NdbMgmHandle handle,
+  int ndb_mgm_start_signallog(NdbMgmHandle handle,
 			      int nodeId,
 			      struct ndb_mgm_reply* reply);
 
@@ -43,7 +43,7 @@ extern "C" {
    * @param reply the reply message.
    * @return 0 if successful.
    */
-  NDB_EXPORT int ndb_mgm_stop_signallog(NdbMgmHandle handle,
+  int ndb_mgm_stop_signallog(NdbMgmHandle handle,
 			     int nodeId,
 			     struct ndb_mgm_reply* reply);
 
@@ -57,7 +57,7 @@ extern "C" {
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
-  NDB_EXPORT int ndb_mgm_log_signals(NdbMgmHandle handle,
+  int ndb_mgm_log_signals(NdbMgmHandle handle,
 			  int nodeId, 
 			  enum ndb_mgm_signal_log_mode mode, 
 			  const char* blockNames,
@@ -72,7 +72,7 @@ extern "C" {
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
-  NDB_EXPORT int ndb_mgm_set_trace(NdbMgmHandle handle,
+  int ndb_mgm_set_trace(NdbMgmHandle handle,
 			int nodeId,
 			int traceNumber,
 			struct ndb_mgm_reply* reply);
@@ -86,7 +86,7 @@ extern "C" {
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
-  NDB_EXPORT int ndb_mgm_insert_error(NdbMgmHandle handle,
+  int ndb_mgm_insert_error(NdbMgmHandle handle,
 			   int nodeId, 
 			   int errorCode,
 			   struct ndb_mgm_reply* reply);
@@ -100,27 +100,27 @@ extern "C" {
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
-  NDB_EXPORT int ndb_mgm_set_int_parameter(NdbMgmHandle handle,
+  int ndb_mgm_set_int_parameter(NdbMgmHandle handle,
 				int node, 
 				int param,
 				unsigned value,
 				struct ndb_mgm_reply* reply);
   
-  NDB_EXPORT int ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
+  int ndb_mgm_set_int64_parameter(NdbMgmHandle handle,
 				  int node, 
 				  int param,
 				  unsigned long long value,
 				  struct ndb_mgm_reply* reply);
 
-  NDB_EXPORT int ndb_mgm_set_string_parameter(NdbMgmHandle handle,
+  int ndb_mgm_set_string_parameter(NdbMgmHandle handle,
 				   int node, 
 				   int param,
 				   const char * value,
 				   struct ndb_mgm_reply* reply);
 
-  NDB_EXPORT Uint64 ndb_mgm_get_session_id(NdbMgmHandle handle);
+  Uint64 ndb_mgm_get_session_id(NdbMgmHandle handle);
 
-  struct NDB_EXPORT NdbMgmSession {
+  struct NdbMgmSession {
     Uint64 id;
     Uint32 m_stopSelf;
     Uint32 m_stop;
@@ -129,7 +129,7 @@ extern "C" {
     Uint32 parser_status;
   };
 
-  NDB_EXPORT int ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
+  int ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
                           struct NdbMgmSession *s, int *len);
 
 #ifdef __cplusplus

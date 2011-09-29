@@ -80,7 +80,7 @@ class NdbEventOperationImpl;
  *
  * @note this is an inteface to viewing events that is subject to change
  */
-class NDB_EXPORT NdbEventOperation {
+class NdbEventOperation {
 public:
   /**
    * State of the NdbEventOperation object

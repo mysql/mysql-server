@@ -47,7 +47,7 @@ class NdbWaitGroup;
  * By using the wait_until_ready() method it is possible to wait
  * for the connection to reach one or more storage nodes.
  */
-class NDB_EXPORT Ndb_cluster_connection {
+class Ndb_cluster_connection {
 public:
   /**
    * Create a connection to a cluster of storage nodes

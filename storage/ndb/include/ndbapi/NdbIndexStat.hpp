@@ -36,7 +36,7 @@ class NdbIndexStatImpl;
  * details are available via getNdbError().
  */
 
-class NDB_EXPORT NdbIndexStat {
+class NdbIndexStat {
 public:
   NdbIndexStat();
   ~NdbIndexStat();
