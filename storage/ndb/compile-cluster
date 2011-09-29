@@ -74,6 +74,7 @@ my $cmake_version_id;
 #
 {
   my @args;
+  my @opt_build_type_arg;
   push(@args, "$srcdir/cmake/configure.pl");
 
   # MySQL Server options
@@ -91,10 +92,10 @@ my $cmake_version_id;
 
   if ($opt_build_type)
   {
-    push(@args, "--cmake-args=-G \"" . $opt_build_type . "\"");
+    push(@opt_build_type_arg, "--cmake-args=-G \"" . $opt_build_type . "\"");
   }
 
-  cmd($^X, @args, @ARGV);
+  cmd($^X, @args, @ARGV, @opt_build_type_arg);
 }
 
 #
