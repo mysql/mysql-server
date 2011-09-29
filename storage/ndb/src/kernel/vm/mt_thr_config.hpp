@@ -43,8 +43,9 @@ public:
     T_RECV  = 2, /* CMVMI */
     T_REP   = 3, /* SUMA */
     T_IO    = 4, /* FS, SocketServer etc */
+    T_TC    = 5, /* TC+SPJ */
 
-    T_END  = 5
+    T_END  = 6
   };
 
   THRConfig();

@@ -580,6 +580,8 @@ public:
     Uint32 m_fragCount;
     // The number of fragments that we scan in parallel.
     Uint32 m_parallelism;
+    // True if we are still receiving the first batch for this operation.
+    bool   m_firstBatch;
     /**
      * True if this is the first instantiation of this operation. A child
      * operation will be instantiated once for each batch of its parent.
@@ -1229,7 +1231,6 @@ private:
   void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
   void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
-  void scanIndex_send(Signal*,Ptr<Request>,Ptr<TreeNode>);
   void scanIndex_send(Signal* signal,
                       Ptr<Request> requestPtr,
                       Ptr<TreeNode> treeNodePtr,

@@ -429,6 +429,12 @@ public:
   // Get type of query operation
   virtual NdbQueryOperationDef::Type getType() const = 0;
 
+  /**
+   * Used for telling if parent at depth n has more siblings. (In that case
+   * we need to draw a horisontal line leading to that sibling.)
+   */
+  typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> SiblingMask;
+
   /** Print query tree graph to trace file (using recursion).
    * @param depth Number of ancestor nodes that this node has.
    * @param hasMoreSiblingsMask The n'th bit should be set if the n'th ancestor
@@ -436,7 +442,7 @@ public:
    */
   void printTree(
            Uint32 depth, 
-           Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> hasMoreSiblingsMask) const;
+           SiblingMask hasMoreSiblingsMask) const;
 
 protected:
   // QueryTree building:

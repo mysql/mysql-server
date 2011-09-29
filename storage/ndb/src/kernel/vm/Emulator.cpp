@@ -89,6 +89,7 @@ EmulatorData::create(){
   theSimBlockList  = new SimBlockList();
   m_socket_server  = new SocketServer();
   m_mem_manager    = new Ndbd_mem_manager();
+  globalData.m_global_page_pool.setMutex();
 
   if (theConfiguration == NULL ||
       theWatchDog == NULL ||

@@ -32,7 +32,8 @@ static const struct THRConfig::Entries m_entries[] =
   { "ldm",   THRConfig::T_LDM,   1, MAX_NDBMT_LQH_THREADS },
   { "recv",  THRConfig::T_RECV,  1, 1 },
   { "rep",   THRConfig::T_REP,   1, 1 },
-  { "io",    THRConfig::T_IO,    1, 1 }
+  { "io",    THRConfig::T_IO,    1, 1 },
+  { "tc",    THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS }
 };
 
 static const struct THRConfig::Param m_params[] =
@@ -140,6 +141,7 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     return do_bindings();
   }
 
+  Uint32 tcthreads = 0;
   Uint32 lqhthreads = 0;
   switch(MaxNoOfExecutionThreads){
   case 0:
@@ -169,6 +171,11 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
   for(Uint32 i = 0; i < lqhthreads; i++)
   {
     add(T_LDM);
+  }
+
+  for(Uint32 i = 0; i < tcthreads; i++)
+  {
+    add(T_TC);
   }
 
   return do_bindings() || do_validate();
@@ -283,6 +290,13 @@ THRConfig::do_bindings()
                         "LockExecuteThreadToCPU. Only %u specified "
                         " but %u was needed, this may cause contention.\n",
                         cnt, num_threads);
+
+      if (count_unbound(m_threads[T_TC]))
+      {
+        m_err_msg.assfmt("Too CPU specifed with LockExecuteThreadToCPU. "
+                         "This is not supported when using multiple TC threads");
+        return -1;
+      }
     }
 
     if (cnt >= num_threads)
@@ -867,7 +881,13 @@ THRConfig::do_parse(const char * ThreadConfig)
       add((T_Type)i);
   }
 
-  return do_bindings() || do_validate();
+  int res = do_bindings();
+  if (res != 0)
+  {
+    return res;
+  }
+
+  return do_validate();
 }
 
 unsigned
@@ -915,6 +935,10 @@ THRConfigApplier::find_thread(const unsigned short instancelist[], unsigned cnt)
   else if ((instanceNo = findBlock(DBDIH, instancelist, cnt)) >= 0)
   {
     return &m_threads[T_MAIN][instanceNo];
+  }
+  else if ((instanceNo = findBlock(DBTC, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_TC][instanceNo - 1]; // remove proxy
   }
   else if ((instanceNo = findBlock(DBLQH, instancelist, cnt)) >= 0)
   {
@@ -1014,6 +1038,8 @@ TAPTEST(mt_thr_config)
         "ldm={count=3,cpubind=1-2,5 },  ldm",
         "ldm={cpuset=1-3,count=3 },ldm",
         "main,ldm={},ldm",
+        "main,ldm={},ldm,tc",
+        "main,ldm={},ldm,tc,tc",
         0
       };
 
@@ -1026,6 +1052,7 @@ TAPTEST(mt_thr_config)
         "main={ keso=88, count=23},ldm,ldm",
         "main={ cpuset=1-3 }, ldm={cpuset=3-4}",
         "main={ cpuset=1-3 }, ldm={cpubind=2}",
+        "tc,tc,tc",
         0
       };
 
@@ -1065,45 +1092,71 @@ TAPTEST(mt_thr_config)
       /** threads, LockExecuteThreadToCPU, answer */
       "1-8",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7}",
 
       "1-5",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=5},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},rep={cpubind=5}",
 
       "1-3",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=2},ldm={cpubind=3},recv={cpubind=1},rep={cpubind=1}",
 
       "1-4",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=2},recv={cpubind=1},rep={cpubind=1}",
 
       "1-8",
       "ldm={count=4},io={cpubind=8}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8}",
 
       "1-8",
       "ldm={count=4,cpubind=1,4,5,6}",
+      "OK",
       "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7}",
+
+      "1-9",
+      "ldm={count=4,cpubind=1,4,5,6},tc,tc",
+      "OK",
+      "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7},tc={cpubind=8},tc={cpubind=9}",
+
+      "1-8",
+      "ldm={count=4,cpubind=1,4,5,6},tc",
+      "OK",
+      "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7},tc={cpubind=8}",
+
+      "1-8",
+      "ldm={count=4,cpubind=1,4,5,6},tc,tc",
+      "FAIL",
+      "Too CPU specifed with LockExecuteThreadToCPU. This is not supported when using multiple TC threads",
 
       // END
       0
     };
 
-    for (unsigned i = 0; t[i]; i+= 3)
+    for (unsigned i = 0; t[i]; i+= 4)
     {
       THRConfig tmp;
       tmp.setLockExecuteThreadToCPU(t[i+0]);
-      int res = tmp.do_parse(t[i+1]);
-      int ok = strcmp(tmp.getConfigString(), t[i+2]) == 0;
+      const int _res = tmp.do_parse(t[i+1]);
+      const int expect_res = strcmp(t[i+2], "OK") == 0 ? 0 : -1;
+      const int res = _res == expect_res ? 0 : -1;
+      int ok = expect_res == 0 ?
+        strcmp(tmp.getConfigString(), t[i+3]) == 0:
+        strcmp(tmp.getErrorMessage(), t[i+3]) == 0;
       printf("mask: %s conf: %s => %s(%s) - %s - %s\n",
              t[i+0],
              t[i+1],
-             res == 0 ? "OK" : "FAIL",
-             res == 0 ? "" : tmp.getErrorMessage(),
+             _res == 0 ? "OK" : "FAIL",
+             _res == 0 ? "" : tmp.getErrorMessage(),
              tmp.getConfigString(),
              ok == 1 ? "CORRECT" : "INCORRECT");
+
       OK(res == 0);
       OK(ok == 1);
     }

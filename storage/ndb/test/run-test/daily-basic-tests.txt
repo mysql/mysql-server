@@ -1753,3 +1753,24 @@ max-time: 500
 cmd: testAsynchMultiwait
 args: -n AsynchMultiwaitWakeup T1
 
+# alloc node id
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnect T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectionConnect T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_non_master T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_slow T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectSR T1
+

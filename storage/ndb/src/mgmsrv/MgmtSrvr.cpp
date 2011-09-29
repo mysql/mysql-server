@@ -528,8 +528,6 @@ MgmtSrvr::start()
 {
   DBUG_ENTER("MgmtSrvr::start");
 
-  Guard g(m_local_config_mutex);
-
   /* Start transporter */
   if(!start_transporter(m_local_config))
   {
@@ -3451,15 +3449,17 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
   for (unsigned i = 0; i < nodes.size(); i++)
   {
     const unsigned id= nodes[i].id;
-    if (m_reserved_nodes.get(id))
-    {
-      // Node is already reserved(locally in this node)
-      continue;
-    }
-
     if (theFacade->ext_isConnected(id))
     {
       // Node is already reserved(connected via transporter)
+      continue;
+    }
+
+    NdbMutex_Lock(m_reserved_nodes_mutex);
+    if (m_reserved_nodes.get(id))
+    {
+      // Node is already reserved(locally in this node)
+      NdbMutex_Unlock(m_reserved_nodes_mutex);
       continue;
     }
 
@@ -3483,16 +3483,14 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
           more than one thread asked for same nodeid) since it's
           now reserved in data node
         */
-        m_reserved_nodes.clear(id);
+        release_local_nodeid_reservation(id);
       }
 
-      NdbMutex_Lock(m_reserved_nodes_mutex);
       return true;
     }
 
     /* Release the local reservation */
-    m_reserved_nodes.clear(id);
-    NdbMutex_Lock(m_reserved_nodes_mutex);
+    release_local_nodeid_reservation(id);
 
     if (res < 0)
     {
@@ -3601,8 +3599,6 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     return false;
   }
 
-  Guard g(m_reserved_nodes_mutex);
-
   /* Check timeout of nodeid reservations for NDB */
   if (type == NDB_MGM_NODE_TYPE_NDB)
   {
@@ -3610,8 +3606,11 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     for (unsigned i = 0; i < nodes.size(); i++)
     {
       const NodeId ndb_nodeid = nodes[i].id;
-      if (!m_reserved_nodes.has_timedout(ndb_nodeid, now))
-        continue;
+      {
+        Guard g(m_reserved_nodes_mutex);
+        if (!m_reserved_nodes.has_timedout(ndb_nodeid, now))
+          continue;
+      }
 
       // Found a timedout reservation
       if (theFacade->ext_isConnected(ndb_nodeid))
@@ -3621,7 +3620,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
                              "releasing it", ndb_nodeid);
 
       // Clear the reservation
-      m_reserved_nodes.clear(ndb_nodeid);
+      release_local_nodeid_reservation(ndb_nodeid);
     }
   }
 
