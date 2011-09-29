@@ -113,8 +113,4 @@ typedef struct {
 DataTypeHandler * getDataTypeHandlerForColumn(const NdbDictionary::Column *);
 
 
-/* Function to retrieve the buffer size required for an NDB column
- */
-size_t getColumnRecordSize(const NdbDictionary::Column *col);
-
 #endif

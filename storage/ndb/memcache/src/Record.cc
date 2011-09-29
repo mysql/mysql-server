@@ -99,7 +99,9 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
 
   /* Increment the counter and record size */
   index += 1;
-  rec_size += getColumnRecordSize(column);
+
+//  rec_size += getColumnRecordSize(column);
+  rec_size += column->getSizeInBytes();
 };
 
 
@@ -295,7 +297,8 @@ void Record::pad_offset_for_alignment() {
     alignment = 8;
   }
   else if(! handlers[index]->contains_string) {
-    alignment = specs[index].column->getSize();
+//    alignment = specs[index].column->getSize();
+     alignment = specs[index].column->getSizeInBytes();
   }
 
   switch(alignment) {
@@ -306,5 +309,16 @@ void Record::pad_offset_for_alignment() {
       break;
     default:
       break;
+  }
+}
+
+
+void Record::debug_dump() {
+  for(int i = 0 ; i < ncolumns ; i++) {
+    DEBUG_PRINT("Col %d column  : %s %d/%d", i, specs[i].column->getName()
+                , specs[i].column->getSize(), specs[i].column->getSizeInBytes());
+    DEBUG_PRINT("Col %d offset  : %d", i, specs[i].offset);
+    DEBUG_PRINT("Col %d null bit: %d.%d", i,
+                specs[i].nullbit_byte_offset, specs[i].nullbit_bit_in_byte);
   }
 }

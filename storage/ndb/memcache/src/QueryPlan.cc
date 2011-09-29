@@ -217,6 +217,21 @@ QueryPlan::~QueryPlan() {
 }
 
 
+void QueryPlan::debug_dump() {
+  if(key_record) {
+    DEBUG_PRINT("Key record:");
+    key_record->debug_dump();
+  }
+  if(row_record) {
+    DEBUG_PRINT("Row record:");
+    row_record->debug_dump();
+  }
+  if(val_record) {
+    DEBUG_PRINT("val_record");
+    val_record->debug_dump();
+  }
+}
+
 bool QueryPlan::keyIsPrimaryKey() {
   if(spec->nkeycols == table->getNoOfPrimaryKeys()) {
     for(int i = 0 ; i < spec->nkeycols ; i++) 
