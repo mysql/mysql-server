@@ -42,7 +42,7 @@ class NdbLockHandle;
  * @class NdbOperation
  * @brief Class of operations for use in transactions.  
  */
-class NdbOperation
+class NDB_EXPORT NdbOperation
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;

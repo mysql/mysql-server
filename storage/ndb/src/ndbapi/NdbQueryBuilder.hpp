@@ -53,7 +53,7 @@ class NdbQueryOperationDefImpl;
  * NdbQueryOperand, a construct for specifying values which are used 
  * to specify lookup keys, bounds or filters in the query tree.
  */
-class NdbQueryOperand  // A base class specifying a single value
+class NDB_EXPORT NdbQueryOperand  // A base class specifying a single value
 {
 public:
   // Column which this operand relates to
@@ -74,7 +74,7 @@ private:
 };
 
 // A NdbQueryOperand is either of these:
-class NdbConstOperand : public NdbQueryOperand
+class NDB_EXPORT NdbConstOperand : public NdbQueryOperand
 {
 private:
   friend class NdbConstOperandImpl;
@@ -82,7 +82,7 @@ private:
   ~NdbConstOperand();
 };
 
-class NdbLinkedOperand : public NdbQueryOperand
+class NDB_EXPORT NdbLinkedOperand : public NdbQueryOperand
 {
 private:
   friend class NdbLinkedOperandImpl;
@@ -90,7 +90,7 @@ private:
   ~NdbLinkedOperand();
 };
 
-class NdbParamOperand  : public NdbQueryOperand {
+class NDB_EXPORT NdbParamOperand  : public NdbQueryOperand {
 public:
   const char* getName() const;
   Uint32 getEnum() const;
@@ -109,7 +109,7 @@ private:
  *  with the set'ers methods, and then supplied as an argument when creating the 
  *  NdbQueryOperationDef.
  */
-class NdbQueryOptions
+class NDB_EXPORT NdbQueryOptions
 {
 public:
 
@@ -206,7 +206,7 @@ private:
 /**
  * NdbQueryOperationDef defines an operation on a single NDB table
  */
-class NdbQueryOperationDef // Base class for all operation definitions
+class NDB_EXPORT NdbQueryOperationDef// Base class for all operation definitions
 {
 public:
 
@@ -262,7 +262,7 @@ private:
 }; // class NdbQueryOperationDef
 
 
-class NdbQueryLookupOperationDef : public NdbQueryOperationDef
+class NDB_EXPORT NdbQueryLookupOperationDef : public NdbQueryOperationDef
 {
 public:
 
@@ -273,7 +273,7 @@ private:
   ~NdbQueryLookupOperationDef();
 }; // class NdbQueryLookupOperationDef
 
-class NdbQueryScanOperationDef : public NdbQueryOperationDef  // Base class for scans
+class NDB_EXPORT NdbQueryScanOperationDef : public NdbQueryOperationDef  // Base class for scans
 {
 protected:
   // Enforce object creation through NdbQueryBuilder factory 
@@ -281,7 +281,7 @@ protected:
   ~NdbQueryScanOperationDef();
 }; // class NdbQueryScanOperationDef
 
-class NdbQueryTableScanOperationDef : public NdbQueryScanOperationDef
+class NDB_EXPORT NdbQueryTableScanOperationDef : public NdbQueryScanOperationDef
 {
 private:
   // Enforce object creation through NdbQueryBuilder factory 
@@ -290,7 +290,7 @@ private:
   ~NdbQueryTableScanOperationDef();
 }; // class NdbQueryTableScanOperationDef
 
-class NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
+class NDB_EXPORT NdbQueryIndexScanOperationDef : public NdbQueryScanOperationDef
 {
 public:
 
@@ -309,7 +309,7 @@ private:
  * NdbQueryIndexScanOperationDef and does not have to be 
  * persistent after the NdbQueryBuilder::scanIndex() call
  */
-class NdbQueryIndexBound
+class NDB_EXPORT NdbQueryIndexBound
 {
 public:
   // C'tor for an equal bound:
@@ -361,7 +361,7 @@ private:
  *   until it is explicit released by NdbQueryDef::release()
  *
  */
-class NdbQueryBuilder 
+class NDB_EXPORT NdbQueryBuilder
 {
   friend class NdbQueryBuilderImpl;
 private:
@@ -488,7 +488,7 @@ private:
  * the actuall values required by ::execute() (ie. Lookup an bind keys).
  *
  */
-class NdbQueryDef
+class NDB_EXPORT NdbQueryDef
 {
   friend class NdbQueryDefImpl;
 

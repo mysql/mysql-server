@@ -63,14 +63,14 @@ class NdbRecord;
  *
  * See @ref ndbapi_simple_index.cpp for details of usage.
  */
-class NdbDictionary {
+class NDB_EXPORT NdbDictionary {
 public:
   NdbDictionary() {}                          /* Remove gcc warning */
   /**
    * @class Object
    * @brief Meta information about a database object (a table, index, etc)
    */
-  class Object {
+  class NDB_EXPORT Object {
   public:
     Object() {}                               /* Remove gcc warning */
     virtual ~Object() {}                      /* Remove gcc warning */
@@ -175,7 +175,7 @@ public:
 
   class Dictionary; // Forward declaration
   
-  class ObjectId : public Object 
+  class NDB_EXPORT ObjectId : public Object 
   {
   public:
     ObjectId();
@@ -223,7 +223,7 @@ public:
    * Data formats are same as in MySQL.  NDB API provides no support for
    * constructing such formats.  NDB kernel checks them however.
    */
-  class Column {
+  class NDB_EXPORT Column {
   public:
     /**
      * The builtin column types
@@ -661,7 +661,7 @@ public:
    * plus the overhead 2 MByte and rounded up to 100 000 kBytes.<br>
    *
    */
-  class Table : public Object {
+  class NDB_EXPORT Table : public Object {
   public:
     /*
      * Single user mode specifies access rights to table during single user mode
@@ -1136,7 +1136,7 @@ public:
    * @class Index
    * @brief Represents an index in an NDB Cluster
    */
-  class Index : public Object {
+  class NDB_EXPORT Index : public Object {
   public:
     
     /** 
@@ -1401,7 +1401,7 @@ public:
    * @brief Represents an Event in NDB Cluster
    *
    */
-  class Event : public Object  {
+  class NDB_EXPORT Event : public Object  {
   public:
     /**
      * Specifies the type of database operations an Event listens to
@@ -1655,7 +1655,7 @@ public:
     /* Use the mysqld record format for bitfields, only used inside mysqld. */
     RecMysqldBitfield= 0x2
   };
-  struct RecordSpecification {
+  struct NDB_EXPORT RecordSpecification {
     /*
       Column described by this entry (the column maximum size defines field
       size in row).
@@ -1825,7 +1825,7 @@ public:
   /**
    * @class LogfileGroup
    */
-  class LogfileGroup : public Object {
+  class NDB_EXPORT LogfileGroup : public Object {
   public:
     LogfileGroup();
     LogfileGroup(const LogfileGroup&);
@@ -1867,7 +1867,7 @@ public:
   /**
    * @class Tablespace
    */
-  class Tablespace : public Object {
+  class NDB_EXPORT Tablespace : public Object {
   public:
     Tablespace();
     Tablespace(const Tablespace&);
@@ -1909,7 +1909,7 @@ public:
     Tablespace(NdbTablespaceImpl&);
   };
 
-  class Datafile : public Object {
+  class NDB_EXPORT Datafile : public Object {
   public:
     Datafile();
     Datafile(const Datafile&);
@@ -1953,7 +1953,7 @@ public:
     Datafile(NdbDatafileImpl&);
   };
 
-  class Undofile : public Object {
+  class NDB_EXPORT Undofile : public Object {
   public:
     Undofile();
     Undofile(const Undofile&);
@@ -2001,7 +2001,7 @@ public:
    * @brief Represents a HashMap in an NDB Cluster
    *
    */
-  class HashMap : public Object {
+  class NDB_EXPORT HashMap : public Object {
   public:
     HashMap();
     HashMap(const HashMap&);
@@ -2045,7 +2045,7 @@ public:
    * @class Dictionary
    * @brief Dictionary for defining and retreiving meta data
    */
-  class Dictionary {
+  class NDB_EXPORT Dictionary {
   public:
     /**
      * @class List
@@ -2643,6 +2643,7 @@ public:
 
 }; // class NdbDictionary
 
+NDB_EXPORT
 class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Column& col);
 
 #endif

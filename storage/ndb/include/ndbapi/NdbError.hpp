@@ -19,6 +19,7 @@
 #ifndef NDB_ERROR_HPP
 #define NDB_ERROR_HPP
 
+#include <ndb_types.h>
 #include "ndberror.h"
 
 /**
@@ -45,7 +46,7 @@
  * 
  * For example of use, see @ref ndbapi_retries.cpp.
  */
-struct NdbError {
+struct NDB_EXPORT NdbError {
   /**
    * Status categorizes error codes into status values reflecting
    * what the application should do when encountering errors
@@ -248,7 +249,8 @@ struct NdbError {
 #endif
 };
 
-class NdbOut& operator <<(class NdbOut&, const NdbError &);
-class NdbOut& operator <<(class NdbOut&, const NdbError::Status&);
-class NdbOut& operator <<(class NdbOut&, const NdbError::Classification&);
+NDB_EXPORT class NdbOut& operator <<(class NdbOut&, const NdbError &);
+NDB_EXPORT class NdbOut& operator <<(class NdbOut&, const NdbError::Status&);
+NDB_EXPORT class NdbOut& operator <<(class NdbOut&, const NdbError::Classification&);
+
 #endif

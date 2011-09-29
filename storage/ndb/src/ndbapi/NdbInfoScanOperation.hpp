@@ -19,7 +19,7 @@
 #ifndef NDBINFOSCANOPERATION_H
 #define NDBINFOSCANOPERATION_H
 
-class NdbInfoScanOperation {
+class NDB_EXPORT NdbInfoScanOperation {
 public:
   int readTuples();
   const class NdbInfoRecAttr* getValue(const char * anAttrName);

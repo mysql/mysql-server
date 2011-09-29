@@ -126,7 +126,7 @@ class NdbEventOperationImpl;
  */
 #endif
 
-class NdbBlob {
+class NDB_EXPORT NdbBlob {
 public:
   /**
    * State.

@@ -27,7 +27,7 @@
 #include <util/BaseString.hpp>
 #include <util/HashMap.hpp>
 
-class NdbInfo
+class NDB_EXPORT NdbInfo
 {
 public:
 
@@ -40,7 +40,7 @@ public:
     ERR_WrongState = 43
   };
 
-  struct Column
+  struct NDB_EXPORT Column
   {
   public:
 
@@ -59,7 +59,7 @@ public:
     Column & operator=(const Column & col);
   };
 
-  class Table
+  class NDB_EXPORT Table
   {
   public:
 
