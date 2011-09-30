@@ -6020,10 +6020,8 @@ int handler::ha_reset()
   /* Reset information about pushed engine conditions */
   pushed_cond= NULL;
   /* Reset information about pushed index conditions */
-  pushed_idx_cond= NULL;
-  pushed_idx_cond_keyno= MAX_KEY;
-  in_range_check_pushed_down= false;
- 
+  cancel_pushed_idx_cond();
+
   const int retval= reset();
   DBUG_RETURN(retval);
 }

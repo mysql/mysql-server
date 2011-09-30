@@ -2664,6 +2664,19 @@ case SQLCOM_PREPARE:
       select_result *result;
 
       /*
+        CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
+        ORDER BY PRIMARY KEY clause is used in SELECT statement. We therefore
+        use row based logging if mixed or row based logging is available.
+        TODO: Check if the order of the output of the select statement is
+        deterministic. Waiting for BUG#42415
+      */
+      if(lex->ignore)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT);
+      
+      if(lex->duplicates == DUP_REPLACE)
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
+
+      /*
         If:
         a) we inside an SP and there was NAME_CONST substitution,
         b) binlogging is on (STMT mode),
@@ -3008,6 +3021,16 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
+
+    /*
+      UPDATE IGNORE can be unsafe. We therefore use row based
+      logging if mixed or row based logging is available.
+      TODO: Check if the order of the output of the select statement is
+      deterministic. Waiting for BUG#42415
+    */
+    if (lex->ignore)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UPDATE_IGNORE);
+
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
     MYSQL_UPDATE_START(thd->query());
@@ -3173,6 +3196,23 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
+    /*
+      INSERT...SELECT...ON DUPLICATE KEY UPDATE/REPLACE SELECT/
+      INSERT...IGNORE...SELECT can be unsafe, unless ORDER BY PRIMARY KEY
+      clause is used in SELECT statement. We therefore use row based
+      logging if mixed or row based logging is available.
+      TODO: Check if the order of the output of the select statement is
+      deterministic. Waiting for BUG#42415
+    */
+    if (lex->sql_command == SQLCOM_INSERT_SELECT &&
+        lex->duplicates == DUP_UPDATE)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE);
+
+    if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->ignore)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT);
+
+    if (lex->sql_command == SQLCOM_REPLACE_SELECT)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
 
     /* Fix lock for first table */
     if (first_table->lock_type == TL_WRITE_DELAYED)
@@ -4740,7 +4780,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  thd->thd_marker.emb_on_expr_nest= NULL;
   if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
   {
     if (lex->describe)
@@ -5564,7 +5603,6 @@ void THD::reset_for_next_command()
   thd->get_stmt_da()->reset_for_next_command();
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;

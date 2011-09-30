@@ -40,16 +40,28 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t2",
                 "table_scan": {
-                  "records": 2,
+                  "rows": 2,
                   "cost": 2
                 } /* table_scan */
               }
-            ] /* records_estimation */
+            ] /* rows_estimation */
           },
           {
             "considered_execution_plans": "..."
@@ -73,7 +85,7 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -113,19 +125,31 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                         } /* condition_processing */
                       },
                       {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
                         "ref_optimizer_key_uses": [
                         ] /* ref_optimizer_key_uses */
                       },
                       {
-                        "records_estimation": [
+                        "rows_estimation": [
                           {
                             "database": "test",
                             "table": "t1",
-                            "records": 1,
+                            "rows": 1,
                             "cost": 1,
                             "table_type": "system"
                           }
-                        ] /* records_estimation */
+                        ] /* rows_estimation */
                       },
                       {
                         "attaching_conditions_to_tables": {
@@ -209,16 +233,28 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t2",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t2",
                 "table_scan": {
-                  "records": 2,
+                  "rows": 2,
                   "cost": 2
                 } /* table_scan */
               }
-            ] /* records_estimation */
+            ] /* rows_estimation */
           },
           {
             "considered_execution_plans": "..."
@@ -242,7 +278,7 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
               {
                 "database": "test",
                 "table": "t2",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ] /* refine_plan */
           }
@@ -282,19 +318,31 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                         } /* condition_processing */
                       },
                       {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
                         "ref_optimizer_key_uses": [
                         ] /* ref_optimizer_key_uses */
                       },
                       {
-                        "records_estimation": [
+                        "rows_estimation": [
                           {
                             "database": "test",
                             "table": "t1",
-                            "records": 1,
+                            "rows": 1,
                             "cost": 1,
                             "table_type": "system"
                           }
-                        ] /* records_estimation */
+                        ] /* rows_estimation */
                       },
                       {
                         "attaching_conditions_to_tables": {
@@ -396,15 +444,27 @@ t1.a= (SELECT a FROM t2 LIMIT 1)	{
                               "select#": 2,
                               "steps": [
                                 {
-                                  "records_estimation": [
+                                  "table_dependencies": [
                                     {
                                       "database": "test",
                                       "table": "t2",
-                                      "records": 1,
+                                      "row_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
+                                {
+                                  "rows_estimation": [
+                                    {
+                                      "database": "test",
+                                      "table": "t2",
+                                      "rows": 1,
                                       "cost": 1,
                                       "table_type": "system"
                                     }
-                                  ] /* records_estimation */
+                                  ] /* rows_estimation */
                                 }
                               ] /* steps */,
                               "empty_result": {
@@ -548,19 +608,31 @@ WHERE NOT EXISTS
                                   } /* condition_processing */
                                 },
                                 {
+                                  "table_dependencies": [
+                                    {
+                                      "database": "test",
+                                      "table": "t2",
+                                      "row_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
+                                {
                                   "ref_optimizer_key_uses": [
                                   ] /* ref_optimizer_key_uses */
                                 },
                                 {
-                                  "records_estimation": [
+                                  "rows_estimation": [
                                     {
                                       "database": "test",
                                       "table": "t2",
-                                      "records": 1,
+                                      "rows": 1,
                                       "cost": 1,
                                       "table_type": "system"
                                     }
-                                  ] /* records_estimation */
+                                  ] /* rows_estimation */
                                 }
                               ] /* steps */,
                               "empty_result": {
