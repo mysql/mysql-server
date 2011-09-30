@@ -909,6 +909,14 @@ innodb_api_link(
 	char*		before_val;
 	int		column_used;
 
+	if (engine->enable_binlog) {
+		assert(cursor_data->mysql_tbl);
+
+		innodb_api_setup_hdl_rec(result, col_info,
+					 cursor_data->mysql_tbl);
+		handler_store_record(cursor_data->mysql_tbl);
+	}
+
 	/* If we have multiple value columns, the column to append the
 	string needs to be defined. We will use user supplied flags
 	as an indication on which column to apply the operation. Otherwise,
@@ -962,10 +970,16 @@ innodb_api_link(
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
+
+		if (engine->enable_binlog) {
+			handler_binlog_row(cursor_data->mysql_tbl,
+					   HDL_UPDATE);
+			handler_binlog_flush(cursor_data->thd,
+					     cursor_data->mysql_tbl);
+		}
 	}
 
 	return(err);
-
 }
 
 /*************************************************************//**
@@ -1002,9 +1016,18 @@ innodb_api_arithmetic(
 	char*		before_val;
 	int		before_len;
 	int		column_used = 0;
+	ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
+	
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
 				&result, &old_tpl, FALSE);
+
+	if (engine->enable_binlog && !cursor_data->mysql_tbl
+	    && (err == DB_SUCCESS || create)) {
+		cursor_data->mysql_tbl = handler_open_table(
+			cursor_data->thd, meta_info->m_item[META_DB].m_str,
+			meta_info->m_item[META_TABLE].m_str, -2);
+	}
 
 	if (err != DB_SUCCESS) {
 		ib_tuple_delete(old_tpl);
@@ -1016,6 +1039,13 @@ innodb_api_arithmetic(
 		} else {
 			return(DB_RECORD_NOT_FOUND);
 		}
+	}
+
+	/* Store the original value, this would be an update */
+	if (engine->enable_binlog) {
+		innodb_api_setup_hdl_rec(&result, col_info,
+					 cursor_data->mysql_tbl);
+		handler_store_record(cursor_data->mysql_tbl);
 	}
 
 	/* If we have multiple value columns, the column to append the
@@ -1041,7 +1071,8 @@ innodb_api_arithmetic(
 
 	if (before_len >= (sizeof(value_buf) - 1)) {
 		ib_cb_tuple_delete(old_tpl);
-		return ENGINE_EINVAL;
+		ret = ENGINE_EINVAL;
+		goto func_exit;
 	}
 
 	errno = 0;	
@@ -1052,7 +1083,8 @@ innodb_api_arithmetic(
 	
 	if (errno == ERANGE) {
 		ib_cb_tuple_delete(old_tpl);
-		return ENGINE_EINVAL;
+		ret = ENGINE_EINVAL;
+		goto func_exit;
 	}
 
 	if (increment) {
@@ -1079,22 +1111,45 @@ create_new_value:
 				 *cas,
 				 result.mci_item[MCI_COL_EXP].m_digit,
 				 result.mci_item[MCI_COL_FLAG].m_digit,
-				 column_used, NULL);
+				 column_used, cursor_data->mysql_tbl);
 
 	assert(err == DB_SUCCESS);
 
 	if (create_new) {
 		err = ib_cb_insert_row(cursor_data->c_crsr, new_tpl);
 		*out_result = initial;
+
+		if (engine->enable_binlog) {
+			handler_binlog_row(cursor_data->mysql_tbl, HDL_INSERT);
+			handler_binlog_flush(cursor_data->thd,
+					     cursor_data->mysql_tbl);
+		}
 	} else {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 		*out_result = value;
+
+		if (engine->enable_binlog) {
+			handler_binlog_row(cursor_data->mysql_tbl, HDL_UPDATE);
+			handler_binlog_flush(cursor_data->thd,
+					     cursor_data->mysql_tbl);
+		}
 	}
 
 	ib_cb_tuple_delete(new_tpl);
 	ib_cb_tuple_delete(old_tpl);
 
-	return(err == DB_SUCCESS ? ENGINE_SUCCESS : ENGINE_NOT_STORED);
+func_exit:
+	if (engine->enable_binlog && cursor_data->mysql_tbl) {
+		handler_unlock_table(cursor_data->thd,
+				     cursor_data->mysql_tbl, HDL_READ);
+		cursor_data->mysql_tbl = NULL;
+	}
+
+	if (ret == ENGINE_SUCCESS) {
+		ret = (err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_NOT_STORED;
+	}
+
+	return(ret);
 }
 
 /*************************************************************//**
