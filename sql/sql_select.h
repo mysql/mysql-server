@@ -666,6 +666,7 @@ protected:
     KEYUSE *join_tab_keyuse[MAX_TABLES];
     /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
     key_map join_tab_checked_keys[MAX_TABLES];
+    SJ_MATERIALIZATION_INFO *sj_mat_info[MAX_TABLES];
   public:
     Join_plan_state()
     {   
