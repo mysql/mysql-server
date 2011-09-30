@@ -249,6 +249,9 @@ extern "C" {
 }
 #endif
 
+// let's us track if the tokudb_init_func failed
+static int tokudb_init_func_failed = 0;
+
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
     int r;
@@ -480,6 +483,8 @@ error:
         assert(rr==0);
         db_env = 0;
     }
+    // we failed, let's not forget that.
+    tokudb_init_func_failed = 1;
     DBUG_RETURN(TRUE);
 }
 
@@ -1616,12 +1621,18 @@ static ST_FIELD_INFO tokudb_user_data_field_info[] = {
 };
 
 static int tokudb_user_data_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
-    TABLE *table = tables->table;
+    int error;
     uint64_t data_size;
-    int error = tokudb_get_user_data_size(thd, false, &data_size);
-    if (error == 0) {
-        table->field[0]->store(data_size, false);
-        error = schema_table_store_record(thd, table);
+    TABLE *table = tables->table;
+    if (tokudb_init_func_failed) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        error = tokudb_get_user_data_size(thd, false, &data_size);
+        if (error == 0) {
+            table->field[0]->store(data_size, false);
+            error = schema_table_store_record(thd, table);
+        }
     }
     return error;
 }
@@ -1645,12 +1656,18 @@ static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
 };
 
 static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
-    TABLE *table = tables->table;
+    int error;
     uint64_t data_size;
-    int error = tokudb_get_user_data_size(thd, true, &data_size);
-    if (error == 0) {
-        table->field[0]->store(data_size, false);
-        error = schema_table_store_record(thd, table);
+    TABLE *table = tables->table;
+    if (tokudb_init_func_failed) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        error = tokudb_get_user_data_size(thd, true, &data_size);
+        if (error == 0) {
+            table->field[0]->store(data_size, false);
+            error = schema_table_store_record(thd, table);
+        }
     }
     return error;
 }
