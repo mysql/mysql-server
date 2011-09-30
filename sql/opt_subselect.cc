@@ -1425,7 +1425,8 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   DBUG_ENTER("convert_subq_to_jtbm");
 
   subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
-  subq_pred->optimize(&rows, &read_time);
+  if (subq_pred->optimize(&rows, &read_time))
+    DBUG_RETURN(TRUE);
 
   subq_pred->jtbm_read_time= read_time;
   subq_pred->jtbm_record_count=rows;
