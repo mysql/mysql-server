@@ -1632,15 +1632,16 @@ void Log_event::print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *pei)
     prev->sidno= subgroup->sidno;
     prev->gno= subgroup->gno;
   }
-  bool group_commit=
-    (subgroup->group_commit &&
-     event_end_position >= (subgroup->binlog_pos + subgroup->binlog_length -
-                            subgroup->binlog_offset_after_last_statement));
-  if (force || subgroup->group_end != prev->group_end)
+  bool is_last_event=
+    event_end_position >= (subgroup->binlog_pos + subgroup->binlog_length -
+                           subgroup->binlog_offset_after_last_statement);
+  bool group_commit= subgroup->group_commit && is_last_event;
+  bool group_end= subgroup->group_end && is_last_event;
+  if (force || group_end != prev->group_end)
   {
     PRINT_HEADER;
-    my_b_printf(out, "UGID_END=%d", subgroup->group_end ? 1 : 0);
-    prev->group_end= subgroup->group_end;
+    my_b_printf(out, "UGID_END=%d", group_end ? 1 : 0);
+    prev->group_end= group_end;
   }
   if (force || group_commit != prev->group_commit)
   {

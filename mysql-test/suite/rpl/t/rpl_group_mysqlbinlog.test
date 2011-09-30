@@ -1,21 +1,30 @@
 --source include/have_binlog_format_row.inc
 
---let $rpl_topology= 1,2
---source include/rpl_init.inc
+--source include/master-slave.inc
 
---let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+######## Generate some data on master ########
+
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 INSERT INTO t1 VALUES (4);
+# note: CREATE...SELECT will be logged as two groups on slave
 CREATE TABLE t5 SELECT * FROM t1;
 SET UGID_NEXT = 'ANONYMOUS';
 INSERT INTO t1 VALUES (0);
 INSERT INTO t1 VALUES (6);
 INSERT INTO t1 VALUES (7);
 
+######## Sync to slave ########
+
+--sync_slave_with_master
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --let $datadir= `SELECT @@datadir`
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+######## See output from mysqlbinlog ########
+
 --echo ================ FULL FILE ================
 --exec $MYSQL_BINLOG $datadir/$binlog_file | grep '^# Subgroup'
 --exec $MYSQL_BINLOG $datadir/$binlog_file
@@ -36,4 +45,6 @@ INSERT INTO t1 VALUES (7);
 --exec $MYSQL_BINLOG --first-lgid=2 --last-lgid=5 $datadir/$binlog_file | grep '^# Subgroup'
 --exec $MYSQL_BINLOG --first-lgid=2 --last-lgid=5 $datadir/$binlog_file
 
+--connection master
 DROP TABLE t1, t5;
+--source include/rpl_end.inc
