@@ -629,7 +629,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error";
-  const char *fmt= "%s; the last event was read from %s at %s, the last byte read was read from %s at %s.";
+  const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
   char llbuff1[22], llbuff2[22];
   char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
@@ -1253,13 +1253,18 @@ end:
 err:
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   if (my_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG && my_b_inited(&log))
+  {
     /* 
        detailing the fatal error message with coordinates 
        of the last position read.
     */
+    char b_start[FN_REFLEN], b_end[FN_REFLEN];
+    fn_format(b_start, coord->file_name, "", "", MY_REPLACE_DIR);
+    fn_format(b_end,   log_file_name,    "", "", MY_REPLACE_DIR);
     my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
-                coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
-                log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+                b_start, (llstr(coord->pos, llbuff1), llbuff1),
+                b_end, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+  }
   else
     strcpy(error_text, errmsg);
   end_io_cache(&log);
