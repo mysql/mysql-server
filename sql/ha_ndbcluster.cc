@@ -21,10 +21,6 @@
   MySQL and NDB Cluster
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "ha_ndbcluster_glue.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE

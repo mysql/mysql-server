@@ -22,9 +22,6 @@
   to the ndb data node (for execution by the SPJ block).
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "ha_ndbcluster_glue.h"
 
