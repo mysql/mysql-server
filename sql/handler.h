@@ -243,13 +243,7 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
 
-#ifndef MCP_WL4784
-/*
-  no IO if read data when scan index
-  i.e index is covering
-*/
-#define HA_CLUSTERED_INDEX      512
-#endif
+
 
 /*
   bits in alter_table_flags:

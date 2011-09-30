@@ -177,11 +177,7 @@ private:
   MY_BITMAP m_locked_partitions;
 public:
   handler *clone(const char *name, MEM_ROOT *mem_root);
-#ifndef MCP_BUG56438
   virtual void set_part_info(partition_info *part_info, bool early)
-#else
-  virtual void set_part_info(partition_info *part_info)
-#endif
   {
      m_part_info= part_info;
      m_is_sub_partitioned= part_info->is_sub_partitioned();

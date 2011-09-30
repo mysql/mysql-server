@@ -2145,7 +2145,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 #else
         tmp= fix_partition_func(thd, outparam, is_create_table);
 #endif
-      outparam->part_info->item_free_list= part_func_arena.free_list;
     }
     outparam->part_info->item_free_list= part_func_arena.free_list;
 partititon_err:
