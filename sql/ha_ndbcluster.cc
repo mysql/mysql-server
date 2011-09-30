@@ -21,10 +21,6 @@
   MySQL and NDB Cluster
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "ha_ndbcluster_glue.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -45,7 +41,9 @@
 #include "ndb_table_guard.h"
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 #include "abstract_query_plan.h"
+#endif
 #include "ndb_dist_priv_util.h"
 #include "ha_ndb_index_stat.h"
 
@@ -3139,7 +3137,7 @@ ha_ndbcluster::primary_key_is_clustered()
     get_index_type_from_table(table->s->primary_key);
   return (idx_type == PRIMARY_KEY_ORDERED_INDEX ||
           idx_type == UNIQUE_ORDERED_INDEX ||
-          idx_type ==  ORDERED_INDEX);
+          idx_type == ORDERED_INDEX);
 }
 
 bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
@@ -3180,6 +3178,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
 
   NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
 
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
   if (check_if_pushable(NdbQueryOperationDef::PrimaryKeyAccess, table->s->primary_key))
   {
     // Is parent of pushed join
@@ -3213,6 +3212,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
     }
   }
   else
+#endif
   {
     if (m_pushed_join_operation == PUSHED_ROOT)
     {
@@ -3594,6 +3594,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
 
   NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
 
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
   if (check_if_pushable(NdbQueryOperationDef::UniqueIndexAccess, active_index))
   {
     DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
@@ -3624,6 +3625,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
     }
   }
   else
+#endif
   {
     if (m_pushed_join_operation == PUSHED_ROOT)
     {
@@ -3984,6 +3986,7 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
 
 extern void sql_print_information(const char *format, ...);
 
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 static
 bool
 is_shrinked_varchar(const Field *field)
@@ -4063,8 +4066,9 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
 
   const int ret= create_pushed_join(paramValues, key_def->key_parts);
   DBUG_RETURN(ret);
-} // ha_ndbcluster::pk_unique_index_read_key_pushed
+}
 
+#endif
 
 /** Count number of columns in key part. */
 static uint
@@ -4226,6 +4230,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     pbound = &bound;
   }
 
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
   if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index,
                         sorted))
   {
@@ -4254,7 +4259,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
     DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
   }
-  else // if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
+  else
+#endif
   {
     if (m_pushed_join_operation == PUSHED_ROOT)
     {
@@ -4419,6 +4425,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   if (table_share->primary_key == MAX_KEY)
     get_hidden_fields_scan(&options, gets);
 
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
   if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
     const int error= create_pushed_join();
@@ -4428,7 +4435,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     m_thd_ndb->m_scan_count++;
     DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
   }
-  else // if (check_if_pushable(NdbQueryOperationDef::TableScan))
+  else
+#endif
   {
     if (m_pushed_join_operation == PUSHED_ROOT)
     {
@@ -7215,6 +7223,7 @@ int ha_ndbcluster::reset()
   {
     m_cond->cond_clear();
   }
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
   DBUG_ASSERT(m_active_query == NULL);
   if (m_pushed_join_operation==PUSHED_ROOT)  // Root of pushed query
   {
@@ -7223,6 +7232,7 @@ int ha_ndbcluster::reset()
   m_pushed_join_member= NULL;
   m_pushed_join_operation= -1;
   m_disable_pushed_join= FALSE;
+#endif
 
 #if 0
   // Magnus, disble this "hack" until it's possible to test if
@@ -10610,8 +10620,6 @@ ha_ndbcluster::~ha_ndbcluster()
   release_blobs_buffer();
 
   // Check for open cursor/transaction
-  DBUG_ASSERT(m_active_cursor == NULL);
-  DBUG_ASSERT(m_active_query == NULL);
   DBUG_ASSERT(m_thd_ndb == NULL);
 
   // Discard any generated condition
@@ -10622,12 +10630,15 @@ ha_ndbcluster::~ha_ndbcluster()
     m_cond= NULL;
   }
   DBUG_PRINT("info", ("Deleting pushed joins"));
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
   DBUG_ASSERT(m_active_query == NULL);
+  DBUG_ASSERT(m_active_cursor == NULL);
   if (m_pushed_join_operation==PUSHED_ROOT)
   {
     delete m_pushed_join_member;             // Also delete QueryDef
   }
   m_pushed_join_member= NULL;
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -13783,6 +13794,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         break;
       }
 
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
       /* Create the scan operation for the first scan range. */
       if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, 
                             active_index,
@@ -13799,9 +13811,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
               query->getQueryOperation((uint)PUSHED_ROOT)->setOrdering(NdbQueryOptions::ScanOrdering_ascending))
             ERR_RETURN(query->getNdbError());
         }
-      } // check_if_pushable()
-
-      else if (!m_multi_cursor)
+      }
+      else
+#endif
+      if (!m_multi_cursor)
       {
         if (m_pushed_join_operation == PUSHED_ROOT)
         {
@@ -14353,7 +14366,7 @@ int ndbcluster_make_pushed_join(handlerton *hton,
     }
   }
   DBUG_RETURN(0);
-} // ndbcluster_make_pushed_join
+}
 #endif
 
 
@@ -14382,7 +14395,7 @@ ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
                       pushed_join->get_operation_count()-1));
 
   DBUG_RETURN(0);
-} // ha_ndbcluster::assign_pushed_join()
+}
 
 
 /**
@@ -14425,7 +14438,7 @@ ha_ndbcluster::maybe_pushable_join(const char*& reason) const
   }
 
   return true;
-} // ha_ndbcluster::is_pushable()
+}
 
 /**
  * Check if this table access operation (and a number of succeding operation)
@@ -14441,6 +14454,7 @@ ha_ndbcluster::maybe_pushable_join(const char*& reason) const
  * with sorted results.
  * @return True if the operation may be pushed.
  */
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 bool 
 ha_ndbcluster::check_if_pushable(int type,  //NdbQueryOperationDef::Type, 
                                  uint idx,  
@@ -14499,7 +14513,8 @@ ha_ndbcluster::create_pushed_join(const NdbQueryParamValue* keyFieldParams, uint
   m_thd_ndb->m_pushed_queries_executed++;
 
   DBUG_RETURN(0);
-} // ha_ndbcluster::create_pushed_join
+}
+#endif
 
 
 /**
