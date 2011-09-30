@@ -171,7 +171,9 @@ innodb_initialize(
 
 	innodb_eng->enable_binlog = my_eng_config->enable_binlog;
 
-	if (innodb_eng->enable_binlog) {
+	/* If binlog is not enabled by InnoDB memcached plugin, let's
+	check whether innodb_direct_access_enable_binlog is turned on */
+	if (!innodb_eng->enable_binlog) {
 		innodb_eng->enable_binlog = innodb_cb_binlog_enabled();
 	}
 
