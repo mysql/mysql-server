@@ -121,7 +121,7 @@ class Configuration {
   /* private methods */
   void store_default_prefix();
   config_ver_enum get_supported_version();
-  bool fetch_meta_record(QueryPlan *plan, const char *version);
+  bool fetch_meta_record(QueryPlan *plan, Ndb *db, const char *version);
   
   /* private instance variables */
   const char *server_role;

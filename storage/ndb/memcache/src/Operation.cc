@@ -70,10 +70,10 @@ size_t Operation::copyValue(int idx, char *dest) const {
 
 /* NdbTransaction method wrappers */
 
-NdbTransaction * Operation::startTransaction() const {
+NdbTransaction * Operation::startTransaction(Ndb *db) const {
   char hash_buffer[512];
-  return plan->db->startTransaction(plan->key_record->ndb_record, key_buffer,
-                                    hash_buffer, 512);
+  return db->startTransaction(plan->key_record->ndb_record, key_buffer,
+                              hash_buffer, 512);
 }
 
 NdbIndexScanOperation * Operation::scanIndex(NdbTransaction *tx,

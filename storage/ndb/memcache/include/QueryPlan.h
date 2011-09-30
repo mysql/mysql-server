@@ -53,7 +53,6 @@ class QueryPlan {
   /* public instance variables */
   bool initialized;
   bool dup_numbers;
-  Ndb *db;
   const TableSpec *spec;
   NdbDictionary::Dictionary *dict;
   const NdbDictionary::Table *table;
@@ -77,6 +76,7 @@ class QueryPlan {
   const NdbDictionary::Index * chooseIndex();
 
   /* Private instance variables */
+  Ndb *db;
 };
 
 
