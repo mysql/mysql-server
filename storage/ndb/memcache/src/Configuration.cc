@@ -196,7 +196,7 @@ const KeyPrefix * Configuration::getPrefixForKey(const char *key, int nkey) cons
 
 
 const KeyPrefix * Configuration::getNextPrefixForCluster(unsigned int cluster_id, 
-                                                         KeyPrefix *k) const {
+                                                         const KeyPrefix *k) const {
   unsigned int i = 0;
 
   if(k) while(prefixes[i] != k && i < nprefixes) i++;
