@@ -172,9 +172,6 @@ public:
           use_table() is called after any *_row() function has been
           called for the transaction.
 
-          The caller is responsible for filtering out table map events
-          which shouldn't be included due to binlog_do/ignore db.
-
         RETURN VALUE
 
           0         All OK

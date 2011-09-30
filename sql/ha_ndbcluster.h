@@ -21,10 +21,6 @@
 */
 
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                       /* gcc class implementation */
-#endif
-
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
@@ -488,6 +484,13 @@ static void set_tabname(const char *pathname, char *tabname);
   bool maybe_pushable_join(const char*& reason) const;
   int assign_pushed_join(const ndb_pushed_join* pushed_join);
 
+#ifdef NDB_WITHOUT_JOIN_PUSHDOWN
+  enum ha_push_flag {
+    HA_PUSH_BLOCK_CONST_TABLE,
+    HA_PUSH_MULTIPLE_DEPENDENCY,
+    HA_PUSH_NO_ORDERED_INDEX
+  };
+#endif
   bool test_push_flag(enum ha_push_flag flag) const;
 
   uint number_of_pushed_joins() const;

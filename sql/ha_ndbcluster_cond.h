@@ -21,10 +21,6 @@
   the NDB Cluster handler
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                       /* gcc class implementation */
-#endif
-
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
   NDB_FIELD = 1,   // Qualified from table definition
