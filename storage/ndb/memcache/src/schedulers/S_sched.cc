@@ -46,10 +46,10 @@ extern "C" {
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 /* Lock that protects online reconfiguration */
-pthread_mutex_t reconf_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_rwlock_t reconf_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /* Scheduler Global singleton */
-S::SchedulerGlobal * volatile s_global;
+S::SchedulerGlobal * s_global;
 
 /* Global scheduler generation number */
 int sched_generation_number;
@@ -107,6 +107,19 @@ void S::SchedulerGlobal::init(int _nthreads, const char *_config_string) {
 
   /* Now Running */
   running = true;
+}
+
+
+void S::SchedulerGlobal::reconfigure(Configuration * new_cf) {
+  conf = new_cf;
+  generation++;
+  
+  for(int i = 0; i < nclusters ; i++) {
+    for(int j = 0; j < options.n_worker_threads; j++) {
+      WorkerConnection *wc = * (getWorkerConnectionPtr(j, i));
+      wc->reconfigure(new_cf);
+    }
+  }
 }
 
 
@@ -210,10 +223,10 @@ void S::SchedulerGlobal::add_stats(const char *stat_key,
     const char *status;
     char *gen = gen_number_buffer;
         
-    if(pthread_mutex_trylock(& reconf_lock) == 0) {
+    if(pthread_rwlock_tryrdlock(& reconf_lock) == 0) {
       status = "Running";
       snprintf(gen, 16, "%d", generation);
-      pthread_mutex_unlock(& reconf_lock);
+      pthread_rwlock_unlock(& reconf_lock);
     }
     else {
       status = "Loading";
@@ -224,12 +237,9 @@ void S::SchedulerGlobal::add_stats(const char *stat_key,
   }
   else {
     DEBUG_PRINT(" scheduler");
-    /* Aggregate scheduler statistics, so long as reconf is not in progress */
-    if(pthread_mutex_trylock(& reconf_lock) == 0) {
-      for(int c = 0 ; c < nclusters ; c++) {
-        clusters[c]->add_stats(stat_key, add_stat, cookie);
-      }
-      pthread_mutex_unlock(& reconf_lock);
+    /* TO DO: skip this if reconf is not in progress */
+    for(int c = 0 ; c < nclusters ; c++) {
+      clusters[c]->add_stats(stat_key, add_stat, cookie);
     }
   }
 }
@@ -261,47 +271,6 @@ void S::SchedulerWorker::shutdown() {
 }
 
 
-bool S::SchedulerWorker::global_reconfigure(Configuration *new_conf) {
-  DEBUG_ENTER();
-  bool result = false;
-
-  if(pthread_mutex_lock(& reconf_lock) == 0) {
-    sched_generation_number++;
-    SchedulerGlobal *old_global = s_global;
-    SchedulerGlobal *new_global = new SchedulerGlobal(new_conf);
-
-    /* Get the new scheduler up and running. 
-     * The primary cluster will have its reference count increased 
-     * (and be re-used).  A Cluster and its Connections are durable, 
-     * but WorkerConnections are configuration-specific and transient. 
-     */
-    new_global->init(old_global->nthreads, old_global->config_string);
-
-    /* If attach_thread() has already happened, set the pipeline: */
-    if(pipeline) {
-      new_global->engine = pipeline->engine;  
-    }
-
-    /* Set s_global.  Releasing the mutex will issue a memory barrier, 
-     * making the new value visible to other threads. 
-     */      
-    s_global = new_global;
-
-    /* We are done with the lock */
-    pthread_mutex_unlock(& reconf_lock);
-
-    /* Now shut down the old scheduler.
-     * Clusters that are unused in the new config will be gracefully shut down.
-     */
-    old_global->shutdown();
-
-    result = true;
-  }
-  
-  return result;
-}
-
-
 void S::SchedulerWorker::attach_thread(thread_identifier *parent) {
   DEBUG_ENTER();
   
@@ -316,19 +285,27 @@ void S::SchedulerWorker::attach_thread(thread_identifier *parent) {
 
 
 ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
-  int c;
+  int c = item->prefix_info.cluster_id;
   NdbInstance *inst;
+  S::WorkerConnection *wc;
+  const KeyPrefix *pfx;
+  
   DEBUG_PRINT("SchedulerWorker / config gen. %d", s_global->generation);
-  const KeyPrefix * pfx = s_global->conf->getPrefixByInfo(item->prefix_info);
 
+  /* ACQUIRE READ LOCK */
+  if(pthread_rwlock_rdlock(& reconf_lock) == 0) {
+    wc = * (s_global->getWorkerConnectionPtr(id, c));
+    pfx = s_global->conf->getPrefixByInfo(item->prefix_info);
+    pthread_rwlock_unlock(& reconf_lock);
+  }
+  else {
+    return ENGINE_TMPFAIL;
+  }
+  /* READ LOCK RELEASED */
   
   item->base.nsuffix = item->base.nkey - pfx->prefix_len;
   if(item->base.nsuffix == 0) return ENGINE_EINVAL; // key too short
   
-  c = item->prefix_info.cluster_id;
-  
-  S::WorkerConnection *wc = * (s_global->getWorkerConnectionPtr(id, c));
-      
   if(wc && wc->freelist) {
     inst = wc->freelist;
     wc->freelist = inst->next;
@@ -347,7 +324,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   workitem_set_NdbInstance(item, inst);
   
   // Fetch the query plan for this prefix.
-  item->plan = inst->getPlanForPrefix(pfx);
+  item->plan = wc->plan_set->getPlanForPrefix(pfx);
   if(! item->plan) {
     DEBUG_PRINT("getPlanForPrefix() failure");
     return ENGINE_FAILED;
@@ -410,7 +387,7 @@ void S::SchedulerWorker::io_completed(workitem *item) {
     int c = item->prefix_info.cluster_id;
     S::WorkerConnection * wc = * (s_global->getWorkerConnectionPtr(id, c));
     if(wc && ! wc->sendqueue->is_aborted()) {
-      assert(inst->sched_gen_number == s_global->generation);
+      // assert(inst->sched_gen_number == s_global->generation);
       inst->wqitem = NULL;
       inst->next = wc->freelist;
       wc->freelist = inst;
@@ -421,6 +398,23 @@ void S::SchedulerWorker::io_completed(workitem *item) {
       delete inst;
     }
   }
+}
+
+
+/* This is a partial implementation of online reconfiguration.
+   It can replace KeyPrefix mappings, but not add a cluster at runtime 
+   (nor will it catch an attempt to do so -- which will eventually lead to
+   a crash after a getWorkerConnectionPtr()).    
+*/
+bool S::SchedulerWorker::global_reconfigure(Configuration *new_cf) {
+  bool r = false;
+  
+  if(pthread_rwlock_wrlock(& reconf_lock) == 0) {
+    s_global->reconfigure(new_cf);
+    pthread_rwlock_unlock(& reconf_lock);
+    r = true;
+  }
+  return r;
 }
 
 
@@ -531,12 +525,15 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
   conn = cl->connections[id.conn];
   id.node = conn->node_id;
 
+  /* Build the plan_set and all QueryPlans */
+  plan_set = new ConnQueryPlanSet(conn->conn, conf->nprefixes);
+  plan_set->buildSetForConfiguration(conf, cluster_id);
+
   /* Build the freelist */
   freelist = 0;
   int my_ndb_inst = conn->nInst / global->options.n_worker_threads;
   for(int j = 0 ; j < my_ndb_inst ; j++ ) {
-    NdbInstance *inst = new NdbInstance(conn->conn, conf->nprefixes, 2);
-    inst->sched_gen_number = global->generation;
+    NdbInstance *inst = new NdbInstance(conn->conn, 2);
     inst->next = freelist;
     freelist = inst;
   }
@@ -561,7 +558,7 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
     // Open them all.
     for(NdbInstance *inst = freelist; inst != 0 ;inst=inst->next, i++) {
       NdbTransaction *tx;
-      plan = inst->getPlanForPrefix(prefix);
+      plan = plan_set->getPlanForPrefix(prefix);
       tx = inst->db->startTransaction();
       if(! tx) logger->log(LOG_WARNING, 0, inst->db->getNdbError().message);
       txlist[i] = tx;
@@ -575,7 +572,15 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
     // Free the list.
     delete[] txlist;
   }
+}
+
+
+void S::WorkerConnection::reconfigure(Configuration *new_cf) {
+  ConnQueryPlanSet *new_plans = 
+    new ConnQueryPlanSet(conn->conn, new_cf->nprefixes);
+  new_plans->buildSetForConfiguration(new_cf, id.cluster);
   
+  plan_set = new_plans;
 }
 
 

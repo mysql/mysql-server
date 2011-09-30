@@ -32,6 +32,7 @@
 #include "ndbmemcache_config.h"
 #include "Scheduler.h"
 #include "KeyPrefix.h"
+#include "ConnQueryPlanSet.h"
 #include "Queue.h"
 
 /* 
@@ -50,7 +51,7 @@ public:
   class SchedulerWorker;     // one object per memcached worker thread 
   class Cluster;             // one object for each cluster
   class Connection;          // one object per connection to a cluster
-  class WorkerConnection;    // one object per {worker,conncetion} pair
+  class WorkerConnection;    // one object per {worker,connection} pair
 };
 
 
@@ -62,6 +63,7 @@ public:
   ~SchedulerGlobal() {};
   void init(int threads, const char *config_string);
   void add_stats(const char *, ADD_STAT, const void *);
+  void reconfigure(Configuration *);
   void shutdown();
   WorkerConnection ** getWorkerConnectionPtr(int thd, int cluster) const {
     return & workerConnections[(thd * nclusters) + cluster];
@@ -184,6 +186,7 @@ public:
   WorkerConnection(SchedulerGlobal *, int thd_id, int cluster_id);
   ~WorkerConnection();
   void shutdown();
+  void reconfigure(Configuration *);
 
   struct { 
     int thd           : 8;
@@ -192,6 +195,7 @@ public:
     unsigned int node : 8;
   } id;
   S::Connection *conn;
+  ConnQueryPlanSet *plan_set;
   NdbInstance *freelist;
   Queue<NdbInstance> * sendqueue;
 };

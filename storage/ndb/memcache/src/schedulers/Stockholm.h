@@ -31,6 +31,7 @@
 #include "workitem.h"
 #include "Scheduler.h"
 #include "KeyPrefix.h"
+#include "ConnQueryPlanSet.h"
 
 
 /* 
@@ -62,6 +63,7 @@ private:
       uint64_t commit_thread_vtime;
     } stats;      
     pthread_t commit_thread_id;
+    ConnQueryPlanSet * plan_set;
     NdbInstance **instances;
     int nInst;
     NdbInstance *nextFree;

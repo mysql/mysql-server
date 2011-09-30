@@ -58,7 +58,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
                 c, conf.max_tps, pool->usec_rtt, cluster[c].nInst);
   }
   
-  // Get the NDB instances. 
+  // Get the ConnQueryPlanSet and NDB instances for each cluster.
   for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     cluster[c].instances = (NdbInstance**) 
       calloc(cluster[c].nInst, sizeof(NdbInstance *));
@@ -66,9 +66,12 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
     ClusterConnectionPool *pool = conf.getConnectionPoolById(c);
     Ndb_cluster_connection *conn = pool->getPooledConnection(my_thread);
 
+    cluster[c].plan_set = new ConnQueryPlanSet(conn, conf.nprefixes);
+    cluster[c].plan_set->buildSetForConfiguration(&conf, c);
+
     cluster[c].nextFree = NULL;    
     for(int i = 0; i < cluster[c].nInst ; i++) {
-      NdbInstance *inst = new NdbInstance(conn, conf.nprefixes, 1);
+      NdbInstance *inst = new NdbInstance(conn, 1);
       cluster[c].instances[i] = inst;
       inst->next = cluster[c].nextFree;
       cluster[c].nextFree = inst;
@@ -77,11 +80,11 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
     logger->log(LOG_WARNING, 0, "Pipeline %d using %u Ndb instances for Cluster %u.\n",
                 my_thread, cluster[c].nInst, c);
   }
-  
+
+
   /* Hoard a transaction (an API connect record) for each Ndb object.  This
      first call to startTransaction() will send TC_SEIZEREQ and wait for a 
      reply, but later at runtime startTransaction() should return immediately.
-     Also, for each NDB instance, pre-build the QueryPlan for the default key prefix.
      TODO? Start one tx on each data node.
   */
   QueryPlan *plan;
@@ -93,7 +96,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
       txlist = ( NdbTransaction **) calloc(cluster[c].nInst, sizeof(NdbTransaction *));
       // Open them all.
       for(int i = 0 ; i < cluster[c].nInst ; i++) {
-        plan = cluster[c].instances[i]->getPlanForPrefix(prefix);
+        plan = cluster[c].plan_set->getPlanForPrefix(prefix);
         txlist[i] = cluster[c].instances[i]->db->startTransaction();
       }
       // Close them all.
@@ -185,7 +188,7 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
   workitem_set_NdbInstance(newitem, inst);
   
   // Fetch the query plan for this prefix.
-  newitem->plan = inst->getPlanForPrefix(pfx);
+  newitem->plan = cluster[c].plan_set->getPlanForPrefix(pfx);
   if(! newitem->plan) return ENGINE_FAILED;
   
   // Build the NDB transaction
