@@ -79,9 +79,14 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) co
   /*
     currently temporary error set in ndbcluster
   */
+#ifndef MCP_FIX_COMPILER_ERROR_INSIDE_HAVE_NDB_BINLOG
   Diagnostics_area::Sql_condition_iterator it=
     thd->get_stmt_da()->sql_conditions();
   const Sql_condition *err;
+#else
+  List_iterator_fast<Sql_condition> it(thd->warning_info->warn_list());
+  Sql_condition *err;
+#endif
   while ((err= it++))
   {
     DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),

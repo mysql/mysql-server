@@ -4874,10 +4874,6 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
 
   binlog_start_trans_and_stmt(this, &the_event);
 
-#ifndef MCP_BUG11799583
-  the_event.flags |= LOG_EVENT_NO_FILTER_F;
-#endif
-
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
 
