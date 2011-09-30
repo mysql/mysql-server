@@ -39,6 +39,7 @@ enum enum_conflict_fn_type
   ,CFT_NDB_OLD
   ,CFT_NDB_MAX_DEL_WIN
   ,CFT_NDB_EPOCH
+  ,CFT_NDB_EPOCH_TRANS
   ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
@@ -75,7 +76,8 @@ enum enum_conflicting_op_type
 {                /* NdbApi          */
   WRITE_ROW,     /* insert (!write) */
   UPDATE_ROW,    /* update          */
-  DELETE_ROW     /* delete          */
+  DELETE_ROW,    /* delete          */
+  REFRESH_ROW    /* refresh         */
 };
 
 /*
@@ -84,12 +86,17 @@ enum enum_conflicting_op_type
   Type of function used to prepare for conflict detection on
   an NdbApi operation
 */
-typedef int (* prepare_detect_func) (struct NDB_CONFLICT_FN_SHARE* cfn_share,
+typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn_share,
                                      enum_conflicting_op_type op_type,
                                      const uchar* old_data,
                                      const uchar* new_data,
                                      const MY_BITMAP* write_set,
                                      class NdbInterpretedCode* code);
+
+enum enum_conflict_fn_flags
+{
+  CF_TRANSACTIONAL = 1
+};
 
 struct st_conflict_fn_def
 {
@@ -97,14 +104,16 @@ struct st_conflict_fn_def
   enum_conflict_fn_type type;
   const st_conflict_fn_arg_def* arg_defs;
   prepare_detect_func prep_func;
+  uint8 flags; /* enum_conflict_fn_flags */
 };
 
 /* What sort of conflict was found */
 enum enum_conflict_cause
 {
-  ROW_ALREADY_EXISTS,
-  ROW_DOES_NOT_EXIST,
-  ROW_IN_CONFLICT
+  ROW_ALREADY_EXISTS,   /* On insert */
+  ROW_DOES_NOT_EXIST,   /* On Update, Delete */
+  ROW_IN_CONFLICT,      /* On Update, Delete */
+  TRANS_IN_CONFLICT     /* Any of above, or implied by transaction */
 };
 
 /* NdbOperation custom data which points out handler and record. */
@@ -113,15 +122,16 @@ struct Ndb_exceptions_data {
   const NdbRecord* key_rec;
   const uchar* row;
   enum_conflicting_op_type op_type;
+  Uint64 trans_id;
 };
 
-enum enum_conflict_fn_flags
+enum enum_conflict_fn_table_flags
 {
-  CFF_NONE = 0,
+  CFF_NONE         = 0,
   CFF_REFRESH_ROWS = 1
 };
 
-struct NDB_CONFLICT_FN_SHARE {
+typedef struct st_ndbcluster_conflict_fn_share {
   const st_conflict_fn_def* m_conflict_fn;
 
   /* info about original table */
@@ -134,7 +144,7 @@ struct NDB_CONFLICT_FN_SHARE {
 
   const NdbDictionary::Table *m_ex_tab;
   uint32 m_count;
-};
+} NDB_CONFLICT_FN_SHARE;
 #endif
 
 

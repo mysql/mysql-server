@@ -2290,7 +2290,10 @@ const char* ClientStatNames [] =
   "TransLocalReadRowCount",
   "DataEventsRecvdCount",
   "NonDataEventsRecvdCount",
-  "EventBytesRecvdCount"
+  "EventBytesRecvdCount",
+  "ForcedSendsCount",
+  "UnforcedSendsCount",
+  "DeferredSendsCount"
 };
 
 Uint64
