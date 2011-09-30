@@ -549,8 +549,6 @@ SUCCESS
 # 15. Read-write statement: UPDATE IGNORE, change 0 rows. 
 #
 update ignore t1 set a=2 where a=1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
 call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 
@@ -816,8 +814,6 @@ SUCCESS
 insert into t2 select a from t1;
 commit;
 replace into t2 select a from t1;
-Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
 commit;
 call p_verify_status_increment(8, 8, 8, 8);
 SUCCESS
