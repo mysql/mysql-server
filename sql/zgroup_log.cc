@@ -100,8 +100,6 @@ enum_read_status Group_log::Group_log_reader::seek(const Group_set *_group_set,
   do
   {
     PROPAGATE_READ_STATUS(do_read_subgroup(&peeked_subgroup, NULL));
-    char *str= peeked_subgroup.to_string();
-    free(str);
     has_peeked= true;
   } while (binlog_no != 0 &&
            (peeked_subgroup.binlog_no < binlog_no ||

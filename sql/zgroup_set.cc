@@ -89,7 +89,7 @@ Group_set::~Group_set()
     Interval_chunk *next_chunk= chunk->next;
     free(chunk);
     chunk= next_chunk;
-#ifndef NO_DEBUG
+#ifndef DBUG_OFF
     n_chunks--;
 #endif
   }
@@ -799,7 +799,7 @@ bool Group_set::equals(const Group_set *other) const
   int sid_i= 0, other_sid_i= 0;
   while (1)
   {
-    rpl_sidno sidno, other_sidno;
+    rpl_sidno sidno= 0, other_sidno= 0; // set to 0 to avoid compilation warning
     // find next sidno (in order of increasing sid) for this set
     while (sid_i < map_max_sidno &&
            !contains_sidno(sidno= sid_map->get_sorted_sidno(sid_i)))
