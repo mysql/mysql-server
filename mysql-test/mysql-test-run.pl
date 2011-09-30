@@ -380,6 +380,7 @@ sub main {
       }
     }
   }
+  mtr_report("opt_suites: $opt_suites");
 
   init_timers();
 
