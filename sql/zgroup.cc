@@ -22,7 +22,7 @@
 #include "mysqld_error.h"
 
 
-int const Group::MAX_TEXT_LENGTH;
+//int const Group::MAX_TEXT_LENGTH;
 
 
 enum_return_status Group::parse(Sid_map *sid_map, const char *text)
