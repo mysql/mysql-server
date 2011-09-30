@@ -8295,9 +8295,13 @@ innobase_get_mysql_key_number_for_index(
 	unsigned int		i;
 
  	ut_a(index);
+	/*
+	ut_ad(strcmp(index->table->name, ib_table->name) == 0);
+	*/
 
-	/* If index does not belong to the table of share structure. Search
-	index->table instead */
+	/* If index does not belong to the table object of share structure
+	(ib_table comes from the share structure) search the index->table
+	object instead */
 	if (index->table != ib_table) {
 		i = 0;
 		ind = dict_table_get_first_index(index->table);
@@ -13269,7 +13273,7 @@ innobase_index_cond(
 /** Attempt to push down an index condition.
 * @param[in] keyno	MySQL key number
 * @param[in] idx_cond	Index condition to be checked
-* @return idx_cond if pushed; NULL if not pushed
+* @return Part of idx_cond which the handler will not evaluate
 */
 UNIV_INTERN
 class Item*
@@ -13284,6 +13288,6 @@ ha_innobase::idx_cond_push(
 	pushed_idx_cond = idx_cond;
 	pushed_idx_cond_keyno = keyno;
 	in_range_check_pushed_down = TRUE;
-	/* Table handler will check the entire condition */
+	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
 }
