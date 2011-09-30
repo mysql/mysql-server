@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -491,6 +491,15 @@ buf_page_peek(
 /*==========*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
+/********************************************************************//**
+Resets the check_index_page_at_flush field of a page if found in the buffer
+pool. */
+UNIV_INTERN
+void
+buf_reset_check_index_page_at_flush(
+/*================================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset);/*!< in: page number */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
@@ -600,31 +609,6 @@ buf_block_get_modify_clock(
 #else /* !UNIV_HOTBACKUP */
 # define buf_block_modify_clock_inc(block) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
-/*******************************************************************//**
-Increments the bufferfix count. */
-UNIV_INLINE
-void
-buf_block_buf_fix_inc_func(
-/*=======================*/
-#ifdef UNIV_SYNC_DEBUG
-	const char*	file,	/*!< in: file name */
-	ulint		line,	/*!< in: line */
-#endif /* UNIV_SYNC_DEBUG */
-	buf_block_t*	block)	/*!< in/out: block to bufferfix */
-	__attribute__((nonnull));
-#ifdef UNIV_SYNC_DEBUG
-/** Increments the bufferfix count.
-@param b	in/out: block to bufferfix
-@param f	in: file name where requested
-@param l	in: line number where requested */
-# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
-#else /* UNIV_SYNC_DEBUG */
-/** Increments the bufferfix count.
-@param b	in/out: block to bufferfix
-@param f	in: file name where requested
-@param l	in: line number where requested */
-# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
-#endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value
