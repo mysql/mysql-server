@@ -17,41 +17,33 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
-#ifndef NDBMEMCACHE_NDBINSTANCE_H
-#define NDBMEMCACHE_NDBINSTANCE_H
+
+#ifndef NDBMEMCACHE_CONNQUERYPLANSET_H
+#define NDBMEMCACHE_CONNQUERYPLANSET_H
 
 #ifndef __cplusplus
 #error "This file is for C++ only"
 #endif
 
-#include <pthread.h>
-#include "NdbApi.hpp"
 
-#include "ndbmemcache_config.h"
-#include "KeyPrefix.h"
+#include "Configuration.h"
 #include "QueryPlan.h"
 
-struct workitem;
-
-#define VPSZ sizeof(void *)
-#define TOTAL_SZ (3 * VPSZ)
-#define PADDING (64 - TOTAL_SZ)
-
-
-class NdbInstance {
+class ConnQueryPlanSet {
 public:
-  /* Public Methods */
-  NdbInstance(Ndb_cluster_connection *, int);
-  ~NdbInstance();
+  ConnQueryPlanSet(Ndb_cluster_connection *, int n_plans);
+  ~ConnQueryPlanSet();
 
-  /* Public Instance Variables */  
-  Ndb *db;
-  NdbInstance *next;
-  workitem *wqitem;
- 
+  bool buildSetForConfiguration(const Configuration *, int cluster_id);
+  QueryPlan * getPlanForPrefix(const KeyPrefix *);
+
 private:
-  char cache_line_padding[PADDING];
+  Ndb *db;
+  int nplans;
+  QueryPlan **plans;  
 };
 
 
+
 #endif
+

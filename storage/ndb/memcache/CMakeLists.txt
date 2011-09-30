@@ -56,6 +56,7 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/ClusterConnectionPool.cc
     src/Configuration.cc
     src/Config_v1.cc
+    src/ConnQueryPlanSet.cc
     src/DataTypeHandler.cc
     src/KeyPrefix.cc
     src/NdbInstance.cc
