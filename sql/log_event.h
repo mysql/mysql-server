@@ -1164,7 +1164,11 @@ public:
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
   : temp_buf(0), event_cache_type(cache_type_arg),
-    event_logging_type(logging_type_arg), subgroup(NULL) { }
+    event_logging_type(logging_type_arg)
+#ifdef HAVE_UGID
+    , subgroup(NULL)
+#endif
+  { }
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
@@ -1177,6 +1181,7 @@ protected:
                     bool is_more);
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
+#ifdef HAVE_UGID
 private:
   /// Print 'SET UGID_*' statements.
   void print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *print_event_info);
@@ -1191,6 +1196,9 @@ public:
     Group information for the subgroup that this event is part of.
   */
   Subgroup *subgroup;
+#else
+public:
+#endif // ifdef HAVE_UGID
 #endif // ifdef MYSQL_SERVER ... else
   /* 
      The value is set by caller of FD constructor and

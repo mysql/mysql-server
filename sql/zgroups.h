@@ -27,7 +27,7 @@
   In the current version, enable UGID only in debug builds.  We will
   enable it fully when it is more complete.
 */
-#ifndef DBUG_OFF
+//#ifndef DBUG_OFF
 /*
   The group log can only be correctly truncated if my_chsize actually
   truncates the file. So disable UGIDs on platforms that don't support
@@ -36,7 +36,7 @@
 #if defined(_WIN32) || defined(HAVE_FTRUNCATE) || defined(HAVE_CHSIZE)
 #define HAVE_UGID
 #endif
-#endif
+//#endif
 
 
 /**
