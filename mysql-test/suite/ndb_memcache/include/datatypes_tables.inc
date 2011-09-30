@@ -50,7 +50,6 @@ UPDATE memcache_server_roles set update_timestamp = now()
   
 DROP VIEW tv_tablist;
 
---real_sleep 1
 --source suite/ndb_memcache/include/wait_for_reconf.inc
 }
 

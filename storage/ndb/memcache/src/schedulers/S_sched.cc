@@ -237,7 +237,6 @@ void S::SchedulerGlobal::add_stats(const char *stat_key,
   }
   else {
     DEBUG_PRINT(" scheduler");
-    /* TO DO: skip this if reconf is not in progress */
     for(int c = 0 ; c < nclusters ; c++) {
       clusters[c]->add_stats(stat_key, add_stat, cookie);
     }
@@ -526,6 +525,7 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
   id.node = conn->node_id;
 
   /* Build the plan_set and all QueryPlans */
+  old_plan_set = 0;
   plan_set = new ConnQueryPlanSet(conn->conn, conf->nprefixes);
   plan_set->buildSetForConfiguration(conf, cluster_id);
 
@@ -576,6 +576,11 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
 
 
 void S::WorkerConnection::reconfigure(Configuration *new_cf) {
+  if(old_plan_set) {  /* Garbage collect the old old plans */
+    delete old_plan_set;
+  }
+  old_plan_set = plan_set;
+  
   ConnQueryPlanSet *new_plans = 
     new ConnQueryPlanSet(conn->conn, new_cf->nprefixes);
   new_plans->buildSetForConfiguration(new_cf, id.cluster);
@@ -597,6 +602,12 @@ S::WorkerConnection::~WorkerConnection() {
     
   /* Delete the sendqueue */
   delete sendqueue;
+  
+  /* Delete the current QueryPlans (and maybe the previous ones, too) */
+  delete plan_set;
+  if(old_plan_set) {
+    delete old_plan_set;
+  }
 }  
 
 
