@@ -21626,7 +21626,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   uint used_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
-  QUICK_SELECT_I *save_quick= 0;
+  QUICK_SELECT_I *save_quick= select ? select->quick : NULL;
   int best_key= -1;
   Item *orig_cond;
   bool orig_cond_saved= false, ret;
@@ -21668,7 +21668,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   else if (select && select->quick)		// Range found by opt_range
   {
     int quick_type= select->quick->get_type();
-    save_quick= select->quick;
     /* 
       assume results are not ordered when index merge is used 
       TODO: sergeyp: Results of all index merge selects actually are ordered 
