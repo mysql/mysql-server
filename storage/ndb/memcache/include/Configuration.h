@@ -87,7 +87,7 @@ class Configuration {
   const KeyPrefix * getPrefixForKey(const char *key, int nkey) const;
   const KeyPrefix * getPrefixByInfo(const prefix_info_t info) const;
   const KeyPrefix * getPrefix(int id) const;                          // inlined
-  const KeyPrefix * getNextPrefixForCluster(uint cluster_id, const 0KeyPrefix *) const;
+  const KeyPrefix * getNextPrefixForCluster(uint cluster_id, const KeyPrefix *) const;
   void setPrimaryConnectString(const char *);                         // inlined
   void setServerRole(const char *);                                   // inlined
   const char * getServerRole();                                       // inlined
