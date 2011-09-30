@@ -25,8 +25,6 @@
 
 #include "ha_ndbcluster_glue.h"
 
-#include "rpl_mi.h"
-
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 
 #include "ha_ndbcluster.h"
