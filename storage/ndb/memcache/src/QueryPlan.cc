@@ -217,7 +217,7 @@ QueryPlan::~QueryPlan() {
 }
 
 
-void QueryPlan::debug_dump() {
+void QueryPlan::debug_dump() const {
   if(key_record) {
     DEBUG_PRINT("Key record:");
     key_record->debug_dump();
@@ -232,7 +232,7 @@ void QueryPlan::debug_dump() {
   }
 }
 
-bool QueryPlan::keyIsPrimaryKey() {
+bool QueryPlan::keyIsPrimaryKey() const {
   if(spec->nkeycols == table->getNoOfPrimaryKeys()) {
     for(int i = 0 ; i < spec->nkeycols ; i++) 
       if(strcmp(spec->key_columns[i], table->getPrimaryKey(i)))

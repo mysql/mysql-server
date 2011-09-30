@@ -47,8 +47,8 @@ class QueryPlan {
   QueryPlan() : initialized(0)  {};  
   QueryPlan(Ndb *, const TableSpec *, PlanOpts opts = NoOptions); 
   ~QueryPlan();
-  bool keyIsPrimaryKey();
-  void debug_dump();
+  bool keyIsPrimaryKey() const;
+  void debug_dump() const;
    
   /* public instance variables */
   bool initialized;
