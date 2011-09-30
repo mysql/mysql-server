@@ -71,7 +71,7 @@ enum_return_status Group_cache::add_subgroup(const Cached_subgroup *group)
   // if sub-group could not be merged with previous sub-group, append it
   if (insert_dynamic(&subgroups, group) != 0)
   {
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
     RETURN_REPORTED_ERROR;
   }
 
@@ -320,7 +320,7 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
     }
   }
 
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   /*
     Assert that UGID is valid for all groups. This ensures that group
     numbers have been generated for automatic subgroups.
@@ -340,7 +340,7 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
   */
   // offset_after_last_statement is -1 if this Group_cache contains
   // only dummy groups.
-#ifdef NO_DBUG
+#ifdef DBUG_OFF
   if (offset_after_last_statement != -1)
 #endif
   {
@@ -365,10 +365,11 @@ Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
 
 
 enum_return_status
-Group_cache::write_to_log(const THD *thd, Group_cache *trx_group_cache,
+Group_cache::write_to_log(const THD *thd,
+                          Group_log *group_log, Group_cache *trx_group_cache,
+                          rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
                           rpl_binlog_pos offset_after_last_statement,
-                          bool group_commit,
-                          Group_log *group_log)
+                          bool group_commit)
 {
   DBUG_ENTER("Group_cache::write_to_log");
   Cached_subgroup *last_non_dummy_subgroup;
@@ -383,11 +384,12 @@ Group_cache::write_to_log(const THD *thd, Group_cache *trx_group_cache,
   for (int i= 0; i < n_subgroups; i++)
   {
     Cached_subgroup *cs= get_unsafe_pointer(i);
-    if (cs == last_non_dummy_subgroup)
-      group_log->write_subgroup(cs, group_commit, offset_after_last_statement,
-                                thd);
+    if (i == n_subgroups - 1)
+      group_log->write_subgroup(thd, cs, binlog_no, binlog_pos,
+                                offset_after_last_statement, true);
     else
-      group_log->write_subgroup(cs, false, 0, thd);
+      group_log->write_subgroup(thd, cs, binlog_no, binlog_pos, 0, false);
+    binlog_pos+= cs->binlog_length;
   }
 
   RETURN_OK;

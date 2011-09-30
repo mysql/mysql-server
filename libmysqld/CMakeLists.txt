@@ -70,6 +70,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/zcompact.cc
   ../sql/zatom_file.cc
   ../sql/zrot_file.cc
+  ../sql/zstring_appender.cc
   ../sql/zuuid.cc
   ../sql/zgroup.cc
   ../sql/zreturn.cc

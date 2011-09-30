@@ -116,7 +116,12 @@ Compact_coder::read_unsigned(Reader *reader, ulonglong *out)
     }
   }
 file_format_error:
-  my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+  my_off_t ofs;
+  reader->tell(&ofs);
+  BINLOG_ERROR(("File '%.250s' has an unknown format at position %lld, "
+                "it may be corrupt.",
+                reader->get_source_name(), ofs),
+               (ER_FILE_FORMAT, MYF(0), reader->get_source_name(), ofs));
   DBUG_RETURN(READ_ERROR);
 }
 
@@ -160,7 +165,12 @@ Compact_coder::read_unsigned(Reader *reader, ulong *out)
     }
   }
 file_format_error:
-  my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+  my_off_t ofs;
+  reader->tell(&ofs);
+  BINLOG_ERROR(("File '%.250s' has an unknown format at position %lld, "
+                "it may be corrupt.",
+                reader->get_source_name(), ofs),
+               (ER_FILE_FORMAT, MYF(0), reader->get_source_name(), ofs));
   DBUG_RETURN(READ_ERROR);
 }
 
@@ -184,27 +194,38 @@ enum_read_status Compact_coder::read_signed(Reader *reader, longlong *out)
 enum_read_status
 Compact_coder::read_type_code(Reader *reader,
                               int min_fatal, int min_ignorable,
-                              uchar *out)
+                              uchar *out, int code)
 {
   DBUG_ENTER("Compact_coder::read_type_code");
   DBUG_ASSERT((min_fatal & 1) == 0);
   DBUG_ASSERT((min_ignorable & 1) == 1);
 
-  PROPAGATE_READ_STATUS(reader->read(out, 1));
+  if (code != -1)
+    *out= code;
+  else
+  {
+    PROPAGATE_READ_STATUS(reader->read(out, 1));
+    code= *out;
+  }
 
-  if ((*out & 1) == 0)
+  if ((code & 1) == 0)
   {
     // even type code
-    if (*out < min_fatal)
+    if (code < min_fatal)
       DBUG_RETURN(READ_OK);
     // unknown even type code: fatal
-    my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+    my_off_t ofs;
+    reader->tell(&ofs);
+    BINLOG_ERROR(("File '%.200s' has an unknown format at position %lld, "
+                  "it may be corrupt.",
+                  reader->get_source_name(), ofs),
+                 (ER_FILE_FORMAT, MYF(0), reader->get_source_name(), ofs));
     DBUG_RETURN(READ_ERROR);
   }
   else
   {
     // odd type code
-    if (*out < min_ignorable)
+    if (code < min_ignorable)
       DBUG_RETURN(READ_OK);
     // unknown odd type code: ignorable
     ulonglong skip_len;
@@ -222,7 +243,9 @@ enum_read_status Compact_coder::read_string(Reader *reader, uchar *buf,
   DBUG_ENTER("Compact_coder::read_string(Reader *, uchar *, size_t *, size_t, bool)");
   if (null_terminated)
     max_length--;
-  PROPAGATE_READ_STATUS(read_unsigned(reader, length, max_length));
+  ulong length_ulong;
+  PROPAGATE_READ_STATUS(read_unsigned(reader, &length_ulong, max_length));
+  *length= length_ulong;
   PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, *length));
   buf[*length]= 0;
   DBUG_RETURN(READ_OK);

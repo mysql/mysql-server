@@ -389,15 +389,17 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
                            Group_log *gl,
                            Group_cache *gc,
                            Group_cache *trx_cache,
+                           rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
                            rpl_binlog_pos offset_after_last_statement)
 {
   DBUG_ENTER("ugid_flush_group_cache");
   lock->rdlock();
   PROPAGATE_REPORTED_ERROR_INT(gc->generate_automatic_gno(thd, gls));
   PROPAGATE_REPORTED_ERROR_INT(
-    gc->write_to_log(thd, trx_cache,
+    gc->write_to_log(thd, gl, trx_cache,
+                     binlog_no, binlog_pos,
                      offset_after_last_statement,
-                     thd->variables.ugid_commit ? true : false, gl));
+                     thd->variables.ugid_commit ? true : false));
   PROPAGATE_REPORTED_ERROR_INT(gc->update_group_log_state(thd, gls));
   lock->unlock();
   gc->clear();

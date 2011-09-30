@@ -20,7 +20,7 @@
 
 
 #include "mysqld_error.h"
-#include "sql_class.h"
+#include "my_dir.h"
 
 
 enum_read_status Reader::file_pread(File fd, uchar *buffer,
@@ -34,13 +34,18 @@ enum_read_status Reader::file_pread(File fd, uchar *buffer,
     if (abort_loop || current_thd->killed)
     {
       /// @todo: report other error?
-      my_error(ER_ERROR_ON_READ, MYF(0), get_source_name(), errno);
+      BINLOG_ERROR(("Error reading file '%-.200s' (errno: %d)",
+                    my_filename(io_cache->file), errno),
+                   (ER_ERROR_ON_READ, MYF(0),
+                    my_filename(io_cache->file), errno));
       DBUG_RETURN(READ_ERROR);
     }
     */
     if (read_bytes == MY_FILE_ERROR)
     {
-      my_error(ER_ERROR_ON_READ, MYF(0), get_source_name(), errno);
+      BINLOG_ERROR(("Error reading file '%-.200s' (errno: %d)",
+                    my_filename(fd), errno),
+                   (ER_ERROR_ON_READ, MYF(0), my_filename(fd), errno));
       DBUG_RETURN(READ_ERROR);
     }
     if (read_bytes == 0)

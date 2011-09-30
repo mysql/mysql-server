@@ -661,7 +661,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
   event_cache_type(cache_type_arg),
   event_logging_type(logging_type_arg),
-  crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  crc(0), thd(thd_arg),
+  checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
@@ -700,7 +701,11 @@ Log_event::Log_event(const char* buf,
   :temp_buf(0), exec_time(0),
   event_cache_type(EVENT_INVALID_CACHE),
   event_logging_type(EVENT_INVALID_LOGGING),
-  crc(0), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
+  crc(0),
+#if defined(HAVE_UGID) && defined(MYSQL_CLIENT)
+  subgroup(NULL),
+#endif
+  checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -1576,6 +1581,79 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 #ifdef MYSQL_CLIENT
 
+
+void Log_event::print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *pei)
+{
+  if (pei->skip_ugids)
+    return;
+
+  if (subgroup == NULL)
+  {
+    if (!pei->last_subgroup_printed ||
+        pei->last_subgroup.type != ANONYMOUS_SUBGROUP)
+      my_b_printf(out, "SET UGID_NEXT='ANONYMOUS'%s\n", pei->delimiter);
+    return;
+  }
+
+  bool force= !pei->last_subgroup_printed;
+  bool printed_header= false;
+  Subgroup *prev= &pei->last_subgroup;
+
+  char header[2 + Subgroup::MAX_TEXT_LENGTH + 5 + 1]= "# ";
+  strcpy(header + 2 + subgroup->to_string(header + 2, pei->sid_map), "\nSET ");
+
+#define PRINT_HEADER                                            \
+  (my_b_printf(out, "%s", printed_header ? ", " : header),      \
+   printed_header= true)
+  if (force || subgroup->type != prev->type ||
+      (subgroup->type != ANONYMOUS_SUBGROUP &&
+       (subgroup->sidno != prev->sidno || subgroup->gno != prev->gno)))
+  {
+    PRINT_HEADER;
+    my_b_printf(out, "UGID_NEXT='");
+    switch (subgroup->type)
+    {
+    case ANONYMOUS_SUBGROUP:
+      my_b_printf(out, "ANONYMOUS");
+      break;
+    case DUMMY_SUBGROUP:
+      my_b_printf(out, "AUTOMATIC");
+      break;
+    case NORMAL_SUBGROUP:
+      Group g= { subgroup->sidno, subgroup->gno };
+      char buf[Group::MAX_TEXT_LENGTH + 1];
+      g.to_string(&sid_map, buf);
+      my_b_printf(out, "%s", buf);
+      break;
+    }
+    my_b_printf(out, "'");
+    prev->type= subgroup->type;
+    prev->sidno= subgroup->sidno;
+    prev->gno= subgroup->gno;
+  }
+  bool group_commit=
+    (subgroup->group_commit &&
+     event_end_position >= (subgroup->binlog_pos + subgroup->binlog_length -
+                            subgroup->binlog_offset_after_last_statement));
+  if (force || subgroup->group_end != prev->group_end)
+  {
+    PRINT_HEADER;
+    my_b_printf(out, "UGID_END=%d", subgroup->group_end ? 1 : 0);
+    prev->group_end= subgroup->group_end;
+  }
+  if (force || group_commit != prev->group_commit)
+  {
+    PRINT_HEADER;
+    my_b_printf(out, "UGID_COMMIT=%d", group_commit ? 1 : 0);
+    prev->group_commit= group_commit;
+  }
+  if (printed_header)
+    my_b_printf(out, "%s\n", pei->delimiter);
+
+  pei->last_subgroup_printed= true;
+}
+
+
 /*
   Log_event::print_header()
 */
@@ -1587,6 +1665,8 @@ void Log_event::print_header(IO_CACHE* file,
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;
   DBUG_ENTER("Log_event::print_header");
+
+  print_subgroup_info(file, print_event_info);
 
   my_b_printf(file, "#");
   print_timestamp(file);
@@ -11525,7 +11605,8 @@ st_print_event_info::st_print_event_info()
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
-   have_unflushed_events(FALSE)
+   have_unflushed_events(FALSE),
+   last_subgroup_printed(false), skip_ugids(false), sid_map(NULL)
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at

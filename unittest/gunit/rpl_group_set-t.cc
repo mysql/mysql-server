@@ -814,6 +814,7 @@ TEST_F(GroupTest, Group_containers)
           ugid_flush_group_cache(thd, &lock,
                                  &group_log_state, NULL/*group log*/,
                                  &stmt_cache, &trx_cache,
+                                 1/*binlog_no*/, 1/*binlog_pos*/,
                                  stmt_contains_logged_subgroup ?
                                  20 + rand() % 99 : -1
                                  /*offset_after_last_statement*/);
@@ -837,6 +838,7 @@ TEST_F(GroupTest, Group_containers)
             ugid_flush_group_cache(thd, &lock, 
                                    &group_log_state, NULL/*group log*/,
                                    &trx_cache, &trx_cache,
+                                   1/*binlog_no*/, 1/*binlog_pos*/,
                                    trx_contains_logged_subgroup ?
                                    20 + rand() % 99 : -1
                                    /*offset_after_last_statement*/);

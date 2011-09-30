@@ -547,6 +547,8 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
 #ifdef HAVE_UGID
 static int binlog_flush_group_cache(THD *thd, binlog_cache_mngr *cache_mngr,
                                     binlog_cache_data *cache_data,
+                                    rpl_binlog_no binlog_no,
+                                    rpl_binlog_pos binlog_pos,
                                     rpl_binlog_pos offset_after_last_statement)
 {
   DBUG_ENTER("binlog_flush_group_cache");
@@ -557,6 +559,7 @@ static int binlog_flush_group_cache(THD *thd, binlog_cache_mngr *cache_mngr,
                                     &mysql_bin_log.group_log,
                                     &cache_data->group_cache,
                                     &cache_mngr->trx_cache.group_cache,
+                                    binlog_no, binlog_pos,
                                     offset_after_last_statement);
     DBUG_RETURN(ret);
   }
@@ -634,6 +637,7 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
   {
 #ifdef HAVE_UGID
     if (binlog_flush_group_cache(thd, cache_mngr, cache_data,
+                                 0/*binlog_no*/, 0/*binlog_pos*/,
                                  -1/*offset_after_last_statement*/))
       DBUG_RETURN(1);
 #endif
@@ -814,6 +818,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 #ifdef HAVE_UGID
   else
     error= binlog_flush_group_cache(thd, cache_mngr, &cache_mngr->stmt_cache,
+                                    0/*binlog_no*/, 0/*binlog_pos*/,
                                     -1/*offset_after_last_statement*/);
 #endif
 
@@ -887,6 +892,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 #ifdef HAVE_UGID
     else
       error= binlog_flush_group_cache(thd, cache_mngr, &cache_mngr->stmt_cache,
+                                      0/*binlog_no*/, 0/*binlog_pos*/,
                                       -1/*offset_after_last_statement*/);
 #endif
   }
@@ -1708,7 +1714,7 @@ int MYSQL_BIN_LOG::init_sid_map()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_sid_map()");
   rpl_sid server_uuid_sid;
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   DBUG_ASSERT(server_uuid_sid.parse(server_uuid) == 0);
 #else
   server_uuid_sid.parse(server_uuid);
@@ -4340,6 +4346,8 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_mngr *cache_mngr,
 
 #ifdef HAVE_UGID
   if (binlog_flush_group_cache(thd, cache_mngr, cache_data,
+                               0/*binlog_no*/,
+                               my_b_tell(&log_file)/*binlog_pos*/,
                                offset_after_last_statement))
     goto err;
 #endif

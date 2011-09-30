@@ -20,7 +20,8 @@
 #ifdef HAVE_UGID
 
 
-#include "mysqld_error.h"
+#include <mysqld_error.h>
+#include <my_dir.h>
 
 
 const char *Atom_file::OVERWRITE_FILE_SUFFIX= ".overwrite";
@@ -94,7 +95,10 @@ enum_return_status Atom_file::recover()
   if (b != 1 || stat.st_size < 9)
   {
     // file has invalid value or header is incomplete
-    my_error(ER_FILE_FORMAT, MYF(0), overwrite_filename);
+    BINLOG_ERROR(("File '%.200s' has an unknown format at position %lld, "
+                  "it may be corrupt.",
+                  overwrite_filename, 0),
+                 (ER_FILE_FORMAT, MYF(0), overwrite_filename, 0));
     goto error_close;
   }
 

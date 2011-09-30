@@ -86,7 +86,7 @@ enum_return_status Owned_groups::ensure_sidno(rpl_sidno sidno)
 error:
   sid_lock->unlock();
   sid_lock->rdlock();
-  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }
 
@@ -132,7 +132,7 @@ Owned_groups::add(rpl_sidno sidno, rpl_gno gno, Rpl_owner_id owner)
   }
   RETURN_OK;
 error:
-  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }
 
@@ -147,7 +147,7 @@ void Owned_groups::remove(rpl_sidno sidno, rpl_gno gno)
   Node *node= get_node(hash, gno);
   if (node != NULL)
   {
-#ifdef NO_DBUG
+#ifdef DBUG_OFF
     my_hash_delete(hash, (uchar *)node);
 #else
     // my_hash_delete returns nonzero if the element does not exist

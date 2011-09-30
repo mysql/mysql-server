@@ -1,0 +1,39 @@
+--source include/have_binlog_format_row.inc
+
+--let $rpl_topology= 1,2
+--source include/rpl_init.inc
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+CREATE TABLE t5 SELECT * FROM t1;
+SET UGID_NEXT = 'ANONYMOUS';
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+
+--let $datadir= `SELECT @@datadir`
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--echo ================ FULL FILE ================
+--exec $MYSQL_BINLOG $datadir/$binlog_file | grep '^# Subgroup'
+--exec $MYSQL_BINLOG $datadir/$binlog_file
+
+--echo ================ 2,4-5 ================
+--exec $MYSQL_BINLOG --include-ugid=$server_uuid:2:4-5 $datadir/$binlog_file | grep '^# Subgroup'
+--exec $MYSQL_BINLOG --include-ugid=$server_uuid:2:4-5 $datadir/$binlog_file
+
+--echo ================ 1,3,ANON ================
+--exec $MYSQL_BINLOG --exclude-ugid=$server_uuid:2:4-5 $datadir/$binlog_file | grep '^# Subgroup'
+--exec $MYSQL_BINLOG --exclude-ugid=$server_uuid:2:4-5 $datadir/$binlog_file
+
+--echo ================ 1,3,ANON ================
+--exec $MYSQL_BINLOG --include-ugid=$server_uuid:1,ANONYMOUS,$server_uuid:3 $datadir/$binlog_file | grep '^# Subgroup'
+--exec $MYSQL_BINLOG --include-ugid=$server_uuid:1,ANONYMOUS,$server_uuid:3 $datadir/$binlog_file
+
+--echo ================ 2-5 ================
+--exec $MYSQL_BINLOG --first-lgid=2 --last-lgid=5 $datadir/$binlog_file | grep '^# Subgroup'
+--exec $MYSQL_BINLOG --first-lgid=2 --last-lgid=5 $datadir/$binlog_file
+
+DROP TABLE t1, t5;

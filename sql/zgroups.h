@@ -18,15 +18,16 @@
 #define RPL_GROUPS_H_INCLUDED
 
 
-#include "my_base.h"
-#include "mysqld_error.h"
+#include <m_string.h>
+#include <my_base.h>
+#include <mysqld_error.h>
 
 
 /*
   In the current version, enable UGID only in debug builds.  We will
   enable it fully when it is more complete.
 */
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
 /*
   The group log can only be correctly truncated if my_chsize actually
   truncates the file. So disable UGIDs on platforms that don't support
@@ -38,16 +39,38 @@
 #endif
 
 
+/**
+  Report an error from code that can be linked into either the server
+  or mysqlbinlog.  There is no common error reporting mechanism, so we
+  have to duplicate the error message (write it out in the source file
+  for mysqlbinlog, write it in share/errmsg-utf8.txt for the server).
+
+  @param MYSQLBINLOG_ERROR arguments to mysqlbinlog's 'error'
+  function, including the function call parentheses
+  @param SERVER_ERROR arguments to my_error, including the function
+  call parentheses.
+*/
+#ifdef MYSQL_CLIENT
+#define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) error MYSQLBINLOG_ERROR
+#else
+#define BINLOG_ERROR(MYSQLBINLOG_ERROR, SERVER_ERROR) my_error SERVER_ERROR
+#endif
+
+
 #ifdef HAVE_UGID
 
-#include "mysqld.h"
+//#include "mysqld.h"
+//#include "sql_string.h"
 #include "hash.h"
 #include "lf.h"
 #include "my_atomic.h"
 
 
-class MYSQL_BIN_LOG;
+#ifndef MYSQL_CLIENT
+class String;
 class Group_log;
+class THD;
+#endif // ifndef MYSQL_CLIENT
 
 
 /// Type of SIDNO (source ID number, first component of UGID)
@@ -170,7 +193,7 @@ enum enum_return_status
   Lowest level macro used in the PROPAGATE_* and RETURN_* macros
   below.
 
-  If NO_DBUG is defined, does nothing. Otherwise, if STATUS is
+  If DBUG_OFF is defined, does nothing. Otherwise, if STATUS is
   RETURN_STATUS_OK, does nothing; otherwise, make a dbug printout and
   (if ALLOW_UNREPORTED==0) assert that STATUS !=
   RETURN_STATUS_UNREPORTED.
@@ -183,7 +206,7 @@ enum enum_return_status
   @param ALLOW_UNREPORTED If false, the macro asserts that STATUS is
   not RETURN_STATUS_UNREPORTED_ERROR.
 */
-#ifdef NO_DBUG
+#ifdef DBUG_OFF
 #define __CHECK_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED)
 #else
 extern void check_return_status(enum_return_status status,
@@ -384,9 +407,13 @@ public:
     if (ret != READ_OK)
     {
       if (ret == READ_EOF)
-        my_error(ER_UNEXPECTED_EOF, MYF(0), get_source_name(), my_errno);
+        BINLOG_ERROR(("Unexpected EOF found when reading file '%-.192s' (errno: %d)",
+                      get_source_name(), my_errno),
+                     (ER_UNEXPECTED_EOF, MYF(0), get_source_name(), my_errno));
       else if (ret == READ_TRUNCATED)
-        my_error(ER_FILE_TRUNCATED, MYF(0), get_source_name());
+        BINLOG_ERROR(("File '%.200s' was truncated in the middle.",
+                      get_source_name()),
+                     (ER_FILE_TRUNCATED, MYF(0), get_source_name()));
     }
     DBUG_RETURN(ret);
   }
@@ -433,7 +460,14 @@ protected:
     {                                                                   \
       if (!(CONDITION))                                                 \
       {                                                                 \
-        my_error(ER_FILE_FORMAT, MYF(0), (READER)->get_source_name());  \
+        Reader *_reader_check_format_reader= (READER);                  \
+        my_off_t ofs;                                                   \
+        _reader_check_format_reader->tell(&ofs);                        \
+        BINLOG_ERROR(("File '%.200s' has an unknown format at position %lld, " \
+                      "it may be corrupt.",                             \
+                      (READER)->get_source_name(), ofs),                \
+                     (ER_FILE_FORMAT, MYF(0),                           \
+                      (READER)->get_source_name(), ofs));               \
         DBUG_RETURN(READ_ERROR);                                        \
       }                                                                 \
     } while (0)
@@ -557,6 +591,8 @@ protected:
     DBUG_ENTER("Appender::file_truncate");
     if (my_chsize(fd, position, 0, MYF(MY_WME)) != 0)
       RETURN_REPORTED_ERROR;
+    if (my_seek(fd, position, SEEK_SET, MYF(MY_WME)) != 0)
+      RETURN_REPORTED_ERROR;
     RETURN_OK;
   }
 };
@@ -568,9 +604,6 @@ public:
   Memory_reader(size_t _length, const uchar *_data,
                 const char *_source_name= "<Memory buffer>")
     : source_name(_source_name), data_length(_length), data(_data), pos(0) {}
-  Memory_reader(String *str, const char *_source_name= "<String *>")
-    : source_name(_source_name),
-    data_length(str->length()), data((uchar *)str->ptr()), pos(0) {}
   enum_read_status read(uchar *buffer, size_t length)
   {
     DBUG_ENTER("Memory_reader::read");
@@ -719,6 +752,7 @@ private:
 };
 
 
+#ifndef MYSQL_CLIENT
 /**
   Appender class where the output is stored in a String object.
 */
@@ -726,25 +760,14 @@ class String_appender : public Appender
 {
 public:
   String_appender(String *_str) : str(_str) {}
-  enum_return_status append(const uchar *buf, size_t length)
-  {
-    DBUG_ENTER("String_appender::append");
-    if (str->append((const char *)buf, length))
-    {
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-      RETURN_REPORTED_ERROR;
-    }
-    RETURN_OK;
-  }
-  enum_return_status truncate(my_off_t new_position)
-  {
-    DBUG_ENTER("String_appender::truncate");
-    str->length(new_position);
-    RETURN_OK;
-  }
+protected:
+  enum_return_status do_append(const uchar *buf, size_t length);
+  enum_return_status do_truncate(my_off_t new_position);
+  enum_return_status do_tell(my_off_t *position) const;
 private:
   String *str;
 };
+#endif // ifndef MYSQL_CLIENT
 
 
 /**
@@ -757,10 +780,12 @@ struct Rpl_owner_id
 {
   uint32 owner_type;
   uint32 thread_id;
-  void copy_from(const THD *thd);
   void set_to_dead_client() { owner_type= thread_id= 0; }
   void set_to_none() { owner_type= NO_OWNER_TYPE; thread_id= NO_THREAD_ID; }
+#ifndef MYSQL_CLIENT
+  void copy_from(const THD *thd);
   bool equals(const THD *thd) const;
+#endif // ifndef MYSQL_CLIENT
   bool is_sql_thread() const
   { return owner_type >= 1 && owner_type != NO_OWNER_TYPE; }
   bool is_none() const { return owner_type == NO_OWNER_TYPE; }
@@ -810,8 +835,8 @@ struct Uuid
 
     @retval 36 - the length of the resulting string.
   */
-  int to_string(char *buf) const;
-#ifndef NO_DBUG
+  size_t to_string(char *buf) const;
+#ifndef DBUG_OFF
   void print() const
   {
     char buf[TEXT_LENGTH + 1];
@@ -874,7 +899,7 @@ public:
   /// Initialize this Checkable_rwlock.
   Checkable_rwlock()
   {
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
     my_atomic_rwlock_init(&atomic_lock);
     lock_state= 0;
 #endif
@@ -883,7 +908,7 @@ public:
   /// Destroy this Checkable_lock.
   ~Checkable_rwlock()
   {
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
     my_atomic_rwlock_destroy(&atomic_lock);
 #endif
     mysql_rwlock_destroy(&rwlock);
@@ -894,7 +919,7 @@ public:
   {
     mysql_rwlock_rdlock(&rwlock);
     assert_no_wrlock();
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
     my_atomic_rwlock_wrlock(&atomic_lock);
     my_atomic_add32(&lock_state, 1);
     my_atomic_rwlock_wrunlock(&atomic_lock);
@@ -905,7 +930,7 @@ public:
   {
     mysql_rwlock_wrlock(&rwlock);
     assert_no_lock();
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
     my_atomic_rwlock_wrlock(&atomic_lock);
     my_atomic_store32(&lock_state, -1);
     my_atomic_rwlock_wrunlock(&atomic_lock);
@@ -915,7 +940,7 @@ public:
   inline void unlock()
   {
     assert_some_lock();
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
     my_atomic_rwlock_wrlock(&atomic_lock);
     int val= my_atomic_load32(&lock_state);
     if (val > 0)
@@ -949,7 +974,7 @@ public:
   { DBUG_ASSERT(get_state() == 0); }
 
 private:
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   /**
     The state of the lock:
     0 - not locked
@@ -1011,7 +1036,7 @@ public:
     @param base_filename The base of the filename, i.e., without "-sids".
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status open(const char *base_filename);
+  enum_return_status open(const char *base_filename, bool writable= true);
   /**
     Close the disk file.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -1107,6 +1132,10 @@ public:
     sid_lock->assert_some_lock();
     return _sidno_to_sid.elements;
   }
+  /**
+    Return true iff open() has been (successfully) called.
+  */
+  bool is_open() { return status == OPEN; }
 
 private:
   /// Node pointed to by both the hash and the array.
@@ -1115,11 +1144,6 @@ private:
     rpl_sidno sidno;
     rpl_sid sid;
   };
-
-  /**
-    Return true iff open() has been (successfully) called.
-  */
-  bool is_open() { return fd != -1; }
 
   /**
     Create a Node from the given SIDNO and SID and add it to
@@ -1163,6 +1187,11 @@ private:
   File fd;
   /// Appender object to write to the file.
   File_appender appender;
+  enum sid_map_status
+  {
+    CLOSED_OK, CLOSED_ERROR, OPEN
+  };
+  sid_map_status status;
 };
 
 
@@ -1213,21 +1242,21 @@ public:
   }
   /**
     Assert that this thread owns the n'th mutex.
-    This is a no-op if NO_DBUG is on.
+    This is a no-op if DBUG_OFF is on.
   */
   inline void assert_owner(int n) const
   {
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
     mysql_mutex_assert_owner(&get_mutex_cond(n)->mutex);
 #endif
   }
   /**
     Assert that this thread does not own the n'th mutex.
-    This is a no-op if NO_DBUG is on.
+    This is a no-op if DBUG_OFF is on.
   */
   inline void assert_not_owner(int n) const
   {
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
     mysql_mutex_assert_not_owner(&get_mutex_cond(n)->mutex);
 #endif
   }
@@ -1240,9 +1269,11 @@ public:
     mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
     DBUG_VOID_RETURN;
   }
+#ifndef MYSQL_CLIENT
   /// Execute THD::enter_cond for the n'th condition variable.
   void enter_cond(THD *thd, int n, PSI_stage_info *stage,
                   PSI_stage_info *old_stage) const;
+#endif // ifndef MYSQL_CLIENT
   /// Return the greatest addressable index in this Mutex_cond_array.
   inline int get_max_index() const
   {
@@ -1301,7 +1332,7 @@ struct Group
   */
   enum_return_status parse(Sid_map *sid_map, const char *text);
 
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   void print(const Sid_map *sid_map) const
   {
     char buf[MAX_TEXT_LENGTH + 1];
@@ -1419,6 +1450,7 @@ public:
     or more of the following:
 
        XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXX(:NUMBER+(-NUMBER)?)*
+       | ANONYMOUS
 
        Each X is a hexadecimal digit (upper- or lowercase).
        NUMBER is a decimal, 0xhex, or 0oct number.
@@ -1430,9 +1462,12 @@ public:
     short period when the lock is not held at all.
 
     @param text The string to parse.
+    @param anonymous[in,out] If this is NULL, ANONYMOUS is not
+    allowed.  If this is not NULL, it will be set to true if the
+    anonymous group was found; false otherwise.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add(const char *text);
+  enum_return_status add(const char *text, bool *anonymous= NULL);
   /**
     Decodes a Group_set from the given string.
 
@@ -1511,8 +1546,8 @@ public:
     Returns true if the given string is a valid specification of a Group_set, false otherwise.
   */
   static bool is_valid(const char *text);
-#ifndef NO_DBUG
-  char *get_string() const
+#ifndef DBUG_OFF
+  char *to_string() const
   {
     char *str= (char *)malloc(get_string_length() + 1);
     DBUG_ASSERT(str != NULL);
@@ -1522,7 +1557,7 @@ public:
   /// Print this group set to stdout.
   void print() const
   {
-    char *str= get_string();
+    char *str= to_string();
     printf("%s\n", str);
     free(str);
   }
@@ -1557,8 +1592,7 @@ public:
     @param string_format String_format object that specifies
     separators in the resulting text.
   */
-  int get_string_length(const String_format *string_format=
-                        &default_string_format) const;
+  int get_string_length(const String_format *string_format= NULL) const;
   /**
     Encodes this Group_set as a string.
 
@@ -1568,8 +1602,7 @@ public:
     separators in the resulting text.
     @return Length of the generated string.
   */
-  int to_string(char *buf, const String_format *string_format=
-                &default_string_format) const;
+  int to_string(char *buf, const String_format *string_format= NULL) const;
   /// The default String_format: the format understood by add(const char *).
   static const String_format default_string_format;
   /**
@@ -1892,7 +1925,7 @@ private:
   mutable int cached_string_length;
   /// The String_format that was used when cached_string_length was computed.
   mutable const String_format *cached_string_format;
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   /**
     The number of chunks.  Used only to check some invariants when
     DBUG is on.
@@ -2083,7 +2116,7 @@ public:
   */
   enum_return_status get_partial_groups(Group_set *gs) const;
 
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   int to_string(const Sid_map *sm, char *out) const
   {
     char *p= out;
@@ -2271,8 +2304,10 @@ public:
     @param owner The thread that will own the group.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
+#ifndef MYSQL_CLIENT
   enum_return_status acquire_ownership(rpl_sidno sidno, rpl_gno gno,
                                        const THD *thd);
+#endif // ifndef MYSQL_CLIENT
   /**
     Ends the given group, i.e., moves it from the set of 'owned
     groups' to the set of 'ended groups'.
@@ -2298,7 +2333,9 @@ public:
   /// Broadcasts updates for the given SIDNO.
   void broadcast_sidno(rpl_sidno sidno) { sid_locks.broadcast(sidno); }
   /// Waits for updates on the given SIDNO.
+#ifndef MYSQL_CLIENT
   void wait_for_sidno(THD *thd, const Sid_map *sm, Group g, Rpl_owner_id owner);
+#endif // ifndef MYSQL_CLIENT
   /**
     Locks one mutex for each SIDNO where the given Group_set has at
     least one group. If the Group_set is not given, locks all
@@ -2333,7 +2370,7 @@ public:
   const Owned_groups *get_owned_groups() { return &owned_groups; }
   /// Return Sid_map used by this Group_log_state.
   const Sid_map *get_sid_map() { return sid_map; }
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   size_t get_string_length() const
   {
     return owned_groups.get_string_length() +
@@ -2429,7 +2466,7 @@ struct Ugid_specification
   static enum_type get_type(const char *text);
   /// Returns true if the given string is a valid Ugid_specification.
   static bool is_valid(const char *text) { return get_type(text) != INVALID; }
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   void print() const
   {
     char buf[MAX_TEXT_LENGTH + 1];
@@ -2458,6 +2495,47 @@ struct Subgroup
   rpl_lgid lgid;
   bool group_commit;
   bool group_end;
+  size_t to_string(char *buf, Sid_map *sm= NULL) const
+  {
+    char *s= buf;
+    s+= sprintf(s, "Subgroup(#%lld, ", lgid);
+    if (type == ANONYMOUS_SUBGROUP)
+      s+= sprintf(s, "ANONYMOUS");
+    else
+    {
+      char sid_buf[Uuid::TEXT_LENGTH + 1];
+      if (sm == NULL)
+        sprintf(sid_buf, "%d", sidno);
+      else
+        sm->sidno_to_sid(sidno)->to_string(sid_buf);
+      s+= sprintf(s, "%s:%lld%s", sid_buf, gno, group_end ? ", END" : "");
+    }
+    if (group_commit)
+      s+= sprintf(s, ", COMMIT");
+    if (type == DUMMY_SUBGROUP)
+      s+= sprintf(s, " DUMMY");
+    else
+      s+= sprintf(s, ", binlog(no=%lld, pos=%lld, len=%lld, oals=%lld)",
+                  binlog_no, binlog_pos, binlog_length,
+                  binlog_offset_after_last_statement);
+    return s - buf;
+  }
+  static const size_t MAX_TEXT_LENGTH= 1024;
+#ifndef DBUG_OFF
+  void print(Sid_map *sm= NULL) const
+  {
+    char buf[MAX_TEXT_LENGTH];
+    to_string(buf, sm);
+    printf("%s\n", buf);
+  }
+  char *to_string(Sid_map *sm= NULL) const
+  {
+    char *ret= (char *)malloc(MAX_TEXT_LENGTH);
+    DBUG_ASSERT(ret != NULL);
+    to_string(ret, sm);
+    return ret;
+  }
+#endif
 };
 
 
@@ -2506,8 +2584,10 @@ public:
     @param binlog_length Length of group in binary log.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
+#ifndef MYSQL_CLIENT
   enum_return_status add_logged_subgroup(const THD *thd,
                                          my_off_t binlog_length);
+#endif // ifndef MYSQL_CLIENT
   /**
     Adds a dummy group with the given SIDNO, GNO, and GROUP_END to this cache.
 
@@ -2543,6 +2623,7 @@ public:
   enum_return_status
     add_dummy_subgroups_if_missing(const Group_log_state *gls,
                                    const Group_set *group_set);
+#ifndef MYSQL_CLIENT
   /**
     Update the binary log's Group_log_state to the state after this
     cache has been flushed.
@@ -2569,10 +2650,11 @@ public:
     sub-groups of the group.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status write_to_log(const THD *thd, Group_cache *trx_group_cache,
-                                  rpl_binlog_pos offset_after_last_statement,
-                                  bool group_commit,
-                                  Group_log *group_log);
+  enum_return_status
+    write_to_log(const THD *thd, Group_log *group_log,
+                 Group_cache *trx_group_cache,
+                 rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
+                 rpl_binlog_pos offset_after_last_statement, bool group_commit);
   /**
     Generates GNO for all groups that are committed for the first time
     in this Group_cache.
@@ -2587,6 +2669,7 @@ public:
   */
   enum_return_status generate_automatic_gno(const THD *thd,
                                             Group_log_state *gls);
+#endif // ifndef MYSQL_CLIENT
   /**
     Return true if this Group_cache contains the given group.
 
@@ -2627,42 +2710,43 @@ public:
   */
   enum_return_status get_ended_groups(Group_set *gs) const;
 
-#ifndef NO_DBUG
-  void get_string(const Sid_map *sm, char *buf) const
+#ifndef DBUG_OFF
+  size_t to_string(const Sid_map *sm, char *buf) const
   {
     int n_subgroups= get_n_subgroups();
+    char *s= buf;
 
-    buf += sprintf(buf, "%d sub-groups = {\n", n_subgroups);
+    s += sprintf(s, "%d sub-groups = {\n", n_subgroups);
     for (int i= 0; i < n_subgroups; i++)
     {
       Cached_subgroup *cs= get_unsafe_pointer(i);
       char uuid[Uuid::TEXT_LENGTH + 1]= "[]";
       if (cs->sidno)
         sm->sidno_to_sid(cs->sidno)->to_string(uuid);
-      buf +=
-        sprintf(buf, "  %s:%lld%s [%lld bytes] - %s\n",
-                uuid, cs->gno, cs->group_end ? "-END":"", cs->binlog_length,
-                cs->type == NORMAL_SUBGROUP ? "NORMAL" :
-                cs->type == ANONYMOUS_SUBGROUP ? "ANON" :
-                cs->type == DUMMY_SUBGROUP ? "DUMMY" :
-                "INVALID-SUBGROUP-TYPE");
+      s += sprintf(s, "  %s:%lld%s [%lld bytes] - %s\n",
+                   uuid, cs->gno, cs->group_end ? "-END":"", cs->binlog_length,
+                   cs->type == NORMAL_SUBGROUP ? "NORMAL" :
+                   cs->type == ANONYMOUS_SUBGROUP ? "ANON" :
+                   cs->type == DUMMY_SUBGROUP ? "DUMMY" :
+                   "INVALID-SUBGROUP-TYPE");
     }
-    sprintf(buf, "}\n");
+    sprintf(s, "}\n");
+    return s - buf;
   }
   size_t get_string_length() const
   {
     return (2 + Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 4 + 2 +
             40 + 10 + 21 + 1 + 100/*margin*/) * get_n_subgroups() + 100/*margin*/;
   }
-  char *get_string(const Sid_map *sm) const
+  char *to_string(const Sid_map *sm) const
   {
     char *str= (char *)malloc(get_string_length());
-    get_string(sm, str);
+    to_string(sm, str);
     return str;
   }
   void print(const Sid_map *sm) const
   {
-    char *str= get_string(sm);
+    char *str= to_string(sm);
     printf("%s\n", str);
     free(str);
   }
@@ -2746,6 +2830,7 @@ enum enum_ugid_statement_status
 };
 
 
+#ifndef MYSQL_CLIENT
 /**
   Before a loggable statement begins, this function:
 
@@ -2771,7 +2856,9 @@ int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
                            Group_log_state *gls,
                            Group_log *gl,
                            Group_cache *gc, Group_cache *trx_cache,
+                           rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
                            rpl_binlog_pos offset_after_last_statement);
+#endif // ifndef MYSQL_CLIENT
 
 
 /**
@@ -3015,9 +3102,8 @@ public:
     enum_read_status read(uchar *buffer, size_t length)
     {
       DBUG_ENTER("Rot_file_reader::read");
-      PROPAGATE_READ_STATUS(file_pread(rot_file->sub_file.fd, buffer,
-                                       rot_file->sub_file.header_length + pos,
-                                       length));
+      PROPAGATE_READ_STATUS(file_pread(rot_file->sub_file.fd, buffer, length,
+                                       rot_file->sub_file.header_length + pos));
       pos+= length;
       DBUG_RETURN(READ_OK);
     }
@@ -3084,23 +3170,22 @@ private:
 class Subgroup_coder
 {
 public:
-  Subgroup_coder() : lgid(0), offset(0), binlog_pos(0), binlog_no(0) {}
+  Subgroup_coder() : lgid(0), offset(0) {}
   enum_append_status append(Appender *appender, const Cached_subgroup *cs,
+                            rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
                             rpl_binlog_pos offset_after_last_statement,
                             bool group_commit, uint32 owner_type);
-  enum_read_status read(Reader *reader, Subgroup *s);
+  enum_read_status read(Reader *reader, Subgroup *s, uint32 *owner_type);
 private:
   rpl_lgid lgid;
   my_off_t offset;
-  rpl_binlog_pos binlog_pos;
-  rpl_binlog_no binlog_no;
   /// Constants used to encode groups.
   static const int TINY_SUBGROUP_MAX= 246, TINY_SUBGROUP_MIN= -123;
   static const int NORMAL_SUBGROUP_MIN= 247,
     NORMAL_SUBGROUP_SIDNO_BIT= 0, NORMAL_SUBGROUP_GNO_BIT= 1,
     NORMAL_SUBGROUP_BINLOG_LENGTH_BIT= 2;
   static const int SPECIAL_TYPE= 255;
-  static const int DUMMY_SUBGRUOP_MAX= 15;
+  static const int DUMMY_SUBGROUP_MAX= 15;
   static const int ANONYMOUS_SUBGROUP_COMMIT= 16,
     ANONYMOUS_SUBGROUP_NO_COMMIT= 17;
   static const int BINLOG_ROTATE= 18;
@@ -3109,8 +3194,9 @@ private:
   static const int FLIP_OWNER= 21, SET_OWNER= 22;
   static const int FULL_SUBGROUP= 26;
   static const int MIN_IGNORABLE_TYPE= 25;
+  static const int MIN_FATAL_TYPE= 28;
   static const my_off_t FULL_SUBGROUP_SIZE=
-    1 + 1 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 1 + 1;
+    1 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 1 + 1;
 };
 
 
@@ -3121,18 +3207,32 @@ public:
   /**
     Open the disk file.
     @param filename Name of file to open.
-    @retval 0 Success.
-    @retval 1 Error. This function calls my_error.
+    @param writable If false, the group log is opened in read-only mode.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  int open(const char *filename);
+  enum_return_status open(const char *filename, bool writable= true);
+  /**
+    Close the disk file.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status close();
+  /**
+    Return true iff this Group_log has been (successfully) opened.
+  */
+  bool is_open() { return rot_file.is_open(); }
+#ifndef MYSQL_CLIENT
   /**
     Writes the given Subgroup to the log.
     @param Subgroup Subgroup to write.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status write_subgroup(const Cached_subgroup *subgroup,
+  enum_return_status write_subgroup(const THD *thd,
+                                    const Cached_subgroup *subgroup,
+                                    rpl_binlog_no binlog_no,
+                                    rpl_binlog_pos binlog_pos,
                                     rpl_binlog_pos offset_after_last_statement,
-                                    bool group_commit, const THD *thd);
+                                    bool group_commit);
+#endif // ifndef MYSQL_CLIENT
 
   /**
     Iterator class that sequentially reads groups from the log.
@@ -3152,22 +3252,71 @@ public:
       @param status Will be set to 0 on success, 1 on error. This
       function calls my_error.
     */
-    Group_log_reader(Group_log *group_log, const Group_set *group_set,
-                     rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
-                     enum_read_status *status);
+    Group_log_reader(Group_log *group_log, Sid_map *sid_map);
     /// Destroy this Group_log_reader.
-    ~Group_log_reader();
+    ~Group_log_reader() {}
+    /**
+      Move the reading position forwards to the given position.
+
+      @param group_set If group_set is not NULL, seek and subsequent
+      calls to read_subgroup will ignore groups that are NOT IN
+      group_set (if exclude_group_set == false) respectively groups
+      that are IN group_set (if exclude_group_set == true.)
+      @param exclude_group_set Determines if groups in group_set are
+      to be included or excluded; see above.
+      @param include_anonymous If true, anonymous subgroups will be
+      included.
+      @param first_lgid First LGID to include (or -1 to start from the
+      beginning).
+      @param last_lgid Last LGID to include (or -1 to continue to the
+      end).
+      @param binlog_no If this is not 0, will seek to this binary log
+      (or longer, depending on group_set).
+      @param binlog_pos If binlog_no is not 0, will seek to this
+      position within the binary log (or longer, depending on
+      group_set).
+      my_b_read(). This is used in mysqlbinlog if the binary log is
+      stdin.
+    */
+    enum_read_status seek(const Group_set *group_set, bool exclude_group_set,
+                          bool include_anonymous,
+                          rpl_lgid first_lgid, rpl_lgid last_lgid,
+                          rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos);
     /**
       Read the next subgroup from this Group_log.
       @param[out] subgroup Subgroup object where the subgroup will be stored.
+      @param[out] owner_type If this is not NULL, the owner_type will
+      be stored here.
       @retval READ_EOF End of file.
       @retval READ_SUCCES Ok.
       @retval READ_ERROR IO error. This function calls my_error.
     */
-    enum_read_status read_subgroup(Subgroup *subgroup);
+    enum_read_status read_subgroup(Subgroup *subgroup,
+                                   uint32 *owner_type= NULL);
+    /**
+      Read the next subgroup from this Group_log but do not advance
+      the read position.  The subgroup is stored in an internal buffer
+      and the caller is given the pointer to this buffer.  The
+      internal buffer will be overwritten by subsequent calls to
+      peek_subgroup() or read_subgroup() or seek().
+
+      @param[out] subgroup Subgroup* object where the subgroup will be stored.
+      @param[out] owner_type If this is not NULL, the owner_type will
+      be stored here.
+      @retval READ_EOF End of file.
+      @retval READ_SUCCES Ok.
+      @retval READ_ERROR IO error. This function calls my_error.
+    */
+    enum_read_status peek_subgroup(Subgroup **subgroup,
+                                   uint32 *owner_type= NULL);
     const char *get_current_filename() const
     { return rot_file_reader.get_source_name(); }
   private:
+    /**
+      Return true if the given subgroup is in the set specified by the
+      arguments to seek().
+    */
+    bool subgroup_in_valid_set(Subgroup *subgroup);
     /**
       Unconditionally read subgroup from file.
 
@@ -3175,12 +3324,30 @@ public:
       will re-use the subgroup from peeked_subgroup if has_peeked is
       true.
     */
-    enum_read_status do_read_subgroup(Subgroup *subgroup);
+    enum_read_status do_read_subgroup(Subgroup *subgroup,
+                                      uint32 *owner_type= NULL);
 
     /// Sid_map to use in returned Sub_groups.
     Sid_map *output_sid_map;
     /// Sid_map used by Sub_groups in the log.
     Group_log *group_log;
+    /**
+      Only include groups in this set, or only include groups outside
+      this set if exclude_group_set == false.  If this is NULL,
+      include all groups.
+    */
+    const Group_set *group_set;
+    /**
+      If false, this reader only returns groups IN group_set.  If
+      true, this reader only returns groups NOT IN group_set.
+    */
+    bool exclude_group_set;
+    /// If true, this reader will return any anonymous groups it finds.
+    bool include_anonymous;
+    /// First LGID to include, or -1 to start from the beginning.
+    rpl_lgid first_lgid;
+    /// Last LGID to include, or -1 to continue to the end.
+    rpl_lgid last_lgid;
     /// Reader object from which we read raw bytes.
     Rot_file::Rot_file_reader rot_file_reader;
     /// State needed to decode groups.
@@ -3268,7 +3435,12 @@ public:
     PROPAGATE_READ_STATUS(read_unsigned(reader, out));
     if (*out > max_value)
     {
-      my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+      my_off_t ofs;
+      reader->tell(&ofs);
+      BINLOG_ERROR(("File '%.200s' has an unknown format at position %lld, "
+                    "it may be corrupt.",
+                    reader->get_source_name(), ofs),
+                   (ER_FILE_FORMAT, MYF(0), reader->get_source_name(), ofs));
       DBUG_RETURN(READ_ERROR);
     }
     DBUG_RETURN(READ_OK);
@@ -3283,7 +3455,12 @@ public:
     PROPAGATE_READ_STATUS(read_unsigned(reader, out));
     if (*out > max_value)
     {
-      my_error(ER_FILE_FORMAT, MYF(0), reader->get_source_name());
+      my_off_t ofs;
+      reader->tell(&ofs);
+      BINLOG_ERROR(("File '%.200s' has an unknown format at position %lld, "
+                    "it may be corrupt.",
+                    reader->get_source_name(), ofs),
+                   (ER_FILE_FORMAT, MYF(0), reader->get_source_name(), ofs));
       DBUG_RETURN(READ_ERROR);
     }
     DBUG_RETURN(READ_OK);
@@ -3324,10 +3501,20 @@ public:
     compact-encoded integer, N, followed by N bytes of data.  If an
     odd unknown type code is found, this function seeks past the data
     and returns ok.
+
+    @param reader Reader object to read from.
+    @param min_fatal The smallest even number that is a fatal error.
+    @param min_ignorable The smallest odd number that is not a
+    recognized type code and shall be ignored.
+    @param[out] out The type code will be stored here.
+    @param code By default, the code is read from the first byte of
+    the Reader.  If this parameter is given, the code is instead the
+    value of this parameter and it is assumed that the Reader is
+    positioned after the type code.
   */
   static enum_read_status read_type_code(Reader *reader,
                                          int min_fatal, int min_ignorable,
-                                         uchar *out);
+                                         uchar *out, int code= -1);
   /**
     Read a compact-encoded integer - the string length - followed by a
     string of that length.

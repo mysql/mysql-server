@@ -43,7 +43,8 @@ enum_return_status Ugid_specification::parse(const char *text)
   {
     if (group.parse(&mysql_bin_log.sid_map, text) != 0)
     {
-      my_error(ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text);
+      BINLOG_ERROR(("Malformed group specification '%.200s'.", text),
+                   (ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text));
       RETURN_REPORTED_ERROR;
     }
     type= UGID;

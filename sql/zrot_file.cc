@@ -36,7 +36,8 @@ enum_return_status Rot_file::open(const char *_filename, bool writable)
                       base_filename, sub_file.filename, writable));
 
   sub_file.fd= my_open(sub_file.filename,
-                       (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
+                       (writable ? O_RDWR | O_CREAT | O_APPEND : O_RDONLY) |
+                       O_BINARY,
                        MYF(MY_WME));
   if (sub_file.fd < 0)
     RETURN_REPORTED_ERROR;
@@ -51,6 +52,7 @@ enum_return_status Rot_file::open(const char *_filename, bool writable)
   switch (read_status)
   {
   case READ_OK:
+    PROPAGATE_REPORTED_ERROR(reader.tell(&sub_file.header_length));
     break;
   case READ_ERROR:
     RETURN_REPORTED_ERROR;
@@ -61,8 +63,8 @@ enum_return_status Rot_file::open(const char *_filename, bool writable)
     // file was empty: write the header
     if (Compact_coder::append_unsigned(&appender, 0) != APPEND_OK)
       RETURN_REPORTED_ERROR;
+    PROPAGATE_REPORTED_ERROR(appender.tell(&sub_file.header_length));
   }
-  PROPAGATE_REPORTED_ERROR(appender.tell(&sub_file.header_length));
 
   _is_open= true;
   RETURN_OK;

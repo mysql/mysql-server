@@ -47,7 +47,8 @@ enum_return_status Group::parse(Sid_map *sid_map, const char *text)
     if (gno > 0 && *text == 0)
       RETURN_OK;
   }
-  my_error(ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text);
+  BINLOG_ERROR(("Malformed group specification: %.200s", text),
+               (ER_MALFORMED_GROUP_SPECIFICATION, MYF(0), text));
   RETURN_REPORTED_ERROR;
 }
 
