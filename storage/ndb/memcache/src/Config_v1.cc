@@ -195,14 +195,16 @@ bool config_v1::read_configuration() {
 int config_v1::get_server_role_id() {
   uint32_t val = -1;
   
+  Ndb db(conf.primary_conn);
+  db.init(2);
   TableSpec spec("ndbmemcache.memcache_server_roles",
                  "role_name", "role_id,max_tps");
-  QueryPlan plan(conf.db, &spec); 
+  QueryPlan plan(&db, &spec);
   Operation op(&plan, OP_READ);
   
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.buffer =     (char *) malloc(op.requiredBuffer());
-  NdbTransaction *tx = conf.db->startTransaction();
+  NdbTransaction *tx = db.startTransaction();
   
   op.clearKeyNullBits();
   op.setKeyPart(COL_STORE_KEY, conf.server_role, strlen(conf.server_role));
@@ -240,13 +242,15 @@ bool config_v1::get_policies() {
   DEBUG_ENTER_METHOD("config_v1::get_policies");
   bool success = true;
   int res;
+  Ndb db(conf.primary_conn);
+  db.init(4);
   TableSpec spec("ndbmemcache.cache_policies",
                  "policy_name",                 
                  "get_policy,set_policy,delete_policy,flush_from_db");
-  QueryPlan plan(conf.db, &spec); 
+  QueryPlan plan(&db, &spec); 
   Operation op(&plan, OP_SCAN);
   
-  NdbTransaction *tx = conf.db->startTransaction();
+  NdbTransaction *tx = db.startTransaction();
   NdbScanOperation *scan = op.scanTable(tx);
   if(! scan) {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
@@ -311,14 +315,16 @@ bool config_v1::get_connections() {
   DEBUG_ENTER_METHOD("config_v1::get_connections");
   bool success = true;
   int res;
+  Ndb db(conf.primary_conn);
+  db.init(4);
   TableSpec spec("ndbmemcache.ndb_clusters",
                  "cluster_id",
                  "ndb_connectstring,microsec_rtt");  
   /* Scan the ndb_clusters table */
-  QueryPlan plan(conf.db, &spec); 
+  QueryPlan plan(&db, &spec); 
   Operation op(&plan, OP_SCAN);
   
-  NdbTransaction *tx = conf.db->startTransaction();
+  NdbTransaction *tx = db.startTransaction();
   NdbScanOperation *scan = op.scanTable(tx);
   if(! scan) {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
@@ -383,16 +389,18 @@ TableSpec * config_v1::get_container(char *name) {
 
 TableSpec * config_v1::get_container_record(char *name) {
   TableSpec *container;
+  Ndb db(conf.primary_conn);
+  db.init(1);
   TableSpec spec("ndbmemcache.containers",
                  "name",  
                  "db_schema,db_table,key_columns,value_columns,flags,"
-                 "increment_column,cas_column,expire_time_column");
-  QueryPlan plan(conf.db, &spec); 
+                 "increment_column,cas_column,expire_time_column");                 
+  QueryPlan plan(&db, &spec); 
   Operation op(&plan, OP_READ);
   
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.buffer     = (char *) malloc(op.requiredBuffer());
-  NdbTransaction *tx = conf.db->startTransaction();
+  NdbTransaction *tx = db.startTransaction();
   
   op.clearKeyNullBits();
   op.setKeyPart(COL_STORE_KEY, name, strlen(name));
@@ -478,7 +486,9 @@ bool config_v1::get_prefixes(int role_id) {
   TableSpec spec("ndbmemcache.key_prefixes",
                  "server_role_id,key_prefix", 
                  "cluster_id,policy,container");
-  QueryPlan plan(conf.db, &spec, PKScan); 
+  Ndb db(conf.primary_conn);
+  db.init(4);
+  QueryPlan plan(&db, &spec, PKScan); 
   Operation op(&plan, OP_SCAN);
   
   // `server_role_id` INT UNSIGNED NOT NULL DEFAULT 0,
@@ -492,7 +502,7 @@ bool config_v1::get_prefixes(int role_id) {
   bound.low_inclusive = bound.high_inclusive = true;
   bound.range_no = 0;
   
-  NdbTransaction *tx = conf.db->startTransaction();
+  NdbTransaction *tx = db.startTransaction();
   NdbIndexScanOperation *scan = op.scanIndex(tx, &bound);
   if(! scan) {
     logger->log(LOG_WARNING, 0, "scanIndex(): %s\n", tx->getNdbError().message);
@@ -629,21 +639,23 @@ void config_v1::log_signon() {
   DEBUG_ENTER_METHOD("config_v1::log_signon");
   char my_hostname[256];
   gethostname(my_hostname, 256);  
+  Ndb db(conf.primary_conn);
+  db.init(1);
   TableSpec spec("ndbmemcache.last_memcached_signon",
                  "ndb_node_id", "hostname,server_role,signon_time");
-  QueryPlan plan(conf.db, &spec);
+  QueryPlan plan(&db, &spec);
   
   Operation op(&plan, OPERATION_SET);
   op.buffer     = (char *) malloc(op.requiredBuffer());
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.clearNullBits();
-  op.setKeyPartInt(COL_STORE_KEY,   conf.db->getNodeId());  // node ID (in key)
-  op.setColumnInt(COL_STORE_KEY,    conf.db->getNodeId());  // node ID (in row)
+  op.setKeyPartInt(COL_STORE_KEY,   db.getNodeId());  // node ID (in key)
+  op.setColumnInt(COL_STORE_KEY,    db.getNodeId());  // node ID (in row)
   op.setColumn(COL_STORE_VALUE+0,   my_hostname, strlen(my_hostname));           // hostname
   op.setColumn(COL_STORE_VALUE+1,   conf.server_role, strlen(conf.server_role)); // role
   op.setColumnInt(COL_STORE_VALUE+2,time(NULL));                                 // timestamp
   
-  NdbTransaction *tx = conf.db->startTransaction();   // TODO: node selection
+  NdbTransaction *tx = db.startTransaction();   // TODO: node selection
   op.writeTuple(tx);
   tx->execute(NdbTransaction::Commit);
   tx->getGCI(&signon_gci);
@@ -666,10 +678,12 @@ void config_v1::set_initial_cas() {
    |                          | + 8bit |                            | 
    |                          | NodeId |                            |
    ----------------------------------------------------------------   */
+  Ndb db(conf.primary_conn);
+  db.init(1);
   const uint64_t MASK_GCI   = 0x07FFFFFF00000000LLU; // Use these 27 bits of GCI 
   const uint64_t ENGINE_BIT = 0x0000001000000000LLU; // bit 36
   
-  uint64_t node_id = ((uint64_t) conf.db->getNodeId()) << 28;  
+  uint64_t node_id = ((uint64_t) db.getNodeId()) << 28;  
   uint64_t gci_bits = (signon_gci & MASK_GCI) << 5;
   uint64_t def_eng_cas = gci_bits | node_id;
   uint64_t ndb_eng_cas = gci_bits | ENGINE_BIT | node_id;
@@ -677,7 +691,7 @@ void config_v1::set_initial_cas() {
   //  void storeCAS(uint64_t ndb_engine_cas, uint64_t default_engine_cas);
   conf.storeCAS(ndb_eng_cas, def_eng_cas);
   DEBUG_PRINT("Sign On GCI: 0x%llx | Node Id: [%d] 0x%llx | Engine bit: 0x%llx", 
-              signon_gci, conf.db->getNodeId(), node_id, ENGINE_BIT);
+              signon_gci, db.getNodeId(), node_id, ENGINE_BIT);
   DEBUG_PRINT("Initial CAS: %llu 0x%llx ", ndb_eng_cas, ndb_eng_cas);
   
   return;

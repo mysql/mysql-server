@@ -54,12 +54,7 @@ Configuration::Configuration(Configuration *old) :
   primary_connect_string(old->primary_connect_string),
   server_role(old->server_role),
   config_version(CONFIG_VER_UNKNOWN),
-  primary_conn(old->primary_conn)
-{
-  db = new Ndb(primary_conn);
-  db->init();
-}
-
+  primary_conn(old->primary_conn)  {};
 
 
 bool Configuration::connectToPrimary() {
@@ -84,12 +79,12 @@ bool Configuration::connectToPrimary() {
   primary_conn = ClusterConnectionPool::connect(primary_connect_string);
 
   if(primary_conn) {    
-    db = new Ndb(primary_conn);  // This Ndb is used only to read the "meta" table.
-    db->init();
     return true;
   }
-  logger->log(LOG_WARNING, 0, "FAILED.\n");
-  return false;
+  else {
+    logger->log(LOG_WARNING, 0, "FAILED.\n");
+    return false;
+  }
 }
 
 
@@ -283,8 +278,10 @@ void Configuration::storeCAS(uint64_t ndb_engine_cas, uint64_t default_engine_ca
 
 config_ver_enum Configuration::get_supported_version() {
 
+  Ndb db(primary_conn);
+  db.init(1);
   TableSpec ts_meta("ndbmemcache.meta", "application,metadata_version", "");
-  QueryPlan plan(db, &ts_meta);
+  QueryPlan plan(& db, &ts_meta);
   // "initialized" is set only if the ndbmemcache.meta table exists:
   if(plan.initialized) {
     if(fetch_meta_record(&plan, "1.1")) {
@@ -316,7 +313,7 @@ bool Configuration::fetch_meta_record(QueryPlan *plan, const char *version) {
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.buffer     = (char *) malloc(op.requiredBuffer());
   
-  NdbTransaction *tx = db->startTransaction();
+  NdbTransaction *tx = plan->db->startTransaction();
 
   op.setKeyPart(COL_STORE_KEY + 0, "ndbmemcache", strlen("ndbmemcache"));
   op.setKeyPart(COL_STORE_KEY + 1, version, strlen(version));

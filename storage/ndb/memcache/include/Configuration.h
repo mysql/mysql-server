@@ -113,7 +113,6 @@ class Configuration {
   int storePrefix(KeyPrefix &prefix);
   void storeCAS(uint64_t ndb_engine_cas, uint64_t default_engine_cas);
 
-  Ndb *db;
   const char *primary_connect_string;
   int onlineReloadFlag;
   int (*reload_waiter)(Ndb_cluster_connection *, const char *);
