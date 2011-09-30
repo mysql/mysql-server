@@ -199,10 +199,14 @@ const KeyPrefix * Configuration::getNextPrefixForCluster(unsigned int cluster_id
                                                          const KeyPrefix *k) const {
   unsigned int i = 0;
 
-  if(k) while(prefixes[i] != k && i < nprefixes) i++;
+  if(k) {
+    while(prefixes[i] != k && i < nprefixes) i++;  // find k in the list
+    i++;  // then advance one more
+  }
+    
   while(i < nprefixes && prefixes[i]->info.cluster_id != cluster_id) i++;
 
-  if(i == nprefixes) return 0;
+  if(i >= nprefixes) return 0;
   else return prefixes[i];
 }
 
