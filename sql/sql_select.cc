@@ -18649,10 +18649,14 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     DBUG_RETURN(rc);
   }
 
-  Semijoin_mat_exec *sjm= join_tab->emb_sj_nest->sj_mat_exec;
+  Semijoin_mat_exec *const sjm= join_tab->emb_sj_nest->sj_mat_exec;
+
+  // Cache a pointer to the last of the materialized inner tables:
+  JOIN_TAB *const last_tab= join_tab + (sjm->table_count - 1);
+
   if (end_of_records)
   {
-    rc= (*join_tab[sjm->table_count - 1].next_select)
+    rc= (*last_tab->next_select)
           (join, join_tab + sjm->table_count, end_of_records);
     DBUG_RETURN(rc);
   }
@@ -18662,23 +18666,8 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       Do the materialization. First, put end_sj_materialize after the last
       inner table so we can catch record combinations of sj-inner tables.
     */
-    Next_select_func next_func= join_tab[sjm->table_count - 1].next_select;
-    join_tab[sjm->table_count - 1].next_select= end_sj_materialize;
-
-    if (sjm->is_scan)
-    {
-      JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
-      if (last_tab->save_read_first_record == NULL)
-      {
-        /* Save a copy of the read first function before substituting it */
-        last_tab->save_read_first_record= last_tab->read_first_record;
-      }
-      else
-      {
-        /* Restore read function saved in previous materialization round */
-        last_tab->read_first_record= last_tab->save_read_first_record;
-      }
-    }
+    const Next_select_func next_func= last_tab->next_select;
+    last_tab->next_select= end_sj_materialize;
     /*
       Now run the join for the inner tables. The first call is to run the
       join, the second one is to signal EOF (this is essential for some
@@ -18687,55 +18676,48 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((rc= sub_select(join, join_tab, FALSE)) < 0 ||
         (rc= sub_select(join, join_tab, TRUE/*EOF*/)) < 0)
     {
-      join_tab[sjm->table_count - 1].next_select= next_func;
+      last_tab->next_select= next_func;
       DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
     }
-    join_tab[sjm->table_count - 1].next_select= next_func;
-
-    /*
-      Ok, materialization finished. Initialize the access to the temptable
-    */
-    join_tab->read_record.read_record= join_no_more_records;
-    if (sjm->is_scan)
-    {
-      /* Initialize full scan */
-      JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
-      init_read_record(&last_tab->read_record, join->thd,
-                       sjm->table, NULL, TRUE, TRUE, FALSE);
-
-      last_tab->read_first_record= join_read_record_no_init;
-      last_tab->read_record.copy_field= sjm->copy_field;
-      last_tab->read_record.copy_field_end= sjm->copy_field +
-                                            sjm->table_cols.elements;
-      last_tab->read_record.read_record= rr_sequential_and_unpack;
-
-      // Clear possible outer join information from earlier use of this join tab
-      last_tab->last_inner= NULL;
-      last_tab->first_unmatched= NULL;
-    }
+    last_tab->next_select= next_func;
 
     sjm->materialized= true;
-  }
-  else
-  {
-    if (sjm->is_scan)
-    {
-      /* Reset the cursor for a new scan over the table */
-      if (sjm->table->file->ha_rnd_init(TRUE))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
-    }
   }
 
   if (sjm->is_scan)
   {
-    /* Do full scan of the materialized table */
-    JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
+    /*
+      Perform a full scan over the materialized table.
+      Reuse the join tab of the last inner table for the materialized table.
+    */
 
-    Item *save_cond= last_tab->condition();
+    // Save contents of join tab for possible repeated materializations:
+    const READ_RECORD saved_access= last_tab->read_record;
+    const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
+
+    // Initialize full scan
+    init_read_record(&last_tab->read_record, join->thd,
+                     sjm->table, NULL, TRUE, TRUE, FALSE);
+
+    last_tab->read_first_record= join_read_record_no_init;
+    last_tab->read_record.copy_field= sjm->copy_field;
+    last_tab->read_record.copy_field_end= sjm->copy_field +
+                                          sjm->table_cols.elements;
+    last_tab->read_record.read_record= rr_sequential_and_unpack;
+
+    // Clear possible outer join information from earlier use of this join tab
+    last_tab->last_inner= NULL;
+    last_tab->first_unmatched= NULL;
+
+    Item *const save_cond= last_tab->condition();
     last_tab->set_condition(sjm->join_cond, __LINE__);
     rc= sub_select(join, last_tab, end_of_records);
+    end_read_record(&last_tab->read_record);
+
+    // Restore access method used for materialization
     last_tab->set_condition(save_cond, __LINE__);
-    DBUG_RETURN(rc);
+    last_tab->read_record= saved_access;
+    last_tab->read_first_record= saved_rfr;
   }
   else
   {
@@ -18744,9 +18726,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (res || !sjm->in_equality->val_int())
       DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+    rc= (*last_tab->next_select)
+      (join, join_tab + sjm->table_count, end_of_records);
   }
-  rc= (*join_tab[sjm->table_count - 1].next_select)
-        (join, join_tab + sjm->table_count, end_of_records);
   DBUG_RETURN(rc);
 }
 
