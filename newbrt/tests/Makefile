@@ -146,7 +146,7 @@ check_brtloader-test-writer-100000-x: brtloader-test-writer$(BINSUF)
 check_brtloader-test-writer-1000000-x: brtloader-test-writer$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -r 1000000 -s -x 42 dir.$@ $(SUMMARIZE_CMD)
 
-check_brtloader-test-writer-errors$(BINSUF): $(patsubst %,check_brtloader-test-writer-errors-%, 2 3)
+check_brtloader-test-writer-errors$(BINSUF): $(patsubst %,check_brtloader-test-writer-errors-%, 1 2 3 4)
 	true $(SUMMARIZE_CMD)
 check_brtloader-test-writer-errors-1: brtloader-test-writer-errors$(BINSUF)
 	$(VGRIND) ./$< $(VERBVERBOSE) -w -m -u -r 100000 dir.$@ $(SUMMARIZE_CMD)
