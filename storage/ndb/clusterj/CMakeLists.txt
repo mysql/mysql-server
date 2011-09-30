@@ -26,7 +26,7 @@ IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
 ENDIF()
 
 SET(DEP ndbjtie.jar
-        tie.jar
+        jtie.jar
         clusterj-api.jar
         clusterj-core.jar
         clusterj-tie.jar)
