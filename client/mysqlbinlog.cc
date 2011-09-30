@@ -83,7 +83,6 @@ TYPELIB base64_output_mode_typelib=
     base64_output_mode_names, NULL };
 static enum_base64_output_mode opt_base64_output_mode= BASE64_OUTPUT_UNSPEC;
 static char *opt_base64_output_mode_str= 0;
-static my_bool opt_skip_ugids= 0;
 static char *database= 0;
 static char *output_file= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
@@ -153,6 +152,7 @@ static bool include_anonymous= true, exclude_anonymous= false;
 static char *opt_include_ugids_str, *opt_exclude_ugids_str;
 static char *opt_first_lgid_str= NULL, *opt_last_lgid_str= NULL;
 static rpl_lgid opt_first_lgid= -1, opt_last_lgid= -1;
+static my_bool opt_skip_ugids= 0;
 #endif
 
 
@@ -1207,6 +1207,7 @@ static struct my_option my_long_options[] =
    /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
+#ifdef HAVE_UGID
   {"skip-ugids", OPT_MYSQLBINLOG_SKIP_UGIDS,
    "Do not print universal group identifier information "
    "(SET UGID_NEXT=... etc).",
@@ -1228,6 +1229,7 @@ static struct my_option my_long_options[] =
    "Ignore groups after the given Local Group ID.",
    &opt_last_lgid_str, &opt_last_lgid_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1512,8 +1514,10 @@ static Exit_status dump_log_entries(const char* logname)
   strmov(print_event_info.delimiter, "/*!*/;");
   
   print_event_info.verbose= short_form ? 0 : verbose;
+#ifdef HAVE_UGID
   print_event_info.skip_ugids= opt_skip_ugids;
   print_event_info.sid_map= &sid_map;
+#endif
 
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
@@ -1527,9 +1531,12 @@ static Exit_status dump_log_entries(const char* logname)
             "to an event in the middle of a statement. The event(s) "
             "from the partial statement have not been written to output.");
 
+#ifdef HAVE_UGID
   if (print_event_info.last_subgroup_printed)
     fprintf(result_file, "SET UGID_NEXT='AUTOMATIC'%s\n",
             print_event_info.delimiter);
+#endif
+
   /* Set delimiter back to semicolon */
   if (!raw_mode)
   {
@@ -2061,6 +2068,9 @@ static Exit_status check_header(IO_CACHE* file,
 }
 
 
+#ifdef HAVE_UGID
+
+
 static Exit_status open_group_log(const char *binlog_filename)
 {
   DBUG_ENTER("open_group_log");
@@ -2137,6 +2147,9 @@ static void close_group_log()
 }
 
 
+#endif // ifdef HAVE_UGID
+
+
 /**
   Reads a local binlog and prints the events it sees.
 
@@ -2159,11 +2172,14 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   uchar tmp_buff[BIN_LOG_HEADER_SIZE];
   Exit_status retval= OK_CONTINUE;
   bool opened_iocache= false;
+#ifdef HAVE_UGID
   Subgroup subgroup;
   Subgroup *subgroup_p= NULL;
+#endif
 
   if (logname && strcmp(logname, "-") != 0)
   {
+#ifdef HAVE_UGID
     /* read from normal file */
     if ((retval= open_group_log(logname)) != OK_CONTINUE)
       goto end;
@@ -2182,6 +2198,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
         goto end;
       start_position= first_subgroup->binlog_pos;
     }
+#endif
 
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
       goto err;
@@ -2256,6 +2273,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
+#ifdef HAVE_UGID
     if (have_group_log && old_off >= start_position_mot &&
         (subgroup_p == NULL ||
          old_off >= (my_off_t)(subgroup_p->binlog_pos +
@@ -2270,6 +2288,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       subgroup_p= &subgroup;
       my_b_seek(file, subgroup.binlog_pos);
     }
+#endif
+
     Log_event* ev = Log_event::read_log_event(file, glob_description_event,
                                               opt_verify_binlog_checksum);
     if (!ev)
@@ -2290,8 +2310,12 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       // file->error == 0 means EOF, that's OK, we break in this case
       goto end;
     }
+
+#ifdef HAVE_UGID
     ev->subgroup= subgroup_p;
     ev->event_end_position= my_b_tell(file);
+#endif
+
     if ((retval= process_event(print_event_info, ev, old_off, logname)) !=
         OK_CONTINUE)
       goto end;
@@ -2307,7 +2331,9 @@ end:
     my_close(fd, MYF(MY_WME));
   if (opened_iocache)
     end_io_cache(file);
+#ifdef HAVE_UGID
   close_group_log();
+#endif
   DBUG_RETURN(retval);
 }
 
@@ -2342,6 +2368,7 @@ static int args_post_process(void)
     }
   }
 
+#ifdef HAVE_UGID
   if (opt_exclude_ugids_str != NULL && opt_include_ugids_str != NULL)
   {
     error("--exclude-ugids and --include-ugids cannot be combined.");
@@ -2376,6 +2403,7 @@ static int args_post_process(void)
     error("--first-lgid must be smaller than or equal to --last-lgid.");
     DBUG_RETURN(ERROR_STOP);
   }
+#endif // ifdef HAVE_UGID
 
   DBUG_RETURN(OK_CONTINUE);
 }

@@ -1582,6 +1582,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 #ifdef MYSQL_CLIENT
 
 
+#ifdef HAVE_UGID
 void Log_event::print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *pei)
 {
   if (pei->skip_ugids)
@@ -1652,6 +1653,7 @@ void Log_event::print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *pei)
 
   pei->last_subgroup_printed= true;
 }
+#endif // ifdef HAVE_UGID
 
 
 /*
@@ -1666,7 +1668,9 @@ void Log_event::print_header(IO_CACHE* file,
   my_off_t hexdump_from= print_event_info->hexdump_from;
   DBUG_ENTER("Log_event::print_header");
 
+#ifdef HAVE_UGID
   print_subgroup_info(file, print_event_info);
+#endif
 
   my_b_printf(file, "#");
   print_timestamp(file);
@@ -11605,8 +11609,10 @@ st_print_event_info::st_print_event_info()
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
-   have_unflushed_events(FALSE),
-   last_subgroup_printed(false), skip_ugids(false), sid_map(NULL)
+   have_unflushed_events(FALSE)
+#ifdef HAVE_UGID
+ , last_subgroup_printed(false), skip_ugids(false), sid_map(NULL)
+#endif
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
