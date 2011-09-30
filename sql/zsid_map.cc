@@ -25,7 +25,7 @@
 
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
-  : sid_lock(_sid_lock), fd(-1)
+  : sid_lock(_sid_lock), fd(-1), status(CLOSED_OK)
 {
   DBUG_ENTER("Sid_map::Sid_map");
   my_init_dynamic_array(&_sidno_to_sid, sizeof(Node *), 8, 8);
@@ -57,12 +57,13 @@ enum_return_status Sid_map::clear()
                my_free, 0);
   reset_dynamic(&_sidno_to_sid);
   reset_dynamic(&_sorted);
-  PROPAGATE_REPORTED_ERROR(appender.truncate(0));
+  if (is_open())
+    PROPAGATE_REPORTED_ERROR(appender.truncate(0));
   RETURN_OK;
 }
 
 
-enum_return_status Sid_map::open(const char *_filename)
+enum_return_status Sid_map::open(const char *_filename, bool writable)
 {
   DBUG_ENTER("Sid_map::open(const char *)");
   if (is_open())
@@ -71,12 +72,17 @@ enum_return_status Sid_map::open(const char *_filename)
   strcpy(filename, _filename);
   DBUG_ASSERT(strlen(_filename) < FN_REFLEN);
 
-  fd= my_open(filename, O_RDWR | O_CREAT | O_BINARY, MYF(MY_WME));
+  fd= my_open(filename, (writable ? O_RDWR | O_CREAT : O_RDONLY) | O_BINARY,
+              MYF(MY_WME));
   if (fd == -1)
+  {
+    status= CLOSED_ERROR;
     RETURN_REPORTED_ERROR;
+  }
   File_reader reader;
   reader.set_file(fd);
-  appender.set_file(fd);
+  if (writable)
+    appender.set_file(fd);
   my_off_t pos= 0;
   rpl_sidno sidno= 0;
   uchar type_code;
@@ -90,7 +96,7 @@ enum_return_status Sid_map::open(const char *_filename)
     {
     case READ_ERROR: goto error;
     case READ_TRUNCATED: goto truncate;
-    case READ_EOF: RETURN_OK;
+    case READ_EOF: goto ok;
     case READ_OK: break;
     }
     DBUG_ASSERT(type_code == 0);
@@ -106,11 +112,22 @@ enum_return_status Sid_map::open(const char *_filename)
   }
 
 truncate:
-  if (appender.truncate(pos) != RETURN_STATUS_OK)
-    goto error;
+  if (writable)
+    if (appender.truncate(pos) != RETURN_STATUS_OK)
+      goto error;
+  /*FALLTHROUGH*/
+ok:
+  if (writable)
+    status= OPEN;
+  else
+  {
+    close();
+    status= CLOSED_OK;
+  }
   RETURN_OK;
 
 error:
+  status= CLOSED_ERROR;
   close();
   RETURN_REPORTED_ERROR;
 }
@@ -119,7 +136,7 @@ error:
 rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
 {
   DBUG_ENTER("Sid_map::add_permanent");
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   char buf[Uuid::TEXT_LENGTH + 1];
   sid->to_string(buf);
   DBUG_PRINT("info", ("SID=%s", buf));
@@ -128,10 +145,10 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
   Node *node= (Node *)my_hash_search(&_sid_to_sidno, sid->bytes,
                                      rpl_sid::BYTE_LENGTH);
   if (node != NULL)
+  {
+    DBUG_PRINT("info", ("existed as sidno=%d", node->sidno));
     DBUG_RETURN(node->sidno);
-
-  if (fd == -1)
-    DBUG_RETURN(-1);
+  }
 
   sid_lock->unlock();
   sid_lock->wrlock();
@@ -147,6 +164,7 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
         write_to_disk(sidno, sid) != RETURN_STATUS_OK ||
         (_sync && sync() != RETURN_STATUS_OK))
       sidno= -1;
+    /// @todo: remove node on write error /sven
   }
 
   sid_lock->unlock();
@@ -158,12 +176,31 @@ rpl_sidno Sid_map::add_permanent(const rpl_sid *sid, bool _sync)
 enum_return_status Sid_map::write_to_disk(rpl_sidno sidno, const rpl_sid *sid)
 {
   DBUG_ENTER("Sid_map::write_to_disk");
-  sid_lock->assert_some_lock();
-  if (!appender.is_open())
+  if (status == CLOSED_OK)
+    RETURN_OK;
+  else if (status == CLOSED_ERROR)
   {
-    my_error(ER_ERROR_ON_WRITE, MYF(0));
+    /// @todo : make error message correct
+    BINLOG_ERROR(("Error writing file '%-.200s' (errno: %d)",
+                  appender.get_source_name(), 0),
+                 (ER_ERROR_ON_WRITE, MYF(0), appender.get_source_name(), 0));
     RETURN_REPORTED_ERROR;
   }
+  sid_lock->assert_some_lock();
+  char buf[Uuid::TEXT_LENGTH + 1];
+  sid->to_string(buf);
+  DBUG_PRINT("info", ("Writing sidno=%d sid=%s\n", sidno, buf));
+  if (!appender.is_open())
+  {
+    BINLOG_ERROR(("Error writing file '%-.200s' (errno: %d)",
+                  appender.get_source_name(), errno),
+                 (ER_ERROR_ON_WRITE, MYF(0), appender.get_source_name(),
+                  errno));
+    RETURN_REPORTED_ERROR;
+  }
+  my_off_t position;
+  appender.tell(&position);
+  DBUG_PRINT("info", ("At position %llu\n", position));
   uchar type_code= 0;
   if (appender.append(&type_code, 1) != APPEND_OK ||
       sid->append(&appender) != APPEND_OK)
@@ -217,7 +254,7 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
     }
     free(node);
   }
-  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }
 
@@ -225,6 +262,16 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid *sid)
 enum_return_status Sid_map::sync()
 {
   DBUG_ENTER("Sid_map::flush()");
+  if (status == CLOSED_OK)
+    RETURN_OK;
+  else if (status == CLOSED_ERROR)
+  {
+    /// @todo : make error message correct
+    BINLOG_ERROR(("Error writing file '%-.200s' (errno: %d)",
+                  appender.get_source_name(), 0),
+                 (ER_ERROR_ON_WRITE, MYF(0), appender.get_source_name(), 0));
+    RETURN_REPORTED_ERROR;
+  }
   if (my_sync(fd, MYF(MY_WME)) != 0)
   {
     close(); // this is a fatal error, file may be corrupt
@@ -241,7 +288,11 @@ enum_return_status Sid_map::close()
   fd= -1;
   appender.set_file(-1);
   if (ret != 0)
+  {
+    status= CLOSED_ERROR;
     RETURN_REPORTED_ERROR;
+  }
+  status= CLOSED_OK;
   RETURN_OK;
 }
 

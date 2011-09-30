@@ -22,92 +22,160 @@
 #include "mysqld_error.h"
 
 
-int Group_log::open(const char *filename)
+enum_return_status Group_log::open(const char *filename, bool writable)
 {
   DBUG_ENTER("Group_log::open(const char *)");
-  int ret= rot_file.open(filename, true);
-  DBUG_RETURN(ret);
+  PROPAGATE_REPORTED_ERROR(rot_file.open(filename, writable));
+  RETURN_OK;
 }
 
 
+enum_return_status Group_log::close()
+{
+  DBUG_ENTER("Group_log::close()");
+  PROPAGATE_REPORTED_ERROR(rot_file.close());
+  RETURN_OK;
+}
+
+
+#ifndef MYSQL_CLIENT
 enum_return_status
-Group_log::write_subgroup(const Cached_subgroup *subgroup,
+Group_log::write_subgroup(const THD *thd, const Cached_subgroup *subgroup,
+                          rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
                           rpl_binlog_pos offset_after_last_statement,
-                          bool group_commit, const THD *thd)
+                          bool group_commit)
 {
   DBUG_ENTER("Group_log::write_subgroup(const Subgroup *)");
 
   if (!rot_file.is_open())
   {
-    my_error(ER_ERROR_ON_WRITE, MYF(0), rot_file.get_source_name(), errno);
+    BINLOG_ERROR(("Error writing file '%-.200s' (errno: %d)",
+                  rot_file.get_source_name(), errno),
+                 (ER_ERROR_ON_WRITE, MYF(0), rot_file.get_source_name(),
+                  errno));
     RETURN_REPORTED_ERROR;
   }
 
   Rpl_owner_id id;
   id.copy_from(thd);
-  if (encoder.append(&rot_file, subgroup, offset_after_last_statement,
-                     group_commit, id.owner_type) != APPEND_OK)
+  if (encoder.append(&rot_file, subgroup, binlog_no, binlog_pos,
+                     offset_after_last_statement, group_commit,
+                     id.owner_type) != APPEND_OK)
   {
     rot_file.close();
     RETURN_REPORTED_ERROR;
   }
   RETURN_OK;
 }
+#endif // ifndef MYSQL_CLIENT
 
 
-Group_log::Group_log_reader::Group_log_reader(
-  Group_log *_group_log, const Group_set *group_set,
-  rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos, enum_read_status *status)
-  : output_sid_map(group_set->get_sid_map()),
+Group_log::Group_log_reader::Group_log_reader(Group_log *_group_log,
+                                              Sid_map *_output_sid_map)
+  : output_sid_map(_output_sid_map),
     group_log(_group_log),
     rot_file_reader(&group_log->rot_file, 0),
-    has_peeked(true)
+    has_peeked(false)
 {
-  DBUG_ENTER("Group_log::Reader::Reader");
-  bool found_group= false, found_pos= false;
-  do
-  {
-    *status= do_read_subgroup(&peeked_subgroup);
-    if (*status != READ_OK)
-      DBUG_VOID_RETURN;
-    found_group= found_group || group_set->contains_group(peeked_subgroup.sidno,
-                                                          peeked_subgroup.gno);
-    found_pos= found_pos || (peeked_subgroup.binlog_no > binlog_no ||
-                             (peeked_subgroup.binlog_no == binlog_no &&
-                              peeked_subgroup.binlog_pos >= binlog_pos));
-  } while (!found_pos || !found_group);
-  DBUG_VOID_RETURN;
+  DBUG_ASSERT(output_sid_map != NULL);
 }
 
 
-enum_read_status Group_log::Group_log_reader::do_read_subgroup(
-  Subgroup *subgroup)
+enum_read_status Group_log::Group_log_reader::seek(const Group_set *_group_set,
+                                                   bool _exclude,
+                                                   bool _include_anonymous,
+                                                   rpl_lgid _first_lgid,
+                                                   rpl_lgid _last_lgid,
+                                                   rpl_binlog_no binlog_no,
+                                                   rpl_binlog_pos binlog_pos)
 {
-  DBUG_ENTER("Group_log::Reader::do_read_subgroup(Subgroup *)");
-  PROPAGATE_READ_STATUS(decoder.read(&rot_file_reader, subgroup));
-  const Sid_map *log_sid_map= group_log->get_sid_map();
-  if (output_sid_map != log_sid_map)
+  DBUG_ENTER("Group_log::Group_log_reader::seek");
+  DBUG_ASSERT(group_set == NULL || output_sid_map == group_set->get_sid_map());
+
+  group_set= _group_set;
+  exclude_group_set= _exclude;
+  include_anonymous= _include_anonymous;
+  first_lgid= _first_lgid;
+  last_lgid= _last_lgid;
+  do
   {
-    const rpl_sid *sid= log_sid_map->sidno_to_sid(subgroup->sidno);
-    READER_CHECK_FORMAT(&rot_file_reader, sid != NULL);
-    subgroup->sidno= output_sid_map->add_permanent(sid);
-    READER_CHECK_FORMAT(&rot_file_reader, subgroup->sidno < 1);
-  }
+    PROPAGATE_READ_STATUS(do_read_subgroup(&peeked_subgroup, NULL));
+    char *str= peeked_subgroup.to_string();
+    free(str);
+    has_peeked= true;
+  } while (binlog_no != 0 &&
+           (peeked_subgroup.binlog_no < binlog_no ||
+            (peeked_subgroup.binlog_no == binlog_no &&
+             peeked_subgroup.binlog_pos < binlog_pos)));
   DBUG_RETURN(READ_OK);
 }
 
 
-enum_read_status Group_log::Group_log_reader::read_subgroup(Subgroup *subgroup)
+bool Group_log::Group_log_reader::subgroup_in_valid_set(Subgroup *subgroup)
+{
+  if (first_lgid != -1 && subgroup->lgid < first_lgid)
+    return false;
+  if (last_lgid != -1 && subgroup->lgid > last_lgid)
+    return false;
+  if (group_set == NULL)
+    return true;
+  if (subgroup->type == ANONYMOUS_SUBGROUP)
+    return include_anonymous;
+  return group_set->contains_group(subgroup->sidno, subgroup->gno) !=
+    exclude_group_set;
+}
+
+
+enum_read_status Group_log::Group_log_reader::do_read_subgroup(
+  Subgroup *subgroup, uint32 *owner_type)
+{
+  DBUG_ENTER("Group_log::Reader::do_read_subgroup(Subgroup *)");
+
+  do
+  {
+    // read one subgroup
+    PROPAGATE_READ_STATUS(decoder.read(&rot_file_reader, subgroup, owner_type));
+    const Sid_map *log_sid_map= group_log->get_sid_map();
+    if (output_sid_map != log_sid_map)
+    {
+      const rpl_sid *sid= log_sid_map->sidno_to_sid(subgroup->sidno);
+      READER_CHECK_FORMAT(&rot_file_reader, sid != NULL);
+      subgroup->sidno= output_sid_map->add_permanent(sid);
+      READER_CHECK_FORMAT(&rot_file_reader, subgroup->sidno < 1);
+    }
+    // skip sub-groups that are outside the valid set of groups
+  } while (!subgroup_in_valid_set(subgroup));
+
+  DBUG_RETURN(READ_OK);
+}
+
+
+enum_read_status Group_log::Group_log_reader::read_subgroup(
+  Subgroup *subgroup, uint32 *owner_type)
 {
   DBUG_ENTER("Group_log::Reader::read_subgroup(Subgroup *)");
   if (has_peeked)
   {
     *subgroup= peeked_subgroup;
     has_peeked= false;
-    DBUG_RETURN(READ_OK);
   }
-  enum_read_status status= do_read_subgroup(subgroup);
-  DBUG_RETURN(status);
+  else
+    PROPAGATE_READ_STATUS(do_read_subgroup(subgroup, owner_type));
+  DBUG_RETURN(READ_OK);
+}
+
+
+enum_read_status Group_log::Group_log_reader::peek_subgroup(
+  Subgroup **subgroup_p, uint32 *owner_type)
+{
+  DBUG_ENTER("Group_log::Reader::read_subgroup(Subgroup *)");
+  if (!has_peeked)
+  {
+    PROPAGATE_READ_STATUS(do_read_subgroup(&peeked_subgroup, owner_type));
+    has_peeked= true;
+  }
+  *subgroup_p= &peeked_subgroup;
+  DBUG_RETURN(READ_OK);
 }
 
 

@@ -2299,7 +2299,6 @@ mysql_execute_command(THD *thd)
     */
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
-    DBUG_PRINT("sven", ("before trans_commit_stmt 1"));
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))

@@ -20,25 +20,33 @@
 #ifdef HAVE_UGID
 
 
-#include "mysys_err.h"
+#include "sql_string.h"
 
 
-enum_return_status Appender::truncate(my_off_t new_position)
+enum_return_status String_appender::do_append(const uchar *buf, size_t length)
 {
-  DBUG_ENTER("Appender::truncate");
-  my_off_t old_position;
-  PROPAGATE_REPORTED_ERROR(tell(&old_position));
-  if (new_position >= old_position)
+  DBUG_ENTER("String_appender::append");
+  if (str->append((const char *)buf, length))
   {
-    if (new_position > old_position)
-    {
-      BINLOG_ERROR(("Can't seek in %.200s", get_source_name()),
-                   (EE_CANT_SEEK, MYF(0), get_source_name(), 0));
-      RETURN_REPORTED_ERROR;
-    }
-    RETURN_OK;
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    RETURN_REPORTED_ERROR;
   }
-  PROPAGATE_REPORTED_ERROR(do_truncate(new_position));
+  RETURN_OK;
+}
+
+
+enum_return_status String_appender::do_truncate(my_off_t new_position)
+{
+  DBUG_ENTER("String_appender::truncate");
+  str->length(new_position);
+  RETURN_OK;
+}
+
+
+enum_return_status String_appender::do_tell(my_off_t *position) const
+{
+  DBUG_ENTER("String_appender::tell");
+  *position= str->length();
   RETURN_OK;
 }
 

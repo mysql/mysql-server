@@ -190,7 +190,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${SSL_LIBRARIES})
 
 SET (BINLOG_SOURCE zreader.cc zappender.cc zatom_file.cc zrot_file.cc
-                   zsubgroup_coder.cc
+                   zsubgroup_coder.cc zstring_appender.cc
                    zuuid.cc zgroup.cc zowner_id.cc
                    zreturn.cc
                    zcompact.cc zgroup_log.cc

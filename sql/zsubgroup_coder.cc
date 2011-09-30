@@ -21,11 +21,12 @@
 
 enum_append_status Subgroup_coder::append(
   Appender *appender, const Cached_subgroup *cs,
+  rpl_binlog_no binlog_no, rpl_binlog_pos _binlog_pos,
   rpl_binlog_pos offset_after_last_statement,
   bool group_commit, uint32 owner_type)
 {
   DBUG_ENTER("Subgroup_coder::append");
-  uchar buf[FULL_SUBGROUP_SIZE];
+  uchar buf[2 + FULL_SUBGROUP_SIZE];
   uchar *p= buf;
   // write type code
   *p= SPECIAL_TYPE, p++;
@@ -35,41 +36,50 @@ enum_append_status Subgroup_coder::append(
   int4store(p, cs->sidno); p+= 4;
   int8store(p, cs->gno); p+= 8;
   int8store(p, binlog_no); p+= 8;
-  int8store(p, binlog_pos); p+= 8;
+  int8store(p, _binlog_pos); p+= 8;
   int8store(p, cs->binlog_length); p+= 8;
   int8store(p, offset_after_last_statement); p+= 8;
   int4store(p, owner_type); p+= 4;
   *p= cs->group_end ? 1 : 0, p++;
   *p= group_commit ? 1 : 0, p++;
   // append
+  DBUG_ASSERT(p - buf == 2 + FULL_SUBGROUP_SIZE);
   PROPAGATE_APPEND_STATUS(appender->append(buf, p - buf));
   // update state
   lgid++;
-  binlog_pos+= cs->binlog_length;
   DBUG_RETURN(APPEND_OK);
 }
 
 
-enum_read_status Subgroup_coder::read(Reader *reader, Subgroup *out)
+enum_read_status Subgroup_coder::read(Reader *reader, Subgroup *out, uint32 *owner_type)
 {
   DBUG_ENTER("Subgroup_coder::read");
   uchar buf[FULL_SUBGROUP_SIZE];
   PROPAGATE_READ_STATUS(reader->read(buf, 2));
-  READER_CHECK_FORMAT(reader,
-                      buf[0] == SPECIAL_TYPE &&
-                      (buf[1] == FULL_SUBGROUP ||
-                       (buf[1] >= MIN_IGNORABLE_TYPE && (buf[1] & 1) == 1)));
+  READER_CHECK_FORMAT(reader, buf[0] == SPECIAL_TYPE);
+  PROPAGATE_READ_STATUS(Compact_coder::read_type_code(reader, MIN_FATAL_TYPE,
+                                                      MIN_IGNORABLE_TYPE,
+                                                      &(buf[1]), buf[1]));
+  READER_CHECK_FORMAT(reader, buf[1] == FULL_SUBGROUP || (buf[1] & 1) == 1);
   PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, FULL_SUBGROUP_SIZE));
 #define UNPACK(FIELD, N) out->FIELD= sint ## N ## korr(p), p += N
   uchar *p= buf;
+  out->type= (enum_subgroup_type)*p;
+  p++;
   UNPACK(sidno, 4);
   UNPACK(gno, 8);
   UNPACK(binlog_no, 8);
   UNPACK(binlog_pos, 8);
   UNPACK(binlog_length, 8);
   UNPACK(binlog_offset_after_last_statement, 8);
+  if (owner_type != NULL)
+    *owner_type= uint4korr(p);
+  p+= 4;
+  READER_CHECK_FORMAT(reader, (*p == 0 || *p == 1) && (p[1] == 0 || p[1] == 1));
   out->group_end= *p == 1 ? true : false, p++;
   out->group_commit= *p == 1 ? true : false, p++;
+  DBUG_ASSERT(p - buf == (int)FULL_SUBGROUP_SIZE);
+  // update state
   out->lgid= ++lgid;
   DBUG_RETURN(READ_OK);
 }

@@ -95,7 +95,7 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
 error:
   global_lock->unlock();
   global_lock->rdlock();
-  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }
 

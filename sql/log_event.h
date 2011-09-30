@@ -787,6 +787,13 @@ typedef struct st_print_event_info
   IO_CACHE body_cache;
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
+
+#ifdef HAVE_UGID
+  Subgroup last_subgroup;
+  bool last_subgroup_printed;
+  bool skip_ugids;
+  Sid_map *sid_map;
+#endif
 } PRINT_EVENT_INFO;
 #endif
 
@@ -1153,23 +1160,38 @@ public:
   {
     return thd ? thd->db : 0;
   }
-#else
+#else // ifdef MYSQL_SERVER
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
   : temp_buf(0), event_cache_type(cache_type_arg),
-  event_logging_type(logging_type_arg) { }
+    event_logging_type(logging_type_arg), subgroup(NULL) { }
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
                                    *description_event, my_bool crc_check);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
+protected:
   void print_timestamp(IO_CACHE* file, time_t *ts = 0);
   void print_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
-#endif
+private:
+  /// Print 'SET UGID_*' statements.
+  void print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *print_event_info);
+public:
+  /**
+    The end of the event in *this* binary log.  This is not written to
+    the binary log and it is not subject to any transformations in
+    relay logs etc.  It is only used by mysqlbinlog.
+  */
+  rpl_binlog_pos event_end_position;
+  /**
+    Group information for the subgroup that this event is part of.
+  */
+  Subgroup *subgroup;
+#endif // ifdef MYSQL_SERVER ... else
   /* 
      The value is set by caller of FD constructor and
      Log_event::write_header() for the rest.

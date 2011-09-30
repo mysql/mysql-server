@@ -102,7 +102,7 @@ bool Uuid::is_valid(const char *s)
 }
 
 
-int Uuid::to_string(char *buf) const
+size_t Uuid::to_string(char *buf) const
 {
   DBUG_ENTER("Uuid::to_string");
   static const char byte_to_hex[]= "0123456789ABCDEF";

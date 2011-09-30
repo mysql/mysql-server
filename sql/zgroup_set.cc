@@ -21,7 +21,6 @@
 
 
 #include <ctype.h>
-#include "mysqld.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
 
@@ -74,7 +73,7 @@ void Group_set::init(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
   chunks= NULL;
   free_intervals= NULL;
   my_init_dynamic_array(&intervals, sizeof(Interval *), 0, 8);
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   n_chunks= 0;
 #endif
   DBUG_VOID_RETURN;
@@ -140,7 +139,7 @@ enum_return_status Group_set::ensure_sidno(rpl_sidno sidno)
   }
   RETURN_OK;
 error:
-  my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
 }
 
@@ -169,13 +168,13 @@ enum_return_status Group_set::create_new_chunk(int size)
                              sizeof(Interval) * (size - 1));
   if (new_chunk == NULL)
   {
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
     RETURN_REPORTED_ERROR;
   }
   // store the chunk in the list of chunks
   new_chunk->next= chunks;
   chunks= new_chunk;
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   n_chunks++;
 #endif
   // add the intervals in the chunk to the list of free intervals
@@ -376,13 +375,16 @@ int format_gno(char *s, rpl_gno gno)
 }
 
 
-enum_return_status Group_set::add(const char *text)
+enum_return_status Group_set::add(const char *text, bool *anonymous)
 {
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Group_set::add(const char*)");
   const char *s= text;
 
   DBUG_PRINT("info", ("adding '%s'", text));
+
+  if (anonymous != NULL)
+    *anonymous= false;
 
   SKIP_WHITESPACE();
   if (*s == 0)
@@ -418,50 +420,58 @@ enum_return_status Group_set::add(const char *text)
       RETURN_OK;
 
     // Parse SID.
-    rpl_sid sid;
-    if (sid.parse(s) != 0)
-      goto parse_error;
-    s += rpl_sid::TEXT_LENGTH;
-    rpl_sidno sidno= sid_map->add_permanent(&sid, 0);
-    if (sidno <= 0)
-      RETURN_REPORTED_ERROR;
-    PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
-    SKIP_WHITESPACE();
-
-    // Iterate over intervals.
-    Interval_iterator ivit(this, sidno);
-    while (*s == ':')
+    if (anonymous != NULL && strncmp(s, "ANONYMOUS", 9) == 0)
     {
-      // Skip ':'.
-      s++;
-
-      // Read start of interval.
-      rpl_gno start= parse_gno(&s);
-      if (start == 0)
+      *anonymous= true;
+      s+= 9;
+    }
+    else
+    {
+      rpl_sid sid;
+      if (sid.parse(s) != 0)
         goto parse_error;
+      s += rpl_sid::TEXT_LENGTH;
+      rpl_sidno sidno= sid_map->add_permanent(&sid, 0);
+      if (sidno <= 0)
+        RETURN_REPORTED_ERROR;
+      PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
       SKIP_WHITESPACE();
 
-      // Read end of interval.
-      rpl_gno end;
-      if (*s == '-')
+      // Iterate over intervals.
+      Interval_iterator ivit(this, sidno);
+      while (*s == ':')
       {
+        // Skip ':'.
         s++;
-        end= parse_gno(&s);
-        if (end == 0)
-          goto parse_error;
-        end++;
-        SKIP_WHITESPACE();
-      }
-      else
-        end= start + 1;
 
-      // Add interval.  Use the existing iterator position if the
-      // current interval does not begin before it.  Otherwise iterate
-      // from the beginning.
-      Interval *current= ivit.get();
-      if (current == NULL || start < current->start)
-        ivit.init(this, sidno);
-      PROPAGATE_REPORTED_ERROR(add(&ivit, start, end));
+        // Read start of interval.
+        rpl_gno start= parse_gno(&s);
+        if (start == 0)
+          goto parse_error;
+        SKIP_WHITESPACE();
+
+        // Read end of interval.
+        rpl_gno end;
+        if (*s == '-')
+        {
+          s++;
+          end= parse_gno(&s);
+          if (end == 0)
+            goto parse_error;
+          end++;
+          SKIP_WHITESPACE();
+        }
+        else
+          end= start + 1;
+
+        // Add interval.  Use the existing iterator position if the
+        // current interval does not begin before it.  Otherwise iterate
+        // from the beginning.
+        Interval *current= ivit.get();
+        if (current == NULL || start < current->start)
+          ivit.init(this, sidno);
+        PROPAGATE_REPORTED_ERROR(add(&ivit, start, end));
+      }
     }
 
     // Must be end of string or comma. (Commas are consumed and
@@ -472,7 +482,8 @@ enum_return_status Group_set::add(const char *text)
   DBUG_ASSERT(0);
 
 parse_error:
-  my_error(ER_MALFORMED_GROUP_SET_SPECIFICATION, MYF(0), text);
+  BINLOG_ERROR(("Malformed group set specification '%.200s'.", text),
+               (ER_MALFORMED_GROUP_SET_SPECIFICATION, MYF(0), text));
   RETURN_REPORTED_ERROR;
 }
 
@@ -646,6 +657,8 @@ bool Group_set::contains_group(rpl_sidno sidno, rpl_gno gno) const
 int Group_set::to_string(char *buf, const Group_set::String_format *sf) const
 {
   DBUG_ENTER("Group_set::to_string");
+  if (sf == NULL)
+    sf= &default_string_format;
   rpl_sidno map_max_sidno= sid_map->get_max_sidno();
   memcpy(buf, sf->begin, sf->begin_length);
   char *s= buf + sf->begin_length;
@@ -735,6 +748,8 @@ static int get_string_length(rpl_gno gno)
 
 int Group_set::get_string_length(const Group_set::String_format *sf) const
 {
+  if (sf == NULL)
+    sf= &default_string_format;
   if (cached_string_length == -1 || cached_string_format != sf)
   {
     int n_sids= 0, n_intervals= 0, n_long_intervals= 0;

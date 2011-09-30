@@ -130,7 +130,7 @@ int Rpl_info_file::do_prepare_info_for_write(const uint nidx
 int Rpl_info_file::do_check_info(const ulong *uidx __attribute__((unused)),
                                  const uint nidx __attribute__((unused)))
 {
-#ifndef NO_DBUG
+#ifndef DBUG_OFF
   /*
     This function checks if the file exists and in other modules
     further actions are taken based on this. If the file exists
