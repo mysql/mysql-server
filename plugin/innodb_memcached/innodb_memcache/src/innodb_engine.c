@@ -791,8 +791,8 @@ innodb_flush(
 	const void*	cookie,
 	time_t		when)
 {                                   
-	struct innodb_engine* innodb_eng = innodb_handle(handle);
-	struct default_engine *def_eng = default_handle(innodb_eng);
+	struct innodb_engine*	innodb_eng = innodb_handle(handle);
+	struct default_engine*	def_eng = default_handle(innodb_eng);
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
 	ib_err_t		ib_err = DB_SUCCESS;
@@ -812,8 +812,9 @@ innodb_flush(
 	re-opened */
 	innodb_conn_clean(innodb_eng, TRUE);
 
-	ib_err = innodb_api_flush(meta_info->m_item[META_DB].m_str,
-			       meta_info->m_item[META_TABLE].m_str);
+	ib_err = innodb_api_flush(innodb_eng,
+				  meta_info->m_item[META_DB].m_str,
+			          meta_info->m_item[META_TABLE].m_str);
 	
 	return(ENGINE_SUCCESS);
 }

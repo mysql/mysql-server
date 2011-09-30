@@ -4659,7 +4659,11 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     }
     else if (ev->get_type_code() == XID_EVENT)
     {
-      DBUG_ASSERT(in_transaction == TRUE);
+      /* MEMCACHED_RESOLVE: currently binlog from memcached,
+	might not have MySQL transaction marks, so quote this assert
+	out first. Will reinstate later.
+	DBUG_ASSERT(in_transaction == TRUE);
+      */
       in_transaction= FALSE;
       Xid_log_event *xev=(Xid_log_event *)ev;
       uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,

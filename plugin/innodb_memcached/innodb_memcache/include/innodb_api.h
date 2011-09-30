@@ -74,6 +74,23 @@ handler_binlog_flush(
 	void*		my_table);	/*!< in: Table metadata */
 
 /**********************************************************************//**
+close an handler */
+extern
+void
+handler_close_thd(
+/*==============*/
+	void*		my_thd);	/*!< in: thread */
+
+/**********************************************************************//**
+binlog a truncate table statement */
+extern
+void
+handler_binlog_truncate(
+/*====================*/
+	void*		my_thd,		/*!< in: THD* */
+	char*		table_name);	/*!< in: table name */
+
+/**********************************************************************//**
 Reset TABLE->record[0] */
 extern
 void
@@ -262,8 +279,9 @@ return ENGINE_SUCCESS is all successful */
 ENGINE_ERROR_CODE
 innodb_api_flush(
 /*=============*/
-	const char*	dbname,	/*!< in: database name */
-	const char*	name);	/*!< in: table name */
+	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
+	const char*		dbname,	/*!< in: database name */
+	const char*		name);	/*!< in: table name */
 
 /*************************************************************//**
 Get current time */

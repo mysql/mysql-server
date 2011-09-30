@@ -5328,7 +5328,11 @@ bool conn_nread(conn *c) {
         return true;
     }
 
-    if (res == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+    /* MEMCACHED_RESOLVE: on solaris platform, when connect through
+    telnet and waiting for input from an "add" or "set" command,
+    it could have res == -1 and errno == 0. Thus causing early termination
+    Add "!errno" condition here to deal with this scenario for now */
+    if (res == -1 && (errno == EAGAIN || errno == EWOULDBLOCK || !errno)) {
         if (!update_event(c, EV_READ | EV_PERSIST)) {
             if (settings.verbose > 0) {
                 settings.extensions.logger->log(EXTENSION_LOG_INFO, c,

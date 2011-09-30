@@ -845,9 +845,10 @@ innodb_api_delete(
 		return(ENGINE_KEY_ENOENT);
 	}
 
-	err = ib_cb_delete_row(srch_crsr);
-
-        if (err == DB_SUCCESS && engine->enable_binlog) {
+	/* The "result" structure contains only pointers to the data value
+	when exit from innodb_api_search(), so store the delete row info
+	before calling ib_cb_delete_row() */
+	if (engine->enable_binlog) {
 		meta_info_t*	meta_info = &engine->meta_info;
 		meta_column_t*	col_info = meta_info->m_item;
 
@@ -862,10 +863,16 @@ innodb_api_delete(
 
 		innodb_api_setup_hdl_rec(&result, col_info,
 					 cursor_data->mysql_tbl);
+	}
 
-		handler_binlog_row(cursor_data->mysql_tbl, HDL_DELETE);
-		handler_binlog_flush(cursor_data->thd,
-				     cursor_data->mysql_tbl);
+	err = ib_cb_delete_row(srch_crsr);
+
+	if (engine->enable_binlog) {
+		if (err == DB_SUCCESS) {
+			handler_binlog_row(cursor_data->mysql_tbl, HDL_DELETE);
+			handler_binlog_flush(cursor_data->thd,
+					     cursor_data->mysql_tbl);
+		}
 
 		handler_unlock_table(cursor_data->thd,
 				     cursor_data->mysql_tbl, HDL_READ);
@@ -1029,6 +1036,7 @@ innodb_api_arithmetic(
 			meta_info->m_item[META_TABLE].m_str, -2);
 	}
 
+	/* Can't find the row, decide whether to insert a new row */
 	if (err != DB_SUCCESS) {
 		ib_tuple_delete(old_tpl);
 
@@ -1272,11 +1280,12 @@ return ENGINE_SUCCESS is all successful */
 ENGINE_ERROR_CODE
 innodb_api_flush(
 /*=============*/
-	const char*	dbname,		/*!< in: database name */
-	const char*	name)		/*!< in: table name */
+	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
+	const char*		dbname,	/*!< in: database name */
+	const char*		name)	/*!< in: table name */
 {
 	ib_err_t	err = DB_SUCCESS;
-	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
+	char		table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 1];
 	ib_id_t		new_id;
 
 #ifdef __WIN__
@@ -1287,6 +1296,15 @@ innodb_api_flush(
 	/* currently, we implement engine flush as truncate table */
 	err  = ib_cb_table_truncate(table_name, &new_id);
 		
+	if (err == DB_SUCCESS && engine->enable_binlog) {
+		void*  thd = handler_create_thd();
+
+		snprintf(table_name, sizeof(table_name), "%s.%s", dbname, name);
+		handler_binlog_truncate(thd, table_name);
+
+		handler_close_thd(thd);
+	}
+
 	return((err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_FAILED);
 }
 /*************************************************************//**
