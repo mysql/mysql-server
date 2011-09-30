@@ -25,7 +25,6 @@ Created 3/14/2011 Jimmy Yang
 #include "handler_api.h"
 #include "log_event.h"
 
-
 /**********************************************************************//**
 Create a THD object.
 @return a pointer to the THD object, NULL if failed */
@@ -123,6 +122,10 @@ handler_binlog_row(
 	}
 }
 
+extern int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length,
+                  bool is_trans= FALSE);
+
 /**********************************************************************//**
 Flush binlog from cache to binlog file */
 void
@@ -141,6 +144,28 @@ handler_binlog_flush(
 		tc_log->unlog(ret, 0);
 	}
 	ret = trans_commit_stmt(thd);
+}
+
+/**********************************************************************//**
+binlog a truncate table statement */
+void
+handler_binlog_truncate(
+/*====================*/
+	void*		my_thd,		/*!< in: THD* */
+	char*		table_name)	/*!< in: table name */
+{
+	THD*		thd = (THD*) my_thd;
+	char		query_str[NAME_LEN * 2 + 16];
+	int		len;
+
+	memset(query_str, 0, sizeof(query_str));
+
+	strcpy(query_str,"truncate table ");
+	strcat(query_str, table_name);
+
+	len = strlen(query_str);
+
+	write_bin_log(thd, 1, query_str, len);
 }
 
 /**********************************************************************//**

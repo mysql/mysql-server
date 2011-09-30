@@ -167,6 +167,14 @@ void
 handler_store_record(
 /*=================*/
 	void*			table);		/*!< in: TABLE */
+
+/**********************************************************************//**
+binlog a truncate table statement */
+void
+handler_binlog_truncate(
+/*====================*/
+	void*			my_thd,		/*!< in: THD* */
+	char*			table_name);	/*!< in: table name */
 }
 
 /**********************************************************************//**
