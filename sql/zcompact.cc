@@ -106,7 +106,7 @@ Compact_coder::read_unsigned(Reader *reader, ulonglong *out)
     {
       ulonglong o= uint8korr(buf);
       // check that the result will fit in 64 bits
-      if (o >= (1 << (64 - (7 - len))))
+      if (o >= (1ULL << (64 - (7 - len))))
         goto file_format_error;
       // put the high bits of b in the low bits of o
       o <<= (7 - len);
@@ -243,9 +243,9 @@ enum_read_status Compact_coder::read_string(Reader *reader, uchar *buf,
   DBUG_ENTER("Compact_coder::read_string(Reader *, uchar *, size_t *, size_t, bool)");
   if (null_terminated)
     max_length--;
-  ulong length_ulong;
-  PROPAGATE_READ_STATUS(read_unsigned(reader, &length_ulong, max_length));
-  *length= length_ulong;
+  ulonglong length_ulonglong;
+  PROPAGATE_READ_STATUS(read_unsigned(reader, &length_ulonglong, max_length));
+  *length= (size_t) length_ulonglong;
   PROPAGATE_READ_STATUS_NOEOF(reader->read(buf, *length));
   buf[*length]= 0;
   DBUG_RETURN(READ_OK);

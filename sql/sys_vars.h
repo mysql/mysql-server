@@ -2009,7 +2009,7 @@ public:
                        flag_enum flag_arg)
     : sys_var(&all_sys_vars, name_arg, comment, flag_arg,
               0/*off*/, NO_CMD_LINE.id, NO_CMD_LINE.arg_type,
-              SHOW_CHAR, (intptr)NULL/*def_val*/,
+              SHOW_CHAR, (intptr)0/*def_val*/,
               NULL/*polylock*/, VARIABLE_NOT_IN_BINLOG,
               NULL/*on_check_func*/, NULL/*on_update_func*/,
               NULL/*substitute*/, PARSE_NORMAL/*parse_flag*/)
