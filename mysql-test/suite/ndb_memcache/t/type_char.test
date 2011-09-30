@@ -35,6 +35,7 @@ UPDATE memcache_server_roles set update_timestamp = NOW() where role_id = 0;
 --perl
 
 use strict;
+use Carp;
 use lib "lib";
 use My::Memcache;
 # Use a binary protocol connection (so keys can contain spaces)
@@ -42,35 +43,30 @@ my $mc = My::Memcache::Binary->new();
 my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
 my $r = $mc->connect("localhost",$port);
 
-# sleep(1) because there is still an undiagnosed race condition in 
-# online reconfiguration -- jdd, 14 Aug. 2011
-sleep(1);
-
 my $cf_gen = $mc->wait_for_reconf();
 
-if($cf_gen > 0) {
-  # test CHAR key with VARCHAR value
-  $mc->set("tck:a","fred")              || die;
-  $mc->set("tck:1","frederick")         || die;
-  $mc->set("tck:aa","frederica")        || die;
-  $mc->set("tck:a b c d","freddy")      || die; 
-  
-  ($mc->get("tck:aa") == "frederica")   || die;
-  ($mc->get("tck:a b c d") == "freddy") || die;
-  
-  # test VARCHAR key with CHAR value
-  $mc->set("tcv:a", "al")               || die;
-  $mc->set("tcv:b", "alphonse")         || die;
-  $mc->set("tcv:c", "allen")            || die;
-  $mc->set("tcv:d", "alien invasion")   || die;
-  
-  ($mc->get("tcv:d") == "alien invasion") || die;
-  ($mc->get("tcv:a") == "al")           || die;
-  ($mc->get("tcv:ee") == "NOT_FOUND")   || die;
+if($cf_gen == 0) {
+  Carp::confess("FAILED WAIT_FOR_RECONF");
 }
-else {
-  print " ***** Skipped test  [$r/$cf_gen] \n";
-}
+
+# test CHAR key with VARCHAR value
+$mc->set("tck:a","fred")               || Carp::confess("FAILED # 01 (SET)");
+$mc->set("tck:1","frederick")          || Carp::confess("FAILED # 02 (SET)");
+$mc->set("tck:aa","frederica")         || Carp::confess("FAILED # 03 (SET)");
+$mc->set("tck:a b c d","freddy")       || Carp::confess("FAILED # 04 (SET)");
+  
+($mc->get("tck:aa") == "frederica")    || Carp::confess("FAILED # 05 (GET)");
+($mc->get("tck:a b c d") == "freddy")  || Carp::confess("FAILED # 06 (GET)");
+
+# test VARCHAR key with CHAR value
+$mc->set("tcv:a", "al")                || Carp::confess("FAILED # 07 (SET)");
+$mc->set("tcv:b", "alphonse")          || Carp::confess("FAILED # 08 (SET)");
+$mc->set("tcv:c", "allen")             || Carp::confess("FAILED # 09 (SET)");
+$mc->set("tcv:d", "alien invasion")    || Carp::confess("FAILED # 10 (SET)");
+
+($mc->get("tcv:d") == "alien invasion")|| Carp::confess("FAILED # 11 (GET)");
+($mc->get("tcv:a") == "al")            || Carp::confess("FAILED # 12 (GET)");
+($mc->get("tcv:ee") == "NOT_FOUND")    || Carp::confess("FAILED # 13 (GET)");
 
 EOF
 

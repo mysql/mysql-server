@@ -911,25 +911,23 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
   
   DEBUG_PRINT(" %d prefixes", conf.nprefixes);
   for(int i = 0 ; i < conf.nprefixes ; i++) {
-    NdbInstance *inst = 0;
-    const KeyPrefix *p = conf.getPrefix(i);
-    if(p->info.use_ndb && p->info.do_db_flush) {
-      ClusterConnectionPool *pool = conf.getConnectionPoolById(p->info.cluster_id);
+    const KeyPrefix *pfx = conf.getPrefix(i);
+    if(pfx->info.use_ndb && pfx->info.do_db_flush) {
+      ClusterConnectionPool *pool = conf.getConnectionPoolById(pfx->info.cluster_id);
       Ndb_cluster_connection *conn = pool->getMainConnection();
-      inst = new NdbInstance(conn, conf.nprefixes, 128);
-      QueryPlan *plan = inst->getPlanForPrefix(p);
-      if(plan->keyIsPrimaryKey()) {
-        /* To flush, scan the table and delete every row */
-        DEBUG_PRINT("prefix %d - deleting from %s", i, p->table->table_name);
-        scan_delete(inst, plan);      
+      NdbInstance inst(conn, 128);
+      QueryPlan plan(inst.db, pfx->table);
+      if(plan.keyIsPrimaryKey()) {
+        // To flush, scan the table and delete every row
+        DEBUG_PRINT("prefix %d - deleting from %s", i, pfx->table->table_name);
+        scan_delete(&inst, &plan);
       }
       else DEBUG_PRINT("prefix %d - not scanning table %s -- accees path "
-                       "is not primary key", i, p->table->table_name);
+                       "is not primary key", i, pfx->table->table_name);
     }
     else DEBUG_PRINT("prefix %d - not scanning table %s -- use_ndb:%d flush:%d",
-                     i, p->table ? p->table->table_name : "",
-                     p->info.use_ndb, p->info.do_db_flush);
-    if(inst) delete inst;
+                     i, pfx->table ? pfx->table->table_name : "",
+                     pfx->info.use_ndb, pfx->info.do_db_flush);
   }
   
   return ENGINE_SUCCESS;

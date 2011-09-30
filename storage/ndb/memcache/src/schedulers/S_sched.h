@@ -195,7 +195,7 @@ public:
     unsigned int node : 8;
   } id;
   S::Connection *conn;
-  ConnQueryPlanSet *plan_set;
+  ConnQueryPlanSet *plan_set, *old_plan_set;
   NdbInstance *freelist;
   Queue<NdbInstance> * sendqueue;
 };

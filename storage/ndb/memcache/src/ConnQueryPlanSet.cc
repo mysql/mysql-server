@@ -18,6 +18,7 @@
  02110-1301  USA
  */
 
+#include "debug.h"
 #include "ConnQueryPlanSet.h"
 
 ConnQueryPlanSet::ConnQueryPlanSet(Ndb_cluster_connection *conn, int n) :
@@ -42,6 +43,7 @@ bool ConnQueryPlanSet:: buildSetForConfiguration(const Configuration *cf,
 {
   const KeyPrefix *k = cf->getNextPrefixForCluster(cluster_id, NULL);
   while(k) {
+    DEBUG_PRINT("Building plan for prefix %d", k->info.prefix_id);
     getPlanForPrefix(k);
     k = cf->getNextPrefixForCluster(cluster_id, k);
   }

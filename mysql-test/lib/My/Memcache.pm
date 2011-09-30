@@ -127,6 +127,9 @@ sub wait_for_reconf {
   if($new_gen > 0) {
     $self->{cf_gen} = $new_gen;
   }
+  else {
+    print STDERR "Timed out.\n";
+  }
   
   return $new_gen;
 }
