@@ -531,12 +531,11 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   DBUG_ENTER("binlog_close_connection");
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ASSERT(cache_mngr->trx_cache.is_binlog_empty() &&
-              cache_mngr->stmt_cache.is_binlog_empty()
+              cache_mngr->stmt_cache.is_binlog_empty());
 #ifdef HAVE_UGID
-              && cache_mngr->trx_cache.is_group_cache_empty()
-              && cache_mngr->stmt_cache.is_group_cache_empty()
-#endif
-              );
+  DBUG_ASSERT(cache_mngr->trx_cache.is_group_cache_empty() &&
+              cache_mngr->stmt_cache.is_group_cache_empty());
+#endif  
   thd_set_ha_data(thd, binlog_hton, NULL);
   cache_mngr->~binlog_cache_mngr();
   my_free(cache_mngr);
