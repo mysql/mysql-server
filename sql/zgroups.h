@@ -1825,7 +1825,7 @@ private:
     Interval intervals[1];
   };
   /// The default number of intervals in an Interval_chunk.
-  static const int CHUNK_GROW_SIZE = 8;
+  static const int CHUNK_GROW_SIZE= 8;
 
   /**
     Adds a list of intervals to the given SIDNO.

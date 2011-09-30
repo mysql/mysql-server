@@ -24,7 +24,7 @@
 #include "binlog.h"
 
 
-const int Ugid_specification::MAX_TEXT_LENGTH;
+//const int Ugid_specification::MAX_TEXT_LENGTH;
 
 
 enum_return_status Ugid_specification::parse(const char *text)

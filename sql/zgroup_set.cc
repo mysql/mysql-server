@@ -25,7 +25,7 @@
 #include "mysqld_error.h"
 
 
-const int Group_set::CHUNK_GROW_SIZE;
+//const int Group_set::CHUNK_GROW_SIZE;
 
 
 const Group_set::String_format Group_set::default_string_format=

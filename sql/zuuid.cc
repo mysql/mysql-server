@@ -19,9 +19,11 @@
 #ifdef HAVE_UGID
 
 
+/*
 const size_t Uuid::TEXT_LENGTH;
 const size_t Uuid::BYTE_LENGTH;
 const size_t Uuid::BIT_LENGTH;
+*/
 const int Uuid::bytes_per_section[Uuid::NUMBER_OF_SECTIONS]=
 { 4, 2, 2, 2, 6 };
 const int Uuid::hex_to_byte[]=

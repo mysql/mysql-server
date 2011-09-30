@@ -23,7 +23,7 @@
 #include "mysqld_error.h"
 
 
-const int Compact_coder::MAX_ENCODED_LENGTH;
+//const int Compact_coder::MAX_ENCODED_LENGTH;
 
 
 int Compact_coder::get_unsigned_encoded_length(ulonglong n)
