@@ -42,12 +42,6 @@
 
 #include <ndb_version.h>
 
-
-#ifdef ndb_dynamite
-#undef assert
-#define assert(x) do { if(x) break; ::printf("%s %d: assert failed: %s\n", __FILE__, __LINE__, #x); ::fflush(stdout); ::signal(SIGABRT,SIG_DFL); ::abort(); ::kill(::getpid(),6); ::kill(::getpid(),9); } while (0)
-#endif
-
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
