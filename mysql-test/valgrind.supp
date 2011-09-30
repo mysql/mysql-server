@@ -970,3 +970,21 @@
    fun:start_thread
 }
 
+{
+   shame 3
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:init_dynamic_array2
+   fun:_Z10MYSQLparsePv
+   fun:_Z9parse_sqlP3THDP12Parser_stateP19Object_creation_ctx
+   fun:_Z11mysql_parseP3THDPcjP12Parser_state
+   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
+   fun:_Z10do_commandP3THD
+   fun:_Z24do_handle_one_connectionP3THD
+   fun:handle_one_connection
+   fun:pfs_spawn_thread
+   fun:start_thread
+   fun:clone
+}
+
