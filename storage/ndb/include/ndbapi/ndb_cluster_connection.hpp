@@ -180,6 +180,15 @@ public:
    */
   Uint32 collect_client_stats(Uint64* statsArr, Uint32 sz);
 
+ /**
+  * Get/set the minimum time in milliseconds that can lapse until the adaptive 
+  * send mechanism forces all pending signals to be sent. 
+  * The default value is 10, and the allowed range is from 1 to 10.
+  */
+ void set_max_adaptive_send_time(Uint32 milliseconds);
+ Uint32 get_max_adaptive_send_time();
+
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int get_no_ready();
   const char *get_connectstring(char *buf, int buf_sz) const;

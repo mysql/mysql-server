@@ -981,5 +981,16 @@ Ndb_cluster_connection::collect_client_stats(Uint64* statsArr, Uint32 sz)
   return relevant;
 }
 
-template class Vector<Ndb_cluster_connection_impl::Node>;
+void
+Ndb_cluster_connection::set_max_adaptive_send_time(Uint32 milliseconds)
+{
+  m_impl.m_transporter_facade->setSendThreadInterval(milliseconds);
+}
 
+Uint32
+Ndb_cluster_connection::get_max_adaptive_send_time()
+{
+  return m_impl.m_transporter_facade->getSendThreadInterval();
+}
+
+template class Vector<Ndb_cluster_connection_impl::Node>;
