@@ -2515,7 +2515,7 @@ struct Subgroup
     if (type == DUMMY_SUBGROUP)
       s+= sprintf(s, " DUMMY");
     else
-      s+= sprintf(s, ", binlog(no=%lld, pos=%lld, len=%lld, oals=%lld)",
+      s+= sprintf(s, ", binlog(no=%lld, pos=%lld, len=%lld, oals=%lld))",
                   binlog_no, binlog_pos, binlog_length,
                   binlog_offset_after_last_statement);
     return s - buf;
