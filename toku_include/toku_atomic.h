@@ -9,7 +9,6 @@ static inline uint32_t
 toku_sync_fetch_and_add_uint32(volatile uint32_t *a, uint32_t b) {
     // icc previously required _InterlockedExchangeAdd((LONG*)a, b);
     return __sync_fetch_and_add(a, b);
-
 }
 
 static inline uint32_t toku_sync_fetch_and_increment_uint32(volatile uint32_t *a) {
@@ -38,11 +37,11 @@ static inline int32_t toku_sync_add_and_fetch_int32(volatile int32_t *a, int32_t
 }
 
 static inline int32_t toku_sync_increment_and_fetch_int32(volatile int32_t *a) {
-    return toku_sync_add_and_fetch_int32(a, 1);
+    return __sync_add_and_fetch(a, 1);
 }
 
 static inline int32_t toku_sync_decrement_and_fetch_int32(volatile int32_t *a) {
-    return toku_sync_add_and_fetch_int32(a, -1);
+    return __sync_add_and_fetch(a, -1);
 }
 
 #if __GNUC__ && __i386__

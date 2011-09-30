@@ -15,11 +15,20 @@ extern "C" {
 
 #include "toku_atomic.h"
 
+static toku_pthread_mutex_t event_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
+static void lock_events(void) {
+    int r = toku_pthread_mutex_lock(&event_mutex); assert(r == 0);
+}
+static void unlock_events(void) {
+    int r = toku_pthread_mutex_unlock(&event_mutex); assert(r == 0);
+}
 static int event_count, event_count_trigger;
 
 __attribute__((__unused__))
 static void reset_event_counts(void) {
+    lock_events();
     event_count = event_count_trigger = 0;
+    unlock_events();
 }
 
 __attribute__((__unused__))
@@ -28,7 +37,11 @@ static void event_hit(void) {
 
 __attribute__((__unused__))
 static int event_add_and_fetch(void) {
-    return toku_sync_increment_and_fetch_int32(&event_count);
+    lock_events();
+    int r = ++event_count;
+    unlock_events();
+    return r;
+    // return toku_sync_increment_and_fetch_int32(&event_count);
 }
 
 static int do_user_errors = 0;
