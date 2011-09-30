@@ -15,10 +15,13 @@
 
 
 #include "zgroups.h"
-#include "binlog.h"
 
 
 #ifdef HAVE_UGID
+
+
+#include "my_global.h" // REQUIRED by binlog.h -> log_event.h -> m_string.h -> my_bitmap.h
+#include "binlog.h"
 
 
 const int Ugid_specification::MAX_TEXT_LENGTH;
