@@ -21576,6 +21576,15 @@ void JOIN::save_query_plan(Join_plan_state *save_to)
   memcpy((uchar*) save_to->best_positions, (uchar*) best_positions,
          sizeof(POSITION) * (table_count + 1));
   memset(best_positions, 0, sizeof(POSITION) * (table_count + 1));
+  
+  /* Save SJM nests */
+  List_iterator<TABLE_LIST> it(select_lex->sj_nests);
+  TABLE_LIST *tlist;
+  SJ_MATERIALIZATION_INFO **p_info= save_to->sj_mat_info;
+  while ((tlist= it++))
+  {
+    *(p_info++)= tlist->sj_mat_info;
+  }
 }
 
 
@@ -21616,6 +21625,14 @@ void JOIN::restore_query_plan(Join_plan_state *restore_from)
   }
   memcpy((uchar*) best_positions, (uchar*) restore_from->best_positions,
          sizeof(POSITION) * (table_count + 1));
+  /* Restore SJM nests */
+  List_iterator<TABLE_LIST> it(select_lex->sj_nests);
+  TABLE_LIST *tlist;
+  SJ_MATERIALIZATION_INFO **p_info= restore_from->sj_mat_info;
+  while ((tlist= it++))
+  {
+    tlist->sj_mat_info= *(p_info++);
+  }
 }
 
 
@@ -21704,6 +21721,9 @@ JOIN::reoptimize(Item *added_where, table_map join_tables,
   if (sort_and_filter_keyuse(thd, &keyuse, true))
     return REOPT_ERROR;
   optimize_keyuse(this, &keyuse);
+
+  if (optimize_semijoin_nests(this, join_tables))
+    return REOPT_ERROR;
 
   /* Re-run the join optimizer to compute a new query plan. */
   if (choose_plan(this, join_tables))

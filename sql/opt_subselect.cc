@@ -210,6 +210,74 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
 
 /*
+  Check if Materialization strategy is allowed for given subquery predicate.
+
+  @param thd           Thread handle
+  @param in_subs       The subquery predicate
+  @param child_select  The select inside predicate (the function will
+                       check it is the only one)
+
+  @return TRUE  - Materialization is applicable 
+          FALSE - Otherwise
+*/
+
+bool is_materialization_applicable(THD *thd, Item_in_subselect *in_subs,
+                                   st_select_lex *child_select)
+{
+  st_select_lex_unit* parent_unit= child_select->master_unit();
+  /*
+    Check if the subquery predicate can be executed via materialization.
+    The required conditions are:
+    0. The materialization optimizer switch was set.
+    1. Subquery is a single SELECT (not a UNION).
+       TODO: this is a limitation that can be fixed
+    2. Subquery is not a table-less query. In this case there is no
+       point in materializing.
+    2A The upper query is not a table-less SELECT ... FROM DUAL. We
+       can't do materialization for SELECT .. FROM DUAL because it
+       does not call setup_subquery_materialization(). We could make 
+       SELECT ... FROM DUAL call that function but that doesn't seem
+       to be the case that is worth handling.
+    3. Either the subquery predicate is a top-level predicate, or at
+       least one partial match strategy is enabled. If no partial match
+       strategy is enabled, then materialization cannot be used for
+       non-top-level queries because it cannot handle NULLs correctly.
+    4. Subquery is non-correlated
+       TODO:
+       This condition is too restrictive (limitation). It can be extended to:
+       (Subquery is non-correlated ||
+        Subquery is correlated to any query outer to IN predicate ||
+        (Subquery is correlated to the immediate outer query &&
+         Subquery !contains {GROUP BY, ORDER BY [LIMIT],
+         aggregate functions}) && subquery predicate is not under "NOT IN"))
+
+    (*) The subquery must be part of a SELECT statement. The current
+         condition also excludes multi-table update statements.
+  A note about prepared statements: we want the if-branch to be taken on
+  PREPARE and each EXECUTE. The rewrites are only done once, but we need 
+  select_lex->sj_subselects list to be populated for every EXECUTE. 
+
+  */
+  if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION) &&      // 0
+        !child_select->is_part_of_union() &&                          // 1
+        parent_unit->first_select()->leaf_tables.elements &&          // 2
+        thd->lex->sql_command == SQLCOM_SELECT &&                     // *
+        child_select->outer_select()->leaf_tables.elements &&           // 2A
+        subquery_types_allow_materialization(in_subs) &&
+        (in_subs->is_top_level_item() ||                               //3
+         optimizer_flag(thd,
+                        OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) || //3
+         optimizer_flag(thd,
+                        OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) && //3
+        !in_subs->is_correlated)                                       //4
+   {
+     return TRUE;
+   }
+  return FALSE;
+}
+
+
+/*
   Check if we need JOIN::prepare()-phase subquery rewrites and if yes, do them
 
   SYNOPSIS
@@ -381,52 +449,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       */
       if (in_subs)
       {
-        /*
-          Check if the subquery predicate can be executed via materialization.
-          The required conditions are:
-          0. The materialization optimizer switch was set.
-          1. Subquery is a single SELECT (not a UNION).
-             TODO: this is a limitation that can be fixed
-          2. Subquery is not a table-less query. In this case there is no
-             point in materializing.
-          2A The upper query is not a table-less SELECT ... FROM DUAL. We
-             can't do materialization for SELECT .. FROM DUAL because it
-             does not call setup_subquery_materialization(). We could make 
-             SELECT ... FROM DUAL call that function but that doesn't seem
-             to be the case that is worth handling.
-          3. Either the subquery predicate is a top-level predicate, or at
-             least one partial match strategy is enabled. If no partial match
-             strategy is enabled, then materialization cannot be used for
-             non-top-level queries because it cannot handle NULLs correctly.
-          4. Subquery is non-correlated
-             TODO:
-             This condition is too restrictive (limitation). It can be extended to:
-             (Subquery is non-correlated ||
-              Subquery is correlated to any query outer to IN predicate ||
-              (Subquery is correlated to the immediate outer query &&
-               Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-               aggregate functions}) && subquery predicate is not under "NOT IN"))
-
-          (*) The subquery must be part of a SELECT statement. The current
-               condition also excludes multi-table update statements.
-        A note about prepared statements: we want the if-branch to be taken on
-        PREPARE and each EXECUTE. The rewrites are only done once, but we need 
-        select_lex->sj_subselects list to be populated for every EXECUTE. 
-
-        */
-        if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION) &&      // 0
-            !select_lex->is_part_of_union() &&                            // 1
-            parent_unit->first_select()->leaf_tables.elements &&          // 2
-            thd->lex->sql_command == SQLCOM_SELECT &&                     // *
-            select_lex->outer_select()->leaf_tables.elements &&           // 2A
-            subquery_types_allow_materialization(in_subs) &&
-            (in_subs->is_top_level_item() ||                               //3
-             optimizer_flag(thd,
-                            OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) || //3
-             optimizer_flag(thd,
-                            OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) && //3
-            !in_subs->is_correlated)                                       //4
-       {
+        if (is_materialization_applicable(thd, in_subs, select_lex))
+        {
           in_subs->in_strategy|= SUBS_MATERIALIZATION;
 
           /*
@@ -914,6 +938,12 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
       check_and_do_in_subquery_rewrites.
     */
     in_subq->in_strategy= SUBS_IN_TO_EXISTS;
+    if (is_materialization_applicable(thd, in_subq, 
+                                      in_subq->unit->first_select()))
+    {
+      in_subq->in_strategy|= SUBS_MATERIALIZATION;
+    }
+
     in_subq= li++;
   }
 
@@ -1766,6 +1796,9 @@ int pull_out_semijoin_tables(JOIN *join)
 
     All obtained information is saved and will be used by the main join
     optimization pass.
+  
+  NOTES 
+    Because of Join::reoptimize(), this function may be called multiple times.
 
   RETURN
     FALSE  Ok 

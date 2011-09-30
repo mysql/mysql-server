@@ -1656,7 +1656,6 @@ a
 0
 0
 DROP TABLE t2,t3,t4,t5;
-set optimizer_switch=@subselect_sj_mat_tmp;
 #
 # BUG#860300: Second crash with get_fanout_with_deps() with semijoin + materialization
 #
@@ -1703,6 +1702,31 @@ f3
 7
 DROP TABLE t1, t2, t3, t4;
 set optimizer_switch=@tmp_860535;
+#
+# BUG#860553: Crash in create_ref_for_key with semijoin + materialization 
+#
+CREATE TABLE t1 (f1 int) ;
+CREATE TABLE t2 (f5 varchar(52) NOT NULL) ;
+CREATE TABLE t3 (f1 varchar(3), f4 varchar(52) , KEY (f4), PRIMARY KEY (f1));
+CREATE TABLE t4 (f3 int, KEY (f3));
+INSERT INTO t4 VALUES (17),(20);
+CREATE TABLE t5 (f2 int);
+INSERT INTO t5 VALUES (0),(0);
+SELECT *
+FROM t1
+JOIN t2
+ON ( t2.f5 ) IN (
+SELECT t3.f4
+FROM t3
+WHERE ( 1 ) IN (
+SELECT t4.f3
+FROM t4 , t5
+)
+);
+f1	f5
+DROP TABLE t1, t2, t3, t4, t5;
+# This must be at the end:
+set optimizer_switch=@subselect_sj_mat_tmp;
 set @subselect_mat_test_optimizer_switch_value=null;
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
