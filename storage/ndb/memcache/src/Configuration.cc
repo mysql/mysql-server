@@ -284,15 +284,15 @@ config_ver_enum Configuration::get_supported_version() {
   QueryPlan plan(& db, &ts_meta);
   // "initialized" is set only if the ndbmemcache.meta table exists:
   if(plan.initialized) {
-    if(fetch_meta_record(&plan, "1.1")) {
+    if(fetch_meta_record(&plan, &db, "1.1")) {
       DEBUG_PRINT("1.1");
       return CONFIG_VER_1_1;
     }
-    if(fetch_meta_record(&plan, "1.0")) {
+    if(fetch_meta_record(&plan, &db, "1.0")) {
       DEBUG_PRINT("1.0");
       return CONFIG_VER_1_0;
     }
-    if(fetch_meta_record(&plan, "1.0a")) {
+    if(fetch_meta_record(&plan, &db, "1.0a")) {
       DEBUG_PRINT("1.0a");
       logger->log(LOG_WARNING, 0, "\nThe configuration schema from prototype2 is"
                   " no longer supported.\nPlease drop your ndbmemcache database,"
@@ -304,7 +304,8 @@ config_ver_enum Configuration::get_supported_version() {
 }  
 
 
-bool Configuration::fetch_meta_record(QueryPlan *plan, const char *version) {
+bool Configuration::fetch_meta_record(QueryPlan *plan, Ndb *db,
+                                      const char *version) {
   DEBUG_ENTER_METHOD("Configuration::fetch_meta_record");
   bool result = false;
 
@@ -313,7 +314,7 @@ bool Configuration::fetch_meta_record(QueryPlan *plan, const char *version) {
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.buffer     = (char *) malloc(op.requiredBuffer());
   
-  NdbTransaction *tx = plan->db->startTransaction();
+  NdbTransaction *tx = db->startTransaction();
 
   op.setKeyPart(COL_STORE_KEY + 0, "ndbmemcache", strlen("ndbmemcache"));
   op.setKeyPart(COL_STORE_KEY + 1, version, strlen(version));

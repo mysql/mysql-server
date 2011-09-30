@@ -34,9 +34,9 @@
 #define REQ_NDB_CONNECTION 1
 #define REQ_DEMO_TABLE     2
 
-void delete_row(QueryPlan *plan, const char * key, int verbose);
+void delete_row(QueryPlan *plan, Ndb *db, const char * key, int verbose);
 
-typedef int TESTCASE(QueryPlan *plan, int verbose);
+typedef int TESTCASE(QueryPlan *plan, Ndb *db, int verbose);
 
 struct test_item {
   int enabled;

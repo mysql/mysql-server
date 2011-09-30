@@ -174,7 +174,7 @@ op_status_t worker_do_delete(workitem *wqitem, bool server_cas) {
   Operation op(plan, OP_DELETE, wqitem->ndb_key_buffer);
   const NdbOperation *ndb_op = 0;
 
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
   DEBUG_ASSERT(tx);
   
   op.clearKeyNullBits();
@@ -278,9 +278,10 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
   }
 
   /* Start the transaction */
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
   if(! tx) {
-    logger->log(LOG_WARNING, 0, "tx: %s \n", plan->db->getNdbError().message);
+    logger->log(LOG_WARNING, 0, "tx: %s \n", 
+                wqitem->ndb_instance->db->getNdbError().message);
     DEBUG_ASSERT(false);
   }
   
@@ -346,7 +347,7 @@ op_status_t worker_do_read(workitem *wqitem, bool server_cas) {
   op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
 
   /* Start a transaction, and call NdbTransaction::readTuple() */
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
   DEBUG_ASSERT(tx);
 
   if(! op.readTuple(tx)) {
@@ -436,7 +437,7 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
   } 
   
   /* Use an op (either one) to start the transaction */
-  NdbTransaction *tx = op1.startTransaction();
+  NdbTransaction *tx = op1.startTransaction(wqitem->ndb_instance->db);
   
   /* NdbOperation #1: READ */
   {
