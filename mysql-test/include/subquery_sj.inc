@@ -4084,4 +4084,35 @@ DROP TABLE t1, t2, t3;
 
 --echo # End of test for bug#12797534.
 
+--echo #
+--echo # Bug#12714094: Assert in optimize_semijoin_nests()
+--echo #
+
+CREATE TABLE it (
+  pk int NOT NULL,
+  col_varchar VARCHAR(10) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO it VALUES (1, 'g');
+
+CREATE TABLE ot
+  SELECT alias1.pk AS field1
+  FROM it AS alias1
+    LEFT JOIN it AS alias2
+    ON alias1.col_varchar = alias2.col_varchar
+;
+SELECT *
+FROM ot
+WHERE field1 IN (
+  SELECT alias1.pk
+  FROM it AS alias1
+    LEFT JOIN it AS alias2
+    ON alias1.col_varchar = alias2.col_varchar
+);
+
+DROP TABLE it, ot;
+
+--echo # End of test for bug#12714094
+
 --echo # End of 5.6 tests
