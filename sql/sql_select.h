@@ -123,7 +123,12 @@ typedef struct st_table_ref : public Sql_alloc
   int           key;                      ///< key no
   uchar         *key_buff;                ///< value to look for with key
   uchar         *key_buff2;               ///< key_buff+key_length
-  store_key     **key_copy;               //
+  /**
+     Used to store the value from each keypart field. These values are
+     used for ref access. If key_copy[key_part] == NULL it means that
+     the value is constant and does not need to be reevaluated
+  */
+  store_key     **key_copy;
   Item          **items;                  ///< val()'s for each keypart
   /*  
     Array of pointers to trigger variables. Some/all of the pointers may be
@@ -224,9 +229,68 @@ typedef struct st_table_ref : public Sql_alloc
 /*
   The structs which holds the join connections and join states
 */
-enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
-		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
-		 JT_UNIQUE_SUBQUERY, JT_INDEX_SUBQUERY, JT_INDEX_MERGE};
+enum join_type { /*
+                   Initial state. Access type has not yet been decided
+                   for the table
+                 */
+                 JT_UNKNOWN,
+                 /* Table has exactly one row */
+                 JT_SYSTEM,
+                 /*
+                   Table has at most one matching row. Values read
+                   from this row can be treated as constants. Example:
+                   "WHERE table.pk = 3"
+                  */
+                 JT_CONST,
+                 /*
+                   '=' operator is used on unique index. At most one
+                   row is read for each combination of rows from
+                   preceding tables
+                 */
+                 JT_EQ_REF,
+                 /*
+                   '=' operator is used on non-unique index
+                 */
+                 JT_REF,
+                 /*
+                   Full table scan or range scan.
+                   If select->quick != NULL, it is range access.
+                   Otherwise it is table scan.
+                 */
+                 JT_ALL,
+                 /*
+                   Range scan. Note that range scan is not indicated
+                   by JT_RANGE but by "JT_ALL + select->quick" except
+                   when printing EXPLAIN output. @see calc_join_type()
+                 */
+                 JT_RANGE,
+                 /*
+                   Like table scan, but scans index leaves instead of
+                   the table
+                 */
+                 JT_INDEX_SCAN,
+                 /* Fulltext index is used */
+                 JT_FT,
+                 /*
+                   Like ref, but with extra search for NULL values.
+                   E.g. used for "WHERE col = ... OR col IS NULL"
+                  */
+                 JT_REF_OR_NULL,
+                 /*
+                   Like eq_ref for subqueries: Replaces subquery with
+                   index lookup in unique index
+                  */
+                 JT_UNIQUE_SUBQUERY,
+                 /*
+                   Like unique_subquery but for non-unique index
+                 */
+                 JT_INDEX_SUBQUERY,
+                 /*
+                   Do multiple range scans over one table and combine
+                   the results into one. The merge can be used to
+                   produce unions and intersections
+                 */
+                 JT_INDEX_MERGE};
 
 class JOIN;
 

@@ -182,6 +182,12 @@ struct PFS_table
   */
   bool m_lock_timed;
 
+  /** True if table io statistics have been collected. */
+  bool m_has_io_stats;
+
+  /** True if table lock statistics have been collected. */
+  bool m_has_lock_stats;
+
 public:
   /**
     Aggregate this table handle statistics to the parents.
@@ -190,8 +196,12 @@ public:
   */
   void aggregate(void)
   {
-    if (likely(m_thread_owner != NULL))
+    if (likely((m_thread_owner != NULL) && (m_has_io_stats || m_has_lock_stats)))
+    {
       safe_aggregate(& m_table_stat, m_share, m_thread_owner);
+      m_has_io_stats= false;
+      m_has_lock_stats= false;
+    }
   }
 
   /**
