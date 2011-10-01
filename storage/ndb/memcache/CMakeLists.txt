@@ -20,6 +20,21 @@ IF(WIN32)
   RETURN()
 ENDIF()
 
+######### BUNDLED SOURCES FOR MEMCACHED AND LIBEVENT
+
+option(WITH_BUNDLED_MEMCACHED "Use bundled memcached" ON)
+option(WITH_BUNDLED_LIBEVENT "Use bundled libevent for building memcached" ON)
+
+if(WITH_BUNDLED_MEMCACHE)
+  add_subdirectory(extra/memcached)
+
+  if(WITH_BUNDLED_LIBEVENT)
+    add_subdirectory(extra/libevent)
+    add_dependencies(memcached event)
+  endif()
+endif()
+####################################################
+
 # Don't disable assert
 remove_definitions(-DNDEBUG)
 
@@ -84,13 +99,12 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/workqueue.c
     src/schedulers/S_sched.cc
     src/schedulers/Stockholm.cc
-    src/ndb_engine.c
-    src/embedded_default_engine.c
-    ${CACHE_SRC}/assoc.c
     ${CACHE_SRC}/items.c
+    ${CACHE_SRC}/assoc.c
     ${CACHE_SRC}/slabs.c
- )
-  
+    src/embedded_default_engine.c
+)
+
 
 # Define DEBUG_OUTPUT by default (enables runtime "debug" option in memcached)
 add_definitions(-DDEBUG_OUTPUT)
@@ -135,20 +149,21 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
         DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
                
 ######### TARGETS ############
+# Build the convenience library
+ADD_CONVENIENCE_LIBRARY(ndbmemcache ${NDB_MEMCACHE_SOURCE_FILES})
+
+target_link_libraries(ndbmemcache ndbclient_static ndbgeneral memcached_utilities)
+
 # Build the module
-add_library(ndb_engine MODULE ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndb_engine ndbclient_static ndbgeneral memcached_utilities)
+add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
+
+target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
+
 
 # If we are using the bundled memcache, it is a dependency:
-if(WITH_MEMCACHE)
+if(WITH_BUNDLED_MEMCACHE)
   add_dependencies(ndb_engine memcached)
 endif()
-
-# Build the library used by the unit tests
-add_library(ndbmemcache SHARED ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndbmemcache ndbclient_static ndbgeneral memcached_utilities)
-set_target_properties(ndbmemcache PROPERTIES LINK_FLAGS "${FINAL_LINK_FLAGS}")
-
 
 # Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
@@ -182,21 +197,6 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
 ######################################################## 
 
 
-
 add_subdirectory(unit)
 
-
-######### BUNDLED SOURCES FOR MEMCACHED AND LIBEVENT
-# Support for bundled libevent and memcache
-# WITH_MEMCACHE is declared in storage/ndb/CMakeLists.txt
-option(WITH_LIBEVENT "Use bundled libevent for building memcached" ON)
-
-if(WITH_MEMCACHE)
-  add_subdirectory(extra/memcached)
-
-  if(WITH_LIBEVENT)
-    add_subdirectory(extra/libevent)
-    add_dependencies(memcached event)
-  endif()
-endif()
 

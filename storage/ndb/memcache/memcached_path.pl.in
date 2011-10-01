@@ -30,7 +30,7 @@ sub memcached_is_available() {
 }
 
 sub memcached_is_bundled() {
-  return ("@WITH_MEMCACHE@" eq "ON") ? 1 : 0;
+  return ("@WITH_BUNDLED_MEMCACHE@" eq "ON") ? 1 : 0;
 }
 
 sub get_memcached_exe_path() {

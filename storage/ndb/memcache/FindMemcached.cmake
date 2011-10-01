@@ -6,7 +6,7 @@ SET(MEMCACHED_HOME "" CACHE PATH "Path to installed Memcached 1.6")
 # unset(MEMCACHED_INCLUDE_DIR CACHE)
 # unset(MEMCACHED_UTILITIES_LIBRARY CACHE)
 
-if(WITH_MEMCACHE) 
+if(WITH_BUNDLED_MEMCACHE) 
   # Use bundled memcached
   set(MEMCACHED_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached)
   set(MEMCACHED_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached/include)
