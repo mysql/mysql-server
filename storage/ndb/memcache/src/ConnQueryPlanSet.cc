@@ -38,7 +38,7 @@ ConnQueryPlanSet::~ConnQueryPlanSet()
 }
 
 
-bool ConnQueryPlanSet:: buildSetForConfiguration(const Configuration *cf,
+void ConnQueryPlanSet:: buildSetForConfiguration(const Configuration *cf,
                                                  int cluster_id)
 {
   const KeyPrefix *k = cf->getNextPrefixForCluster(cluster_id, NULL);

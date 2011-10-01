@@ -34,7 +34,7 @@ public:
   ConnQueryPlanSet(Ndb_cluster_connection *, int n_plans);
   ~ConnQueryPlanSet();
 
-  bool buildSetForConfiguration(const Configuration *, int cluster_id);
+  void buildSetForConfiguration(const Configuration *, int cluster_id);
   QueryPlan * getPlanForPrefix(const KeyPrefix *);
 
 private:

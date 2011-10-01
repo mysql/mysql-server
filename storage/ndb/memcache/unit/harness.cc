@@ -34,7 +34,7 @@
 
 char *connect_string;   /* exported to tests */
 
-extern EXTENSION_LOGGER_DESCRIPTOR *logger;
+EXTENSION_LOGGER_DESCRIPTOR *logger;
                        
 Ndb_cluster_connection * connect(const char *);
 
