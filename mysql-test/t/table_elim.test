@@ -223,7 +223,8 @@ create table t1 (a char(10) primary key);
 insert into t1 values ('foo'),('bar');
 
 create table t2 (a char(10), unique key(a(2)));
-insert into t2 values ('foo'),('bar');
+insert into t2 values
+  ('foo'),('bar'),('boo'),('car'),('coo'),('par'),('doo'),('tar');
 
 explain select t1.* from t1 left join t2 on t2.a=t1.a;
 

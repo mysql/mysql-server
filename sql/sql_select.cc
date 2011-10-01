@@ -5177,7 +5177,7 @@ best_access_path(JOIN      *join,
               tmp= table->file->keyread_time(key, 1, (ha_rows) tmp);
             else
               tmp= table->file->read_time(key, 1,
-                                          (ha_rows) min(tmp,s->worst_seeks)-1);
+                                          (ha_rows) min(tmp,s->worst_seeks));
             tmp*= record_count;
           }
         }
@@ -5341,13 +5341,14 @@ best_access_path(JOIN      *join,
               tmp= table->file->keyread_time(key, 1, (ha_rows) tmp);
             else
               tmp= table->file->read_time(key, 1,
-                                          (ha_rows) min(tmp,s->worst_seeks)-1);
+                                          (ha_rows) min(tmp,s->worst_seeks));
             tmp*= record_count;
           }
           else
             tmp= best_time;                    // Do nothing
         }
 
+        DBUG_ASSERT(tmp > 0 || record_count == 0);
         tmp += s->startup_cost;
         loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
       } /* not ft_key */

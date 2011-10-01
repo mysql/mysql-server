@@ -25,6 +25,7 @@ b int,
 key(b)
 );
 insert into t2 select a, a/2 from t0;
+insert into t2 select a+10, a+10/2 from t0;
 select * from t1;
 a	b
 1	1
@@ -42,6 +43,16 @@ a	b
 7	4
 8	4
 9	5
+10	5
+11	6
+12	7
+13	8
+14	9
+15	10
+16	11
+17	12
+18	13
+19	14
 explain select * from t2 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
@@ -60,6 +71,7 @@ pk1 char(200), pk2 char(200), pk3 char(200),
 primary key(pk1, pk2, pk3)
 ) engine=innodb;
 insert into t3 select a,a, a,a,a from t0;
+insert into t3 select a,a, a+100,a+100,a+100 from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
@@ -67,6 +79,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
+1	1	101	101	101
+2	2	102	102	102
 2	2	2	2	2
 set @save_max_heap_table_size= @@max_heap_table_size;
 set max_heap_table_size=16384;
@@ -429,6 +443,7 @@ create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4);
 create table t1 (a int, b int, key(a));
 insert into t1 select a,a from t0;
+insert into t1 select a+5,a from t0;
 create table t2 (a int, b int, primary key(a));
 insert into t2 select * from t1;
 Table t2, unlike table t1, should be displayed as pulled out
@@ -436,12 +451,12 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Start temporary
-1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Using where; FirstMatch(t2); Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t0`.`a`) and (`test`.`t2`.`a` = `test`.`t0`.`a`))
+Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t0`.`a`) and (`test`.`t1`.`a` = `test`.`t0`.`a`))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 # Not anymore:

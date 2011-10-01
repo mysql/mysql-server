@@ -58,6 +58,8 @@ SELECT * from t1;
 #
 analyze table t1;
 insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
+insert into t1 values (null,"b"),(null,"b"),(null,"c"),(null,"c"),(null,"d"),(null,"d"),(null,"e"),(null,"e"),(null,"a"),(null,"e");
+insert into t1 values (null,"x"),(null,"x"),(null,"y"),(null,"y"),(null,"z"),(null,"z"),(null,"v"),(null,"v"),(null,"a"),(null,"v");
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
 set MAX_SEEKS_FOR_KEY=1;
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;

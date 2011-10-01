@@ -440,6 +440,7 @@ drop table t1;
 
 create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+insert into t1 values (12, 11), (11, 11), (14, 3), (13, 5), (16, 12), (15, 12);
 explain select * from t1 where b=1 or b is null order by a;
 select * from t1 where b=1 or b is null order by a;
 explain select * from t1 where b=2 or b is null order by a;

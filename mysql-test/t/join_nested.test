@@ -454,6 +454,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t3.a=1 AND t2.b=t4.b
     WHERE t1.a <= 2;
 
+INSERT INTO t2 VALUES  (-1,9,0), (-3,10,0), (-2,8,0), (-4,11,0), (-5,15,0);
 CREATE INDEX idx_b ON t2(b);
 
 EXPLAIN EXTENDED
@@ -461,12 +462,12 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM (t3,t4)
        LEFT JOIN              
        (t1,t2)
-       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b AND t2.a>0;
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM (t3,t4)
        LEFT JOIN              
        (t1,t2)
-       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b AND t2.a>0;
 
 EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
@@ -477,7 +478,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t2
          LEFT JOIN              
          (t3, t4)
-         ON t3.a=1 AND t2.b=t4.b,
+         ON t3.a=1 AND t2.b=t4.b AND t2.a>0,
          t5 
          LEFT JOIN 
          ( 
@@ -504,6 +505,8 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            (t8.b=t9.b OR t8.c IS NULL) AND
            (t9.a=1); 
 
+INSERT INTO t4 VALUES (-3,12,0), (-4,13,0), (-1,11,0), (-3,11,0), (-5,15,0);
+INSERT INTO t5 VALUES (-3,11,0), (-2,12,0), (-3,13,0), (-4,12,0);
 CREATE INDEX idx_b ON t4(b);
 CREATE INDEX idx_b ON t5(b);
 
@@ -516,7 +519,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t2
          LEFT JOIN              
          (t3, t4)
-         ON t3.a=1 AND t2.b=t4.b,
+         ON t3.a=1 AND t2.b=t4.b AND t2.a>0 AND t4.a>0,
          t5 
          LEFT JOIN 
          ( 
@@ -525,7 +528,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            t8
            ON t7.b=t8.b AND t6.b < 10
          )
-         ON t6.b >= 2 AND t5.b=t7.b 
+         ON t6.b >= 2 AND t5.b=t7.b AND t5.a>0 
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
@@ -543,6 +546,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            (t8.b=t9.b OR t8.c IS NULL) AND
            (t9.a=1); 
 
+INSERT INTO t8 VALUES (-3,12,0), (-1,14,0), (-5,15,0), (-1,11,0), (-4,13,0);
 CREATE INDEX idx_b ON t8(b);
 
 EXPLAIN EXTENDED
@@ -554,16 +558,16 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
          t2
          LEFT JOIN              
          (t3, t4)
-         ON t3.a=1 AND t2.b=t4.b,
+         ON t3.a=1 AND t2.b=t4.b AND t2.a>0 AND t4.a>0,
          t5 
          LEFT JOIN 
          ( 
            (t6, t7)
            LEFT JOIN 
            t8
-           ON t7.b=t8.b AND t6.b < 10
+           ON t7.b=t8.b AND t6.b < 10 AND t8.a>=0
          )
-         ON t6.b >= 2 AND t5.b=t7.b 
+         ON t6.b >= 2 AND t5.b=t7.b AND t5.a>0
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
@@ -581,6 +585,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
            (t8.b=t9.b OR t8.c IS NULL) AND
            (t9.a=1); 
 
+INSERT INTO t1 VALUES (-1,133,0), (-2,12,0), (-3,11,0), (-5,15,0);
 CREATE INDEX idx_b ON t1(b);
 CREATE INDEX idx_a ON t0(a);
 
@@ -606,7 +611,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
-          (t1.a != 2),
+          (t1.a != 2) AND t1.a>0,
        t9
      WHERE t0.a=1 AND
            t0.b=t1.b AND          
@@ -641,7 +646,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        )
        ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
-          (t1.a != 2),
+          (t1.a != 2) AND t1.a>0,
        t9
      WHERE t0.a=1 AND
            t0.b=t1.b AND          
