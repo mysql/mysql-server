@@ -822,8 +822,6 @@ LEFT JOIN t1 AS INNR ON ( INNR2.int_key = INNR.int_key )
 WHERE INNR.varchar_key > 'n{'
 );
 varchar_nokey
-NULL
-p
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (11);

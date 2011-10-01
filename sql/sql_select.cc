@@ -9081,6 +9081,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_EQ_REF:
     if (cache_level <=2 || (no_hashed_cache && no_bka_cache))
       goto no_join_cache;
+    for (uint i= 0; i < tab->ref.key_parts; i++)
+    {
+      if (tab->ref.cond_guards[i])
+        goto no_join_cache;
+    }
     if (!tab->is_ref_for_hash_join())
     {
       flags= HA_MRR_NO_NULL_ENDPOINTS | HA_MRR_SINGLE_POINT;
