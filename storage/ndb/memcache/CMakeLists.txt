@@ -38,12 +38,17 @@ if(NO_ATOMICS)
   RETURN()
 ENDIF()
 
+# Reuse the default engine from the bundled source tree
+set(BUNDLED_MEMCACHED extra/memcached)
+set(CACHE_SRC ${BUNDLED_MEMCACHED}/engines/default_engine)
+
 # Paths to header files
 include_directories(BEFORE include)
-include_directories(BEFORE cache-src)
+include_directories(BEFORE ${CACHE_SRC})
 include_directories(${NDB_SOURCE_DIR}/src/ndbjtie/mysql)
-include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
+include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
+include_directories(AFTER ${BUNDLED_MEMCACHED})
 
 # Paths to libraries
 link_directories(${NDB_SOURCE_DIR}/src 
@@ -81,9 +86,9 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/schedulers/Stockholm.cc
     src/ndb_engine.c
     src/embedded_default_engine.c
-    cache-src/assoc.c
-    cache-src/items.c
-    cache-src/slabs.c
+    ${CACHE_SRC}/assoc.c
+    ${CACHE_SRC}/items.c
+    ${CACHE_SRC}/slabs.c
  )
   
 

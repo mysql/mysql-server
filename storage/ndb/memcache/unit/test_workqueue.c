@@ -35,6 +35,7 @@
 #define TEST_ITERATIONS 1000000
 #define DO_SLEEP 1
 
+
 void * producer_thread(void *arg);
 void * consumer_thread(void *arg);
 
@@ -49,12 +50,16 @@ struct threadinfo {
   int report_interval;
 };  
 
+struct threadreturn {
+  unsigned int nrecv;
+};
+
 int run_test(struct threadinfo *);
 void express_nanosec(Uint64 nsec);
 
 int sleep_microseconds(int);
 
-int main(int argc, char *argv[]) {
+int main() {
   struct workqueue *queue; 
   queue = (struct workqueue *) calloc(1, sizeof(struct workqueue));
 
@@ -126,9 +131,9 @@ int run_test(struct threadinfo *params) {
   
   pthread_join(producer_thd_id, NULL);
   for(i = 0; i < params->nconsumers; i++) {
-    size_t nrecv;
-    pthread_join(consumer_thd_ids[i], (void **) &nrecv) ;
-    total_consumed += nrecv;
+    struct threadreturn *ret;
+    pthread_join(consumer_thd_ids[i], (void **) &ret) ;
+    total_consumed += ret->nrecv;
   }
 
   workqueue_destroy(params->q);  
@@ -192,11 +197,12 @@ void * consumer_thread(void *arg) {
   long long total_sleep = 0;
   size_t i;
   size_t last_i = 0;
-  size_t nrecv = 0;
   
   struct threadinfo *testinfo = (struct threadinfo *) arg;  
   struct workqueue *queue = testinfo->q;
   int sleeptime = testinfo->consumer_median_sleep;
+  struct threadreturn *ret = malloc(sizeof(struct threadreturn));
+  ret->nrecv = 0;
   
   /* fetch items from the queue, 1 at a time, and sleep for some time to 
      simulate processing them */
@@ -208,7 +214,7 @@ void * consumer_thread(void *arg) {
 
     i = (size_t) workqueue_consumer_wait(queue);
     if(i) {
-      nrecv++;
+      ret->nrecv++;
       if(i == 10) printf("read 10.\n");
       if(i % testinfo->report_interval == 0) printf("read %d.\n", (int) i);
       assert(i > last_i);
@@ -216,9 +222,9 @@ void * consumer_thread(void *arg) {
       if(sleeptime) total_sleep += sleep_microseconds(slp);
     }
     else {    
-      printf("Consumer thread read %d; slept for %f sec. \n", (int) nrecv,
+      printf("Consumer thread read %d; slept for %f sec. \n", ret->nrecv,
              (double) total_sleep / 1000000);
-      return (void *) nrecv;
+      return (void *) ret;
     }
   }
 }

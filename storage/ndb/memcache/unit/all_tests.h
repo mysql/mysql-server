@@ -63,7 +63,7 @@ struct test_item all_tests[] = {
   { 0, "pool",            run_pool_test,        REQ_NDB_CONNECTION },
   { 1, "tsv",             run_tsv_test,         REQ_NONE },
   { 1, "queue",           run_queue_test,       REQ_NONE },
-  { 0, NULL, NULL, NULL }
+  { 0, NULL, NULL, 0 }
 };
 
 
