@@ -77,7 +77,10 @@ typedef struct workitem {
   unsigned char rowbuf2_cls;   /*! Slab class id for row_buffer_2 */
   unsigned char keybuf1_cls;   /*! Slab class of ndb key; 0 = stored inline */
   unsigned char keybuf2_cls;   /*! Slab class id for key_buffer_2 */
-  char inline_buffer[WORKITEM_MIN_INLINE_BUF];  /*! Must be the final item */
+  union {
+    char buffer[WORKITEM_MIN_INLINE_BUF];  
+    uint64_t coerce_8byte_alignment;
+  } inline_buffer;             /*! Must be the final item */
 } workitem;
 
 
