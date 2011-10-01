@@ -79,7 +79,7 @@ void workitem__initialize(workitem *item, ndb_pipeline *pipeline, int verb,
     item->ndb_key_buffer = pipeline_alloc(pipeline, item->keybuf1_cls);
   }
   else {
-    item->ndb_key_buffer = & item->inline_buffer[0];
+    item->ndb_key_buffer = & item->inline_buffer.buffer[0];
   }
 }
 
@@ -133,7 +133,7 @@ workitem *new_workitem_for_get_op(workitem *previous, ndb_pipeline *pipeline,
   if((workitem_actual_inline_buffer_size - 3) > (2 * nkey)) {    
    /* use space at the end of the inline buffer */
     newitem->key_buffer_2 = 
-        & newitem->inline_buffer[0] + workitem_actual_inline_buffer_size - nkey;
+        & newitem->inline_buffer.buffer[0] + workitem_actual_inline_buffer_size - nkey;
   }
   else {
     newitem->keybuf2_cls = pipeline_get_size_class_id(nkey);
@@ -211,7 +211,7 @@ void workitem_free(workitem *item)
 
 size_t workitem_get_key_buf_size(int nkey) {
   size_t bufsz;
-  bufsz = nkey + 3;
-  return (bufsz < 9) ? 9 : bufsz;
+  bufsz = nkey + 3;       // at least key + 2 length bytes + null terminator
+  return (bufsz < 9) ? 9 : bufsz;  // A packed DECIMAL could ned 9 bytes
 }
 

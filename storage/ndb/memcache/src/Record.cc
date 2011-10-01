@@ -297,7 +297,6 @@ void Record::pad_offset_for_alignment() {
     alignment = 8;
   }
   else if(! handlers[index]->contains_string) {
-//    alignment = specs[index].column->getSize();
      alignment = specs[index].column->getSizeInBytes();
   }
 
