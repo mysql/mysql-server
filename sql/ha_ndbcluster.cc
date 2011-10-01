@@ -12891,6 +12891,15 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
               share->key, share->use_count,
               get_share_state_string(share->state),
               (uint)share->state);
+      /**
+       * For unknown reasons...the dist-priv tables linger here
+       * TODO investigate why
+       */
+      if (Ndb_dist_priv_util::is_distributed_priv_table(share->db,
+                                                        share->table_name))
+      {
+        save--;
+      }
 #endif
       ndbcluster_real_free_share(&share);
     }
