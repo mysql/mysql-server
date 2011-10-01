@@ -988,3 +988,22 @@
    fun:clone
 }
 
+{
+   shame 4
+   Memcheck:Leak
+   fun:_Znwm
+   fun:_ZN12ha_partition9add_indexEP5TABLEP6st_keyjPP17handler_add_index
+   fun:_ZN7handler18alter_table_phase1EP3THDP5TABLEP24st_ha_create_informationP23st_ha_alter_informationP6BitmapILj40EE
+   fun:_Z32mysql_fast_or_online_alter_tableP3THDP5TABLES2_P24st_ha_create_informationP23st_ha_alter_informationP6BitmapILj40EE22enum_enable_or_disablebP11MDL_request
+   fun:_Z17mysql_alter_tableP3THDPcS1_P24st_ha_create_informationP10TABLE_LISTP10Alter_infojP8st_orderb
+   fun:_Z21mysql_execute_commandP3THD
+   fun:_Z11mysql_parseP3THDPcjP12Parser_state
+   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
+   fun:_Z10do_commandP3THD
+   fun:_Z24do_handle_one_connectionP3THD
+   fun:handle_one_connection
+   fun:pfs_spawn_thread
+   fun:start_thread
+   fun:clone
+}
+
