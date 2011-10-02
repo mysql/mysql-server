@@ -39,6 +39,7 @@
 #define PRIu64 "llu"
 #endif
  
+#cmakedefine HAVE_FUNC_IN_CXX
 
 
 #endif
