@@ -41,6 +41,8 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/EqualPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/GreaterEqualPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/GreaterThanPredicateImpl.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/query/IsNotNullPredicateImpl.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/query/IsNullPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/LessEqualPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/LessThanPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/LikePredicateImpl.java \

@@ -174,6 +174,14 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
     }
 
+    public void filterIsNull(ScanFilter filter) {
+        filter.isNull(storeColumn);
+    }
+
+    public void filterIsNotNull(ScanFilter filter) {
+        filter.isNotNull(storeColumn);
+    }
+
     public String getColumnName() {
         return columnName;
     }
