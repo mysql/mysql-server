@@ -25,7 +25,7 @@ ENDIF()
 option(WITH_BUNDLED_MEMCACHED "Use bundled memcached" ON)
 option(WITH_BUNDLED_LIBEVENT "Use bundled libevent for building memcached" ON)
 
-if(WITH_BUNDLED_MEMCACHE)
+if(WITH_BUNDLED_MEMCACHED)
   add_subdirectory(extra/memcached)
 
   if(WITH_BUNDLED_LIBEVENT)
@@ -161,7 +161,7 @@ target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
 
 
 # If we are using the bundled memcache, it is a dependency:
-if(WITH_BUNDLED_MEMCACHE)
+if(WITH_BUNDLED_MEMCACHED)
   add_dependencies(ndb_engine memcached)
 endif()
 
