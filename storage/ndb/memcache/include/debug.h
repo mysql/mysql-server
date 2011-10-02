@@ -44,11 +44,10 @@
 
 #ifdef DEBUG_OUTPUT
 
-/* Very old Sun compilers do not have __func__ */
-#ifdef __SUNPRO_C
-#if __SUNPRO_C < 0x600
+/* Some Sun compilers do not have __func__ */
+#if(defined __SUNPRO_C && \
+  ( ! (__STDC_VERSION__ >= 199901L) || defined(__C99FEATURES__)))
 #define __func__ "?"
-#endif
 #endif
 
 
