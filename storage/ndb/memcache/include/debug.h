@@ -46,7 +46,7 @@
 
 /* Some Sun compilers do not have __func__ */
 #if(defined __SUNPRO_C && \
-  ( ! (__STDC_VERSION__ >= 199901L) || defined(__C99FEATURES__)))
+   ! ((__STDC_VERSION__ >= 199901L) || defined(__C99FEATURES__)))
 #define __func__ "?"
 #endif
 
