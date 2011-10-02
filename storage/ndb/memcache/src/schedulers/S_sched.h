@@ -98,7 +98,7 @@ private:
 class S::SchedulerWorker : public Scheduler {  
 public:  
   SchedulerWorker() {};
-  ~SchedulerWorker();
+  ~SchedulerWorker() {};
   void init(int threadnum, int nthreads, const char *config_string);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);

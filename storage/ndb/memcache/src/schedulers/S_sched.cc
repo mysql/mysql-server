@@ -3,7 +3,7 @@
  reserved.
  
  This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
+ modify it under the terms of the GNU General Public Licensein
  as published by the Free Software Foundation; version 2 of
  the License.
  
@@ -158,7 +158,7 @@ void S::SchedulerGlobal::shutdown() {
     /* Shutdown now */
     logger->log(LOG_WARNING, 0, "Shutdown completed.");
     running = false;
-  }  
+  }
 }
 
 
@@ -640,7 +640,7 @@ S::Connection::Connection(S::Cluster & _cl, int _id) :
    * possible to increase those limits during online reconfig. 
    */
   double total_ndb_objects = conf->figureInFlightTransactions(cluster.cluster_id);
-  nInst = total_ndb_objects / cluster.nconnections;
+  nInst = (int) (total_ndb_objects / cluster.nconnections);
   while(nInst % n_workers) nInst++; // round up
     
   /* Get a multi-wait Poll Group */

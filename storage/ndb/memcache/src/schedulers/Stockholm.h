@@ -43,7 +43,7 @@
 class Scheduler_stockholm : public Scheduler {
 public:
   Scheduler_stockholm() {};
-  ~Scheduler_stockholm();
+  ~Scheduler_stockholm() {};
   void init(int threadnum, int nthreads, const char *config_string);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
