@@ -106,3 +106,5 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
                               const void *cookie,
                               const item* item, 
                               item_info *item_info);
+
+CREATE_INSTANCE default_engine_create_instance;
