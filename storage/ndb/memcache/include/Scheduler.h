@@ -34,6 +34,9 @@
 /* Scheduler is an interface */
 
 class Scheduler {
+protected:
+  ~Scheduler() {};
+  
 public:
   /* Public Interface */
   Scheduler() {};

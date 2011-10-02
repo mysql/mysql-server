@@ -32,7 +32,7 @@ class TabSeparatedValues {
 
   private:
   int index;
-  int parts;
+  Uint32 parts;
   const char * pointers[MAX_VAL_COLUMNS];
   size_t lengths[MAX_VAL_COLUMNS];
   int find_tab(const char *, int) const;

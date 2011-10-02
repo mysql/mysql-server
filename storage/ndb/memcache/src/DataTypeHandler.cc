@@ -435,7 +435,7 @@ int dth_encode_varchar(const NdbDictionary::Column *col,
   uint8_t * length_byte = (uint8_t *) buf;
   char *char_buffer = ((char *) buf) + 1;
     
-  if(len > col->getLength())
+  if(len > (size_t) col->getLength())
     return DTH_VALUE_TOO_LONG;
   
   /* Set the length byte */
@@ -502,14 +502,14 @@ int dth_encode_char(const NdbDictionary::Column *col, size_t len,
                     const char *str, void *buf) {
   char *cbuf = ((char *) buf);
   char *dest = cbuf;
-  if(len > col->getLength()) 
+  if(len > (size_t) col->getLength()) 
     return DTH_VALUE_TOO_LONG;
 
   /* copy string into buffer */
   memcpy(dest, str, len);
 
   /* right-pad with spaces */
-  for(char *s = dest+len ; len <= col->getLength() ; len++) {
+  for(char *s = dest+len ; len <= (size_t) col->getLength() ; len++) {
     *(s++) = ' ';
   }
 

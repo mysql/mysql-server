@@ -29,7 +29,7 @@
 
 
 extern int workitem_class_id;   /* from ndb_pipeline.cc */
-extern unsigned int workitem_actual_inline_buffer_size;  /* from ndb_pipeline.cc */
+extern int workitem_actual_inline_buffer_size;  /* from ndb_pipeline.cc */
 
 const char * workitem_get_key_suffix(workitem *item) {
   return item->key + (item->base.nkey - item->base.nsuffix);

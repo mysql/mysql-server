@@ -910,7 +910,7 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
   const Configuration &conf = get_Configuration();
   
   DEBUG_PRINT(" %d prefixes", conf.nprefixes);
-  for(int i = 0 ; i < conf.nprefixes ; i++) {
+  for(unsigned int i = 0 ; i < conf.nprefixes ; i++) {
     const KeyPrefix *pfx = conf.getPrefix(i);
     if(pfx->info.use_ndb && pfx->info.do_db_flush) {
       ClusterConnectionPool *pool = conf.getConnectionPoolById(pfx->info.cluster_id);

@@ -132,7 +132,7 @@ int run_test(struct threadinfo *params) {
   pthread_join(producer_thd_id, NULL);
   for(i = 0; i < params->nconsumers; i++) {
     struct threadreturn *ret;
-    pthread_join(consumer_thd_ids[i], (void **) &ret) ;
+    pthread_join(consumer_thd_ids[i], &ret);
     total_consumed += ret->nrecv;
   }
 

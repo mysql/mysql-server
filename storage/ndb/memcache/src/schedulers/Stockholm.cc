@@ -127,7 +127,7 @@ void Scheduler_stockholm::attach_thread(thread_identifier * parent) {
               "launching %d commit thread%s.\n", pipeline->id, conf.nclusters,
               conf.nclusters == 1 ? "" : "s");
 
-  for(int c = 0 ; c < conf.nclusters; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     cluster[c].stats.cycles = 0;
     cluster[c].stats.commit_thread_vtime = 0;
 

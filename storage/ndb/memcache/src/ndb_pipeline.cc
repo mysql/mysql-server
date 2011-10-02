@@ -42,7 +42,7 @@
 
 /* globals (exported; also used by workitem.c) */
 int workitem_class_id;
-unsigned int workitem_actual_inline_buffer_size;
+int workitem_actual_inline_buffer_size;
 
 /* file-scope private variables */
 static int pool_slab_class_id;

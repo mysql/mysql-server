@@ -305,7 +305,7 @@ static ENGINE_ERROR_CODE ndb_remove(ENGINE_HANDLE* handle,
                                          const void* key,
                                          const size_t nkey,
                                          uint64_t cas,
-                                         uint16_t vbucket)
+                                         uint16_t vbucket  __attribute__((unused)))
 {
   struct ndb_engine* ndb_eng = ndb_handle(handle);
   struct default_engine *def_eng = default_handle(ndb_eng);
@@ -396,7 +396,7 @@ static ENGINE_ERROR_CODE ndb_get(ENGINE_HANDLE* handle,
                                  item** item,
                                  const void* key,
                                  const int nkey,
-                                 uint16_t vbucket)
+                                 uint16_t vbucket __attribute__((unused)))
 {
   struct ndb_engine* ndb_eng = ndb_handle(handle);
   ndb_pipeline *pipeline = get_my_pipeline_config(ndb_eng);
@@ -492,7 +492,7 @@ static ENGINE_ERROR_CODE ndb_store(ENGINE_HANDLE* handle,
                                    item* item,
                                    uint64_t *cas,
                                    ENGINE_STORE_OPERATION op,
-                                   uint16_t vbucket)
+                                   uint16_t vbucket  __attribute__((unused)))
 {
   prefix_info_t prefix;
 
