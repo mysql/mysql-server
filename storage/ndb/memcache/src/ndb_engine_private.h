@@ -107,4 +107,7 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
                               const item* item, 
                               item_info *item_info);
 
-CREATE_INSTANCE default_engine_create_instance;
+ENGINE_ERROR_CODE default_engine_create_instance(uint64_t,
+                                                 GET_SERVER_API,
+                                                 ENGINE_HANDLE**);
+
