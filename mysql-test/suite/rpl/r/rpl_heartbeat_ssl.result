@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 
 *** Heartbeat over SSL ***
@@ -14,6 +17,9 @@ MASTER_SSL=1,
 MASTER_SSL_CA='MYSQL_TEST_DIR/std_data/cacert.pem',
 MASTER_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
 MASTER_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 Master_SSL_Allowed: Yes
 Heartbeat event has received

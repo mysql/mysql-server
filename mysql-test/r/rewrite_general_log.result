@@ -14,6 +14,9 @@ set names default,@dummy='c';
 GRANT ALL on *.* TO test_user1 IDENTIFIED BY 'azundris1';
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
 CHANGE MASTER TO MASTER_PASSWORD='azundris3';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = PASSWORD('azundris4');
 SET GLOBAL general_log=       'OFF';

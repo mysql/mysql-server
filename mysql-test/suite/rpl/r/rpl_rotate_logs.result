@@ -10,6 +10,9 @@ change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='r
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
 reset slave;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 reset master;
 start slave;
 include/wait_for_slave_to_start.inc

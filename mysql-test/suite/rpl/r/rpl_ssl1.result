@@ -1,10 +1,16 @@
 include/master-slave.inc
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
 stop slave;
 include/wait_for_slave_to_stop.inc
 change master to master_user='replssl',master_password='';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 start slave;
 insert into t1 values (1);
 select * from t1;
@@ -26,6 +32,9 @@ include/check_slave_is_running.inc
 stop slave;
 include/wait_for_slave_to_stop.inc
 change master to master_user='root',master_password='', master_ssl=0;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 start slave;
 include/wait_for_slave_to_start.inc
 drop user replssl@localhost;

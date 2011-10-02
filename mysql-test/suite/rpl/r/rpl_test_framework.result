@@ -1,9 +1,36 @@
 ==== Create t1 on all servers. ====
 include/rpl_init.inc [topology=1->2->3->4->5->6->7->8->9]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 CREATE TABLE t1 (a INT);
 include/rpl_end.inc
 ==== Test 3-server topologies ====
 include/rpl_init.inc [topology=1 -> 2]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 12'
 [connection server_1]
@@ -16,6 +43,9 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=2 -> 3]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 23'
 [connection server_1]
@@ -43,6 +73,12 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=1->2, 2->1]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 212'
 [connection server_1]
@@ -55,6 +91,12 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=1->2->1]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 212'
 [connection server_2]
@@ -67,6 +109,12 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=2->1->2]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 212'
 [connection server_1]
@@ -79,6 +127,12 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=1->2->3]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 123'
 [connection server_1]
@@ -88,6 +142,15 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=2->3->2->1]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 323 21'
 [connection server_3]
@@ -97,6 +160,15 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=1->2,2->3,3->1]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 23123'
 [connection server_3]
@@ -106,6 +178,15 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=1->3->2->1]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 13213'
 [connection server_3]
@@ -116,6 +197,24 @@ include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1]
 include/rpl_end.inc
 ==== Test 6-server topologies ====
 include/rpl_init.inc [topology=1->2->3->4->1->5->6]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 341234156'
 [connection server_1]
@@ -125,6 +224,24 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1,server_4:t1,server_5:t1,server_6:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=3->4->5->6->3->1->2]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 4563456 312'
 [connection server_4]
@@ -134,6 +251,21 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1,server_4:t1,server_5:t1,server_6:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=6->5->4->3->2->1]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 65 54 43 32 21'
 [connection server_6]
@@ -143,6 +275,21 @@ include/rpl_sync.inc
 include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1,server_4:t1,server_5:t1,server_6:t1]
 include/rpl_end.inc
 include/rpl_init.inc [topology=1->2->3->1,4->5->6]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 456 23123'
 [connection server_3]
@@ -156,6 +303,33 @@ include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1,server_4:t1,server_
 include/rpl_end.inc
 ==== Test 9-server topology ====
 include/rpl_init.inc [topology=1->2, 2->3, 3->4, 4->5, 5->1, 1->6, 6->7, 6->8, 8->9]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_generate_sync_chain.inc
 rpl_sync_chain= ' 345123451689 67'
 [connection server_2]
@@ -166,5 +340,29 @@ include/diff_tables.inc [server_1:t1,server_2:t1,server_3:t1,server_4:t1,server_
 include/rpl_end.inc
 ==== Clean up ====
 include/rpl_init.inc [topology=1->2->3->4->5->6->7->8->9]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 DROP TABLE t1;
 include/rpl_end.inc

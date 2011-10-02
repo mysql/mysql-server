@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 master_id: 1
 stop slave;
@@ -35,6 +38,9 @@ change master to IGNORE_SERVER_IDS= ();
 *** must be empty due to IGNORE_SERVER_IDS empty list ***
 ignore server id list: 
 change master to master_host='127.0.0.1', master_port=MASTER_PORT, master_user='root';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 start slave;
 *** must have caught create table ***
 show tables;
