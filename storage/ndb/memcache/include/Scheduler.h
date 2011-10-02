@@ -35,7 +35,7 @@
 
 class Scheduler {
 protected:
-  ~Scheduler() {};
+  virtual ~Scheduler() {};
   
 public:
   /* Public Interface */
