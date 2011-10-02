@@ -106,9 +106,6 @@ set(NDB_MEMCACHE_SOURCE_FILES
 )
 
 
-# Define DEBUG_OUTPUT by default (enables runtime "debug" option in memcached)
-add_definitions(-DDEBUG_OUTPUT)
-
 # Set extra flags for the C compiler
 IF(${CMAKE_COMPILER_IS_GNUCC})
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --std=gnu99 -Wall -Wredundant-decls")
@@ -122,6 +119,8 @@ IF(${CMAKE_COMPILER_IS_GNUCXX})
 ENDIF()
 
 
+########## ENVIRONMENT TESTS #########
+
 # Checks for system headers
 CHECK_INCLUDE_FILE("mach/mach_time.h" HAVE_MACH_MACH_TIME_H)
 
@@ -131,6 +130,20 @@ CHECK_FUNCTION_EXISTS(gethrtime  HAVE_GETHRTIME)
 CHECK_FUNCTION_EXISTS(gethrvtime HAVE_GETHRVTIME)
 CHECK_FUNCTION_EXISTS(memset     HAVE_MEMSET)
 # Also: log in libm, dlsym in libdl? 
+
+CHECK_CXX_SOURCE_RUNS("
+    main()  {
+      const char * f = __func__;
+      return 0;
+    }"
+    HAVE_FUNC_IN_CXX)
+
+# Define DEBUG_OUTPUT by default (enables runtime "debug" option in memcached)
+if(HAVE_FUNC_IN_CXX) 
+  add_definitions(-DDEBUG_OUTPUT)
+endif()
+
+########### GENERATED FILES #############
 
 # Build ndbmemcache_config.h
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.in 
@@ -143,10 +156,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
 # Build the perl include file used by mtr
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
                ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl)
-
-# memcached_path.pl is also installed, for use by installed mtr
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
-        DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
                
 ######### TARGETS ############
 # Build the convenience library
@@ -194,6 +203,11 @@ install(PROGRAMS sandbox.sh DESTINATION memcache-api)
 install(FILES README DESTINATION memcache-api)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
         DESTINATION memcache-api)
+        
+# memcached_path.pl is also installed, for use by installed mtr
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
+        DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
+        
 ######################################################## 
 
 
