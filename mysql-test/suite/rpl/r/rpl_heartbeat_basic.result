@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -13,12 +16,18 @@ SET @restore_event_scheduler=@@global.event_scheduler;
 
 *** Default value ***
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 slave_net_timeout/slave_heartbeat_timeout=2.0000
 RESET SLAVE;
 
 *** Reset slave affect ***
 SET @@global.slave_net_timeout=30;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=5;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 RESET SLAVE;
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
@@ -27,6 +36,9 @@ Slave_heartbeat_period	15.000
 *** Default value if slave_net_timeout changed ***
 SET @@global.slave_net_timeout=50;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
 Slave_heartbeat_period	25.000
@@ -44,11 +56,16 @@ RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=SLAVE_NET_TIMEOUT;
 Warnings:
 Warning	1717	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 RESET SLAVE;
 
 *** CHANGE MASTER statement only updates slave_heartbeat_period ***
 SET @@global.slave_net_timeout=20;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=5;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 SHOW VARIABLES LIKE 'slave_net_timeout';
 Variable_name	Value
 slave_net_timeout	20
@@ -70,6 +87,9 @@ SET @@global.slave_net_timeout=500;
 SET @@global.slave_net_timeout=200;
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 SHOW VARIABLES LIKE 'slave_net_timeout';
 Variable_name	Value
@@ -85,6 +105,9 @@ SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 *** Start/stop slave ***
 SET @@global.slave_net_timeout=100;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=20;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
@@ -97,6 +120,9 @@ Slave_heartbeat_period	20.000
 *** Reload slave ***
 SET @@global.slave_net_timeout=50;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=30;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_restart_server.inc [server_number=2]
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
@@ -105,6 +131,9 @@ SET @restore_slave_net_timeout=@@global.slave_net_timeout;
 
 *** Disable heartbeat ***
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
 Slave_heartbeat_period	0.000
@@ -132,6 +161,9 @@ Result
 
 *** Min slave_heartbeat_timeout ***
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.001;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
 Slave_heartbeat_period	0.001
@@ -139,6 +171,8 @@ RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.0009;
 Warnings:
 Warning	1716	The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled.
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
 Slave_heartbeat_period	0.000
@@ -148,6 +182,8 @@ RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=4294967;
 Warnings:
 Warning	1717	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
 Slave_heartbeat_period	4294967.000
@@ -175,6 +211,9 @@ RESET SLAVE;
 
 *** Running slave ***
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 Heartbeat event received
 
@@ -223,6 +262,9 @@ UPDATE test.t1 SET a = a + 1 WHERE a < 10;
 END|
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=5;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 SET @@global.event_scheduler=1;
 Number of received heartbeat events: 0
@@ -236,6 +278,9 @@ DROP TABLE t1;
 DROP TABLE t1;
 RESET MASTER;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.5;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 Heartbeat events are received while rotation of relay logs (1 means 'yes'): 1
 
@@ -245,6 +290,9 @@ include/stop_slave.inc
 RESET SLAVE;
 SET @@global.slave_compressed_protocol=1;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 Heartbeat event received
 SET @@global.slave_compressed_protocol=0;
@@ -254,6 +302,9 @@ SET @@global.slave_compressed_protocol=0;
 STOP SLAVE;
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 RESET MASTER;
 Heartbeat events are received after reset of master (1 means 'yes'): 1
@@ -262,6 +313,9 @@ Heartbeat events are received after reset of master (1 means 'yes'): 1
 STOP SLAVE;
 RESET SLAVE;
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 Heartbeat event received
 include/rpl_restart_server.inc [server_number=1]
@@ -272,6 +326,9 @@ Heartbeat event received
 include/rpl_reset.inc
 include/stop_slave.inc
 include/rpl_change_topology.inc [new topology=1->2->1]
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
 INSERT INTO t1 VALUES(1, 'on master');

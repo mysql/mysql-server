@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression('Slave can not handle replication events with the checksum that master is configured to log');
 call mtr.add_suppression('Replication event checksum verification failed');
@@ -111,6 +114,9 @@ must be zero
 0
 include/stop_slave.inc
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 flush logs;
 reset master;
 insert into t3 value (1, @@global.binlog_checksum);

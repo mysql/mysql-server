@@ -15,6 +15,9 @@ master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA CONCURRENT INFI
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1;
 include/master-slave.inc
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 select last_insert_id();
 last_insert_id()
@@ -55,7 +58,13 @@ load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
 include/wait_for_slave_sql_error.inc [errno=1062]
 include/stop_slave_io.inc
 change master to master_user='test';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 change master to master_user='root';
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/check_slave_no_error.inc
 set global sql_slave_skip_counter=1;
 start slave;

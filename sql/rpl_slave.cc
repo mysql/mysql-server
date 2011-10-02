@@ -2125,7 +2125,7 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Master_Host",
                                                      sizeof(mi->host)));
   field_list.push_back(new Item_empty_string("Master_User",
-                                                     sizeof(mi->user)));
+                                                     mi->get_user_size()));
   field_list.push_back(new Item_return_int("Master_Port", 7,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Connect_Retry", 10,
@@ -2230,7 +2230,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     mysql_mutex_lock(&mi->rli->err_lock);
 
     protocol->store(mi->host, &my_charset_bin);
-    protocol->store(mi->user, &my_charset_bin);
+    protocol->store(mi->get_user(), &my_charset_bin);
     protocol->store((uint32) mi->port);
     protocol->store((uint32) mi->connect_retry);
     protocol->store(mi->get_master_log_name(), &my_charset_bin);
@@ -3432,7 +3432,7 @@ pthread_handler_t handle_slave_io(void *arg)
   {
     sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',"
                           "replication started in log '%s' at position %s",
-                          mi->user, mi->host, mi->port,
+                          mi->get_user(), mi->host, mi->port,
 			  mi->get_io_rpl_log_name(),
 			  llstr(mi->get_master_log_pos(), llbuff));
   /*
@@ -3712,7 +3712,11 @@ err:
   write_ignored_events_info_to_relay_log(thd, mi);
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
-
+  /*
+    Clean information used to start slave in order to avoid
+    security issues.
+  */
+  mi->reset_start_info();
   /* Forget the relay log's format */
   delete mi->rli->relay_log.description_event_for_queue;
   mi->rli->relay_log.description_event_for_queue= 0;
@@ -5782,6 +5786,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   int last_errno= -2;                           // impossible error
   ulong err_count=0;
   char llbuff[22];
+  char password[MAX_PASSWORD_LENGTH + 1];
+  int password_size= sizeof(password);
   DBUG_ENTER("connect_to_master");
 
 #ifndef DBUG_OFF
@@ -5822,14 +5828,31 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
+  if (mi->is_start_plugin_auth_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_DEFAULT_AUTH %s",
+                        mi->get_start_plugin_auth()));
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, mi->get_start_plugin_auth());
+  }
+  
+  if (mi->is_start_plugin_dir_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_PLUGIN_DIR %s",
+                        mi->get_start_plugin_dir()));
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, mi->get_start_plugin_dir());
+  }
   /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
-  if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
+  else if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
+  
+  if (!mi->is_start_user_configured())
+    sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
 
-  while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
-         (reconnect ? mysql_reconnect(mysql) != 0 :
-          mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-                             mi->port, 0, client_flag) == 0))
+  bool error_pwd= mi->get_password(password, &password_size);
+  while (!error_pwd && !(slave_was_killed = io_slave_killed(thd,mi))
+         && (reconnect ? mysql_reconnect(mysql) != 0 :
+             mysql_real_connect(mysql, mi->host, mi->get_user(),
+                                password, 0, mi->port, 0, client_flag) == 0))
   {
     /*
        SHOW SLAVE STATUS will display the number of retries which
@@ -5842,7 +5865,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                "error %s to master '%s@%s:%d'"
                " - retry-time: %d  retries: %lu",
                (reconnect ? "reconnecting" : "connecting"),
-               mi->user, mi->host, mi->port,
+               mi->get_user(), mi->host, mi->port,
                mi->connect_retry, err_count + 1);
     /*
       By default we try forever. The reason is that failure will trigger
@@ -5865,7 +5888,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     {
       if (!suppress_warnings && global_system_variables.log_warnings)
         sql_print_information("Slave: connected to master '%s@%s:%d',\
-replication resumed in log '%s' at position %s", mi->user,
+replication resumed in log '%s' at position %s", mi->get_user(),
                         mi->host, mi->port,
                         mi->get_io_rpl_log_name(),
                         llstr(mi->get_master_log_pos(),llbuff));
@@ -5873,7 +5896,7 @@ replication resumed in log '%s' at position %s", mi->user,
     else
     {
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
-                        mi->user, mi->host, mi->port);
+                        mi->get_user(), mi->host, mi->port);
     }
 #ifdef SIGNAL_WITH_VIO_CLOSE
     thd->set_active_vio(mysql->net.vio);
@@ -5904,6 +5927,8 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
 MYSQL *rpl_connect_master(MYSQL *mysql)
 {
   THD *thd= current_thd;
+  char password[MAX_PASSWORD_LENGTH + 1];
+  int password_size= sizeof(password);
   Master_info *mi= my_pthread_getspecific_ptr(Master_info*, RPL_MASTER_INFO);
   if (!mi)
   {
@@ -5961,9 +5986,30 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
-  if (io_slave_killed(thd, mi)
-      || !mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-                             mi->port, 0, 0))
+  if (mi->is_start_plugin_auth_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_DEFAULT_AUTH %s",
+                        mi->get_start_plugin_auth()));
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, mi->get_start_plugin_auth());
+  }
+
+  if (mi->is_start_plugin_dir_configured())
+  {
+    DBUG_PRINT("info", ("Slaving is using MYSQL_PLUGIN_DIR %s",
+                        mi->get_start_plugin_dir()));
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, mi->get_start_plugin_dir());
+  }
+  /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
+  else if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
+
+  if (!mi->is_start_user_configured())
+    sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
+
+  if (mi->get_password(password, &password_size)
+      || io_slave_killed(thd, mi)
+      || !mysql_real_connect(mysql, mi->host, mi->get_user(),
+                             password, 0, mi->port, 0, 0))
   {
     if (!io_slave_killed(thd, mi))
       sql_print_error("rpl_connect_master: error connecting to master: %s (server_error: %d)",
@@ -6702,6 +6748,23 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
+
+  if (thd->lex->slave_connection.user ||
+      thd->lex->slave_connection.password)
+  {
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    if (thd->vio_ok() && !thd->net.vio->ssl_arg)
+      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                   ER_INSECURE_PLAIN_TEXT,
+                   ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                 ER_INSECURE_PLAIN_TEXT,
+                 ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+  }
+
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
   init_thread_mask(&thread_mask,mi,1 /* inverse */);
@@ -6719,6 +6782,29 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
       slave_errno=ER_MASTER_INFO;
     else if (server_id_supplied && *mi->host)
     {
+      /*
+        If we will start IO thread we need to take care of possible
+        options provided through the START SLAVE if there is any.
+      */
+      if (thread_mask & SLAVE_IO)
+      {
+        if (thd->lex->slave_connection.user)
+        {
+          mi->set_start_user_configured(true);
+          mi->set_user(thd->lex->slave_connection.user);
+        }
+        if (thd->lex->slave_connection.password)
+        {
+          mi->set_start_user_configured(true);
+          mi->set_password(thd->lex->slave_connection.password,
+                           strlen(thd->lex->slave_connection.password));
+        }
+        if (thd->lex->slave_connection.plugin_auth)
+          mi->set_plugin_auth(thd->lex->slave_connection.plugin_auth);
+        if (thd->lex->slave_connection.plugin_dir)
+          mi->set_plugin_dir(thd->lex->slave_connection.plugin_dir);
+      }
+ 
       /*
         If we will start SQL thread we will care about UNTIL options If
         not and they are specified we will ignore them and warn user
@@ -6832,6 +6918,12 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   if (slave_errno)
   {
+    /*
+      Clean up start information if there was an attempt to start
+      the IO thread to avoid any security issue.
+    */
+    if (thread_mask & SLAVE_IO)
+      mi->reset_start_info();
     if (net_report)
       my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);
@@ -7063,14 +7155,45 @@ bool change_master(THD* thd, Master_info* mi)
   }
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
 
+  if (lex_mi->user || lex_mi->password)
+  {
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    if (thd->vio_ok() && !thd->net.vio->ssl_arg)
+      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                   ER_INSECURE_PLAIN_TEXT,
+                   ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                 ER_INSECURE_PLAIN_TEXT,
+                 ER(ER_INSECURE_PLAIN_TEXT));
+#endif
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+                 ER_INSECURE_CHANGE_MASTER,
+                 ER(ER_INSECURE_CHANGE_MASTER));
+  }
+
+  if (lex_mi->user)
+    mi->set_user(lex_mi->user);
+
+  if (lex_mi->password)
+  {
+    if (mi->set_password(lex_mi->password, strlen(lex_mi->password)))
+    {
+      /*
+        After implementing WL#5769, we should create a better error message
+        to denote that the call may have failed due to an error while trying
+        to encrypt/store the password in a secure key store.
+      */
+      my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
+      ret= false;
+      goto err;
+    }
+  }
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->bind_addr)
     strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
-  if (lex_mi->user)
-    strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
-  if (lex_mi->password)
-    strmake(mi->password, lex_mi->password, sizeof(mi->password)-1);
   if (lex_mi->port)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)

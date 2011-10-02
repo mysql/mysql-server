@@ -103,6 +103,7 @@ Master_info::Master_info(
              param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
             ),
+   start_user_configured(false),
    ssl(0), ssl_verify_server_cert(0),
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
    clock_diff_with_master(0), heartbeat_period(0),
@@ -110,11 +111,14 @@ Master_info::Master_info(
    checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
    retry_count(master_retry_count)
 {
-  host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
+  host[0] = 0; user[0] = 0; bind_addr[0] = 0;
+  password[0]= 0; start_password[0]= 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
   ssl_crl[0]= 0; ssl_crlpath[0]= 0;
   master_uuid[0]= 0;
+  start_plugin_auth[0]= 0; start_plugin_dir[0]= 0;
+  start_user[0]= 0;
   ignore_server_ids= new Server_ids(sizeof(::server_id));
 }
 
@@ -388,7 +392,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT)
   { 
-    if (from->get_info(&temp_ssl_verify_server_cert, 0))
+    if (from->get_info(&temp_ssl_verify_server_cert, (int) 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -495,5 +499,55 @@ bool Master_info::write_info(Rpl_info_handler *to)
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
+}
+
+bool Master_info::set_password(const char* password_arg,
+                               int password_arg_size __attribute__((unused)))
+{
+  bool ret= true;
+  DBUG_ENTER("Master_info::set_password");
+
+  if (password_arg && start_user_configured)
+  {
+    strmake(start_password, password_arg, sizeof(start_password) - 1);
+    ret= false;
+  }
+  else if (password_arg)
+  {
+    strmake(password, password_arg, sizeof(password) - 1);
+    ret= false;
+  }
+  DBUG_RETURN(ret);
+}
+
+bool Master_info::get_password(char *password_arg, int *password_arg_size)
+{
+  bool ret= true;
+  DBUG_ENTER("Master_info::get_password");
+
+  if (password_arg && start_user_configured)
+  {
+    *password_arg_size= strlen(start_password);
+    strmake(password_arg, start_password, sizeof(start_password) - 1);
+    ret= false;
+  }
+  else if (password_arg)
+  {
+    *password_arg_size= strlen(password);
+    strmake(password_arg, password, sizeof(password) - 1);
+    ret= false;
+  }
+  DBUG_RETURN(ret);
+}
+
+void Master_info::reset_start_info()
+{
+  DBUG_ENTER("Master_info::reset_start_info");
+  start_plugin_auth[0]= 0;
+  start_plugin_dir[0]= 0;
+  start_user_configured= false;
+  start_user[0]= 0;
+  start_password[0]= 0;
+  DBUG_VOID_RETURN;
 }
 #endif /* HAVE_REPLICATION */

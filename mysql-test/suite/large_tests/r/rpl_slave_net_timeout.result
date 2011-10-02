@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 set @save_general_log = @@global.general_log;
 set @save_log_output = @@global.log_output;
@@ -8,6 +11,9 @@ set @@global.log_output = 'table,file';
 include/stop_slave.inc
 change master to master_host = '127.0.0.1',master_port = MASTER_PORT,
 master_user = 'root', master_heartbeat_period = 0;
+Warnings:
+Note	1753	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1754	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 set @@global.slave_net_timeout = @@global.net_read_timeout * 2;
 include/start_slave.inc
 include/stop_slave.inc

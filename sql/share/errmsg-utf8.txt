@@ -6592,3 +6592,9 @@ ER_PLUGIN_NO_UNINSTALL
 
 ER_PLUGIN_NO_INSTALL
   eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
+
+ER_INSECURE_PLAIN_TEXT
+  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
+
+ER_INSECURE_CHANGE_MASTER
+  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
