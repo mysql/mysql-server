@@ -3323,6 +3323,28 @@ select straight_join count(*) from t1 as x0
    join t3 as x3 on x3.a=x2.c
    join t1 as x4 on x4.a=x0.d and x4.b=x3.b;
 
+# If the first batch of an index scan has low parallelism and returns few rows,
+# there is a mechanism that will try to query the remaining fragments within
+# the same batch. This is done in order to avoid repeating other branches of 
+# a bushy scan whenever possible. This is a test of that mechanism. Scan
+# of x2 should return only one row. Therefore we should be able to fetch
+# x2 in one batch and scan x3 only once.
+
+let $scan_rows = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT', Value, 1);
+
+explain select straight_join count(*) from t1 as x1  
+   join t1 as x2 on x1.c=x2.a and x2.d=2
+   join t3 as x3 on x1.d=x3.a;  
+
+select straight_join count(*) from t1 as x1  
+   join t1 as x2 on x1.c=x2.a and x2.d=2
+   join t3 as x3 on x1.d=x3.a;
+
+--disable_query_log
+--eval select sum(val) - $scan_rows as Local_range_scans from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT';
+--enable_query_log
+
+
 connection ddl;
 drop table t1;
 drop table t2;
