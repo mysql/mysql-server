@@ -2113,6 +2113,9 @@ and t2.a = t1.b;
 a	b	a	b
 1	2	2	3
 3	1	1	2
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+3
+This should yield 3 executes (for now...buh)
 drop table t1;
 create table t1 (a int, b int, primary key(a)) engine = ndb;
 insert into t1 values (1, 2);
@@ -2136,6 +2139,9 @@ and t2.a = t1.b;
 a	b	a	b
 1	2	2	3
 3	1	1	2
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+This should yield 1 execute (but inefficient since it's based on scan)
 explain extended
 select *
 from t1, t1 as t2
