@@ -147,8 +147,8 @@ if [ $testresult = "PASS" ] ; then
 	./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
-	echo ./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
-	./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
+	echo ./scanscan-tokudb --lwc --prelock --prelockflag >>$runfile 2>&1
+	./scanscan-tokudb --lwc --prelock --prelockflag >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
     popd
@@ -165,8 +165,8 @@ if [ $testresult = "PASS" ] ; then
 	./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
-	echo ./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
-	./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
+	echo ./scanscan-tokudb --lwc --prelock --prelockflag >>$runfile 2>&1
+	./scanscan-tokudb --lwc --prelock --prelockflag >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
     popd
@@ -183,8 +183,8 @@ if [ $testresult = "PASS" ] ; then
 	./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
-	echo ./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
-	./scanscan-tokudb --prelock --prelockflag >>$runfile 2>&1
+	echo ./scanscan-tokudb --lwc --prelock --prelockflag >>$runfile 2>&1
+	./scanscan-tokudb --lwc --prelock --prelockflag >>$runfile 2>&1
 	exitcode=$?
 	if [ $exitcode != 0 ] ; then testresult="FAIL"; fi
     popd
