@@ -80,6 +80,37 @@ const char * g_dummy;
 char * g_env_path = 0;
 const char* g_mysqld_host = 0;
 
+const char * g_ndb_mgmd_bin_path = 0;
+const char * g_ndbd_bin_path = 0;
+const char * g_ndbmtd_bin_path = 0;
+const char * g_mysqld_bin_path = 0;
+const char * g_mysql_install_db_bin_path = 0;
+
+static struct
+{
+  bool is_required;
+  const char * exe;
+  const char ** var;
+} g_binaries[] = {
+  { true,  "ndb_mgmd",         &g_ndb_mgmd_bin_path},
+  { true,  "ndbd",             &g_ndbd_bin_path },
+  { false, "ndbmtd",           &g_ndbmtd_bin_path },
+  { true,  "mysqld",           &g_mysqld_bin_path },
+  { true,  "mysql_install_db", &g_mysql_install_db_bin_path },
+  { true, 0, 0 }
+};
+
+const char *
+g_search_path[] =
+{
+  "bin",
+  "libexec",
+  "sbin",
+  "scripts",
+  0
+};
+static bool find_binaries();
+
 static struct my_option g_options[] =
 {
   { "help", '?', "Display this help and exit.", 
@@ -178,6 +209,12 @@ main(int argc, char ** argv)
   }
   
   g_logger.info("Starting...");
+
+  if (!find_binaries())
+  {
+    goto end;
+  }
+
   g_config.m_generated = false;
   g_config.m_replication = g_replicate;
   if (!setup_config(g_config, g_mysqld_host))
@@ -1261,11 +1298,14 @@ setup_test_case(atrt_config& config, const atrt_testcase& tc){
        proc.m_type == atrt_process::AP_CLIENT)
     {
       BaseString cmd;
-      if (tc.m_command.c_str()[0] != '/')
+      char * p = find_bin_path(tc.m_command.c_str());
+      if (p == 0)
       {
-        cmd.appfmt("%s/bin/", g_prefix);
+        g_logger.critical("Failed to locate '%s'", tc.m_command.c_str());
+        return false;
       }
-      cmd.append(tc.m_command.c_str());
+      cmd.assign(p);
+      free(p);
 
       if (0) // valgrind
       {
@@ -1333,7 +1373,10 @@ setup_hosts(atrt_config& config){
     return false;
   }
 
-  for(size_t i = 0; i<config.m_hosts.size(); i++){
+  for(size_t i = 0; i<config.m_hosts.size(); i++)
+  {
+    if (config.m_hosts[i]->m_hostname.length() == 0)
+      continue;
     BaseString tmp = g_setup_progname;
     tmp.appfmt(" %s %s/ %s/", 
 	       config.m_hosts[i]->m_hostname.c_str(),
@@ -1507,6 +1550,35 @@ reset_config(atrt_config & config)
     }
   }
   return changed;
+}
+
+static
+bool
+find_binaries()
+{
+  g_logger.info("Locating binaries...");
+  bool ok = true;
+  for (int i = 0; g_binaries[i].exe != 0; i++)
+  {
+    const char * p = find_bin_path(g_binaries[i].exe);
+    if (p == 0)
+    {
+      if (g_binaries[i].is_required)
+      {
+        g_logger.critical("Failed to locate '%s'", g_binaries[i].exe);
+        ok = false;
+      }
+      else
+      {
+        g_logger.info("Failed to locate '%s'...ok", g_binaries[i].exe);
+      }
+    }
+    else
+    {
+      * g_binaries[i].var = p;
+    }
+  }
+  return ok;
 }
 
 template class Vector<Vector<SimpleCpcClient::Process> >;

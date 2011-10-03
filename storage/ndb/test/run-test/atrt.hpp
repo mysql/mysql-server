@@ -190,6 +190,19 @@ extern int          g_default_ports;
 
 extern const char * g_clusters;
 
+/**
+ * Since binaries move location between 5.1 and 5.5
+ *   we keep full path to them here
+ */
+char * find_bin_path(const char * basename);
+extern const char * g_ndb_mgmd_bin_path;
+extern const char * g_ndbd_bin_path;
+extern const char * g_ndbmtd_bin_path;
+extern const char * g_mysqld_bin_path;
+extern const char * g_mysql_install_db_bin_path;
+
+extern const char * g_search_path[];
+
 #ifdef _WIN32
 #include <direct.h>
 
