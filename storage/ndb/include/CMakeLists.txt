@@ -24,6 +24,8 @@ CHECK_TYPE_SIZE("long long" NDB_SIZEOF_LONG_LONG)
 CONFIGURE_FILE(ndb_types.h.in
                ${CMAKE_CURRENT_SOURCE_DIR}/ndb_types.h
                @ONLY)
+# Exclude ndb_types.h from "make dist"
+LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_types\\\\.h$)
 
 #
 # Read a value for variable from ndb_configure.m4
@@ -86,4 +88,6 @@ ENDIF()
 CONFIGURE_FILE(ndb_version.h.in
                ${CMAKE_CURRENT_SOURCE_DIR}/ndb_version.h
                @ONLY)
+# Exclude ndb_version.h from "make dist"
+LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_version\\\\.h$)
 
