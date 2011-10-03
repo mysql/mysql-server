@@ -24,6 +24,9 @@
 #include <mysql/plugin.h>
 #include <ctype.h>
 
+// Do we have waiter...
+static bool ndb_index_stat_waiter= false;
+
 // copied from ha_ndbcluster_binlog.h
 
 extern handlerton *ndbcluster_hton;
@@ -1845,7 +1848,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
   for (;;)
   {
     pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
-    if (!ndbcluster_terminating) {
+    if (!ndbcluster_terminating && ndb_index_stat_waiter == false) {
       int ret= pthread_cond_timedwait(&COND_ndb_index_stat_thread,
                                       &LOCK_ndb_index_stat_thread,
                                       &abstime);
@@ -1855,6 +1858,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
     }
     if (ndbcluster_terminating) /* Shutting down server */
       goto ndb_index_stat_thread_end;
+    ndb_index_stat_waiter= false;
     pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
 
     /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
@@ -2002,6 +2006,7 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     DBUG_PRINT("index_stat", ("st %s wait count:%u",
                               st->id, ++count));
     pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
+    ndb_index_stat_waiter= true;
     pthread_cond_signal(&COND_ndb_index_stat_thread);
     pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
     set_timespec(abstime, 1);

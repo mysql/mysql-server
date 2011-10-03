@@ -45,10 +45,6 @@ DbtcProxy::DbtcProxy(Block_context& ctx) :
   addRecSignal(GSN_GCP_NOMORETRANS, &DbtcProxy::execGCP_NOMORETRANS);
   addRecSignal(GSN_GCP_TCFINISHED, &DbtcProxy::execGCP_TCFINISHED);
 
-  // GSN_API_FAILREQ
-  addRecSignal(GSN_API_FAILREQ, &DbtcProxy::execAPI_FAILREQ);
-  addRecSignal(GSN_API_FAILCONF, &DbtcProxy::execAPI_FAILCONF);
-
   // GSN_PREP_DROP_TAB_REQ
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &DbtcProxy::execPREP_DROP_TAB_REQ);
   addRecSignal(GSN_PREP_DROP_TAB_CONF, &DbtcProxy::execPREP_DROP_TAB_CONF);
@@ -81,6 +77,11 @@ DbtcProxy::DbtcProxy(Block_context& ctx) :
 
   // GSN_TAKE_OVERTCCONF
   addRecSignal(GSN_TAKE_OVERTCCONF,&DbtcProxy::execTAKE_OVERTCCONF);
+
+  // GSN_ABORT_ALL_REQ
+  addRecSignal(GSN_ABORT_ALL_REQ,&DbtcProxy::execABORT_ALL_REQ);
+  addRecSignal(GSN_ABORT_ALL_REF,&DbtcProxy::execABORT_ALL_REF);
+  addRecSignal(GSN_ABORT_ALL_CONF,&DbtcProxy::execABORT_ALL_CONF);
 
   m_tc_seize_req_instance = 0;
 }
@@ -487,7 +488,7 @@ DbtcProxy::execTCSEIZEREQ(Signal* signal)
      * Specific instance requested...
      */
     Uint32 instance = signal->theData[2];
-    if (instance >= c_workers)
+    if (instance == 0 || instance > c_workers)
     {
       jam();
       Uint32 senderData = signal->theData[0];
@@ -498,7 +499,7 @@ DbtcProxy::execTCSEIZEREQ(Signal* signal)
       return;
     }
 
-    sendSignal(workerRef(instance), GSN_TCSEIZEREQ, signal,
+    sendSignal(workerRef(instance - 1), GSN_TCSEIZEREQ, signal,
                signal->getLength(), JBB);
     return;
   }
@@ -652,54 +653,6 @@ DbtcProxy::sendGCP_TCFINISHED(Signal* signal, Uint32 ssId)
              signal, GCPTCFinished::SignalLength, JBB);
 
   ssRelease<Ss_GCP_NOMORETRANS>(ssId);
-}
-
-
-// GSN_API_FAILREQ
-
-void
-DbtcProxy::execAPI_FAILREQ(Signal* signal)
-{
-  Uint32 nodeId = signal->theData[0];
-  Ss_API_FAILREQ& ss = ssSeize<Ss_API_FAILREQ>(nodeId);
-
-  ss.m_ref = signal->theData[1];
-  sendREQ(signal, ss);
-}
-
-void
-DbtcProxy::sendAPI_FAILREQ(Signal* signal, Uint32 ssId, SectionHandle*)
-{
-  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(ssId);
-
-  signal->theData[0] = ssId;
-  signal->theData[1] = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_API_FAILREQ,
-             signal, 2, JBB);
-}
-
-void
-DbtcProxy::execAPI_FAILCONF(Signal* signal)
-{
-  Uint32 nodeId = signal->theData[0];
-  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(nodeId);
-  recvCONF(signal, ss);
-}
-
-void
-DbtcProxy::sendAPI_FAILCONF(Signal* signal, Uint32 ssId)
-{
-  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(ssId);
-
-  if (!lastReply(ss))
-    return;
-
-  signal->theData[0] = ssId;
-  signal->theData[1] = calcTcBlockRef(getOwnNodeId());
-  sendSignal(ss.m_ref, GSN_API_FAILCONF,
-             signal, 2, JBB);
-
-  ssRelease<Ss_API_FAILREQ>(ssId);
 }
 
 // GSN_CREATE_INDX_IMPL_REQ
@@ -944,6 +897,75 @@ DbtcProxy::execTAKE_OVERTCCONF(Signal* signal)
                signal->getLength(),
                JBB);
   }
+}
+
+// GSN_ABORT_ALL_REQ
+
+void
+DbtcProxy::execABORT_ALL_REQ(Signal* signal)
+{
+  const AbortAllReq* req = (const AbortAllReq*)signal->getDataPtr();
+  Ss_ABORT_ALL_REQ& ss = ssSeize<Ss_ABORT_ALL_REQ>();
+  ss.m_req = *req;
+  ndbrequire(signal->getLength() == AbortAllReq::SignalLength);
+  sendREQ(signal, ss);
+}
+
+void
+DbtcProxy::sendABORT_ALL_REQ(Signal* signal, Uint32 ssId, SectionHandle*)
+{
+  Ss_ABORT_ALL_REQ& ss = ssFind<Ss_ABORT_ALL_REQ>(ssId);
+
+  AbortAllReq* req = (AbortAllReq*)signal->getDataPtrSend();
+  *req = ss.m_req;
+  req->senderRef = reference();
+  req->senderData = ssId;
+  sendSignal(workerRef(ss.m_worker), GSN_ABORT_ALL_REQ,
+             signal, AbortAllReq::SignalLength, JBB);
+}
+
+void
+DbtcProxy::execABORT_ALL_CONF(Signal* signal)
+{
+  const AbortAllConf* conf = (const AbortAllConf*)signal->getDataPtr();
+  Uint32 ssId = conf->senderData;
+  Ss_ABORT_ALL_REQ& ss = ssFind<Ss_ABORT_ALL_REQ>(ssId);
+  recvCONF(signal, ss);
+}
+
+void
+DbtcProxy::execABORT_ALL_REF(Signal* signal)
+{
+  const AbortAllRef* ref = (const AbortAllRef*)signal->getDataPtr();
+  Uint32 ssId = ref->senderData;
+  Ss_ABORT_ALL_REQ& ss = ssFind<Ss_ABORT_ALL_REQ>(ssId);
+  recvREF(signal, ss, ref->errorCode);
+}
+
+void
+DbtcProxy::sendABORT_ALL_CONF(Signal* signal, Uint32 ssId)
+{
+  Ss_ABORT_ALL_REQ& ss = ssFind<Ss_ABORT_ALL_REQ>(ssId);
+  BlockReference dictRef = ss.m_req.senderRef;
+
+  if (!lastReply(ss))
+    return;
+
+  if (ss.m_error == 0) {
+    jam();
+    AbortAllConf* conf = (AbortAllConf*)signal->getDataPtrSend();
+    conf->senderData = ss.m_req.senderData;
+    sendSignal(dictRef, GSN_ABORT_ALL_CONF,
+               signal, AbortAllConf::SignalLength, JBB);
+  } else {
+    AbortAllRef* ref = (AbortAllRef*)signal->getDataPtrSend();
+    ref->senderData = ss.m_req.senderData;
+    ref->errorCode = ss.m_error;
+    sendSignal(dictRef, GSN_ABORT_ALL_REF,
+               signal, AbortAllRef::SignalLength, JBB);
+  }
+
+  ssRelease<Ss_ABORT_ALL_REQ>(ssId);
 }
 
 BLOCK_FUNCTIONS(DbtcProxy)

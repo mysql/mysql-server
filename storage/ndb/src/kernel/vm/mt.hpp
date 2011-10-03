@@ -34,6 +34,7 @@ extern Uint32 receiverThreadId;
 void add_thr_map(Uint32 block, Uint32 instance, Uint32 thr_no);
 void add_main_thr_map();
 void add_lqh_worker_thr_map(Uint32 block, Uint32 instance);
+void add_tc_worker_thr_map(Uint32 block, Uint32 instance);
 void add_extra_worker_thr_map(Uint32 block, Uint32 instance);
 void finalize_thr_map();
 

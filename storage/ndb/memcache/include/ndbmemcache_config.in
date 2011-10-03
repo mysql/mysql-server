@@ -31,7 +31,6 @@
 
 #cmakedefine HAVE_SOLARIS_ATOMICS
 #cmakedefine HAVE_DARWIN_ATOMICS
-#cmakedefine HAVE_GCC_ATOMIC_BUILTINS
 
 #ifndef HAVE_INTTYPES_H
 #define PRIu64 "llu"
