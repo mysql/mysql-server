@@ -3791,7 +3791,7 @@ handler::check_if_supported_alter(TABLE *altered_table,
     HA_ADD_CONSTRAINT;
   HA_ALTER_FLAGS not_supported= ~(supported_alter_operations);
   HA_ALTER_FLAGS fast_operations= not_supported & ~(not_fast_operations);
-  DBUG_PRINT("info", ("handler_alter_flags: 0x%lx", handler_alter_flags));
+  DBUG_PRINT("info", ("handler_alter_flags: 0x%lx", handler_alter_flags)); (void)handler_alter_flags;
 #ifndef DBUG_OFF
   {
     char dbug_string[HA_MAX_ALTER_FLAGS+1];

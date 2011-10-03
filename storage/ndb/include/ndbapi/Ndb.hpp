@@ -1074,6 +1074,8 @@ class Ndb
   friend class PollGuard;
   friend class NdbQueryImpl;
   friend class NdbQueryOperationImpl;
+  friend class MultiNdbWakeupHandler;
+  friend class NdbWaitGroup;
 #endif
 
 public:
