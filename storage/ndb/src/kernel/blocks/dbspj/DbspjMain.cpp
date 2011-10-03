@@ -7291,6 +7291,21 @@ Dbspj::parseDA(Build_context& ctx,
       treeNodePtr.p->m_send.m_attrInfoPtrI = attrInfoPtrI;
     } // if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
 
+    // Empty attrinfo would cause node crash.
+    if (treeNodePtr.p->m_send.m_attrInfoPtrI == RNIL)
+    {
+      jam();
+
+      // Add dummy interpreted program.
+      Uint32 tmp = Interpreter::ExitOK();
+      err = DbspjErr::OutOfSectionMemory;
+      if (unlikely(!appendToSection(treeNodePtr.p->m_send.m_attrInfoPtrI, &tmp, 1)))
+      {
+        DEBUG_CRASH();
+        break;
+      }
+    }
+
     return 0;
   } while (0);
 

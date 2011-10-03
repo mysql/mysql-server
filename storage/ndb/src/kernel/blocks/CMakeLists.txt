@@ -27,7 +27,7 @@ ELSE()
   SET(EXTRA_SRC ndbfs/PosixAsyncFile.cpp)
 ENDIF()
 
-ADD_LIBRARY(ndbblocks STATIC
+ADD_CONVENIENCE_LIBRARY(ndbblocks
     tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp
     cmvmi/Cmvmi.cpp
     dbacc/DbaccInit.cpp dbacc/DbaccMain.cpp
@@ -79,4 +79,4 @@ MYSQL_ADD_EXECUTABLE(ndb_print_file
   diskpage.cpp
   dbtup/tuppage.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_print_file ndbclient)
+TARGET_LINK_LIBRARIES(ndb_print_file ndbclient_static)

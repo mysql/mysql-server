@@ -17,6 +17,10 @@ SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model)
 
+SET ( BROKEN_JAVAC
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model/*.java)
+
 SET ( JAVA_SOURCES "")
 FOREACH(D ${JAVA_SOURCE_DIRS})
   FILE(GLOB tmp ${D}/*.java)
@@ -36,4 +40,5 @@ CREATE_JAR(clusterj-jpatest ${JAVA_SOURCES}
   MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/manifest.mf
   ENHANCE ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF/persistence.xml
   DEPENDENCIES clusterjpa.jar
-  EXTRA_FILES src/main/resources/META-INF)
+  EXTRA_FILES src/main/resources/META-INF
+  BROKEN_JAVAC ${BROKEN_JAVAC})

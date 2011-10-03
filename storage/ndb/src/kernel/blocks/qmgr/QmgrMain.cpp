@@ -6284,6 +6284,16 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
       jam();
       error = AllocNodeIdRef::NodeReserved;
     }
+    else if (req.nodeType != getNodeInfo(req.nodeId).m_type)
+    {
+      jam();
+      error = AllocNodeIdRef::NodeTypeMismatch;
+    }
+    else if (req.nodeType == NodeInfo::API && c_allow_api_connect == 0)
+    {
+      jam();
+      error = AllocNodeIdRef::NodeReserved;
+    }
 
     if (error)
     {
@@ -6352,6 +6362,22 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
   {
     jam();
     error = AllocNodeIdRef::NodeFailureHandlingNotCompleted;
+  }
+  else if (req.nodeType == NodeInfo::API && nodePtr.p->phase != ZAPI_INACTIVE)
+  {
+    jam();
+    if (cpresident != getOwnNodeId() && c_allow_api_connect == 0)
+    {
+      /**
+       * Don't block during NR
+       */
+      jam();
+    }
+    else
+    {
+      jam();
+      error = AllocNodeIdRef::NodeReserved;
+    }
   }
 #if 0
   /**

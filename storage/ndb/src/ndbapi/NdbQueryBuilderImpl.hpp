@@ -27,8 +27,7 @@
 #define QRY_CHAR_OPERAND_TRUNCATED 4804
 #define QRY_NUM_OPERAND_RANGE 4805
 #define QRY_MULTIPLE_PARENTS 4806
-#define QRY_UNKONWN_PARENT 4807
-#define QRY_UNKNOWN_COLUMN 4808
+#define QRY_UNKNOWN_PARENT 4807
 #define QRY_UNRELATED_INDEX 4809
 #define QRY_WRONG_INDEX_TYPE 4810
 #define QRY_OPERAND_ALREADY_BOUND 4811
@@ -44,6 +43,7 @@
 #define QRY_CHAR_PARAMETER_TRUNCATED 4823
 #define QRY_MULTIPLE_SCAN_SORTED 4824
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
+#define QRY_EMPTY_PROJECTION 4826
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -273,6 +273,9 @@ public:
   {};
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
+
+  NdbQueryOptions::ScanOrdering getOrdering() const
+  { return m_scanOrder; }
 
 private:
   NdbQueryOptions::MatchType     m_matchType;

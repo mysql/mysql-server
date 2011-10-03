@@ -164,7 +164,7 @@ Configuration::fetch_configuration(const char* _connect_string,
   else
   {
 
-    const int alloc_retries = 2;
+    const int alloc_retries = 10;
     const int alloc_delay = 3;
     globalData.ownId = cr.allocNodeId(alloc_retries, alloc_delay);
     if(globalData.ownId == 0)

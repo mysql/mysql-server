@@ -18,7 +18,6 @@ ADD_SUBDIRECTORY(bank)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
 )
 
 ADD_EXECUTABLE(create_all_tabs create_all_tabs.cpp)
