@@ -766,7 +766,7 @@ void * S::Connection::run_ndb_send_thread() {
       if(shutting_down) {
         sentqueue->abort();
         pollgroup->wakeup();
-        pthread_exit(0);
+        return 0;
       }
       
       if(timeout_msec < timeout_max) {
@@ -871,7 +871,7 @@ void * S::Connection::run_ndb_poll_thread() {
   
   while(1) {
     if(in_flight == 0 && sentqueue->is_aborted()) {
-      pthread_exit(0);
+      return 0;
     }
 
     int n_added = 0;
