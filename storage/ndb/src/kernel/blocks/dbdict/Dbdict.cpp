@@ -442,6 +442,12 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         c_opRecordPool.getEntrySize(),
         c_opRecordPool.getUsedHi(),
         { 0,0,0,0 }},
+      { "Operation Data",
+        c_opSectionBufferPool.getUsed(),
+        c_opSectionBufferPool.getSize(),
+        c_opSectionBufferPool.getEntrySize(),
+        c_opSectionBufferPool.getUsedHi(),
+        { 0,0,0,0 }},
       { NULL, 0,0,0,0,{0,0,0,0}}
     };
 
