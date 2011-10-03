@@ -385,3 +385,26 @@ WHERE t3.b > ALL (
 
 set @@optimizer_switch='default';
 drop table t3, t4, t5;
+
+--echo #
+--echo # LP BUG#858038 The result of a query with NOT IN subquery depends on the state of the optimizer switch
+--echo #
+
+create table t1 (c1 char(2) not null, c2 char(2));
+create table t2 (c3 char(2),          c4 char(2));
+
+insert into t1 values ('a1', 'b1');
+insert into t1 values ('a2', 'b2');
+
+insert into t2 values ('x1', 'y1');
+insert into t2 values ('a2', null);
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=off,partial_match_table_scan=on';
+explain select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+explain select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+select * from t1 where c1 = 'a2' and (c1, c2) not in (select * from t2);
+
+drop table t1, t2;

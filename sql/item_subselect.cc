@@ -5533,6 +5533,8 @@ bool subselect_rowid_merge_engine::partial_match()
   Ordered_key *cur_key;
   rownum_t cur_row_num;
   uint count_nulls_in_search_key= 0;
+  uint max_covering_null_row_len=
+    ((select_materialize_with_stats *) result)->get_max_nulls_in_row();
   bool res= FALSE;
 
   /* If there is a non-NULL key, it must be the first key in the keys array. */
@@ -5598,8 +5600,16 @@ bool subselect_rowid_merge_engine::partial_match()
     If there is no NULL (sub)row that covers all NULL columns, and there is no
     single match for any of the NULL columns, the result is FALSE.
   */
-  if (pq.elements - test(non_null_key) == 0)
+  if ((pq.elements == 1 && non_null_key &&
+       max_covering_null_row_len < merge_keys_count - 1) ||
+      pq.elements == 0)
   {
+    if (pq.elements == 0)
+    {
+      DBUG_ASSERT(!non_null_key); /* Must follow from the logic of this method */
+      /* This case must be handled by subselect_partial_match_engine::exec() */
+      DBUG_ASSERT(max_covering_null_row_len != tmp_table->s->fields);
+    }
     res= FALSE;
     goto end;
   }
