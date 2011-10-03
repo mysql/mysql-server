@@ -247,8 +247,8 @@ function build() {
 
     if [ $dowindows -eq 0 ] ; then
         # cilk debug build
-	runcmd 0 $productbuilddir make -s clean >>$tracefile 2>&1
-	runcmd 0 $productbuilddir/newbrt make -s DEBUG=1 BRTLOADER=cilk >>$tracefile 2>&1
+	runcmd 0 $productbuilddir make clean -s >>$tracefile 2>&1
+	runcmd 0 $productbuilddir make release -s DEBUG=1 BRTLOADER=cilk >>$tracefile 2>&1
 
         # run the loader tests with cilkscreen
 	runcmd 0 $productbuilddir/newbrt/tests make cilkscreen_brtloader DEBUG=1 BRTLOADER=cilk -s SUMMARIZE=1 >>$tracefile 2>&1

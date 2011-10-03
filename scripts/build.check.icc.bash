@@ -202,7 +202,7 @@ function build() {
 
     # benchmark tests
     runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/db-benchmark-test make check -k -j$makejobs -k DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/db-benchmark-test make check -k -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
     # run the brtloader tests with a debug build
     runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
@@ -220,11 +220,9 @@ function build() {
     runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 CC=icc VGRIND= >>$tracefile 2>&1
 
     # cilk tests
-    if [ 0 = 1 ] ; then 
     runcmd 0 $productbuilddir make clean >>$tracefile 2>&1
     runcmd 0 $productbuilddir make release CC=icc DEBUG=1 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/newbrt/tests make cilkscreen_brtloader -k -s SUMMARIZE=1 CC=icc DEBUG=1 >>$tracefile 2>&1
-    fi
 
     # cxx
     if [ 0 = 1 ] ; then
@@ -276,6 +274,7 @@ function build() {
 	echo "$testresult tokudb-build $productname $CC $GCCVERSION $system $release $arch $nodename" >$cf
 	echo >>$cf; echo >>$cf
 	cat $commit_msg >>$cf
+	if [ $nfail != 0 ] ; then egrep " FAIL" $tracefile >>$cf; fi
 	
 	svn add $tracefile $coveragefile
 	retry svn commit -F "$cf" $tracefile $coveragefile
@@ -373,5 +372,8 @@ export VALGRIND=$VALGRIND
 
 # setup VGRIND
 if [ $dovalgrind = 0 ] ; then export VGRIND=""; fi
+
+# limit execution time to 1 hour
+ulimit -t 3600
 
 build $bdb
