@@ -837,7 +837,11 @@ parse_args(int argc, char** argv)
 
 bool
 connect_hosts(atrt_config& config){
-  for(size_t i = 0; i<config.m_hosts.size(); i++){
+  for(size_t i = 0; i<config.m_hosts.size(); i++)
+  {
+    if (config.m_hosts[i]->m_hostname.length() == 0)
+      continue;
+
     if(config.m_hosts[i]->m_cpcd->connect() != 0){
       g_logger.error("Unable to connect to cpc %s:%d",
 		     config.m_hosts[i]->m_cpcd->getHost(),
@@ -1129,7 +1133,11 @@ update_status(atrt_config& config, int){
   
   Vector<SimpleCpcClient::Process> dummy;
   m_procs.fill(config.m_hosts.size(), dummy);
-  for(size_t i = 0; i<config.m_hosts.size(); i++){
+  for(size_t i = 0; i<config.m_hosts.size(); i++)
+  {
+    if (config.m_hosts[i]->m_hostname.length() == 0)
+      continue;
+
     Properties p;
     config.m_hosts[i]->m_cpcd->list_processes(m_procs[i], p);
   }
@@ -1343,6 +1351,9 @@ gather_result(atrt_config& config, int * result){
 
   for(size_t i = 0; i<config.m_hosts.size(); i++)
   {
+    if (config.m_hosts[i]->m_hostname.length() == 0)
+      continue;
+
     tmp.appfmt(" %s:%s/*", 
 	       config.m_hosts[i]->m_hostname.c_str(),
 	       config.m_hosts[i]->m_basedir.c_str());
@@ -1422,6 +1433,9 @@ deploy(int d, atrt_config & config)
 {
   for (size_t i = 0; i<config.m_hosts.size(); i++)
   {
+    if (config.m_hosts[i]->m_hostname.length() == 0)
+      continue;
+
     if (d & 1)
     {
       if (!do_rsync(g_basedir, config.m_hosts[i]->m_hostname.c_str()))
