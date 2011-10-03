@@ -735,12 +735,6 @@ MgmtSrvr::get_packed_config_from_node(NodeId nodeId,
     DBUG_RETURN(false);
   }
 
-  if (nodeId == getOwnNodeId())
-  {
-    DBUG_RETURN(m_config_manager->get_packed_config(NDB_MGM_NODE_TYPE_API,
-                                                    &buf64, error));
-  }
-
   if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB)
   {
     error.assfmt("Node %d is not a data node. ", nodeId);

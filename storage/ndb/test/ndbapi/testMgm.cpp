@@ -811,13 +811,16 @@ check_get_config_illegal_node(NdbMgmd& mgmd)
 static bool
 check_get_config_wrong_type(NdbMgmd& mgmd)
 {
+  int myChoice = myRandom48(2);
+  ndb_mgm_node_type randomAllowedType = (myChoice) ?
+                                        NDB_MGM_NODE_TYPE_API :
+                                        NDB_MGM_NODE_TYPE_MGM;
   int nodeId = 0;
-
-  if (get_nodeid_of_type(mgmd, NDB_MGM_NODE_TYPE_API, &nodeId))
+  if (get_nodeid_of_type(mgmd, randomAllowedType, &nodeId))
   {
     return get_config_from_illegal_node(mgmd, nodeId);
   }
-  // No API nodes found.
+  // No API/MGM nodes found.
   return true;
 }
 
@@ -842,15 +845,10 @@ int runGetConfigFromNode(NDBT_Context* ctx, NDBT_Step* step)
   int loops= ctx->getNumLoops();
   for (int l= 0; l < loops; l++)
   {
-    /* Get config from a node of type:
-     * NDB_MGM_NODE_TYPE_NDB or NDB_MGM_NODE_TYPE_MGM
+    /* Get config from a node of type: * NDB_MGM_NODE_TYPE_NDB
      */
-    int myChoice = myRandom48(2);
-    ndb_mgm_node_type randomAllowedType = (myChoice) ?
-                                          NDB_MGM_NODE_TYPE_NDB :
-                                          NDB_MGM_NODE_TYPE_MGM;
     int nodeId = 0;
-    if (get_nodeid_of_type(mgmd, randomAllowedType, &nodeId))
+    if (get_nodeid_of_type(mgmd,  NDB_MGM_NODE_TYPE_NDB, &nodeId))
     {
       struct ndb_mgm_configuration* conf =
         ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId);
