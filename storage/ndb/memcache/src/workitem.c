@@ -60,7 +60,7 @@ void workitem__initialize(workitem *item, ndb_pipeline *pipeline, int verb,
                           prefix_info_t prefix, const void *cookie,
                           int nkey, const char *key)
 {
-  size_t sz;
+  int sz;
   memset(item, 0, sizeof(workitem));      /* zero out the item */
   item->base.nkey = nkey;  
   item->base.verb = verb;
