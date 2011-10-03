@@ -160,6 +160,11 @@ class ScanFilterImpl implements ScanFilter {
         handleError(returnCode, ndbScanFilter);
     }
 
+    public void isNotNull(Column storeColumn) {
+        int returnCode = ndbScanFilter.isnotnull(storeColumn.getColumnId());
+        handleError(returnCode, ndbScanFilter);
+    }
+
     public void end() {
         int returnCode = ndbScanFilter.end();
         handleError(returnCode, ndbScanFilter);

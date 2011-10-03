@@ -83,7 +83,10 @@ NDBT_find_ndb_mgmd(BaseString& path)
 {
   NDBT_find_binary(path, "ndb_mgmd",
                    "../../src/mgmsrv",
-                   "../storage/ndb/src/mgmsrv/",
+                   "../storage/ndb/src/mgmsrv",
+                   "../libexec",
+                   "../sbin",
+                   "../bin",
                    NULL);
 }
 

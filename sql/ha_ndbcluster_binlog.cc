@@ -3231,7 +3231,7 @@ ndb_binlog_index_table__open(THD *thd,
   if (open_and_lock_tables(thd, &tables, derived, flags))
   {
     if (thd->killed)
-      sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
+      DBUG_PRINT("error", ("NDB Binlog: Opening ndb_binlog_index: killed"));
     else
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
                       thd_stmt_da(thd)->sql_errno(),
@@ -3271,7 +3271,10 @@ ndb_binlog_index_table__write_rows(THD *thd,
 
   if (ndb_binlog_index_table__open(thd, &ndb_binlog_index))
   {
-    sql_print_error("NDB Binlog: Unable to open ndb_binlog_index table");
+    if (thd->killed)
+      DBUG_PRINT("error", ("NDB Binlog: Unable to lock table ndb_binlog_index, killed"));
+    else
+      sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
     error= -1;
     goto add_ndb_binlog_index_err;
   }
@@ -7217,6 +7220,7 @@ restart_cluster_failure:
               */
               if (thd->killed)
               {
+                DBUG_PRINT("error", ("Failed to write to ndb_binlog_index at shutdown, retrying"));
                 (void) mysql_mutex_lock(&LOCK_thread_count);
                 volatile THD::killed_state killed= thd->killed;
                 /* We are cleaning up, allow for flushing last epoch */

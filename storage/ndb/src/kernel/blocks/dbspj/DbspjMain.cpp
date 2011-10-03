@@ -5023,6 +5023,7 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
   ndbrequire(org->batch_size_rows > 0);
 
+  data.m_firstBatch = true;
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     jam();
@@ -5171,6 +5172,9 @@ Dbspj::scanIndex_send(Signal* signal,
                       Uint32 bs_rows,
                       Uint32& batchRange)
 {
+  jam();
+  ndbassert(bs_bytes > 0);
+  ndbassert(bs_rows > 0);
   /**
    * if (m_bits & prunemask):
    * - Range keys sliced out to each ScanFragHandle
@@ -5451,6 +5455,9 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
 
   if (data.m_frags_outstanding == 0)
   {
+    const bool isFirstBatch = data.m_firstBatch;
+    data.m_firstBatch = false;
+
     const ScanFragReq * const org
       = reinterpret_cast<const ScanFragReq*>(data.m_scanFragReq);
 
@@ -5486,24 +5493,78 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
     {
       jam();
       ndbrequire((requestPtr.p->m_state & Request::RS_ABORTING) != 0);
+      checkBatchComplete(signal, requestPtr, 1);
+      return;
     }
-    else if (! (data.m_rows_received == data.m_rows_expecting))
+
+    if (isFirstBatch && data.m_frags_not_started > 0)
+    {
+      /**
+       * Check if we can expect to be able to fetch the entire result set by
+       * asking for more fragments within the same batch. This may improve 
+       * performance for bushy scans, as subsequent bushy branches must be
+       * re-executed for each batch of this scan.
+       */
+      
+      /**
+       * Find the maximal correlation value that we may have seen so far.
+       * Correlation value must be unique within batch and smaller than 
+       * org->batch_size_rows.
+       */
+      const Uint32 maxCorrVal = (data.m_totalRows) == 0 ? 0 :
+        org->batch_size_rows / data.m_parallelism * (data.m_parallelism - 1)
+        + data.m_totalRows;
+      
+      // Number of rows that we can still fetch in this batch.
+      const Int32 remainingRows 
+        = static_cast<Int32>(org->batch_size_rows - maxCorrVal);
+      
+      if (remainingRows >= data.m_frags_not_started &&
+          /**
+           * Check that (remaning row capacity)/(remaining fragments) is 
+           * greater or equal to (rows read so far)/(finished fragments).
+           */
+          remainingRows * static_cast<Int32>(data.m_parallelism) >=
+          static_cast<Int32>(data.m_totalRows * data.m_frags_not_started) &&
+          (org->batch_size_bytes - data.m_totalBytes) * data.m_parallelism >=
+          data.m_totalBytes * data.m_frags_not_started)
+      {
+        jam();
+        Uint32 batchRange = maxCorrVal;
+        DEBUG("::scanIndex_execSCAN_FRAGCONF() first batch was not full."
+              " Asking for new batches from " << data.m_frags_not_started <<
+              " fragments with " << 
+              remainingRows / data.m_frags_not_started 
+              <<" rows and " << 
+              (org->batch_size_bytes - data.m_totalBytes)
+              / data.m_frags_not_started 
+              << " bytes.");
+        scanIndex_send(signal,
+                       requestPtr,
+                       treeNodePtr,
+                       data.m_frags_not_started,
+                       (org->batch_size_bytes - data.m_totalBytes)
+                       / data.m_frags_not_started,
+                       remainingRows / data.m_frags_not_started,
+                       batchRange);
+        return;
+      }
+    }
+    
+    if (data.m_rows_received != data.m_rows_expecting)
     {
       jam();
       return;
     }
-    else
+    
+    if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
     {
-      if (treeNodePtr.p->m_bits & TreeNode::T_REPORT_BATCH_COMPLETE)
-      {
-        jam();
-        reportBatchComplete(signal, requestPtr, treeNodePtr);
-      }
+      jam();
+      reportBatchComplete(signal, requestPtr, treeNodePtr);
     }
 
     checkBatchComplete(signal, requestPtr, 1);
-    return;
-  }
+  } // if (data.m_frags_outstanding == 0)
 }
 
 void
