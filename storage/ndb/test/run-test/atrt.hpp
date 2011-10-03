@@ -187,6 +187,7 @@ extern int          g_baseport;
 extern int          g_fqpn;
 extern int          g_fix_nodeid;
 extern int          g_default_ports;
+extern int          g_restart;
 
 extern const char * g_clusters;
 
