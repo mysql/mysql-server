@@ -10030,7 +10030,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   j->ref.key=(int) key;
   if (!(j->ref.key_buff= (uchar*) thd->calloc(ALIGN_SIZE(length)*2)) ||
       !(j->ref.key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
-						   (keyparts+1)))) ||
+                                                   (keyparts)))) ||
       !(j->ref.items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
       !(j->ref.cond_guards= (bool**) thd->alloc(sizeof(uint*)*keyparts)))
   {
@@ -10044,7 +10044,6 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   j->ref.disable_cache= FALSE;
   keyuse=org_keyuse;
 
-  store_key **ref_key= j->ref.key_copy;
   uchar *key_buff=j->ref.key_buff, *null_ref_key= 0;
   bool keyuse_uses_no_tables= TRUE;
   if (ftkey)
@@ -10056,27 +10055,27 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       DBUG_RETURN(TRUE);                        // not supported yet. SerG
 
     j->type=JT_FT;
+    memset(j->ref.key_copy, 0, sizeof(j->ref.key_copy[0]) * keyparts);
   }
   else
   {
-    uint i;
-    for (i=0 ; i < keyparts ; keyuse++,i++)
+    for (uint part_no= 0 ; part_no < keyparts ; keyuse++, part_no++)
     {
-      while (keyuse->keypart != i ||
-	     ((~used_tables) & keyuse->used_tables))
-	keyuse++;				/* Skip other parts */
+      while (keyuse->keypart != part_no ||
+             ((~used_tables) & keyuse->used_tables))
+        keyuse++;                               // Skip other parts
 
-      uint maybe_null= test(keyinfo->key_part[i].null_bit);
-      j->ref.items[i]=keyuse->val;		// Save for cond removal
-      j->ref.cond_guards[i]= keyuse->cond_guard;
+      uint maybe_null= test(keyinfo->key_part[part_no].null_bit);
+      j->ref.items[part_no]=keyuse->val;        // Save for cond removal
+      j->ref.cond_guards[part_no]= keyuse->cond_guard;
       if (keyuse->null_rejecting) 
-        j->ref.null_rejecting |= 1 << i;
+        j->ref.null_rejecting |= 1 << part_no;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
 
       store_key* key= get_store_key(thd,
-				    keyuse,join->const_table_map,
-				    &keyinfo->key_part[i],
-				    key_buff, maybe_null);
+                                    keyuse,join->const_table_map,
+                                    &keyinfo->key_part[part_no],
+                                    key_buff, maybe_null);
       if (unlikely(!key || thd->is_fatal_error))
         DBUG_RETURN(TRUE);
 
@@ -10086,7 +10085,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
           query (which refers to this info when printing the 'ref'
           column of the query plan)
         */
-        *ref_key++= key;
+        j->ref.key_copy[part_no]= key;
       else
       {
         /* key is const, copy value now and possibly skip it while ::exec() */
@@ -10101,9 +10100,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
          */
         if (result!=store_key::STORE_KEY_OK  ||    // 1)
             key->null_key)                         // 2)
-        {
-	  *ref_key++= key;  // Reevaluate in JOIN::exec() 
-        }
+          j->ref.key_copy[part_no]= key; // Reevaluate in JOIN::exec()
+        else
+          j->ref.key_copy[part_no]= NULL;
       }
       /*
 	Remember if we are going to use REF_OR_NULL
@@ -10112,10 +10111,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       */
       if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && maybe_null)
 	null_ref_key= key_buff;
-      key_buff+=keyinfo->key_part[i].store_length;
+      key_buff+=keyinfo->key_part[part_no].store_length;
     }
   } /* not ftkey */
-  *ref_key=0;				// end_marker
   if (j->type == JT_FT)
     DBUG_RETURN(0);
   if (j->type == JT_CONST)
@@ -12142,7 +12140,6 @@ Item *create_subquery_equalities(THD *thd, TABLE_LIST *sj_nest)
 
 bool setup_sj_materialization(JOIN_TAB *tab)
 {
-  uint i;
   DBUG_ENTER("setup_sj_materialization");
   TABLE_LIST *emb_sj_nest= tab->emb_sj_nest;
   Semijoin_mat_exec *sjm= emb_sj_nest->sj_mat_exec;
@@ -12193,8 +12190,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     if (!(tab_ref->key_buff=
           (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
         !(tab_ref->key_copy=
-          (store_key**) thd->alloc((sizeof(store_key*) *
-                                    (tmp_key_parts + 1)))) ||
+          (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
         !(tab_ref->items=
           (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -12207,9 +12203,10 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     uchar *cur_ref_buff= tab_ref->key_buff;
     List_iterator<Item> outer_expr(emb_sj_nest->nested_join->sj_outer_exprs);
 
-    for (i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
+    for (uint part_no= 0; part_no < tmp_key_parts; 
+         part_no++, cur_key_part++, ref_key++)
     {
-      tab_ref->items[i]= outer_expr++;
+      tab_ref->items[part_no]= outer_expr++;
       int null_count= test(cur_key_part->field->real_maybe_null());
       *ref_key= new store_key_item(thd, cur_key_part->field,
                                    /* TODO:
@@ -12220,10 +12217,10 @@ bool setup_sj_materialization(JOIN_TAB *tab)
                                    */
                                    cur_ref_buff + null_count,
                                    null_count ? cur_ref_buff : 0,
-                                   cur_key_part->length, tab_ref->items[i]);
+                                   cur_key_part->length, 
+                                   tab_ref->items[part_no]);
       cur_ref_buff+= cur_key_part->store_length;
     }
-    *ref_key= NULL; /* End marker. */
     tab_ref->key_err= 1;
     tab_ref->key_parts= tmp_key_parts;
     sjm->tab_ref= tab_ref;
@@ -12234,7 +12231,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       sj-inner tables which are not available after the materialization
       has been finished.
     */
-    for (i= 0; i < sjm->table_count; i++)
+    for (uint i= 0; i < sjm->table_count; i++)
     {
       tab[i].set_condition(remove_sj_conds(tab[i].condition()), __LINE__);
       if (tab[i].select)
@@ -21629,7 +21626,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   uint used_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
-  QUICK_SELECT_I *save_quick= 0;
+  QUICK_SELECT_I *save_quick= select ? select->quick : NULL;
   int best_key= -1;
   Item *orig_cond;
   bool orig_cond_saved= false, ret;
@@ -21671,7 +21668,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   else if (select && select->quick)		// Range found by opt_range
   {
     int quick_type= select->quick->get_type();
-    save_quick= select->quick;
     /* 
       assume results are not ordered when index merge is used 
       TODO: sergeyp: Results of all index merge selects actually are ordered 
@@ -22577,9 +22573,13 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   bool result= 0;
 
-  for (store_key **copy=ref->key_copy ; *copy ; copy++)
+  for (uint part_no= 0; part_no < ref->key_parts; part_no++)
   {
-    if ((*copy)->copy() & 1)
+    store_key *s_key= ref->key_copy[part_no];
+    if (!s_key)
+      continue;
+
+    if (s_key->copy() & 1)
     {
       result= 1;
       break;
