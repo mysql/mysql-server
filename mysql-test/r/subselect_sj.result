@@ -1779,6 +1779,7 @@ set @tmp834739=@@optimizer_switch;
 set optimizer_switch='semijoin=on,loosescan=on,materialization=off,firstmatch=off';
 CREATE TABLE t2 ( b int, c int, KEY (b)) ;
 INSERT INTO t2 VALUES (1,0),(1,0),(9,0),(1,0),(5,0);
+INSERT INTO t2 VALUES (2,0),(3,0),(8,0),(6,0),(5,0);
 CREATE TABLE t3 ( a int);
 INSERT INTO t3 VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
 CREATE TABLE t4 ( a int);

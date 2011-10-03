@@ -329,7 +329,7 @@ ALTER TABLE t1 ADD INDEX t1 (a, b, c, d, e);
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
 DROP TABLE t1;
 CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
-INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+INSERT into t1 values (0,null,0), (0,null,1), (0,null,2), (0,null,3), (1,1,4);
 create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
 INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;
@@ -355,10 +355,34 @@ explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
 1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	
+INSERT into t1 values (2,4,5), (7,8,4), (8,3,1), (9,7,2), (5,5,9);
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	b	1	b	A	10	NULL	NULL	YES	BTREE	
+t1	1	c	1	c	A	10	NULL	NULL	YES	BTREE	
+t1	1	a	1	a	A	10	NULL	NULL		BTREE	
+t1	1	a	2	b	A	10	NULL	NULL	YES	BTREE	
+t1	1	c_2	1	c	A	10	NULL	NULL	YES	BTREE	
+t1	1	c_2	2	a	A	10	NULL	NULL		BTREE	
 explain select * from t1,t2 where t1.b=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	
+delete from t1 where t1.a>1;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	b	1	b	A	5	NULL	NULL	YES	BTREE	
+t1	1	c	1	c	A	5	NULL	NULL	YES	BTREE	
+t1	1	a	1	a	A	1	NULL	NULL		BTREE	
+t1	1	a	2	b	A	5	NULL	NULL	YES	BTREE	
+t1	1	c_2	1	c	A	5	NULL	NULL	YES	BTREE	
+t1	1	c_2	2	a	A	5	NULL	NULL		BTREE	
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	

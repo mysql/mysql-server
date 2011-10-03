@@ -13,11 +13,19 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1 VALUES ('A','B'),('b','A'),('C','c'),('D','E'),('a','a');
+INSERT INTO t1 VALUES 
+  ('AA','BB'),('bb','AA'),('CC','cc'),('DD','EE'),('aa','aa');
+INSERT INTO t1 VALUES 
+  ('AAA','BBB'),('bbb','AAA'),('CCC','ccc'),('DDD','EEE'),('aaa','aaa');
 
-select * from t1,t1 as t2;
-explain select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B;
+select * from t1,t1 as t2
+  where length(t1.A)=1 and length(t2.B)=1 ;
+explain select t1.*,t2.* from t1,t1 as t2
+  where t1.A=t2.B and length(t1.A)=1 and length(t2.B)=1;
 #select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B;
-select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B order by binary t1.a,t2.a;
+select t1.*,t2.* from t1,t1 as t2
+  where t1.A=t2.B and length(t1.A)=1 and length(t2.B)=1
+order by binary t1.a,t2.a;
 select * from t1 where a='a';
 drop table t1;
 

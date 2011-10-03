@@ -739,15 +739,17 @@ INSERT INTO t1 VALUES ('c');
 CREATE TABLE t2 (a varchar(1) , KEY (a)) ;
 INSERT INTO t2 VALUES ('c'), (NULL), ('r');
 CREATE TABLE t3 (a varchar(1), b varchar(1));
-INSERT INTO t3 VALUES ('e', 'c'), ('c', 'c'), ('c', 'r');
+INSERT INTO t3 VALUES
+('e', 'c'), ('c', 'c'), ('c', 'r'), ('g', 'a'), ('b', 'x'), ('b', 'y'),
+('h', 'w'), ('d', 'z'), ('k', 'v'), ('j', 's'), ('m', 'p'), ('l', 'q');
 CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t3 GROUP BY a;
 EXPLAIN
 SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ref	a	a	4	const	1	Using index
-1	PRIMARY	<derived2>	ref	key1	key1	10	test.t1.a,test.t1.a	2	
-2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+1	PRIMARY	<derived2>	ref	key0	key0	10	const,const	1	
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	12	Using temporary; Using filesort
 SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
 a	a	a	b
 c	c	c	c
@@ -1014,7 +1016,9 @@ INSERT INTO t1 VALUES (0);
 CREATE TABLE t2 (a  varchar(32), b int, KEY (a)) ;
 INSERT INTO t2 VALUES
 ('j',28), ('c',29), ('i',26), ('c',29), ('k',27),
-('j',28), ('c',29), ('i',25), ('d',26), ('k',27);
+('j',28), ('c',29), ('i',25), ('d',26), ('k',27),
+('n',28), ('d',29), ('m',26), ('e',29), ('p',27),
+('w',28), ('x',29), ('y',25), ('z',26), ('s',27);
 CREATE TABLE t3 (a varchar(32));
 INSERT INTO t3 VALUES ('j'), ('c');
 CREATE VIEW v1 AS SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;

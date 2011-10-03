@@ -227,13 +227,15 @@ select count(*)
 from CountryLanguage
 where (Language, Country) NOT IN
       (SELECT City.Name, Country.Code
-       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000));
+       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+      AND Language IN ('English','Spanish');
 
 select count(*)
 from CountryLanguage
 where (Language, Country) NOT IN
       (SELECT City.Name, Country.Code
-       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000));
+       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+      AND Language IN ('English','Spanish');
 
 -- echo Q2.3m:
 -- echo MATERIALIZATION with the PARTIAL_MATCH_MERGE strategy, because the HAVING

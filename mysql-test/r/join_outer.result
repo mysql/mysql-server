@@ -1478,6 +1478,8 @@ create table t2 like t1;
 insert into t2 select if(t1.a is null, 10, t1.a) from t1;
 create table t3 (a int, b int, index idx(a));
 insert into t3 values (1, 100), (3, 301), (4, 402), (1, 102), (1, 101);
+insert into t3 values (11, 100), (33, 301), (44, 402), (11, 102), (11, 101);
+insert into t3 values (22, 100), (53, 301), (64, 402), (22, 102), (22, 101);
 analyze table t1,t2,t3;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK

@@ -363,7 +363,9 @@ CREATE TABLE t2 (a varchar(1) , KEY (a)) ;
 INSERT INTO t2 VALUES ('c'), (NULL), ('r');
 
 CREATE TABLE t3 (a varchar(1), b varchar(1));
-INSERT INTO t3 VALUES ('e', 'c'), ('c', 'c'), ('c', 'r');
+INSERT INTO t3 VALUES
+  ('e', 'c'), ('c', 'c'), ('c', 'r'), ('g', 'a'), ('b', 'x'), ('b', 'y'),
+  ('h', 'w'), ('d', 'z'), ('k', 'v'), ('j', 's'), ('m', 'p'), ('l', 'q');
 
 CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t3 GROUP BY a;
 
@@ -599,7 +601,10 @@ INSERT INTO t1 VALUES (0);
 CREATE TABLE t2 (a  varchar(32), b int, KEY (a)) ;
 INSERT INTO t2 VALUES
   ('j',28), ('c',29), ('i',26), ('c',29), ('k',27),
-  ('j',28), ('c',29), ('i',25), ('d',26), ('k',27);
+  ('j',28), ('c',29), ('i',25), ('d',26), ('k',27),
+  ('n',28), ('d',29), ('m',26), ('e',29), ('p',27),
+  ('w',28), ('x',29), ('y',25), ('z',26), ('s',27);
+
 
 CREATE TABLE t3 (a varchar(32));
 INSERT INTO t3 VALUES ('j'), ('c');

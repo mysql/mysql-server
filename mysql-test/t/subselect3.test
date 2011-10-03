@@ -81,6 +81,7 @@ insert into t1 values
   (2, 3),
   (2, NULL),
   (3, NULL);
+insert into t1 values (5, 7), (8, 9), (4, 1); 
 
 create table t2 (a int, oref int);
 insert into t2 values (1, 1), (2,2), (NULL, 3), (NULL, 4);

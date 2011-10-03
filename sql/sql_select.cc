@@ -5177,7 +5177,7 @@ best_access_path(JOIN      *join,
               tmp= table->file->keyread_time(key, 1, (ha_rows) tmp);
             else
               tmp= table->file->read_time(key, 1,
-                                          (ha_rows) min(tmp,s->worst_seeks)-1);
+                                          (ha_rows) min(tmp,s->worst_seeks));
             tmp*= record_count;
           }
         }
@@ -5341,13 +5341,14 @@ best_access_path(JOIN      *join,
               tmp= table->file->keyread_time(key, 1, (ha_rows) tmp);
             else
               tmp= table->file->read_time(key, 1,
-                                          (ha_rows) min(tmp,s->worst_seeks)-1);
+                                          (ha_rows) min(tmp,s->worst_seeks));
             tmp*= record_count;
           }
           else
             tmp= best_time;                    // Do nothing
         }
 
+        DBUG_ASSERT(tmp > 0 || record_count == 0);
         tmp += s->startup_cost;
         loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
       } /* not ft_key */
@@ -9081,6 +9082,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_EQ_REF:
     if (cache_level <=2 || (no_hashed_cache && no_bka_cache))
       goto no_join_cache;
+    for (uint i= 0; i < tab->ref.key_parts; i++)
+    {
+      if (tab->ref.cond_guards[i])
+        goto no_join_cache;
+    }
     if (!tab->is_ref_for_hash_join())
     {
       flags= HA_MRR_NO_NULL_ENDPOINTS | HA_MRR_SINGLE_POINT;

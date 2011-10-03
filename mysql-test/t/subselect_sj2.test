@@ -28,6 +28,7 @@ create table t2 (
   key(b)
 );
 insert into t2 select a, a/2 from t0;
+insert into t2 select a+10, a+10/2 from t0;
 
 select * from t1;
 select * from t2;
@@ -43,6 +44,8 @@ create table t3 (
    primary key(pk1, pk2, pk3)
 ) engine=innodb;
 insert into t3 select a,a, a,a,a from t0;
+insert into t3 select a,a, a+100,a+100,a+100 from t0;
+
 
 explain select * from t3 where b in (select a from t1);
 select * from t3 where b in (select a from t1);
@@ -575,6 +578,7 @@ insert into t0 values (0),(1),(2),(3),(4);
 
 create table t1 (a int, b int, key(a));
 insert into t1 select a,a from t0;
+insert into t1 select a+5,a from t0;
 
 create table t2 (a int, b int, primary key(a));
 insert into t2 select * from t1;

@@ -89,6 +89,12 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (10,7,8,'v','v');
 INSERT INTO t1 VALUES (11,1,9,'r','r');
 INSERT INTO t1 VALUES (12,5,9,'a','a');
+INSERT INTO t1 VALUES (13,7,18,'v','v');
+INSERT INTO t1 VALUES (14,1,19,'r','r');
+INSERT INTO t1 VALUES (15,5,29,'a','a');
+INSERT INTO t1 VALUES (17,7,38,'v','v');
+INSERT INTO t1 VALUES (18,1,39,'r','r');
+INSERT INTO t1 VALUES (19,5,49,'a','a');
 
 create table t1a like t1;
 insert into t1a select * from t1;
