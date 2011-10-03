@@ -14,15 +14,13 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 ADD_SUBDIRECTORY(jtie)
-ADD_SUBDIRECTORY(mysql)
 ADD_SUBDIRECTORY(test)
 
 IF(HAVE_JDK)
 
   INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
 
-  INCLUDE_DIRECTORIES(mysql 
-                      utils 
+  INCLUDE_DIRECTORIES(utils 
                       jtie)
 
   ADD_LIBRARY(ndbjtie STATIC ndbjtie_lib.cpp)

@@ -1,0 +1,7 @@
+SELECT mkey, math_value 
+FROM ndbmemcache.demo_table where mkey like 'math_test_2%'
+ORDER BY mkey;
+mkey	math_value
+math_test_2a	1501
+math_test_2b	1499
+math_test_2c	0

@@ -1,0 +1,85 @@
+# CHAR
+
+--source suite/ndb_memcache/include/have_memcache.inc
+
+
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+
+
+# 
+# Configuration change for this test
+#
+
+--disable_query_log
+--disable_result_log
+USE ndbmemcache;
+CREATE TABLE test_char_key (mkey char(40) PRIMARY KEY, val varchar(200)) 
+  ENGINE=ndbcluster;
+CREATE TABLE test_char_val (mkey varchar(20) PRIMARY KEY, val char(200))
+  ENGINE=ndbcluster;
+
+INSERT INTO CONTAINERS (name, db_schema, db_table, key_columns, value_columns)
+  VALUES("tt_char_key", "ndbmemcache", "test_char_key", "mkey", "val"),
+        ("tt_char_val", "ndbmemcache", "test_char_val", "mkey", "val");
+
+INSERT INTO key_prefixes(server_role_id, key_prefix, policy, container) 
+  VALUES(0, "tck:", "ndb-only", "tt_char_key"),
+        (0, "tcv:", "ndb-only", "tt_char_val");
+
+UPDATE memcache_server_roles set update_timestamp = NOW() where role_id = 0;
+--enable_query_log
+--enable_result_log
+
+# 
+#  Memcache operations for this test
+#
+
+--perl
+
+use strict;
+use lib "lib";
+use My::Memcache;
+# Use a binary protocol connection (so keys can contain spaces)
+my $mc = My::Memcache::Binary->new();  
+my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
+my $r = $mc->connect("localhost",$port);
+
+# sleep(1) because there is still an undiagnosed race condition in 
+# online reconfiguration -- jdd, 14 Aug. 2011
+sleep(1);
+
+my $cf_gen = $mc->wait_for_reconf(2);
+
+if($cf_gen > 0) {
+  # test CHAR key with VARCHAR value
+  $mc->set("tck:a","fred")              || die;
+  $mc->set("tck:1","frederick")         || die;
+  $mc->set("tck:aa","frederica")        || die;
+  $mc->set("tck:a b c d","freddy")      || die; 
+  
+  ($mc->get("tck:aa") == "frederica")   || die;
+  ($mc->get("tck:a b c d") == "freddy") || die;
+  
+  # test VARCHAR key with CHAR value
+  $mc->set("tcv:a", "al")               || die;
+  $mc->set("tcv:b", "alphonse")         || die;
+  $mc->set("tcv:c", "allen")            || die;
+  $mc->set("tcv:d", "alien invasion")   || die;
+  
+  ($mc->get("tcv:d") == "alien invasion") || die;
+  ($mc->get("tcv:a") == "al")           || die;
+  ($mc->get("tcv:ee") == "NOT_FOUND")   || die;
+}
+else {
+  print " ***** Skipped test  [$r/$cf_gen] \n";
+}
+
+EOF
+
+
+--sorted_result
+SELECT * FROM ndbmemcache.test_char_key;
+
+--sorted_result
+SELECT * FROM ndbmemcache.test_char_val;
+
