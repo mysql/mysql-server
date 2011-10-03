@@ -546,6 +546,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theClusterMgr(NULL),
   checkCounter(4),
   currentSendLimit(1),
+  dozer(NULL),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
@@ -2047,3 +2048,64 @@ TransporterFacade::ext_doConnect(int aNodeId)
   theClusterMgr->unlock();
 }
 
+bool
+TransporterFacade::setupWakeup()
+{
+  /* Ask TransporterRegistry to setup wakeup sockets */
+  bool rc;
+  lock_mutex();
+  {
+    rc = theTransporterRegistry->setup_wakeup_socket();
+  }
+  unlock_mutex();
+  return rc;
+}
+
+bool
+TransporterFacade::registerForWakeup(trp_client* _dozer)
+{
+  /* Called with Transporter lock */
+  /* In future use a DLList for dozers.
+   * Ideally with some way to wake one rather than all
+   * For now, we just have one/TransporterFacade
+   */
+  if (dozer != NULL)
+    return false;
+
+  dozer = _dozer;
+  return true;
+}
+
+bool
+TransporterFacade::unregisterForWakeup(trp_client* _dozer)
+{
+  /* Called with Transporter lock */
+  if (dozer != _dozer)
+    return false;
+
+  dozer = NULL;
+  return true;
+}
+
+void
+TransporterFacade::requestWakeup()
+{
+  /* Forward to TransporterRegistry
+   * No need for locks, assuming only one client at a time will use
+   */
+  theTransporterRegistry->wakeup();
+}
+
+
+void
+TransporterFacade::reportWakeup()
+{
+  /* Explicit wakeup callback
+   * Called with Transporter Mutex held
+   */
+  /* Notify interested parties */
+  if (dozer != NULL)
+  {
+    dozer->trp_wakeup();
+  };
+}
