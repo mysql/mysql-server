@@ -3179,6 +3179,20 @@ public:
 private:
   rpl_lgid lgid;
   my_off_t offset;
+  rpl_sidno sidno;
+  bool group_commit;
+  Group_set partial_groups;
+  Group_set ended_groups;
+  rpl_binlog_no binlog_no;
+  rpl_binlog_pos binlog_pos;
+  rpl_binlog_pos binlog_length;
+  rpl_binlog_pos binlog_offset_after_last_statement;
+  DYNAMIC_ARRAY sid_to_gno_and_owner_type;
+  struct Gno_and_owner_type
+  {
+    rpl_gno gno;
+    uint32 owner_type;
+  };
   /// Constants used to encode groups.
   static const int TINY_SUBGROUP_MAX= 246, TINY_SUBGROUP_MIN= -123;
   static const int NORMAL_SUBGROUP_MIN= 247,
