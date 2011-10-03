@@ -78,4 +78,8 @@ public interface DomainFieldHandler {
 
     Object getValue(QueryExecutionContext context, String parameterName);
 
+    void filterIsNull(ScanFilter filter);
+
+    void filterIsNotNull(ScanFilter filter);
+
 }
