@@ -57,6 +57,9 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             NdbPack.cpp
             HashMap2.cpp
             LinkedStack.cpp
+            decimal_utils.cpp
+            CharsetMap.cpp
+            CharsetMapImpl.cpp
 )
 TARGET_LINK_LIBRARIES(ndbgeneral ndbtrace ${ZLIB_LIBRARY} mysys)
 
