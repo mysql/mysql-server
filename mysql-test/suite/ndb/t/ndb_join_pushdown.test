@@ -1075,11 +1075,14 @@ select *
 from t1, t1 as t2
 where t1.a in (1,3,5)
   and t2.a = t1.b;
+--source suite/ndb/include/ndb_init_execute_count.inc
 --sorted_result
 select *
 from t1, t1 as t2
 where t1.a in (1,3,5)
   and t2.a = t1.b;
+--source suite/ndb/include/ndb_execute_count.inc
+--echo This should yield 3 executes (for now...buh)
 
 connection ddl;
 drop table t1;
@@ -1100,11 +1103,14 @@ select *
 from t1, t1 as t2
 where t1.a in (1,3,5)
   and t2.a = t1.b;
+--source suite/ndb/include/ndb_init_execute_count.inc
 --sorted_result
 select *
 from t1, t1 as t2
 where t1.a in (1,3,5)
   and t2.a = t1.b;
+--source suite/ndb/include/ndb_execute_count.inc
+--echo This should yield 1 execute (but inefficient since it's based on scan)
 
 
 ## Adding and 'order by ... desc' trigger the usage
