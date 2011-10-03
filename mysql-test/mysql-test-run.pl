@@ -385,6 +385,7 @@ sub main {
       }
     }
   }
+  mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
   init_timers();
 
