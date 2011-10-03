@@ -343,7 +343,8 @@ NdbQueryDef::destroy() const
 void
 NdbQueryDef::print() const
 {
-  m_impl.getQueryOperation(0U).printTree(0, Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32>());
+  m_impl.getQueryOperation(0U)
+    .printTree(0, NdbQueryOperationDefImpl::SiblingMask());
 }
 
 /*************************************************************************
@@ -1188,7 +1189,8 @@ NdbQueryBuilderImpl::prepare()
   if (doPrintQueryTree)
   {
     ndbout << "Query tree:" << endl;
-    def->getQueryOperation(0U).printTree(0, Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32>());
+    def->getQueryOperation(0U)
+      .printTree(0, NdbQueryOperationDefImpl::SiblingMask());
   }
 
   return def;
@@ -2159,7 +2161,8 @@ NdbQueryOperationDefImpl::appendChildProjection(Uint32Buffer& serializedDef) con
  * that connect the tree nodes.
  */
 static void printMargin(Uint32 depth, 
-                        Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> hasMoreSiblingsMask, 
+                        NdbQueryOperationDefImpl::SiblingMask 
+                        hasMoreSiblingsMask, 
                         bool header)
 {
   if (depth > 0)
@@ -2193,11 +2196,10 @@ static void printMargin(Uint32 depth,
 
 void 
 NdbQueryOperationDefImpl::printTree(Uint32 depth, 
-                                    Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> 
-                                    hasMoreSiblingsMask) const
+                                    SiblingMask hasMoreSiblingsMask) const
 {
   // Print vertical line leading down to this node.
-  Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> firstLineMask = hasMoreSiblingsMask;
+  SiblingMask firstLineMask = hasMoreSiblingsMask;
   firstLineMask.set(depth);
   printMargin(depth, firstLineMask, false);
   ndbout << endl;
@@ -2214,22 +2216,24 @@ NdbQueryOperationDefImpl::printTree(Uint32 depth,
     printMargin(depth, hasMoreSiblingsMask, false);
     ndbout << " index: " << getIndex()->getName() << endl; 
   }
-  /* For each child but the last one, use a mask with an extra bit set to
-   * indicate that there are more siblings.
-   */
-  hasMoreSiblingsMask.set(depth+1);
+
   for (int childNo = 0; 
-       childNo < static_cast<int>(getNoOfChildOperations()) - 1; 
+       childNo < static_cast<int>(getNoOfChildOperations()); 
        childNo++)
   {
-    getChildOperation(childNo).printTree(depth+1, hasMoreSiblingsMask);
-  }
-  if (getNoOfChildOperations() > 0)
-  {
-    // The last child has no more siblings.
-    hasMoreSiblingsMask.clear(depth+1);
-    getChildOperation(getNoOfChildOperations() - 1)
-      .printTree(depth+1, hasMoreSiblingsMask);
+    if (childNo == 0)
+    {
+      /* For each child but the last one, use a mask with an extra bit set to
+       * indicate that there are more siblings.
+       */
+      hasMoreSiblingsMask.set(depth+1);
+    }
+    if (childNo == static_cast<int>(getNoOfChildOperations()) - 1)
+    {
+      // The last child has no more siblings.
+      hasMoreSiblingsMask.clear(depth+1);
+    }
+    getChildOperation(childNo).printTree(depth+1, hasMoreSiblingsMask); 
   }
 } // NdbQueryOperationDefImpl::printTree()
 
