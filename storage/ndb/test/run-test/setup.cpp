@@ -353,7 +353,9 @@ load_process(atrt_config& config, atrt_cluster& cluster,
 			      proc.m_host->m_basedir.c_str());
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
 			      cluster.m_name.c_str());
-    proc.m_proc.m_args.append(" --nodaemon --initial -n");
+    proc.m_proc.m_args.append(" --nodaemon -n");
+    if (!g_restart)
+      proc.m_proc.m_args.append(" --initial");
     if (g_fix_nodeid)
       proc.m_proc.m_args.appfmt(" --ndb-nodeid=%u", proc.m_nodeid);
     proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);

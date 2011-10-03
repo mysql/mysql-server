@@ -66,6 +66,7 @@ int          g_fix_nodeid= 0;
 int          g_default_ports = 0;
 int          g_mt = 0;
 int          g_mt_rr = 0;
+int          g_restart = 0;
 
 const char * g_cwd = 0;
 const char * g_basedir = 0;
@@ -675,6 +676,9 @@ parse_args(int argc, char** argv)
       case 'q':
 	g_do_quit = 1;
 	break;
+      case 'r':
+        g_restart = 1;
+        break;
       default:
 	g_logger.error("Unknown switch '%c'", *arg);
 	return false;
