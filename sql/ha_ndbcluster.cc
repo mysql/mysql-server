@@ -16298,7 +16298,7 @@ HA_ALTER_FLAGS supported_alter_operations()
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
                                             HA_CREATE_INFO *create_info,
-                                            Alter_info *alter_info,
+                                            HA_ALTER_INFO *alter_info,
                                             HA_ALTER_FLAGS *alter_flags,
                                             uint table_changes)
 {
@@ -16983,6 +16983,31 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
   delete alter_data;
   alter_info->data= 0;
   DBUG_RETURN(0);
+}
+
+int ha_ndbcluster::alter_table_abort(THD *thd, TABLE *table,
+                                     HA_ALTER_INFO *alter_info,
+                                     HA_ALTER_FLAGS *alter_flags)
+{
+  int error= 0;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
+  NDBDICT *dict= alter_data->dictionary;
+  DBUG_ENTER("alter_table_abort");
+  if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
+      == -1)
+  {
+    DBUG_PRINT("info", ("Failed to abort schema transaction"));
+    ERR_PRINT(dict->getNdbError());
+  }
+  /* ndb_share reference schema free */
+  DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
+                           m_share->key, m_share->use_count));
+  delete alter_data;
+  alter_info->data= 0;
+  set_ndb_share_state(m_share, NSS_INITIAL);
+  free_share(&m_share); // Decrease ref_count
+  DBUG_RETURN(error);
 }
 #endif
 

@@ -1015,6 +1015,7 @@ typedef struct st_ha_alter_information
 {
   KEY  *key_info_buffer;
   uint key_count;
+  uint candidate_key_count;
   uint index_drop_count;
   uint *index_drop_buffer;
   uint index_add_count;
@@ -2371,7 +2372,7 @@ public:
  */
  virtual int check_if_supported_alter(TABLE *altered_table,
                                       HA_CREATE_INFO *create_info,
-                                      Alter_info *alter_info,
+                                      HA_ALTER_INFO *alter_info,
                                       HA_ALTER_FLAGS *alter_flags,
                                       uint table_changes);
 
@@ -2436,6 +2437,19 @@ public:
                                 HA_CREATE_INFO *create_info,
                                 HA_ALTER_INFO *alter_info,
                                 HA_ALTER_FLAGS *alter_flags);
+
+ /**
+    Tell storage engine to abort (rollback) the ongoing online
+    alter table and release any allocated resources (this will be last call).
+
+    @param    thd               The thread handle
+    @param    alter_info        Storage place for data used during phase1
+                                and phase2 and phase3
+    @param    alter_flags       Bitmask that shows what has been changed
+ */
+ virtual int alter_table_abort(THD *thd,
+                               HA_ALTER_INFO *alter_info,
+                               HA_ALTER_FLAGS *alter_flags);
 #endif
 
   /**

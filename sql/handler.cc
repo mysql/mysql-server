@@ -3757,13 +3757,19 @@ is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
 int
 handler::check_if_supported_alter(TABLE *altered_table,
                                   HA_CREATE_INFO *create_info,
-                                  Alter_info *alter_info,
+                                  HA_ALTER_INFO *alter_info,
                                   HA_ALTER_FLAGS *alter_flags,
                                   uint table_changes)
 {
   DBUG_ENTER("check_if_supported_alter");
   int result= HA_ALTER_NOT_SUPPORTED;
   ulong handler_alter_flags= table->file->alter_table_flags(0);
+  Alter_info *old_alter_info= (Alter_info *) alter_info->data;
+  bool no_pk= ((table->s->primary_key == MAX_KEY) ||
+               alter_flags->is_set(HA_DROP_PK_INDEX));
+  uint candidate_key_count= alter_info->candidate_key_count;
+  bool need_lock_for_indexes= TRUE;
+  enum_alter_table_change_level need_copy_table= old_alter_info->change_level;
   HA_ALTER_FLAGS supported_alter_operations;
   supported_alter_operations=
     supported_alter_operations |
@@ -3785,7 +3791,7 @@ handler::check_if_supported_alter(TABLE *altered_table,
     HA_ADD_CONSTRAINT;
   HA_ALTER_FLAGS not_supported= ~(supported_alter_operations);
   HA_ALTER_FLAGS fast_operations= not_supported & ~(not_fast_operations);
-  DBUG_PRINT("info", ("handler_alter_flags: %lu", handler_alter_flags));
+  DBUG_PRINT("info", ("handler_alter_flags: 0x%lx", handler_alter_flags));
 #ifndef DBUG_OFF
   {
     char dbug_string[HA_MAX_ALTER_FLAGS+1];
@@ -3798,17 +3804,12 @@ handler::check_if_supported_alter(TABLE *altered_table,
   }
 #endif
 
-  /* Bug #49838 DROP INDEX and ADD UNIQUE INDEX for same index may corrupt definition at engine */
-  if (is_index_maintenance_unique(table, alter_info))
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
-
   /* Check the old alter table flags */
   if ((*alter_flags & fast_operations).is_set() &&
       table_changes != IS_EQUAL_NO)
   {
     /* Not adding/dropping index check if supported as fast alter */
-    DBUG_PRINT("info", ("alter_info->change_level %u", alter_info->change_level));
-    if (alter_info->change_level == ALTER_TABLE_METADATA_ONLY &&
+    if (need_copy_table == ALTER_TABLE_METADATA_ONLY &&
         table->file->check_if_incompatible_data(create_info, table_changes)
         != COMPATIBLE_DATA_NO) 
       DBUG_RETURN(HA_ALTER_SUPPORTED_WAIT_LOCK);
@@ -3819,85 +3820,261 @@ handler::check_if_supported_alter(TABLE *altered_table,
     DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
   else
   {
+    /* Adding or dropping index */
+
+    /* Bug #49838 DROP INDEX and ADD UNIQUE INDEX for same index may corrupt definition at engine */
+    if (is_index_maintenance_unique(table, old_alter_info))
+      DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+    
+    DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
+        if (need_copy_table != ALTER_TABLE_METADATA_ONLY)
+          DBUG_RETURN(HA_ALTER_ERROR); });
+    DBUG_EXECUTE_IF("alter_table_only_index_change", {
+        if (need_copy_table != ALTER_TABLE_INDEX_CHANGED)
+          DBUG_RETURN(HA_ALTER_ERROR); });
+    
+    DBUG_PRINT("info", ("%i: need_copy_table %u", __LINE__, need_copy_table));
+    
+    /*
+      If there are index changes only, try to do them in-place. "Index
+      changes only" means also that the handler for the table does not
+      change. The table is open and locked. The handler can be accessed.
+    */
+    if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
+    {
+      int   pk_changed= 0;
+      ulong alter_flags= 0;
+      ulong needed_inplace_with_read_flags= 0;
+      ulong needed_inplace_flags= 0;
+      KEY   *key;
+      uint  *idx_p;
+      uint  *idx_end_p;
+      
+      alter_flags= table->file->alter_table_flags(old_alter_info->flags);
+      DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
+      /* Check dropped indexes. */
+      for (idx_p= alter_info->index_drop_buffer,
+             idx_end_p= idx_p + alter_info->index_drop_count;
+           idx_p < idx_end_p;
+           idx_p++)
+      {
+        key= table->key_info + *idx_p;
+        DBUG_PRINT("info", ("index dropped: '%s'", key->name));
+        if (key->flags & HA_NOSAME)
+        {
+          /* 
+             Unique key. Check for "PRIMARY". 
+             or if dropping last unique key
+          */
+          if ((uint) (key - table->key_info) == table->s->primary_key)
+          {
+            DBUG_PRINT("info", ("Dropping primary key"));
+            /* Primary key. */
+            needed_inplace_with_read_flags|= HA_INPLACE_DROP_PK_INDEX_NO_WRITE;
+            needed_inplace_flags|= HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE;
+            pk_changed++;
+            candidate_key_count--;
+          }
+          else
+          {
+            KEY_PART_INFO *part_end= key->key_part + key->key_parts;
+            bool is_candidate_key= true;
+            
+            /* Non-primary unique key. */
+            needed_inplace_with_read_flags|=
+              HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE;
+            needed_inplace_flags|= HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;
+            
+            /*
+              Check if all fields in key are declared
+              NOT NULL and adjust candidate_key_count
+            */
+            for (KEY_PART_INFO *key_part= key->key_part;
+                 key_part < part_end;
+                 key_part++)
+              is_candidate_key=
+                (is_candidate_key && 
+                 (! table->field[key_part->fieldnr-1]->maybe_null()));
+            if (is_candidate_key)
+              candidate_key_count--;
+          }
+        }
+        else
+        {
+          /* Non-unique key. */
+          needed_inplace_with_read_flags|= HA_INPLACE_DROP_INDEX_NO_WRITE;
+          needed_inplace_flags|= HA_INPLACE_DROP_INDEX_NO_READ_WRITE;
+        }
+      }
+      no_pk= ((table->s->primary_key == MAX_KEY) ||
+              (needed_inplace_with_read_flags &
+               HA_INPLACE_DROP_PK_INDEX_NO_WRITE));
+      /* Check added indexes. */
+      for (idx_p= alter_info->index_add_buffer,
+             idx_end_p= idx_p + alter_info->index_add_count;
+           idx_p < idx_end_p;
+           idx_p++)
+      {
+        key= alter_info->key_info_buffer + *idx_p;
+        DBUG_PRINT("info", ("index added: '%s'", key->name));
+        if (key->flags & HA_NOSAME)
+        {
+          /* Unique key */
+          
+          KEY_PART_INFO *part_end= key->key_part + key->key_parts;    
+          bool is_candidate_key= true;
+          
+          /*
+            Check if all fields in key are declared
+            NOT NULL
+          */
+          for (KEY_PART_INFO *key_part= key->key_part;
+               key_part < part_end;
+               key_part++)
+            is_candidate_key=
+              (is_candidate_key && 
+               (! table->field[key_part->fieldnr]->maybe_null()));
+          
+          /*
+            Check for "PRIMARY"
+            or if adding first unique key
+            defined on non-nullable fields
+          */
+          
+          if ((!my_strcasecmp(system_charset_info,
+                              key->name, primary_key_name)) ||
+              (no_pk && candidate_key_count == 0 && is_candidate_key))
+          {
+            DBUG_PRINT("info", ("Adding primary key"));
+            /* Primary key. */
+            needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+            needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
+            pk_changed++;
+            no_pk= false;
+          }
+          else
+          {
+            /* Non-primary unique key. */
+            needed_inplace_with_read_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
+            needed_inplace_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
+          }
+        }
+        else
+        {
+          /* Non-unique key. */
+          needed_inplace_with_read_flags|= HA_INPLACE_ADD_INDEX_NO_WRITE;
+          needed_inplace_flags|= HA_INPLACE_ADD_INDEX_NO_READ_WRITE;
+        }
+      }
+      
+      if ((candidate_key_count > 0) &&
+          (needed_inplace_with_read_flags & HA_INPLACE_DROP_PK_INDEX_NO_WRITE))
+      {
+        /*
+          Dropped primary key when there is some other unique 
+          not null key that should be converted to primary key
+        */
+        needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+        needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
+        pk_changed= 2;
+      }
+      
+      DBUG_PRINT("info",
+                 ("needed_inplace_with_read_flags: 0x%lx, needed_inplace_flags: 0x%lx",
+                  needed_inplace_with_read_flags, needed_inplace_flags));
+      /*
+        In-place add/drop index is possible only if
+        the primary key is not added and dropped in the same statement.
+        Otherwise we have to recreate the table.
+        need_copy_table is no-zero at this place.
+      */
+      if ( pk_changed < 2 )
+      {
+        if ((alter_flags & needed_inplace_with_read_flags) ==
+            needed_inplace_with_read_flags)
+        {
+          /* All required in-place flags to allow concurrent reads are present. */
+          need_copy_table= ALTER_TABLE_METADATA_ONLY;
+          need_lock_for_indexes= FALSE;
+        }
+        else if ((alter_flags & needed_inplace_flags) == needed_inplace_flags)
+        {
+          /* All required in-place flags are present. */
+          need_copy_table= ALTER_TABLE_METADATA_ONLY;
+        }
+      }
+      DBUG_PRINT("info", ("need_copy_table: %u  need_lock: %d",
+                          need_copy_table, need_lock_for_indexes));
+    }
+
     /* Add index */
     if ((*alter_flags & HA_ADD_INDEX).is_set() ||
         (*alter_flags & HA_ALTER_INDEX).is_set())
     {
-      if (handler_alter_flags & HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
+      if (need_copy_table)
+        result= HA_ALTER_NOT_SUPPORTED;
+      else if (need_lock_for_indexes)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
-      else if (handler_alter_flags & HA_INPLACE_ADD_INDEX_NO_WRITE)
-        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
-          HA_ALTER_SUPPORTED_WAIT_LOCK
-          : HA_ALTER_SUPPORTED_NO_LOCK;
       else
-        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+        result= HA_ALTER_SUPPORTED_NO_LOCK;
     }
     /* Drop index */
     if ((*alter_flags & HA_DROP_INDEX).is_set() ||
         (*alter_flags & HA_ALTER_INDEX).is_set())
     {
-      if (handler_alter_flags & HA_INPLACE_DROP_INDEX_NO_READ_WRITE)
+      if (need_copy_table)
+        result= HA_ALTER_NOT_SUPPORTED;
+      else if (need_lock_for_indexes)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
-      else if (handler_alter_flags & HA_INPLACE_DROP_INDEX_NO_WRITE)
-        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
-          HA_ALTER_SUPPORTED_WAIT_LOCK
-          : HA_ALTER_SUPPORTED_NO_LOCK;
       else
-        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+        result= HA_ALTER_SUPPORTED_NO_LOCK;
     }
     /* Add unique index */
     if ((*alter_flags & HA_ADD_UNIQUE_INDEX).is_set() ||
         (*alter_flags & HA_ALTER_UNIQUE_INDEX).is_set())
     {
-      if (handler_alter_flags & HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE)
+      if (need_copy_table)
+        result= HA_ALTER_NOT_SUPPORTED;
+      else if (need_lock_for_indexes)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
-      else if (handler_alter_flags & HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE)
-        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
-          HA_ALTER_SUPPORTED_WAIT_LOCK
-          : HA_ALTER_SUPPORTED_NO_LOCK;
       else
-        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+        result= HA_ALTER_SUPPORTED_NO_LOCK;
     }
     /* Drop unique index */
     if ((*alter_flags & HA_DROP_UNIQUE_INDEX).is_set() ||
         (*alter_flags & HA_ALTER_UNIQUE_INDEX).is_set())
     {
-      if (handler_alter_flags & HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE)
+      if (need_copy_table)
+        result= HA_ALTER_NOT_SUPPORTED;
+      else if (need_lock_for_indexes)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
-      else if (handler_alter_flags &HA_INPLACE_DROP_PK_INDEX_NO_WRITE)
-        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
-          HA_ALTER_SUPPORTED_WAIT_LOCK
-          : HA_ALTER_SUPPORTED_NO_LOCK;
       else
-        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+        result= HA_ALTER_SUPPORTED_NO_LOCK;
     }
     /* Add primary key */
     if ((*alter_flags & HA_ADD_PK_INDEX).is_set() ||
         (*alter_flags & HA_ALTER_PK_INDEX).is_set())
     {
-      if (handler_alter_flags & HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE)
+      if (need_copy_table)
+        result= HA_ALTER_NOT_SUPPORTED;
+      else if (need_lock_for_indexes)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
-      else if (handler_alter_flags & HA_INPLACE_ADD_PK_INDEX_NO_WRITE)
-        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
-          HA_ALTER_SUPPORTED_WAIT_LOCK
-          : HA_ALTER_SUPPORTED_NO_LOCK;
       else
-        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+        result= HA_ALTER_SUPPORTED_NO_LOCK;
     }
     /* Drop primary key */
     if ((*alter_flags & HA_DROP_PK_INDEX).is_set() ||
         (*alter_flags & HA_ALTER_PK_INDEX).is_set())
     {
-      if (handler_alter_flags & HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE)
+      if (need_copy_table)
+        result= HA_ALTER_NOT_SUPPORTED;
+      else if (need_lock_for_indexes)
         result= HA_ALTER_SUPPORTED_WAIT_LOCK;
-      else if (handler_alter_flags &HA_INPLACE_DROP_PK_INDEX_NO_WRITE)
-        result= (result == HA_ALTER_SUPPORTED_WAIT_LOCK)?
-          HA_ALTER_SUPPORTED_WAIT_LOCK
-          : HA_ALTER_SUPPORTED_NO_LOCK;
       else
-        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+        result= HA_ALTER_SUPPORTED_NO_LOCK;
     }
   }
+
   DBUG_RETURN(result);
 }
 
@@ -3919,7 +4096,7 @@ handler::alter_table_phase1(THD *thd,
 
   adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX |
     HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
-  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX |
+  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX | HA_DROP_PK_INDEX |
     HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
 
   if ((*alter_flags & adding).is_set())
@@ -3956,6 +4133,7 @@ handler::alter_table_phase1(THD *thd,
       table->key_info= key_info;
       table->file->print_error(error, MYF(0));
       table->key_info= save_key_info;
+      //my_error(error, MYF(0));
       DBUG_RETURN(error);
     }
     /*
@@ -3976,12 +4154,11 @@ handler::alter_table_phase1(THD *thd,
     {
       if ((error= final_add_index((handler_add_index *)alter_info->data, true)))
       {
-        print_error(error, MYF(0));
+        table->file->print_error(error, MYF(0));
         DBUG_RETURN(error);
       }
     }
 
-    DBUG_PRINT("info", ("Renumbering indexes"));
     /* The prepare_drop_index() method takes an array of key numbers. */
     key_numbers= (uint*) thd->alloc(sizeof(uint) * alter_info->index_drop_count);
     keyno_p= key_numbers;
@@ -4016,22 +4193,29 @@ handler::alter_table_phase2(THD *thd,
 
   adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX |
     HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
-  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX |
+  dropping= dropping | HA_DROP_INDEX | HA_DROP_UNIQUE_INDEX | HA_DROP_PK_INDEX |
     HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
 
   if ((*alter_flags & dropping).is_set())
   {
     if ((error= final_drop_index(table)))
     {
-      print_error(error, MYF(0));
+      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
     }
   }
   else if ((*alter_flags & adding).is_set())
   {
+    DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
+        error= ER_UNKNOWN_ERROR;
+        table->file->final_add_index((handler_add_index *)alter_info->data,
+                                     false);
+        my_error(error, MYF(0));
+        DBUG_RETURN(error);
+      });
     if ((error= final_add_index((handler_add_index *)alter_info->data, true)))
     {
-      print_error(error, MYF(0));
+      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
     }
   }
@@ -4048,6 +4232,32 @@ handler::alter_table_phase3(THD *thd, TABLE *table,
   DBUG_ENTER("alter_table_phase3");
   DBUG_RETURN(0);
 }
+
+int
+handler::alter_table_abort(THD *thd,
+                           HA_ALTER_INFO *alter_info,
+                           HA_ALTER_FLAGS *alter_flags)
+{
+  DBUG_ENTER("alter_table_abort");
+  int error= 0;
+  HA_ALTER_FLAGS adding;
+
+  adding= adding | HA_ADD_INDEX | HA_ADD_UNIQUE_INDEX | HA_ADD_PK_INDEX |
+    HA_ALTER_INDEX | HA_ALTER_UNIQUE_INDEX | HA_ALTER_PK_INDEX;
+
+  if ((*alter_flags & adding).is_set())
+  {
+    if ((error=
+         table->file->final_add_index((handler_add_index *)alter_info->data,
+                                      false)))
+      table->file->print_error(error, MYF(0));
+    else
+      table->file->print_error(ER_UNKNOWN_ERROR, MYF(0));
+    DBUG_RETURN(error);
+  }
+  DBUG_RETURN(0);
+}
+
 #endif
 
 /**
