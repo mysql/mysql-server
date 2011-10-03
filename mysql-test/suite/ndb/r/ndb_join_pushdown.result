@@ -4,8 +4,6 @@ select counter_name, sum(val) as val
 from ndbinfo.counters 
 where block_name='DBSPJ' 
 group by counter_name;
-create temporary table spj_save_counts like spj_counts_at_startup;
-insert into spj_save_counts values ('SCAN_ROWS_RETURNED', 0);
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
 create table t1 (
@@ -2060,7 +2058,6 @@ count(*)
 304
 drop table tx;
 alter table t1 partition by key(a);
-update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain select count(*) from t1 
 join t1 as t2 on t2.a = t1.c 
 join t1 as t3 on t3.a = t1.c;
@@ -2092,7 +2089,6 @@ join t1 as x2 on x2.a = x1.c and x1.b < 2
 join t1 as x3 on x3.a = x1.c;
 count(*)
 20000
-update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 drop table t1;
 drop table tx;
 create table t1 (a int, b int, primary key(a) using hash) engine = ndb;
@@ -2341,6 +2337,241 @@ a	b	a	b
 47	63	63	31
 63	31	31	47
 79	NULL	NULL	NULL
+insert into t3 values (8,8,8,8);
+explain extended select count(*) from t3 as x0
+join t3 as x1 on x0.b3=x1.d3 and x0.d3=8
+join t3 as x2 on x1.b3=x2.d3
+join t3 as x3 on x2.b3=x3.d3
+join t3 as x4 on x3.b3=x4.d3
+join t3 as x5 on x4.b3=x5.d3
+join t3 as x6 on x5.b3=x6.d3
+join t3 as x7 on x6.b3=x7.d3
+join t3 as x8 on x7.b3=x8.d3
+join t3 as x9 on x8.b3=x9.d3
+join t3 as x10 on x9.b3=x10.d3
+join t3 as x11 on x10.b3=x11.d3
+join t3 as x12 on x11.b3=x12.d3
+join t3 as x13 on x12.b3=x13.d3
+join t3 as x14 on x13.b3=x14.d3
+join t3 as x15 on x14.b3=x15.d3
+join t3 as x16 on x15.b3=x16.d3
+join t3 as x17 on x16.b3=x17.d3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x0	const	t3_d3	t3_d3	4	const	1	100.00	Parent of 16 pushed join@1
+1	SIMPLE	x1	eq_ref	t3_d3	t3_d3	4	test.x0.b3	1	100.00	Child of 'x0' in pushed join@1
+1	SIMPLE	x2	eq_ref	t3_d3	t3_d3	4	test.x1.b3	1	100.00	Child of 'x1' in pushed join@1
+1	SIMPLE	x3	eq_ref	t3_d3	t3_d3	4	test.x2.b3	1	100.00	Child of 'x2' in pushed join@1
+1	SIMPLE	x4	eq_ref	t3_d3	t3_d3	4	test.x3.b3	1	100.00	Child of 'x3' in pushed join@1
+1	SIMPLE	x5	eq_ref	t3_d3	t3_d3	4	test.x4.b3	1	100.00	Child of 'x4' in pushed join@1
+1	SIMPLE	x6	eq_ref	t3_d3	t3_d3	4	test.x5.b3	1	100.00	Child of 'x5' in pushed join@1
+1	SIMPLE	x7	eq_ref	t3_d3	t3_d3	4	test.x6.b3	1	100.00	Child of 'x6' in pushed join@1
+1	SIMPLE	x8	eq_ref	t3_d3	t3_d3	4	test.x7.b3	1	100.00	Child of 'x7' in pushed join@1
+1	SIMPLE	x9	eq_ref	t3_d3	t3_d3	4	test.x8.b3	1	100.00	Child of 'x8' in pushed join@1
+1	SIMPLE	x10	eq_ref	t3_d3	t3_d3	4	test.x9.b3	1	100.00	Child of 'x9' in pushed join@1
+1	SIMPLE	x11	eq_ref	t3_d3	t3_d3	4	test.x10.b3	1	100.00	Child of 'x10' in pushed join@1
+1	SIMPLE	x12	eq_ref	t3_d3	t3_d3	4	test.x11.b3	1	100.00	Child of 'x11' in pushed join@1
+1	SIMPLE	x13	eq_ref	t3_d3	t3_d3	4	test.x12.b3	1	100.00	Child of 'x12' in pushed join@1
+1	SIMPLE	x14	eq_ref	t3_d3	t3_d3	4	test.x13.b3	1	100.00	Child of 'x13' in pushed join@1
+1	SIMPLE	x15	eq_ref	t3_d3	t3_d3	4	test.x14.b3	1	100.00	Child of 'x14' in pushed join@1
+1	SIMPLE	x16	eq_ref	t3_d3	t3_d3	4	test.x15.b3	1	100.00	Parent of 2 pushed join@2
+1	SIMPLE	x17	eq_ref	t3_d3	t3_d3	4	test.x16.b3	1	100.00	Child of 'x16' in pushed join@2
+Warnings:
+Note	9999	Cannot push table 'x16' as child of 'x0'. Max number of pushable tables exceeded.
+Note	9999	Cannot push table 'x17' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t3` `x0` join `test`.`t3` `x1` join `test`.`t3` `x2` join `test`.`t3` `x3` join `test`.`t3` `x4` join `test`.`t3` `x5` join `test`.`t3` `x6` join `test`.`t3` `x7` join `test`.`t3` `x8` join `test`.`t3` `x9` join `test`.`t3` `x10` join `test`.`t3` `x11` join `test`.`t3` `x12` join `test`.`t3` `x13` join `test`.`t3` `x14` join `test`.`t3` `x15` join `test`.`t3` `x16` join `test`.`t3` `x17` where ((`test`.`x0`.`d3` = 8) and (`test`.`x1`.`d3` = `test`.`x0`.`b3`) and (`test`.`x2`.`d3` = `test`.`x1`.`b3`) and (`test`.`x3`.`d3` = `test`.`x2`.`b3`) and (`test`.`x4`.`d3` = `test`.`x3`.`b3`) and (`test`.`x5`.`d3` = `test`.`x4`.`b3`) and (`test`.`x6`.`d3` = `test`.`x5`.`b3`) and (`test`.`x7`.`d3` = `test`.`x6`.`b3`) and (`test`.`x8`.`d3` = `test`.`x7`.`b3`) and (`test`.`x9`.`d3` = `test`.`x8`.`b3`) and (`test`.`x10`.`d3` = `test`.`x9`.`b3`) and (`test`.`x11`.`d3` = `test`.`x10`.`b3`) and (`test`.`x12`.`d3` = `test`.`x11`.`b3`) and (`test`.`x13`.`d3` = `test`.`x12`.`b3`) and (`test`.`x14`.`d3` = `test`.`x13`.`b3`) and (`test`.`x15`.`d3` = `test`.`x14`.`b3`) and (`test`.`x16`.`d3` = `test`.`x15`.`b3`) and (`test`.`x17`.`d3` = `test`.`x16`.`b3`))
+select count(*) from t3 as x0
+join t3 as x1 on x0.b3=x1.d3 and x0.d3=8
+join t3 as x2 on x1.b3=x2.d3
+join t3 as x3 on x2.b3=x3.d3
+join t3 as x4 on x3.b3=x4.d3
+join t3 as x5 on x4.b3=x5.d3
+join t3 as x6 on x5.b3=x6.d3
+join t3 as x7 on x6.b3=x7.d3
+join t3 as x8 on x7.b3=x8.d3
+join t3 as x9 on x8.b3=x9.d3
+join t3 as x10 on x9.b3=x10.d3
+join t3 as x11 on x10.b3=x11.d3
+join t3 as x12 on x11.b3=x12.d3
+join t3 as x13 on x12.b3=x13.d3
+join t3 as x14 on x13.b3=x14.d3
+join t3 as x15 on x14.b3=x15.d3
+join t3 as x16 on x15.b3=x16.d3
+join t3 as x17 on x16.b3=x17.d3;
+count(*)
+1
+explain extended select count(*) from t3 as x0
+join t3 as x1 on x0.c3=x1.a3
+join t3 as x2 on x1.c3=x2.a3
+join t3 as x3 on x2.c3=x3.a3
+join t3 as x4 on x3.c3=x4.a3
+join t3 as x5 on x4.c3=x5.a3
+join t3 as x6 on x5.c3=x6.a3
+join t3 as x7 on x6.c3=x7.a3
+join t3 as x8 on x7.c3=x8.a3
+join t3 as x9 on x8.c3=x9.a3
+join t3 as x10 on x9.c3=x10.a3
+join t3 as x11 on x10.c3=x11.a3
+join t3 as x12 on x11.c3=x12.a3
+join t3 as x13 on x12.c3=x13.a3
+join t3 as x14 on x13.c3=x14.a3
+join t3 as x15 on x14.c3=x15.a3
+join t3 as x16 on x15.c3=x16.a3
+join t3 as x17 on x16.c3=x17.a3
+join t3 as x18 on x17.c3=x18.a3
+join t3 as x19 on x18.c3=x19.a3
+join t3 as x20 on x19.c3=x20.a3
+join t3 as x21 on x20.c3=x21.a3
+join t3 as x22 on x21.c3=x22.a3
+join t3 as x23 on x22.c3=x23.a3
+join t3 as x24 on x23.c3=x24.a3
+join t3 as x25 on x24.c3=x25.a3
+join t3 as x26 on x25.c3=x26.a3
+join t3 as x27 on x26.c3=x27.a3
+join t3 as x28 on x27.c3=x28.a3
+join t3 as x29 on x28.c3=x29.a3
+join t3 as x30 on x29.c3=x30.a3
+join t3 as x31 on x30.c3=x31.a3
+join t3 as x32 on x31.c3=x32.a3
+join t3 as x33 on x32.c3=x33.a3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x0	ALL	NULL	NULL	NULL	NULL	4	100.00	Parent of 32 pushed join@1
+1	SIMPLE	x1	ref	PRIMARY	PRIMARY	4	test.x0.c3	1	100.00	Child of 'x0' in pushed join@1
+1	SIMPLE	x2	ref	PRIMARY	PRIMARY	4	test.x1.c3	1	100.00	Child of 'x1' in pushed join@1
+1	SIMPLE	x3	ref	PRIMARY	PRIMARY	4	test.x2.c3	1	100.00	Child of 'x2' in pushed join@1
+1	SIMPLE	x4	ref	PRIMARY	PRIMARY	4	test.x3.c3	1	100.00	Child of 'x3' in pushed join@1
+1	SIMPLE	x5	ref	PRIMARY	PRIMARY	4	test.x4.c3	1	100.00	Child of 'x4' in pushed join@1
+1	SIMPLE	x6	ref	PRIMARY	PRIMARY	4	test.x5.c3	1	100.00	Child of 'x5' in pushed join@1
+1	SIMPLE	x7	ref	PRIMARY	PRIMARY	4	test.x6.c3	1	100.00	Child of 'x6' in pushed join@1
+1	SIMPLE	x8	ref	PRIMARY	PRIMARY	4	test.x7.c3	1	100.00	Child of 'x7' in pushed join@1
+1	SIMPLE	x9	ref	PRIMARY	PRIMARY	4	test.x8.c3	1	100.00	Child of 'x8' in pushed join@1
+1	SIMPLE	x10	ref	PRIMARY	PRIMARY	4	test.x9.c3	1	100.00	Child of 'x9' in pushed join@1
+1	SIMPLE	x11	ref	PRIMARY	PRIMARY	4	test.x10.c3	1	100.00	Child of 'x10' in pushed join@1
+1	SIMPLE	x12	ref	PRIMARY	PRIMARY	4	test.x11.c3	1	100.00	Child of 'x11' in pushed join@1
+1	SIMPLE	x13	ref	PRIMARY	PRIMARY	4	test.x12.c3	1	100.00	Child of 'x12' in pushed join@1
+1	SIMPLE	x14	ref	PRIMARY	PRIMARY	4	test.x13.c3	1	100.00	Child of 'x13' in pushed join@1
+1	SIMPLE	x15	ref	PRIMARY	PRIMARY	4	test.x14.c3	1	100.00	Child of 'x14' in pushed join@1
+1	SIMPLE	x16	ref	PRIMARY	PRIMARY	4	test.x15.c3	1	100.00	Child of 'x15' in pushed join@1
+1	SIMPLE	x17	ref	PRIMARY	PRIMARY	4	test.x16.c3	1	100.00	Child of 'x16' in pushed join@1
+1	SIMPLE	x18	ref	PRIMARY	PRIMARY	4	test.x17.c3	1	100.00	Child of 'x17' in pushed join@1
+1	SIMPLE	x19	ref	PRIMARY	PRIMARY	4	test.x18.c3	1	100.00	Child of 'x18' in pushed join@1
+1	SIMPLE	x20	ref	PRIMARY	PRIMARY	4	test.x19.c3	1	100.00	Child of 'x19' in pushed join@1
+1	SIMPLE	x21	ref	PRIMARY	PRIMARY	4	test.x20.c3	1	100.00	Child of 'x20' in pushed join@1
+1	SIMPLE	x22	ref	PRIMARY	PRIMARY	4	test.x21.c3	1	100.00	Child of 'x21' in pushed join@1
+1	SIMPLE	x23	ref	PRIMARY	PRIMARY	4	test.x22.c3	1	100.00	Child of 'x22' in pushed join@1
+1	SIMPLE	x24	ref	PRIMARY	PRIMARY	4	test.x23.c3	1	100.00	Child of 'x23' in pushed join@1
+1	SIMPLE	x25	ref	PRIMARY	PRIMARY	4	test.x24.c3	1	100.00	Child of 'x24' in pushed join@1
+1	SIMPLE	x26	ref	PRIMARY	PRIMARY	4	test.x25.c3	1	100.00	Child of 'x25' in pushed join@1
+1	SIMPLE	x27	ref	PRIMARY	PRIMARY	4	test.x26.c3	1	100.00	Child of 'x26' in pushed join@1
+1	SIMPLE	x28	ref	PRIMARY	PRIMARY	4	test.x27.c3	1	100.00	Child of 'x27' in pushed join@1
+1	SIMPLE	x29	ref	PRIMARY	PRIMARY	4	test.x28.c3	1	100.00	Child of 'x28' in pushed join@1
+1	SIMPLE	x30	ref	PRIMARY	PRIMARY	4	test.x29.c3	1	100.00	Child of 'x29' in pushed join@1
+1	SIMPLE	x31	ref	PRIMARY	PRIMARY	4	test.x30.c3	1	100.00	Child of 'x30' in pushed join@1
+1	SIMPLE	x32	ref	PRIMARY	PRIMARY	4	test.x31.c3	1	100.00	Parent of 2 pushed join@2
+1	SIMPLE	x33	ref	PRIMARY	PRIMARY	4	test.x32.c3	1	100.00	Child of 'x32' in pushed join@2
+Warnings:
+Note	9999	Cannot push table 'x32' as child of 'x0'. Max number of pushable tables exceeded.
+Note	9999	Cannot push table 'x33' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t3` `x0` join `test`.`t3` `x1` join `test`.`t3` `x2` join `test`.`t3` `x3` join `test`.`t3` `x4` join `test`.`t3` `x5` join `test`.`t3` `x6` join `test`.`t3` `x7` join `test`.`t3` `x8` join `test`.`t3` `x9` join `test`.`t3` `x10` join `test`.`t3` `x11` join `test`.`t3` `x12` join `test`.`t3` `x13` join `test`.`t3` `x14` join `test`.`t3` `x15` join `test`.`t3` `x16` join `test`.`t3` `x17` join `test`.`t3` `x18` join `test`.`t3` `x19` join `test`.`t3` `x20` join `test`.`t3` `x21` join `test`.`t3` `x22` join `test`.`t3` `x23` join `test`.`t3` `x24` join `test`.`t3` `x25` join `test`.`t3` `x26` join `test`.`t3` `x27` join `test`.`t3` `x28` join `test`.`t3` `x29` join `test`.`t3` `x30` join `test`.`t3` `x31` join `test`.`t3` `x32` join `test`.`t3` `x33` where ((`test`.`x1`.`a3` = `test`.`x0`.`c3`) and (`test`.`x2`.`a3` = `test`.`x1`.`c3`) and (`test`.`x3`.`a3` = `test`.`x2`.`c3`) and (`test`.`x4`.`a3` = `test`.`x3`.`c3`) and (`test`.`x5`.`a3` = `test`.`x4`.`c3`) and (`test`.`x6`.`a3` = `test`.`x5`.`c3`) and (`test`.`x7`.`a3` = `test`.`x6`.`c3`) and (`test`.`x8`.`a3` = `test`.`x7`.`c3`) and (`test`.`x9`.`a3` = `test`.`x8`.`c3`) and (`test`.`x10`.`a3` = `test`.`x9`.`c3`) and (`test`.`x11`.`a3` = `test`.`x10`.`c3`) and (`test`.`x12`.`a3` = `test`.`x11`.`c3`) and (`test`.`x13`.`a3` = `test`.`x12`.`c3`) and (`test`.`x14`.`a3` = `test`.`x13`.`c3`) and (`test`.`x15`.`a3` = `test`.`x14`.`c3`) and (`test`.`x16`.`a3` = `test`.`x15`.`c3`) and (`test`.`x17`.`a3` = `test`.`x16`.`c3`) and (`test`.`x18`.`a3` = `test`.`x17`.`c3`) and (`test`.`x19`.`a3` = `test`.`x18`.`c3`) and (`test`.`x20`.`a3` = `test`.`x19`.`c3`) and (`test`.`x21`.`a3` = `test`.`x20`.`c3`) and (`test`.`x22`.`a3` = `test`.`x21`.`c3`) and (`test`.`x23`.`a3` = `test`.`x22`.`c3`) and (`test`.`x24`.`a3` = `test`.`x23`.`c3`) and (`test`.`x25`.`a3` = `test`.`x24`.`c3`) and (`test`.`x26`.`a3` = `test`.`x25`.`c3`) and (`test`.`x27`.`a3` = `test`.`x26`.`c3`) and (`test`.`x28`.`a3` = `test`.`x27`.`c3`) and (`test`.`x29`.`a3` = `test`.`x28`.`c3`) and (`test`.`x30`.`a3` = `test`.`x29`.`c3`) and (`test`.`x31`.`a3` = `test`.`x30`.`c3`) and (`test`.`x32`.`a3` = `test`.`x31`.`c3`) and (`test`.`x33`.`a3` = `test`.`x32`.`c3`))
+select count(*) from t3 as x0
+join t3 as x1 on x0.c3=x1.a3
+join t3 as x2 on x1.c3=x2.a3
+join t3 as x3 on x2.c3=x3.a3
+join t3 as x4 on x3.c3=x4.a3
+join t3 as x5 on x4.c3=x5.a3
+join t3 as x6 on x5.c3=x6.a3
+join t3 as x7 on x6.c3=x7.a3
+join t3 as x8 on x7.c3=x8.a3
+join t3 as x9 on x8.c3=x9.a3
+join t3 as x10 on x9.c3=x10.a3
+join t3 as x11 on x10.c3=x11.a3
+join t3 as x12 on x11.c3=x12.a3
+join t3 as x13 on x12.c3=x13.a3
+join t3 as x14 on x13.c3=x14.a3
+join t3 as x15 on x14.c3=x15.a3
+join t3 as x16 on x15.c3=x16.a3
+join t3 as x17 on x16.c3=x17.a3
+join t3 as x18 on x17.c3=x18.a3
+join t3 as x19 on x18.c3=x19.a3
+join t3 as x20 on x19.c3=x20.a3
+join t3 as x21 on x20.c3=x21.a3
+join t3 as x22 on x21.c3=x22.a3
+join t3 as x23 on x22.c3=x23.a3
+join t3 as x24 on x23.c3=x24.a3
+join t3 as x25 on x24.c3=x25.a3
+join t3 as x26 on x25.c3=x26.a3
+join t3 as x27 on x26.c3=x27.a3
+join t3 as x28 on x27.c3=x28.a3
+join t3 as x29 on x28.c3=x29.a3
+join t3 as x30 on x29.c3=x30.a3
+join t3 as x31 on x30.c3=x31.a3
+join t3 as x32 on x31.c3=x32.a3
+join t3 as x33 on x32.c3=x33.a3;
+count(*)
+1
+explain extended select count(*) from t3 as x0
+join t3 as x1 on x0.b3=x1.d3
+join t3 as x2 on x1.b3=x2.d3
+join t3 as x3 on x2.b3=x3.d3
+join t3 as x4 on x3.b3=x4.d3
+join t3 as x5 on x4.b3=x5.d3
+join t3 as x6 on x5.b3=x6.d3
+join t3 as x7 on x6.b3=x7.d3
+join t3 as x8 on x7.b3=x8.d3
+join t3 as x9 on x8.b3=x9.d3
+join t3 as x10 on x9.b3=x10.d3
+join t3 as x11 on x10.b3=x11.d3
+join t3 as x12 on x11.b3=x12.d3
+join t3 as x13 on x12.b3=x13.d3
+join t3 as x14 on x13.b3=x14.d3
+join t3 as x15 on x14.b3=x15.d3
+join t3 as x16 on x15.b3=x16.d3
+join t3 as x17 on x15.b3=x17.a3
+join t3 as x18 on x16.b3=x18.d3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x0	ALL	NULL	NULL	NULL	NULL	4	100.00	Parent of 17 pushed join@1
+1	SIMPLE	x1	eq_ref	t3_d3	t3_d3	4	test.x0.b3	1	100.00	Child of 'x0' in pushed join@1
+1	SIMPLE	x2	eq_ref	t3_d3	t3_d3	4	test.x1.b3	1	100.00	Child of 'x1' in pushed join@1
+1	SIMPLE	x3	eq_ref	t3_d3	t3_d3	4	test.x2.b3	1	100.00	Child of 'x2' in pushed join@1
+1	SIMPLE	x4	eq_ref	t3_d3	t3_d3	4	test.x3.b3	1	100.00	Child of 'x3' in pushed join@1
+1	SIMPLE	x5	eq_ref	t3_d3	t3_d3	4	test.x4.b3	1	100.00	Child of 'x4' in pushed join@1
+1	SIMPLE	x6	eq_ref	t3_d3	t3_d3	4	test.x5.b3	1	100.00	Child of 'x5' in pushed join@1
+1	SIMPLE	x7	eq_ref	t3_d3	t3_d3	4	test.x6.b3	1	100.00	Child of 'x6' in pushed join@1
+1	SIMPLE	x8	eq_ref	t3_d3	t3_d3	4	test.x7.b3	1	100.00	Child of 'x7' in pushed join@1
+1	SIMPLE	x9	eq_ref	t3_d3	t3_d3	4	test.x8.b3	1	100.00	Child of 'x8' in pushed join@1
+1	SIMPLE	x10	eq_ref	t3_d3	t3_d3	4	test.x9.b3	1	100.00	Child of 'x9' in pushed join@1
+1	SIMPLE	x11	eq_ref	t3_d3	t3_d3	4	test.x10.b3	1	100.00	Child of 'x10' in pushed join@1
+1	SIMPLE	x12	eq_ref	t3_d3	t3_d3	4	test.x11.b3	1	100.00	Child of 'x11' in pushed join@1
+1	SIMPLE	x13	eq_ref	t3_d3	t3_d3	4	test.x12.b3	1	100.00	Child of 'x12' in pushed join@1
+1	SIMPLE	x14	eq_ref	t3_d3	t3_d3	4	test.x13.b3	1	100.00	Child of 'x13' in pushed join@1
+1	SIMPLE	x15	eq_ref	t3_d3	t3_d3	4	test.x14.b3	1	100.00	Child of 'x14' in pushed join@1
+1	SIMPLE	x16	eq_ref	t3_d3	t3_d3	4	test.x15.b3	1	100.00	Parent of 2 pushed join@2
+1	SIMPLE	x17	ref	PRIMARY	PRIMARY	4	test.x16.d3	1	100.00	Child of 'x15' in pushed join@1; Using where
+1	SIMPLE	x18	eq_ref	t3_d3	t3_d3	4	test.x16.b3	1	100.00	Child of 'x16' in pushed join@2
+Warnings:
+Note	9999	Cannot push table 'x16' as child of 'x0'. Max number of pushable tables exceeded.
+Note	9999	Cannot push table 'x18' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t3` `x0` join `test`.`t3` `x1` join `test`.`t3` `x2` join `test`.`t3` `x3` join `test`.`t3` `x4` join `test`.`t3` `x5` join `test`.`t3` `x6` join `test`.`t3` `x7` join `test`.`t3` `x8` join `test`.`t3` `x9` join `test`.`t3` `x10` join `test`.`t3` `x11` join `test`.`t3` `x12` join `test`.`t3` `x13` join `test`.`t3` `x14` join `test`.`t3` `x15` join `test`.`t3` `x16` join `test`.`t3` `x17` join `test`.`t3` `x18` where ((`test`.`x1`.`d3` = `test`.`x0`.`b3`) and (`test`.`x2`.`d3` = `test`.`x1`.`b3`) and (`test`.`x3`.`d3` = `test`.`x2`.`b3`) and (`test`.`x4`.`d3` = `test`.`x3`.`b3`) and (`test`.`x5`.`d3` = `test`.`x4`.`b3`) and (`test`.`x6`.`d3` = `test`.`x5`.`b3`) and (`test`.`x7`.`d3` = `test`.`x6`.`b3`) and (`test`.`x8`.`d3` = `test`.`x7`.`b3`) and (`test`.`x9`.`d3` = `test`.`x8`.`b3`) and (`test`.`x10`.`d3` = `test`.`x9`.`b3`) and (`test`.`x11`.`d3` = `test`.`x10`.`b3`) and (`test`.`x12`.`d3` = `test`.`x11`.`b3`) and (`test`.`x13`.`d3` = `test`.`x12`.`b3`) and (`test`.`x14`.`d3` = `test`.`x13`.`b3`) and (`test`.`x15`.`d3` = `test`.`x14`.`b3`) and (`test`.`x16`.`d3` = `test`.`x15`.`b3`) and (`test`.`x17`.`a3` = `test`.`x15`.`b3`) and (`test`.`x18`.`d3` = `test`.`x16`.`b3`))
+select count(*) from t3 as x0
+join t3 as x1 on x0.b3=x1.d3
+join t3 as x2 on x1.b3=x2.d3
+join t3 as x3 on x2.b3=x3.d3
+join t3 as x4 on x3.b3=x4.d3
+join t3 as x5 on x4.b3=x5.d3
+join t3 as x6 on x5.b3=x6.d3
+join t3 as x7 on x6.b3=x7.d3
+join t3 as x8 on x7.b3=x8.d3
+join t3 as x9 on x8.b3=x9.d3
+join t3 as x10 on x9.b3=x10.d3
+join t3 as x11 on x10.b3=x11.d3
+join t3 as x12 on x11.b3=x12.d3
+join t3 as x13 on x12.b3=x13.d3
+join t3 as x14 on x13.b3=x14.d3
+join t3 as x15 on x14.b3=x15.d3
+join t3 as x16 on x15.b3=x16.d3
+join t3 as x17 on x15.b3=x17.a3
+join t3 as x18 on x16.b3=x18.d3;
+count(*)
+4
 drop table t1,t2,t3, t3_hash;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
 primary key(b3, a3)) engine = ndb;
@@ -4331,7 +4562,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	9999	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x3`.`pk` AS `pk`,`test`.`x3`.`u` AS `u`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on(((`test`.`x2`.`pk` = `test`.`x1`.`a`) and (`test`.`x3`.`b` = `test`.`x2`.`a`))) where 1
-update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended select straight_join count(*) from t1 as x1 
 join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
@@ -4381,7 +4611,6 @@ join t1 as x7 on x7.b = x1.a
 where x3.a < x2.pk and x4.a < x3.pk;
 count(*)
 632736
-update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended select straight_join count(*) from t1 as x1 
 left join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
@@ -4426,7 +4655,6 @@ join t1 as x2 on x2.b = x1.a
 left join t1 as x3 on x3.b = x1.b;
 count(*)
 2028
-update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended
 select straight_join count(*) from t1 as x1
 join t1 as x2 on x2.b = x1.a
@@ -4450,7 +4678,6 @@ join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
 count(*)
 2028
-update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended select straight_join count(*) from t1 as x1 
 left join t1 as x3 on x3.b = x1.a
 join t1 as x2 on x2.pk = x1.a;
@@ -4556,7 +4783,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	x2	ref	PRIMARY	PRIMARY	4	test.x0.c	1	Child of 'x0' in pushed join@1
 1	SIMPLE	x3	ref	PRIMARY	PRIMARY	4	test.x2.c	1	Child of 'x2' in pushed join@1
 1	SIMPLE	x4	eq_ref	PRIMARY	PRIMARY	8	test.x0.d,test.x3.b	1	Child of 'x3' in pushed join@1
-update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 select straight_join count(*) from t1 as x0  
 join t3 as x1 on x0.c=x1.a  
 join t1 as x2 on x0.c=x2.a 
@@ -4564,7 +4790,6 @@ join t3 as x3 on x2.c=x3.a
 join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
 count(*)
 4800
-update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 drop table t1;
 drop table t2;
 drop table t3;
@@ -5235,40 +5460,32 @@ group by counter_name;
 select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
 from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
+and spj_counts_at_end.counter_name <> 'READS_NOT_FOUND'
+       and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'REMOTE_READS_SENT'
        and spj_counts_at_end.counter_name <> 'LOCAL_RANGE_SCANS_SENT'
        and spj_counts_at_end.counter_name <> 'REMOTE_RANGE_SCANS_SENT'
+       and spj_counts_at_end.counter_name <> 'SCAN_ROWS_RETURNED'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
-LOCAL_TABLE_SCANS_SENT	244
+LOCAL_TABLE_SCANS_SENT	248
 PRUNED_RANGE_SCANS_RECEIVED	25
-RANGE_SCANS_RECEIVED	725
-READS_NOT_FOUND	6619
-READS_RECEIVED	52
-SCAN_ROWS_RETURNED	76344
-TABLE_SCANS_RECEIVED	244
-select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
-       from spj_counts_at_end, spj_counts_at_startup 
-where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
-       or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
-LOCAL+REMOTE READS_SENT
-35281
-drop table spj_save_counts;
+RANGE_SCANS_RECEIVED	727
+READS_RECEIVED	58
+TABLE_SCANS_RECEIVED	248
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
-scan_count
-2387
+scan_count_derived
+1.0
 pruned_scan_count
 11
 sorted_scan_count
 40
 pushed_queries_defined
-385
+397
 pushed_queries_dropped
 12
 pushed_queries_executed
-539
+548
 set ndb_join_pushdown = @save_ndb_join_pushdown;

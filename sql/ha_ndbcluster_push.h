@@ -254,6 +254,9 @@ private:
   // Set of tables required to have strict sequential dependency
   ndb_table_access_map m_forced_sequence;
 
+  // Number of internal operations used so far (unique lookups count as two).
+  uint m_internal_op_count;
+
   uint m_fld_refs;
   Field* m_referred_fields[ndb_pushed_join::MAX_REFERRED_FIELDS];
 
