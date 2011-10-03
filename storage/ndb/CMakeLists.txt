@@ -104,7 +104,7 @@ ENDIF()
 
 MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
   ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
-  LINK_LIBRARIES ndbclient)
+  LINK_LIBRARIES ndbclient_static)
 
 #
 # Add NDB binaries if ndbcluster is built

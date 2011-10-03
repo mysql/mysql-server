@@ -3,7 +3,12 @@
 -- source include/have_log_bin.inc
 
 -- disable_query_log
-call mtr.add_suppression('.*You need to use --log-bin to make --binlog-format work.*');
+#
+# I can't get this to work (unknown reason)
+#   so I added it to mtr_warnings.sql
+#   which...makes it work...REALLY weird...
+#
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 -- enable_query_log
 
 connect (server1,127.0.0.1,root,,test,$MYSQLD1_PORT,);

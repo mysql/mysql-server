@@ -53,6 +53,7 @@ static const bool doPrintQueryTree = false;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_MemoryAlloc = 4000;
+static const int Err_UnknownColumn = 4004;
 static const int Err_FinaliseNotCalled = 4519;
 
 static void
@@ -810,11 +811,11 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   NdbQueryOperationDefImpl& parentImpl = parent->getImpl();
 
   // Parent should be a OperationDef contained in this query builder context
-  returnErrIf(!m_impl.contains(&parentImpl), QRY_UNKONWN_PARENT);
+  returnErrIf(!m_impl.contains(&parentImpl), QRY_UNKNOWN_PARENT);
 
   // 'attr' should refer a column from the underlying table in parent:
   const NdbColumnImpl* column = parentImpl.getTable().getColumn(attr);
-  returnErrIf(column==0, QRY_UNKNOWN_COLUMN); // Unknown column
+  returnErrIf(column==0, Err_UnknownColumn); // Unknown column
 
   // Locate refered parrent column in parent operations SPJ projection list;
   // Add if not already present
@@ -830,6 +831,21 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
     (m_impl.addOperand(new NdbLinkedOperandImpl(parentImpl,colIx)));
 }
 
+// Check if there is at least one linked operand.
+static bool hasLinkedOperand(const NdbQueryOperand* const keys[])
+{
+  int i = 0;
+  while (keys[i] != NULL)
+  {
+    if (keys[i]->getImpl().getKind() == NdbQueryOperandImpl::Linked)
+    {
+      return true;
+    }
+    i++;
+  }
+  return false;
+}
+
 const NdbQueryLookupOperationDef*
 NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key lookup
                            const NdbQueryOperand* const keys[],  // Terminated by NULL element 
@@ -841,6 +857,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
     return NULL;
 
   returnErrIf(table==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+  // All operations but the first one must depend on some other operation.
+  returnErrIf(m_impl.m_operations.size() > 0 && !hasLinkedOperand(keys),
+              QRY_UNKNOWN_PARENT);
 
   const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
 
@@ -901,7 +920,11 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 
   if (m_impl.hasError())
     return NULL;
+
   returnErrIf(table==0 || index==0 || keys==0, QRY_REQ_ARG_IS_NULL);
+  // All operations but the first one must depend on some other operation.
+  returnErrIf(m_impl.m_operations.size() > 0 && !hasLinkedOperand(keys),
+              QRY_UNKNOWN_PARENT);
 
   const NdbIndexImpl& indexImpl = NdbIndexImpl::getImpl(*index);
   const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
@@ -962,6 +985,12 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   if (m_impl.hasError())
     return NULL;
   returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
+  /**
+   * A table scan does not depend on other operations, since there cannot be
+   * linked operands in a scan filter. Therefore, it must be the first
+   * operation.
+   */
+  returnErrIf(m_impl.m_operations.size() > 0, QRY_UNKNOWN_PARENT);
 
   int error = 0;
   NdbQueryTableScanOperationDefImpl* op =
@@ -990,6 +1019,33 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     return NULL;
   // Required non-NULL arguments
   returnErrIf(table==0 || index==0, QRY_REQ_ARG_IS_NULL);
+
+  if (m_impl.m_operations.size() > 0)
+  {
+    // All operations but the first one must depend on some other operation.
+    returnErrIf(bound == NULL ||
+                (!hasLinkedOperand(bound->m_low) &&
+                 !hasLinkedOperand(bound->m_high)),
+                QRY_UNKNOWN_PARENT);
+
+    // Scan with root lookup operation has not been implemented.
+    returnErrIf(!m_impl.m_operations[0]->isScanOperation(),
+                QRY_WRONG_OPERATION_TYPE);
+
+    // If the root is a sorted scan, we should not add another scan.
+    const NdbQueryOptions::ScanOrdering rootOrder =
+      m_impl.m_operations[0]->getOrdering();
+    returnErrIf(rootOrder == NdbQueryOptions::ScanOrdering_ascending ||
+                rootOrder == NdbQueryOptions::ScanOrdering_descending,
+                QRY_MULTIPLE_SCAN_SORTED);
+
+    // A child scan should not be sorted.
+    const NdbQueryOptions::ScanOrdering order =
+      options->getImpl().getOrdering();
+    returnErrIf(order == NdbQueryOptions::ScanOrdering_ascending ||
+                order == NdbQueryOptions::ScanOrdering_descending,
+                QRY_MULTIPLE_SCAN_SORTED);
+  }
 
   const NdbIndexImpl& indexImpl = NdbIndexImpl::getImpl(*index);
   const NdbTableImpl& tableImpl = NdbTableImpl::getImpl(*table);
@@ -1089,10 +1145,7 @@ void NdbQueryBuilderImpl::setErrorCode(int aErrorCode)
 { 
   DBUG_ASSERT(aErrorCode != 0);
   m_error.code = aErrorCode;
-  if (aErrorCode == Err_MemoryAlloc)
-  {
-    m_hasError = true;
-  }
+  m_hasError = true;
 }
 
 bool 
@@ -1109,10 +1162,15 @@ NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
 const NdbQueryDefImpl*
 NdbQueryBuilderImpl::prepare()
 {
-  const bool sorted =
-    m_operations.size() > 0 &&
-    m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
-    m_operations[0]->getOrdering() != NdbQueryOptions::ScanOrdering_void;
+  if (hasError())
+  {
+    return NULL;
+  }
+  if (m_operations.size() == 0)
+  {
+    setErrorCode(QRY_HAS_ZERO_OPERATIONS);
+    return NULL;
+  }
 
   int error;
   NdbQueryDefImpl* def = new NdbQueryDefImpl(m_operations, m_operands, error);
@@ -1124,16 +1182,6 @@ NdbQueryBuilderImpl::prepare()
   if(unlikely(error!=0)){
     delete def;
     setErrorCode(error);
-    return NULL;
-  }
-
-  /* Check if query is sorted and has multiple scan operations. This 
-   * combination is not implemented.
-   */
-  if (sorted && def->getQueryType() == NdbQueryDef::MultiScanQuery)
-  {
-    delete def;
-    setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
     return NULL;
   }
 

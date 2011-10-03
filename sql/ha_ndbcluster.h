@@ -538,7 +538,7 @@ static void set_tabname(const char *pathname, char *tabname);
                          HA_ALTER_INFO *alter_info,
                          HA_ALTER_FLAGS *alter_flags);
 
-  int alter_table_abort(THD *thd, TABLE *table,
+  int alter_table_abort(THD *thd,
                         HA_ALTER_INFO *alter_info,
                         HA_ALTER_FLAGS *alter_flags);
 #endif

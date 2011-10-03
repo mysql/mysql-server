@@ -3501,7 +3501,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
     BlockReference lqhRef;
     if(regCachePtr->viaSPJFlag){
       //ndbout << "TC:Choosing SPJ." << endl;
-      lqhRef = numberToRef(DBSPJ, Tnode); // Only 1 instance
+      lqhRef = numberToRef(DBSPJ, instanceKey, Tnode);
     }else{
       //ndbout << "TC:Choosing LQH." << endl;
       lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
@@ -5757,6 +5757,16 @@ Dbtc::sendFireTrigReq(Signal* signal,
     regApiPtr.p->apiConnectstate = CS_WAIT_FIRE_TRIG_REQ;
     ndbrequire(pass < 255);
     regApiPtr.p->m_pre_commit_pass = (Uint8)(pass + 1);
+
+    /**
+     * Check if we are already finished...
+     */
+    if (regApiPtr.p->lqhkeyreqrec == regApiPtr.p->lqhkeyconfrec &&
+        regApiPtr.p->pendingTriggers == 0)
+    {
+      jam();
+      lqhKeyConf_checkTransactionState(signal, regApiPtr);
+    }
     return;
   }
   else
@@ -7511,7 +7521,11 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
 	<< " - exec: "
         << tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG)
 	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]
-	<< " code: " << errCode);
+	<< " code: " << errCode
+        << " lqhkeyreqrec: " << apiConnectptr.p->lqhkeyreqrec
+        << " lqhkeyconfrec: " << apiConnectptr.p->lqhkeyconfrec
+        << " pendingTriggers: " << apiConnectptr.p->pendingTriggers
+        );
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec &&
@@ -11211,12 +11225,14 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   Uint32 instanceKey = conf->instanceKey;
   scanFragptr.p->lqhBlockref = numberToRef(scanptr.p->m_scan_block_no,
                                            instanceKey, tnodeid);
+
+#if 0
   if (scanptr.p->m_scan_block_no == DBSPJ)
   {
-    // only 1 instance
     scanFragptr.p->lqhBlockref = numberToRef(scanptr.p->m_scan_block_no,
-                                             tnodeid);
+                                             instanceKey, tnodeid);
   }
+#endif
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
 
   /* Determine whether this is the last scanFragReq
