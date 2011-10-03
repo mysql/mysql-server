@@ -858,14 +858,14 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
           in_subq->unit->first_select()->join->table_count >= MAX_TABLES)
         break;
       if (convert_subq_to_sj(join, in_subq))
-        DBUG_RETURN(TRUE);
+        goto restore_arena_and_fail;
     }
     else
     {
       if (join->table_count + 1 >= MAX_TABLES)
         break;
       if (convert_subq_to_jtbm(join, in_subq, &remove_item))
-        DBUG_RETURN(TRUE);
+        goto restore_arena_and_fail;
     }
     if (remove_item)
     {
@@ -874,7 +874,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
       Item *replace_me= in_subq->original_item();
       if (replace_where_subcondition(join, tree, replace_me, new Item_int(1),
                                      FALSE))
-        DBUG_RETURN(TRUE); /* purecov: inspected */
+        goto restore_arena_and_fail;
     }
   }
 //skip_conversion:
@@ -951,6 +951,11 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     thd->restore_active_arena(arena, &backup);
   join->select_lex->sj_subselects.empty();
   DBUG_RETURN(FALSE);
+
+restore_arena_and_fail:
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+  DBUG_RETURN(TRUE);
 }
 
 
