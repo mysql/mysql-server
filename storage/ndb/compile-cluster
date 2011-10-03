@@ -100,8 +100,19 @@ my $cmake_version_id;
     # which is available from cmake 2.8 and works on all platforms
     my @args;
     push(@args, "--build");
-  
     push(@args, "$srcdir");
+
+    if ($^O eq "cygwin" or $^O eq "MSWin32")
+    {
+      # Choose to build RelWitDebInfo by default on Windows
+      my $config = 'RelWithDebInfo';
+      if ($opt_debug)
+      {
+	$config = 'Debug';
+      }
+      push(@args, "--config");
+      push(@args, $config);
+    }
 
     cmd("cmake", @args);
 

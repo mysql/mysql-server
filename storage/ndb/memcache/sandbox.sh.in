@@ -3,16 +3,21 @@
 prefix=@CMAKE_INSTALL_PREFIX@
 bindir=@INSTALL_BINDIR@
 libexecdir=@INSTALL_SBINDIR@
+libdir=@INSTALL_LIBDIR@
 scriptsdir=@INSTALL_SCRIPTDIR@
 memcachedir=@MEMCACHED_ROOT_DIR@
-homebase=@CMAKE_CURRENT_SOURCE_DIR@
+sourcetree=@CMAKE_CURRENT_SOURCE_DIR@
+installtree=@CMAKE_BINARY_DIR@/memcache-api
 
 MYSQL_PREFIX=$prefix
 MYSQL_BIN=$prefix/$bindir
 MYSQL_LIBEXEC=$prefix/$libexecdir
 MYSQL_SCRIPTS=$prefix/$scriptsdir
+MYSQL_LIB=$prefix/$libdir
 MEMCACHE_BASE=$memcachedir
-HOME_BASE=$homebase
+SOURCE_TREE=$sourcetree
+HOME_BASE=$sourcetree   # fallback to source tree 
+test -d $installtree && HOME_BASE=$installtree  # prefer installed tree
 
 test_paths() {
   test_path $MYSQL_BIN ndb_mgm
@@ -129,14 +134,16 @@ test_pid() {
 
 load_metadata() {
   echo Loading NDB Memcache configuration data
-  $MYSQL_BIN/mysql --connect-timeout=10 -u root \
-    < $HOME_BASE/scripts/ndb_memcache_metadata.sql || exit
+  DDL_SCRIPT=$SOURCE_TREE/scripts/ndb_memcache_metadata.sql
+  $MYSQL_BIN/mysql --connect-timeout=10 -u root < $DDL_SCRIPT || TRY_AGAIN=1
+  test "$TRY_AGAIN" = "1" && $MYSQL_BIN/mysql --connect-timeout=10 \
+    -u root < $DDL_SCRIPT
 }
 
 start_memcached() {
   $MEMCACHE_BASE/bin/memcached -d -v \
     -P $HOME_BASE/sandbox/memcached.pid \
-    -E $MEMCACHE_BASE/lib/ndb_engine.so $1 $2
+    -E $MYSQL_LIB/ndb_engine.so $1 $2
 }
 
 stop_memcached() {

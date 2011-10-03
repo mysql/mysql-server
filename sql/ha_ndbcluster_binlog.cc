@@ -2307,7 +2307,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   if (is_remote_change && share && share->state != NSS_DROPPED)
   {
     DBUG_PRINT("info", ("remote change"));
-    share->state= NSS_DROPPED;
+    ndbcluster_mark_share_dropped(share);
     if (share->use_count != 1)
     {
       /* open handler holding reference */
@@ -7349,7 +7349,7 @@ restart_cluster_failure:
         /*
           The share kept by the server has not been freed, free it
         */
-        share->state= NSS_DROPPED;
+        ndbcluster_mark_share_dropped(share);
         /* ndb_share reference create free */
         DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                                  share->key, share->use_count));
