@@ -1701,6 +1701,21 @@ innobase_start_or_create_for_mysql(void)
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
+	if (srv_n_log_files * srv_log_file_size * UNIV_PAGE_SIZE
+	    >= 549755813888ULL /* 512G */) {
+		/* log_block_convert_lsn_to_no() limits the returned block
+		number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
+		bytes, then we have a limit of 512 GB. If that limit is to
+		be raised, then log_block_convert_lsn_to_no() must be
+		modified. */
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: combined size of log files"
+			" must be < 512 GB\n");
+
+		return(DB_ERROR);
+	}
+
 	if (srv_n_log_files * srv_log_file_size >= ULINT_MAX) {
 		/* fil_io() takes ulint as an argument and we are passing
 		(next_offset / UNIV_PAGE_SIZE) to it in log_group_write_buf().
