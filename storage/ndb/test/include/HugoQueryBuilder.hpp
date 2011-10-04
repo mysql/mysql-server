@@ -60,15 +60,9 @@ public:
     /**
      * Query might table scan
      */
-    O_TABLE_SCAN = 0x20,
-
-    /**
-     * If not any options set, random query qill be created
-     */
-    O_RANDOM_OPTIONS = (OptionMask)((~(OptionMask)0) & 
-                                    ~(OptionMask)(O_SCAN | O_LOOKUP))
+    O_TABLE_SCAN = 0x20
   };
-  static const OptionMask OM_RANDOM_OPTIONS = (OptionMask)O_RANDOM_OPTIONS;
+  static const OptionMask OM_RANDOM_OPTIONS = (OptionMask)(O_PK_INDEX | O_UNIQUE_INDEX | O_ORDERED_INDEX | O_TABLE_SCAN);
 
   HugoQueryBuilder(Ndb* ndb, const NdbDictionary::Table**tabptr, 
                    OptionMask om = OM_RANDOM_OPTIONS){
