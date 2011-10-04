@@ -3716,3 +3716,28 @@ DROP PROCEDURE p5;
 DROP PROCEDURE p6;
 DROP TABLE t1;
 DROP TABLE t2;
+
+--echo
+--echo # Check DECLARE statements that raise conditions before handlers
+--echo # are declared.
+--echo
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var1 INTEGER DEFAULT 'string';
+  DECLARE EXIT HANDLER FOR SQLWARNING BEGIN END;
+END|
+
+delimiter ;|
+
+--echo
+CALL p1();
+
+--echo
+DROP PROCEDURE p1;

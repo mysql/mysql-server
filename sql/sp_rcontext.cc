@@ -267,9 +267,6 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   DBUG_ASSERT(found_condition);
 
-  // Mark active conditions so that they can be deleted when the handler exits.
-  da->mark_sql_conditions_for_removal();
-
   sp_handler_entry *handler_entry= NULL;
   for (int i= 0; i < m_handlers.elements(); ++i)
   {
@@ -282,7 +279,19 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     }
   }
 
-  DBUG_ASSERT(handler_entry);
+  /*
+    handler_entry should not be NULL here, as that indicates
+    that the parser context thinks a HANDLER should be activated,
+    but the runtime context cannot find it.
+    However, this can currently happen if a statement that can
+    legally be written before DECLARE HANDLER raises a condition.
+    E.g. DECLARE var1 INTEGER DEFAULT 'get'.
+  */
+  if (!handler_entry)
+    DBUG_RETURN(false);
+
+  // Mark active conditions so that they can be deleted when the handler exits.
+  da->mark_sql_conditions_for_removal();
 
   uint continue_ip= handler_entry->handler->type == sp_handler::CONTINUE ?
     cur_spi->get_cont_dest() : 0;
