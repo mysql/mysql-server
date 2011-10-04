@@ -715,7 +715,7 @@ mutex. */
 UNIV_INTERN
 void
 rw_lock_debug_mutex_enter(void)
-/*==========================*/
+/*===========================*/
 {
 loop:
 	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
@@ -942,11 +942,13 @@ rw_lock_list_print_info(
 				putc('\n', file);
 			}
 
+			rw_lock_debug_mutex_enter();
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
 				rw_lock_debug_print(file, info);
 				info = UT_LIST_GET_NEXT(list, info);
 			}
+			rw_lock_debug_mutex_exit();
 		}
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 		mutex_exit(&(lock->mutex));
@@ -990,11 +992,13 @@ rw_lock_print(
 			putc('\n', stderr);
 		}
 
+		rw_lock_debug_mutex_enter();
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
 			rw_lock_debug_print(stderr, info);
 			info = UT_LIST_GET_NEXT(list, info);
 		}
+		rw_lock_debug_mutex_exit();
 	}
 }
 
