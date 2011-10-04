@@ -5674,6 +5674,8 @@ bool subselect_rowid_merge_engine::partial_match()
   DBUG_ASSERT(FALSE);
 
 end:
+  if (!has_covering_null_columns)
+    bitmap_clear_all(&matching_keys);
   queue_remove_all(&pq);
   tmp_table->file->ha_rnd_end();
   return res;

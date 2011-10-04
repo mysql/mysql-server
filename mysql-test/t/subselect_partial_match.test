@@ -354,4 +354,24 @@ SELECT * FROM t1 WHERE (6, 4 ) NOT IN (SELECT a, b FROM t2);
 
 drop table t1, t2;
 
+--echo #
+--echo # LP BUG#856152 Wrong result with NOT IN subquery and partial_match_rowid_merge
+--echo #
+
+CREATE TABLE t1 ( f1 integer NOT NULL , f2 integer) ;
+INSERT INTO t1 VALUES (3,3),(48,NULL),(49,1);
+
+CREATE TABLE t2 ( f3 int) ;
+INSERT INTO t2 VALUES (5);
+
+set @@optimizer_switch='in_to_exists=off,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+EXPLAIN SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+
+set @@optimizer_switch='in_to_exists=on,materialization=off';
+EXPLAIN SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+SELECT * FROM t2 WHERE ( 3 , 1 ) NOT IN ( SELECT f1 , f2 FROM t1 );
+
+drop table t1, t2;
+
 set @@optimizer_switch=@save_optimizer_switch;
