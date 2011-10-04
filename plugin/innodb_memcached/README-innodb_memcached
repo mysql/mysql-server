@@ -87,3 +87,6 @@ All tests passed
 
 8) You can also configure the commit batch size by specifying boot time system variable "daemon_memcached-w_batch_size" and "daemon_memcached-r_batch_size" (--loose-daemon_memcached-w_batch_size=100).
 
+9) To enable binlog, please turn on server configure variable
+"innodb_direct_access_enable_binlog" along with "log-bin" at server boot time:
+msqld ... --log-bin --innodb_direct_access_enable_binlog=1
