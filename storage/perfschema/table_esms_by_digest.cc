@@ -218,7 +218,11 @@ int table_esms_by_digest::rnd_next(void)
   m_pos.set_at(&m_next_pos);
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
-  if(digest_stat->m_digest[0] != '\0')
+  /* 
+    If digest information exist for this record,
+    make a new row.
+  */
+  if(digest_stat->m_digest_text[0] != '\0')
   {
     make_row(digest_stat);
     m_next_pos.set_after(&m_pos);
@@ -236,7 +240,11 @@ table_esms_by_digest::rnd_pos(const void *pos)
   set_position(pos);
   digest_stat= &statements_digest_stat_array[m_pos.m_index];
 
-  if(digest_stat->m_digest[0] != '\0')
+  /* 
+    If digest information exist for this record,
+    make a new row.
+  */
+  if(digest_stat->m_digest_text[0] != '\0')
   {
     make_row(digest_stat);
     return 0;
@@ -250,6 +258,7 @@ void table_esms_by_digest::make_row(PFS_statements_digest_stat* digest_stat)
 {
   m_row_exists= false;
   m_row.m_digest.make_row(digest_stat);
+  /* TODO Add code for statements stats */
   m_row_exists= true;
 }
 

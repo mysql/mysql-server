@@ -2600,12 +2600,6 @@ public:
   {
     m_lip.reset(found_semicolon, length);
     m_yacc.reset();
-
-    if( m_lip.m_digest_psi != NULL )
-    {
-      /* DIGEST_END */
-      PSI_server->digest_end(m_lip.m_digest_psi);
-    }
   }
 };
 

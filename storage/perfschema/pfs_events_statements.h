@@ -30,14 +30,22 @@ struct PFS_user;
 struct PFS_host;
 
 /**
+  Structure to store a MD5 hash value (digest) for a statement.
+*/
+struct {
+         unsigned char m_md5[16];
+       }typedef PFS_digest_hash;
+
+/**
   Structure to store token count/array for a statement
   on which digest is to be calculated.
 */
 #define PFS_MAX_TOKEN_COUNT 1024
-typedef struct {
+struct {
          uint m_token_count;
          uint m_token_array[PFS_MAX_TOKEN_COUNT];
-       } PFS_digest_storage;
+         PFS_digest_hash m_digest_hash;
+       } typedef PFS_digest_storage;
 
 
 /** A statement record. */

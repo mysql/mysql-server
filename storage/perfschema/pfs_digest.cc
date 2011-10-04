@@ -28,8 +28,11 @@ unsigned int statements_digest_size= 0;
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
 /** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 bool flag_statements_digest= true;
-/** Current index in Stat array where new record is to be inserted. */
-int digest_index= 0;
+/** 
+  Current index in Stat array where new record is to be inserted.
+  index 0 is reserved for "all else" case when entire array is full.
+*/
+int digest_index= 1;
 
 static LF_HASH digest_hash;
 static bool digest_hash_inited= false;
@@ -77,8 +80,8 @@ static uchar *digest_hash_get_key(const uchar *entry, size_t *length,
   DBUG_ASSERT(typed_entry != NULL);
   digest= *typed_entry;
   DBUG_ASSERT(digest != NULL);
-  *length= digest->m_key.m_key_length;
-  result= digest->m_key.m_hash_key;
+  *length= 16; 
+  result= digest->m_md5_hash.m_md5;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
 C_MODE_END
@@ -114,34 +117,18 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 {
   if (unlikely(thread->m_digest_hash_pins == NULL))
   {
-    if (! digest_hash_inited)
+    if (!digest_hash_inited)
       return NULL;
     thread->m_digest_hash_pins= lf_hash_get_pins(&digest_hash);
   }
   return thread->m_digest_hash_pins;
 }
 
-static void set_digest_key(PFS_digest_key *key,
-                         const char *digest, uint digest_length)
-{
-  DBUG_ASSERT(digest_length <= COL_DIGEST_SIZE);
-
-  char *ptr= &key->m_hash_key[0];
-  if (digest_length > 0)
-  {
-    memcpy(ptr, digest, digest_length);
-    ptr+= digest_length;
-  }
-  ptr[0]= 0;
-  ptr++;
-  key->m_key_length= ptr - &key->m_hash_key[0];
-}
-
-
 PFS_statements_digest_stat* 
 search_insert_statement_digest(PFS_thread* thread,
-                               char* digest,
-                               char* digest_text)
+                               unsigned char* hash_key,
+                               char* digest_text,
+                               unsigned int digest_text_length)
 {
   /* get digest pin. */
   LF_PINS *pins= get_digest_hash_pins(thread);
@@ -150,42 +137,54 @@ search_insert_statement_digest(PFS_thread* thread,
     return NULL;
   }
  
-  /* make new digest key. */
-  PFS_digest_key key;
-  set_digest_key(&key, digest, strlen(digest));
- 
   PFS_statements_digest_stat **entry;
+  PFS_statements_digest_stat *pfs;
 
   /* Lookup LF_HASH using this new key. */
   entry= reinterpret_cast<PFS_statements_digest_stat**>
     (lf_hash_search(&digest_hash, pins,
-                    key.m_hash_key, key.m_key_length));
+                    hash_key, 16));
 
   if(!entry)
   {
     /* 
-       If statement digest entry doesn't exist, add a new record in the 
-       digest stat array. 
+      If statement digest entry doesn't exist.
     */
     //printf("\n Doesn't Exist. Adding new entry. \n");
-    PFS_statements_digest_stat *pfs;
 
+    if(digest_index==0)
+    {
+      /*
+        digest_stat array is full. Add stat at index 0 and return.
+      */
+      pfs= &statements_digest_stat_array[0];
+      //TODO
+      return pfs;
+    }
+
+    /* 
+      Add a new record in digest stat array. 
+    */
     pfs= &statements_digest_stat_array[digest_index];
     
-    /* Set digest. */
-    memcpy(pfs->m_digest, digest, COL_DIGEST_SIZE);
-    pfs->m_digest_length= strlen(digest);
-
     /* Set digest text. */
-    memcpy(pfs->m_digest_text, digest_text, COL_DIGEST_TEXT_SIZE);
-    pfs->m_digest_text_length= strlen(digest_text);
+    memcpy(pfs->m_digest_text, digest_text, digest_text_length);
+    pfs->m_digest_text_length= digest_text_length;
 
-    /* Set digest key. */
-    memcpy(pfs->m_key.m_hash_key, key.m_hash_key, COL_DIGEST_SIZE);
-    pfs->m_key.m_key_length= key.m_key_length;
+    /* Set digest hash/LF Hash search key. */
+    memcpy(pfs->m_md5_hash.m_md5, hash_key, 16);
     
-    /* Rounding Buffer. Overwrite first entry if all slots are full. */
-    digest_index= (digest_index+1)%statements_digest_size;
+    /* Increment index. */
+    digest_index++;
+    
+    if(digest_index%statements_digest_size == 0)
+    {
+      /* 
+        Digest stat array is full. Now all stat for all further 
+        entries will go into index 0.
+      */
+      digest_index= 0;
+    }
     
     /* Add this new digest into LF_HASH */
     int res;
@@ -204,7 +203,6 @@ search_insert_statement_digest(PFS_thread* thread,
       If stmt digest already exists, update stat and return 
     */
     //printf("\n Already Exists \n");
-    PFS_statements_digest_stat *pfs;
     pfs= *entry;
     lf_hash_search_unpin(pins);
     return pfs;
