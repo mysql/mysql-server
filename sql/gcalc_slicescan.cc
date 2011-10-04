@@ -39,6 +39,99 @@ typedef int (*sc_compare_func)(const void*, const void*);
 #include "plistsort.c"
 
 
+#ifndef GCALC_DBUG_OFF
+
+int gcalc_step_counter= 0;
+
+void GCALC_DBUG_CHECK_COUNTER()
+{
+  if (++gcalc_step_counter == 0)
+    GCALC_DBUG_PRINT(("step_counter_0"));
+  else
+    GCALC_DBUG_PRINT(("%d step_counter", gcalc_step_counter));
+}
+
+
+const char *gcalc_ev_name(int ev)
+{
+  switch (ev)
+  {
+    case scev_none:
+      return "n";
+    case scev_thread:
+      return "t";
+    case scev_two_threads:
+      return "tt";
+    case scev_end:
+      return "e";
+    case scev_two_ends:
+      return "ee";
+    case scev_intersection:
+      return "i";
+    case scev_point:
+      return "p";
+    case scev_single_point:
+      return "sp";
+    default:;
+  };
+  GCALC_DBUG_ASSERT(0);
+  return "unk";
+}
+
+
+static void GCALC_DBUG_PRINT_SLICE(const char *header,
+                                   const Gcalc_scan_iterator::point *slice)
+{
+  int nbuf1, nbuf2;
+  char buf1[1024], buf2[1024];
+  nbuf1= nbuf2= strlen(header);
+  strcpy(buf1, header);
+  strcpy(buf2, header);
+  for (; slice; slice= slice->get_next())
+  {
+    nbuf1+= sprintf(buf1+nbuf1, "%d\t", slice->thread);
+    nbuf2+= sprintf(buf2+nbuf2, "%s\t", gcalc_ev_name(slice->event));
+  }
+  buf1[nbuf1]= 0;
+  buf2[nbuf2]= 0;
+  GCALC_DBUG_PRINT((buf1));
+  GCALC_DBUG_PRINT((buf2));
+}
+
+
+static void GCALC_DBUG_PRINT_INTERSECTIONS(
+    Gcalc_scan_iterator::intersection *isc)
+{
+  for (; isc; isc= isc->get_next())
+  {
+    long double ix, iy;
+    isc->ii->calc_xy_ld(&ix, &iy);
+    GCALC_DBUG_PRINT(("%d %d %d %.8LG %.8LG", isc->thread_a, isc->thread_b,
+                      isc->n_row, ix, iy));
+  }
+}
+
+
+static void GCALC_DBUG_PRINT_STATE(Gcalc_scan_iterator::slice_state *s)
+{
+  if (s->event_position)
+    GCALC_DBUG_PRINT(("%d %d %d", s->event_position->thread,
+     ((Gcalc_scan_iterator::point *) *s->event_position_hook)->thread,
+     *s->event_end_hook ?
+       ((Gcalc_scan_iterator::point *) *s->event_end_hook)->thread : -1));
+  else
+    GCALC_DBUG_PRINT(("position null"));
+}
+
+
+#else
+#define GCALC_DBUG_CHECK_COUNTER(a)             do { } while(0)
+#define GCALC_DBUG_PRINT_SLICE(a, b)            do { } while(0)
+#define GCALC_DBUG_PRINT_INTERSECTIONS(a)       do { } while(0)
+#define GCALC_DBUG_PRINT_STATE(a)               do { } while(0)
+#endif /*GCALC_DBUG_OFF*/
+
+
 Gcalc_dyn_list::Gcalc_dyn_list(size_t blk_size, size_t sizeof_item):
   m_blk_size(blk_size - ALLOC_ROOT_MIN_BLOCK_SIZE),
   m_sizeof_item(ALIGN_SIZE(sizeof_item)),
@@ -52,7 +145,7 @@ Gcalc_dyn_list::Gcalc_dyn_list(size_t blk_size, size_t sizeof_item):
 void Gcalc_dyn_list::format_blk(void* block)
 {
   Item *pi_end, *cur_pi, *first_pi;
-  DBUG_ASSERT(m_free == NULL);
+  GCALC_DBUG_ASSERT(m_free == NULL);
   first_pi= cur_pi= (Item *)(((char *)block) + PH_DATA_OFFSET);
   pi_end= ptr_add(first_pi, m_points_per_blk - 1);
   do {
@@ -170,8 +263,8 @@ static void do_add(Gcalc_internal_coord *result,
                    const Gcalc_internal_coord *a,
                    const Gcalc_internal_coord *b)
 {
-  DBUG_ASSERT(a->n_digits == b->n_digits);
-  DBUG_ASSERT(a->n_digits == result->n_digits);
+  GCALC_DBUG_ASSERT(a->n_digits == b->n_digits);
+  GCALC_DBUG_ASSERT(a->n_digits == result->n_digits);
   int n_digit= a->n_digits-1;
   coord_digit_t carry= 0;
 
@@ -186,7 +279,7 @@ static void do_add(Gcalc_internal_coord *result,
     else
       carry= 0;
   } while (n_digit--);
-  DBUG_ASSERT(carry == 0);
+  GCALC_DBUG_ASSERT(carry == 0);
   result->sign= a->sign;
 }
 
@@ -195,8 +288,8 @@ static void do_sub(Gcalc_internal_coord *result,
                    const Gcalc_internal_coord *a,
                    const Gcalc_internal_coord *b)
 {
-  DBUG_ASSERT(a->n_digits == b->n_digits);
-  DBUG_ASSERT(a->n_digits == result->n_digits);
+  GCALC_DBUG_ASSERT(a->n_digits == b->n_digits);
+  GCALC_DBUG_ASSERT(a->n_digits == result->n_digits);
   int n_digit= a->n_digits-1;
   coord_digit_t carry= 0;
 
@@ -211,7 +304,7 @@ static void do_sub(Gcalc_internal_coord *result,
     else
       carry= 0;
   } while (n_digit--);
-  DBUG_ASSERT(carry == 0);
+  GCALC_DBUG_ASSERT(carry == 0);
   if (a->sign && result->is_zero())
     result->sign= 0;
   else
@@ -222,7 +315,7 @@ static void do_sub(Gcalc_internal_coord *result,
 static int do_cmp(const Gcalc_internal_coord *a,
                   const Gcalc_internal_coord *b)
 {
-  DBUG_ASSERT(a->n_digits == b->n_digits);
+  GCALC_DBUG_ASSERT(a->n_digits == b->n_digits);
   int n_digit= 0;
 
   do
@@ -243,23 +336,11 @@ static int do_cmp(const Gcalc_internal_coord *a,
 static int de_check(long double a, long double b)
 {
   long double d= a - b;
-  if (d < (long double) 1e-6 && d > (long double) -1e-6)
+  if (d < (long double) 1e-10 && d > (long double) -1e-10)
     return 1;
-  printf("xxx\n");
-  return 0;
-}
 
-static int de_check1(long double a, long double b)
-{
-  long double d= a - b;
-  if (d < (long double) 1e-6 && d > (long double) -1e-6)
-    return 1;
-  return 0;
-}
-static int de_weak(long double a, long double b)
-{
-  long double d= a - b;
-  if (d < (long double) 1 && d > (long double) -1)
+  d/= fabsl(a) + fabsl(b);
+  if (d < (long double) 1e-10 && d > (long double) -1e-10)
     return 1;
   return 0;
 }
@@ -270,7 +351,7 @@ void gcalc_mul_coord(Gcalc_internal_coord *result,
                      const Gcalc_internal_coord *a,
                      const Gcalc_internal_coord *b)
 {
-  DBUG_ASSERT(result->n_digits == a->n_digits + b->n_digits);
+  GCALC_DBUG_ASSERT(result->n_digits == a->n_digits + b->n_digits);
   int n_a, n_b, n_res;
   coord_digit_t carry= 0;
 
@@ -301,7 +382,7 @@ void gcalc_mul_coord(Gcalc_internal_coord *result,
   } while (n_a--);
   result->sign= a->sign != b->sign;
 #ifdef GCALC_CHECK_WITH_FLOAT
-  DBUG_ASSERT(de_check(a->get_double() * b->get_double(),
+  GCALC_DBUG_ASSERT(de_check(a->get_double() * b->get_double(),
                        result->get_double()));
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 }
@@ -324,7 +405,7 @@ void gcalc_add_coord(Gcalc_internal_coord *result,
       do_sub(result, b, a);
   }
 #ifdef GCALC_CHECK_WITH_FLOAT
-  DBUG_ASSERT(de_check(a->get_double() + b->get_double(),
+  GCALC_DBUG_ASSERT(de_check(a->get_double() + b->get_double(),
                        result->get_double()));
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 }
@@ -350,7 +431,7 @@ void gcalc_sub_coord(Gcalc_internal_coord *result,
     }
   }
 #ifdef GCALC_CHECK_WITH_FLOAT
-  DBUG_ASSERT(de_check(a->get_double() - b->get_double(),
+  GCALC_DBUG_ASSERT(de_check(a->get_double() - b->get_double(),
                        result->get_double()));
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 }
@@ -365,12 +446,12 @@ int gcalc_cmp_coord(const Gcalc_internal_coord *a,
   result= a->sign ? do_cmp(b, a) : do_cmp(a, b);
 #ifdef GCALC_CHECK_WITH_FLOAT
   if (result == 0)
-    DBUG_ASSERT(de_check(a->get_double(), b->get_double()));
+    GCALC_DBUG_ASSERT(de_check(a->get_double(), b->get_double()));
   else if (result == 1)
-    DBUG_ASSERT(de_check1(a->get_double(), b->get_double()) ||
+    GCALC_DBUG_ASSERT(de_check(a->get_double(), b->get_double()) ||
                 a->get_double() > b->get_double());
   else
-    DBUG_ASSERT(de_check1(a->get_double(), b->get_double()) ||
+    GCALC_DBUG_ASSERT(de_check(a->get_double(), b->get_double()) ||
                 a->get_double() < b->get_double());
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   return result;
@@ -386,7 +467,7 @@ int Gcalc_coord1::set_double(double d)
   c[0]= (coord_digit_t) (ds / (double) DIG_BASE);
   c[1]= (coord_digit_t) (ds - ((double) c[0]) * DIG_BASE);
 #ifdef GCALC_CHECK_WITH_FLOAT
-  DBUG_ASSERT(de_check(d, get_double()));
+  GCALC_DBUG_ASSERT(de_check(d, get_double()));
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   return 0;
 } 
@@ -564,7 +645,7 @@ static inline void trim_node(Gcalc_heap::Info *node, Gcalc_heap::Info *prev_node
 {
   if (!node)
     return;
-  DBUG_ASSERT((node->left == prev_node) || (node->right == prev_node));
+  GCALC_DBUG_ASSERT((node->left == prev_node) || (node->right == prev_node));
   if (node->left == prev_node)
     node->left= node->right;
   node->right= NULL;
@@ -591,7 +672,7 @@ static int compare_point_info(const void *e0, const void *e1)
 
 void Gcalc_heap::prepare_operation()
 {
-  DBUG_ASSERT(m_hook);
+  GCALC_DBUG_ASSERT(m_hook);
   *m_hook= NULL;
   m_first= sort_list(compare_point_info, m_first, m_n_points);
   m_hook= NULL; /* just to check it's not called twice */
@@ -644,7 +725,7 @@ int Gcalc_shape_transporter::int_add_point(gcalc_shape_info Info,
                                            double x, double y)
 {
   Gcalc_heap::Info *point;
-  DBUG_ASSERT(!m_prev || m_prev->x != x || m_prev->y != y);
+  GCALC_DBUG_ASSERT(!m_prev || m_prev->x != x || m_prev->y != y);
 
   if (!(point= m_heap->new_point_info(x, y, Info)))
     return 1;
@@ -662,7 +743,7 @@ int Gcalc_shape_transporter::int_add_point(gcalc_shape_info Info,
 
 void Gcalc_shape_transporter::int_complete()
 {
-  DBUG_ASSERT(m_shape_started == 1 || m_shape_started == 3);
+  GCALC_DBUG_ASSERT(m_shape_started == 1 || m_shape_started == 3);
 
   if (!m_first)
     return;
@@ -683,28 +764,28 @@ void Gcalc_shape_transporter::int_complete()
     return;
   }
 
-  DBUG_ASSERT(m_prev->x != m_first->x || m_prev->y != m_first->y);
+  GCALC_DBUG_ASSERT(m_prev->x != m_first->x || m_prev->y != m_first->y);
   /* polygon */
   m_first->right= m_prev;
   m_prev->left= m_first;
 }
 
 
-#ifdef TMP_BLOCK
-inline int GET_DX_DY(double *dxdy,
-                     const Gcalc_heap::Info *p0, const Gcalc_heap::Info *p1)
-{
-  double dy= p1->y - p0->y;
-  *dxdy= p1->x - p0->x;
-  return (dy == 0.0) ||
-         (*dxdy/= dy)>DBL_MAX ||
-         (*dxdy)<-DBL_MAX;
-}
-#endif /*TMP_BLOCK*/
 inline void calc_dx_dy(Gcalc_scan_iterator::point *p)
 {
   gcalc_sub_coord(&p->dx, &p->next_pi->ix, &p->pi->ix);
   gcalc_sub_coord(&p->dy, &p->next_pi->iy, &p->pi->iy);
+  if (p->dx.sign)
+  {
+    p->l_border= &p->next_pi->ix;
+    p->r_border= &p->pi->ix;
+  }
+  else
+  {
+    p->r_border= &p->next_pi->ix;
+    p->l_border= &p->pi->ix;
+  }
+  p->always_on_left= 0;
 }
 
 
@@ -732,8 +813,8 @@ Gcalc_scan_iterator::point
 
 void Gcalc_scan_iterator::init(Gcalc_heap *points)
 {
-  DBUG_ASSERT(points->ready());
-  DBUG_ASSERT(!state0.slice && !state1.slice);
+  GCALC_DBUG_ASSERT(points->ready());
+  GCALC_DBUG_ASSERT(!state0.slice && !state1.slice);
 
   if (!(m_cur_pi= points->get_first()))
     return;
@@ -746,9 +827,6 @@ void Gcalc_scan_iterator::init(Gcalc_heap *points)
   current_state= &state0;
   next_state= &state1;
   saved_state= &state_s;
-#ifdef TMP_BLOCK
-  next_state->y= m_cur_pi->y;
-#endif /*TMP_BLOCK*/
   next_state->intersection_scan= 0;
   next_state->pi= m_cur_pi;
 }
@@ -763,18 +841,13 @@ void Gcalc_scan_iterator::reset()
 
 void Gcalc_scan_iterator::point::copy_core(const point *from)
 {
-#ifdef TMP_BLOCK
-  dx_dy= from->dx_dy;
-  horiz_dir= from->horiz_dir;
-#endif /*TMP_BLOCK*/
   pi= from->pi;
   next_pi= from->next_pi;
   thread= from->thread;
   dx.copy(&from->dx);
   dy.copy(&from->dy);
-#ifdef TO_REMOVE
-  from->next_link= this;
-#endif /*TO_REMOVE*/
+  l_border= from->l_border;
+  r_border= from->r_border;
 }
 
 
@@ -787,35 +860,11 @@ void Gcalc_scan_iterator::point::copy_all(const point *from)
   dy.copy(&from->dy);
   intersection_link= from->intersection_link;
   event= from->event;
-}
-#ifdef TMP_BLOCK
-int Gcalc_scan_iterator::point::cmp_dx_dy(int horiz_dir_a, double dx_dy_a,
-                                          int horiz_dir_b, double dx_dy_b)
-{
-  if (!horiz_dir_a && !horiz_dir_b)
-  {
-    if (coord_eq(dx_dy_a, dx_dy_b))
-      return 0;
-    return dx_dy_a < dx_dy_b ? -1 : 1;
-  }
-  if (!horiz_dir_a)
-    return -1;
-  if (!horiz_dir_b)
-    return 1;
-
-  return 0;
+  l_border= from->l_border;
+  r_border= from->r_border;
 }
 
 
-int Gcalc_scan_iterator::point::cmp_dx_dy(const point *p) const
-{
-  if (is_bottom())
-    return p->is_bottom() ? 0 : -1;
-  if (p->is_bottom())
-    return 1;
-  return cmp_dx_dy(horiz_dir, dx_dy, p->horiz_dir, p->dx_dy);
-}
-#endif /*TMP_BLOCK*/
 int Gcalc_scan_iterator::point::cmp_dx_dy(const Gcalc_coord1 *dx_a,
                                           const Gcalc_coord1 *dy_a,
                                           const Gcalc_coord1 *dx_b,
@@ -899,15 +948,15 @@ static int cmp_sp_pi(const Gcalc_scan_iterator::point *sp,
   long double sp_x;
   sp->calc_x(&sp_x, pi->y, pi->x);
   if (result == 0)
-    DBUG_ASSERT(de_check1(sp->dy.get_double(), 0.0) ||
+    GCALC_DBUG_ASSERT(de_check(sp->dy.get_double(), 0.0) ||
                 de_check(sp_x, pi->x));
   if (result < 0)
-    DBUG_ASSERT(de_check1(sp->dy.get_double(), 0.0) ||
-                de_check1(sp_x, pi->x) ||
+    GCALC_DBUG_ASSERT(de_check(sp->dy.get_double(), 0.0) ||
+                de_check(sp_x, pi->x) ||
                 sp_x < pi->x);
   if (result > 0)
-    DBUG_ASSERT(de_check1(sp->dy.get_double(), 0.0) ||
-                de_check1(sp_x, pi->x) ||
+    GCALC_DBUG_ASSERT(de_check(sp->dy.get_double(), 0.0) ||
+                de_check(sp_x, pi->x) ||
                 sp_x > pi->x);
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   return result;
@@ -954,11 +1003,11 @@ static int cmp_sp_sp_cnt(const Gcalc_scan_iterator::point *a,
   a->calc_x(&a_x, y->get_double(), 0);
   b->calc_x(&b_x, y->get_double(), 0);
   if (result == 0)
-    DBUG_ASSERT(de_check(a_x, b_x));
+    GCALC_DBUG_ASSERT(de_check(a_x, b_x));
   if (result < 0)
-    DBUG_ASSERT(de_check1(a_x, b_x) || a_x < b_x);
+    GCALC_DBUG_ASSERT(de_check(a_x, b_x) || a_x < b_x);
   if (result > 0)
-    DBUG_ASSERT(de_check1(a_x, b_x) || a_x > b_x);
+    GCALC_DBUG_ASSERT(de_check(a_x, b_x) || a_x > b_x);
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   return result;
 }
@@ -1009,8 +1058,8 @@ int Gcalc_scan_iterator::arrange_event()
   if (m_events)
     free_list(m_events);
   ev_counter= 0;
-  DBUG_ASSERT(current_state->event_position ==
-              *current_state->event_position_hook);
+  GCALC_DBUG_ASSERT(current_state->event_position ==
+                      *current_state->event_position_hook);
   for (sp= current_state->event_position;
        sp != *current_state->event_end_hook; sp= sp->get_next())
   {
@@ -1021,9 +1070,6 @@ int Gcalc_scan_iterator::arrange_event()
     new_sp->copy_all(sp);
     *ae_hook= new_sp;
     ae_hook= &new_sp->next;
-#ifdef TO_REMOVE
-    sp->intersection_link= new_sp;
-#endif /*TO_REMOVE*/
     ev_counter++;
   }
   *ae_hook= NULL;
@@ -1036,7 +1082,10 @@ int Gcalc_scan_iterator::arrange_event()
       after_event= (point *) sort_list(compare_events, after_event, ev_counter);
       /* Find last item in the list, ae_hook can change after the sorting */
       for (cur_p= after_event->get_next(); cur_p->get_next();
-           cur_p= cur_p->get_next());
+           cur_p= cur_p->get_next())
+      {
+        cur_p->always_on_left= 1;
+      }
       ae_hook= &cur_p->next;
 
     }
@@ -1067,14 +1116,12 @@ int Gcalc_scan_iterator::insert_top_point()
   point *sp0= new_slice_point();
   point *sp_inc;
 
+  GCALC_DBUG_ENTER("Gcalc_scan_iterator::insert_top_point");
   if (!sp0)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   sp0->pi= m_cur_pi;
   sp0->next_pi= m_cur_pi->left;
   sp0->thread= m_cur_thread++;
-#ifdef TMP_BLOCK
-  sp0->x= coord_to_float(m_cur_pi->x);
-#endif /*TMP_BLOCK*/
   if (m_cur_pi->left)
   {
     calc_dx_dy(sp0);
@@ -1082,20 +1129,17 @@ int Gcalc_scan_iterator::insert_top_point()
 
     /*Now just to increase the size of m_slice0 to be same*/
     if (!(sp_inc= new_slice_point()))
-      return 1;
+      GCALC_DBUG_RETURN(1);
     sp_inc->next= current_state->slice;
     current_state->slice= sp_inc;
     if (m_cur_pi->right)
     {
       if (!(sp1= new_slice_point()))
-        return 1;
+        GCALC_DBUG_RETURN(1);
       sp1->event= sp0->event= scev_two_threads;
       sp1->pi= m_cur_pi;
       sp1->next_pi= m_cur_pi->right;
       sp1->thread= m_cur_thread++;
-#ifdef TMP_BLOCK
-      sp1->x= sp0->x;
-#endif /*TMP_BLOCK*/
       calc_dx_dy(sp1);
       /* We have two threads so should decide which one will be first */
       if (sp0->cmp_dx_dy(sp1)>0)
@@ -1107,7 +1151,7 @@ int Gcalc_scan_iterator::insert_top_point()
 
       /*Now just to increase the size of m_slice0 to be same*/
       if (!(sp_inc= new_slice_point()))
-        return 1;
+        GCALC_DBUG_RETURN(1);
       sp_inc->next= current_state->slice;
       current_state->slice= sp_inc;
     }
@@ -1115,10 +1159,6 @@ int Gcalc_scan_iterator::insert_top_point()
   else
   {
     sp0->event= scev_single_point;
-#ifdef TMP_BLOCK
-    sp0->horiz_dir= 0;
-    sp0->dx_dy= 0.0;
-#endif /*TMP_BLOCK*/
   }
 
 
@@ -1154,36 +1194,10 @@ int Gcalc_scan_iterator::insert_top_point()
     sp0->next= sp;
     next_state->event_end_hook= &sp0->next;
   }
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
-#ifndef NO_TESTING
-const char *pev(int ev)
-{
-  switch (ev)
-  {
-    case scev_none:
-      return "n";
-    case scev_thread:
-      return "t";
-    case scev_two_threads:
-      return "tt";
-    case scev_end:
-      return "e";
-    case scev_two_ends:
-      return "ee";
-    case scev_intersection:
-      return "i";
-    case scev_point:
-      return "p";
-    case scev_single_point:
-      return "sp";
-  };
-  return "fck";
-}
-extern int ca_counter;
-#endif /*NO_TESTING*/
 int Gcalc_scan_iterator::normal_scan()
 {
   point *sp;
@@ -1191,13 +1205,17 @@ int Gcalc_scan_iterator::normal_scan()
   Gcalc_heap::Info *next_pi;
   point *first_bottom_point;
 
+  GCALC_DBUG_ENTER("Gcalc_scan_iterator::normal_scan");
+  GCALC_DBUG_CHECK_COUNTER();
+  GCALC_DBUG_PRINT_SLICE("in\t", next_state->slice);
   if (m_next_is_top_point && insert_top_point())
-    return 1;
+    GCALC_DBUG_RETURN(1);
 
   for (next_pi= m_cur_pi->get_next();
        next_pi && cmp_point_info(m_cur_pi, next_pi) == 0;
        next_pi= next_pi->get_next())
   {
+    GCALC_DBUG_PRINT(("eq_loop equal pi"));
     next_state->clear_event_position();
     m_next_is_top_point= true;
     first_bottom_point= NULL;
@@ -1205,40 +1223,52 @@ int Gcalc_scan_iterator::normal_scan()
          sp_hook= (Gcalc_dyn_list::Item **) &next_state->slice; sp;
          sp_hook= &sp->next, sp= sp->get_next())
     {
-#ifndef NO_TESTING
-    //  if (ca_counter == 21)
-        printf("%s%d\t", pev(sp->event), sp->thread);
-#endif /*NO_TESTING*/
+      GCALC_DBUG_PRINT(("eq_loop normal_eq_step %s%d", gcalc_ev_name(sp->event),
+                                               sp->thread));
       if (sp->next_pi == next_pi) /* End of the segment */
       {
-#ifdef TMP_BLOCK
-        sp->x= coord_to_float(next_pi->x);
-        sp->pi= next_pi;
-#endif /*TMP_BLOCK*/
+        GCALC_DBUG_PRINT(("eq_loop edge end"));
         if (cmp_point_info(sp->pi, next_pi))
+        {
+          GCALC_DBUG_PRINT(("eq_loop zero-len edge"));
           sp->pi= next_pi;
+        }
         sp->next_pi= next_pi->left;
         m_next_is_top_point= false;
         if (next_pi->is_bottom())
         {
+          GCALC_DBUG_PRINT(("eq_loop bottom_point"));
           if (sp->event == scev_thread)
+          {
+            /* Beginning of the thread, and the end are same */
+            /* Make single point out of the line then.       */
+            GCALC_DBUG_PRINT(("eq_loop line_to_point"));
             sp->event= scev_single_point;
+          }
           else if (sp->event == scev_two_threads)
           {
             if (sp->get_next() && sp->get_next()->pi == sp->pi)
+            {
+              GCALC_DBUG_PRINT(("eq_loop two_threads_to_line %d",
+                               sp->get_next()->thread));
               sp->get_next()->event= scev_thread;
+            }
             else if (sp != next_state->slice)
             {
               point *fnd_sp;
               for (fnd_sp= next_state->slice; fnd_sp->get_next() != sp;
-                   fnd_sp= fnd_sp->get_next());
-              DBUG_ASSERT(fnd_sp->pi == sp->pi);
+                   fnd_sp= fnd_sp->get_next())
+              {}
+              GCALC_DBUG_ASSERT(fnd_sp->pi == sp->pi);
+              GCALC_DBUG_PRINT(("eq_loop two_threads_to_line %d",
+                                fnd_sp->thread));
               fnd_sp->event= scev_thread;
             }
             sp->event= scev_single_point;
           }
           else if (first_bottom_point)
           {
+            GCALC_DBUG_PRINT(("eq_loop two_ends"));
             first_bottom_point->event= sp->event= scev_two_ends;
           }
           else
@@ -1249,6 +1279,8 @@ int Gcalc_scan_iterator::normal_scan()
         }
         else
         {
+          GCALC_DBUG_PRINT(("eq_loop no_bottom_point %d%s", sp->thread,
+                            gcalc_ev_name(sp->event)));
           if ((sp->event & (scev_point | scev_thread | scev_two_threads)) == 0)
             sp->event= scev_point;
           calc_dx_dy(sp);
@@ -1257,44 +1289,31 @@ int Gcalc_scan_iterator::normal_scan()
       }
       else if (sp->event || (cmp_sp_pi(sp, next_pi) == 0))
       {
+        GCALC_DBUG_PRINT(("eq_loop l_event %d%s", sp->thread,
+                           gcalc_ev_name(sp->event)));
         if (!sp->event)
           sp->event= scev_intersection;
         mark_event_position1(sp, sp_hook);
       }
     }
-#ifndef NO_TESTING
-    //if (ca_counter == 21)
-      printf("\n");
-#endif /*NO_TESTING*/
     m_cur_pi= next_pi;
     if (m_next_is_top_point)
     {
       if (insert_top_point())
-        return 1;
+        GCALC_DBUG_RETURN(1);
       /* Set proper values to the event position */
       /* TODO: can be done faster                */
       next_state->clear_event_position();
       if (next_state->slice->event)
         mark_event_position1(next_state->slice,
           (Gcalc_dyn_list::Item **) &next_state->slice);
-#ifndef NO_TESTING
-      //if (ca_counter == 21)
-        printf("*%s%d\t", pev(next_state->slice->event), next_state->slice->thread);
-#endif /*NO_TESTING*/
       for (sp= next_state->slice; sp->get_next(); sp= sp->get_next())
       {
-#ifndef NO_TESTING
-      //if (ca_counter == 21)
-        printf("%s%d\t", pev(sp->get_next()->event), sp->get_next()->thread);
-#endif /*NO_TESTING*/
         if (sp->get_next()->event)
           mark_event_position1(sp->get_next(), &sp->next);
       }
-#ifndef NO_TESTING
-      //if (ca_counter == 21)
-        printf("\n");
-#endif /*NO_TESTING*/
     }
+    GCALC_DBUG_PRINT_SLICE("eq_loop\t", next_state->slice);
   }
 
   /* Swap current <-> next */
@@ -1305,42 +1324,25 @@ int Gcalc_scan_iterator::normal_scan()
   }
 
   if (arrange_event())
-    return 1;
+    GCALC_DBUG_RETURN(1);
+  GCALC_DBUG_PRINT_SLICE("after_arrange\t", current_state->slice);
+  GCALC_DBUG_PRINT_SLICE("events\t", m_events);
+  GCALC_DBUG_PRINT_STATE(current_state);
 
   point *sp0= current_state->slice;
   point *sp1= next_state->slice;
   point *prev_sp1= NULL;
-#ifndef NO_TESTING
-  //if (ca_counter == 21)
-  {
-    point *sp= current_state->slice;
-    printf("After arrange\n");
-    for (; sp; sp= sp->get_next())
-      printf("%s%d\t", pev(sp->event), sp->thread);
-    printf("\nEvent\n");
-    for (sp= m_events; sp; sp= sp->get_next())
-      printf("%s%d\t", pev(sp->event), sp->thread);
-    printf("\n");
-  }
-#endif /*NO_TESTING*/
 
   if (!(m_cur_pi= next_pi))
   {
     free_list(sp1);
     next_state->slice= NULL;
-#ifdef TO_REMOVE
-    for (; sp0; sp0= sp0->get_next())
-      sp0->next_link= NULL;
-#endif /*TO_REMOVE*/
-    return 0;
+    GCALC_DBUG_RETURN(0);
   }
   
   next_state->intersection_scan= 0;
   next_state->pi= m_cur_pi;
   Gcalc_heap::Info *cur_pi= m_cur_pi;
-#ifdef TMP_BLOCK
-  next_state->y= coord_to_float(cur_pi->y);
-#endif /*TMP_BLOCK*/
 
 
   first_bottom_point= NULL;
@@ -1350,23 +1352,19 @@ int Gcalc_scan_iterator::normal_scan()
 
   for (; sp0; sp0= sp0->get_next())
   {
-    DBUG_ASSERT(!sp0->is_bottom());
+    GCALC_DBUG_ASSERT(!sp0->is_bottom());
     if (sp0->next_pi == cur_pi) /* End of the segment */
     {
-#ifdef TMP_BLOCK
-      sp1->x= coord_to_float(cur_pi->x);
-#endif /*TMP_BLOCK*/
+      GCALC_DBUG_PRINT(("edge_end %d", sp0->thread));
       sp1->pi= cur_pi;
       sp1->thread= sp0->thread;
       sp1->next_pi= cur_pi->left;
-#ifdef TO_REMOVE
-      sp0->next_link= sp1;
-#endif /*TO_REMOVE*/
 
       m_next_is_top_point= false;
       
       if (sp1->is_bottom())
       {
+        GCALC_DBUG_PRINT(("bottom_point"));
 	if (!first_bottom_point)
 	{
           sp1->event= scev_end;
@@ -1374,6 +1372,7 @@ int Gcalc_scan_iterator::normal_scan()
 	}
 	else
         {
+          GCALC_DBUG_PRINT(("two_ends"));
           first_bottom_point->event= sp1->event= scev_two_ends;
         }
       }
@@ -1388,15 +1387,12 @@ int Gcalc_scan_iterator::normal_scan()
     }
     else
     {
+      GCALC_DBUG_PRINT(("cut_edge %d", sp0->thread));
       /* Cut current string with the height of the new point*/
       sp1->copy_core(sp0);
-#ifdef TMP_BLOCK
-      sp1->x= sp1->horiz_dir ? coord_to_float(cur_pi->x) :
-	(coord_to_float(sp1->pi->x) +
-	 (next_state->y-coord_to_float(sp1->pi->y)) * sp1->dx_dy);
-#endif /*TMP_BLOCK*/
       if (cmp_sp_pi(sp1, cur_pi) == 0)
       {
+        GCALC_DBUG_PRINT(("equal_point"));
         mark_event_position1(sp1,
           prev_sp1 ? &prev_sp1->next :
                      (Gcalc_dyn_list::Item **) &next_state->slice);
@@ -1408,6 +1404,7 @@ int Gcalc_scan_iterator::normal_scan()
 
     intersections_found= intersections_found ||
                          (prev_sp1 && cmp_sp_sp(prev_sp1, sp1, cur_pi) > 0);
+    GCALC_DBUG_PRINT(("%s", intersections_found ? "X":"-"));
 
     prev_sp1= sp1;
     sp1= sp1->get_next();
@@ -1422,26 +1419,14 @@ int Gcalc_scan_iterator::normal_scan()
     free_list(sp1);
   }
 
-#ifndef NO_TESTING
-  //if (ca_counter == 21)
-  {
-    point *sp= next_state->slice;
-    printf("After slice\n");
-    for (; sp; sp= sp->get_next())
-      printf("%s%d\t", pev(sp->event), sp->thread);
-    printf("\n");
-  }
-#endif /*NO_TESTING*/
+  GCALC_DBUG_PRINT_SLICE("after_loop\t", next_state->slice);
   if (intersections_found)
-    return handle_intersections();
+    GCALC_DBUG_RETURN(handle_intersections());
 
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
-#ifndef NO_TESTING
-int isc_counter= 0;
-#endif /*NO_TESTING*/
 int Gcalc_scan_iterator::add_intersection(int n_row,
                                           const point *a, const point *b,
 		                          Gcalc_dyn_list::Item ***p_hook)
@@ -1450,8 +1435,9 @@ int Gcalc_scan_iterator::add_intersection(int n_row,
   const point *b0= b->intersection_link;
   intersection *isc= new_intersection();
 
+  GCALC_DBUG_ENTER("Gcalc_scan_iterator::add_intersection");
   if (!isc)
-    return 1;
+    GCALC_DBUG_RETURN(1);
 
   m_n_intersections++;
   **p_hook= isc;
@@ -1462,15 +1448,7 @@ int Gcalc_scan_iterator::add_intersection(int n_row,
 
   isc->ii= m_heap->new_intersection(a0->pi, a0->next_pi,
                                     b0->pi, b0->next_pi);
-#ifndef NO_TESTING
-  //if (isc_counter == 40)
-  {
-    long double ix, iy;
-    isc->ii->calc_xy_ld(&ix, &iy);
-    printf("%d\t%d\t%.20LG\t%.20LG\t%d\n", isc->thread_a, isc->thread_b, ix, iy, isc->n_row);
-  }
-#endif /*NO_TESTING*/
-  return isc->ii == NULL;
+  GCALC_DBUG_RETURN(isc->ii == NULL);
 }
 
 
@@ -1478,10 +1456,7 @@ int Gcalc_scan_iterator::find_intersections()
 {
   Gcalc_dyn_list::Item **hook;
 
-#ifndef NO_TESTING
-  ++isc_counter;
-  printf("Looking for intersections\n");
-#endif /*NO_TESTING*/
+  GCALC_DBUG_ENTER("Gcalc_scan_iterator::find_intersections");
   m_n_intersections= 0;
   {
     /* Set links between slicepoints */
@@ -1489,18 +1464,9 @@ int Gcalc_scan_iterator::find_intersections()
     point *sp1= next_state->slice;
     for (; sp1; sp0= sp0->get_next(),sp1= sp1->get_next())
     {
-      DBUG_ASSERT(!sp0->is_bottom());
-      DBUG_ASSERT(sp0->thread == sp1->thread);
+      GCALC_DBUG_ASSERT(!sp0->is_bottom());
+      GCALC_DBUG_ASSERT(sp0->thread == sp1->thread);
       sp1->intersection_link= sp0;
-#ifndef NO_TESTING
-      //if (isc_counter == 40)
-      {
-        long double spx, spx1;
-        sp0->calc_x(&spx, current_state->pi->y, current_state->pi->x);
-        sp1->calc_x(&spx1, m_cur_pi->y, m_cur_pi->x);
-        printf("%d\t%.20LG\t%.20LG\n", sp0->thread, spx, spx1);
-      }
-#endif /*NO_TESTING*/
     }
   }
 
@@ -1526,7 +1492,7 @@ int Gcalc_scan_iterator::find_intersections()
       }
       intersections_found= true;
       if (add_intersection(n_row, prev_s1, s1, &hook))
-	return 1;
+        GCALC_DBUG_RETURN(1);
       *pprev_s1= s1;
       prev_s1->next= s1->next;
       s1->next= prev_s1;
@@ -1537,7 +1503,7 @@ int Gcalc_scan_iterator::find_intersections()
   } while (intersections_found);
 
   *hook= NULL;
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -1584,76 +1550,6 @@ static void calc_isc_exp(Gcalc_coord5 *exp,
 }
 
 
-#ifdef TMP_BLOCK
-static void calc_aa1_b(Gcalc_coord2 *res,
-                       const Gcalc_heap::Info *a0,
-                       const Gcalc_heap::Info *a1,
-                       const Gcalc_coord1 *xb,
-                       const Gcalc_coord1 *yb)
-{
-  Gcalc_coord1 aa1_x, aa1_y;
-  Gcalc_coord2 p1, p2;
-  res->init();
-  aa1_x.init();
-  aa1_y.init();
-  p1.init();
-  p2.init();
-
-  gcalc_sub_coord(&aa1_x, &a1->ix, &a0->ix);
-  gcalc_sub_coord(&aa1_y, &a1->iy, &a0->iy);
-  gcalc_mul_coord(&p1, &aa1_x, yb);
-  gcalc_mul_coord(&p2, &aa1_y, xb);
-  gcalc_sub_coord(res, &p1, &p2);
-}
-
-
-static int cmp_intersections_y(const Gcalc_heap::Intersection_info *i1,
-                               const Gcalc_heap::Intersection_info *i2)
-{
-  Gcalc_coord2 t_a1, t_b1;
-  Gcalc_coord2 t_a2, t_b2;
-  Gcalc_coord1 yb1, yb2;
-  Gcalc_coord1 xb1, xb2;
-  Gcalc_coord5 exp_a, exp_b;
-
-  calc_t(&t_a1, &t_b1, &xb1, &yb1, i1);
-  calc_t(&t_a2, &t_b2, &xb2, &yb2, i2);
-
-  calc_isc_exp(&exp_a, &t_b2, &i1->p1->iy, &t_b1, &yb1, &t_a1);
-  calc_isc_exp(&exp_b, &t_b1, &i2->p1->iy, &t_b2, &yb2, &t_a2);
-
-  int result= gcalc_cmp_coord(&exp_a, &exp_b);
-#ifdef GCALC_CHECK_WITH_FLOAT
-  long double x1, y1, x2,y2;
-  i1->calc_xy_ld(&x1, &y1);
-  i2->calc_xy_ld(&x2, &y2);
-
-  if (result == 0)
-    DBUG_ASSERT(de_check(y1, y2));
-  if (result < 0)
-    DBUG_ASSERT(de_check1(y1, y2) || y1 < y2);
-  if (result > 0)
-    DBUG_ASSERT(de_check1(y1, y2) || y1 > y2);
-#endif /*GCALC_CHECK_WITH_FLOAT*/
-  return result;
-}
-
-
-static int compare_intersections(const void *e1, const void *e2)
-{
-  Gcalc_scan_iterator::intersection *i1= (Gcalc_scan_iterator::intersection *)e1;
-  Gcalc_scan_iterator::intersection *i2= (Gcalc_scan_iterator::intersection *)e2;
-  int result= cmp_intersections_y(i1->ii, i2->ii);
-  if (result != 0)
-    return result > 0;
-  return (i1->n_row > i2->n_row);
-}
-
-#endif /*TMP_BLOCK*/
-
-#ifndef NO_TESTING
-extern int ca_counter;
-#endif /*NO_TESTING*/
 static int cmp_intersections(const Gcalc_heap::Intersection_info *i1,
                              const Gcalc_heap::Intersection_info *i2)
 {
@@ -1677,15 +1573,11 @@ static int cmp_intersections(const Gcalc_heap::Intersection_info *i1,
   i2->calc_xy_ld(&x2, &y2);
 
   if (result == 0)
-    DBUG_ASSERT(de_weak(y1, y2));
-#ifndef NO_TESTING
-  if (ca_counter == 7)
-    printf("77");
-#endif /*NO_TESTING*/
+    GCALC_DBUG_ASSERT(de_check(y1, y2));
   if (result < 0)
-    DBUG_ASSERT(de_weak(y1, y2) || y1 < y2);
+    GCALC_DBUG_ASSERT(de_check(y1, y2) || y1 < y2);
   if (result > 0)
-    DBUG_ASSERT(de_weak(y1, y2) || y1 > y2);
+    GCALC_DBUG_ASSERT(de_check(y1, y2) || y1 > y2);
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 
   if (result != 0)
@@ -1697,11 +1589,11 @@ static int cmp_intersections(const Gcalc_heap::Intersection_info *i1,
   result= gcalc_cmp_coord(&exp_a, &exp_b);
 #ifdef GCALC_CHECK_WITH_FLOAT
   if (result == 0)
-    DBUG_ASSERT(de_weak(x1, x2));
+    GCALC_DBUG_ASSERT(de_check(x1, x2));
   if (result < 0)
-    DBUG_ASSERT(de_weak(x1, x2) || x1 < x2);
+    GCALC_DBUG_ASSERT(de_check(x1, x2) || x1 < x2);
   if (result > 0)
-    DBUG_ASSERT(de_weak(x1, x2) || x1 > x2);
+    GCALC_DBUG_ASSERT(de_check(x1, x2) || x1 > x2);
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   return result;
 }
@@ -1723,28 +1615,6 @@ inline int intersections_eq(const Gcalc_heap::Intersection_info *i1,
 }
 
 
-#ifdef TMP_BLOCK
-static void calc_isc_sp_exp(Gcalc_coord4 *exp,
-                            const Gcalc_coord2 *bb,
-                            const Gcalc_coord1 *x1,
-                            const Gcalc_coord1 *y1,
-                            const Gcalc_coord1 *x2,
-                            const Gcalc_coord1 *y2)
-{
-  Gcalc_coord2 p1, p2, sum;
-  p1.init();
-  p2.init();
-  sum.init();
-  exp->init();
-
-  gcalc_mul_coord(&p1, x1, y1);
-  gcalc_mul_coord(&p2, x2, y2);
-  gcalc_add_coord(&sum, &p1, &p2);
-  gcalc_mul_coord(exp, bb, &sum);
-}
-#endif /*TMP_BLOCK*/
-
-
 static int sp_isc_eq(const Gcalc_scan_iterator::point *sp,
                      const Gcalc_heap::Intersection_info *isc)
 {
@@ -1753,17 +1623,6 @@ static int sp_isc_eq(const Gcalc_scan_iterator::point *sp,
   Gcalc_coord1 xb1, yb1;
   Gcalc_coord2 t_a, t_b;
   Gcalc_coord2 t_sp_a, t_sp_b;
-#ifdef TMP_BLOCK
-  xa1a0.init();
-  ya1a0.init();
-
-  gcalc_sub_coord(&xa1a0, &isc->p1->ix, &sp->pi->ix);
-  gcalc_sub_coord(&ya1a0, &isc->p1->iy, &sp->pi->iy);
-  calc_isc_sp_exp(&exp_a, &t_b, &sp->pi->ix, &ya1a0, &sp->pi->iy, &xa1a0);
-  calc_isc_sp_exp(&exp_b, &t_a, &sp->pi->iy, &isc->p1->ix,
-                                &sp->pi->ix, &isc->p1->iy);
-  return gcalc_cmp_coord(&exp_a, &exp_b);
-#endif /*TMP_BLOCK*/
   exp_a.init();
   exp_b.init();
   calc_t(&t_a, &t_b, &xb1, &yb1, isc);
@@ -1777,12 +1636,8 @@ static int sp_isc_eq(const Gcalc_scan_iterator::point *sp,
   isc->calc_xy_ld(&int_x, &int_y);
   sp->calc_x(&sp_x, int_y, int_x);
   if (result == 0)
-    DBUG_ASSERT(de_check1(sp->dy.get_double(), 0.0) ||
-                de_check(sp_x, int_x));
-#ifdef TMP_BLOCK
-  else
-    DBUG_ASSERT(!de_check1(sp_x, int_x));
-#endif /*TMP_BLOCK*/
+    GCALC_DBUG_ASSERT(de_check(sp->dy.get_double(), 0.0) ||
+                      de_check(sp_x, int_x));
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   return result == 0;
 }
@@ -1797,11 +1652,15 @@ inline void Gcalc_scan_iterator::sort_intersections()
 
 int Gcalc_scan_iterator::handle_intersections()
 {
-  DBUG_ASSERT(next_state->slice->next);
+  GCALC_DBUG_ENTER("Gcalc_scan_iterator::handle_intersections");
+  GCALC_DBUG_ASSERT(next_state->slice->next);
 
   if (find_intersections())
-    return 1;
+    GCALC_DBUG_RETURN(1);
+  GCALC_DBUG_PRINT_INTERSECTIONS(m_intersections);
   sort_intersections();
+  GCALC_DBUG_PRINT(("After sorting"));
+  GCALC_DBUG_PRINT_INTERSECTIONS(m_intersections);
 
   /* Swap saved <-> next */
   {
@@ -1812,19 +1671,7 @@ int Gcalc_scan_iterator::handle_intersections()
   /* We need the next slice to be just equal */
   next_state->slice= new_slice(saved_state->slice);
   m_cur_intersection= m_intersections;
-#ifndef NO_TESTING
-  //if (isc_counter == 40)
-  {
-    printf("Sorted\n");
-    for (intersection *isc= m_intersections; isc; isc= isc->get_next())
-    {
-      long double ix, iy;
-      isc->ii->calc_xy_ld(&ix, &iy);
-      printf("%d\t%d\t%.20LG\t%.20LG\t%d\n", isc->thread_a, isc->thread_b, ix, iy, isc->n_row);
-    }
-  }
-#endif /*NO_TESTING*/
-  return intersection_scan();
+  GCALC_DBUG_RETURN(intersection_scan());
 }
 
 
@@ -1834,8 +1681,11 @@ int Gcalc_scan_iterator::intersection_scan()
   Gcalc_dyn_list::Item **hook;
   intersection *next_intersection= NULL;
 
+  GCALC_DBUG_ENTER("Gcalc_scan_iterator::intersection_scan");
+  GCALC_DBUG_CHECK_COUNTER();
   if (m_cur_intersection != m_intersections)
   {
+    GCALC_DBUG_PRINT_SLICE("in_isc\t", next_state->slice);
     /* Swap current <-> next */
     {
       slice_state *tmp= current_state;
@@ -1844,33 +1694,9 @@ int Gcalc_scan_iterator::intersection_scan()
     }
 
     if (arrange_event())
-      return 1;
+      GCALC_DBUG_RETURN(1);
 
-#ifdef TMP_BLOCK
-    if (!m_cur_intersection)
-    {
-      saved_state->event_position_hook=
-        (Gcalc_dyn_list::Item **) &saved_state->slice;
-
-      for (sp1= saved_state->slice; sp1; sp1= sp1->get_next())
-      {
-        if (sp1->get_next() == saved_state->event_position)
-          saved_state->event_position_hook= &sp1->next;
-      }
-      /* Swap saved <-> next */
-      {
-        slice_state *tmp= next_state;
-        next_state= saved_state;
-        saved_state= tmp;
-      }
-      free_list(saved_state->slice);
-      saved_state->slice= NULL;
-
-      free_list(m_intersections);
-      m_intersections= NULL;
-      return 0;
-    }
-#endif /*TMP_BLOCK*/
+    GCALC_DBUG_PRINT_SLICE("isc_after_arrange\t", current_state->slice);
     if (!m_cur_intersection)
     {
       /* Swap saved <-> next */
@@ -1894,8 +1720,9 @@ int Gcalc_scan_iterator::intersection_scan()
           point *fnd_s= sp1->get_next();
           Gcalc_dyn_list::Item **fnd_hook= &sp1->next;
           for (; fnd_s && fnd_s->thread != sp0->thread;
-               fnd_hook= &fnd_s->next, fnd_s= fnd_s->get_next());
-          DBUG_ASSERT(fnd_s && fnd_s == *fnd_hook);
+               fnd_hook= &fnd_s->next, fnd_s= fnd_s->get_next())
+          {}
+          GCALC_DBUG_ASSERT(fnd_s && fnd_s == *fnd_hook);
           /* Now swap items of the next_state->slice */
           *n_hook= fnd_s;
           *fnd_hook= fnd_s->next;
@@ -1905,19 +1732,19 @@ int Gcalc_scan_iterator::intersection_scan()
         if (sp1->event)
           mark_event_position1(sp1, n_hook);
       }
-#ifndef DBUG_OFF
+#ifndef GCALC_DBUG_OFF
       sp0= current_state->slice;
       sp1= next_state->slice;
       for (; sp0; sp0= sp0->get_next(), sp1= sp1->get_next())
-        DBUG_ASSERT(sp0->thread == sp1->thread);
-      DBUG_ASSERT(!sp1);
-#endif /*DBUG_OFF*/
+        GCALC_DBUG_ASSERT(sp0->thread == sp1->thread);
+      GCALC_DBUG_ASSERT(!sp1);
+#endif /*GCALC_DBUG_OFF*/
       free_list(saved_state->slice);
       saved_state->slice= NULL;
 
       free_list(m_intersections);
       m_intersections= NULL;
-      return 0;
+      GCALC_DBUG_RETURN(0);
     }
   }
 
@@ -1934,15 +1761,17 @@ int Gcalc_scan_iterator::intersection_scan()
     if (sp0->thread == m_cur_intersection->thread_a ||
         sp0->thread == m_cur_intersection->thread_b)
     {
-      DBUG_ASSERT(sp0->thread != m_cur_intersection->thread_a ||
+      GCALC_DBUG_ASSERT(sp0->thread != m_cur_intersection->thread_a ||
         sp0->get_next()->thread == m_cur_intersection->thread_b ||
         sp_isc_eq(sp0->get_next(), m_cur_intersection->ii));
+      GCALC_DBUG_PRINT(("isc_i_thread %d", sp0->thread));
       sp1->copy_core(sp0);
       sp1->event= scev_intersection;
       mark_event_position1(sp1, hook);
     }
     else
     {
+      GCALC_DBUG_PRINT(("isc_cut %d", sp0->thread));
       sp1->copy_core(sp0);
       if (sp_isc_eq(sp1, m_cur_intersection->ii))
       {
@@ -1967,6 +1796,7 @@ int Gcalc_scan_iterator::intersection_scan()
        next_intersection= next_intersection->get_next())
   {
     /* Handle equal intersections. We only need to set proper events */
+    GCALC_DBUG_PRINT(("isc_eq_intersection"));
     sp0= current_state->slice;
     hook= (Gcalc_dyn_list::Item **) &next_state->slice;
     sp1= next_state->slice;
@@ -1979,6 +1809,7 @@ int Gcalc_scan_iterator::intersection_scan()
           sp0->thread == next_intersection->thread_b ||
           sp1->event == scev_intersection)
       {
+        GCALC_DBUG_PRINT(("isc_eq_thread %d", sp0->thread));
         sp1->event= scev_intersection;
         mark_event_position1(sp1, hook);
       }
@@ -1986,7 +1817,7 @@ int Gcalc_scan_iterator::intersection_scan()
   }
   m_cur_intersection= next_intersection;
 
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 

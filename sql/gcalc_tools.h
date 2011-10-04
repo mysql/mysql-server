@@ -222,9 +222,9 @@ public:
   int get_result(Gcalc_result_receiver *storage);
   void reset();
 
-#ifndef DBUG_OFF
+#ifndef GCALC_DBUG_OFF
   int n_res_points;
-#endif /*DBUG_OFF*/
+#endif /*GCALC_DBUG_OFF*/
   class res_point : public Gcalc_dyn_list::Item
   {
   public:
@@ -235,23 +235,19 @@ public:
       const Gcalc_heap::Intersection_info *ii;
       res_point *first_poly_node;
     };
-#ifdef TMP_BLOCK
     union
     {
-#endif /*TMP_BLOCK*/
       res_point *outer_poly;
       uint32 poly_position;
-#ifdef TMP_BLOCK
     };
-#endif /*TMP_BLOCK*/
     res_point *up;
     res_point *down;
     res_point *glue;
     Gcalc_function::shape_type type;
     Gcalc_dyn_list::Item **prev_hook;
-#ifndef DBUG_OFF
+#ifndef GCALC_DBUG_OFF
     int point_n;
-#endif /*DBUG_OFF*/
+#endif /*GCALC_DBUG_OFF*/
     void set(const Gcalc_scan_iterator *si);
     res_point *get_next() { return (res_point *)next; }
   };

@@ -17,6 +17,16 @@
 #ifndef GCALC_SLICESCAN_INCLUDED
 #define GCALC_SLICESCAN_INCLUDED
 
+#ifndef DBUG_OFF
+#define GCALC_CHECK_WITH_FLOAT
+#else
+#define GCALC_DBUG_OFF
+#endif /*DBUG_OFF*/
+
+#define GCALC_DBUG_PRINT(b) DBUG_PRINT("Gcalc", b)
+#define GCALC_DBUG_ENTER(a) DBUG_ENTER("Gcalc "a)
+#define GCALC_DBUG_RETURN(r) DBUG_RETURN(r)
+#define GCALC_DBUG_ASSERT(r) DBUG_ASSERT(r)
 
 /*
   Gcalc_dyn_list class designed to manage long lists of same-size objects
@@ -102,12 +112,6 @@ typedef long long coord2;
 
 #define C_SCALE 1e13
 #define COORD_BASE 2
-#ifndef DBUG_OFF
-//#define GCALC_CHECK_WITH_FLOAT
-#define NO_TESTING
-#else
-#define NO_TESTING
-#endif /*DBUG_OFF*/
 
 class Gcalc_internal_coord
 {
@@ -349,22 +353,17 @@ public:
   class point : public Gcalc_dyn_list::Item
   {
   public:
-#ifdef TMP_BLOCK
-    double x;
-    double dx_dy;
-    int horiz_dir;
-#endif /*TMP_BLOCK*/
     Gcalc_coord1 dx;
     Gcalc_coord1 dy;
     Gcalc_heap::Info *pi;
     Gcalc_heap::Info *next_pi;
     sc_thread_id thread;
+    const Gcalc_coord1 *l_border;
+    const Gcalc_coord1 *r_border;
+    int always_on_left;
 
     const point *intersection_link;
     Gcalc_scan_events event;
-#ifdef TO_REMOVE
-    point *next_link;
-#endif /*TO_REMOVE*/
 
     inline const point *c_get_next() const
       { return (const point *)next; }
@@ -377,10 +376,6 @@ public:
     void copy_all(const point *from);
     /* Compare the dx_dy parameters regarding the horiz_dir */
     /* returns -1 if less, 0 if equal, 1 if bigger          */
-#ifdef TMP_BLOCK
-    static int cmp_dx_dy(int horiz_dir_a, double dx_dy_a,
-                         int horiz_dir_b, double dx_dy_b);
-#endif /*TMP_BLOCK*/
     static int cmp_dx_dy(const Gcalc_coord1 *dx_a,
                          const Gcalc_coord1 *dy_a,
                          const Gcalc_coord1 *dx_b,
@@ -409,10 +404,6 @@ public:
     int n_row;
     sc_thread_id thread_a;
     sc_thread_id thread_b;
-#ifdef TMP_BLOCK
-    double x;
-    double y;
-#endif /*TMP_BLOCK*/
     const Gcalc_heap::Intersection_info *ii;
     inline intersection *get_next() { return (intersection *)next; }
   };
@@ -430,9 +421,6 @@ public:
       const Gcalc_heap::Info *pi;
       const Gcalc_heap::Intersection_info *isc;
     };
-#ifdef TMP_BLOCK
-    double y;
-#endif /*TMP_BLOCK*/
     slice_state() : slice(NULL) {}
     void clear_event_position()
     {

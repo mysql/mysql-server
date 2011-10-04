@@ -135,6 +135,8 @@ int Gcalc_function::count_internal(const char *cur_func, uint set_type,
   int result;
   const char *sav_cur_func= cur_func;
 
+  // GCALC_DBUG_ENTER("Gcalc_function::count_internal");
+
   cur_func+= 4;
   if (next_func == op_shape)
   {
@@ -167,6 +169,7 @@ int Gcalc_function::count_internal(const char *cur_func, uint set_type,
 
   if (n_ops == 0)
     return mask;
+    //GCALC_DBUG_RETURN(mask);
 
   result= count_internal(cur_func, set_type, &cur_func);
 
@@ -219,13 +222,14 @@ exit:
         result= 0;
         break;
       default:
-        DBUG_ASSERT(0);
+        GCALC_DBUG_ASSERT(0);
     };
   }
   
   if (end)
     *end= cur_func;
   return result;
+  //GCALC_DBUG_RETURN(result);
 }
 
 
@@ -258,11 +262,12 @@ void Gcalc_function::reset()
 int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
 {
   const Gcalc_scan_iterator::point *eq_start, *cur_eq, *events;
+  GCALC_DBUG_ENTER("Gcalc_function::check_function");
 
   while (scan_it.more_points())
   {
     if (scan_it.step())
-      return -1;
+      GCALC_DBUG_RETURN(-1);
     events= scan_it.get_events();
 
     /* these kinds of events don't change the function */
@@ -282,7 +287,7 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
         set_b_state(events->get_shape());
 
       if (count())
-        return 1;
+        GCALC_DBUG_RETURN(1);
       clear_b_states();
       continue;
     }
@@ -301,7 +306,7 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
     }
 
     if (count())
-      return 1;
+      GCALC_DBUG_RETURN(1);
 
     /* Set back states changed in the loop above. */
     for (events= scan_it.get_events(); events; events= events->get_next())
@@ -337,7 +342,7 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
           invert_i_state(si);
       }
       if (count())
-        return 1;
+        GCALC_DBUG_RETURN(1);
 
       for (cur_eq= eq_start; cur_eq != pit.point(); cur_eq= cur_eq->get_next())
       {
@@ -351,11 +356,11 @@ int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
           invert_i_state(cur_eq->get_shape());
       }
       if (count())
-        return 1;
+        GCALC_DBUG_RETURN(1);
       eq_start= pit.point();
     } while (pit.point() != scan_it.get_event_end());
   }
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -435,52 +440,51 @@ int Gcalc_operation_transporter::empty_shape()
 
 int Gcalc_result_receiver::start_shape(Gcalc_function::shape_type shape)
 {
+  GCALC_DBUG_ENTER("Gcalc_result_receiver::start_shape");
   if (buffer.reserve(4*2, 512))
-    return 1;
+    GCALC_DBUG_RETURN(1);
   cur_shape= shape;
   shape_pos= buffer.length();
   buffer.length(shape_pos + ((shape == Gcalc_function::shape_point) ? 4:8));
   n_points= 0;
   shape_area= 0.0;
 
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
 int Gcalc_result_receiver::add_point(double x, double y)
 {
+  GCALC_DBUG_ENTER("Gcalc_result_receiver::add_point");
   if (n_points && x == prev_x && y == prev_y)
-    return 0;
+    GCALC_DBUG_RETURN(0);
 
   if (!n_points++)
   {
     prev_x= first_x= x;
     prev_y= first_y= y;
-    return 0;
+    GCALC_DBUG_RETURN(0);
   }
 
   shape_area+= prev_x*y - prev_y*x;
 
   if (buffer.reserve(8*2, 512))
-    return 1;
+    GCALC_DBUG_RETURN(1);
   buffer.q_append(prev_x);
   buffer.q_append(prev_y);
   prev_x= x;
   prev_y= y;
-#ifndef NO_TESTING
-  if (n_points == 53)
-    printf("xxx\n");
-#endif /*NO_TESTING*/
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
 int Gcalc_result_receiver::complete_shape()
 {
+  GCALC_DBUG_ENTER("Gcalc_result_receiver::complete_shape");
   if (n_points == 0)
   {
     buffer.length(shape_pos);
-    return 0;
+    GCALC_DBUG_RETURN(0);
   }
   if (n_points == 1)
   {
@@ -489,7 +493,7 @@ int Gcalc_result_receiver::complete_shape()
       if (cur_shape == Gcalc_function::shape_hole)
       {
         buffer.length(shape_pos);
-        return 0;
+        GCALC_DBUG_RETURN(0);
       }
       cur_shape= Gcalc_function::shape_point;
       buffer.length(buffer.length()-4);
@@ -504,7 +508,7 @@ int Gcalc_result_receiver::complete_shape()
       if (fabs(shape_area) < 1e-8)
       {
         buffer.length(shape_pos);
-        return 0;
+        GCALC_DBUG_RETURN(0);
       }
     }
 
@@ -520,7 +524,7 @@ int Gcalc_result_receiver::complete_shape()
   }
 
   if (buffer.reserve(8*2, 512))
-    return 1;
+    GCALC_DBUG_RETURN(1);
   buffer.q_append(prev_x);
   buffer.q_append(prev_y);
   
@@ -540,7 +544,7 @@ do_complete:
   {
       collection_result= true;
   }
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -593,28 +597,30 @@ int Gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_positio
 {
   char *ptr;
   int source_len;
+  GCALC_DBUG_ENTER("Gcalc_result_receiver::move_hole");
+  GCALC_DBUG_PRINT(("ps %d %d", dest_position, source_position));
 
   *position_shift= source_len= buffer.length() - source_position;
 
   if (dest_position == source_position)
-    return 0;
+    GCALC_DBUG_RETURN(0);
 
   if (buffer.reserve(source_len, MY_ALIGN(source_len, 512)))
-    return 1;
+    GCALC_DBUG_RETURN(1);
 
   ptr= (char *) buffer.ptr();
   memmove(ptr + dest_position + source_len, ptr + dest_position,
           buffer.length() - dest_position);
   memcpy(ptr + dest_position, ptr + buffer.length(), source_len);
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
 Gcalc_operation_reducer::Gcalc_operation_reducer(size_t blk_size) :
   Gcalc_dyn_list(blk_size, sizeof(res_point)),
-#ifndef DBUG_OFF
+#ifndef GCALC_DBUG_OFF
   n_res_points(0),
-#endif /*DBUG_OFF*/
+#endif /*GCALC_DBUG_OFF*/
   m_res_hook((Gcalc_dyn_list::Item **)&m_result),
   m_first_active_thread(NULL)
 {}
@@ -649,43 +655,35 @@ void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
     pi= si->get_cur_pi();
 }
 
-#ifndef NO_TESTING
-void call_checkpoint(int d)
-{
-  printf("%d\n", d);
-}
-#endif /*NO_TESTING*/
 
 Gcalc_operation_reducer::res_point *
   Gcalc_operation_reducer::add_res_point(Gcalc_function::shape_type type)
 {
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::add_res_point");
   res_point *result= (res_point *)new_item();
   *m_res_hook= result;
   result->prev_hook= m_res_hook;
   m_res_hook= &result->next;
   result->type= type;
-#ifndef DBUG_OFF
+#ifndef GCALC_DBUG_OFF
   result->point_n= n_res_points++;
-#endif /*DBUG_OFF*/
-#ifndef NO_TESTING
-  if (result->point_n == 74)
-    call_checkpoint(74);
-#endif /*NO_TESTING*/
-  return result;
+#endif /*GCALC_DBUG_OFF*/
+  GCALC_DBUG_RETURN(result);
 }
 
 int Gcalc_operation_reducer::add_line(int incoming, active_thread *t,
     const Gcalc_scan_iterator::point *p)
 {
   line *l= new_line();
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::add_line");
   if (!l)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   l->incoming= incoming;
   l->t= t;
   l->p= p;
   *m_lines_hook= l;
   m_lines_hook= &l->next;
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -693,15 +691,16 @@ int Gcalc_operation_reducer::add_poly_border(int incoming,
     active_thread *t, int prev_state, const Gcalc_scan_iterator::point *p)
 {
   poly_border *b= new_poly_border();
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::add_poly_border");
   if (!b)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   b->incoming= incoming;
   b->t= t;
   b->prev_state= prev_state;
   b->p= p;
   *m_poly_borders_hook= b;
   m_poly_borders_hook= &b->next;
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -710,8 +709,9 @@ int Gcalc_operation_reducer::continue_range(active_thread *t,
                                             const Gcalc_heap::Info *p_next)
 {
   res_point *rp= add_res_point(t->rp->type);
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::continue_range");
   if (!rp)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   rp->glue= NULL;
   rp->down= t->rp;
   t->rp->up= rp;
@@ -720,7 +720,7 @@ int Gcalc_operation_reducer::continue_range(active_thread *t,
   t->rp= rp;
   t->p1= p;
   t->p2= p_next;
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -728,25 +728,27 @@ inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
 			            const Gcalc_heap::Intersection_info *ii)
 {
   res_point *rp= add_res_point(t->rp->type);
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::continue_i_range");
   if (!rp)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   rp->glue= NULL;
   rp->down= t->rp;
   t->rp->up= rp;
   rp->intersection_point= true;
   rp->ii= ii;
   t->rp= rp;
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
 				     const Gcalc_heap::Info *p)
 {
   res_point *rp0, *rp1;
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::end_couple");
   DBUG_ASSERT(t0->rp->type == t1->rp->type);
   if (!(rp0= add_res_point(t0->rp->type)) ||
       !(rp1= add_res_point(t0->rp->type)))
-    return 1;
+    GCALC_DBUG_RETURN(1);
   rp0->down= t0->rp;
   rp1->down= t1->rp;
   rp1->glue= rp0;
@@ -756,19 +758,13 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
   t1->rp->up= rp1;
   rp0->intersection_point= rp1->intersection_point= false;
   rp0->pi= rp1->pi= p;
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
-#ifndef NO_TESTING
-int ca_counter= 0;
-#endif /*NO_TESTING*/
 int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
 {
   Gcalc_point_iterator pi(si);
-#ifdef TMP_BLOCK
-  const Gcalc_heap::Info *event_point= NULL;
-#endif /*TMP_BLOCK*/
   int prev_state= 0;
   int sav_prev_state;
   active_thread *prev_range= NULL;
@@ -778,17 +774,10 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   active_thread **starting_t_hook;
   active_thread *bottom_threads= NULL;
   active_thread *eq_thread, *point_thread;;
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::count_slice");
 
-#ifndef NO_TESTING
-  if (ca_counter == 11522)
-    call_checkpoint(89);
-#endif /*NO_TESTING*/
   m_fn->clear_i_states();
   /* Walk to the event, remembering what is needed. */
-#ifndef NO_TESTING
-  if (si->get_event_position() == pi.point())
-    printf("yyy\n");
-#endif /*NO_TESTING*/
   for (; pi.point() != si->get_event_position();
        ++pi, cur_t_hook= (active_thread **) &(*cur_t_hook)->next)
   {
@@ -813,13 +802,13 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       {
         if (cur_t->enabled() &&
             continue_range(cur_t, events->pi, events->next_pi))
-          return 1;
+          GCALC_DBUG_RETURN(1);
         break;
       }
       case scev_end:
       {
         if (cur_t->enabled() && end_line(cur_t, si))
-          return 1;
+          GCALC_DBUG_RETURN(1);
         *cur_t_hook= cur_t->get_next();
         free_item(cur_t);
         break;
@@ -830,13 +819,13 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
         {
           /* When two threads are ended here */
           if (end_couple(cur_t, cur_t->get_next(), events->pi))
-            return 1;
+            GCALC_DBUG_RETURN(1);
         }
         else if (cur_t->enabled() || cur_t->get_next()->enabled())
         {
           /* Rare case when edges of a polygon coincide */
           if (end_line(cur_t->enabled() ? cur_t : cur_t->get_next(), si))
-            return 1;
+            GCALC_DBUG_RETURN(1);
         }
         *cur_t_hook= cur_t->get_next()->get_next();
         free_item(cur_t->next);
@@ -846,10 +835,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       default:
         DBUG_ASSERT(0);
     }
-#ifndef NO_TESTING
-    goto testing;
-#endif /*NO_TESTING*/
-    return 0;
+    GCALC_DBUG_RETURN(0);
   }
 
   starting_t_hook= cur_t_hook;
@@ -860,10 +846,6 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   {
     active_thread *cur_t= *cur_t_hook;
 
-#ifdef TMP_BLOCK
-    if (!event_point && events->event != scev_intersection)
-      event_point= events->pi;
-#endif /*TMP_BLOCK*/
     if (events->event == scev_single_point)
       continue;
 
@@ -872,7 +854,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     {
       active_thread *new_t= new_active_thread();
       if (!new_t)
-        return 1;
+        GCALC_DBUG_RETURN(1);
       new_t->rp= NULL;
       /* Insert into the main thread list before the current */
       new_t->next= cur_t;
@@ -904,7 +886,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
         {
           active_thread *new_t= new_active_thread();
           if (!new_t)
-            return 1;
+            GCALC_DBUG_RETURN(1);
           new_t->rp= NULL;
           /* Replace the current thread with the new. */
           new_t->next= cur_t->next;
@@ -952,12 +934,12 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     if (prev_state != after_state)
     {
       if (add_poly_border(0, eq_thread, prev_state, eq_start))
-        return 1;
+        GCALC_DBUG_RETURN(1);
     }
     else if (!prev_state /* &&!after_state */ && in_state)
     {
       if (add_line(0, eq_thread, eq_start))
-        return 1;
+        GCALC_DBUG_RETURN(1);
     }
 
     prev_state= after_state;
@@ -978,7 +960,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     for (events= si->get_events(); events; events= events->get_next())
       m_fn->set_b_state(events->get_shape());
 
-    return m_fn->count() ? add_single_point(si) : 0;
+    GCALC_DBUG_RETURN(m_fn->count() ? add_single_point(si) : 0);
   }
 
   if (m_poly_borders)
@@ -988,10 +970,6 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     {
       poly_border *pb1, *pb2;
       pb1= m_poly_borders;
-#ifndef NO_TESTING
-      if (!m_poly_borders->next)
-        call_checkpoint(3);
-#endif /*NO_TESTING*/
       DBUG_ASSERT(m_poly_borders->next);
 
       pb2= get_pair_border(pb1);
@@ -1000,7 +978,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       if (connect_threads(pb1->incoming, pb2->incoming,
                           pb1->t, pb2->t, pb1->p, pb2->p,
                           prev_range, si, Gcalc_function::shape_polygon))
-        return 1;
+        GCALC_DBUG_RETURN(1);
 
       free_item(pb1);
       free_item(pb2);
@@ -1019,7 +997,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
                           m_lines->t, m_lines->get_next()->t,
                           m_lines->p, m_lines->get_next()->p,
                           NULL, si, Gcalc_function::shape_line))
-        return 1;
+        GCALC_DBUG_RETURN(1);
     }
     else
     {
@@ -1028,7 +1006,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
         if (cur_line->incoming)
         {
           if (end_line(cur_line->t, si))
-            return 1;
+            GCALC_DBUG_RETURN(1);
         }
         else
           start_line(cur_line->t, cur_line->p, si);
@@ -1042,57 +1020,19 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   if (bottom_threads)
     free_list(bottom_threads);
 
-#ifndef NO_TESTING
-testing:
-  {
-    Gcalc_point_iterator x_pi(si);
-    active_thread **x_cur_t_hook= &m_first_active_thread;
-    int x_prev_state= 0;
-    m_fn->save_states();
-    m_fn->clear_state();
-    if (ca_counter == /*11552*/90)
-      call_checkpoint(10);
-    for (; x_pi.point(); ++x_pi)
-    {
-      active_thread *cur_t= *x_cur_t_hook;
-      if (cur_t->enabled() &&
-          cur_t->rp->type == Gcalc_function::shape_polygon)
-        x_prev_state^= 1;
-      int ppb= m_fn->count();
-      if (m_fn->get_shape_kind(x_pi.get_shape()) == Gcalc_function::shape_polygon)
-        m_fn->invert_state(x_pi.get_shape());
-      int ppa= m_fn->count();
-      if (ppa != x_prev_state)
-      {
-        if (x_pi.point()->cmp_dx_dy(x_pi.point()->get_next()) != 0)
-          call_checkpoint(21);
-      }
-      if (cur_t->enabled())
-      {
-        if (m_fn->get_shape_kind(x_pi.get_shape()) == Gcalc_function::shape_polygon)
-          if (ppa == ppb)
-            call_checkpoint(22);
-        else
-          if (ppa != 0 && ppb != 0)
-            call_checkpoint(23);
-      }
-      x_cur_t_hook= (active_thread **) &(*x_cur_t_hook)->next;
-    }
-    m_fn->restore_states();
-  }
-#endif /*NO_TESTING*/
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
 int Gcalc_operation_reducer::add_single_point(const Gcalc_scan_iterator *si)
 {
   res_point *rp= add_res_point(Gcalc_function::shape_point);
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::add_single_point");
   if (!rp)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   rp->glue= rp->up= rp->down= NULL;
   rp->set(si);
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -1101,6 +1041,7 @@ Gcalc_operation_reducer::poly_border
 {
   poly_border *prev_b= b1;
   poly_border *result= b1->get_next();
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_pair_border");
   if (b1->prev_state)
   {
     if (b1->incoming)
@@ -1140,7 +1081,7 @@ Gcalc_operation_reducer::poly_border
   }
   /* Delete the result from the list. */
   prev_b->next= result->next;
-  return result;
+  GCALC_DBUG_RETURN(result);
 }
 
 
@@ -1151,13 +1092,15 @@ int Gcalc_operation_reducer::connect_threads(
     active_thread *prev_range,
     const Gcalc_scan_iterator *si, Gcalc_function::shape_type s_t)
 {
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::connect_threads");
+  GCALC_DBUG_PRINT(("incoming %d %d", incoming_a, incoming_b));
   if (incoming_a && incoming_b)
   {
     res_point *rpa, *rpb;
     DBUG_ASSERT(ta->rp->type == tb->rp->type);
     if (!(rpa= add_res_point(ta->rp->type)) ||
         !(rpb= add_res_point(ta->rp->type)))
-      return 1;
+      GCALC_DBUG_RETURN(1);
     rpa->down= ta->rp;
     rpb->down= tb->rp;
     rpb->glue= rpa;
@@ -1168,7 +1111,7 @@ int Gcalc_operation_reducer::connect_threads(
     rpa->set(si);
     rpb->set(si);
     ta->rp= tb->rp= NULL;
-    return 0;
+    GCALC_DBUG_RETURN(0);
   }
   if (!incoming_a)
   {
@@ -1176,7 +1119,7 @@ int Gcalc_operation_reducer::connect_threads(
 
     res_point *rp0, *rp1;
     if (!(rp0= add_res_point(s_t)) || !(rp1= add_res_point(s_t)))
-      return 1;
+      GCALC_DBUG_RETURN(1);
     rp0->glue= rp1;
     rp1->glue= rp0;
     rp0->set(si);
@@ -1204,7 +1147,7 @@ int Gcalc_operation_reducer::connect_threads(
       /* Chack if needed */
       tb->thread_start= rp0;
     }
-    return 0;
+    GCALC_DBUG_RETURN(0);
   }
   /* else, if only ta is incoming */
 
@@ -1217,15 +1160,12 @@ int Gcalc_operation_reducer::connect_threads(
     if (si->intersection_step() ?
           continue_i_range(tb, si->get_cur_ii()) :
           continue_range(tb, si->get_cur_pi(), pb->next_pi))
-#ifdef TMP_BLOCK
-          continue_range(tb, si->get_cur_pi())
-#endif /*TMP_BLOCK*/
-      return 1;
+      GCALC_DBUG_RETURN(1);
   }
   tb->p1= pb->pi;
   tb->p2= pb->next_pi;
 
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -1234,51 +1174,49 @@ int Gcalc_operation_reducer::start_line(active_thread *t,
                                         const Gcalc_scan_iterator *si)
 {
   res_point *rp= add_res_point(Gcalc_function::shape_line);
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::start_line");
   if (!rp)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   rp->glue= rp->down= NULL;
   rp->set(si);
   t->rp= rp;
   t->p1= p->pi;
   t->p2= p->next_pi;
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
 int Gcalc_operation_reducer::end_line(active_thread *t,
                                       const Gcalc_scan_iterator *si)
 {
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::end_line");
   DBUG_ASSERT(t->rp->type == Gcalc_function::shape_line);
   res_point *rp= add_res_point(Gcalc_function::shape_line);
   if (!rp)
-    return 1;
+    GCALC_DBUG_RETURN(1);
   rp->glue= rp->up= NULL;
   rp->down= t->rp;
   rp->set(si);
   t->rp->up= rp;
   t->rp= NULL;
 
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
 int Gcalc_operation_reducer::count_all(Gcalc_heap *hp)
 {
   Gcalc_scan_iterator si;
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::count_all");
   si.init(hp);
   while (si.more_points())
   {
-#ifndef NO_TESTING
-    printf("Point %d\n", ++ca_counter);
-    if (ca_counter == 12)
-      call_checkpoint(10);
-#endif /*NO_TESTING*/
     if (si.step())
-      return 1;
+      GCALC_DBUG_RETURN(1);
     if (count_slice(&si))
-      return 1;
+      GCALC_DBUG_RETURN(1);
   }
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 inline void Gcalc_operation_reducer::free_result(res_point *res)
@@ -1294,23 +1232,21 @@ inline void Gcalc_operation_reducer::free_result(res_point *res)
 inline int Gcalc_operation_reducer::get_single_result(res_point *res,
 						   Gcalc_result_receiver *storage)
 {
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_single_result");
   if (res->intersection_point)
   {
     double x, y;
     res->ii->calc_xy(&x, &y);
     if (storage->single_point(x,y))
-      return 1;
+      GCALC_DBUG_RETURN(1);
   }
   else
     if (storage->single_point(res->pi->x, res->pi->y))
-      return 1;
+      GCALC_DBUG_RETURN(1);
   free_result(res);
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
-#ifndef NO_TESTING
-int pc_counter= 0;
-#endif /*NO_TESTING*/
 
 int Gcalc_operation_reducer::get_result_thread(res_point *cur,
                                                Gcalc_result_receiver *storage,
@@ -1320,13 +1256,9 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
   res_point *next;
   bool glue_step= false;
   double x, y;
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_result_thread");
   while (cur)
   {
-#ifndef NO_TESTING
-    ++pc_counter;
-    if (pc_counter == 79)
-      call_checkpoint(79);
-#endif /*NO_TESTING*/
     if (!glue_step)
     {
       if (cur->intersection_point)
@@ -1339,7 +1271,7 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
         y= cur->pi->y;
       }
       if (storage->add_point(x, y))
-        return 1;
+        GCALC_DBUG_RETURN(1);
     }
     
     next= move_upward ? cur->up : cur->down;
@@ -1358,7 +1290,7 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
     free_result(cur);
     cur= next;
   }
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
@@ -1366,11 +1298,12 @@ int Gcalc_operation_reducer::get_polygon_result(res_point *cur,
                                                 Gcalc_result_receiver *storage,
                                                 res_point *first_poly_node)
 {
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_polygon_result");
   res_point *glue= cur->glue;
   glue->up->down= NULL;
   free_result(glue);
-  return get_result_thread(cur, storage, 1, first_poly_node) ||
-         storage->complete_shape();
+  GCALC_DBUG_RETURN(get_result_thread(cur, storage, 1, first_poly_node) ||
+                    storage->complete_shape());
 }
 
 
@@ -1380,6 +1313,7 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
   res_point *next;
   res_point *cur_orig= cur;
   int move_upward= 1;
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_line_result");
   if (cur->glue)
   {
     /* Here we have to find the beginning of the line */
@@ -1405,8 +1339,8 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
     }
   }
 
-  return get_result_thread(cur, storage, move_upward, 0) ||
-         storage->complete_shape();
+  GCALC_DBUG_RETURN(get_result_thread(cur, storage, move_upward, 0) ||
+                    storage->complete_shape());
 }
 
 
@@ -1414,6 +1348,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 {
   poly_instance *polygons= NULL;
 
+  GCALC_DBUG_ENTER("Gcalc_operation_reducer::get_result");
   *m_res_hook= NULL;
 
   while (m_result)
@@ -1422,7 +1357,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     if (shape == Gcalc_function::shape_point)
     {
       if (get_single_result(m_result, storage))
-	return 1;
+        GCALC_DBUG_RETURN(1);
       continue;
     }
     if (shape == Gcalc_function::shape_polygon)
@@ -1439,7 +1374,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
                                m_result->outer_poly->first_poly_node) ||
             storage->move_hole(insert_position, hole_position,
                                &position_shift))
-          return 1;
+          GCALC_DBUG_RETURN(1);
         for (cur_poly= polygons;
              cur_poly && *cur_poly->after_poly_position >= insert_position;
              cur_poly= cur_poly->get_next())
@@ -1454,7 +1389,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
         polygons= p;
         storage->start_shape(Gcalc_function::shape_polygon);
         if (get_polygon_result(m_result, storage, m_result))
-          return 1;
+          GCALC_DBUG_RETURN(1);
         *poly_position= storage->position();
       }
     }
@@ -1462,13 +1397,13 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     {
       storage->start_shape(shape);
       if (get_line_result(m_result, storage))
-	return 1;
+        GCALC_DBUG_RETURN(1);
     }
   }
   
   m_res_hook= (Gcalc_dyn_list::Item **)&m_result;
   storage->done();
-  return 0;
+  GCALC_DBUG_RETURN(0);
 }
 
 
