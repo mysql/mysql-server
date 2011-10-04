@@ -23,8 +23,9 @@ static my_thread_id thd_thread_id; ///< its thread_id
 
 static size_t needed_size= 20480;
 
-static const time_t next_interval=  60*60*24*7; ///< in seconds (one week)
+static const time_t startup_interval= 60*5;     ///< in seconds (5 minutes)
 static const time_t first_interval= 60*60*24;   ///< in seconds (one day)
+static const time_t interval= 60*60*24*7;       ///< in seconds (one week)
 
 /**
   reads the rows from a table and puts them, concatenated, in a String
@@ -141,7 +142,7 @@ static bool going_down()
 /**
   just like sleep, but waits on a condition and checks "plugin shutdown" status
 */
-static int delay(time_t sec)
+static int slept_ok(time_t sec)
 {
   struct timespec abstime;
   int ret= 0;
@@ -153,7 +154,7 @@ static int delay(time_t sec)
     ret= pthread_cond_timedwait(&sleep_condition, &sleep_mutex, &abstime);
   pthread_mutex_unlock(&sleep_mutex);
 
-  return going_down();
+  return !going_down();
 }
 
 /**
@@ -241,7 +242,7 @@ static void send_report(const char *when)
     }
     if (last_todo < 0)
       break;
-  } while (delay(send_retry_wait) == 0); // wait a little bit before retrying
+  } while (slept_ok(send_retry_wait)); // wait a little bit before retrying
 
 ret:
   if (thd)
@@ -269,8 +270,6 @@ ret:
 */
 pthread_handler_t background_thread(void *arg __attribute__((unused)))
 {
-  time_t interval;
-
   if (my_thread_init())
     return 0;
 
@@ -278,12 +277,20 @@ pthread_handler_t background_thread(void *arg __attribute__((unused)))
   thd_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
-  send_report("startup");
+  if (slept_ok(startup_interval))
+  {
+    send_report("startup");
 
-  for (interval= first_interval; delay(interval) == 0; interval= next_interval)
-    send_report(NULL);
+    if (slept_ok(first_interval))
+    {
+      send_report(NULL);
 
-  send_report("shutdown");
+      while(slept_ok(interval))
+        send_report(NULL);
+    }
+
+    send_report("shutdown");
+  }
 
   my_thread_end();
   pthread_exit(0);

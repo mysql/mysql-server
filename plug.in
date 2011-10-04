@@ -11,7 +11,13 @@ dnl Unfortunately, feedback cannot be built dynamically on Windows, because it
 dnl needs to access server internals that aren't designed for plugin use and
 dnl aren't marked with MYSQL_PLUGIN_IMPORT.
 MYSQL_PLUGIN_DYNAMIC([feedback], [feedback.la])
-MYSQL_PLUGIN_STATIC(feedback, [libfeedback.a])
+ifelse(index(AC_PACKAGE_NAME, [MariaDB]), -1, [], [
+
+dnl MariaDB and MySQL define static plugins differently.
+dnl I only support MariaDB here, for now.
+MYSQL_PLUGIN_STATIC(feedback, [libfeedback.la])
+
+])
 
 MYSQL_PLUGIN_ACTIONS(feedback, [
   AC_CHECK_HEADERS([netdb.h sys/utsname.h])

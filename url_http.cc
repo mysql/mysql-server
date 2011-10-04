@@ -28,11 +28,6 @@
 
 namespace feedback {
 
-static const char   *http= "http://";
-static const size_t  http_len= 7;
-static const char   *https= "https://";
-static const size_t  https_len= 8;
-
 static const uint FOR_READING= 0;
 static const uint FOR_WRITING= 1;
 
@@ -88,13 +83,13 @@ Url* http_create(const char *url, size_t url_length)
   LEX_STRING host, port, path;
   bool ssl= false;
 
-  if (is_prefix(url, http))
-    s= url + http_len;
+  if (is_prefix(url, "http://"))
+    s= url + 7;
 #ifdef HAVE_OPENSSL
-  else if (is_prefix(url, https))
+  else if (is_prefix(url, "https://"))
   {
     ssl= true;
-    s= url + https_len;
+    s= url + 8;
   }
 #endif
   else
