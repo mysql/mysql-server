@@ -32,15 +32,15 @@ ENDFOREACH()
 SET ( CLASSPATH 
   target/classes
   ${WITH_CLASSPATH}
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes)
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
+  ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes)
 
 SET(CLUSTERJ_TEST_EXPORTS regression,testsuite.clusterj,testsuite.clusterj.model,testsuite.clusterj.domaintypehandler)
 CREATE_MANIFEST(manifest.mf ${CLUSTERJ_TEST_EXPORTS} clusterj-test)
 
 CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
-  MANIFEST manifest.mf
+  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/manifest.mf
   DEPENDENCIES clusterj.jar
   EXTRA_FILES src/main/resources/META-INF
               src/main/resources/schema.sql
