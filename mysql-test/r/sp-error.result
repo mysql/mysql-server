@@ -2775,3 +2775,19 @@ DROP PROCEDURE p5;
 DROP PROCEDURE p6;
 DROP TABLE t1;
 DROP TABLE t2;
+
+# Check DECLARE statements that raise conditions before handlers
+# are declared.
+
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var1 INTEGER DEFAULT 'string';
+DECLARE EXIT HANDLER FOR SQLWARNING BEGIN END;
+END|
+
+CALL p1();
+Warnings:
+Warning	1366	Incorrect integer value: 'string' for column 'var1' at row 1
+
+DROP PROCEDURE p1;
