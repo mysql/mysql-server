@@ -4624,6 +4624,19 @@ static bool pull_out_semijoin_tables(JOIN *join)
     List_iterator<TABLE_LIST> child_li(sj_nest->nested_join->join_list);
     TABLE_LIST *tbl;
     /*
+      Calculate set of tables within this semi-join nest that have
+      other dependent tables
+    */
+    table_map dep_tables= 0;
+    while ((tbl= child_li++))
+    {
+      TABLE *const table= tbl->table;
+      if (table &&
+         (table->reginfo.join_tab->dependent &
+          sj_nest->nested_join->used_tables))
+        dep_tables|= table->reginfo.join_tab->dependent;
+    }
+    /*
       Find which tables we can pull out based on key dependency data.
       Note that pulling one table out can allow us to pull out some
       other tables too.
@@ -4635,7 +4648,9 @@ static bool pull_out_semijoin_tables(JOIN *join)
       child_li.rewind();
       while ((tbl= child_li++))
       {
-        if (tbl->table && !(pulled_tables & tbl->table->map))
+        if (tbl->table &&
+            !(pulled_tables & tbl->table->map) &&
+            !(dep_tables & tbl->table->map))
         {
           if (find_eq_ref_candidate(tbl->table, 
                                     sj_nest->nested_join->used_tables & 
@@ -5227,7 +5242,7 @@ const_table_extraction_done:
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
       table=s->table;
-
+      TABLE_LIST *const tl= table->pos_in_table_list;
       /* 
         If equi-join condition by a key is null rejecting and after a
         substitution of a const table the key value happens to be null
@@ -5268,7 +5283,7 @@ const_table_extraction_done:
 	  continue;
 	if (table->file->stats.records <= 1L &&
 	    (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-            !table->pos_in_table_list->in_outer_join_nest())
+            !tl->in_outer_join_nest())
 	{					// system table
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;
@@ -5313,11 +5328,13 @@ const_table_extraction_done:
             Extract const tables with proper key dependencies.
             Exclude tables that
              1. are full-text searched, or
-             2. are part of nested outer join.
+             2. are part of nested outer join, or
+             3. are part of semi-join
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched &&                           // 1
-              !table->pos_in_table_list->in_outer_join_nest())       // 2
+              !tl->in_outer_join_nest() &&                           // 2
+              !(tl->embedding && tl->embedding->sj_on_expr))         // 3
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -5584,8 +5601,9 @@ static bool optimize_semijoin_nests(JOIN *join)
     if (join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
         join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
     {
-      /* semi-join nests with only constant tables are not valid */
-      DBUG_ASSERT(sj_nest->sj_inner_tables & ~join->const_table_map);
+      /* A semi-join nest should not contain tables marked as const */
+      DBUG_ASSERT(!(sj_nest->sj_inner_tables & join->const_table_map));
+
       Opt_trace_object trace_wrapper(trace);
       Opt_trace_object
         trace_sjmat(trace, "execution_plan_for_potential_materialization");
@@ -18646,10 +18664,14 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     DBUG_RETURN(rc);
   }
 
-  Semijoin_mat_exec *sjm= join_tab->emb_sj_nest->sj_mat_exec;
+  Semijoin_mat_exec *const sjm= join_tab->emb_sj_nest->sj_mat_exec;
+
+  // Cache a pointer to the last of the materialized inner tables:
+  JOIN_TAB *const last_tab= join_tab + (sjm->table_count - 1);
+
   if (end_of_records)
   {
-    rc= (*join_tab[sjm->table_count - 1].next_select)
+    rc= (*last_tab->next_select)
           (join, join_tab + sjm->table_count, end_of_records);
     DBUG_RETURN(rc);
   }
@@ -18659,23 +18681,8 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       Do the materialization. First, put end_sj_materialize after the last
       inner table so we can catch record combinations of sj-inner tables.
     */
-    Next_select_func next_func= join_tab[sjm->table_count - 1].next_select;
-    join_tab[sjm->table_count - 1].next_select= end_sj_materialize;
-
-    if (sjm->is_scan)
-    {
-      JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
-      if (last_tab->save_read_first_record == NULL)
-      {
-        /* Save a copy of the read first function before substituting it */
-        last_tab->save_read_first_record= last_tab->read_first_record;
-      }
-      else
-      {
-        /* Restore read function saved in previous materialization round */
-        last_tab->read_first_record= last_tab->save_read_first_record;
-      }
-    }
+    const Next_select_func next_func= last_tab->next_select;
+    last_tab->next_select= end_sj_materialize;
     /*
       Now run the join for the inner tables. The first call is to run the
       join, the second one is to signal EOF (this is essential for some
@@ -18684,55 +18691,48 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((rc= sub_select(join, join_tab, FALSE)) < 0 ||
         (rc= sub_select(join, join_tab, TRUE/*EOF*/)) < 0)
     {
-      join_tab[sjm->table_count - 1].next_select= next_func;
+      last_tab->next_select= next_func;
       DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
     }
-    join_tab[sjm->table_count - 1].next_select= next_func;
-
-    /*
-      Ok, materialization finished. Initialize the access to the temptable
-    */
-    join_tab->read_record.read_record= join_no_more_records;
-    if (sjm->is_scan)
-    {
-      /* Initialize full scan */
-      JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
-      init_read_record(&last_tab->read_record, join->thd,
-                       sjm->table, NULL, TRUE, TRUE, FALSE);
-
-      last_tab->read_first_record= join_read_record_no_init;
-      last_tab->read_record.copy_field= sjm->copy_field;
-      last_tab->read_record.copy_field_end= sjm->copy_field +
-                                            sjm->table_cols.elements;
-      last_tab->read_record.read_record= rr_sequential_and_unpack;
-
-      // Clear possible outer join information from earlier use of this join tab
-      last_tab->last_inner= NULL;
-      last_tab->first_unmatched= NULL;
-    }
+    last_tab->next_select= next_func;
 
     sjm->materialized= true;
-  }
-  else
-  {
-    if (sjm->is_scan)
-    {
-      /* Reset the cursor for a new scan over the table */
-      if (sjm->table->file->ha_rnd_init(TRUE))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
-    }
   }
 
   if (sjm->is_scan)
   {
-    /* Do full scan of the materialized table */
-    JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
+    /*
+      Perform a full scan over the materialized table.
+      Reuse the join tab of the last inner table for the materialized table.
+    */
 
-    Item *save_cond= last_tab->condition();
+    // Save contents of join tab for possible repeated materializations:
+    const READ_RECORD saved_access= last_tab->read_record;
+    const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
+
+    // Initialize full scan
+    init_read_record(&last_tab->read_record, join->thd,
+                     sjm->table, NULL, TRUE, TRUE, FALSE);
+
+    last_tab->read_first_record= join_read_record_no_init;
+    last_tab->read_record.copy_field= sjm->copy_field;
+    last_tab->read_record.copy_field_end= sjm->copy_field +
+                                          sjm->table_cols.elements;
+    last_tab->read_record.read_record= rr_sequential_and_unpack;
+
+    // Clear possible outer join information from earlier use of this join tab
+    last_tab->last_inner= NULL;
+    last_tab->first_unmatched= NULL;
+
+    Item *const save_cond= last_tab->condition();
     last_tab->set_condition(sjm->join_cond, __LINE__);
     rc= sub_select(join, last_tab, end_of_records);
+    end_read_record(&last_tab->read_record);
+
+    // Restore access method used for materialization
     last_tab->set_condition(save_cond, __LINE__);
-    DBUG_RETURN(rc);
+    last_tab->read_record= saved_access;
+    last_tab->read_first_record= saved_rfr;
   }
   else
   {
@@ -18741,9 +18741,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (res || !sjm->in_equality->val_int())
       DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+    rc= (*last_tab->next_select)
+      (join, join_tab + sjm->table_count, end_of_records);
   }
-  rc= (*join_tab[sjm->table_count - 1].next_select)
-        (join, join_tab + sjm->table_count, end_of_records);
   DBUG_RETURN(rc);
 }
 
