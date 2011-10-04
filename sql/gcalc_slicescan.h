@@ -23,10 +23,17 @@
 #define GCALC_DBUG_OFF
 #endif /*DBUG_OFF*/
 
+#ifndef GCALC_DBUG_OFF
 #define GCALC_DBUG_PRINT(b) DBUG_PRINT("Gcalc", b)
 #define GCALC_DBUG_ENTER(a) DBUG_ENTER("Gcalc "a)
 #define GCALC_DBUG_RETURN(r) DBUG_RETURN(r)
 #define GCALC_DBUG_ASSERT(r) DBUG_ASSERT(r)
+#else
+#define GCALC_DBUG_PRINT(b)     do {} while(0)
+#define GCALC_DBUG_ENTER(a)     do {} while(0)
+#define GCALC_DBUG_RETURN(r)    return (r)
+#define GCALC_DBUG_ASSERT(r)    do {} while(0)
+#endif /*GCALC_DBUG_OFF*/
 
 /*
   Gcalc_dyn_list class designed to manage long lists of same-size objects
