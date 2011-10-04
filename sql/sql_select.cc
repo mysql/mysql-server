@@ -17969,12 +17969,6 @@ skipped_filesort:
     delete save_quick;
     save_quick= NULL;
   }
-          /*
-            orig_cond is a part of pre_idx_push_cond,
-            no need to restore it.
-          */
-          orig_cond= 0;
-          orig_cond_saved= false;
   if (orig_cond_saved && !changed_key)
     tab->set_cond(orig_cond);
   DBUG_RETURN(1);

@@ -2489,23 +2489,29 @@ INSERT INTO t3 VALUES
 
 SET SESSION join_cache_level=1;
 EXPLAIN
-SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+SELECT t2.v FROM t1, t2, t3
+WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v AND t1.pk*2<100 
  GROUP BY t2.v ORDER BY t1.pk,t2.v;
-SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+SELECT t2.v FROM t1, t2, t3
+WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v AND t1.pk*2<100 
  GROUP BY t2.v ORDER BY t1.pk,t2.v;
 
 SET SESSION join_cache_level=6;
 EXPLAIN
-SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+SELECT t2.v FROM t1, t2, t3 
+WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v AND t1.pk*2<100 
  GROUP BY t2.v ORDER BY t1.pk,t2.v;
-SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+SELECT t2.v FROM t1, t2, t3 
+WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v AND t1.pk*2<100 
  GROUP BY t2.v ORDER BY t1.pk,t2.v;
 
 SET SESSION join_cache_level=4;
 EXPLAIN
-SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+SELECT t2.v FROM t1, t2, t3 
+WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v AND t1.pk*2<100 
  GROUP BY t2.v ORDER BY t1.pk,t2.v;
-SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+SELECT t2.v FROM t1, t2, t3
+WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v AND t1.pk*2<100 
  GROUP BY t2.v ORDER BY t1.pk,t2.v;
 
 DROP TABLE t1,t2,t3;
