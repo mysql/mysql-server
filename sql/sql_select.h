@@ -372,7 +372,6 @@ public:
     The following two fields are used for a [NOT] IN subquery if it is
     executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
-    save_read_first_record is also used by semi-join materialization strategy.
   */  
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
