@@ -4254,7 +4254,7 @@ PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2 (v,i)
 INSERT INTO t1 VALUES
 (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
 (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
-(25,3,'m'), (26,5,'z'), (27,9,'n'), (28,1,'d'), (29,107,'a');
+(25,3,'m'), (26,5,'a'), (27,9,'n'), (28,1,'d'), (29,107,'a');
 INSERT INTO t1 VALUES
 (110,8,'x'), (111,8,'y'), (112,5,'v'), (113,8,'z'), (114,8,'i'),
 (115,6,'j'), (116,7,'t'), (117,2,'b'), (118,5,'j'), (119,7,'w'),
@@ -4296,9 +4296,9 @@ GROUP BY t2.v ORDER BY t1.pk,t2.v;
 v
 h
 z
-p
 n
 v
+p
 SET SESSION join_cache_level=6;
 EXPLAIN
 SELECT t2.v FROM t1, t2, t3 
