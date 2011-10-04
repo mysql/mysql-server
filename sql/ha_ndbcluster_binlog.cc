@@ -46,6 +46,7 @@ extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
 extern st_ndb_slave_state g_ndb_slave_state;
 extern my_bool opt_ndb_log_transaction_id;
+extern my_bool log_bin_use_v1_row_events;
 
 bool ndb_log_empty_epochs(void);
 
@@ -3386,6 +3387,17 @@ int ndbcluster_binlog_start()
     DBUG_RETURN(-1);
   }
 
+  /*
+     Check that v2 events are enabled if log-transaction-id is set
+  */
+  if (opt_ndb_log_transaction_id &&
+      log_bin_use_v1_row_events)
+  {
+    sql_print_error("NDB: --ndb-log-transaction-id requires v2 Binlog row events "
+                    "but server is using v1.");
+    DBUG_RETURN(-1);
+  }
+
   pthread_mutex_init(&injector_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&injector_cond, NULL);
   pthread_mutex_init(&ndb_schema_share_mutex, MY_MUTEX_INIT_FAST);
@@ -6022,11 +6034,12 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
      Get NdbApi transaction id for this event to put into Binlog
   */
   Ndb_binlog_extra_row_info extra_row_info;
+  const uchar* extra_row_info_ptr = NULL;
   if (opt_ndb_log_transaction_id)
   {
     extra_row_info.setFlags(Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID);
     extra_row_info.setTransactionId(pOp->getTransId());
-    thd->binlog_row_event_extra_data = extra_row_info.generateBuffer();
+    extra_row_info_ptr = extra_row_info.generateBuffer();
   }
 
   DBUG_ASSERT(trans.good());
@@ -6084,7 +6097,8 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
       ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
       ret = trans.write_row(logged_server_id,
                             injector::transaction::table(table, true),
-                            &b, n_fields, table->record[0]);
+                            &b, n_fields, table->record[0],
+                            extra_row_info_ptr);
       assert(ret == 0);
     }
     break;
@@ -6128,7 +6142,8 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
       DBUG_EXECUTE("info", print_records(table, table->record[n]););
       ret = trans.delete_row(logged_server_id,
                              injector::transaction::table(table, true),
-                             &b, n_fields, table->record[n]);
+                             &b, n_fields, table->record[n],
+                             extra_row_info_ptr);
       assert(ret == 0);
     }
     break;
@@ -6163,7 +6178,8 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
         */
         ret = trans.write_row(logged_server_id,
                               injector::transaction::table(table, true),
-                              &b, n_fields, table->record[0]);// after values
+                              &b, n_fields, table->record[0],// after values
+                              extra_row_info_ptr);
         assert(ret == 0);
       }
       else
@@ -6187,7 +6203,8 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
                                injector::transaction::table(table, true),
                                &b, n_fields,
                                table->record[1], // before values
-                               table->record[0]);// after values
+                               table->record[0], // after values
+                               extra_row_info_ptr);
         assert(ret == 0);
       }
     }
@@ -6196,11 +6213,6 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
     /* We should REALLY never get here. */
     DBUG_PRINT("info", ("default - uh oh, a brain exploded."));
     break;
-  }
-
-  if (opt_ndb_log_transaction_id)
-  {
-    thd->binlog_row_event_extra_data = NULL;
   }
 
   if (share->flags & NSF_BLOB_FLAG)

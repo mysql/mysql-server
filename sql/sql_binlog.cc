@@ -81,6 +81,11 @@ static int check_event_type(int type, Relay_log_info *rli)
   case WRITE_ROWS_EVENT:
   case UPDATE_ROWS_EVENT:
   case DELETE_ROWS_EVENT:
+#ifndef MCP_WL5353
+  case WRITE_ROWS_EVENT_V1:
+  case UPDATE_ROWS_EVENT_V1:
+  case DELETE_ROWS_EVENT_V1:
+#endif
   case PRE_GA_WRITE_ROWS_EVENT:
   case PRE_GA_UPDATE_ROWS_EVENT:
   case PRE_GA_DELETE_ROWS_EVENT:

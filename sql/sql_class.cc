@@ -4205,29 +4205,6 @@ void xid_cache_delete(XID_STATE *xid_state)
 
 #ifndef MCP_WL5353
 /**
-   get_binlog_row_event_extra_data_len
-
-   Returns the length in bytes of the current thread's
-   binlog row event extra data, if present.
-   The length is stored at some offset from the extra
-   data ptr.
-   Note that this length is the length of the whole extra
-   data structure, including the fixed length header
-   of size EXTRA_ROW_INFO_HDR_BYTES
-
-   @return
-     Length in bytes of the extra data.
-     Zero is valid.  Maximum is 255
-*/
-uint8
-THD::get_binlog_row_event_extra_data_len() const
-{
-  return (binlog_row_event_extra_data?
-          binlog_row_event_extra_data[EXTRA_ROW_INFO_LEN_OFFSET]:
-          0);
-};
-
-/**
    binlog_row_event_extra_data_eq
 
    Comparator for two binlog row event extra data
