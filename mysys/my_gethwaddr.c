@@ -16,10 +16,21 @@
 /* get hardware address for an interface */
 /* if there are many available, any non-zero one can be used */
 
+#define DONT_DEFINE_VOID /* windows includes break if we do */
 #include "mysys_priv.h"
 #include <m_string.h>
 
 #ifndef MAIN
+
+static my_bool memcpy_and_test(uchar *to, uchar *from, uint len)
+{
+  uint i, res= 1;
+
+  for (i= 0; i < len; i++)
+    if ((*to++= *from++))
+      res= 0;
+  return res;
+}
 
 #ifdef __FreeBSD__
 
@@ -32,11 +43,10 @@
 my_bool my_gethwaddr(uchar *to)
 {
   size_t len;
-  char *buf, *next, *end;
+  uchar  *buf, *next, *end, *addr;
   struct if_msghdr *ifm;
   struct sockaddr_dl *sdl;
-  int res=1, mib[6]={CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
-  char zero_array[ETHER_ADDR_LEN] = {0};
+  int res= 1, mib[6]= {CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, 0};
 
   if (sysctl(mib, 6, NULL, &len, NULL, 0) == -1)
     goto err;
@@ -52,9 +62,9 @@ my_bool my_gethwaddr(uchar *to)
     ifm = (struct if_msghdr *)next;
     if (ifm->ifm_type == RTM_IFINFO)
     {
-      sdl= (struct sockaddr_dl *)(ifm + 1);
-      memcpy(to, LLADDR(sdl), ETHER_ADDR_LEN);
-      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
+      sdl = (struct sockaddr_dl *)(ifm + 1);
+      addr= LLADDR(sdl);
+      res= memcpy_and_test(to, addr, ETHER_ADDR_LEN);
     }
   }
 
@@ -62,40 +72,94 @@ err:
   return res;
 }
 
-#elif __linux__
-
+#elif defined(__linux__) || defined(__sun__)
 #include <net/if.h>
 #include <sys/ioctl.h>
-#include <net/ethernet.h>
+#include <net/if_arp.h>
+#ifdef HAVE_SYS_SOCKIO_H
+#include <sys/sockio.h>
+#endif
+
+#define ETHER_ADDR_LEN 6
 
 my_bool my_gethwaddr(uchar *to)
 {
   int fd, res= 1;
-  struct ifreq ifr;
-  char zero_array[ETHER_ADDR_LEN] = {0};
+  struct ifreq ifr[32];
+  struct ifconf ifc;
+
+  ifc.ifc_req= ifr;
+  ifc.ifc_len= sizeof(ifr);
 
   fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (fd < 0)
     goto err;
 
-  bzero(&ifr, sizeof(ifr));
-  strnmov(ifr.ifr_name, "eth0", sizeof(ifr.ifr_name) - 1);
-
-  do
+  if (ioctl(fd, SIOCGIFCONF, (char*)&ifc) >= 0)
   {
-    if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
+    uint i;
+    for (i= 0; res && i < ifc.ifc_len / sizeof(ifr[0]); i++)
     {
-      memcpy(to, &ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
-      res= memcmp(to, zero_array, ETHER_ADDR_LEN) ? 0 : 1;
+#ifdef SIOCGIFHWADDR
+      if (ioctl(fd, SIOCGIFHWADDR, &ifr[i]) >= 0)
+        res= memcpy_and_test(to, (uchar *)&ifr[i].ifr_hwaddr.sa_data,
+                             ETHER_ADDR_LEN);
+#else
+      /*
+        A bug in OpenSolaris prevents non-root from getting a mac address:
+        http://bugs.opensolaris.org/bugdatabase/view_bug.do?bug_id=4720634
+
+        Thus, we'll use an alternative method and extract the address from the
+        arp table.
+      */
+      struct arpreq arpr;
+      arpr.arp_pa= ifr[i].ifr_addr;
+
+      if (ioctl(fd, SIOCGARP, (char*)&arpr) >= 0)
+        res= memcpy_and_test(to, (uchar *)&arpr.arp_ha.sa_data,
+                             ETHER_ADDR_LEN);
+#endif
     }
-  } while (res && (errno == 0 || errno == ENODEV) && ifr.ifr_name[3]++ < '6');
+  }
 
   close(fd);
 err:
   return res;
 }
 
-#else   /* FreeBSD elif linux */
+#elif defined(_WIN32)
+#include <winsock2.h>
+#include <iphlpapi.h>
+
+#define ETHER_ADDR_LEN 6
+
+my_bool my_gethwaddr(uchar *to)
+{
+  my_bool res= 1;
+
+  IP_ADAPTER_INFO *info= NULL;
+  ULONG info_len= 0;
+
+  if (GetAdaptersInfo(info, &info_len) != ERROR_BUFFER_OVERFLOW)
+    goto err;
+
+  info= alloca(info_len);
+
+  if (GetAdaptersInfo(info, &info_len) != NO_ERROR)
+    goto err;
+
+  while (info && res)
+  {
+    if (info->Type == MIB_IF_TYPE_ETHERNET &&
+        info->AddressLength == ETHER_ADDR_LEN)
+      res= memcpy_and_test(to, info->Address, ETHER_ADDR_LEN);
+  }
+
+err:
+  return res;
+}
+
+#else   /* neither FreeBSD nor linux not Windows */
 /* just fail */
 my_bool my_gethwaddr(uchar *to __attribute__((unused)))
 {
@@ -114,7 +178,7 @@ int main(int argc __attribute__((unused)),char **argv)
     printf("my_gethwaddr failed with errno %d\n", errno);
     exit(1);
   }
-  for (i=0; i < sizeof(mac); i++)
+  for (i= 0; i < sizeof(mac); i++)
   {
     if (i) printf(":");
     printf("%02x", mac[i]);
