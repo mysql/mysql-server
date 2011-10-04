@@ -1349,10 +1349,15 @@ struct Group
   This is structured as an array, indexed by SIDNO, where each element
   contains a linked list of intervals.
 
-  This data structure OPTIONALLY has a read-write lock that protects
-  the number of SIDNOs.  The lock is provided by the invoker of the
-  constructor and it is generally the caller's responsibility to
-  acquire the read lock.  If the lock is not NULL, access methods
+  This data structure OPTIONALLY knows of a Sid_map that gives a
+  correspondence between SIDNO and SID.  If the Sid_map is NULL, then
+  operations that require a Sid_map - printing and parsing - raise an
+  assertion.
+
+  This data structure OPTIONALLY knows of a read-write lock that
+  protects the number of SIDNOs.  The lock is provided by the invoker
+  of the constructor and it is generally the caller's responsibility
+  to acquire the read lock.  If the lock is not NULL, access methods
   assert that the caller already holds the read (or write) lock.  If
   the lock is not NULL and a method of this class grows the number of
   SIDNOs, then the method temporarily upgrades this lock to a write
@@ -1365,7 +1370,8 @@ public:
   /**
     Constructs a new, empty Group_set.
 
-    @param sid_map The Sid_map to use.
+    @param sid_map The Sid_map to use, or NULL if this Group_set
+    should not have a Sid_map.
     @param sid_lock Read-write lock that protects updates to the
     number of SIDs. This may be NULL if such changes do not need to be
     protected.
@@ -1827,6 +1833,17 @@ private:
   /// The default number of intervals in an Interval_chunk.
   static const int CHUNK_GROW_SIZE= 8;
 
+  /**
+    Return true if the given sidno of this Group_set contains the same
+    intervals as the given sidno of the other Group_set.
+
+    @param sidno SIDNO to check for this Group_set.
+    @param other Other Group_set
+    @param other_sidno SIDNO to check in other.
+    @return true if equal, false is not equal.
+  */
+  bool sidno_equals(rpl_sidno sidno,
+                    const Group_set *other, rpl_sidno other_sidno) const;
   /**
     Adds a list of intervals to the given SIDNO.
 
@@ -3170,29 +3187,36 @@ private:
 class Subgroup_coder
 {
 public:
-  Subgroup_coder() : lgid(0), offset(0) {}
+  Subgroup_coder();
   enum_append_status append(Appender *appender, const Cached_subgroup *cs,
                             rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
                             rpl_binlog_pos offset_after_last_statement,
                             bool group_commit, uint32 owner_type);
   enum_read_status read(Reader *reader, Subgroup *s, uint32 *owner_type);
 private:
-  rpl_lgid lgid;
-  my_off_t offset;
-  rpl_sidno sidno;
-  bool group_commit;
+  rpl_lgid last_lgid;
+  my_off_t last_offset;
+  rpl_sidno last_sidno;
+  bool last_group_commit;
   Group_set partial_groups;
   Group_set ended_groups;
-  rpl_binlog_no binlog_no;
-  rpl_binlog_pos binlog_pos;
-  rpl_binlog_pos binlog_length;
-  rpl_binlog_pos binlog_offset_after_last_statement;
-  DYNAMIC_ARRAY sid_to_gno_and_owner_type;
+  rpl_binlog_no last_binlog_no;
+  rpl_binlog_pos last_binlog_pos;
+  rpl_binlog_pos last_binlog_length;
+  rpl_binlog_pos last_binlog_offset_after_last_statement;
+  DYNAMIC_ARRAY sidno_array;
   struct Gno_and_owner_type
   {
     rpl_gno gno;
     uint32 owner_type;
   };
+  Gno_and_owner_type *get_gno_and_owner_type(rpl_sidno sidno)
+  {
+    DBUG_ASSERT(sidno >= 1);
+    if (sidno > (rpl_sidno)sidno_array.elements)
+      return NULL;
+    return dynamic_element(&sidno_array, sidno - 1, Gno_and_owner_type *);
+  }
   /// Constants used to encode groups.
   static const int TINY_SUBGROUP_MAX= 246, TINY_SUBGROUP_MIN= -123;
   static const int NORMAL_SUBGROUP_MIN= 247,
@@ -3211,6 +3235,12 @@ private:
   static const int MIN_FATAL_TYPE= 28;
   static const my_off_t FULL_SUBGROUP_SIZE=
     1 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 1 + 1;
+  static const my_off_t MAX_SUBGROUP_SIZE=
+    1 + 10 + 10 + 10 +  /* normal_subgroup */
+    2 +                 /* rotate */
+    2 + 10 +            /* offset_after_last_statement */
+    2 + 10 +            /* gap */
+    2 + 10;             /* set_owner */
 };
 
 
