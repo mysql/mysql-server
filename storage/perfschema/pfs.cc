@@ -1172,13 +1172,6 @@ static enum_operation_type socket_operation_map[]=
 };
 
 /**
-  Structure to store a MD5 hash value (digest) for a statement.
-*/
-struct {
-         unsigned char m_md5[16];
-       }typedef PFS_digest_hash;
-
-/**
   Build the prefix name of a class of instruments in a category.
   For example, this function builds the string 'wait/sync/mutex/sql/' from
   a prefix 'wait/sync/mutex' and a category 'sql'.
@@ -4797,7 +4790,7 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
   /* 
     If current statement is not instrumented
   */
-  if( !(flag_thread_instrumentation && flag_events_statements_current) )
+  if(!locker || !(flag_thread_instrumentation && flag_events_statements_current))
   {
     return NULL;
   }
@@ -4822,9 +4815,10 @@ static struct PSI_digest_locker* digest_start_v1(PSI_statement_locker *locker)
   digest_storage= &pfs->m_digest_storage;
 
   /* 
-    Initialize token count to 0.
-   */
-  digest_storage->m_token_count= 0;
+    Initialize token array and token count to 0.
+  */
+  while(digest_storage->m_token_count)
+    digest_storage->m_token_array[--digest_storage->m_token_count]= 0;
   
   /*
     Set digest_locker_state's digest storage pointer.
@@ -4843,6 +4837,9 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
   PFS_events_statements   *pfs;
   PFS_digest_storage      *digest_storage;
 
+  if(!locker)
+    return;
+
   state= reinterpret_cast<PSI_digest_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
@@ -4855,39 +4852,9 @@ static void digest_add_token_v1(PSI_digest_locker *locker,
   */
   if( token == 403 )
   {
-    PFS_digest_hash digest; 
-    char digest_str[COL_DIGEST_SIZE]={'\0'};
-    /* 
-      Calculate MD5 Hash of the tokens recieved.
-    */
-    MY_MD5_HASH(digest.m_md5, (unsigned char *)digest_storage,
-                (uint) sizeof(PFS_digest_storage));
-    /* 
-      Write MD5 hash value in a string to be used as DIGEST for the statement.
-    */
-    sprintf(digest_str, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-                        "%02x%02x%02x",
-            digest.m_md5[0], digest.m_md5[1], digest.m_md5[2],
-            digest.m_md5[3], digest.m_md5[4], digest.m_md5[5],
-            digest.m_md5[6], digest.m_md5[7], digest.m_md5[8],
-            digest.m_md5[9], digest.m_md5[10], digest.m_md5[11],
-            digest.m_md5[12], digest.m_md5[13], digest.m_md5[14],
-            digest.m_md5[15]);
-
-    /*
-      TODO: create DIGEST_TEXT from tokens and pass it to 
-            insert_statement_digest() below. Hard coded to 
-            "DIGEST_TEXT" as of now.
-    */
-
-    /* 
-      Populate PFS_statements_digest_stat with computed digest information.
-    */
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    pfs->statement_digest_stat_ptr= 
-                           search_insert_statement_digest(pfs_thread,
-                                                          digest_str,
-                                                          (char*)"DIGEST_TEXT");
+    /* DIGEST_End */
+    PSI_CALL(digest_end)(locker);
+    return;
   }
   else if( digest_storage->m_token_count >= PFS_MAX_TOKEN_COUNT )
   {
@@ -4912,14 +4879,36 @@ static void digest_end_v1(PSI_digest_locker *locker)
   PFS_events_statements   *pfs;
   PFS_digest_storage      *digest_storage;
 
+  if(!locker)
+    return;
+
   state= reinterpret_cast<PSI_digest_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
   
   pfs= reinterpret_cast<PFS_events_statements *>(state->m_statement);
   digest_storage= &pfs->m_digest_storage;
   
-  /* reset token count to 0 */
-  digest_storage->m_token_count= 0;
+  //printf("\n statement_text = [%s]\n",pfs->m_sqltext);
+
+  /* 
+    Calculate MD5 Hash of the tokens recieved.
+  */
+  MY_MD5_HASH(digest_storage->m_digest_hash.m_md5, (unsigned char *)digest_storage->m_token_array,
+              (uint) sizeof(digest_storage->m_token_array));
+
+  /* 
+    Populate PFS_statements_digest_stat with computed digest information.
+  */
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  pfs->statement_digest_stat_ptr= 
+                         search_insert_statement_digest(pfs_thread,
+                                                        digest_storage->m_digest_hash.m_md5,
+                                                        pfs->m_sqltext,
+                                                        pfs->m_sqltext_length);
+  /* 
+     Not resetting digest_storage->m_token_count to 0 here as it will be done in 
+     digest_start.
+  */
 }
 
 /**

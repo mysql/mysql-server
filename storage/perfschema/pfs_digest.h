@@ -28,19 +28,6 @@
 
 extern bool flag_statements_digest;
 
-struct PFS_digest_key
-{
-  /**
-    Hash search key.
-    This has to be a string for LF_HASH,
-    the format is "<digest><0x00>"
-  */
-  char m_hash_key[COL_DIGEST_SIZE + 1];
-  unsigned int m_key_length;
-};
-
-
-
 /** A statement digest stat record. */
 struct PFS_statements_digest_stat
 {
@@ -49,7 +36,10 @@ struct PFS_statements_digest_stat
   char m_digest_text[COL_DIGEST_TEXT_SIZE];
   unsigned int m_digest_text_length;
   
-  PFS_digest_key m_key;
+  /**
+    Digest hash/LF Hash search key.
+  */
+  PFS_digest_hash m_md5_hash;
 };
 
 
@@ -60,7 +50,8 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat* search_insert_statement_digest(PFS_thread*,
-                                                           char*, char*);
+                                                           unsigned char*, char*,
+                                                           unsigned int);
 
 
 void reset_esms_by_digest();
