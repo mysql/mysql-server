@@ -61,7 +61,7 @@ static MYSQL_SYSVAR_UINT(r_batch_size, mci_r_batch_size,
 static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
 			 PLUGIN_VAR_READONLY,
 			 "write batch commit size", 0, 0, 1,
-			 1, 1048576, 0);
+			 32, 1048576, 0);
 
 static MYSQL_SYSVAR_BOOL(enable_binlog, mci_enable_binlog,
 			 PLUGIN_VAR_READONLY,

@@ -17,16 +17,23 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 ***********************************************************************/
 
+/**************************************************//**
+@file innodb_api.c
+InnoDB APIs to support memcached commands
+
+Created 04/12/2011 Jimmy Yang
+*******************************************************/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "innodb_api.h"
 #include <errno.h>
-#include "memcached/util.h"
 #include <sys/time.h>
+#include "innodb_api.h"
+#include "memcached/util.h"
 #include <innodb_cb_api.h>
 
-/** Tells whether to update all value columns or a specific value
+/** Whether to update all columns' value or a specific value
 column */
 #define UPDATE_ALL_VAL_COL	-1
 
@@ -100,7 +107,8 @@ register_innodb_cb(
 }
 
 /*************************************************************//**
-Open a table and return a cursor for the table. */
+Open a table and return a cursor for the table.
+@return DB_SUCCESS if table successfully opened */
 ib_err_t
 innodb_api_begin(
 /*=============*/
@@ -137,6 +145,8 @@ innodb_api_begin(
 		if (engine) {
 			meta_info_t*	meta_info = &engine->meta_info;
 			meta_index_t*	meta_index = &meta_info->m_index;
+
+			/* Open the cursor */
 			if (meta_index->m_use_idx == META_SECONDARY) {
 				int	index_type;
 				ib_id_t	index_id;
@@ -147,6 +157,8 @@ innodb_api_begin(
 
 				ib_cb_cursor_lock(*idx_crsr, lock_mode);
 			}
+
+			/* Create a "Fake" THD if binlog is enabled */
 			if (conn_data && engine->enable_binlog) {
 				if (!conn_data->thd) {
 					conn_data->thd = handler_create_thd();
@@ -234,6 +246,9 @@ innodb_api_write_int(
 	if (m_col->attr == IB_COL_UNSIGNED) {
 		if (m_col->type_len == 8) {
 			ib_cb_tuple_write_u64(tpl, field, value);
+
+			/* If table is non-NULL, set up corresponding
+			TABLE->record[0] field for replication */
 			if (table) {
 				handler_rec_setup_int(
 					table, field, value, TRUE, FALSE);
@@ -274,7 +289,7 @@ innodb_api_write_int(
 }
 
 /*************************************************************//**
-Fetch data from a read tuple and instantiate a mci_item
+Fetch data from a read tuple and instantiate a "mci_item"
 @return TRUE if successful */
 static
 bool
@@ -305,7 +320,7 @@ innodb_api_fill_mci(
 }
 
 /*************************************************************//**
-Position a row accord to key, and fetch value if needed
+fetch value from a read cursor into "mci_items"
 @return DB_SUCCESS if successful otherwise, error code */
 static
 ib_err_t
@@ -318,6 +333,8 @@ innodb_api_fill_value(
 {
 	ib_err_t	err = DB_NOT_FOUND;
 
+	/* If just read a single "value", fill mci_item[MCI_COL_VALUE],
+	otherwise, fill multiple value in mci_add_value[i] */
 	if (meta_info->m_num_add == 0) {
 		meta_column_t*	col_info = meta_info->m_item;
 
@@ -358,13 +375,15 @@ innodb_api_search(
 					operations */
 	bool			sel_only) /*!< in: for select only */
 {
-	ib_tpl_t        key_tpl;
 	ib_err_t        err = DB_SUCCESS;
 	meta_info_t*	meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
 	meta_index_t*	meta_index = &meta_info->m_index;
+	ib_tpl_t        key_tpl;
 	ib_crsr_t	srch_crsr;
 
+	/* If m_use_idx is set to META_SECONDARY, we will use the
+	secondary index to find the record first */
 	if (meta_index->m_use_idx == META_SECONDARY) {
 		ib_crsr_t	idx_crsr;
 
@@ -395,6 +414,7 @@ innodb_api_search(
 	err = ib_cb_col_set_value(key_tpl, 0, (char*) key, len);
 
 	ib_cb_cursor_set_match_mode(srch_crsr, IB_EXACT_MATCH);
+
 	err = ib_cb_moveto(srch_crsr, key_tpl, IB_CUR_GE);
 
 	if (err != DB_SUCCESS) {
@@ -404,7 +424,8 @@ innodb_api_search(
 		goto func_exit;
 	}
 
-	/* If item is NULL, the function is used to position the cursor */
+	/* If item is NULL, this function is used just to position the cursor.
+	Otherwise, fetch the data from the read tuple */
 	if (item) {
 		ib_tpl_t	read_tpl;
 		int		n_cols;
@@ -516,7 +537,7 @@ func_exit:
 /*************************************************************//**
 Get montonically increased cas ID.
 @return new cas ID
-FIXME: This shall be atomic operation */
+FIXME: This shall be an atomic operation */
 static
 uint64_t
 mci_get_cas(void)
@@ -528,7 +549,7 @@ mci_get_cas(void)
 
 /*************************************************************//**
 Get current time
-@return time in second */
+@return time in seconds */
 uint64_t
 mci_get_time(void)
 /*==============*/
@@ -541,8 +562,8 @@ mci_get_time(void)
 }
 
 /*************************************************************//**
-Insert a record with multiple columns
-@return DB_SUCCESS if successful otherwise, error code */
+Set up a record with multiple columns for insertion
+@return DB_SUCCESS if successful, otherwise, error code */
 static
 ib_err_t
 innodb_api_set_multi_cols(
@@ -578,7 +599,7 @@ innodb_api_set_multi_cols(
 }
 
 /*************************************************************//**
-Set up a table record in table->record[0] from a "mci_item_t" record */
+Set up a "TABLE" record in table->record[0] for binlogging */
 static
 void
 innodb_api_setup_hdl_rec(
@@ -603,7 +624,6 @@ innodb_api_setup_hdl_rec(
 				item->mci_item[i].m_is_null);
 		}
 	}
-
 }
 
 /*************************************************************//**
@@ -749,8 +769,8 @@ innodb_api_insert(
 }
 
 /*************************************************************//**
-Update a row, it is used by "replace", "prepend", "append" and "set"
-commands
+Update a row, called by innodb_api_store(), it is used by memcached's
+"replace", "prepend", "append" and "set" commands
 @return DB_SUCCESS if successful otherwise, error code */
 static
 ib_err_t
@@ -780,10 +800,12 @@ innodb_api_update(
 	new_tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
 	assert(new_tpl != NULL);
 
+	/* cas will be updated for each update */
 	new_cas = mci_get_cas();
 
 	if (exp) {
 		uint64_t	time;
+
 		time = mci_get_time();
 		exp += time;
 	}
@@ -883,8 +905,8 @@ innodb_api_delete(
 }
 
 /*************************************************************//**
-Link the value with a string, driver function for command
-"prepend" or "append"
+Link the value with a string, called by innodb_api_store(), and
+used for memcached's "prepend" or "append" commands
 @return DB_SUCCESS if successful otherwise, error code */
 static
 ib_err_t
@@ -990,7 +1012,7 @@ innodb_api_link(
 }
 
 /*************************************************************//**
-Update a row with arithmetic operation
+Update a row with arithmetic operations
 @return ENGINE_SUCCESS if successful otherwise ENGINE_NOT_STORED */
 ENGINE_ERROR_CODE
 innodb_api_arithmetic(
@@ -1189,7 +1211,7 @@ innodb_api_store(
 	ENGINE_ERROR_CODE stored = ENGINE_NOT_STORED;
 	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
 
-
+	/* First check whether record with the key value exists */
 	err = innodb_api_search(engine, cursor_data, &srch_crsr,
 				key, len, &result, &old_tpl, FALSE);
 
@@ -1275,7 +1297,7 @@ innodb_api_store(
 	return(stored);
 }
 /*********************************************************************
-Implement the "flush_all" command, map to InnoDB's trunk table operation
+Implement the "flush_all" command, map to InnoDB's "trunk table" operation
 return ENGINE_SUCCESS is all successful */
 ENGINE_ERROR_CODE
 innodb_api_flush(
@@ -1295,7 +1317,8 @@ innodb_api_flush(
 #endif
 	/* currently, we implement engine flush as truncate table */
 	err  = ib_cb_table_truncate(table_name, &new_id);
-		
+
+	/* If binlog is enabled, log the truncate table statement */
 	if (err == DB_SUCCESS && engine->enable_binlog) {
 		void*  thd = handler_create_thd();
 
@@ -1308,7 +1331,8 @@ innodb_api_flush(
 	return((err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_FAILED);
 }
 /*************************************************************//**
-reset the cursor */
+Increment read and write counters, if they exceed the batch size,
+commit the transaction. */
 void
 innodb_api_cursor_reset(
 /*====================*/

@@ -69,7 +69,6 @@ create_instance(
 	GET_SERVER_API		get_server_api,
 	ENGINE_HANDLE**		handle )
 {
-  
 	ENGINE_ERROR_CODE	e;
 	struct innodb_engine*	innodb_eng;
 
@@ -175,6 +174,14 @@ innodb_initialize(
 	check whether innodb_direct_access_enable_binlog is turned on */
 	if (!innodb_eng->enable_binlog) {
 		innodb_eng->enable_binlog = innodb_cb_binlog_enabled();
+	}
+
+	/* MEMCACHED_RESOLVE: Set the default write batch size to 1
+	if binlog is turned on */
+	if (innodb_eng->enable_binlog) {
+		innodb_eng->w_batch_size = (innodb_eng->w_batch_size == 32)
+						? 1
+						: innodb_eng->w_batch_size;
 	}
 
 	UT_LIST_INIT(innodb_eng->conn_data);
@@ -685,7 +692,6 @@ innodb_reset_stats(
 
 
 /*** store ***/
-
 static
 ENGINE_ERROR_CODE
 innodb_store(

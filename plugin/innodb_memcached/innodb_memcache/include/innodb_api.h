@@ -296,7 +296,8 @@ typedef enum conn_op_type {
 } op_type_t;
 
 /*************************************************************//**
-reset the cursor */
+Increment read and write counters, if they exceed the batch size,
+commit the transaction. */
 void
 innodb_api_cursor_reset(
 /*====================*/
