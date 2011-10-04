@@ -204,6 +204,12 @@ public:
       /*
         Add a 'write row' entry to the transaction.
       */
+#ifndef MCP_WL5353
+      int write_row (server_id_type sid, table tbl,
+                     MY_BITMAP const *cols, size_t colcnt,
+                     record_type record,
+                     const uchar* extra_row_info);
+#endif
       int write_row (server_id_type sid, table tbl, 
                      MY_BITMAP const *cols, size_t colcnt,
                      record_type record);
@@ -211,17 +217,28 @@ public:
       /*
         Add a 'delete row' entry to the transaction.
       */
+#ifndef MCP_WL5353
       int delete_row(server_id_type sid, table tbl, 
+                     MY_BITMAP const *cols, size_t colcnt,
+                     record_type record,
+                     const uchar* extra_row_info);
+#endif
+      int delete_row(server_id_type sid, table tbl,
                      MY_BITMAP const *cols, size_t colcnt,
                      record_type record);
 
       /*
         Add an 'update row' entry to the transaction.
       */
+#ifndef MCP_WL5353
       int update_row(server_id_type sid, table tbl, 
                      MY_BITMAP const *cols, size_t colcnt,
+                     record_type before, record_type after,
+                     const uchar* extra_row_info);
+#endif
+      int update_row(server_id_type sid, table tbl,
+                     MY_BITMAP const *cols, size_t colcnt,
                      record_type before, record_type after);
-
       /*
         Commit a transaction.
 

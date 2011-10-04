@@ -5444,7 +5444,11 @@ template <class RowsEventT> Rows_log_event*
 THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        size_t needed,
                                        bool is_transactional,
-				       RowsEventT *hint __attribute__((unused)))
+				       RowsEventT *hint __attribute__((unused))
+#ifndef MCP_WL5353
+                                       ,const uchar* extra_row_info
+#endif
+)
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
   /* Pre-conditions */
@@ -5471,20 +5475,24 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   if (!pending ||
       pending->server_id != serv_id || 
       pending->get_table_id() != table->s->table_map_id ||
-      pending->get_type_code() != type_code || 
+      pending->get_general_type_code() != type_code || 
       pending->get_data_size() + needed > opt_binlog_rows_event_max_size ||
       pending->read_write_bitmaps_cmp(table) == FALSE
 #ifndef MCP_WL5353
       ||
       !binlog_row_event_extra_data_eq(pending->get_extra_row_data(),
-                                      binlog_row_event_extra_data)
+                                      extra_row_info)
 #endif
       )
   {
     /* Create a new RowsEventT... */
     Rows_log_event* const
 	ev= new RowsEventT(this, table, table->s->table_map_id,
-                           is_transactional);
+                           is_transactional
+#ifndef MCP_WL5353
+                           , extra_row_info
+#endif
+                           );
     if (unlikely(!ev))
       DBUG_RETURN(NULL);
     ev->server_id= serv_id; // I don't like this, it's too easy to forget.
@@ -5630,7 +5638,11 @@ CPP_UNNAMED_NS_START
 CPP_UNNAMED_NS_END
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
-                          uchar const *record) 
+                          uchar const *record
+#ifndef MCP_WL5353
+                          , const uchar* extra_row_info
+#endif
+                          ) 
 { 
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
 
@@ -5648,7 +5660,11 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,
-                                      static_cast<Write_rows_log_event*>(0));
+                                      static_cast<Write_rows_log_event*>(0)
+#ifndef MCP_WL5353
+                                      ,extra_row_info
+#endif
+                                      );
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -5658,7 +5674,11 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
 
 int THD::binlog_update_row(TABLE* table, bool is_trans,
                            const uchar *before_record,
-                           const uchar *after_record)
+                           const uchar *after_record
+#ifndef MCP_WL5353
+                           ,const uchar* extra_row_info
+#endif
+                           )
 { 
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   int error= 0;
@@ -5706,7 +5726,11 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id,
 				      before_size + after_size, is_trans,
-				      static_cast<Update_rows_log_event*>(0));
+				      static_cast<Update_rows_log_event*>(0)
+#ifndef MCP_WL5353
+                                      , extra_row_info
+#endif
+                                      );
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -5722,7 +5746,11 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
 }
 
 int THD::binlog_delete_row(TABLE* table, bool is_trans, 
-                           uchar const *record)
+                           uchar const *record
+#ifndef MCP_WL5353
+                           ,const uchar* extra_row_info
+#endif
+                           )
 { 
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   int error= 0;
@@ -5756,7 +5784,11 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,
-				      static_cast<Delete_rows_log_event*>(0));
+				      static_cast<Delete_rows_log_event*>(0)
+#ifndef MCP_WL5353
+                                      , extra_row_info
+#endif
+                                      );
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;

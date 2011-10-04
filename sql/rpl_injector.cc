@@ -133,7 +133,11 @@ int injector::transaction::use_table(server_id_type sid, table tbl)
 
 int injector::transaction::write_row (server_id_type sid, table tbl, 
 				      MY_BITMAP const* cols, size_t colcnt,
-				      record_type record)
+				      record_type record
+#ifndef MCP_WL5353
+                                      ,const uchar* extra_row_info
+#endif
+                                      )
 {
    DBUG_ENTER("injector::transaction::write_row(...)");
 
@@ -146,15 +150,31 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
    table::save_sets saveset(tbl, cols, cols);
 
    error= m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
-                                  record);
+                                  record
+#ifndef MCP_WL5353
+                                  , extra_row_info
+#endif
+                                  );
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
 
+#ifndef MCP_WL5353
+int injector::transaction::write_row (server_id_type sid, table tbl,
+				      MY_BITMAP const* cols, size_t colcnt,
+				      record_type record)
+{
+  return write_row(sid, tbl, cols, colcnt, record, NULL);
+}
+#endif
 
 int injector::transaction::delete_row(server_id_type sid, table tbl,
 				      MY_BITMAP const* cols, size_t colcnt,
-				      record_type record)
+				      record_type record
+#ifndef MCP_WL5353
+                                      ,const uchar* extra_row_info
+#endif
+                                      )
 {
    DBUG_ENTER("injector::transaction::delete_row(...)");
 
@@ -166,15 +186,31 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
    m_thd->set_server_id(sid);
    table::save_sets saveset(tbl, cols, cols);
    error= m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
-                                   record);
+                                   record
+#ifndef MCP_WL5353
+                                   , extra_row_info
+#endif
+                                   );
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
 
+#ifndef MCP_WL5353
+int injector::transaction::delete_row(server_id_type sid, table tbl,
+				      MY_BITMAP const* cols, size_t colcnt,
+				      record_type record)
+{
+  return delete_row(sid, tbl, cols, colcnt, record, NULL);
+}
+#endif
 
 int injector::transaction::update_row(server_id_type sid, table tbl, 
 				      MY_BITMAP const* cols, size_t colcnt,
-				      record_type before, record_type after)
+				      record_type before, record_type after
+#ifndef MCP_WL5353
+                                      ,const uchar* extra_row_info
+#endif
+                                      )
 {
    DBUG_ENTER("injector::transaction::update_row(...)");
 
@@ -188,11 +224,23 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
    table::save_sets saveset(tbl, cols, cols);
 
    error= m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(), 
-                                   before, after);
+                                   before, after
+#ifndef MCP_WL5353
+                                   , extra_row_info
+#endif
+                                   );
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
 
+#ifndef MCP_WL5353
+int injector::transaction::update_row(server_id_type sid, table tbl,
+				      MY_BITMAP const* cols, size_t colcnt,
+				      record_type before, record_type after)
+{
+  return update_row(sid, tbl, cols, colcnt, before, after, NULL);
+}
+#endif
 
 injector::transaction::binlog_pos injector::transaction::start_pos() const
 {
