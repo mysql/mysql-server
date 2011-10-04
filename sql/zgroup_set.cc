@@ -51,6 +51,7 @@ Group_set::Group_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 Group_set::Group_set(Sid_map *_sid_map, const char *text,
                      enum_return_status *status, Checkable_rwlock *_sid_lock)
 {
+  DBUG_ASSERT(_sid_map != NULL);
   init(_sid_map, _sid_lock);
   *status= add(text);
 }
@@ -104,7 +105,7 @@ enum_return_status Group_set::ensure_sidno(rpl_sidno sidno)
   DBUG_ENTER("Group_set::ensure_sidno");
   if (sid_lock != NULL)
     sid_lock->assert_some_rdlock();
-  DBUG_ASSERT(sidno <= sid_map->get_max_sidno());
+  DBUG_ASSERT(sid_map == NULL || sidno <= sid_map->get_max_sidno());
   rpl_sidno max_sidno= get_max_sidno();
   if (sidno > max_sidno)
   {
@@ -125,7 +126,8 @@ enum_return_status Group_set::ensure_sidno(rpl_sidno sidno)
         RETURN_OK;
       }
     }
-    if (allocate_dynamic(&intervals, sid_map->get_max_sidno()))
+    if (allocate_dynamic(&intervals,
+                         sid_map == NULL ? sidno : sid_map->get_max_sidno()))
       goto error;
     Interval *null_p= NULL;
     for (rpl_sidno i= max_sidno; i < sidno; i++)
@@ -379,6 +381,7 @@ enum_return_status Group_set::add(const char *text, bool *anonymous)
 {
 #define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Group_set::add(const char*)");
+  DBUG_ASSERT(sid_map != NULL);
   const char *s= text;
 
   DBUG_PRINT("info", ("adding '%s'", text));
@@ -491,6 +494,7 @@ parse_error:
 bool Group_set::is_valid(const char *text)
 {
   DBUG_ENTER("Group_set::is_valid(const char*)");
+
   const char *s= text;
 
   SKIP_WHITESPACE();
@@ -574,7 +578,7 @@ enum_return_status Group_set::add(const Group_set *other)
 {
   DBUG_ENTER("Group_set::add(Group_set *)");
   rpl_sidno max_other_sidno= other->get_max_sidno();
-  if (other->sid_map == sid_map)
+  if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
     PROPAGATE_REPORTED_ERROR(ensure_sidno(max_other_sidno));
     for (rpl_sidno sidno= 1; sidno <= max_other_sidno; sidno++)
@@ -607,7 +611,7 @@ enum_return_status Group_set::remove(const Group_set *other)
 {
   DBUG_ENTER("Group_set::add(Group_set *)");
   rpl_sidno max_other_sidno= other->get_max_sidno();
-  if (other->sid_map == sid_map)
+  if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL)
   {
     rpl_sidno max_sidno= min(max_other_sidno, get_max_sidno());
     for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
@@ -657,6 +661,7 @@ bool Group_set::contains_group(rpl_sidno sidno, rpl_gno gno) const
 int Group_set::to_string(char *buf, const Group_set::String_format *sf) const
 {
   DBUG_ENTER("Group_set::to_string");
+  DBUG_ASSERT(sid_map != NULL);
   if (sf == NULL)
     sf= &default_string_format;
   rpl_sidno map_max_sidno= sid_map->get_max_sidno();
@@ -748,6 +753,7 @@ static int get_string_length(rpl_gno gno)
 
 int Group_set::get_string_length(const Group_set::String_format *sf) const
 {
+  DBUG_ASSERT(sid_map != NULL);
   if (sf == NULL)
     sf= &default_string_format;
   if (cached_string_length == -1 || cached_string_format != sf)
@@ -789,9 +795,58 @@ int Group_set::get_string_length(const Group_set::String_format *sf) const
 }
 
 
+bool Group_set::sidno_equals(rpl_sidno sidno, const Group_set *other,
+                             rpl_sidno other_sidno) const
+{
+  DBUG_ENTER("Group_set::sidno_equals");
+  Const_interval_iterator ivit(this, sidno);
+  Const_interval_iterator other_ivit(other, other_sidno);
+  const Interval *iv= ivit.get();
+  const Interval *other_iv= other_ivit.get();
+  while (iv != NULL && other_iv != NULL)
+  {
+    if (!iv->equals(other_iv))
+      DBUG_RETURN(false);
+    ivit.next();
+    other_ivit.next();
+    iv= ivit.get();
+    other_iv= other_ivit.get();
+  }
+  if (iv != NULL || other_iv != NULL)
+    DBUG_RETURN(false);
+  DBUG_RETURN(true);
+}
+
+
 bool Group_set::equals(const Group_set *other) const
 {
   DBUG_ENTER("Group_set::equals");
+
+  if (sid_map == NULL || other->sid_map == NULL || sid_map == other->sid_map)
+  {
+    // in this case, we don't need to translate sidnos
+    rpl_sidno max_sidno= get_max_sidno();
+    rpl_sidno other_max_sidno= other->get_max_sidno();
+    rpl_sidno common_max_sidno= min(max_sidno, other_max_sidno);
+    if (max_sidno > common_max_sidno)
+    {
+      for (rpl_sidno sidno= common_max_sidno + 1; sidno < max_sidno; sidno++)
+        if (contains_sidno(sidno))
+          DBUG_RETURN(false);
+    }
+    else if (other_max_sidno > common_max_sidno)
+    {
+      for (rpl_sidno sidno= common_max_sidno + 1;
+           sidno < other_max_sidno; sidno++)
+        if (other->contains_sidno(sidno))
+          DBUG_RETURN(false);
+    }
+    for (rpl_sidno sidno= 1; sidno <= common_max_sidno; sidno++)
+      if (!sidno_equals(sidno, other, sidno))
+        DBUG_RETURN(false);
+    DBUG_RETURN(true);
+  }
+
   Sid_map *other_sid_map= other->sid_map;
   rpl_sidno map_max_sidno= sid_map->get_max_sidno();
   rpl_sidno other_map_max_sidno= other_sid_map->get_max_sidno();
@@ -819,19 +874,7 @@ bool Group_set::equals(const Group_set *other) const
     if (!sid->equals(other_sid))
       DBUG_RETURN(false);
     // check if all intervals are equal
-    Const_interval_iterator ivit(this, sidno);
-    Const_interval_iterator other_ivit(other, other_sidno);
-    const Interval *iv= ivit.get();
-    const Interval *other_iv= other_ivit.get();
-    do {
-      if (!iv->equals(other_iv))
-        DBUG_RETURN(false);
-      ivit.next();
-      other_ivit.next();
-      iv= ivit.get();
-      other_iv= other_ivit.get();
-    } while (iv != NULL && other_iv != NULL);
-    if (iv != NULL || other_iv != NULL)
+    if (!sidno_equals(sidno, other, other_sidno))
       DBUG_RETURN(false);
     sid_i++;
     other_sid_i++;
@@ -847,14 +890,6 @@ bool Group_set::is_subset(const Group_set *super) const
   Sid_map *super_sid_map= super->sid_map;
   rpl_sidno max_sidno= get_max_sidno();
   rpl_sidno super_max_sidno= super->get_max_sidno();
-
-  char *buf= (char *)malloc(max(get_string_length(), super->get_string_length()) + 1);
-  to_string(buf);
-  DBUG_PRINT("info", ("%s", buf));
-  super->to_string(buf);
-  DBUG_PRINT("info", ("%s", buf));
-  free(buf);
-
   int sidno= 0, super_sidno= 0;
   Const_interval_iterator ivit(this), super_ivit(super);
   const Interval *iv, *super_iv;
@@ -864,16 +899,13 @@ bool Group_set::is_subset(const Group_set *super) const
     do
     {
       sidno++;
-      DBUG_PRINT("info", ("sidno=%d max_sidno=%d", sidno, max_sidno));
       if (sidno > max_sidno)
         DBUG_RETURN(true);
       ivit.init(this, sidno);
       iv= ivit.get();
-      DBUG_PRINT("info", ("iv=%p", iv));
     } while (iv == NULL);
-    DBUG_PRINT("info", ("iv=%p=[%lld,%lld]", iv, iv->start, iv->end));
     // get corresponding super_sidno
-    if (super_sid_map == sid_map)
+    if (super_sid_map == sid_map || super_sid_map == NULL || sid_map == NULL)
     {
       super_sidno= sidno;
       if (super_sidno > super_max_sidno)
@@ -894,8 +926,6 @@ bool Group_set::is_subset(const Group_set *super) const
         DBUG_RETURN(false);
       while (iv->start > super_iv->end)
       {
-        DBUG_PRINT("info", ("sidno=%d iv->start=%lld super_iv->end=%lld",
-                            sidno, iv->start, super_iv->end));
         super_ivit.next();
         super_iv= super_ivit.get();
         if (super_iv == NULL)

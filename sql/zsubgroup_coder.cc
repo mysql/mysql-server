@@ -19,6 +19,17 @@
 #ifdef HAVE_UGID
 
 
+Subgroup_coder::Subgroup_coder()
+  : last_lgid(0), last_offset(0),
+    last_sidno(0), last_group_commit(0),
+    partial_groups(NULL), ended_groups(NULL),
+    last_binlog_no(0), last_binlog_pos(0), last_binlog_length(0),
+    last_binlog_offset_after_last_statement(0)
+{
+  my_init_dynamic_array(&sidno_array, sizeof(Gno_and_owner_type), 8, 8);
+}
+
+
 enum_append_status Subgroup_coder::append(
   Appender *appender, const Cached_subgroup *cs,
   rpl_binlog_no binlog_no, rpl_binlog_pos _binlog_pos,
@@ -26,6 +37,9 @@ enum_append_status Subgroup_coder::append(
   bool group_commit, uint32 owner_type)
 {
   DBUG_ENTER("Subgroup_coder::append");
+/*
+  if (binlog_no != last_binlog_no)
+*/
   uchar buf[2 + FULL_SUBGROUP_SIZE];
   uchar *p= buf;
   // write type code
@@ -46,7 +60,7 @@ enum_append_status Subgroup_coder::append(
   DBUG_ASSERT(p - buf == 2 + FULL_SUBGROUP_SIZE);
   PROPAGATE_APPEND_STATUS(appender->append(buf, p - buf));
   // update state
-  lgid++;
+  last_lgid++;
   DBUG_RETURN(APPEND_OK);
 }
 
@@ -80,7 +94,7 @@ enum_read_status Subgroup_coder::read(Reader *reader, Subgroup *out, uint32 *own
   out->group_commit= *p == 1 ? true : false, p++;
   DBUG_ASSERT(p - buf == (int)FULL_SUBGROUP_SIZE);
   // update state
-  out->lgid= ++lgid;
+  out->lgid= ++last_lgid;
   DBUG_RETURN(READ_OK);
 }
 
