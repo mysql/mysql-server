@@ -77,12 +77,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
 #endif
 
-#if MYSQL_VERSION_ID >= 50600
-
-/* No support for --server-id-bits and thd->unmasked_server_id, yet */
-#define NDB_WITHOUT_SERVER_ID_BITS
-
-#endif
 
 extern ulong opt_server_id_mask;
 
