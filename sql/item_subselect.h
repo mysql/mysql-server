@@ -419,6 +419,7 @@ class subselect_single_select_engine: public subselect_engine
   my_bool prepared; /* simple subselect is prepared */
   my_bool optimized; /* simple subselect is optimized */
   my_bool executed; /* simple subselect is executed */
+  my_bool optimize_error; ///< simple subselect optimization failed
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
