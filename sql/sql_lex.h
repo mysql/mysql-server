@@ -297,6 +297,10 @@ typedef struct st_lex_master_info
 #endif
 } LEX_MASTER_INFO;
 
+typedef struct st_lex_reset_slave
+{
+  bool all;
+} LEX_RESET_SLAVE;
 
 enum sub_select_type
 {
@@ -2278,6 +2282,7 @@ struct LEX: public Query_tables_list
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
+  LEX_RESET_SLAVE reset_slave_info;
   ulong type;
   /*
     This variable is used in post-parse stage to declare that sum-functions,
@@ -2436,6 +2441,16 @@ struct LEX: public Query_tables_list
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+
+  /*
+    The set of those tables whose fields are referenced in all subqueries
+    of the query.
+    TODO: possibly this it is incorrect to have used tables in LEX because
+    with subquery, it is not clear what does the field mean. To fix this
+    we should aggregate used tables information for selected expressions
+    into the select_lex.
+  */
+  table_map  used_tables;
 
   LEX();
 

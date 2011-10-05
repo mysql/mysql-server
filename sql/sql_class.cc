@@ -520,11 +520,11 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
     thd= current_thd;
 
   const char *old_info= thd->proc_info;
-  const char *basename= calling_file ? base_name(calling_file) : NULL;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", basename, calling_line, info));
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.status_change(info, calling_function, basename, calling_line);
+  thd->profiling.status_change(info,
+                               calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
   return old_info;
@@ -641,7 +641,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 {
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
-  char header[64];
+  char header[256];
   int len;
   /*
     The pointers thd->query and thd->proc_info might change since they are
@@ -655,8 +655,8 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   const char *proc_info= thd->proc_info;
 
   len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %lu, query id %lu",
-                   thd->thread_id, (ulong) thd->query_id);
+                   "MySQL thread id %lu, OS thread handle 0x%lx, query id %lu",
+                   thd->thread_id, (ulong) thd->real_id, (ulong) thd->query_id);
   str.length(0);
   str.append(header, len);
 
@@ -798,7 +798,6 @@ THD::THD()
   is_slave_error= thread_specific_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
-  used_tables=0;
   cuted_fields= 0L;
   sent_row_count= 0L;
   limit_found_rows= 0;

@@ -31,6 +31,8 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
 int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
+static void init_master_log_pos(Master_info* mi);
+
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
    ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), 
@@ -102,6 +104,16 @@ bool Master_info::shall_ignore_server_id(ulong s_id)
                    ignore_server_ids.elements, sizeof(ulong),
                    (int (*) (const void*, const void*)) change_master_server_id_cmp)
       != NULL;
+}
+
+void Master_info::clear_in_memory_info(bool all)
+{
+  init_master_log_pos(this);
+  if (all)
+  {
+    port= MYSQL_PORT;
+    host[0] = 0; user[0] = 0; password[0] = 0;
+  }
 }
 
 void init_master_log_pos(Master_info* mi)
@@ -238,7 +250,7 @@ file '%s')", fname);
     }
 
     mi->fd = fd;
-    init_master_log_pos(mi);
+    mi->clear_in_memory_info(false);
 
   }
   else // file exists

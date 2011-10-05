@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -354,33 +354,6 @@ btr_pcur_restore_position_func(
 	btr_pcur_store_position(cursor, mtr);
 
 	return(FALSE);
-}
-
-/**************************************************************//**
-If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
-releases the page latch and bufferfix reserved by the cursor.
-NOTE! In the case of BTR_LEAF_MODIFY, there should not exist changes
-made by the current mini-transaction to the data protected by the
-cursor latch, as then the latch must not be released until mtr_commit. */
-UNIV_INTERN
-void
-btr_pcur_release_leaf(
-/*==================*/
-	btr_pcur_t*	cursor, /*!< in: persistent cursor */
-	mtr_t*		mtr)	/*!< in: mtr */
-{
-	buf_block_t*	block;
-
-	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
-	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
-
-	block = btr_pcur_get_block(cursor);
-
-	btr_leaf_page_release(block, cursor->latch_mode, mtr);
-
-	cursor->latch_mode = BTR_NO_LATCHES;
-
-	cursor->pos_state = BTR_PCUR_WAS_POSITIONED;
 }
 
 /*********************************************************//**

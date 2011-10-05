@@ -1285,8 +1285,9 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  /* Clear master's log coordinates */
-  init_master_log_pos(mi);
+  /* Clear master's log coordinates and associated information */
+  mi->clear_in_memory_info(thd->lex->reset_slave_info.all);
+
   /*
      Reset errors (the idea is that we forget about the
      old master).

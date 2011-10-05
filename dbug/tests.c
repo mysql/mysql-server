@@ -44,9 +44,6 @@ int main (int argc, char *argv[])
   if (argc == 1)
     return 0;
 
-#if defined(HAVE_PTHREAD_INIT)
-  pthread_init();                       /* Must be called before DBUG_ENTER */
-#endif
   my_thread_global_init();
 
   dup2(1, 2);
