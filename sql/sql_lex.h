@@ -1232,6 +1232,48 @@ public:
     */
     BINLOG_STMT_UNSAFE_MIXED_STATEMENT,
 
+    /**
+      INSERT...IGNORE SELECT is unsafe because which rows are ignored depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT,
+
+    /**
+      INSERT...SELECT...UPDATE is unsafe because which rows are updated depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE,
+
+    /**
+      INSERT...REPLACE SELECT is unsafe because which rows are replaced depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_REPLACE_SELECT,
+
+    /**
+      CREATE TABLE... IGNORE... SELECT is unsafe because which rows are ignored
+      depends on the order that rows are retrieved by SELECT. This order cannot
+      be predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT,
+
+    /**
+      CREATE TABLE...REPLACE... SELECT is unsafe because which rows are replaced
+      depends on the order that rows are retrieved from SELECT. This order
+      cannot be predicted and may differ on master and the slave
+    */
+    BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT,
+
+    /**
+      UPDATE...IGNORE is unsafe because which rows are ignored depends on the
+      order that rows are updated. This order cannot be predicted and may differ
+      on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_UPDATE_IGNORE,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };

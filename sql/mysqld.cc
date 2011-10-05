@@ -7552,16 +7552,15 @@ mysqld_get_one_option(int optid,
       sql_print_error("Bad syntax in replicate-rewrite-db - missing '->'!\n");
       return 1;
     }
-    val= p--;
-    while (my_isspace(mysqld_charset, *p) && p > argument)
-      *p-- = 0;
-    if (p == argument)
+    val= p + 2;
+    while(p > argument && my_isspace(mysqld_charset, p[-1]))
+      p--;
+    *p= 0;
+    if (!*key)
     {
       sql_print_error("Bad syntax in replicate-rewrite-db - empty FROM db!\n");
       return 1;
     }
-    *val= 0;
-    val+= 2;
     while (*val && my_isspace(mysqld_charset, *val))
       val++;
     if (!*val)
