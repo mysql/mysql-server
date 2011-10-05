@@ -596,15 +596,17 @@ pthread_handler_t ma_checkpoint_background(void *arg)
         want to checkpoint every minute, hence the positive
         maria_checkpoint_min_activity.
       */
-      if (horizon != log_horizon_at_last_checkpoint &&
-          (ulonglong) (horizon - log_horizon_at_last_checkpoint) <=
+      if ((ulonglong) (horizon - log_horizon_at_last_checkpoint) <=
           maria_checkpoint_min_log_activity &&
           ((ulonglong) (maria_pagecache->global_cache_write -
                         pagecache_flushes_at_last_checkpoint) *
-             maria_pagecache->block_size) <= maria_checkpoint_min_cache_activity)
+             maria_pagecache->block_size) <=
+          maria_checkpoint_min_cache_activity)
       {
-        /* don't take checkpoint, so don't know what to flush */
-        pages_to_flush_before_next_checkpoint= 0;
+        /*
+          Not enough has happend since last checkpoint.
+          Sleep for a while and try again later
+        */
         sleep_time= interval;
         break;
       }
