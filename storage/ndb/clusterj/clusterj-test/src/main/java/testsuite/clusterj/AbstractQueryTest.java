@@ -87,6 +87,8 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public PredicateOperand paramUpperPredicate;
         public PredicateOperand paramInPredicate;
         public Predicate equal;
+        public Predicate isNull;
+        public Predicate isNotNull;
         public Predicate equalOrEqual;
         public Predicate greaterThan;
         public Predicate greaterEqual;
@@ -117,6 +119,8 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public PredicateOperand extraParamInPredicate;
         public PredicateOperand extraProperty;
         public Predicate extraEqual;
+        public Predicate extraIsNull;
+        public Predicate extraIsNotNull;
         public Predicate extraGreaterThan;
         public Predicate extraGreaterEqual;
         public Predicate extraLessThan;
@@ -150,6 +154,8 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             propertyPredicate = dobj.get(propertyName);
             // comparison operations
             equal = propertyPredicate.equal(paramEqualPredicate);
+            isNull = propertyPredicate.isNull();
+            isNotNull = propertyPredicate.isNotNull();
             greaterThan = propertyPredicate.greaterThan(paramLowerPredicate);
             greaterEqual = propertyPredicate.greaterEqual(paramLowerPredicate);
             lessThan = propertyPredicate.lessThan(paramUpperPredicate);
@@ -186,6 +192,8 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             this.extraProperty = dobj.get(extraPropertyName);
             // comparison operations
             this.extraEqual = extraProperty.equal(extraParamEqualPredicate);
+            this.extraIsNull = extraProperty.isNull();
+            this.extraIsNotNull = extraProperty.isNotNull();
             this.extraGreaterThan = extraProperty.greaterThan(extraParamLowerPredicate);
             this.extraGreaterEqual = extraProperty.greaterEqual(extraParamLowerPredicate);
             this.extraLessThan = extraProperty.lessThan(extraParamUpperPredicate);
@@ -307,6 +315,26 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             }
             };
                     
+    PredicateProvider extraIsNullPredicateProvider = 
+        new PredicateProvider() {
+            public Predicate getPredicate(QueryHolder holder) {
+                return holder.extraIsNull;
+                }
+            public String toString() {
+                return " isNull";
+            }
+            };
+                            
+    PredicateProvider extraIsNotNullPredicateProvider = 
+        new PredicateProvider() {
+            public Predicate getPredicate(QueryHolder holder) {
+                return holder.extraIsNotNull;
+                }
+            public String toString() {
+                return " isNotNull";
+            }
+            };
+                                    
     /** Print the result instance. Override this in a subclass if needed.
      * 
      * @param instance the instance to print if needed
@@ -327,6 +355,32 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         // get the results
         holder.setExpectedResultIds(expected);
         holder.checkResults(propertyName + " equal");
+        tx.commit();
+    }
+
+    public void isNullQuery(String propertyName, String expectedIndex, int... expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
+        // specify the where clause
+        holder.dobj.where(holder.isNull);
+        // create the query
+        holder.createQuery(session);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " isNull");
+        tx.commit();
+    }
+
+    public void isNotNullQuery(String propertyName, String expectedIndex, int... expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
+        // specify the where clause
+        holder.dobj.where(holder.isNotNull);
+        // create the query
+        holder.createQuery(session);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " isNotNull");
         tx.commit();
     }
 

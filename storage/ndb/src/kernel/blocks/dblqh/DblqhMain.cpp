@@ -3865,7 +3865,8 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
   {
     lqhKeyConf->connectPtr = tcConnectptr.i;
     if (instance() == refToInstance(atcBlockref) &&
-        (Thostptr.i == 0 || Thostptr.i == getOwnNodeId()))
+        (Thostptr.i == 0 || Thostptr.i == getOwnNodeId()) &&
+        globalData.ndbMtTcThreads == 0)
     {
       /**
        * This EXECUTE_DIRECT is multi-thread safe, as we only get here
@@ -11347,8 +11348,8 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
     scanReleaseLocksLab(signal);
     return;
   }//if
-  Uint32 time_passed= tcConnectptr.p->tcTimer - cLqhTimeOutCount;
-  if (rows) 
+  Uint32 time_passed= cLqhTimeOutCount - tcConnectptr.p->tcTimer;
+  if (rows)
   {
     if (time_passed > 1) 
     {

@@ -81,8 +81,7 @@ public abstract class PredicateImpl implements Predicate {
     }
 
     void markBoundsForCandidateIndices(QueryExecutionContext context, CandidateIndexImpl[] candidateIndices) {
-        throw new ClusterJFatalInternalException(
-                local.message("ERR_Implementation_Should_Not_Occur"));
+        // default is nothing to do
     }
 
     public void operationSetBounds(QueryExecutionContext context,
@@ -161,10 +160,14 @@ public abstract class PredicateImpl implements Predicate {
     }
 
     /** Mark all parameters as being required. */
-    public abstract void markParameters();
+    public void markParameters() {
+        // default is nothing to do
+    }
 
     /** Unmark all parameters as being required. */
-    public abstract void unmarkParameters();
+    public  void unmarkParameters() {
+        // default is nothing to do
+    }
 
     private void assertPredicateImpl(Predicate other) {
         if (!(other instanceof PredicateImpl)) {

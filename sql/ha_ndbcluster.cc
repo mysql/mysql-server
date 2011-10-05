@@ -12882,6 +12882,36 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   }
   my_hash_free(&ndbcluster_open_tables);
 
+  {
+    pthread_mutex_lock(&ndbcluster_mutex);
+    uint save = ndbcluster_dropped_tables.records; (void)save;
+    while (ndbcluster_dropped_tables.records)
+    {
+      NDB_SHARE *share=
+        (NDB_SHARE*) my_hash_element(&ndbcluster_dropped_tables, 0);
+#ifndef DBUG_OFF
+      fprintf(stderr,
+              "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
+              share->key, share->use_count,
+              get_share_state_string(share->state),
+              (uint)share->state);
+      /**
+       * For unknown reasons...the dist-priv tables linger here
+       * TODO investigate why
+       */
+      if (Ndb_dist_priv_util::is_distributed_priv_table(share->db,
+                                                        share->table_name))
+      {
+        save--;
+      }
+#endif
+      ndbcluster_real_free_share(&share);
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+    DBUG_ASSERT(save == 0);
+  }
+  my_hash_free(&ndbcluster_dropped_tables);
+
   ndb_index_stat_end();
   ndbcluster_disconnect();
 
@@ -17828,7 +17858,7 @@ static MYSQL_SYSVAR_ULONG(
   "to cluster management and data nodes.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  0,                                 /* default */
+  30,                                /* default */
   0,                                 /* min */
   ONE_YEAR_IN_SECONDS,               /* max */
   0                                  /* block */
@@ -17843,7 +17873,7 @@ static MYSQL_SYSVAR_ULONG(
   "complete (0 = no wait)",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  15,                                /* default */
+  30,                                /* default */
   0,                                 /* min */
   ONE_YEAR_IN_SECONDS,               /* max */
   0                                  /* block */

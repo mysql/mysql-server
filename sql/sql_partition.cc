@@ -4728,9 +4728,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       /* 'ALTER TABLE t REORG PARTITION' only allowed with auto partition 
           if default partitioning is used */
       if (tab_part_info->part_type != HASH_PARTITION ||
-          (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION &&
+          ((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
            !tab_part_info->use_default_num_partitions) ||
-          ((!table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+          ((!(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))&&
            tab_part_info->use_default_num_partitions))
 #else
       if (tab_part_info->part_type != HASH_PARTITION ||
