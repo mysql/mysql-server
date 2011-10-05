@@ -1,4 +1,4 @@
-set optimizer_switch='batch_key_access=on,block_nested_loop=off,mrr_cost_based=off';
+set optimizer_switch='batched_key_access=on,block_nested_loop=off,mrr_cost_based=off';
 set optimizer_switch='semijoin=on,firstmatch=on';
 drop table if exists t0, t1, t2, t10, t11, t12;
 create table t1 (a int not null, b int, primary key (a));
@@ -6802,7 +6802,7 @@ DROP TABLE it, ot;
 #           certain query plans
 #
 SET @@default_storage_engine='innodb';
-SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off,block_nested_loop=off,batch_key_access=off';
+SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off,block_nested_loop=off,batched_key_access=off';
 CREATE TABLE t0(a INTEGER);
 CREATE TABLE t1(a INTEGER);
 INSERT INTO t1 VALUES(1);
