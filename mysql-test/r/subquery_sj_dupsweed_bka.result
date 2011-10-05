@@ -1,4 +1,4 @@
-set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
+set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
 drop table if exists t0, t1, t2, t10, t11, t12;
 create table t1 (a int not null, b int, primary key (a));
 create table t2 (a int not null, primary key (a));

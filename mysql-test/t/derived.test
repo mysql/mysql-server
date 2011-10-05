@@ -957,7 +957,7 @@ DROP TABLE t1,t2;
 --echo # Bug#12910006: MRR initialization on a derived table caused crash.
 --echo #
 SET @save_switch= @@SESSION.optimizer_switch;
-SET @@SESSION.optimizer_switch="batch_key_access=on";
+SET @@SESSION.optimizer_switch="batched_key_access=on";
 
 CREATE TABLE t1 ( pk integer auto_increment,
 col_blob_key blob, primary key (pk)) ENGINE=innodb;
