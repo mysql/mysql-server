@@ -476,6 +476,9 @@ rw_lock_x_lock_func(
 	ulint	i;	/* spin round count */
 
 	ut_ad(rw_lock_validate(lock));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 lock_loop:
 	/* Acquire the mutex protecting the rw-lock fields */
