@@ -2,7 +2,6 @@
 
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 set session innodb_strict_mode=0;
@@ -340,5 +339,4 @@ drop table normal_table, zip_table;
 -- disable_query_log
 eval set global innodb_file_format=$format;
 eval set global innodb_file_per_table=$per_table;
-eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 eval set session innodb_strict_mode=$innodb_strict_mode_orig;
