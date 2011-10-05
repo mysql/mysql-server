@@ -514,6 +514,20 @@ void Item_subselect::recalc_used_tables(st_select_lex *new_parent,
 bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
                           uchar *argument)
 {
+  if (!(unit->uncacheable & ~UNCACHEABLE_DEPENDENT) && engine->is_executed() &&
+      !unit->describe)
+  {
+    /*
+      The subquery has already been executed (for real, it wasn't EXPLAIN's
+      fake execution) so it should not matter what it has inside.
+      
+      The actual reason for not walking inside is that parts of the subquery
+      (e.g. JTBM join nests and their IN-equality conditions may have been 
+       invalidated by irreversible cleanups (those happen after an uncorrelated 
+       subquery has been executed).
+    */
+    return FALSE;
+  }
 
   if (walk_subquery)
   {
