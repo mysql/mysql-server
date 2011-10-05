@@ -74,13 +74,10 @@ public:
     item->next= m_free;
     m_free= item;
   }
-  inline void free_list(Item *list, Item **hook)
+  inline void free_list(Item **list, Item **hook)
   {
-    if (*hook != list)
-    {
-      *hook= m_free;
-      m_free= list;
-    }
+    *hook= m_free;
+    m_free= *list;
   }
 
   void free_list(Item *list)
@@ -88,7 +85,7 @@ public:
     Item **hook= &list;
     while (*hook)
       hook= &(*hook)->next;
-    free_list(list, hook);
+    free_list(&list, hook);
   }
 
   void reset();
@@ -113,22 +110,22 @@ protected:
 
 /* Internal Gcalc coordinates to provide the precise calculations */
 
-#define DIG_BASE     1000000000
-typedef int32 coord_digit_t;
-typedef long long coord2;
+#define GCALC_DIG_BASE     1000000000
+typedef int32 gcalc_digit_t;
+typedef long long gcalc_coord2;
 
-#define C_SCALE 1e13
-#define COORD_BASE 2
+#define GCALC_COORD_BASE 2
 
 class Gcalc_internal_coord
 {
 public:
-  coord_digit_t *digits;
+  gcalc_digit_t *digits;
   int sign;
   int n_digits;
   void set_zero();
   int is_zero() const;
 #ifdef GCALC_CHECK_WITH_FLOAT
+  static double *coord_extent;
   long double get_double() const;
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 };
@@ -136,25 +133,25 @@ public:
 
 class Gcalc_coord1 : public Gcalc_internal_coord
 {
-  coord_digit_t c[COORD_BASE];
+  gcalc_digit_t c[GCALC_COORD_BASE];
 public:
   void init()
   {
-    n_digits= COORD_BASE;
+    n_digits= GCALC_COORD_BASE;
     digits= c;
   }
-  int set_double(double d);
+  int set_double(double d, double ext);
   void copy(const Gcalc_coord1 *from);
 };
 
 
 class Gcalc_coord2 : public Gcalc_internal_coord
 {
-  coord_digit_t c[COORD_BASE*2];
+  gcalc_digit_t c[GCALC_COORD_BASE*2];
 public:
   void init()
   {
-    n_digits= COORD_BASE*2;
+    n_digits= GCALC_COORD_BASE*2;
     digits= c;
   }
 };
@@ -235,12 +232,16 @@ public:
   const Info *get_first() const { return (const Info *)m_first; }
   Gcalc_dyn_list::Item **get_last_hook() { return m_hook; }
   void reset();
+#ifdef GCALC_CHECK_WITH_FLOAT
+  long double get_double(const Gcalc_internal_coord *c) const;
+#endif /*GCALC_CHECK_WITH_FLOAT*/
 private:
   Gcalc_dyn_list::Item *m_first;
   Gcalc_dyn_list::Item **m_hook;
   int m_n_points;
   Intersection_info *m_first_intersection;
   Gcalc_dyn_list::Item **m_intersection_hook;
+  double coord_extent;
 };
 
 

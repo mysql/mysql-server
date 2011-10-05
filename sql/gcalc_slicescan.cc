@@ -235,21 +235,23 @@ int Gcalc_internal_coord::is_zero() const
 
 
 #ifdef GCALC_CHECK_WITH_FLOAT
+double *Gcalc_internal_coord::coord_extent= NULL;
+
 long double Gcalc_internal_coord::get_double() const
 {
-  int n= 0;
-  long double res= 0.0;
+  int n= 1;
+  long double res= (long double) digits[0];
   do
   {
-    res*= (long double) DIG_BASE;
-    res+= digits[n];
+    res*= (long double) GCALC_DIG_BASE;
+    res+= (long double) digits[n];
   } while(++n < n_digits);
 
   n= 0;
   do
   {
-    if (n & 1)
-      res/= (long double) C_SCALE;
+    if ((n & 1) && coord_extent)
+      res/= *coord_extent;
   } while(++n < n_digits);
 
   if (sign)
@@ -266,20 +268,21 @@ static void do_add(Gcalc_internal_coord *result,
   GCALC_DBUG_ASSERT(a->n_digits == b->n_digits);
   GCALC_DBUG_ASSERT(a->n_digits == result->n_digits);
   int n_digit= a->n_digits-1;
-  coord_digit_t carry= 0;
+  gcalc_digit_t carry= 0;
 
   do
   {
     if ((result->digits[n_digit]=
-          a->digits[n_digit] + b->digits[n_digit] + carry) >= DIG_BASE)
+          a->digits[n_digit] + b->digits[n_digit] + carry) >= GCALC_DIG_BASE)
     {
       carry= 1;
-      result->digits[n_digit]-= DIG_BASE;
+      result->digits[n_digit]-= GCALC_DIG_BASE;
     }
     else
       carry= 0;
-  } while (n_digit--);
-  GCALC_DBUG_ASSERT(carry == 0);
+  } while (--n_digit);
+  result->digits[0]= a->digits[0] + b->digits[0] + carry;
+  GCALC_DBUG_ASSERT(result->digits[0] < GCALC_DIG_BASE);
   result->sign= a->sign;
 }
 
@@ -291,7 +294,7 @@ static void do_sub(Gcalc_internal_coord *result,
   GCALC_DBUG_ASSERT(a->n_digits == b->n_digits);
   GCALC_DBUG_ASSERT(a->n_digits == result->n_digits);
   int n_digit= a->n_digits-1;
-  coord_digit_t carry= 0;
+  gcalc_digit_t carry= 0;
 
   do
   {
@@ -299,7 +302,7 @@ static void do_sub(Gcalc_internal_coord *result,
           a->digits[n_digit] - b->digits[n_digit] - carry) < 0)
     {
       carry= 1;
-      result->digits[n_digit]+= DIG_BASE;
+      result->digits[n_digit]+= GCALC_DIG_BASE;
     }
     else
       carry= 0;
@@ -320,7 +323,7 @@ static int do_cmp(const Gcalc_internal_coord *a,
 
   do
   {
-    coord_digit_t d= a->digits[n_digit] - b->digits[n_digit];
+    gcalc_digit_t d= a->digits[n_digit] - b->digits[n_digit];
     if (d > 0)
       return 1;
     if (d < 0)
@@ -353,7 +356,7 @@ void gcalc_mul_coord(Gcalc_internal_coord *result,
 {
   GCALC_DBUG_ASSERT(result->n_digits == a->n_digits + b->n_digits);
   int n_a, n_b, n_res;
-  coord_digit_t carry= 0;
+  gcalc_digit_t carry= 0;
 
   result->set_zero();
   if (a->is_zero() || b->is_zero())
@@ -365,16 +368,17 @@ void gcalc_mul_coord(Gcalc_internal_coord *result,
     n_b= b->n_digits - 1;
     do
     {
-      coord2 mul= ((coord2) a->digits[n_a]) * b->digits[n_b] + carry +
-        result->digits[n_a + n_b + 1];
-      result->digits[n_a + n_b + 1]= mul % DIG_BASE;
-      carry= mul / DIG_BASE;
+      gcalc_coord2 mul= ((gcalc_coord2) a->digits[n_a]) * b->digits[n_b] +
+                        carry + result->digits[n_a + n_b + 1];
+      result->digits[n_a + n_b + 1]= mul % GCALC_DIG_BASE;
+      carry= mul / GCALC_DIG_BASE;
     } while (n_b--);
     if (carry)
     {
-      for (n_res= n_a; (result->digits[n_res]+= carry) >= DIG_BASE; n_res--)
+      for (n_res= n_a; (result->digits[n_res]+= carry) >= GCALC_DIG_BASE;
+           n_res--)
       {
-        result->digits[n_res]-= DIG_BASE;
+        result->digits[n_res]-= GCALC_DIG_BASE;
         carry= 1;
       }
       carry= 0;
@@ -458,14 +462,20 @@ int gcalc_cmp_coord(const Gcalc_internal_coord *a,
 }
 
 
-int Gcalc_coord1::set_double(double d)
+int Gcalc_coord1::set_double(double d, double ext)
 {
-  double ds= d * C_SCALE;
+  double ds= d * ext;
   init();
   if ((sign= ds < 0))
     ds= -ds;
-  c[0]= (coord_digit_t) (ds / (double) DIG_BASE);
-  c[1]= (coord_digit_t) (ds - ((double) c[0]) * DIG_BASE);
+  c[0]= (gcalc_digit_t) (ds / (double) GCALC_DIG_BASE);
+  c[1]= (gcalc_digit_t) nearbyint(ds -
+                          ((double) c[0]) * (double) GCALC_DIG_BASE);
+  if (c[1] >= GCALC_DIG_BASE)
+  {
+    c[1]= 0;
+    c[0]++;
+  }
 #ifdef GCALC_CHECK_WITH_FLOAT
   GCALC_DBUG_ASSERT(de_check(d, get_double()));
 #endif /*GCALC_CHECK_WITH_FLOAT*/
@@ -486,17 +496,28 @@ void Gcalc_coord1::copy(const Gcalc_coord1 *from)
 Gcalc_heap::Info *Gcalc_heap::new_point_info(double x, double y,
                                              gcalc_shape_info shape)
 {
+  double abs= fabs(x);
   Info *result= (Info *)new_item();
   if (!result)
     return NULL;
   *m_hook= result;
   m_hook= &result->next;
-  m_n_points++;
   result->x= x;
   result->y= y;
   result->shape= shape;
-  result->ix.set_double(x);
-  result->iy.set_double(y);
+  if (m_n_points)
+  {
+    if (abs > coord_extent)
+      coord_extent= abs;
+  }
+  else
+    coord_extent= abs;
+
+  abs= fabs(y);
+  if (abs > coord_extent)
+    coord_extent= abs;
+
+  m_n_points++;
   return result;
 }
 
@@ -520,11 +541,11 @@ Gcalc_heap::Intersection_info *Gcalc_heap::new_intersection(
 
 class Gcalc_coord3 : public Gcalc_internal_coord
 {
-  coord_digit_t c[COORD_BASE*3];
+  gcalc_digit_t c[GCALC_COORD_BASE*3];
   public:
   void init()
   {
-    n_digits= COORD_BASE*3;
+    n_digits= GCALC_COORD_BASE*3;
     digits= c;
   }
 };
@@ -670,15 +691,36 @@ static int compare_point_info(const void *e0, const void *e1)
 }
 
 
+#define GCALC_SCALE_1 1e18
+
+static double find_scale(double extent)
+{
+  double scale= 1e-2;
+  while (scale < extent)
+    scale*= (double ) 10;
+  return GCALC_SCALE_1 / scale / 10;
+}
+
+
 void Gcalc_heap::prepare_operation()
 {
+  Info *cur;
   GCALC_DBUG_ASSERT(m_hook);
+  coord_extent= find_scale(coord_extent);
+#ifdef GCALC_CHECK_WITH_FLOAT
+  Gcalc_internal_coord::coord_extent= &coord_extent;
+#endif /*GCALC_CHECK_WITH_FLOAT*/
+  for (cur= get_first(); cur; cur= cur->get_next())
+  {
+    cur->ix.set_double(cur->x, coord_extent);
+    cur->iy.set_double(cur->y, coord_extent);
+  }
   *m_hook= NULL;
   m_first= sort_list(compare_point_info, m_first, m_n_points);
   m_hook= NULL; /* just to check it's not called twice */
 
   /* TODO - move this to the 'normal_scan' loop */
-  for (Info *cur= get_first(); cur; cur= cur->get_next())
+  for (cur= get_first(); cur; cur= cur->get_next())
   {
     trim_node(cur->left, cur);
     trim_node(cur->right, cur);
@@ -702,7 +744,8 @@ void Gcalc_heap::reset()
   if (m_n_points)
   {
     free_list(m_first);
-    free_list(m_first_intersection, m_intersection_hook);
+    free_list((Gcalc_dyn_list::Item **) &m_first_intersection,
+              m_intersection_hook);
     m_intersection_hook= (Gcalc_dyn_list::Item **) &m_first_intersection;
     m_n_points= 0;
   }
@@ -913,12 +956,13 @@ int Gcalc_scan_iterator::point::cmp_dx_dy(const point *p) const
 void Gcalc_scan_iterator::point::calc_x(long double *x, long double y,
                                         long double ix) const
 {
-  if (fabsl(dy.get_double()) < (long double) 1e-15)
+  long double ddy= dy.get_double();
+  if (fabsl(ddy) < (long double) 1e-20)
   {
     *x= ix;
   }
   else
-    *x= (long double) pi->x + dx.get_double()/dy.get_double() * (y - pi->y);
+    *x= (ddy * (long double) pi->x + dx.get_double() * (y - pi->y)) / ddy;
 }
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 
@@ -1509,22 +1553,22 @@ int Gcalc_scan_iterator::find_intersections()
 
 class Gcalc_coord4 : public Gcalc_internal_coord
 {
-  coord_digit_t c[COORD_BASE*4];
+  gcalc_digit_t c[GCALC_COORD_BASE*4];
   public:
   void init()
   {
-    n_digits= COORD_BASE*4;
+    n_digits= GCALC_COORD_BASE*4;
     digits= c;
   }
 };
 
 class Gcalc_coord5 : public Gcalc_internal_coord
 {
-  coord_digit_t c[COORD_BASE*5];
+  gcalc_digit_t c[GCALC_COORD_BASE*5];
   public:
   void init()
   {
-    n_digits= COORD_BASE*5;
+    n_digits= GCALC_COORD_BASE*5;
     digits= c;
   }
 };

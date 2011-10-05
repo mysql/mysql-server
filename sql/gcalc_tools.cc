@@ -1409,7 +1409,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 
 void Gcalc_operation_reducer::reset()
 {
-  free_list(m_result, m_res_hook);
+  free_list((Gcalc_heap::Item **) &m_result, m_res_hook);
   m_res_hook= (Gcalc_dyn_list::Item **)&m_result;
   free_list(m_first_active_thread);
 }
