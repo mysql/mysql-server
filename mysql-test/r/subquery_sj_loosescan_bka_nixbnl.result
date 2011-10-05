@@ -1,4 +1,4 @@
-set optimizer_switch='batch_key_access=on,block_nested_loop=off,mrr_cost_based=off';
+set optimizer_switch='batched_key_access=on,block_nested_loop=off,mrr_cost_based=off';
 set optimizer_switch='semijoin=on,loosescan=on';
 drop table if exists t0, t1, t2, t10, t11, t12;
 create table t1 (a int not null, b int, primary key (a));

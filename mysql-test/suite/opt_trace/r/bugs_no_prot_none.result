@@ -242,20 +242,20 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>((`test`.`where_subselect_19379`.`field1`,`test`.`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`)))) AS `field1`,`test`.`alias1`.`col_varchar_nokey` AS `field2` from (`test`.`t2` `alias1` left join (`test`.`t2` `alias2` left join `test`.`t2` `alias3` on((`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`))) on((`test`.`alias3`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`))) where (<in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#4 */ select 1 from `test`.`t3` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_nokey` <= `test`.`alias1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`sq2_alias1`.`col_varchar_nokey`)))) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`)))))), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`where_subselect_19379`.`field2`) = `test`.`alias1`.`col_varchar_nokey`) or isnull(`test`.`alias1`.`col_varchar_nokey`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`))))), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`alias1`.`col_varchar_nokey`), true))))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>((`test`.`where_subselect_19379`.`field1`,`test`.`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`)))) AS `field1`,`test`.`alias1`.`col_varchar_nokey` AS `field2` from (`test`.`t2` `alias1` left join (`test`.`t2` `alias2` left join `test`.`t2` `alias3` on((`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`))) on((`test`.`alias3`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`))) where (<in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#4 */ select 1 from `test`.`t3` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_nokey` <= `test`.`alias1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`sq2_alias1`.`col_varchar_nokey`)))) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`)))))), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`where_subselect_19379`.`field2`) = `test`.`alias1`.`col_varchar_nokey`) or isnull(`test`.`alias1`.`col_varchar_nokey`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`))))), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`alias1`.`col_varchar_nokey`), true))))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>((`test`.`where_subselect_19379`.`field1`,`test`.`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`)))) AS `field1`,`test`.`alias1`.`col_varchar_nokey` AS `field2` from (`test`.`t2` `alias1` left join (`test`.`t2` `alias2` left join `test`.`t2` `alias3` on((`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`))) on((`test`.`alias3`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`))) where (<in_optimizer>(`test`.`alias2`.`col_varchar_key`,<exists>(/* select#4 */ select 1 from `test`.`t3` `sq2_alias1` where ((`test`.`sq2_alias1`.`col_varchar_nokey` <= `test`.`alias1`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`sq2_alias1`.`col_varchar_nokey`)))) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`)))))), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`where_subselect_19379`.`field2`) = `test`.`alias1`.`col_varchar_nokey`) or isnull(`test`.`alias1`.`col_varchar_nokey`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`test`.`t4`.`pk`) AS `sq1_field1` from ((`test`.`t4`) join `test`.`t1` `sq1_alias2` on((`test`.`sq1_alias2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`))))), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`alias1`.`col_varchar_nokey`), true))))))"
                 }
               ] /* steps */
@@ -417,20 +417,20 @@ FROM t1
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`where_subselect_19033`.`field1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`where_subselect_19033`.`field1`) = (/* select#3 */ select `test`.`t2`.`col_int_key` from `test`.`t2`))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`where_subselect_19033`.`field1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`where_subselect_19033`.`field1`) = (/* select#3 */ select `test`.`t2`.`col_int_key` from `test`.`t2`))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`where_subselect_19033`.`field1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`where_subselect_19033`.`field1`) = (/* select#3 */ select `test`.`t2`.`col_int_key` from `test`.`t2`))))"
                 }
               ] /* steps */
@@ -478,20 +478,20 @@ FROM t1
                           "steps": [
                             {
                               "transformation": "equality_propagation",
-                              "subselect_equality_propagation": [
-                              ] /* subselect_equality_propagation */,
+                              "subselect_evaluation": [
+                              ] /* subselect_evaluation */,
                               "resulting_condition": "(<cache>('7') = (/* select#3 */ select `test`.`t2`.`col_int_key` from `test`.`t2`))"
                             },
                             {
                               "transformation": "constant_propagation",
-                              "subselect_constant_propagation": [
-                              ] /* subselect_constant_propagation */,
+                              "subselect_evaluation": [
+                              ] /* subselect_evaluation */,
                               "resulting_condition": "(<cache>('7') = (/* select#3 */ select `test`.`t2`.`col_int_key` from `test`.`t2`))"
                             },
                             {
                               "transformation": "trivial_condition_removal",
-                              "subselect_cond_removal": [
-                              ] /* subselect_cond_removal */,
+                              "subselect_evaluation": [
+                              ] /* subselect_evaluation */,
                               "resulting_condition": "(<cache>('7') = (/* select#3 */ select `test`.`t2`.`col_int_key` from `test`.`t2`))"
                             }
                           ] /* steps */
@@ -857,20 +857,20 @@ ON table2 .col_int_key = table1 .col_int_key
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`where_subselect_20070`.`field1`,(/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)),<exists>(/* select#3 */ select `test`.`table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`) from (`test`.`t1` `table1` join `test`.`t1` `table2` on((`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`))) where ((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`where_subselect_20070`.`field1`,(/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)),<exists>(/* select#3 */ select `test`.`table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`) from (`test`.`t1` `table1` join `test`.`t1` `table2` on((`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`))) where ((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`where_subselect_20070`.`field1`,(/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)),<exists>(/* select#3 */ select `test`.`table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`) from (`test`.`t1` `table1` join `test`.`t1` `table2` on((`test`.`table2`.`col_int_key` = `test`.`table1`.`col_int_key`))) where ((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)))))"
                 }
               ] /* steps */
@@ -1075,19 +1075,19 @@ ON table2 .col_int_key = table1 .col_int_key
                           "steps": [
                             {
                               "transformation": "equality_propagation",
-                              "subselect_equality_propagation": [
-                              ] /* subselect_equality_propagation */,
+                              "subselect_evaluation": [
+                              ] /* subselect_evaluation */,
                               "resulting_condition": "((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) and multiple equal(`test`.`table2`.`col_int_key`, `test`.`table1`.`col_int_key`))"
                             },
                             {
                               "transformation": "constant_propagation",
-                              "subselect_constant_propagation": [
-                              ] /* subselect_constant_propagation */,
+                              "subselect_evaluation": [
+                              ] /* subselect_evaluation */,
                               "resulting_condition": "((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) = (/* select#4 */ select count(`test`.`t1`.`col_int_key`) from `test`.`t1`)) and multiple equal(`test`.`table2`.`col_int_key`, `test`.`table1`.`col_int_key`))"
                             },
                             {
                               "transformation": "trivial_condition_removal",
-                              "subselect_cond_removal": [
+                              "subselect_evaluation": [
                                 {
                                   "subselect_execution": {
                                     "select#": 4,
@@ -1177,7 +1177,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                     ] /* steps */
                                   } /* subselect_execution */
                                 }
-                              ] /* subselect_cond_removal */,
+                              ] /* subselect_evaluation */,
                               "resulting_condition": "((<cache>(`test`.`where_subselect_20070`.`field1`) = `test`.`table2`.`col_int_key`) and multiple equal(`test`.`table2`.`col_int_key`, `test`.`table1`.`col_int_key`))"
                             }
                           ] /* steps */
