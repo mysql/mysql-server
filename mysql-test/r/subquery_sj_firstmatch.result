@@ -6801,7 +6801,7 @@ DROP TABLE it, ot;
 #           certain query plans
 #
 SET @@default_storage_engine='innodb';
-SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off,block_nested_loop=off,batch_key_access=off';
+SET @@optimizer_switch='semijoin=on,materialization=off,firstmatch=on,loosescan=off,block_nested_loop=off,batched_key_access=off';
 CREATE TABLE t0(a INTEGER);
 CREATE TABLE t1(a INTEGER);
 INSERT INTO t1 VALUES(1);
