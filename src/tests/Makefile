@@ -78,12 +78,17 @@ WINDOWS_BDB_DONTRUN_TESTS += \
 	test_error \
 #\ ends prev line
 
+TDB_DONTRUN_SRCS = \
+	$(wildcard bdb-simple-deadlock*.c) \
+
+TDB_DONTRUN_TESTS = $(patsubst %.c,%,$(TDB_DONTRUN_SRCS))
+
 ifeq ($(OS_CHOICE),windows)
     TDB_BINS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
     TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(filter-out $(NONSTANDARD_SRCS),$(SRCS))))
 else
-    TDB_BINS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
-    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(NONSTANDARD_SRCS),$(SRCS)))
+    TDB_BINS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(TDB_DONTRUN_SRCS),$(SRCS)))
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(NONSTANDARD_SRCS),$(filter-out $(TDB_DONTRUN_SRCS),$(SRCS))))
 endif
 
 # For diskfull.bdb: db-4.6 seems OK, but db-4.3 segfaults
@@ -910,3 +915,12 @@ clean:
 	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
 	rm -f *.bdb *.tdb
 	rm -f *.fastlog
+
+BLOCKING_SRCS = $(wildcard blocking-*.c)
+BLOCKING_TDB_TESTS = $(patsubst %.c,%.tdbrun,$(BLOCKING_SRCS))
+BLOCKING_BDB_TESTS = $(patsubst %.c,%.bdbrun,$(BLOCKING_SRCS))
+
+check_blocking_tdb: $(BLOCKING_TDB_TESTS)
+
+check_blocking_bdb: $(BLOCKING_BDB_TESTS)
+

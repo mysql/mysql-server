@@ -80,13 +80,13 @@ toku_ydb_lock(void) {
     if (new_num_waiters > status.max_waiters) status.max_waiters = new_num_waiters;
     status.total_time_since_start = now - ydb_big_lock.starttime;
 
-    invariant((status.ydb_lock_ctr & 0x01) == 1);
+    // invariant((status.ydb_lock_ctr & 0x01) == 1);
 }
 
 static void 
 ydb_unlock_internal(unsigned long useconds) {
     status.ydb_lock_ctr++;
-    invariant((status.ydb_lock_ctr & 0x01) == 0);
+    // invariant((status.ydb_lock_ctr & 0x01) == 0);
 
     tokutime_t now = get_tokutime();
     tokutime_t time_held = now - ydb_big_lock.acquired_time;
@@ -112,4 +112,9 @@ toku_ydb_unlock(void) {
 void 
 toku_ydb_unlock_and_yield(unsigned long useconds) {
     ydb_unlock_internal(useconds);
+}
+
+toku_pthread_mutex_t *
+toku_ydb_mutex(void) {
+    return &ydb_big_lock.lock;
 }

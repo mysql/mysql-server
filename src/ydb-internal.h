@@ -124,6 +124,7 @@ int toku_ydb_lock_destroy(void);
 void toku_ydb_lock(void);
 void toku_ydb_unlock(void);
 void toku_ydb_unlock_and_yield(unsigned long useconds);
+toku_pthread_mutex_t *toku_ydb_mutex(void);
 
 void toku_ydb_lock_get_status(SCHEDULE_STATUS statp);
 

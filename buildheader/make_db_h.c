@@ -652,6 +652,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
                              "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
 			     "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
+                             "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_usec)",
+                             "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_usec)",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }

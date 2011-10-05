@@ -121,7 +121,6 @@ typedef struct memory_status {
 
 void toku_memory_get_status(MEMORY_STATUS s);
 
-
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }
 #endif

@@ -20,6 +20,8 @@ OBJS_RAW = \
 	idlth \
 	lth \
 	rth \
+	txnid_set \
+	wfg \
 #end
 
 LIBRARIES=$(LOCKTREE_LINEAR) $(LOCKTREE_TLOG) $(LOCKTREE) # $(LOCKTREE_LOG)
