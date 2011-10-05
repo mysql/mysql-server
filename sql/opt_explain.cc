@@ -888,11 +888,16 @@ bool Explain_join::explain_ref()
   if (tab->ref.key_parts)
   {
     StringBuffer<512> str_ref(cs);
-    for (const store_key *const *ref= tab->ref.key_copy; *ref; ref++)
+
+    for (uint part_no= 0; part_no < tab->ref.key_parts; part_no++)
     {
+      const store_key *const s_key= tab->ref.key_copy[part_no];
+      if (s_key == NULL)
+        continue;
+
       if (str_ref.length())
         str_ref.append(',');
-      str_ref.append((*ref)->name(), strlen((*ref)->name()), cs);
+      str_ref.append(s_key->name(), strlen(s_key->name()), cs);
     }
     return col_ref.set(str_ref);
   }
