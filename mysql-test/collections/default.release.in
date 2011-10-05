@@ -1,3 +1,9 @@
+# This file contains the old default.release, the plan is to replace that 
+# with something like the below (remove space after #):
+
+# include default.daily
+# include default.weekly
+
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=debug      --vardir=var-debug                       --skip-ndbcluster --skip-rpl --report-features --debug-server
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal                      --skip-ndbcluster --report-features
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps                          --skip-ndbcluster --ps-protocol
