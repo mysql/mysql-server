@@ -47,4 +47,3 @@ set global innodb_file_format_max=antelope;
 set global innodb_file_format_check=off;
 ERROR HY000: Variable 'innodb_file_format_check' is a read only variable
 SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_format_max=Antelope;
