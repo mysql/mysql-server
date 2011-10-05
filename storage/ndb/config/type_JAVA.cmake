@@ -131,7 +131,7 @@ MACRO(CREATE_JAR)
     IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${F})
       ADD_CUSTOM_COMMAND(
         OUTPUT ${MARKER}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${F} ${CLASS_DIR}/${N}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${F} ${CLASS_DIR}/${N}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${F} ${OLD_MARKER}
         COMMENT "Adding directory ${N} to ${TARGET}.jar"
@@ -139,7 +139,7 @@ MACRO(CREATE_JAR)
     ELSE()
       ADD_CUSTOM_COMMAND(
         OUTPUT ${MARKER}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${F} ${CLASS_DIR}/${N}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${F} ${CLASS_DIR}/${N}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${F} ${OLD_MARKER}
         COMMENT "Adding file ${N} to ${TARGET}.jar"
