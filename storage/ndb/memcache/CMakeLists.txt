@@ -82,16 +82,13 @@ add_definitions(-DDEBUG_OUTPUT)
 # Set extra flags for the C compiler
 IF(${CMAKE_COMPILER_IS_GNUCC})
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --std=gnu99 -Wall -Wredundant-decls")
-ELSE()
-  message(STATUS "Not gnu c")
+ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xc99=all")
 ENDIF()
 
 # Set extra flags for the C++ compiler
 IF(${CMAKE_COMPILER_IS_GNUCXX})
   STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-variadic-macros")
-ELSE()
-  message(STATUS "Not gnu c++")
 ENDIF()
 
 

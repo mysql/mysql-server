@@ -81,7 +81,6 @@ typedef volatile Uint32 ndbmc_atomic32_t;
 
 DECLARE_FUNCTIONS_WITH_C_LINKAGE
 
-Int32 atomic_add_int(ndbmc_atomic32_t *loc, int amount);
 int atomic_cmp_swap_int(ndbmc_atomic32_t *loc, int oldvalue, int newvalue);
 int atomic_cmp_swap_ptr(void * volatile *loc, void *oldvalue, void *newvalue);
 

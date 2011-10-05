@@ -27,7 +27,7 @@
 #define require(x) if(!(x)) return __LINE__;
 #define pass return 0;
 
-#define detail(v, fmt, ...) if(v) printf (fmt, ## __VA_ARGS__)
+#define detail(v, ...) if(v) printf (__VA_ARGS__)
 #define RESULT getNdbError().code
 
 #define REQ_NONE           0
