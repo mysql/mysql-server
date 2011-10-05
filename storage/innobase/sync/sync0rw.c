@@ -631,6 +631,9 @@ rw_lock_x_lock_func(
 	ibool		spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	i = 0;
 
