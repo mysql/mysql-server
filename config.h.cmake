@@ -461,7 +461,9 @@
 #cmakedefine _LARGE_FILES 1
 #cmakedefine _LARGEFILE_SOURCE 1
 #cmakedefine _LARGEFILE64_SOURCE 1
+#ifndef _FILE_OFFSET_BITS
 #cmakedefine _FILE_OFFSET_BITS @_FILE_OFFSET_BITS@
+#endif
 
 #cmakedefine TIME_WITH_SYS_TIME 1
 

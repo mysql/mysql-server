@@ -23,7 +23,10 @@
 #include "ndbmemcache_config.h"
 
 #include <pthread.h>
+
+#ifndef __cplusplus
 #include <stdbool.h>
+#endif
 
 #include <memcached/engine.h>
 #include <memcached/util.h>
