@@ -249,6 +249,7 @@ SET(SERVER_TESTS
   opt_range
   opt_trace
   rpl_group_set
+  rpl_compact_coder
 )
 
 FOREACH(test ${TESTS})

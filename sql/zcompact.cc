@@ -32,13 +32,19 @@ int Compact_coder::get_unsigned_encoded_length(ulonglong n)
     return 1;
   // len is the total number of bytes to write
   int len= 16;
-  if (n & 0x00FFFFFFFfffffffLL) // 56 bits set
+  if ((n & 0xFF00000000000000LL) == 0) // 56 bits set
     len-= 8;
-  if (n & 0xff0000000fffffffLL) // 28 bits set
+  else
+    n >>= 56;
+  if ((n & 0x00fffffff0000000LL) == 0) // 28 bits set
     len-= 4;
-  if (n & 0xff0003fff0003fffLL) // 14 bits set
+  else
+    n >>= 28;
+  if ((n & 0x000000000fffc000LL) == 0) // 14 bits set
     len-= 2;
-  if (n & 0x7f01fc07f01fc07fLL) //  7 bits set
+  else
+    n >>= 14;
+  if ((n & 0x0000000000003f80LL) == 0) //  7 bits set
     len--;
   return len;
 }
@@ -93,12 +99,17 @@ Compact_coder::read_unsigned(Reader *reader, ulonglong *out)
   }
   {
     // set len to the position of the least significant 1-bit in b (range 0..7)
+    uint b_tmp= b;
     uint len= 7;
     if (b & 0x0f)
       len-= 4;
-    if (b & 0x33)
+    else
+      b_tmp >>= 4;
+    if (b_tmp & 0x03)
       len-= 2;
-    if (b & 0x55)
+    else
+      b_tmp >>= 2;
+    if (b_tmp & 0x01)
       len--;
     // read len bytes
     uchar buf[8]= {0, 0, 0, 0, 0, 0, 0, 0};
@@ -106,7 +117,7 @@ Compact_coder::read_unsigned(Reader *reader, ulonglong *out)
     {
       ulonglong o= uint8korr(buf);
       // check that the result will fit in 64 bits
-      if (o >= (1ULL << (64 - (7 - len))))
+      if ((o & (0xfe00000000000000ULL << len)) != 0)
         goto file_format_error;
       // put the high bits of b in the low bits of o
       o <<= (7 - len);
@@ -172,12 +183,6 @@ file_format_error:
                 reader->get_source_name(), ofs),
                (ER_FILE_FORMAT, MYF(0), reader->get_source_name(), ofs));
   DBUG_RETURN(READ_ERROR);
-}
-
-
-enum_append_status Compact_coder::append_signed(Appender *appender, longlong n)
-{
-  return append_unsigned(appender, signed_to_unsigned(n));
 }
 
 
