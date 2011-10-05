@@ -7797,7 +7797,7 @@ each time the SQL thread starts.",
    "Define threads usage for handling queries: "
    "one-thread-per-connection"
 #if HAVE_POOL_OF_THREADS == 1
-  ", pool-of-threads"
+  ", pool-of-threads "
 #endif
    "or no-threads.",
    &opt_thread_handling, &opt_thread_handling,
