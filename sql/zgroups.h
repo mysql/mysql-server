@@ -816,7 +816,7 @@ struct Uuid
   /**
     Copies the given 16-byte data to this UUID.
   */
-  void copy_from(const unsigned char *data)
+  void copy_from(const uchar *data)
   { memcpy(bytes, data, BYTE_LENGTH); }
   /**
     Copies the given UUID object to this UUID.
@@ -865,7 +865,7 @@ struct Uuid
     Returns true if the given string contains a valid UUID, false otherwise.
   */
   static bool is_valid(const char *string);
-  unsigned char bytes[16];
+  uchar bytes[16];
   static const size_t TEXT_LENGTH= 36;
   static const size_t BYTE_LENGTH= 16;
   static const size_t BIT_LENGTH= 128;
@@ -1403,10 +1403,10 @@ public:
     @param status Will be set to GS_SUCCESS or GS_ERROR_OUT_OF_MEMORY.
   */
   Group_set(Group_set *other, enum_return_status *status);
-  //Group_set(Sid_map *sid_map, Group_set *relative_to, Sid_map *sid_map_enc, const unsigned char *encoded, int length, enum_return_status *status);
+  //Group_set(Sid_map *sid_map, Group_set *relative_to, Sid_map *sid_map_enc, const uchar *encoded, int length, enum_return_status *status);
   /// Destroy this Group_set.
   ~Group_set();
-  //static int encode(Group_set *relative_to, Sid_map *sid_map_enc, unsigned char *buf);
+  //static int encode(Group_set *relative_to, Sid_map *sid_map_enc, uchar *buf);
   //static int encoded_length(Group_set *relative_to, Sid_map *sid_map_enc);
   /**
     Removes all groups from this Group_set.
@@ -1481,7 +1481,7 @@ public:
     @param length The number of bytes.
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
   */
-  //int add(const unsigned char *encoded, int length);
+  //int add(const uchar *encoded, int length);
   /// Return true iff the given group exists in this set.
   bool contains_group(rpl_sidno sidno, rpl_gno gno) const;
   /// Returns the maximal sidno that this Group_set currently has space for.
@@ -3436,17 +3436,16 @@ public:
   static int get_unsigned_encoded_length(ulonglong n);
   /**
     Write a compact-encoded unsigned integer to the given buffer.
-    @param n The number to write.
     @param buf[out] The buffer to use.
+    @param n The number to write.
     @return The number of bytes used.
   */
   static int write_unsigned(uchar *buf, ulonglong n);
   /**
     Write a compact-encoded unsigned integer to the given file.
 
-    @param fd File to write to.
+    @param appender Appender to write to.
     @param n Number to write.
-    @param myf MYF() flags.
 
     @return On success, returns number of bytes written (1...10).  On
     failure, returns the negative number of bytes written (-9..0).
@@ -3455,17 +3454,9 @@ public:
   /**
     Read a compact-encoded unsigned integer from the given file.
     
-    @param fd File to write to.
+    @param reader Reader to read from.
     @param out[out] On success, the number is stored in *out.
-    On failure, the reason is stored in *out:
-     - On IO error, *out is set to 0.
-     - If the file ended abruptly in the middle of the number, *out is set to 1.
-     - If the file format was not valid, *out is set to 2.
-    @param myf MYF() flags passed to my_read() and used by this
-    function.  In particular, this function generates an error in all
-    error cases if MY_WME is set.
-    @return On success, returns the number of bytes read (1...10).  On
-    error, returns the negative number of bytes read (-10...0).
+    @return READ_OK, READ_EOF, READ_TRUNCATED or READ_ERROR
   */
   static enum_read_status read_unsigned(Reader *reader, ulonglong *out);
   /**
@@ -3521,12 +3512,21 @@ public:
   { return n >= 0 ? 2 * (ulonglong)n : 1 + 2 * (ulonglong)-(n + 1); }
   /// Decode a signed number from an unsigned.
   static longlong unsigned_to_signed(ulonglong n)
-  { return (n & 1) ? n >> 1 : -1 - (longlong)(n >> 1); }
+  { return (n & 1) ? -1 - (longlong)(n >> 1) : n >> 1; }
+  /**
+    Write a compact-encoded signed integer to the given buffer.
+    @param buf[out] The buffer to use.
+    @param n The number to write.
+    @return The number of bytes used.
+  */
+  static int write_signed(uchar *buf, longlong n)
+  { return write_unsigned(buf, signed_to_unsigned(n)); }
   /**
     Write a compact-encoded signed integer to the given file.
     @see write_unsigned.
   */
-  static enum_append_status append_signed(Appender *appender, longlong n);
+  static enum_append_status append_signed(Appender *appender, longlong n)
+  { return append_unsigned(appender, signed_to_unsigned(n)); }
   /**
     Read a compact-encoded signed integer from the given file.
     @see read_unsigned.
