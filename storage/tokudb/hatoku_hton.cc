@@ -14,19 +14,16 @@ extern "C" {
 #include "toku_time.h"
 }
 
-
 /* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
 #ifdef HAVE_DTRACE
 #define _DTRACE_VERSION 1
 #else
 #endif
 
-
 #include <mysql/plugin.h>
 #include "hatoku_hton.h"
 #include "hatoku_defines.h"
 #include "ha_tokudb.h"
-
 
 #undef PACKAGE
 #undef VERSION
@@ -34,6 +31,8 @@ extern "C" {
 #undef _DTRACE_VERSION
 
 #define TOKU_METADB_NAME "tokudb_meta"
+
+#define DEFAULT_LOCK_TIMEOUT_USEC (4UL * 1000 * 1000)
 
 typedef struct savepoint_info {
     DB_TXN* txn;
@@ -50,36 +49,20 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
     thd->ha_data[slot].ha_ptr = data;
 }
 
-
-
 static uchar *tokudb_get_key(TOKUDB_SHARE * share, size_t * length, my_bool not_used __attribute__ ((unused))) {
     *length = share->table_name_length;
     return (uchar *) share->table_name;
 }
 
 static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, MEM_ROOT * mem_root);
-static MYSQL_THDVAR_BOOL(commit_sync, PLUGIN_VAR_THDLOCAL, "sync on txn commit", 
-                         /* check */ NULL, /* update */ NULL, /* default*/ TRUE);
-static MYSQL_THDVAR_ULONGLONG(write_lock_wait,
-  0,
-  "time waiting for write lock",
-  NULL, 
-  NULL, 
-  5000, // default
-  0, // min?
-  ULONGLONG_MAX, // max
-  1 // blocksize
-  );
-static MYSQL_THDVAR_ULONGLONG(read_lock_wait,
-  0,
-  "time waiting for read lock",
-  NULL, 
-  NULL, 
-  4000, // default
-  0, // min?
-  ULONGLONG_MAX, // max
-  1 // blocksize
-  );
+static MYSQL_THDVAR_BOOL(commit_sync, 
+    PLUGIN_VAR_THDLOCAL, 
+    "sync on txn commit",
+    /* check */ NULL, 
+    /* update */ NULL,
+    /* default*/ TRUE
+    );
+
 static MYSQL_THDVAR_UINT(pk_insert_mode,
   0,
   "set the primary key insert mode",
@@ -138,10 +121,9 @@ static MYSQL_THDVAR_UINT(read_block_size,
   ~0L,   // max
   1      // blocksize???
   );
-
 static MYSQL_THDVAR_UINT(read_buf_size,
   0,
-  "fractal tree read block size",
+  "fractal tree read block size", //TODO: Is this a typo?
   NULL, 
   NULL, 
   128*1024, // default
@@ -149,7 +131,6 @@ static MYSQL_THDVAR_UINT(read_buf_size,
   1*1024*1024,   // max
   1      // blocksize???
   );
-
 
 void tokudb_checkpoint_lock(THD * thd);
 void tokudb_checkpoint_unlock(THD * thd);
@@ -180,7 +161,6 @@ static MYSQL_THDVAR_BOOL(checkpoint_lock,
   FALSE
   );
 
-
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
@@ -210,6 +190,7 @@ HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
 pthread_mutex_t tokudb_meta_mutex;
 
+static ulonglong tokudb_lock_timeout;
 
 //my_bool tokudb_shared_data = FALSE;
 static u_int32_t tokudb_init_flags = 
@@ -443,6 +424,9 @@ static int tokudb_init_func(void *p) {
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
     assert(!r);
 
+    r = db_env->set_lock_timeout(db_env, DEFAULT_LOCK_TIMEOUT_USEC);
+    assert(r == 0);
+
     r = db_create(&metadata_db, db_env, 0);
     if (r) {
         DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
@@ -585,17 +569,6 @@ bool tokudb_flush_logs(handlerton * hton) {
     result = 0;
 exit:
     TOKUDB_DBUG_RETURN(result);
-}
-
-ulonglong get_write_lock_wait_time (THD* thd) {
-    ulonglong ret_val = THDVAR(thd, write_lock_wait);
-    return (ret_val == 0) ? ULONGLONG_MAX : ret_val;
-}
-
-
-ulonglong get_read_lock_wait_time (THD* thd) {
-    ulonglong ret_val = THDVAR(thd, read_lock_wait);
-    return (ret_val == 0) ? ULONGLONG_MAX : ret_val;
 }
 
 uint get_pk_insert_mode(THD* thd) {
@@ -1566,8 +1539,23 @@ static uint tokudb_alter_table_flags(uint flags)
 
 // system variables
 
-static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0, 0, ~0LL, 0);
+static void tokudb_lock_timeout_update(THD * thd,
+        struct st_mysql_sys_var * sys_var, 
+        void * var, const void * save)
+{
+    ulonglong * timeout = (ulonglong *) var;
 
+    *timeout = *(const ulonglong *) save;
+    db_env->set_lock_timeout(db_env, *timeout);
+}
+
+static MYSQL_SYSVAR_ULONGLONG(lock_timeout, tokudb_lock_timeout,
+        0, "TokuDB lock timeout", 
+        NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_USEC,
+        0, ~0LL, 0);
+static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
+        PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
+        0, ~0LL, 0);
 static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory, PLUGIN_VAR_READONLY, "TokuDB max memory for locks", NULL, NULL, 0, 0, ~0LL, 0);
 static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, 0, "TokuDB Debug", NULL, NULL, 0, 0, ~0L, 0);
 
@@ -1592,8 +1580,14 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(log_dir),
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(commit_sync),
-    MYSQL_SYSVAR(write_lock_wait),
-    MYSQL_SYSVAR(read_lock_wait),
+
+    // XXX: implmement a new mysql system variable in our handlerton
+    // called tokudb_lock_timeout. this variable defines the maximum
+    // time that threads will wait for a lock to be acquired
+    MYSQL_SYSVAR(lock_timeout),
+
+    // XXX remove the old tokudb_read_lock_wait session variable
+    // XXX remove the old tokudb_write_lock_wait session variable
     MYSQL_SYSVAR(pk_insert_mode),
     MYSQL_SYSVAR(load_save_space),
     MYSQL_SYSVAR(disable_slow_alter),

@@ -9,10 +9,7 @@ extern handlerton *tokudb_hton;
 extern DB_ENV *db_env;
 extern DB *metadata_db;
 
-
 // thread variables
-ulonglong get_write_lock_wait_time (THD* thd);
-ulonglong get_read_lock_wait_time (THD* thd);
 uint get_pk_insert_mode(THD* thd);
 bool get_load_save_space(THD* thd);
 bool get_disable_slow_alter(THD* thd);

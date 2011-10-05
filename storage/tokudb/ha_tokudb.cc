@@ -43,24 +43,6 @@ static const char *ha_tokudb_exts[] = {
     NullS
 };
 
-#define lockretryN(N) \
-  for (ulonglong lockretrycount=0; lockretrycount<(N/(1<<3) + 1); lockretrycount++)
-
-#define lockretry_wait \
-        if (error != DB_LOCK_NOTGRANTED) { \
-            break;  \
-        } \
-        if (tokudb_debug & TOKUDB_DEBUG_LOCKRETRY) { \
-	  TOKUDB_TRACE("%s count=%d\n", __FUNCTION__, (int) lockretrycount); \
-        } \
-        if (lockretrycount%200 == 0) { \
-            if (ha_thd()->killed) { \
-                error = DB_LOCK_NOTGRANTED; \
-                break; \
-            } \
-        } \
-        usleep((lockretrycount<4 ? (1<<lockretrycount) : (1<<3)) * 1024); \
-
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
@@ -1722,7 +1704,7 @@ int ha_tokudb::initialize_share(
         init_auto_increment();
     }
 
-    if (may_table_be_empty()) {
+    if (may_table_be_empty(NULL)) {
         share->try_table_lock = true;
     }
     else {
@@ -3058,15 +3040,18 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
 // It is NOT meant to be a 100% check for emptiness.
 // This is used for a bulk load optimization.
 //
-bool ha_tokudb::may_table_be_empty() {
+bool ha_tokudb::may_table_be_empty(DB_TXN *txn) {
     int error;
     bool ret_val = false;
     DBC* tmp_cursor = NULL;
-    DB_TXN* txn = NULL;
+    DB_TXN* tmp_txn = NULL;
 
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) {
-        goto cleanup;
+    if (txn == NULL) {
+        error = db_env->txn_begin(db_env, 0, &tmp_txn, 0);
+        if (error) {
+            goto cleanup;
+        }
+        txn = tmp_txn;
     }
 
     error = share->file->cursor(share->file, txn, &tmp_cursor, 0);
@@ -3087,9 +3072,9 @@ cleanup:
         assert(r==0);
         tmp_cursor = NULL;
     }
-    if (txn) {
-        commit_txn(txn, 0);
-        txn = NULL;
+    if (tmp_txn) {
+        commit_txn(tmp_txn, 0);
+        tmp_txn = NULL;
     }
     return ret_val;
 }
@@ -3108,7 +3093,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     lock_count = 0;
     
     if (share->try_table_lock) {
-        if (get_prelock_empty(thd) && may_table_be_empty()) {
+        if (get_prelock_empty(thd) && may_table_be_empty(transaction)) {
             if (using_ignore || get_load_save_space(thd)) {
                 acquire_table_lock(transaction, lock_write);
             }
@@ -3671,22 +3656,19 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
     u_int32_t put_flags = mult_put_flags[primary_key];
     THD *thd = ha_thd();
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
-    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
     assert(curr_num_DBs == 1);
     
     set_main_dict_put_flags(thd, &put_flags, true);
 
-    lockretryN(wait_lock_time){
-        error = share->file->put(
-            share->file, 
-            txn, 
-            pk_key,
-            pk_val, 
-            put_flags
-            );
-        lockretry_wait;
-    }
+    //XXX Get rid of the lock retry logic
+    error = share->file->put(
+        share->file, 
+        txn, 
+        pk_key,
+        pk_val, 
+        put_flags
+        );
 
     if (error) {
         last_dup_key = primary_key;
@@ -3700,25 +3682,22 @@ cleanup:
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
     int error = 0;
     uint curr_num_DBs = share->num_DBs;
-    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
     
-    lockretryN(wait_lock_time){
-        error = db_env->put_multiple(
-            db_env, 
-            share->key_file[primary_key], 
-            txn, 
-            pk_key, 
-            pk_val,
-            curr_num_DBs, 
-            share->key_file, 
-            mult_key_dbt,
-            mult_rec_dbt,
-            mult_put_flags
-            );
-        lockretry_wait;
-    }
+    //XXX: Get rid of the lock retry logic
+    error = db_env->put_multiple(
+        db_env, 
+        share->key_file[primary_key], 
+        txn, 
+        pk_key, 
+        pk_val,
+        curr_num_DBs, 
+        share->key_file, 
+        mult_key_dbt,
+        mult_rec_dbt,
+        mult_put_flags
+        );
 
     //
     // We break if we hit an error, unless it is a dup key error
@@ -3923,7 +3902,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     DB_TXN* txn = NULL;
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     uint curr_num_DBs;
-    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
     LINT_INIT(error);
     bzero((void *) &prim_key, sizeof(prim_key));
@@ -4034,25 +4012,25 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     if (error) { goto cleanup; }
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
-    lockretryN(wait_lock_time){
-        error = db_env->update_multiple(
-            db_env, 
-            share->key_file[primary_key], 
-            txn,
-            &old_prim_key, 
-            &old_prim_row,
-            &prim_key, 
-            &prim_row,
-            curr_num_DBs, 
-            share->key_file,
-            mult_put_flags,
-            2*curr_num_DBs, 
-            mult_key_dbt,
-            curr_num_DBs, 
-            mult_rec_dbt
-            );
-        lockretry_wait;
-    }
+
+    //XXX: Get rid of the lock retry logic
+    error = db_env->update_multiple(
+        db_env, 
+        share->key_file[primary_key], 
+        txn,
+        &old_prim_key, 
+        &old_prim_row,
+        &prim_key, 
+        &prim_row,
+        curr_num_DBs, 
+        share->key_file,
+        mult_put_flags,
+        2*curr_num_DBs, 
+        mult_key_dbt,
+        curr_num_DBs, 
+        mult_rec_dbt
+        );
+    
     if (error == DB_KEYEXIST) {
         last_dup_key = primary_key;
     }    
@@ -4095,7 +4073,6 @@ int ha_tokudb::delete_row(const uchar * record) {
     DBT row, prim_key;
     bool has_null;
     THD* thd = ha_thd();
-    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
     uint curr_num_DBs;
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
 
@@ -4117,20 +4094,19 @@ int ha_tokudb::delete_row(const uchar * record) {
     if ((error = pack_row(&row, (const uchar *) record, primary_key))){
         goto cleanup;
     }
-    lockretryN(wait_lock_time){
-        error = db_env->del_multiple(
-            db_env, 
-            share->key_file[primary_key], 
-            transaction, 
-            &prim_key, 
-            &row,
-            curr_num_DBs, 
-            share->key_file, 
-            mult_key_dbt,
-            mult_del_flags
-            );
-        lockretry_wait;
-    }
+
+    //XXX: Get rid of the lock retry logic
+    error = db_env->del_multiple(
+        db_env, 
+        share->key_file[primary_key], 
+        transaction, 
+        &prim_key, 
+        &row,
+        curr_num_DBs, 
+        share->key_file, 
+        mult_key_dbt,
+        mult_del_flags
+        );
 
     if (error) {
         DBUG_PRINT("error", ("Got error %d", error));
@@ -4242,7 +4218,7 @@ cleanup:
 //      0 on success
 //      error otherwise
 //
-int ha_tokudb::prepare_index_key_scan( const uchar * key, uint key_len ) {
+int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
     int error = 0;
     DBT start_key, end_key;
     THD* thd = ha_thd();
@@ -4252,14 +4228,13 @@ int ha_tokudb::prepare_index_key_scan( const uchar * key, uint key_len ) {
     pack_key(&end_key, active_index, prelocked_right_range, key, key_len, COL_POS_INF);
     prelocked_right_range_size = end_key.size;
 
-    lockretryN(read_lock_wait_time){
-        error = cursor->c_pre_acquire_range_lock(
-            cursor, 
-            &start_key, 
-            &end_key 
-            );
-        lockretry_wait;            
-    }
+    //XXX: Get rid of the lock retry logic
+    error = cursor->c_pre_acquire_range_lock(
+        cursor, 
+        &start_key, 
+        &end_key 
+        );
+
     if (error){ 
         goto cleanup; 
     }
@@ -4271,7 +4246,8 @@ cleanup:
     if (error) {
         last_cursor_error = error;
         //
-        // cursor should be initialized here, but in case it is not, we still check
+        // cursor should be initialized here, but in case it is not, 
+        // we still check
         //
         if (cursor) {
             int r = cursor->c_close(cursor);
@@ -4302,7 +4278,6 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     int error;
     THD* thd = ha_thd(); 
     DBUG_PRINT("enter", ("table: '%s'  key: %d", table_share->table_name.str, keynr));
-    read_lock_wait_time = get_read_lock_wait_time(ha_thd());
 
     /*
        Under some very rare conditions (like full joins) we may already have
@@ -4526,17 +4501,17 @@ int ha_tokudb::read_full_row(uchar * buf) {
     //
     // assumes key is stored in this->last_key
     //
-    lockretryN(read_lock_wait_time){
-        error = share->file->getf_set(
-            share->file, 
-            transaction, 
-            cursor_flags, 
-            &last_key, 
-            smart_dbt_callback_rowread_ptquery, 
-            &info
-            );
-        lockretry_wait;
-    }
+
+    //XXX: Get rid of the lock retry logic
+    error = share->file->getf_set(
+        share->file, 
+        transaction, 
+        cursor_flags, 
+        &last_key, 
+        smart_dbt_callback_rowread_ptquery, 
+        &info
+        );
+
     if (error) {
         if (error == DB_LOCK_NOTGRANTED) {
             error = HA_ERR_LOCK_WAIT_TIMEOUT;
@@ -4634,34 +4609,31 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     case HA_READ_KEY_EXACT: /* Find first record else error */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
-        lockretryN(read_lock_wait_time){
-            error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
-            lockretry_wait;
-        }
+
+    //XXX: Get rid of the lock retry logic
+        error = cursor->c_getf_set_range(cursor, flags,
+                &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
         if (ir_info.cmp) {
             error = DB_NOTFOUND;
         }
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
-        lockretryN(read_lock_wait_time){
-            error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
-            lockretry_wait;
-        }
+    //XXX: Get rid of the lock retry logic
+        error = cursor->c_getf_set_range(cursor, flags,
+                &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
-        lockretryN(read_lock_wait_time){
-            error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
-            lockretry_wait;
-        }
+    //XXX: Get rid of the lock retry logic
+        error = cursor->c_getf_set_range_reverse(cursor, flags, 
+                &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
-        lockretryN(read_lock_wait_time){
-            error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
-            lockretry_wait;
-        }
+    //XXX: Get rid of the lock retry logic
+        error = cursor->c_getf_set_range(cursor, flags,
+                &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     //
     // This case does not seem to ever be used, it is ok for it to be slow
@@ -4669,10 +4641,9 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     case HA_READ_KEY_OR_PREV: /* Record or previous */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
-        lockretryN(read_lock_wait_time){
-            error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
-            lockretry_wait;
-        }
+    //XXX: Get rid of the lock retry logic
+        error = cursor->c_getf_set_range(cursor, flags,
+                &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
         if (error == DB_NOTFOUND) {
             error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info);
         }
@@ -4682,18 +4653,15 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
-        lockretryN(read_lock_wait_time){
-            error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK, &info);
-            lockretry_wait;
-        }
+    //XXX: Get rid of the lock retry logic
+        error = cursor->c_getf_set_range_reverse(cursor, flags, 
+                    &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_PREFIX_LAST:
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
         ir_info.orig_key = &lookup_key;
-        lockretryN(read_lock_wait_time){
-            error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
-            lockretry_wait;
-        }
+    //XXX: Get rid of the lock retry logic
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
         if (ir_info.cmp) {
             error = DB_NOTFOUND;
         }
@@ -5052,16 +5020,14 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             // call c_getf_next with purpose of filling in range_query_buff
             //
             if (direction > 0) {
-                lockretryN(read_lock_wait_time){
-                    error = cursor->c_getf_next(cursor, flags, smart_dbt_bf_callback, &bf_info);
-                    lockretry_wait;
-                }
+    //XXX: Get rid of the lock retry logic
+                error = cursor->c_getf_next(cursor, flags,
+                        smart_dbt_bf_callback, &bf_info);
             }
             else {
-                lockretryN(read_lock_wait_time){
-                    error = cursor->c_getf_prev(cursor, flags, smart_dbt_bf_callback, &bf_info);
-                    lockretry_wait;
-                }
+    //XXX: Get rid of the lock retry logic
+                error = cursor->c_getf_prev(cursor, flags,
+                        smart_dbt_bf_callback, &bf_info);
             }
 
             error = handle_cursor_error(error, HA_ERR_END_OF_FILE,active_index);
@@ -5078,11 +5044,11 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             info.buf = buf;
             info.keynr = active_index;
             
-            lockretryN(read_lock_wait_time){
-                error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info);
-                lockretry_wait;
-            }
-            error = handle_cursor_error(error, HA_ERR_END_OF_FILE,active_index);
+    //XXX: Get rid of the lock retry logic
+            error = cursor->c_getf_next(cursor, flags,
+                    SMART_DBT_CALLBACK, &info);
+            error = handle_cursor_error(error, HA_ERR_END_OF_FILE, 
+                    active_index);
         }
     }
 
@@ -5168,10 +5134,9 @@ int ha_tokudb::index_first(uchar * buf) {
     info.buf = buf;
     info.keynr = active_index;
 
-    lockretryN(read_lock_wait_time){
-        error = cursor->c_getf_first(cursor, flags, SMART_DBT_CALLBACK, &info);
-        lockretry_wait;
-    }
+    //XXX: Get rid of the lock retry logic
+    error = cursor->c_getf_first(cursor, flags,
+            SMART_DBT_CALLBACK, &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
 
     //
@@ -5213,10 +5178,9 @@ int ha_tokudb::index_last(uchar * buf) {
     info.buf = buf;
     info.keynr = active_index;
 
-    lockretryN(read_lock_wait_time){
-        error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK, &info);
-        lockretry_wait;
-    }
+    //XXX: Get rid of the lock retry logic
+    error = cursor->c_getf_last(cursor, flags,
+            SMART_DBT_CALLBACK, &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
     //
     // still need to get entire contents of the row if operation done on
@@ -5245,7 +5209,6 @@ cleanup:
 int ha_tokudb::rnd_init(bool scan) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
     int error = 0;
-    read_lock_wait_time = get_read_lock_wait_time(ha_thd());
     range_lock_grabbed = false;
     error = index_init(primary_key, 0);
     if (error) { goto cleanup;}
@@ -5368,7 +5331,6 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     struct smart_dbt_info info;
     bool old_unpack_entire_row = unpack_entire_row;
     DBT* key = get_pos(&db_pos, pos); 
-    read_lock_wait_time = get_read_lock_wait_time(ha_thd());
 
     unpack_entire_row = true;
     statistic_increment(table->in_use->status_var.ha_read_rnd_count, &LOCK_status);
@@ -5378,10 +5340,10 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     info.buf = buf;
     info.keynr = primary_key;
 
-    lockretryN(read_lock_wait_time) {
-        error = share->file->getf_set(share->file, transaction, get_cursor_isolation_flags(lock.type, ha_thd()), key, smart_dbt_callback_rowread_ptquery, &info);
-        lockretry_wait;
-    }
+    //XXX: Get rid of the lock retry logic
+    error = share->file->getf_set(share->file, transaction, 
+            get_cursor_isolation_flags(lock.type, ha_thd()), 
+            key, smart_dbt_callback_rowread_ptquery, &info);
 
     if (error == DB_NOTFOUND) {
         error = HA_ERR_KEY_NOT_FOUND;
@@ -5436,14 +5398,12 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         prelocked_right_range_size = 0;
     }
 
-    lockretryN(read_lock_wait_time){
-        error = cursor->c_pre_acquire_range_lock(
-                    cursor, 
-                    start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
-                    end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty()
-                    );
-        lockretry_wait;
-    }
+    //XXX: Get rid of the lock retry logic
+    error = cursor->c_pre_acquire_range_lock(
+        cursor, 
+        start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
+        end_key ? &end_dbt_key : share->key_file[active_index]->dbt_pos_infty()
+        );
     if (error){ 
         last_cursor_error = error;
         //
@@ -7145,7 +7105,6 @@ int ha_tokudb::tokudb_add_index(
     //
     char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
     ulonglong num_processed = 0; //variable that stores number of elements inserted thus far
-    read_lock_wait_time = get_read_lock_wait_time(ha_thd());
     thd_proc_info(thd, "Adding indexes");
 
     
@@ -7289,14 +7248,12 @@ int ha_tokudb::tokudb_add_index(
         // first a global read lock on the main DB, because
         // we intend to scan the entire thing
         //
-        lockretryN(read_lock_wait_time){
-            error = tmp_cursor->c_pre_acquire_range_lock(
-                tmp_cursor,
-                share->file->dbt_neg_infty(),
-                share->file->dbt_pos_infty()
-                );
-            lockretry_wait;
-        }
+    //XXX: Get rid of the lock retry logic
+        error = tmp_cursor->c_pre_acquire_range_lock(
+            tmp_cursor,
+            share->file->dbt_neg_infty(),
+            share->file->dbt_pos_infty()
+            );
         if (error) { goto cleanup; }
 
         cursor_ret_val = tmp_cursor->c_get(tmp_cursor, &curr_pk_key, &curr_pk_val, DB_NEXT | DB_PRELOCKED);
