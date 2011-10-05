@@ -31,13 +31,15 @@ use Getopt::Long;
 # thus acting like a filter and passing all other arguments
 # straight through
 my $opt_debug;
+my $opt_build_type;
+
 Getopt::Long::Configure("pass_through");
 GetOptions(
 
   # Build MySQL Server and NDB with debug
   'debug' => \$opt_debug,
   'with-debug:s' => sub { $opt_debug = 1; },
-
+  'build-type=s' => \$opt_build_type,
 ) or exit(1);
 
 # Find source root directory, assume this script is
@@ -72,6 +74,7 @@ my $cmake_version_id;
 #
 {
   my @args;
+  my @opt_build_type_arg;
   push(@args, "$srcdir/cmake/configure.pl");
 
   # MySQL Server options
@@ -87,7 +90,12 @@ my $cmake_version_id;
   push(@args, "--with-plugin-ndbcluster");
   push(@args, "--with-ndb-test");
 
-  cmd($^X, @args, @ARGV);
+  if ($opt_build_type)
+  {
+    push(@opt_build_type_arg, "--cmake-args=\"-G " . $opt_build_type . "\"");
+  }
+
+  cmd($^X, @args, @ARGV, @opt_build_type_arg);
 }
 
 #

@@ -436,18 +436,21 @@ Configuration::setupConfiguration(){
                 m_thr_config.getErrorMessage());
     }
   }
-  if (thrconfigstring)
+  if (NdbIsMultiThreaded())
   {
-    ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s => parsed: %s",
-             thrconfigstring,
-             lockmask ? lockmask : "",
-             m_thr_config.getConfigString());
-  }
-  else
-  {
-    ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s => parsed: %s",
-             lockmask ? lockmask : "",
-             m_thr_config.getConfigString());
+    if (thrconfigstring)
+    {
+      ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s => parsed: %s",
+               thrconfigstring,
+               lockmask ? lockmask : "",
+               m_thr_config.getConfigString());
+    }
+    else
+    {
+      ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s => parsed: %s",
+               lockmask ? lockmask : "",
+               m_thr_config.getConfigString());
+    }
   }
 
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
@@ -466,6 +469,7 @@ Configuration::setupConfiguration(){
     if (!globalData.isNdbMt)
       break;
 
+    globalData.ndbMtTcThreads = m_thr_config.getThreadCount(THRConfig::T_TC);
     globalData.isNdbMtLqh = true;
     {
       if (m_thr_config.getMtClassic())

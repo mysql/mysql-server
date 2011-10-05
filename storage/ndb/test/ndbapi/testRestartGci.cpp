@@ -486,7 +486,7 @@ int runNodeInitialRestarts(NDBT_Context* ctx, NDBT_Step* step)
     int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
     ndbout_c("Restarting node %u", nodeId);
 
-    if (restarter.restartOneDbNode(nodeId, NdbRestarter::NRRF_INITIAL) != 0)
+    if (restarter.restartOneDbNode2(nodeId, NdbRestarter::NRRF_INITIAL) != 0)
     {
       ndbout_c("Error restarting node");
       ctx->stopTest();
@@ -546,7 +546,7 @@ int runUpdateVerifyGCI(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(rowGci != NULL);
 
     /* Define an update op to set the next GCI */
-    CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, loopCount+1) == 0);
+    CHECK(hugoOps.pkUpdateRecord(pNdb, 0, 1, (int)(loopCount+1)) == 0);
 
     if (hugoOps.execute_Commit(pNdb) != 0)
     {

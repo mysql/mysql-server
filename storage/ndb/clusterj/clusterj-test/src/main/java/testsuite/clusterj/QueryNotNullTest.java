@@ -1,6 +1,5 @@
 /*
-Copyright 2010 Sun Microsystems, Inc.
-All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -107,6 +106,38 @@ public class QueryNotNullTest extends AbstractQueryTest {
     public void testNoneNotEqualNull() {
         notEqualQuery("int_not_null_none", "none", null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
         notEqualQuery("int_null_none", "none", null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        failOnError();        
+    }
+
+    public void testExtraEqualIsNotNull() {
+        equalAnd1ExtraQuery("int_not_null_btree", 8, "int_null_none", extraIsNotNullPredicateProvider, "dummy unused value", "idx_int_not_null_btree", 8);
+        equalAnd1ExtraQuery("int_not_null_hash", 8, "int_null_none", extraIsNotNullPredicateProvider, "dummy unused value", "none", 8);
+        equalAnd1ExtraQuery("int_not_null_both", 8, "int_null_none", extraIsNotNullPredicateProvider, "dummy unused value", "idx_int_not_null_both", 8);
+        equalAnd1ExtraQuery("int_not_null_none", 8, "int_null_none", extraIsNotNullPredicateProvider, "dummy unused value", "none", 8);
+        failOnError();        
+    }
+
+    public void testBtreeIsNotNull() {
+        isNotNullQuery("int_not_null_btree", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        isNotNullQuery("int_null_btree", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        failOnError();        
+    }
+
+    public void testHashIsNotNull() {
+        isNotNullQuery("int_not_null_hash", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        isNotNullQuery("int_null_hash", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        failOnError();        
+    }
+
+    public void testBothIsNotNull() {
+        isNotNullQuery("int_not_null_both", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        isNotNullQuery("int_null_both", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        failOnError();        
+    }
+
+    public void testNoneIsNotNull() {
+        isNotNullQuery("int_not_null_none", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        isNotNullQuery("int_null_none", "none", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
         failOnError();        
     }
 

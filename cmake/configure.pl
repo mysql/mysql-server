@@ -227,6 +227,11 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." \"-DWITH_NDB_CCFLAGS=".substr($option,17)."\"";
     next;
   }
+  if ($option =~ /cmake-args=/)
+  {
+    $cmakeargs = $cmakeargs." ".substr($option,11);
+    next;
+  }
 #endif
   if ($option =~ /with-gcov/)
   {

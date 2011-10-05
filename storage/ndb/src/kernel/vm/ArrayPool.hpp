@@ -1385,13 +1385,15 @@ UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
 template <class T>
 class SafeArrayPool : public ArrayPool<T> {
 public:
-  SafeArrayPool(NdbMutex* mutex = 0);
+  SafeArrayPool();
   ~SafeArrayPool();
   int lock();
   int unlock();
   bool seize(Ptr<T>&);
   void release(Uint32 i);
   void release(Ptr<T>&);
+
+  void setMutex(NdbMutex* mutex = 0);
 
 private:
   NdbMutex* m_mutex;
@@ -1403,7 +1405,16 @@ private:
 
 template <class T>
 inline
-SafeArrayPool<T>::SafeArrayPool(NdbMutex* mutex)
+SafeArrayPool<T>::SafeArrayPool()
+{
+  m_mutex = 0;
+  m_mutex_owner = false;
+}
+
+template <class T>
+inline
+void
+SafeArrayPool<T>::setMutex(NdbMutex* mutex)
 {
   if (mutex != 0) {
     m_mutex = mutex;

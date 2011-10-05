@@ -1070,6 +1070,6 @@ int ndbz_file_size(ndbzio_stream *s, size_t *size)
   if (my_fstat(s->file, &stat_buf, 0) != 0)
     return -1;
 
-  *size = stat_buf.st_size;
+  *size = (size_t)stat_buf.st_size;
   return 0; /* OK */
 }

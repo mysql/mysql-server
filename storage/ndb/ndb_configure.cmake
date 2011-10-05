@@ -187,6 +187,8 @@ ENDIF()
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/include/ndb_config.h)
+# Exclude ndb_config.h from "make dist"
+LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_config\\\\.h$)
 
 # Define HAVE_NDB_CONFIG_H to make ndb_global.h include the
 # generated ndb_config.h

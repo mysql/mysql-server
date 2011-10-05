@@ -77,6 +77,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
 #endif
 
+
 extern ulong opt_server_id_mask;
 
 static inline
