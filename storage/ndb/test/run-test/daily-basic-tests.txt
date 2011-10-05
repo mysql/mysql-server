@@ -96,6 +96,10 @@ max-time: 600
 cmd: atrt-testBackup
 args: -n Bug57650 T1
 
+max-time: 1000
+cmd: atrt-testBackup
+args: -n BackupBank T6 
+
 # BASIC FUNCTIONALITY
 max-time: 500
 cmd: testBasic
@@ -355,6 +359,18 @@ args: -n Bug50118 T1
 max-time: 300
 cmd: testIndex
 args: -n FireTrigOverload T1
+
+max-time: 500
+cmd: testIndex
+args: -n Bug25059 -r 3000 T1
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1_O T6 T13 
 
 #
 # SCAN TESTS
@@ -713,6 +729,10 @@ args: -n NFNR1_O T6 T13
 
 max-time: 2500
 cmd: testIndex
+args: -n NFNR2 T6 T13 
+
+max-time: 2500
+cmd: testIndex
 args: -n NFNR2_O T6 T13 
 
 max-time: 2500
@@ -808,6 +828,10 @@ args: -l 25 -n DictRestart T1
 max-time: 500
 cmd: testDict
 args: -n Bug54651 T1
+
+max-time: 1500
+cmd: testDict
+args: -n CreateMaxTables T6 
 
 #
 # TEST NDBAPI
@@ -1034,6 +1058,14 @@ max-time: 5000
 cmd: testSystemRestart
 args: -n SR_UNDO T6 
 
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR3 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR4 T6 
+
 #
 max-time: 5000
 cmd: testSystemRestart
@@ -1184,6 +1216,26 @@ args: -n FiftyPercentFail T6 T13
 max-time: 2500
 cmd: testNodeRestart
 args: -n RestartRandomNodeError T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -l 1 -n MixedReadUpdateScan 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n Terror T6 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -l 1 -n RestartNFDuringNR T6 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n RestartNodeDuringLCP T6 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentStopAndWait T6 T13 
 
 #
 # MGMAPI AND MGSRV
@@ -1365,6 +1417,10 @@ args: -n Bug31701 T1
 max-time: 600
 cmd: testSystemRestart
 args: -n Bug22696 T1
+
+max-time: 1000
+cmd: testSRBank
+args: -n SR -l 300 -r 15 T1
 
 max-time: 600
 cmd: testNodeRestart

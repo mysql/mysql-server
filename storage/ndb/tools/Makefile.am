@@ -32,7 +32,8 @@ ndbtools_PROGRAMS = \
   ndb_select_all \
   ndb_select_count \
   ndb_restore ndb_config \
-  ndb_index_stat
+  ndb_index_stat \
+  ndbinfo_select_all
 
 tools_common_sources = ../test/src/NDBT_ReturnCodes.cpp \
                        ../test/src/NDBT_Table.cpp \
@@ -81,6 +82,7 @@ ndbinfo.sql: $(ndbinfo_sql_SOURCES)
 
 ndb_index_stat_SOURCES = ndb_index_stat.cpp $(tools_common_sources)
 ndb_dump_frm_data_SOURCES = ndb_dump_frm_data.cpp
+ndbinfo_select_all_SOURCES = ndbinfo_select_all.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
@@ -99,4 +101,5 @@ ndb_config_LDFLAGS = @ndb_bin_am_ldflags@
 ndbinfo_sql_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_index_stat_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_dump_frm_data_LDFLAGS = @ndb_bin_am_ldflags@
+ndbinfo_select_all_LDFLAGS = @ndb_bin_am_ldflags@
 
