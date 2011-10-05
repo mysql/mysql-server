@@ -4,8 +4,6 @@ drop table if exists s;
 create table s (a int, b varchar(2000));
 set tokudb_create_index_online=1;
 create clustering index i_a on s(b);
-set tokudb_write_lock_wait=1;
-set tokudb_read_lock_wait=1;
 insert into s values (1000000000,repeat('a', 2000));
 insert into s values (1000000000,repeat('a', 2000));
 insert into s values (1000000000,repeat('a', 2000));

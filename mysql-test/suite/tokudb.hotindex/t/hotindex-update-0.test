@@ -24,8 +24,6 @@ set tokudb_create_index_online=1;
 send create index i_a on s(a);
 
 connection conn1;
-set tokudb_write_lock_wait=1;
-set tokudb_read_lock_wait=1;
 let $a = 10000;
 while ($a) {
     eval update s set a=20000+$a where a=$a;
