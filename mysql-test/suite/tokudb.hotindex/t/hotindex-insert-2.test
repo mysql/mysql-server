@@ -28,8 +28,6 @@ set tokudb_create_index_online=1;
 send create index i_a on s(c);
 
 connection conn1;
-set tokudb_write_lock_wait=1;
-set tokudb_read_lock_wait=1;
 
 --echo # starting insert while create index is happening
 --disable_query_log
