@@ -3345,6 +3345,10 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "ndbcluster"))
     plugin_load_policy= PLUGIN_OFF;
 #endif
+#ifdef WITH_FEEDBACK_PLUGIN
+  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "feedback"))
+    plugin_load_policy= PLUGIN_OFF;
+#endif
 
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
     count+= 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */

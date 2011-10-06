@@ -19,6 +19,9 @@ MYSQL_PLUGIN_STATIC(feedback, [libfeedback.la])
 
 ])
 
+dnl MariaDB before 5.5 needs this define:
+MYSQL_PLUGIN_DEFINE(feedback, [WITH_FEEDBACK_PLUGIN])
+
 MYSQL_PLUGIN_ACTIONS(feedback, [
   AC_CHECK_HEADERS([netdb.h sys/utsname.h])
 ])
