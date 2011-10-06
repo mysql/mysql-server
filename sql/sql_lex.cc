@@ -58,7 +58,13 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
 
@@ -1742,6 +1748,8 @@ void st_select_lex_unit::init_query()
 void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
+  resolve_place= RESOLVE_NONE;
+  resolve_nest= NULL;
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
