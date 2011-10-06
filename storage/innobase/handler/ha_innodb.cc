@@ -1243,6 +1243,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_UNSUPPORTED);
 	case DB_INDEX_CORRUPT:
 		return(HA_ERR_INDEX_CORRUPT);
+	case DB_UNDO_RECORD_TOO_BIG:
+		return(HA_ERR_UNDO_REC_TOO_BIG);
 	}
 }
 
@@ -4378,25 +4380,6 @@ field_in_record_is_null(
 	}
 
 	return(0);
-}
-
-/**************************************************************//**
-Sets a field in a record to SQL NULL. Uses the record format
-information in table to track the null bit in record. */
-static inline
-void
-set_field_in_record_to_null(
-/*========================*/
-	TABLE*	table,	/*!< in: MySQL table object */
-	Field*	field,	/*!< in: MySQL field object */
-	char*	record)	/*!< in: a row in MySQL format */
-{
-	int	null_offset;
-
-	null_offset = (uint) ((char*) field->null_ptr
-		    - (char*) table->record[0]);
-
-	record[null_offset] = record[null_offset] | field->null_bit;
 }
 
 /*************************************************************//**
@@ -8312,9 +8295,13 @@ innobase_get_mysql_key_number_for_index(
 	unsigned int		i;
 
  	ut_a(index);
+	/*
+	ut_ad(strcmp(index->table->name, ib_table->name) == 0);
+	*/
 
-	/* If index does not belong to the table of share structure. Search
-	index->table instead */
+	/* If index does not belong to the table object of share structure
+	(ib_table comes from the share structure) search the index->table
+	object instead */
 	if (index->table != ib_table) {
 		i = 0;
 		ind = dict_table_get_first_index(index->table);
@@ -13033,7 +13020,8 @@ mysql_declare_plugin(innobase)
   INNODB_VERSION_SHORT,
   innodb_status_variables_export,/* status variables             */
   innobase_system_variables, /* system variables */
-  NULL /* reserved */
+  NULL, /* reserved */
+  0,    /* flags */
 },
 i_s_innodb_trx,
 i_s_innodb_locks,
@@ -13285,7 +13273,7 @@ innobase_index_cond(
 /** Attempt to push down an index condition.
 * @param[in] keyno	MySQL key number
 * @param[in] idx_cond	Index condition to be checked
-* @return idx_cond if pushed; NULL if not pushed
+* @return Part of idx_cond which the handler will not evaluate
 */
 UNIV_INTERN
 class Item*
@@ -13300,6 +13288,6 @@ ha_innobase::idx_cond_push(
 	pushed_idx_cond = idx_cond;
 	pushed_idx_cond_keyno = keyno;
 	in_range_check_pushed_down = TRUE;
-	/* Table handler will check the entire condition */
+	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
 }

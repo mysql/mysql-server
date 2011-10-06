@@ -81,7 +81,7 @@ btr_page_set_index_id(
 	index_id_t	id,	/*!< in: index id */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_INDEX_ID), id);
 		page_zip_write_header(page_zip,
 				      page + (PAGE_HEADER + PAGE_INDEX_ID),
@@ -156,7 +156,7 @@ btr_page_set_level(
 	ut_ad(page && mtr);
 	ut_ad(level <= BTR_MAX_NODE_LEVEL);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_2(page + (PAGE_HEADER + PAGE_LEVEL), level);
 		page_zip_write_header(page_zip,
 				      page + (PAGE_HEADER + PAGE_LEVEL),
@@ -199,7 +199,7 @@ btr_page_set_next(
 {
 	ut_ad(page && mtr);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_4(page + FIL_PAGE_NEXT, next);
 		page_zip_write_header(page_zip, page + FIL_PAGE_NEXT, 4, mtr);
 	} else {
@@ -236,7 +236,7 @@ btr_page_set_prev(
 {
 	ut_ad(page && mtr);
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		mach_write_to_4(page + FIL_PAGE_PREV, prev);
 		page_zip_write_header(page_zip, page + FIL_PAGE_PREV, 4, mtr);
 	} else {

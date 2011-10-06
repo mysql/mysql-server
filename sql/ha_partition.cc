@@ -7338,6 +7338,27 @@ void ha_partition::init_table_handle_for_HANDLER()
 }
 
 
+/**
+  Return the checksum of the table (all partitions)
+*/
+
+uint ha_partition::checksum() const
+{
+  ha_checksum sum= 0;
+
+  DBUG_ENTER("ha_partition::checksum");
+  if ((table_flags() & HA_HAS_CHECKSUM))
+  {
+    handler **file= m_file;
+    do
+    {
+      sum+= (*file)->checksum();
+    } while (*(++file));
+  }
+  DBUG_RETURN(sum);
+}
+
+
 /****************************************************************************
                 MODULE enable/disable indexes
 ****************************************************************************/
@@ -7433,7 +7454,8 @@ mysql_declare_plugin(partition)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
 

@@ -4701,14 +4701,14 @@ ER_NOT_SUPPORTED_YET 42000
         spa "Esta versión de MySQL no soporta todavia '%s'"
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
-        nla "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d from master when reading data from binary log: '%-.128s'"
-        ger "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs"
-        ita "Errore fatale %d: '%-.128s' dal master leggendo i dati dal log binario"
-        por "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log"
-        rus "Получена неисправимая ошибка %d: '%-.128s' от головного сервера в процессе выборки данных из двоичного журнала"
-        spa "Recibió fatal error %d: '%-.128s' del master cuando leyendo datos del binary log"
-        swe "Fick fatalt fel %d: '%-.128s' från master vid läsning av binärloggen"
+        nla "Kreeg fatale fout %d: '%-.256s' van master tijdens lezen van data uit binaire log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.256s'"
+        ger "Schwerer Fehler %d: '%-.256s vom Master beim Lesen des binären Logs"
+        ita "Errore fatale %d: '%-.256s' dal master leggendo i dati dal log binario"
+        por "Obteve fatal erro %d: '%-.256s' do master quando lendo dados do binary log"
+        rus "Получена неисправимая ошибка %d: '%-.256s' от головного сервера в процессе выборки данных из двоичного журнала"
+        spa "Recibió fatal error %d: '%-.256s' del master cuando leyendo datos del binary log"
+        swe "Fick fatalt fel %d: '%-.256s' från master vid läsning av binärloggen"
 ER_SLAVE_IGNORED_TABLE  
         eng "Slave SQL thread ignored the query because of replicate-*-table rules"
         ger "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert"
@@ -5036,7 +5036,7 @@ ER_FEATURE_DISABLED
         ger "Das Feature '%s' ist ausgeschaltet, Sie müssen MySQL mit '%s' übersetzen, damit es verfügbar ist"
         por "O recurso '%s' foi desativado; você necessita MySQL construído com '%s' para ter isto funcionando"
         spa "El recurso '%s' fue deshabilitado; usted necesita construir MySQL con '%s' para tener eso funcionando"
-        swe "'%s' är inte aktiverad; För att aktivera detta måste du bygga om MySQL med '%s' definerad"
+        swe "'%s' är inte aktiverad; För att aktivera detta måste du bygga om MySQL med '%s' definierad"
 ER_OPTION_PREVENTS_STATEMENT  
         eng "The MySQL server is running with the %s option so it cannot execute this statement"
         ger "Der MySQL-Server läuft mit der Option %s und kann diese Anweisung deswegen nicht ausführen"
@@ -5130,11 +5130,11 @@ ER_SP_BADSTATEMENT 0A000
         eng "%s is not allowed in stored procedures"
         ger "%s ist in gespeicherten Prozeduren nicht erlaubt"
 ER_UPDATE_LOG_DEPRECATED_IGNORED 42000 
-        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6."
-        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wird ignoriert. Diese Option wird in MySQL 5.6 entfernt."
+        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored."
+        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wird ignoriert."
 ER_UPDATE_LOG_DEPRECATED_TRANSLATED 42000 
-        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN. This option will be removed in MySQL 5.6."
-        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wurde in SET SQL_LOG_BIN übersetzt. Diese Option wird in MySQL 5.6 entfernt."
+        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN."
+        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wurde in SET SQL_LOG_BIN übersetzt."
 ER_QUERY_INTERRUPTED 70100 
         eng "Query execution was interrupted"
         ger "Ausführung der Abfrage wurde unterbrochen"
@@ -5577,7 +5577,8 @@ ER_VIEW_OTHER_USER
         eng "You need the SUPER privilege for creation view with '%-.192s'@'%-.192s' definer"
         ger "Sie brauchen die SUPER-Berechtigung, um einen View mit dem Definierer '%-.192s'@'%-.192s' zu erzeugen"
 ER_NO_SUCH_USER
-        eng "The user specified as a definer ('%-.64s'@'%-.64s') does not exist"
+  eng "The user specified as a definer ('%-.64s'@'%-.64s') does not exist"
+  ger "Der als Definierer angegebene Benutzer ('%-.64s'@'%-.64s') existiert nicht"
 ER_FORBID_SCHEMA_CHANGE
         eng "Changing schema from '%-.192s' to '%-.192s' is not allowed."
         ger "Wechsel des Schemas von '%-.192s' auf '%-.192s' ist nicht erlaubt"
@@ -5618,7 +5619,7 @@ ER_VIEW_RECURSIVE
         eng "`%-.192s`.`%-.192s` contains view recursion"
         ger "`%-.192s`.`%-.192s` enthält View-Rekursion"
 ER_NON_GROUPING_FIELD_USED 42000
-        eng "non-grouping field '%-.192s' is used in %-.64s clause"
+        eng "Non-grouping field '%-.192s' is used in %-.64s clause"
         ger "In der %-.192s-Klausel wird das die Nicht-Gruppierungsspalte '%-.64s' verwendet"
 ER_TABLE_CANT_HANDLE_SPKEYS
         eng "The used table type doesn't support SPATIAL indexes"
@@ -5645,15 +5646,20 @@ ER_NON_INSERTABLE_TABLE
         eng "The target table %-.100s of the %s is not insertable-into"
         ger "Die Zieltabelle %-.100s von %s ist nicht einfügbar"
 ER_ADMIN_WRONG_MRG_TABLE
-	eng "Table '%-.64s' is differently defined or of non-MyISAM type or doesn't exist"
+  eng "Table '%-.64s' is differently defined or of non-MyISAM type or doesn't exist"
+  ger "Tabelle '%-.64s' ist unterschiedlich definiert, nicht vom Typ MyISAM oder existiert nicht"
 ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT
-	eng "Too high level of nesting for select"
+  eng "Too high level of nesting for select"
+  ger "Zu tief verschachtelte SELECT-Anweisungen"
 ER_NAME_BECOMES_EMPTY
-        eng "Name '%-.64s' has become ''"
+  eng "Name '%-.64s' has become ''"
+  ger "Name '%-.64s' wurde zu ''"
 ER_AMBIGUOUS_FIELD_TERM
-	eng "First character of the FIELDS TERMINATED string is ambiguous; please use non-optional and non-empty FIELDS ENCLOSED BY"
+  eng "First character of the FIELDS TERMINATED string is ambiguous; please use non-optional and non-empty FIELDS ENCLOSED BY"
+  ger "Das erste Zeichen der Zeichenkette FIELDS TERMINATED ist mehrdeutig; bitte benutzen Sie nicht optionale und nicht leere FIELDS ENCLOSED BY"
 ER_FOREIGN_SERVER_EXISTS
-        eng "The foreign server, %s, you are trying to create already exists."
+  eng "The foreign server, %s, you are trying to create already exists."
+  ger "Der entfernte Server %s, den Sie versuchen zu erzeugen, existiert schon."
 ER_FOREIGN_SERVER_DOESNT_EXIST
         eng "The foreign server name you are trying to reference does not exist. Data source error:  %-.64s"
 	ger "Die externe Verbindung, auf die Sie zugreifen wollen, existiert nicht. Datenquellenfehlermeldung:  %-.64s"
@@ -5678,8 +5684,8 @@ ER_PARTITION_SUBPARTITION_ERROR
         swe "Subpartitioner kan bara vara hash och key partitioner"
 ER_PARTITION_SUBPART_MIX_ERROR
         eng "Must define subpartitions on all partitions if on one partition"
-        ger "Unterpartitionen können nur Hash- oder Key-Partitionen sein"
-        swe "Subpartitioner mÃ¥ste definieras pÃ¥ alla partitioner om pÃ¥ en"
+        ger "Wenn Sie Unterpartitionen auf einer Partition definieren, müssen Sie das für alle Partitionen tun"
+        swe "Subpartitioner måste definieras på alla partitioner om på en"
 ER_PARTITION_WRONG_NO_PART_ERROR
         eng "Wrong number of partitions defined, mismatch with previous setting"
         ger "Falsche Anzahl von Partitionen definiert, stimmt nicht mit vorherigen Einstellungen überein"
@@ -5854,7 +5860,7 @@ ER_CREATE_FILEGROUP_FAILED
         ger "Anlegen von %s fehlgeschlagen"
 ER_DROP_FILEGROUP_FAILED
         eng "Failed to drop %s"
-        ger "Löschen (drop) von %s fehlgeschlagen"
+        ger "Löschen von %s fehlgeschlagen"
 ER_TABLESPACE_AUTO_EXTEND_ERROR
         eng "The handler doesn't support autoextend of tablespaces"
         ger "Der Handler unterstützt keine automatische Erweiterung (Autoextend) von Tablespaces"
@@ -5898,7 +5904,8 @@ ER_EVENT_ENDS_BEFORE_STARTS
         eng "ENDS is either invalid or before STARTS"
         ger "ENDS ist entweder ungültig oder liegt vor STARTS"
 ER_EVENT_EXEC_TIME_IN_THE_PAST
-        eng "Event execution time is in the past. Event has been disabled"
+  eng "Event execution time is in the past. Event has been disabled"
+  ger "Ausführungszeit des Events liegt in der Vergangenheit. Event wurde deaktiviert"
 ER_EVENT_OPEN_TABLE_FAILED
         eng "Failed to open mysql.event"
         ger "Öffnen von mysql.event fehlgeschlagen"
@@ -5930,7 +5937,7 @@ ER_EVENT_DATA_TOO_LONG
         ger "Daten der Spalte '%s' zu lang"
 ER_DROP_INDEX_FK
         eng "Cannot drop index '%-.192s': needed in a foreign key constraint"
-        ger "Kann Index '%-.192s' nicht löschen: wird für einen Fremdschlüssel benötigt"
+        ger "Kann Index '%-.192s' nicht löschen: wird für eine Fremdschlüsselbeschränkung benötigt"
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
 ER_WARN_DEPRECATED_SYNTAX_WITH_VER  
@@ -5941,10 +5948,10 @@ ER_CANT_WRITE_LOCK_LOG_TABLE
         ger "Eine Log-Tabelle kann nicht schreibgesperrt werden. Es ist ohnehin nur Lesezugriff möglich"
 ER_CANT_LOCK_LOG_TABLE
         eng "You can't use locks with log tables."
-        ger "Log-Tabellen können nicht mit normalen Lesesperren gesperrt werden. Verwenden Sie statt dessen READ LOCAL"
+        ger "Log-Tabellen können nicht gesperrt werden."
 ER_FOREIGN_DUPLICATE_KEY 23000 S1009
         eng "Upholding foreign key constraints for table '%.192s', entry '%-.192s', key %d would lead to a duplicate entry"
-        ger "Aufrechterhalten der Fremdschlüssel-Constraints für Tabelle '%.192s', Eintrag '%-.192s', Schlüssel %d würde zu einem doppelten Eintrag führen"
+        ger "Aufrechterhalten der Fremdschlüssel-Beschränkungen für Tabelle '%.192s', Eintrag '%-.192s', Schlüssel %d würde zu einem doppelten Eintrag führen"
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
@@ -6000,6 +6007,7 @@ ER_CANT_ACTIVATE_LOG
         ger "Kann Logdatei '%-.64s' nicht aktivieren"
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+        ger "Der Server wurde nicht mit zeilenbasierter Replikation gebaut"
 ER_BASE64_DECODE_ERROR
         eng "Decoding of base64 string failed"
         swe "Avkodning av base64 sträng misslyckades"
@@ -6021,7 +6029,7 @@ ER_BAD_LOG_STATEMENT
         ger "Sie können eine Logtabelle nicht '%s', wenn Loggen angeschaltet ist"
 ER_CANT_RENAME_LOG_TABLE
         eng "Cannot rename '%s'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to '%s'"
-        ger "Kann '%s' nicht umbenennen. Wenn Loggen angeschaltet ist, müssen beim Umbenennen zu/von einer Logtabelle zwei Tabellen angegeben werden: die Logtabelle zu einer Archivtabelle und eine weitere Tabelle zurück zu  '%s'"
+        ger "Kann '%s' nicht umbenennen. Wenn Loggen angeschaltet ist, müssen zwei Tabellen umbenannt werden: die Logtabelle zu einer Archivtabelle, und eine weitere Tabelle zu '%s'"
 ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT 42000
         eng "Incorrect parameter count in the call to native function '%-.192s'"
         ger "Falsche Anzahl von Parametern beim Aufruf der nativen Funktion '%-.192s'"
@@ -6062,206 +6070,240 @@ ER_DUP_ENTRY_WITH_KEY_NAME 23000 S1009
         swe "Dubbel nyckel '%-.64s' för nyckel '%-.192s'"
         ukr "Дублюючий запис '%-.64s' для ключа '%-.192s'"
 ER_BINLOG_PURGE_EMFILE
-        eng "Too many files opened, please execute the command again"
-        ger "Zu viele offene Dateien, bitte führen Sie den Befehl noch einmal aus"
+  eng "Too many files opened, please execute the command again"
+  ger "Zu viele offene Dateien, bitte führen Sie den Befehl noch einmal aus"
 ER_EVENT_CANNOT_CREATE_IN_THE_PAST
-        eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
+  eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
+  ger "Ausführungszeit des Events liegt in der Vergangenheit, und es wurde ON COMPLETION NOT PRESERVE gesetzt. Das Event wurde unmittelbar nach Erzeugung gelöscht."
 ER_EVENT_CANNOT_ALTER_IN_THE_PAST
-        eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
+  eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
+  ger "Ausführungszeit des Events liegt in der Vergangenheit, und es wurde ON COMPLETION NOT PRESERVE gesetzt. Das Event wurde unmittelbar nach Erzeugung gelöscht."
 ER_SLAVE_INCIDENT
-        eng "The incident %s occured on the master. Message: %-.64s"
+  eng "The incident %s occured on the master. Message: %-.64s"
+  ger "Der Vorfall %s passierte auf dem Master. Meldung: %-.64s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
-        eng "Table has no partition for some existing values"
+  eng "Table has no partition for some existing values"
+  ger "Tabelle hat für einige bestehende Werte keine Partition"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. %s"
+  eng "Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. %s"
+  swe "Detta är inte säkert att logga i statement-format, för BINLOG_FORMAT = STATEMENT. %s"
+  ger "Unsichere Anweisung ins Binärlog geschrieben, weil Anweisungsformat BINLOG_FORMAT = STATEMENT. %s"
 ER_SLAVE_FATAL_ERROR
-        eng "Fatal error: %s"
+  eng "Fatal error: %s"
+  ger "Fataler Fehler: %s"
 ER_SLAVE_RELAY_LOG_READ_FAILURE
-        eng "Relay log read failure: %s"
+  eng "Relay log read failure: %s"
+  ger "Relaylog-Lesefehler: %s"
 ER_SLAVE_RELAY_LOG_WRITE_FAILURE
-        eng "Relay log write failure: %s"
+  eng "Relay log write failure: %s"
+  ger "Relaylog-Schreibfehler: %s"
 ER_SLAVE_CREATE_EVENT_FAILURE
-        eng "Failed to create %s"
+  eng "Failed to create %s"
+  ger "Erzeugen von %s fehlgeschlagen"
 ER_SLAVE_MASTER_COM_FAILURE
-        eng "Master command %s failed: %s"
+  eng "Master command %s failed: %s"
+  ger "Master-Befehl %s fehlgeschlagen: %s"
 ER_BINLOG_LOGGING_IMPOSSIBLE
-        eng "Binary logging not possible. Message: %s"
-
+  eng "Binary logging not possible. Message: %s"
+  ger "Binärlogging nicht möglich. Meldung: %s"
 ER_VIEW_NO_CREATION_CTX
   eng "View `%-.64s`.`%-.64s` has no creation context"
+  ger "View `%-.64s`.`%-.64s` hat keinen Erzeugungskontext"
 ER_VIEW_INVALID_CREATION_CTX
   eng "Creation context of view `%-.64s`.`%-.64s' is invalid"
-
+  ger "Erzeugungskontext des Views`%-.64s`.`%-.64s' ist ungültig"
 ER_SR_INVALID_CREATION_CTX
   eng "Creation context of stored routine `%-.64s`.`%-.64s` is invalid"
-
+  ger "Erzeugungskontext der gespeicherten Routine`%-.64s`.`%-.64s` ist ungültig"
 ER_TRG_CORRUPTED_FILE
   eng "Corrupted TRG file for table `%-.64s`.`%-.64s`"
+  ger "Beschädigte TRG-Datei für Tabelle `%-.64s`.`%-.64s`"
 ER_TRG_NO_CREATION_CTX
   eng "Triggers for table `%-.64s`.`%-.64s` have no creation context"
+  ger "Trigger für Tabelle `%-.64s`.`%-.64s` haben keinen Erzeugungskontext"
 ER_TRG_INVALID_CREATION_CTX
   eng "Trigger creation context of table `%-.64s`.`%-.64s` is invalid"
-
+  ger "Trigger-Erzeugungskontext der Tabelle `%-.64s`.`%-.64s` ist ungültig"
 ER_EVENT_INVALID_CREATION_CTX
   eng "Creation context of event `%-.64s`.`%-.64s` is invalid"
-
+  ger "Erzeugungskontext des Events `%-.64s`.`%-.64s` ist ungültig"
 ER_TRG_CANT_OPEN_TABLE
   eng "Cannot open table for trigger `%-.64s`.`%-.64s`"
-
+  ger "Kann Tabelle für den Trigger `%-.64s`.`%-.64s` nicht öffnen"
 ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
+  ger "Kann gespeicherte Routine `%-.64s` nicht erzeugen. Beachten Sie die Warnungen"
 ER_NEVER_USED
   eng "Ambiguous slave modes combination. %s"
-
+  ger "Mehrdeutige Kombination von Slave-Modi. %s"
 ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
   eng "The BINLOG statement of type `%s` was not preceded by a format description BINLOG statement."
+  ger "Der BINLOG-Anweisung vom Typ `%s` ging keine BINLOG-Anweisung zur Formatbeschreibung voran."
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
-
+  ger "Beschädigtes Replikationsereignis entdeckt"
 ER_LOAD_DATA_INVALID_COLUMN
   eng "Invalid column reference (%-.64s) in LOAD DATA"
-
-ER_LOG_PURGE_NO_FILE  
+  ger "Ungültige Spaltenreferenz (%-.64s) bei LOAD DATA"
+ER_LOG_PURGE_NO_FILE
   eng "Being purged log %s was not found"
-
+  ger "Zu bereinigende Logdatei %s wurde nicht gefunden"
 ER_XA_RBTIMEOUT XA106
-	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
-
+  eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
+  ger "XA_RBTIMEOUT: Transaktionszweig wurde zurückgerollt: Zeitüberschreitung"
 ER_XA_RBDEADLOCK XA102
-	eng "XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected"
-
+  eng "XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected"
+  ger "XA_RBDEADLOCK: Transaktionszweig wurde zurückgerollt: Deadlock entdeckt"
 ER_NEED_REPREPARE
   eng "Prepared statement needs to be re-prepared"
-
-ER_DELAYED_NOT_SUPPORTED  
+  ger "Vorbereitete Anweisungen müssen noch einmal vorbereitet werden"
+ER_DELAYED_NOT_SUPPORTED
   eng "DELAYED option not supported for table '%-.192s'"
-
+  ger "Die DELAYED-Option wird für Tabelle '%-.192s' nicht unterstützt"
 WARN_NO_MASTER_INFO  
   eng "The master info structure does not exist"
-
+  ger "Die Master-Info-Struktur existiert nicht"
 WARN_OPTION_IGNORED
   eng "<%-.64s> option ignored"
-
+  ger "Option <%-.64s> ignoriert"
 WARN_PLUGIN_DELETE_BUILTIN
   eng "Built-in plugins cannot be deleted"
-
+  ger "Eingebaute Plugins können nicht gelöscht werden"
 WARN_PLUGIN_BUSY
   eng "Plugin is busy and will be uninstalled on shutdown"
-
+  ger "Plugin wird verwendet und wird erst beim Herunterfahren deinstalliert"
 ER_VARIABLE_IS_READONLY
   eng "%s variable '%s' is read-only. Use SET %s to assign the value"
-
+  ger "%s Variable '%s' ist nur lesbar. Benutzen Sie SET %s, um einen Wert zuzuweisen"
 ER_WARN_ENGINE_TRANSACTION_ROLLBACK
   eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
-
+  ger "Speicher-Engine %s unterstützt für diese Anweisung kein Rollback. Transaktion wurde zurückgerollt und muss neu gestartet werden"
 ER_SLAVE_HEARTBEAT_FAILURE
   eng "Unexpected master's heartbeat data: %s"
+  ger "Unerwartete Daten vom Heartbeat des Masters: %s"
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
   eng "The requested value for the heartbeat period is either negative or exceeds the maximum allowed (%s seconds)."
-
 ER_NDB_REPLICATION_SCHEMA_ERROR
-        eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
+  eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
+  ger "Fehlerhaftes Schema für mysql.ndb_replication table. Meldung: %-.64s"
 ER_CONFLICT_FN_PARSE_ERROR
-        eng "Error in parsing conflict function. Message: %-.64s"
+  eng "Error in parsing conflict function. Message: %-.64s"
+  ger "Fehler beim Parsen einer Konflikt-Funktion. Meldung: %-.64s"
 ER_EXCEPTIONS_WRITE_ERROR
-        eng "Write to exceptions table failed. Message: %-.128s""
-
+  eng "Write to exceptions table failed. Message: %-.128s""
+  ger "Schreiben in Ausnahme-Tabelle fehlgeschlagen. Meldung: %-.128s""
 ER_TOO_LONG_TABLE_COMMENT
   eng "Comment for table '%-.64s' is too long (max = %lu)"
   por "Comentário para a tabela '%-.64s' é longo demais (max = %lu)"
-
+  ger "Kommentar für Tabelle '%-.64s' ist zu lang (max = %lu)"
 ER_TOO_LONG_FIELD_COMMENT
   eng "Comment for field '%-.64s' is too long (max = %lu)"
   por "Comentário para o campo '%-.64s' é longo demais (max = %lu)"
-
+  ger "Kommentar für Feld '%-.64s' ist zu lang (max = %lu)"
 ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
-
+  ger "FUNCTION %s existiert nicht. Erläuterungen im Abschnitt 'Function Name Parsing and Resolution' im Referenzhandbuch"
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
 # sql_table.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
   eng "Database"
   swe "Databas"
+  ger "Datenbank"
 ER_TABLE_NAME
   eng "Table"
   swe "Tabell"
+  ger "Tabelle"
 ER_PARTITION_NAME
   eng "Partition"
   swe "Partition"
+  ger "Partition"
 ER_SUBPARTITION_NAME
   eng "Subpartition"
   swe "Subpartition"
+  ger "Unterpartition"
 ER_TEMPORARY_NAME
   eng "Temporary"
   swe "Temporär"
+  ger "Temporär"
 ER_RENAMED_NAME
   eng "Renamed"
   swe "Namnändrad"
+  ger "Umbenannt"
 ER_TOO_MANY_CONCURRENT_TRXS
   eng  "Too many active concurrent transactions"
-
+  ger  "Zu viele aktive simultane Transaktionen"
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
-
+  ger "Nicht-ASCII-Trennargumente werden nicht vollständig unterstützt"
 ER_DEBUG_SYNC_TIMEOUT
   eng "debug sync point wait timed out"
   ger "Debug Sync Point Wartezeit überschritten"
 ER_DEBUG_SYNC_HIT_LIMIT
   eng "debug sync point hit limit reached"
   ger "Debug Sync Point Hit Limit erreicht"
-
 ER_DUP_SIGNAL_SET 42000
-        eng "Duplicate condition information item '%s'"
-
+  eng "Duplicate condition information item '%s'"
+  ger "Informationselement '%s' für Duplikatbedingung"
 # Note that the SQLSTATE is not 01000, it is provided by SIGNAL/RESIGNAL
 ER_SIGNAL_WARN 01000
-        eng "Unhandled user-defined warning condition"
-
+  eng "Unhandled user-defined warning condition"
+  ger "Unbehandelte benutzerdefinierte Warnbedingung"
 # Note that the SQLSTATE is not 02000, it is provided by SIGNAL/RESIGNAL
 ER_SIGNAL_NOT_FOUND 02000
-        eng "Unhandled user-defined not found condition"
-
+  eng "Unhandled user-defined not found condition"
+  ger "Unbehandelte benutzerdefinierte Nicht-gefunden-Bedingung"
 # Note that the SQLSTATE is not HY000, it is provided by SIGNAL/RESIGNAL
 ER_SIGNAL_EXCEPTION HY000
-        eng "Unhandled user-defined exception condition"
-
+  eng "Unhandled user-defined exception condition"
+  ger "Unbehandelte benutzerdefinierte Ausnahmebedingung"
 ER_RESIGNAL_WITHOUT_ACTIVE_HANDLER 0K000
-        eng "RESIGNAL when handler not active"
-
+  eng "RESIGNAL when handler not active"
+  ger "RESIGNAL bei nicht aktivem Handler"
 ER_SIGNAL_BAD_CONDITION_TYPE
-        eng "SIGNAL/RESIGNAL can only use a CONDITION defined with SQLSTATE"
-
+  eng "SIGNAL/RESIGNAL can only use a CONDITION defined with SQLSTATE"
+  ger "SIGNAL/RESIGNAL kann nur mit einer Bedingung (CONDITION) benutzt werden, die bei SQLSTATE definiert wurde"
 WARN_COND_ITEM_TRUNCATED
-        eng "Data truncated for condition item '%s'"
-
+  eng "Data truncated for condition item '%s'"
+  ger "Daten gekürzt für Bedingungselement '%s'"
 ER_COND_ITEM_TOO_LONG
-        eng "Data too long for condition item '%s'"
-
+  eng "Data too long for condition item '%s'"
+  ger "Daten zu lang für Bedingungselement '%s'"
 ER_UNKNOWN_LOCALE
-        eng "Unknown locale: '%-.64s'"
-
+  eng "Unknown locale: '%-.64s'"
+  ger "Unbekannte Locale: '%-.64s'"
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
+  ger "Die angeforderte Server-ID %d steht im Konflikt mit der Startoption --replicate-same-server-id für den Slave"
 ER_QUERY_CACHE_DISABLED
   eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
+  ger "Abfragen-Cache ist deaktiviert. Starten Sie den Server neu mit query_cache_type=1, um ihn zu aktivieren"
 ER_SAME_NAME_PARTITION_FIELD
   eng "Duplicate partition field name '%-.192s'"
+  ger "Partitionsfeld '%-.192s' ist ein Duplikat"
 ER_PARTITION_COLUMN_LIST_ERROR
   eng "Inconsistency in usage of column lists for partitioning"
+  ger "Inkonsistenz bei der Benutzung von Spaltenlisten für Partitionierung"
 ER_WRONG_TYPE_COLUMN_VALUE_ERROR
   eng "Partition column values of incorrect type"
+  ger "Partitionsspaltenwerte sind vom falschen Typ"
 ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR
   eng "Too many fields in '%-.192s'"
+  ger "Zu viele Felder in '%-.192s'"
 ER_MAXVALUE_IN_VALUES_IN
   eng "Cannot use MAXVALUE as value in VALUES IN"
+  ger "MAXVALUE kann nicht als Wert in VALUES IN verwendet werden"
 ER_TOO_MANY_VALUES_ERROR
   eng "Cannot have more than one value for this type of %-.64s partitioning"
+  ger "Für den Partionierungstyp %-.64s darf es nicht mehr als einen Wert geben"
 ER_ROW_SINGLE_PARTITION_FIELD_ERROR
   eng "Row expressions in VALUES IN only allowed for multi-field column partitioning"
+  ger "Zeilenausdrücke in VALUES IN sind nur für Mehrfeld-Spaltenpartionierung erlaubt"
 ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
   eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
+  ger "Feld '%-.192s' ist für diese Art von Partitionierung von einem nicht zulässigen Typ"
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
+  ger "Die Gesamtlänge der Partitionsfelder ist zu groß"
 ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
   eng "Cannot execute statement: impossible to write to binary log since both row-incapable engines and statement-incapable engines are involved."
 ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
@@ -6323,7 +6365,7 @@ ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
   eng "Cannot change the binlog direct flag inside a stored function or trigger"
 ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
   eng "A SPATIAL index may only contain a geometrical type column"
-
+  ger "Ein raumbezogener Index (SPATIAL) darf nur Spalten geometrischen Typs enthalten"
 ER_TOO_LONG_INDEX_COMMENT
   eng "Comment for index '%-.64s' is too long (max = %lu)"
 
@@ -6514,6 +6556,7 @@ ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
 
 ER_INDEX_CORRUPT
   eng "Index %s is corrupted"
+
 ER_MTS_FEATURE_IS_NOT_SUPPORTED
   eng "%s is not supported in multi-threaded slave mode. %s"
 ER_MTS_UPDATED_DBS_GREATER_MAX
@@ -6522,3 +6565,30 @@ ER_MTS_CANT_PARALLEL
   eng "Cannot execute the current event group in the parallel mode. Encountered event %s, relay-log name %s, position %s which prevents execution of this event group in parallel mode. Reason: %s."
 ER_MTS_INCONSISTENT_DATA
   eng "%s"
+
+ER_UNDO_RECORD_TOO_BIG
+  eng "Undo log record is too big."
+
+ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT
+  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE
+  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_REPLACE_SELECT
+ eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT
+  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT
+  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+
+ER_BINLOG_UNSAFE_UPDATE_IGNORE
+  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+
+ER_PLUGIN_NO_UNINSTALL
+  eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
+
+ER_PLUGIN_NO_INSTALL
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
