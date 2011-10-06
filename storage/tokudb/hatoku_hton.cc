@@ -422,7 +422,7 @@ static int tokudb_init_func(void *p) {
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
     assert(!r);
 
-    r = db_env->set_lock_timeout(db_env, tokudb_lock_timeout);
+    r = db_env->set_lock_timeout(db_env, tokudb_lock_timeout * 1000);
     assert(r == 0);
 
     r = db_create(&metadata_db, db_env, 0);
@@ -1544,14 +1544,14 @@ static void tokudb_lock_timeout_update(THD * thd,
     ulonglong * timeout = (ulonglong *) var;
 
     *timeout = *(const ulonglong *) save;
-    db_env->set_lock_timeout(db_env, *timeout);
+    db_env->set_lock_timeout(db_env, *timeout * 1000);
 }
 
-#define DEFAULT_LOCK_TIMEOUT_USEC (4UL * 1000 * 1000)
+#define DEFAULT_LOCK_TIMEOUT_MSEC (4UL * 1000)
 
 static MYSQL_SYSVAR_ULONGLONG(lock_timeout, tokudb_lock_timeout,
         0, "TokuDB lock timeout", 
-        NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_USEC,
+        NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_MSEC,
         0, ~0LL, 0);
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
         PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
