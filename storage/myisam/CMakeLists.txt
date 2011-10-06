@@ -32,31 +32,31 @@ MYSQL_STORAGE_ENGINE(MYISAM)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-  TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisam_ftdump libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(myisamchk myisamchk.c)
-  TARGET_LINK_LIBRARIES(myisamchk myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisamchk libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(myisamlog myisamlog.c)
-  TARGET_LINK_LIBRARIES(myisamlog myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisamlog libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(myisampack myisampack.c)
-  TARGET_LINK_LIBRARIES(myisampack myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(myisampack libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(mi_test1 mi_test1.c)
-  TARGET_LINK_LIBRARIES(mi_test1 myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(mi_test1 libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(mi_test2 mi_test2.c)
-  TARGET_LINK_LIBRARIES(mi_test2 myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(mi_test2 libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(mi_test3 mi_test3.c)
-  TARGET_LINK_LIBRARIES(mi_test3  myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(mi_test3  libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(sp_test sp_test.c)
-  TARGET_LINK_LIBRARIES(sp_test myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(sp_test libmyisam_s mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(rt_test rt_test.c)
-  TARGET_LINK_LIBRARIES(rt_test myisam mysys debug dbug strings zlib wsock32)
+  TARGET_LINK_LIBRARIES(rt_test libmyisam_s mysys debug dbug strings zlib wsock32)
   
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
 

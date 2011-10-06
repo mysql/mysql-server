@@ -1952,3 +1952,8 @@ scripts/convert-debug-for-diff
 client/strings_def.h
 libmysql/strings_def.h
 libmysql_r/strings_def.h
+CPackConfig.cmake
+CPackSourceConfig.cmake
+win/nmake_cache.txt
+*.manifest
+*.resource.txt

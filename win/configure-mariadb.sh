@@ -7,17 +7,9 @@
 
 set -e
 
-cscript win/configure.js \
- WITH_ARCHIVE_STORAGE_ENGINE \
- WITH_BLACKHOLE_STORAGE_ENGINE \
- WITH_CSV_STORAGE_ENGINE \
- WITH_EXAMPLE_STORAGE_ENGINE \
- WITH_FEDERATEDX_STORAGE_ENGINE \
- WITH_MERGE_STORAGE_ENGINE \
- WITH_PARTITION_STORAGE_ENGINE \
-  WITH_MARIA_STORAGE_ENGINE \
-  WITH_PBXT_STORAGE_ENGINE \
-  WITH_XTRADB_STORAGE_ENGINE \
+cscript win/configure.js --with-plugin-archive --with-plugin-blackhole \
+ --with-plugin-csv --with-plugin-example --with-plugin-federatedx \
+ --with-plugin-merge --with-plugin-partition --with-plugin-maria \
+ --with-plugin-pbxt --with-plugin-xtradb --with-plugin-feedback \
  WITH_EMBEDDED_SERVER
-
 
