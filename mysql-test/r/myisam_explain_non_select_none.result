@@ -2824,5 +2824,77 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
 DROP TABLE t1,t2;
+#
+# Bug #12949629: CLIENT LOSES CONNECTION AFTER EXECUTING A PROCEDURE WITH
+#                EXPLAIN UPDATE/DEL/INS
+#
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (i INT);
+CREATE PROCEDURE p1() BEGIN EXPLAIN INSERT INTO t1 VALUES (1);END|
+CREATE PROCEDURE p2() BEGIN         INSERT INTO t1 VALUES (1);END|
+CREATE PROCEDURE p3() BEGIN EXPLAIN INSERT INTO t1 SELECT 1;END|
+CREATE PROCEDURE p4() BEGIN         INSERT INTO t1 SELECT 1;END|
+CREATE PROCEDURE p5() BEGIN EXPLAIN REPLACE INTO t1 VALUES (1);END|
+CREATE PROCEDURE p6() BEGIN         REPLACE INTO t1 VALUES (1);END|
+CREATE PROCEDURE p7() BEGIN EXPLAIN REPLACE INTO t1 SELECT 1;END|
+CREATE PROCEDURE p8() BEGIN         REPLACE INTO t1 SELECT 1;END|
+CREATE PROCEDURE p9() BEGIN EXPLAIN UPDATE t1 SET i = 10;END|
+CREATE PROCEDURE p10() BEGIN         UPDATE t1 SET i = 10;END|
+CREATE PROCEDURE p11() BEGIN EXPLAIN UPDATE t1,t2 SET t1.i = 10 WHERE t1.i = t2.i ;END|
+CREATE PROCEDURE p12() BEGIN         UPDATE t1,t2 SET t1.i = 10 WHERE t1.i = t2.i ;END|
+CREATE PROCEDURE p13() BEGIN EXPLAIN DELETE FROM t1;END|
+CREATE PROCEDURE p14() BEGIN         DELETE FROM t1;END|
+CREATE PROCEDURE p15() BEGIN EXPLAIN DELETE FROM t1 USING t1;END|
+CREATE PROCEDURE p16() BEGIN         DELETE FROM t1 USING t1;END|
+CALL p16();
+DROP PROCEDURE p16;
+CALL p15();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+DROP PROCEDURE p15;
+CALL p14();
+DROP PROCEDURE p14;
+CALL p13();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	0	Deleting all rows
+DROP PROCEDURE p13;
+CALL p12();
+DROP PROCEDURE p12;
+CALL p11();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+DROP PROCEDURE p11;
+CALL p10();
+DROP PROCEDURE p10;
+CALL p9();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	0	
+DROP PROCEDURE p9;
+CALL p8();
+DROP PROCEDURE p8;
+CALL p7();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+DROP PROCEDURE p7;
+CALL p6();
+DROP PROCEDURE p6;
+CALL p5();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+DROP PROCEDURE p5;
+CALL p4();
+DROP PROCEDURE p4;
+CALL p3();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+DROP PROCEDURE p3;
+CALL p2();
+DROP PROCEDURE p2;
+CALL p1();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+#
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;

@@ -3398,7 +3398,7 @@ pthread_handler_t handle_slave_io(void *arg)
     goto err;
   }
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
   mi->slave_running = 1;
   mi->abort_slave = 0;
@@ -3817,7 +3817,7 @@ pthread_handler_t handle_slave_worker(void *arg)
   }
   thd->init_for_queries();
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
 
   if (w->update_is_transactional())
@@ -4636,7 +4636,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
 
   /* MTS: starting the worker pool */

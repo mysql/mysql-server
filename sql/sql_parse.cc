@@ -1349,7 +1349,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
 
+    // See comment in opt_trace_disable_if_no_security_context_access()
+    Opt_trace_start ots(thd, &table_list, thd->lex->sql_command, NULL,
+                        NULL, 0, NULL, NULL);
+
     mysqld_list_fields(thd,&table_list,fields);
+
     thd->lex->unit.cleanup();
     /* No need to rollback statement transaction, it's not started. */
     DBUG_ASSERT(thd->transaction.stmt.is_empty());
@@ -5773,15 +5778,14 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     mysql_rewrite_query(thd);
 
     if (thd->rewritten_query.length())
+      lex->safe_to_cache_query= FALSE; // see comments below 
+
+    if (!thd->slave_thread && !opt_log_raw)
     {
-      lex->safe_to_cache_query= FALSE; // see comments below
-      if (!opt_log_raw)
+      if (thd->rewritten_query.length())
         general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
                                           thd->rewritten_query.length());
-    }
-    else
-    {
-      if (!opt_log_raw)
+      else
         general_log_write(thd, COM_QUERY, thd->query(), qlen);
     }
 

@@ -4341,7 +4341,20 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
 
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() || thd->get_stmt_da()->sql_errno() != ER_SLAVE_IGNORED_TABLE)
-      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    {
+      /* log the rewritten query if the query was rewritten 
+         and the option to log raw was not set.
+        
+         There is an assumption here. We assume that query log
+         events can never have multi-statement queries, thus the
+         parsed statement is the same as the raw one.
+       */
+      if (opt_log_raw || thd->rewritten_query.length() == 0)
+        general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+      else
+        general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(), 
+                                          thd->rewritten_query.length());
+    }
 
 compare_errors:
     /*
