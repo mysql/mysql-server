@@ -1281,22 +1281,23 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         with "security_ctx" member set to 0, i.e. forcing check_table_access()
         to use active user's security context.
 
-        There is no need for creating similar copies of table list elements
-        for underlying tables since they are just have been constructed and
-        thus have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant
-        member.
+        There is no need for creating similar copies of TABLE_LIST elements
+        for underlying tables since they just have been constructed and thus
+        have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant member.
 
         Finally at this point making sure we have SHOW_VIEW_ACL on the views
         will suffice as we implicitly require SELECT_ACL anyway.
       */
         
-      TABLE_LIST view;
-      bzero((char *)&view, sizeof(TABLE_LIST));
-      view.db= table->db;
-      view.table_name= table->table_name;
+      TABLE_LIST view_no_suid;
+      bzero(static_cast<void *>(&view_no_suid), sizeof(TABLE_LIST));
+      view_no_suid.db= table->db;
+      view_no_suid.table_name= table->table_name;
+
+      DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
 
       if (check_table_access(thd, SELECT_ACL, view_tables, UINT_MAX, TRUE) ||
-          check_table_access(thd, SHOW_VIEW_ACL, &view, UINT_MAX, TRUE))
+          check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid, UINT_MAX, TRUE))
       {
         my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
         goto err;
