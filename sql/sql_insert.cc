@@ -2183,7 +2183,7 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
         goto end_create;
       }
       mysql_mutex_lock(&LOCK_delayed_insert);
-      delayed_threads.append(di);
+      delayed_threads.push_front(di);
       mysql_mutex_unlock(&LOCK_delayed_insert);
     }
     mysql_mutex_unlock(&LOCK_delayed_create);
@@ -2631,7 +2631,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
-  threads.append(thd);
+  threads.push_front(thd);
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   mysql_mutex_unlock(&LOCK_thread_count);
 
