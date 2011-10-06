@@ -6,10 +6,11 @@
 select @@tokudb_lock_timeout;
 set global tokudb_lock_timeout=1234567;
 select @@tokudb_lock_timeout;
+set global tokudb_lock_timeout=0;
+select @@tokudb_lock_timeout;
 set global tokudb_lock_timeout=5000000;
 select @@tokudb_lock_timeout;
-# settle on a 2 second timeout going forward
 set global tokudb_lock_timeout=1000000;
 select @@tokudb_lock_timeout;
-set global tokudb_lock_timeout=4000000;
+set global tokudb_lock_timeout=4000;
 select @@tokudb_lock_timeout;
