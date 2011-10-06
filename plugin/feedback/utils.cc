@@ -22,8 +22,90 @@
 #include <base64.h>
 #include <sha1.h>
 
-#ifdef HAVE_SYS_UTSNAME_H
+#if defined (_WIN32)
+#define HAVE_SYS_UTSNAME_H
+struct utsname {
+  char  sysname[16];  // Name of this implementation of the operating system. 
+  char  nodename[16]; // Name of this node within the communications 
+                      // network to which this node is attached, if any. 
+  char  release[16];  // Current release level of this implementation. 
+  char  version[256]; // Current version level of this release. 
+  char  machine[16];  // Name of the hardware type on which the system is running. 
+}; 
+
+/* Get commonly used name for Windows version */
+static const char *get_os_version_name(OSVERSIONINFOEX *ver)
+{
+  DWORD major = ver->dwMajorVersion;
+  DWORD minor = ver->dwMinorVersion;
+
+  if (major == 6 && minor == 1)
+  {
+    return (ver->wProductType == VER_NT_WORKSTATION)?
+      "Windows 7":"Windows Server 2008 R2";
+  }
+  if (major == 6 && minor == 0)
+  {
+     return (ver->wProductType == VER_NT_WORKSTATION)?
+      "Windows Vista":"Windows Server 2008";
+  }
+  if (major == 5 && minor == 2)
+  {
+    if (GetSystemMetrics(SM_SERVERR2) != 0)
+      return "Windows Server 2003 R2";
+    if (ver->wSuiteMask & VER_SUITE_WH_SERVER)
+      return "Windows Home Server";
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    if (ver->wProductType == VER_NT_WORKSTATION && 
+       sysinfo.wProcessorArchitecture==PROCESSOR_ARCHITECTURE_AMD64)
+      return "Windows XP Professional x64 Edition";
+
+    return "Windows Server 2003";
+  }
+  if (major == 5 && minor == 1)
+    return "Windows XP";
+  if (major == 5 && minor == 0)
+    return "Windows 2000";
+
+  return "";
+}
+
+
+static int uname(struct utsname *buf)
+{
+  OSVERSIONINFOEX ver;
+  ver.dwOSVersionInfoSize = (DWORD)sizeof(ver);
+  if (!GetVersionEx((OSVERSIONINFO *)&ver))
+    return -1;
+
+  buf->nodename[0]= 0;
+  strcpy(buf->sysname, "Windows");
+  sprintf(buf->release, "%d.%d", ver.dwMajorVersion, ver.dwMinorVersion);
+
+  const char *version_str= get_os_version_name(&ver);
+  if(version_str && version_str[0])
+    sprintf(buf->version, "%s %s",version_str, ver.szCSDVersion);
+  else
+    sprintf(buf->version, "%s", ver.szCSDVersion);
+
+#ifdef _WIN64
+  strcpy(buf->machine, "x64");
+#else
+  BOOL isX64;
+  if (IsWow64Process(GetCurrentProcess(), &isX64) && isX64)
+    strcpy(buf->machine, "x64");
+  else
+    strcpy(buf->machine,"x86");
+#endif
+  return 0;
+}
+
+#elif defined(HAVE_SYS_UTSNAME_H)
 #include <sys/utsname.h>
+#endif
+
+#ifdef HAVE_SYS_UTSNAME_H
 static bool have_ubuf= false;
 static struct utsname ubuf;
 #endif
@@ -110,6 +192,12 @@ static ulonglong my_getphysmem()
 
 #ifdef _SC_PAGESIZE
   return pages * sysconf(_SC_PAGESIZE);
+#endif
+#ifdef _WIN32
+  MEMORYSTATUSEX memstatus;
+  memstatus.dwLength= sizeof(memstatus);
+  GlobalMemoryStatusEx(&memstatus);
+  return memstatus.ullTotalPhys;
 #else
   return pages * my_getpagesize();
 #endif
