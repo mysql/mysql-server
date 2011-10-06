@@ -1017,6 +1017,8 @@ srv_undo_tablespace_create(
 
 			err = DB_ERROR;
 		}
+
+		os_file_close(fh);
 	}
 
 	return(err);

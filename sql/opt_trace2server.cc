@@ -290,12 +290,12 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
   {
     /*
       @@optimizer_trace has "enabled=on" but trace is not started.
-      Either Opt_trace_start ctor was not called for our statement (1), or it
-      was called but at that time, the variable had "enabled=off" (2).
+      Either Opt_trace_start ctor was not called for our statement (3), or it
+      was called but at that time, the variable had "enabled=off" (4).
 
-      (1) can happen in execution of COM_FIELD_LIST on a view.
+      There are no known cases of (3).
 
-      (2) suggests that the user managed to change the variable during
+      (4) suggests that the user managed to change the variable during
       execution of the statement, and this statement is using
       view/routine (note that we have not been able to provoke this, maybe
       this is impossible). If it happens it is suspicious.
@@ -303,9 +303,21 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
       We disable I_S output. And we cannot do otherwise: we have no place to
       store a possible "missing privilege" information (no Opt_trace_stmt, as
       is_started() is false), so cannot do security checks, so cannot safely
-      do tracing, so have to disable I_S output.
+      do tracing, so have to disable I_S output. And even then, we don't know
+      when to re-enable I_S output, as we have no place to store the
+      information "re-enable tracing at the end of this statement", and we
+      don't even have a notion of statement here (statements in the optimizer
+      trace world mean an Opt_trace_stmt object, and there is none here). So
+      we must disable for the session's life.
+
+      COM_FIELD_LIST opens views, thus used to be a case of (3). To avoid
+      disabling I_S output for the session's life when this command is issued
+      (like in: "SET OPTIMIZER_TRACE='ENABLED=ON';USE somedb;" in the 'mysql'
+      command-line client), we have decided to create a Opt_trace_start for
+      this command. The command itself is not traced though
+      (SQLCOM_SHOW_FIELDS does not have CF_OPTIMIZER_TRACE).
     */
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -337,7 +349,7 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -366,7 +378,7 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -427,7 +439,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(thd->get_command() == COM_FIELD_LIST);
+    DBUG_ASSERT(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }

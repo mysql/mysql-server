@@ -2171,7 +2171,7 @@ subselect_single_select_engine(st_select_lex *select,
 			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg),
-   prepared(0), executed(0), select_lex(select), join(0)
+   prepared(0), executed(0), optimize_error(0), select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
 }
@@ -2180,7 +2180,7 @@ subselect_single_select_engine(st_select_lex *select,
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= executed= 0;
+  prepared= executed= optimize_error= false;
   join= 0;
   result->cleanup();
   DBUG_VOID_RETURN;
@@ -2392,6 +2392,10 @@ int join_read_next_same_or_null(READ_RECORD *info);
 bool subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+
+  if (optimize_error)
+    DBUG_RETURN(true);
+
   int rc= 0;
   THD * const thd= item->unit->thd;
   char const *save_where= thd->where;
@@ -2402,9 +2406,13 @@ bool subselect_single_select_engine::exec()
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
 
     unit->set_limit(unit->global_parameters);
+
+    DBUG_EXECUTE_IF("bug11747970_simulate_error",
+                    DBUG_SET("+d,bug11747970_raise_error"););
+
     if (join->optimize())
     {
-      executed= true;
+      optimize_error= true;
       rc= join->error ? join->error : 1;
       goto exit;
     }
