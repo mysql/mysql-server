@@ -699,7 +699,6 @@ ma_test_recovery.output
 man/*.1
 maria-win.patch
 maria_log.00000*
-maria_log_control
 merge/*.ds?
 merge/*.vcproj
 missing
@@ -1961,3 +1960,8 @@ client/strings_def.h
 libmysql/strings_def.h
 libmysql_r/strings_def.h
 storage/maria/aria_log_control
+CPackConfig.cmake
+CPackSourceConfig.cmake
+win/nmake_cache.txt
+*.manifest
+*.resource.txt

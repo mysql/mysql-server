@@ -1,6 +1,5 @@
 MYSQL_STORAGE_ENGINE(aria,, [Aria Storage Engine],
         [Crash-safe tables with MyISAM heritage], [default,max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(aria,  [storage/maria])
 MYSQL_PLUGIN_STATIC(aria,     [libaria_s.la], [libaria_embedded.la])
 
 MYSQL_PLUGIN_ACTIONS(aria,  [
