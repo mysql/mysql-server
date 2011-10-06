@@ -18,8 +18,8 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 #include "parse_file.h"
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sp_cache.h"
 
 #define MD5_BUFF_LENGTH 33

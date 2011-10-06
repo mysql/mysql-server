@@ -21,8 +21,8 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
 
 /*
   We are using pointer to this variable for distinguishing between assignment

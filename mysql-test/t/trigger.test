@@ -2409,3 +2409,28 @@ DROP DATABASE db1;
 USE test;
 
 --echo End of 5.1 tests.
+
+#
+# Test that using a trigger will not open mysql.proc
+#
+
+create table t1 (i int);
+create table t2 (i int);
+flush tables;
+flush status;
+delimiter //;
+CREATE DEFINER=`root`@`localhost` TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW BEGIN DELETE FROM t2 WHERE t2.i = OLD.i; END //
+delimiter ;//
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+delete from t1 where i=1;
+#
+# If mysql.proc would be used we would have 4 here. 3 is the correct number.
+# (CREATE TRIGGER will open t1 and then flush it)
+#
+show status like 'Opened_tables';
+select * from t1;
+select * from t2;
+drop table t1,t2;
+
+--echo End of 5.2 tests.

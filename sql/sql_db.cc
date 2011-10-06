@@ -18,6 +18,7 @@
 
 #include "mysql_priv.h"
 #include <mysys_err.h>
+#include "sp_head.h"
 #include "sp.h"
 #include "events.h"
 #include <my_dir.h>
