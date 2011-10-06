@@ -860,7 +860,7 @@ fsp_init_file_page_low(
 	block->check_index_page_at_flush = FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		memset(page, 0, UNIV_PAGE_SIZE);
 		memset(page_zip->data, 0, page_zip_get_size(page_zip));
 		mach_write_to_4(page + FIL_PAGE_OFFSET,

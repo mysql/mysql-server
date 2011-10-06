@@ -1138,6 +1138,83 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
 }
 
 
+/**
+  Check if there is enough privilege on specific table used by the
+  main select list of multi-update directly or indirectly (through
+  a view).
+
+  @param[in]      thd                Thread context.
+  @param[in]      table              Table list element for the table.
+  @param[in]      tables_for_update  Bitmap with tables being updated.
+  @param[in/out]  updated_arg        Set to true if table in question is
+                                     updated, also set to true if it is
+                                     a view and one of its underlying
+                                     tables is updated. Should be
+                                     initialized to false by the caller
+                                     before a sequence of calls to this
+                                     function.
+
+  @note To determine which tables/views are updated we have to go from
+        leaves to root since tables_for_update contains map of leaf
+        tables being updated and doesn't include non-leaf tables
+        (fields are already resolved to leaf tables).
+
+  @retval false - Success, all necessary privileges on all tables are
+                  present or might be present on column-level.
+  @retval true  - Failure, some necessary privilege on some table is
+                  missing.
+*/
+
+static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
+                                            table_map tables_for_update,
+                                            bool *updated_arg)
+{
+  if (table->view)
+  {
+    bool updated= false;
+    /*
+      If it is a mergeable view then we need to check privileges on its
+      underlying tables being merged (including views). We also need to
+      check if any of them is updated in order to find if this view is
+      updated.
+      If it is a non-mergeable view then it can't be updated.
+    */
+    DBUG_ASSERT(table->merge_underlying_list ||
+                (!table->updatable &&
+                 !(table->table->map & tables_for_update)));
+
+    for (TABLE_LIST *tbl= table->merge_underlying_list; tbl;
+         tbl= tbl->next_local)
+    {
+      if (multi_update_check_table_access(thd, tbl, tables_for_update, &updated))
+        return true;
+    }
+    if (check_table_access(thd, updated ? UPDATE_ACL: SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return true;
+    *updated_arg|= updated;
+    /* We only need SELECT privilege for columns in the values list. */
+    table->grant.want_privilege= SELECT_ACL & ~table->grant.privilege;
+  }
+  else
+  {
+    /* Must be a base or derived table. */
+    const bool updated= table->table->map & tables_for_update;
+    if (check_table_access(thd, updated ? UPDATE_ACL : SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return true;
+    *updated_arg|= updated;
+    /* We only need SELECT privilege for columns in the values list. */
+    if (!table->derived)
+    {
+      table->grant.want_privilege= SELECT_ACL & ~table->grant.privilege;
+      table->table->grant.want_privilege= SELECT_ACL & ~table->table->grant.privilege;
+    }
+  }
+  return false;
+}
+
+
 /*
   make update specific preparation and checks after opening tables
 
@@ -1190,11 +1267,10 @@ int mysql_multi_update_prepare(THD *thd)
     call in setup_tables()).
   */
 
-  if (setup_tables_and_check_access(thd, &lex->select_lex.context,
-                                    &lex->select_lex.top_join_list,
-                                    table_list,
-                                    &lex->select_lex.leaf_tables, FALSE,
-                                    UPDATE_ACL, SELECT_ACL))
+  if (setup_tables(thd, &lex->select_lex.context,
+                   &lex->select_lex.top_join_list,
+                   table_list, &lex->select_lex.leaf_tables,
+                   FALSE))
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
@@ -1269,19 +1345,17 @@ int mysql_multi_update_prepare(THD *thd)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
   }
+
+  /*
+    Check access privileges for tables being updated or read.
+    Note that unlike in the above loop we need to iterate here not only
+    through all leaf tables but also through all view hierarchy.
+  */
   for (tl= table_list; tl; tl= tl->next_local)
   {
-    /* Check access privileges for table */
-    if (!tl->derived)
-    {
-      uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
-      if (check_access(thd, want_privilege, tl->db,
-                       &tl->grant.privilege,
-                       &tl->grant.m_internal,
-                       0, 0) ||
-          check_grant(thd, want_privilege, tl, FALSE, 1, FALSE))
-        DBUG_RETURN(TRUE);
-    }
+    bool not_used= false;
+    if (multi_update_check_table_access(thd, tl, tables_for_update, &not_used))
+      DBUG_RETURN(TRUE);
   }
 
   /* check single table update for view compound from several tables */
@@ -1312,19 +1386,8 @@ int mysql_multi_update_prepare(THD *thd)
     skip all tables of UPDATE SELECT itself
   */
   lex->select_lex.exclude_from_table_unique_test= TRUE;
-  /* We only need SELECT privilege for columns in the values list */
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
-    TABLE *table= tl->table;
-    TABLE_LIST *tlist;
-    if (!(tlist= tl->top_table())->derived)
-    {
-      tlist->grant.want_privilege=
-        (SELECT_ACL & ~tlist->grant.privilege);
-      table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
-    }
-    DBUG_PRINT("info", ("table: %s  want_privilege: %u", tl->alias,
-                        (uint) table->grant.want_privilege));
     if (tl->lock_type != TL_READ &&
         tl->lock_type != TL_READ_NO_INSERT)
     {

@@ -463,7 +463,7 @@ buf_page_is_corrupted(
 	ulint		checksum_field2;
 	ib_uint32_t	crc32;
 
-	if (UNIV_LIKELY(!zip_size)
+	if (!zip_size
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
 		      read_buf + UNIV_PAGE_SIZE
 		      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
@@ -509,7 +509,7 @@ buf_page_is_corrupted(
 		return(FALSE);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		return(!page_zip_verify_checksum(read_buf, zip_size));
 	}
 
@@ -1978,7 +1978,7 @@ lookup:
 
 	ut_ad(buf_page_hash_lock_held_s(buf_pool, bpage));
 
-	if (UNIV_UNLIKELY(!bpage->zip.data)) {
+	if (!bpage->zip.data) {
 		/* There is no compressed page. */
 err_exit:
 		rw_lock_s_unlock(hash_lock);
@@ -3185,19 +3185,20 @@ buf_page_init_low(
 
 /********************************************************************//**
 Inits a page to the buffer buf_pool. */
-static
+static __attribute__((nonnull))
 void
 buf_page_init(
 /*==========*/
+	buf_pool_t*	buf_pool,/*!< in/out: buffer pool */
 	ulint		space,	/*!< in: space id */
 	ulint		offset,	/*!< in: offset of the page within space
 				in units of a page */
 	ulint		fold,	/*!< in: buf_page_address_fold(space,offset) */
-	buf_block_t*	block)	/*!< in: block to init */
+	buf_block_t*	block)	/*!< in/out: block to init */
 {
 	buf_page_t*	hash_page;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
+	ut_ad(buf_pool == buf_pool_get(space, offset));
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	ut_ad(mutex_own(&(block->mutex)));
@@ -3320,8 +3321,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	if (zip_size && UNIV_LIKELY(!unzip)
-	    && UNIV_LIKELY(!recv_recovery_is_on())) {
+	if (zip_size && !unzip && !recv_recovery_is_on()) {
 		block = NULL;
 	} else {
 		block = buf_LRU_get_free_block(buf_pool);
@@ -3367,7 +3367,7 @@ err_exit:
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-		buf_page_init(space, offset, fold, block);
+		buf_page_init(buf_pool, space, offset, fold, block);
 		rw_lock_x_unlock(hash_lock);
 
 		/* The block must be put to the LRU list, to the old blocks */
@@ -3385,7 +3385,7 @@ err_exit:
 		rw_lock_x_lock_gen(&block->lock, BUF_IO_READ);
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-		if (UNIV_UNLIKELY(zip_size)) {
+		if (zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
 
 			/* buf_pool->mutex may be released and
@@ -3590,7 +3590,7 @@ buf_page_create(
 
 	mutex_enter(&block->mutex);
 
-	buf_page_init(space, offset, fold, block);
+	buf_page_init(buf_pool, space, offset, fold, block);
 
 	rw_lock_x_unlock(hash_lock);
 
@@ -4255,6 +4255,9 @@ assert_s_latched:
 					ut_a(rw_lock_is_locked(&block->lock,
 							       RW_LOCK_EX));
 					break;
+
+				case BUF_IO_PIN:
+					break;
 				}
 
 				n_lru++;
@@ -4284,6 +4287,7 @@ assert_s_latched:
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
 		switch (buf_page_get_io_fix(b)) {
 		case BUF_IO_NONE:
+		case BUF_IO_PIN:
 			/* All clean blocks should be I/O-unfixed. */
 			break;
 		case BUF_IO_READ:
@@ -4324,6 +4328,7 @@ assert_s_latched:
 			switch (buf_page_get_io_fix(b)) {
 			case BUF_IO_NONE:
 			case BUF_IO_READ:
+			case BUF_IO_PIN:
 				break;
 			case BUF_IO_WRITE:
 				switch (buf_page_get_flush_type(b)) {
