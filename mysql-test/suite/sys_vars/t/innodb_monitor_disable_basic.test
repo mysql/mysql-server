@@ -1,0 +1,372 @@
+# This is the test for Metrics Monitor Table feature.
+# Test the metrics monitor system's control system
+# and counter accuracy.
+
+--source include/have_innodb.inc
+SET global innodb_monitor_disable = All;
+# Test turn on/off the monitor counter  with "all" option
+# By default, they will be off
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# Turn on all monitor counters
+SET global innodb_monitor_enable = all;
+
+# status should all change to "started"
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# Test wrong argument to the global configure option
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_monitor_enable = aaa;
+
+# We require a valid monitor counter/module name. There is no default
+# counter name or module. A warning will be printed asking user to
+# specify a valid counter name.
+#--disable_warnings
+#SET global innodb_monitor_enable = default;
+#--enable_warnings
+
+# Turn off all monitor counters, option name should be case
+# insensitive
+SET global innodb_monitor_disable = All;
+
+# status should all change to "stopped"
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# ReSET all counter values
+SET global innodb_monitor_reSET_all = all;
+
+# count should all change to 0
+SELECT name, count, status FROM information_schema.innodb_metrics;
+
+# Test wildcard match, turn on all counters contain string "lock"
+SET  global innodb_monitor_enable = "%lock%";
+
+# All lock related counter should be enabled
+SELECT name, status FROM information_schema.innodb_metrics
+WHERE name LIKE "%lock%";
+
+# Disable them
+SET  global innodb_monitor_disable = "%lock%";
+
+# All lock related counter should be disabled
+SELECT name, status FROM information_schema.innodb_metrics
+WHERE name LIKE "%lock%";
+
+# No match for "%lock*"
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_monitor_enable = "%lock*";
+
+# All counters will be turned on with wildcard match string with all "%"
+SET global innodb_monitor_enable="%%%%%%%%%%%%%%%%%%%%%%%%%%%";
+
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# Turn off all counters
+SET global innodb_monitor_disable="%%%%%";
+
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# One more round testing. All counters will be turned on with
+# single wildcard character "%"
+SET global innodb_monitor_enable="%";
+
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# Turn off all the counters with "%_%"
+SET global innodb_monitor_disable="%_%";
+
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# Turn on all counters start with "log"
+SET global innodb_monitor_enable="log%%%%";
+
+SELECT name, status FROM information_schema.innodb_metrics;
+
+# Turn on counters "os_data_fsync" with wildcard match "os_%a_fs_ncs", "_"
+# is single character wildcard match word
+SET global innodb_monitor_enable="os_%a_fs_ncs";
+
+# Turn on counters whose name contains "os" and "pending" with
+# wildcard match "os%pending%"
+SET global innodb_monitor_enable="os%pending%";
+
+SELECT name, status FROM information_schema.innodb_metrics
+WHERE name LIKE "os%";
+
+# Empty string is an invalid option
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_monitor_enable="";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_monitor_enable="_";
+
+# Only turn on "table_open" counter
+SET global innodb_monitor_enable = metadata_table_handles_opened;
+
+# Create a new table to test "metadata_table_handles_opened" counter
+create table monitor_test(col int) engine = innodb;
+
+# This will open the monitor_test table
+SELECT * FROM monitor_test;
+
+# "metadata_table_handles_opened" should increment by 1
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# ReSET the counter value while counter is still on (started)
+# This will reSET value "count_reSET" but not
+# "count"
+SET global innodb_monitor_reSET = metadata_table_handles_opened;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# re-create table again to increment "metadata_table_handles_opened" again
+drop table monitor_test;
+
+# Create a new table to test "metadata_table_handles_opened" counter
+create table monitor_test(col int) engine = innodb;
+
+SELECT * FROM monitor_test;
+
+# "metadata_table_handles_opened" should increment
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# Cannot reSET all monitor value while the counter is on
+SET global innodb_monitor_reSET_all = metadata_table_handles_opened;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# Turn off the counter "metadata_table_handles_opened"
+SET global innodb_monitor_disable = metadata_table_handles_opened;
+
+# ReSET the counter value while counter is off (stopped)
+SET global innodb_monitor_reSET = metadata_table_handles_opened;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# re-create table again. Since monitor is off, "metadata_table_handles_opened"
+# should not be incremented
+drop table monitor_test;
+
+# Create a new table to test "metadata_table_handles_opened" counter
+create table monitor_test(col int) engine = innodb;
+
+# "metadata_table_handles_opened" should increment
+SELECT * FROM monitor_test;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# ReSET all the counters, include those counter *_since_start
+SET global innodb_monitor_reSET_all = metadata_table_handles_opened;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# Turn on "table_open" counter again
+SET global innodb_monitor_enable = metadata_table_handles_opened;
+
+# Test metadata_table_handles_opened again to see if it is working correctly
+# after above round of turning on/off/reSET
+drop table monitor_test;
+
+# Create a new table to test "metadata_table_handles_opened" counter
+create table monitor_test(col int) engine = innodb;
+
+SELECT * FROM monitor_test;
+
+# "metadata_table_handles_opened" should increment
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_opened";
+
+# Test counter "metadata_table_handles_closed",
+# create index will close the old handle
+SET global innodb_monitor_enable = metadata_table_handles_closed;
+
+create index idx on monitor_test(col);
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name = "metadata_table_handles_closed";
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "metadata%";
+
+# ReSET counters only in "module_metadata" module
+SET global innodb_monitor_disable = module_metadata;
+
+SET global innodb_monitor_reSET = module_metadata;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "metadata%";
+
+SET global innodb_monitor_reSET_all = module_metadata;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "metadata%";
+
+# Test Transaction Module
+SET global innodb_monitor_enable = module_trx;
+
+begin;
+insert into monitor_test values(9);
+commit;
+
+begin;
+insert into monitor_test values(9);
+rollback;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "trx_rollbacks" or name LIKE "trx_active_transactions";
+
+SET global innodb_monitor_disable = module_trx;
+
+# Test DML Module
+SET global innodb_monitor_enable = module_dml;
+
+insert into monitor_test values(9);
+
+update monitor_test SET col = 10 WHERE col = 9;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "dml%";
+
+delete FROM monitor_test;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+	FROM information_schema.innodb_metrics
+	WHERE name LIKE "dml%";
+
+# test reSET counter while the counter is on
+SET global innodb_monitor_reSET =  module_dml;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "dml%";
+
+# insert/delete some rows after the reSET
+insert into monitor_test values(9);
+insert into monitor_test values(1);
+
+delete FROM monitor_test;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "dml%";
+
+# We do not allow reSET_all while the counter is on, nothing
+# should be reSET here
+SET global innodb_monitor_reSET_all  =  module_dml;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "dml%";
+
+# Turn off the counter
+SET global innodb_monitor_disable = module_dml;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "dml%";
+
+# ReSET all counter values
+SET global innodb_monitor_reSET_all  = module_dml;
+
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "dml%";
+
+# Open individual counter "dml_inserts"
+SET global innodb_monitor_enable = dml_inserts;
+
+insert into monitor_test values(9);
+insert into monitor_test values(1);
+
+delete FROM monitor_test;
+
+# Only counter "dml_inserts" should be updated
+SELECT name, max_count, min_count, count,
+	max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "dml%";
+
+SET global innodb_monitor_disable = module_dml;
+
+drop table monitor_test;
+
+SET global innodb_monitor_enable = file_num_open_files;
+
+SELECT name, max_count, min_count, count,
+       max_count_reSET, min_count_reSET, count_reSET, status
+FROM information_schema.innodb_metrics
+WHERE name LIKE "file_num_open_files";
+
+SET global innodb_monitor_disable = file_num_open_files;
+
+# Test ICP module counters
+SET global innodb_monitor_enable = "icp%";
+
+create table monitor_test(a char(3), b int, c char(2),
+primary key (a(1), c(1)), key(b)) engine = innodb;
+
+insert into monitor_test values("13", 2, "aa");
+
+SELECT a FROM monitor_test WHERE b < 1 for update;
+
+# should have icp_attempts = 1 and icp_out_of_range = 1
+SELECT name, count FROM information_schema.innodb_metrics
+WHERE name LIKE "icp%";
+
+# should have icp_attempts = 2 and icp_match = 1
+SELECT a FROM monitor_test WHERE b < 3 for update;
+
+SELECT name, count FROM information_schema.innodb_metrics
+WHERE name LIKE "icp%";
+
+drop table monitor_test;
+SET global innodb_monitor_disable = All;
+SET global innodb_monitor_reSET_all = all;
+
+-- disable_warnings
+SET global innodb_monitor_enable = default;
+SET global innodb_monitor_disable = default;
+SET global innodb_monitor_reSET = default;
+SET global innodb_monitor_reSET_all = default;
+-- enable_warnings

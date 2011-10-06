@@ -7,7 +7,6 @@ call mtr.add_suppression("nnoDB: Error: table `test`.`t1` .* Partition.* InnoDB 
 --echo #
 --echo # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 --echo #
-SET @old_innodb_file_format_max = @@global.innodb_file_format_max;
 SET @old_innodb_file_format = @@global.innodb_file_format;
 SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
 SET @old_innodb_strict_mode = @@global.innodb_strict_mode;
@@ -66,7 +65,6 @@ DROP TABLE t1;
 SET @@global.innodb_strict_mode = @old_innodb_strict_mode;
 SET @@global.innodb_file_format = @old_innodb_file_format;
 SET @@global.innodb_file_per_table = @old_innodb_file_per_table;
-SET @@global.innodb_file_format_max = @old_innodb_file_format_max;
 
 #
 # Bug#32430 - show engine innodb status causes errors

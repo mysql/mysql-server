@@ -3487,15 +3487,20 @@ log_print(
 
 	current_time = time(NULL);
 
-	time_elapsed = 0.001 + difftime(current_time,
-					log_sys->last_printout_time);
+	time_elapsed = difftime(current_time,
+				log_sys->last_printout_time);
+
+	if (time_elapsed <= 0) {
+		time_elapsed = 1;
+	}
+
 	fprintf(file,
 		"%lu pending log writes, %lu pending chkp writes\n"
 		"%lu log i/o's done, %.2f log i/o's/second\n",
 		(ulong) log_sys->n_pending_writes,
 		(ulong) log_sys->n_pending_checkpoint_writes,
 		(ulong) log_sys->n_log_ios,
-		((log_sys->n_log_ios - log_sys->n_log_ios_old)
+		((double)(log_sys->n_log_ios - log_sys->n_log_ios_old)
 		 / time_elapsed));
 
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
