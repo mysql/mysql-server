@@ -397,7 +397,9 @@ os_file_get_last_error_low(
 	err = (ulint) GetLastError();
 
 	if (report_all_errors
-	    || (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS)) {
+	    || (!on_error_silent
+		&& err != ERROR_DISK_FULL
+		&& err != ERROR_FILE_EXISTS)) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,

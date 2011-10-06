@@ -3285,6 +3285,10 @@ i_s_innodb_buffer_page_fill(
 			OK(field_store_string(fields[IDX_BUFFER_PAGE_IO_FIX],
 					      "IO_WRITE"));
 			break;
+		case BUF_IO_PIN:
+			OK(field_store_string(fields[IDX_BUFFER_PAGE_IO_FIX],
+					      "IO_PIN"));
+			break;
 		}
 
 		OK(field_store_string(fields[IDX_BUFFER_PAGE_IS_OLD],
