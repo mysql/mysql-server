@@ -6795,6 +6795,51 @@ field1
 1
 DROP TABLE it, ot;
 # End of test for bug#12714094
+#
+# Bug#12867557: Valgrind: conditional jump/move at key_cmp
+#
+CREATE TABLE t1 (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER,
+PRIMARY KEY (pk),
+KEY (col_int_key)
+) AUTO_INCREMENT=10;
+INSERT INTO t1 (col_int_key) VALUES (8);
+CREATE TABLE t2 (
+pk INTEGER AUTO_INCREMENT,
+col_int_key INTEGER,
+col_time_key TIME,
+PRIMARY KEY (pk),
+KEY (col_int_key),
+KEY (col_time_key)
+)  AUTO_INCREMENT=10;
+INSERT INTO t2 (col_int_key, col_time_key)
+VALUES
+(8, '22:55:23.019225'), (7, '10:19:31.050677'), (1, '14:40:36.038608'),
+(7, '04:37:47.062416'), (9, '19:34:06.054514'), (NULL,'20:35:33.022996'),
+(1, NULL), (9, '14:43:37.057393'), (2, '02:23:09.043438'),
+(9, '01:22:45.041064'), (2, '00:00:00'), (4, '00:13:25.038482'),
+(0, '03:47:16.042671'), (4, '01:41:48.007423'), (8, '00:00:00'),
+(NULL, '22:32:04.047407'), (NULL, '16:44:14.028443'), (0, '17:38:37.059754'),
+(NULL, '08:46:48.042388'), (8, '14:11:27.044095');
+CREATE TABLE t0
+SELECT DISTINCT grandparent1.col_time_key AS g1
+FROM t2 AS grandparent1
+WHERE grandparent1.col_int_key IN
+(SELECT parent1.col_int_key AS p1
+FROM t1 AS parent1)
+AND grandparent1.pk > 9;
+UPDATE t0
+SET g1 = g1
+WHERE g1 IN
+(SELECT grandparent1.col_time_key AS g1
+FROM t2 AS grandparent1
+WHERE grandparent1.col_int_key IN
+(SELECT parent1.col_int_key AS p1
+FROM t1 AS parent1)
+AND grandparent1.pk > 9);
+DROP TABLE t0, t1, t2;
+# End of test for bug#12867557
 # End of 5.6 tests
 set optimizer_switch=default;
 set optimizer_switch=default;
