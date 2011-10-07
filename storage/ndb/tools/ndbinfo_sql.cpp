@@ -99,8 +99,6 @@ struct view {
     "  WHEN 4 THEN \"JOBBUFFER\""
     "  WHEN 5 THEN \"FILE_BUFFERS\""
     "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
-    "  WHEN 7 THEN \"DISK_PAGE_BUFFER\""
-    "  WHEN 8 THEN \"QUERY_MEMORY\""
     "  ELSE \"<unknown>\" "
     " END AS resource_name, "
     "reserved, used, max "
