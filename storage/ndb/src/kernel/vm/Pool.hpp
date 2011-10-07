@@ -33,7 +33,7 @@
  */
 #define RG_BITS 5
 #define RG_MASK ((1 << RG_BITS) - 1)
-#define MAKE_TID(TID,RG) ((TID << RG_BITS) | RG)
+#define MAKE_TID(TID,RG) Uint32((TID << RG_BITS) | RG)
 
 /**
  * Page bits

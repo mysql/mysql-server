@@ -2122,6 +2122,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+    CFG_DB_CRASH_ON_CORRUPTED_TUPLE,
+    "CrashOnCorruptedTuple",
+    DB_TOKEN,
+    "To be failfast or not, when checksum indicates corruption.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,1)
+    "false",
+#else
+    "true",
+#endif
+    "false",
+    "true"},
+
   /***************************************************************************
    * API
    ***************************************************************************/

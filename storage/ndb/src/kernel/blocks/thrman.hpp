@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,18 +12,33 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
-#ifndef NDB_DBSPJ_PROXY_HPP
-#define NDB_DBSPJ_PROXY_HPP
+#ifndef THRMAN_H
+#define THRMAN_H
 
+#include <SimulatedBlock.hpp>
 #include <LocalProxy.hpp>
 
-class DbspjProxy : public LocalProxy {
+class Thrman : public SimulatedBlock
+{
 public:
-  DbspjProxy(Block_context& ctx);
-  virtual ~DbspjProxy();
-  BLOCK_DEFINES(DbspjProxy);
+  Thrman(Block_context& ctx, Uint32 instanceNumber = 0);
+  virtual ~Thrman();
+  BLOCK_DEFINES(Thrman);
+
+  void execDBINFO_SCANREQ(Signal*);
+protected:
+
+};
+
+class ThrmanProxy : public LocalProxy
+{
+public:
+  ThrmanProxy(Block_context& ctx);
+  virtual ~ThrmanProxy();
+  BLOCK_DEFINES(ThrmanProxy);
 
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);

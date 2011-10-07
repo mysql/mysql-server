@@ -176,6 +176,7 @@ NdbThread_CreateObject(const char * name)
 
   if (g_main_thread != 0)
   {
+    settid(g_main_thread);
     if (name)
     {
       strnmov(g_main_thread->thread_name, name, sizeof(tmpThread->thread_name));
