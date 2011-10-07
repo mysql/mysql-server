@@ -21,17 +21,24 @@
 
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
-#include <NDBT.hpp>
 #include "../src/ndbapi/NdbInfo.hpp"
+#include <NdbSleep.h>
 
+static int loops = 1;
+static int delay = 5;
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbinfo_select_all"),
+  { "loops", 'l', "Run same select several times",
+    (uchar**) &loops, (uchar**) &loops, 0,
+    GET_INT, REQUIRED_ARG, loops, 0, 0, 0, 0, 0 },
+  { "delay", 256, "Delay between loops (in seconds)",
+    (uchar**) &delay, (uchar**) &delay, 0,
+    GET_INT, REQUIRED_ARG, delay, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
 
 static void short_usage_sub(void)
 {
@@ -85,90 +92,97 @@ main(int argc, char** argv)
 
   const Uint32 batchsizerows = 32;
 
-  for (int ii = 0; argv[ii] != 0; ii++)
+  for (int ll = 0; loops == 0 || ll < loops; ll++)
   {
-    ndbout << "== " << argv[ii] << " ==" << endl;
-
-    const NdbInfo::Table * pTab = 0;
-    int res = info.openTable(argv[ii], &pTab);
-    if (res != 0)
+    for (int ii = 0; argv[ii] != 0; ii++)
     {
-      ndbout << "Failed to open: " << argv[ii] << ", res: " << res << endl;
-      continue;
-    }
+      ndbout << "== " << argv[ii] << " ==" << endl;
 
-    unsigned cols = pTab->columns();
-    for (unsigned i = 0; i<cols; i++)
-    {
-      const NdbInfo::Column * pCol = pTab->getColumn(i);
-      ndbout << pCol->m_name.c_str() << "\t";
-    }
-    ndbout << endl;
-
-    NdbInfoScanOperation * pScan = 0;
-    res= info.createScanOperation(pTab, &pScan, batchsizerows);
-    if (res != 0)
-    {
-      ndbout << "Failed to createScan: " << argv[ii] << ", res: " << res<< endl;
-      info.closeTable(pTab);
-      continue;
-    }
-
-    if (pScan->readTuples() != 0)
-    {
-      ndbout << "scanOp->readTuples failed" << endl;
-      return 1;
-    }
-
-    Vector<const NdbInfoRecAttr*> recAttrs;
-    for (unsigned i = 0; i<cols; i++)
-    {
-      const NdbInfoRecAttr* pRec = pScan->getValue(i);
-      if (pRec == 0)
+      const NdbInfo::Table * pTab = 0;
+      int res = info.openTable(argv[ii], &pTab);
+      if (res != 0)
       {
-        ndbout << "Failed to getValue(" << i << ")" << endl;
-        return 1;
+        ndbout << "Failed to open: " << argv[ii] << ", res: " << res << endl;
+        continue;
       }
-      recAttrs.push_back(pRec);
-    }
 
-    if(pScan->execute() != 0)
-    {
-      ndbout << "scanOp->execute failed" << endl;
-      return 1;
-    }
-
-    while(pScan->nextResult() == 1)
-    {
+      unsigned cols = pTab->columns();
       for (unsigned i = 0; i<cols; i++)
       {
-        if (recAttrs[i]->isNULL())
-        {
-          ndbout << "NULL";
-        }
-        else
-        {
-          switch(pTab->getColumn(i)->m_type){
-          case NdbInfo::Column::String:
-            ndbout << recAttrs[i]->c_str();
-            break;
-          case NdbInfo::Column::Number:
-            ndbout << recAttrs[i]->u_32_value();
-            break;
-          case NdbInfo::Column::Number64:
-            ndbout << recAttrs[i]->u_64_value();
-            break;
-          }
-        }
-        ndbout << "\t";
+        const NdbInfo::Column * pCol = pTab->getColumn(i);
+        ndbout << pCol->m_name.c_str() << "\t";
       }
       ndbout << endl;
+
+      NdbInfoScanOperation * pScan = 0;
+      res= info.createScanOperation(pTab, &pScan, batchsizerows);
+      if (res != 0)
+      {
+        ndbout << "Failed to createScan: " << argv[ii] << ", res: " << res<< endl;
+        info.closeTable(pTab);
+        continue;
+      }
+
+      if (pScan->readTuples() != 0)
+      {
+        ndbout << "scanOp->readTuples failed" << endl;
+        return 1;
+      }
+
+      Vector<const NdbInfoRecAttr*> recAttrs;
+      for (unsigned i = 0; i<cols; i++)
+      {
+        const NdbInfoRecAttr* pRec = pScan->getValue(i);
+        if (pRec == 0)
+        {
+          ndbout << "Failed to getValue(" << i << ")" << endl;
+          return 1;
+        }
+        recAttrs.push_back(pRec);
+      }
+
+      if(pScan->execute() != 0)
+      {
+        ndbout << "scanOp->execute failed" << endl;
+        return 1;
+      }
+
+      while(pScan->nextResult() == 1)
+      {
+        for (unsigned i = 0; i<cols; i++)
+        {
+          if (recAttrs[i]->isNULL())
+          {
+            ndbout << "NULL";
+          }
+          else
+          {
+            switch(pTab->getColumn(i)->m_type){
+            case NdbInfo::Column::String:
+              ndbout << recAttrs[i]->c_str();
+              break;
+            case NdbInfo::Column::Number:
+              ndbout << recAttrs[i]->u_32_value();
+              break;
+            case NdbInfo::Column::Number64:
+              ndbout << recAttrs[i]->u_64_value();
+              break;
+            }
+          }
+          ndbout << "\t";
+        }
+        ndbout << endl;
+      }
+
+      info.releaseScanOperation(pScan);
+      info.closeTable(pTab);
     }
 
-    info.releaseScanOperation(pScan);
-    info.closeTable(pTab);
+    if ((loops == 0 || ll + 1 != loops) && delay > 0)
+    {
+      NdbSleep_SecSleep(delay);
+    }
   }
-
   return 0;
 }
 
