@@ -22,8 +22,6 @@ LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   BLOCK_CONSTRUCTOR(LocalProxy);
 
   ndbrequire(instance() == 0); // this is main block
-  c_lqhWorkers = 0;
-  c_extraWorkers = 0; // sub-class constructor can set
   c_workers = 0;
   Uint32 i;
   for (i = 0; i < MaxWorkers; i++)
@@ -187,13 +185,13 @@ LocalProxy::lastReply(const SsSequential& ss)
 }
 
 void
-LocalProxy::sendREQ(Signal* signal, SsParallel& ss)
+LocalProxy::sendREQ(Signal* signal, SsParallel& ss, bool skipLast)
 {
   ndbrequire(ss.m_sendREQ != 0);
 
   ss.m_workerMask.clear();
   ss.m_worker = 0;
-  const Uint32 count = ss.m_extraLast ? c_lqhWorkers : c_workers;
+  const Uint32 count = skipLast ? c_workers - 1 : c_workers;
   SectionHandle handle(this);
   restoreHandle(handle, ss);
   while (ss.m_worker < count) {
@@ -266,21 +264,6 @@ LocalProxy::lastReply(const SsParallel& ss)
   return ss.m_workerMask.isclear();
 }
 
-bool
-LocalProxy::lastExtra(Signal* signal, SsParallel& ss)
-{
-  SectionHandle handle(this);
-  if (c_lqhWorkers + ss.m_extraSent < c_workers) {
-    jam();
-    ss.m_worker = c_lqhWorkers + ss.m_extraSent;
-    ss.m_workerMask.set(ss.m_worker);
-    (this->*ss.m_sendREQ)(signal, ss.m_ssId, &handle);
-    ss.m_extraSent++;
-    return false;
-  }
-  return true;
-}
-
 // used in "reverse" proxying (start with worker REQs)
 void
 LocalProxy::setMask(SsParallel& ss)
@@ -301,11 +284,9 @@ LocalProxy::setMask(SsParallel& ss, const WorkerMask& mask)
 void
 LocalProxy::loadWorkers()
 {
-  c_lqhWorkers = getLqhWorkers();
-  c_workers = c_lqhWorkers + c_extraWorkers;
-
-  Uint32 i;
-  for (i = 0; i < c_workers; i++) {
+  c_workers = mt_get_instance_count(number());
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
     jam();
     Uint32 instanceNo = workerInstance(i);
 
@@ -314,31 +295,7 @@ LocalProxy::loadWorkers()
     ndbrequire(this->getInstance(instanceNo) == worker);
     c_worker[i] = worker;
 
-    if (i < c_lqhWorkers) {
-      add_lqh_worker_thr_map(number(), instanceNo);
-    } else {
-      add_extra_worker_thr_map(number(), instanceNo);
-    }
-  }
-}
-
-void
-LocalProxy::tc_loadWorkers()
-{
-  c_workers = globalData.ndbMtTcThreads;
-  c_lqhWorkers = globalData.ndbMtTcThreads;
-  c_extraWorkers = 0;
-
-  Uint32 i;
-  for (i = 0; i < c_workers; i++) {
-    jam();
-    Uint32 instanceNo = workerInstance(i);
-
-    SimulatedBlock* worker = newWorker(instanceNo);
-    ndbrequire(worker->instance() == instanceNo);
-    ndbrequire(this->getInstance(instanceNo) == worker);
-    c_worker[i] = worker;
-    add_tc_worker_thr_map(number(), instanceNo);
+    mt_add_thr_map(number(), instanceNo);
   }
 }
 

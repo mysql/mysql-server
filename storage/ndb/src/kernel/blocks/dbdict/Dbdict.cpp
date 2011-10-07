@@ -322,131 +322,17 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
           CFG_DB_NO_ORDERED_INDEXES,
           CFG_DB_NO_UNIQUE_HASH_INDEXES,
           CFG_DB_NO_TRIGGERS }},
-      { "Schema Operation",
-        c_schemaOpPool.getUsed(),
-        c_schemaOpPool.getSize(),
-        c_schemaOpPool.getEntrySize(),
-        c_schemaOpPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Schema Transaction",
-        c_schemaTransPool.getUsed(),
-        c_schemaTransPool.getSize(),
-        c_schemaTransPool.getEntrySize(),
-        c_schemaTransPool.getUsedHi(),
-        { 0,0,0,0 }},
       { "Transaction Handle",
         c_txHandlePool.getUsed(),
         c_txHandlePool.getSize(),
         c_txHandlePool.getEntrySize(),
         c_txHandlePool.getUsedHi(),
         { 0,0,0,0 }},
-      { "Create Table Record",
-        c_createTableRecPool.getUsed(),
-        c_createTableRecPool.getSize(),
-        c_createTableRecPool.getEntrySize(),
-        c_createTableRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Drop Table Record",
-        c_dropTableRecPool.getUsed(),
-        c_dropTableRecPool.getSize(),
-        c_dropTableRecPool.getEntrySize(),
-        c_dropTableRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Alter Table Record",
-        c_alterTableRecPool.getUsed(),
-        c_alterTableRecPool.getSize(),
-        c_alterTableRecPool.getEntrySize(),
-        c_alterTableRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Create Index Record",
-        c_createIndexRecPool.getUsed(),
-        c_createIndexRecPool.getSize(),
-        c_createIndexRecPool.getEntrySize(),
-        c_createIndexRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Drop Index Record",
-        c_dropIndexRecPool.getUsed(),
-        c_dropIndexRecPool.getSize(),
-        c_dropIndexRecPool.getEntrySize(),
-        c_dropIndexRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Alter Index Record",
-        c_alterIndexRecPool.getUsed(),
-        c_alterIndexRecPool.getSize(),
-        c_alterIndexRecPool.getEntrySize(),
-        c_alterIndexRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Build Index Record",
-        c_buildIndexRecPool.getUsed(),
-        c_buildIndexRecPool.getSize(),
-        c_buildIndexRecPool.getEntrySize(),
-        c_buildIndexRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Index Stat Record",
-        c_indexStatRecPool.getUsed(),
-        c_indexStatRecPool.getSize(),
-        c_indexStatRecPool.getEntrySize(),
-        c_indexStatRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Create Hash Map Record",
-        c_createHashMapRecPool.getUsed(),
-        c_createHashMapRecPool.getSize(),
-        c_createHashMapRecPool.getEntrySize(),
-        c_createHashMapRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Copy Data Record",
-        c_copyDataRecPool.getUsed(),
-        c_copyDataRecPool.getSize(),
-        c_copyDataRecPool.getEntrySize(),
-        c_copyDataRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Create Trigger Record",
-        c_createTriggerRecPool.getUsed(),
-        c_createTriggerRecPool.getSize(),
-        c_createTriggerRecPool.getEntrySize(),
-        c_createTriggerRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Drop Trigger Record",
-        c_dropTriggerRecPool.getUsed(),
-        c_dropTriggerRecPool.getSize(),
-        c_dropTriggerRecPool.getEntrySize(),
-        c_dropTriggerRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Create Filegroup Record",
-        c_createFilegroupRecPool.getUsed(),
-        c_createFilegroupRecPool.getSize(),
-        c_createFilegroupRecPool.getEntrySize(),
-        c_createFilegroupRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Create File Record",
-        c_createFileRecPool.getUsed(),
-        c_createFileRecPool.getSize(),
-        c_createFileRecPool.getEntrySize(),
-        c_createFileRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Drop Filegroup Record",
-        c_dropFilegroupRecPool.getUsed(),
-        c_dropFilegroupRecPool.getSize(),
-        c_dropFilegroupRecPool.getEntrySize(),
-        c_dropFilegroupRecPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Drop File Record",
-        c_dropFileRecPool.getUsed(),
-        c_dropFileRecPool.getSize(),
-        c_dropFileRecPool.getEntrySize(),
-        c_dropFileRecPool.getUsedHi(),
-        { 0,0,0,0 }},
       { "Operation Record",
         c_opRecordPool.getUsed(),
         c_opRecordPool.getSize(),
         c_opRecordPool.getEntrySize(),
         c_opRecordPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { "Operation Data",
-        c_opSectionBufferPool.getUsed(),
-        c_opSectionBufferPool.getSize(),
-        c_opSectionBufferPool.getEntrySize(),
-        c_opSectionBufferPool.getUsedHi(),
         { 0,0,0,0 }},
       { NULL, 0,0,0,0,{0,0,0,0}}
     };
@@ -1036,7 +922,8 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
   Uint32 *theData = &signal->theData[0];
   const OpSection& fragSection =
     getOpSection(op_ptr, CreateTabReq::FRAGMENTATION);
-  copyOut(fragSection, &theData[25], ZNIL);
+  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+  copyOut(op_sec_pool, fragSection, &theData[25], ZNIL);
   theData[0] = 0;
 }
 
@@ -1285,7 +1172,7 @@ Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
 
 // SchemaTrans variant
 void
-Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
+Dbdict::writeTableFile(Signal* signal, SchemaOpPtr op_ptr, Uint32 tableId,
                        OpSection tabInfoSec, Callback* callback)
 {
   ndbrequire(c_writeTableRecord.tableWriteState == WriteTableRecord::IDLE);
@@ -1306,7 +1193,8 @@ Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
     Uint32* dst = &pageRecPtr.p->word[ZPAGE_HEADER_SIZE];
     Uint32 dstSize = (ZMAX_PAGES_OF_TABLE_DEFINITION * ZSIZE_OF_PAGES_IN_WORDS)
       - ZPAGE_HEADER_SIZE;
-    bool ok = copyOut(tabInfoSec, dst, dstSize);
+    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+    bool ok = copyOut(op_sec_pool, tabInfoSec, dst, dstSize);
     ndbrequire(ok);
 
     memset(&pageRecPtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
@@ -2761,6 +2649,11 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
                             &c_indexStatAutoUpdate);
 
+  Pool_context pc;
+  pc.m_block = this;
+
+  c_arenaAllocator.init(796, RT_DBDICT_SCHEMA_TRANS_ARENA, pc); // TODO: set size automagical? INFO: 796 is about 1/41 of a page, and bigger than CreateIndexRec (784 bytes)
+
   c_attributeRecordPool.setSize(attributesize);
   c_attributeRecordHash.setSize(64);
   c_fsConnectRecordPool.setSize(ZFS_CONNECT_SIZE);
@@ -2771,9 +2664,12 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   g_key_descriptor_pool.setSize(tablerecSize);
   c_triggerRecordPool.setSize(c_maxNoOfTriggers);
 
-  c_opSectionBufferPool.setSize(1024); // units OpSectionSegmentSize
+  Record_info ri;
+  OpSectionBuffer::createRecordInfo(ri, RT_DBDICT_OP_SECTION_BUFFER);
+  c_opSectionBufferPool.init(&c_arenaAllocator, ri, pc);
+
   c_schemaOpHash.setSize(MAX_SCHEMA_OPERATIONS);
-  c_schemaTransPool.setSize(MAX_SCHEMA_TRANSACTIONS);
+  c_schemaTransPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_SCHEMA_TRANSACTION, pc);
   c_schemaTransHash.setSize(2);
   c_txHandlePool.setSize(2);
   c_txHandleHash.setSize(2);
@@ -2781,9 +2677,6 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_obj_pool.setSize(tablerecSize+c_maxNoOfTriggers);
   c_obj_hash.setSize((tablerecSize+c_maxNoOfTriggers+1)/2);
   m_dict_lock_pool.setSize(MAX_NDB_NODES);
-
-  Pool_context pc;
-  pc.m_block = this;
 
   c_file_hash.setSize(16);
   c_filegroup_hash.setSize(16);
@@ -2798,31 +2691,31 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   /**
    * TODO: Use arena-allocator for schema-transactions
    */
-  c_createTableRecPool.setSize(1 + 2 * MAX_INDEXES);
-  c_dropTableRecPool.setSize(1 + 2 * MAX_INDEXES);
-  c_alterTableRecPool.setSize(32);
-  c_createTriggerRecPool.setSize(4 * 2 * MAX_INDEXES);
-  c_dropTriggerRecPool.setSize(3 * 2 * MAX_INDEXES);
-  c_createIndexRecPool.setSize(2*MAX_INDEXES);
-  c_dropIndexRecPool.setSize(2 * MAX_INDEXES);
-  c_alterIndexRecPool.setSize(2 * MAX_INDEXES);
-  c_buildIndexRecPool.setSize(2 * 2 * MAX_INDEXES);
-  c_indexStatRecPool.setSize((1 + 4) * MAX_INDEXES); //main + 4 subs
-  c_createFilegroupRecPool.setSize(32);
-  c_createFileRecPool.setSize(32);
-  c_dropFilegroupRecPool.setSize(32);
-  c_dropFileRecPool.setSize(32);
-  c_createHashMapRecPool.setSize(32);
-  c_copyDataRecPool.setSize(32);
-  c_schemaOpPool.setSize(1 + 32 * MAX_INDEXES);
+  c_createTableRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_TABLE, pc);
+  c_dropTableRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_DROP_TABLE, pc);
+  c_alterTableRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_ALTER_TABLE, pc);
+  c_createTriggerRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_TRIGGER, pc);
+  c_dropTriggerRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_DROP_TRIGGER, pc);
+  c_createIndexRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_INDEX, pc);
+  c_dropIndexRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_DROP_INDEX, pc);
+  c_alterIndexRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_ALTER_INDEX, pc);
+  c_buildIndexRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_BUILD_INDEX, pc);
+  c_indexStatRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_INDEX_STAT, pc);
+  c_createFilegroupRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_FILEGROUP, pc);
+  c_createFileRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_FILE, pc);
+  c_dropFilegroupRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_DROP_FILEGROUP, pc);
+  c_dropFileRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_DROP_FILE, pc);
+  c_createHashMapRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_HASH_MAP, pc);
+  c_copyDataRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_COPY_DATA, pc);
+  c_schemaOpPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_SCHEMA_OPERATION, pc);
 
   c_hash_map_hash.setSize(4);
   c_hash_map_pool.setSize(32);
   g_hash_map.setSize(32);
 
-  c_createNodegroupRecPool.setSize(2);
-  c_dropNodegroupRecPool.setSize(2);
-  
+  c_createNodegroupRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_CREATE_NODEGROUP, pc);
+  c_dropNodegroupRecPool.arena_pool_init(&c_arenaAllocator, RT_DBDICT_DROP_NODEGROUP, pc);
+
   c_opRecordPool.setSize(256);   // XXX need config params
   c_opCreateEvent.setSize(2);
   c_opSubEvent.setSize(2);
@@ -4016,8 +3909,11 @@ Dbdict::restart_nextOp(Signal* signal, bool commit)
 {
   c_restartRecord.m_op_cnt++;
 
-  if (OpSectionBuffer::getSegmentSize() *
-      c_opSectionBufferPool.getNoOfFree() < MAX_WORDS_META_FILE)
+  Resource_limit rl;
+  Uint32 free_words;
+  m_ctx.m_mm.get_resource_limit(RG_SCHEMA_TRANS_MEMORY, rl);
+  free_words = (rl.m_min - rl.m_curr) * GLOBAL_PAGE_SIZE_WORDS; // underestimate
+  if (free_words < 2*MAX_WORDS_META_FILE)
   {
     jam();
     /**
@@ -4385,6 +4281,12 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   jam();
   Ptr<SchemaOp> op_ptr;
   
+  Ptr<TxHandle> tx_ptr;
+  c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
+
+  Ptr<SchemaTrans> trans_ptr;
+  findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
+
   switch(c_restartRecord.m_entry.m_tableType){
   case DictTabInfo::SystemTable:
   case DictTabInfo::UserTable:
@@ -4394,37 +4296,31 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   case DictTabInfo::OrderedIndex:
   {
     Ptr<CreateTableRec> opRecPtr;
-    seizeSchemaOp(op_ptr, opRecPtr);
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
   {
     Ptr<CreateFileRec> opRecPtr;
-    seizeSchemaOp(op_ptr, opRecPtr);
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
   case DictTabInfo::Tablespace:
   case DictTabInfo::LogfileGroup:
   {
     Ptr<CreateFilegroupRec> opRecPtr;
-    seizeSchemaOp(op_ptr, opRecPtr);
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
   case DictTabInfo::HashMap:
   {
     Ptr<CreateHashMapRec> opRecPtr;
-    seizeSchemaOp(op_ptr, opRecPtr);
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
   }
 
-  Ptr<TxHandle> tx_ptr;
-  c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
-
-  Ptr<SchemaTrans> trans_ptr;
-  findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
-  addSchemaOp(trans_ptr, op_ptr);
   op_ptr.p->m_restart = file ? 1 : 2;
   op_ptr.p->m_state = SchemaOp::OS_PARSE_MASTER;
   
@@ -4469,6 +4365,12 @@ Dbdict::restartDropObj(Signal* signal,
   jam();
   Ptr<SchemaOp> op_ptr;
 
+  Ptr<TxHandle> tx_ptr;
+  c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
+
+  Ptr<SchemaTrans> trans_ptr;
+  findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
+
   switch(c_restartRecord.m_entry.m_tableType){
   case DictTabInfo::SystemTable:
   case DictTabInfo::UserTable:
@@ -4477,14 +4379,14 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
     Ptr<DropTableRec> opRecPtr;
-    seizeSchemaOp(op_ptr, opRecPtr);
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     ndbrequire(false);
     break;
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
   {
     Ptr<DropFileRec> opRecPtr;
-    seizeSchemaOp(op_ptr, opRecPtr);
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     opRecPtr.p->m_request.file_id = tableId;
     opRecPtr.p->m_request.file_version = entry->m_tableVersion;
     break;
@@ -4493,7 +4395,7 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::LogfileGroup:
   {
     Ptr<DropFilegroupRec> opRecPtr;
-    seizeSchemaOp(op_ptr, opRecPtr);
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     opRecPtr.p->m_request.filegroup_id = tableId;
     opRecPtr.p->m_request.filegroup_version = entry->m_tableVersion;
     break;
@@ -4502,12 +4404,6 @@ Dbdict::restartDropObj(Signal* signal,
 
   ndbout_c("restartDropObj(%u)", tableId);
   
-  Ptr<TxHandle> tx_ptr;
-  c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
-
-  Ptr<SchemaTrans> trans_ptr;
-  findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
-  addSchemaOp(trans_ptr, op_ptr);
   op_ptr.p->m_restart = 1; //
   op_ptr.p->m_state = SchemaOp::OS_PARSE_MASTER;
   
@@ -5629,6 +5525,7 @@ void Dbdict::execWAIT_GCP_REF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::CreateTableRec::g_opInfo = {
   { 'C', 'T', 'a', 0 },
+  ~RT_DBDICT_CREATE_TABLE,
   GSN_CREATE_TAB_REQ,
   CreateTabReq::SignalLength,
   //
@@ -6163,7 +6060,7 @@ Dbdict::createTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
     jam();
     const OpSection& tabInfoSec =
       getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
-    writeTableFile(signal, createTabPtr.p->m_request.tableId,
+    writeTableFile(signal, op_ptr, createTabPtr.p->m_request.tableId,
                    tabInfoSec, &cb);
   }
   else
@@ -6523,7 +6420,8 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
     // wl3600_todo add ndbrequire on SR, NR
     if (size != 0) {
       jam();
-      bool ok = copyOut(fragSec, page, 1024);
+      LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+      bool ok = copyOut(op_sec_pool, fragSec, page, 1024);
       ndbrequire(ok);
       ptr[noOfSections].sz = size;
       ptr[noOfSections].p = page;
@@ -7074,11 +6972,11 @@ Dbdict::createTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 
   // create drop table operation  wl3600_todo must pre-allocate
 
-  SchemaOpPtr& oplnk_ptr = op_ptr.p->m_oplnk_ptr;
-  ndbrequire(oplnk_ptr.isNull());
+  SchemaOpPtr oplnk_ptr;
   DropTableRecPtr dropTabPtr;
-  seizeSchemaOp(oplnk_ptr, dropTabPtr);
-  ndbrequire(!oplnk_ptr.isNull());
+  bool ok = seizeLinkedSchemaOp(op_ptr, oplnk_ptr, dropTabPtr);
+  ndbrequire(ok);
+
   DropTabReq* aux_impl_req = &dropTabPtr.p->m_request;
 
   aux_impl_req->senderRef = impl_req->senderRef;
@@ -7086,9 +6984,6 @@ Dbdict::createTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   aux_impl_req->requestType = DropTabReq::CreateTabDrop;
   aux_impl_req->tableId = impl_req->tableId;
   aux_impl_req->tableVersion = impl_req->tableVersion;
-
-  // link other way too
-  oplnk_ptr.p->m_opbck_ptr = op_ptr;
 
   // wl3600_todo use ref count
   unlinkDictObject(op_ptr);
@@ -7259,6 +7154,7 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
 const Dbdict::OpInfo
 Dbdict::DropTableRec::g_opInfo = {
   { 'D', 'T', 'a', 0 },
+  ~RT_DBDICT_DROP_TABLE,
   GSN_DROP_TAB_REQ,
   DropTabReq::SignalLength,
   //
@@ -7888,6 +7784,7 @@ void Dbdict::execDROP_TABLE_REF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::AlterTableRec::g_opInfo = {
   { 'A', 'T', 'a', 0 },
+  ~RT_DBDICT_ALTER_TABLE,
   GSN_ALTER_TAB_REQ,
   AlterTabReq::SignalLength,
   //
@@ -7925,6 +7822,8 @@ Dbdict::alterTable_release(SchemaOpPtr op_ptr)
     Rope r(c_rope_pool, alterTabPtr.p->m_oldFrmData);
     r.erase();
   }
+  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  release(op_sec_pool, alterTabPtr.p->m_newAttrData);
   releaseOpRec<AlterTableRec>(op_ptr);
 }
 
@@ -8238,12 +8137,19 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     AttributeRecordPtr attrPtr;
     list.first(attrPtr);
     Uint32 i = 0;
+    LocalArenaPoolImpl op_sec_pool(trans_ptr.p->m_arena, c_opSectionBufferPool);
     for (i = 0; i < newTablePtr.p->noOfAttributes; i++) {
       if (i >= tablePtr.p->noOfAttributes) {
         jam();
-        Uint32 j = 2 * (i - tablePtr.p->noOfAttributes);
-        alterTabPtr.p->m_newAttrData[j + 0] = attrPtr.p->attributeDescriptor;
-        alterTabPtr.p->m_newAttrData[j + 1] = attrPtr.p->extPrecision & ~0xFFFF;
+        Uint32 attrData[2];
+        attrData[0] = attrPtr.p->attributeDescriptor;
+        attrData[1] = attrPtr.p->extPrecision & ~0xFFFF;
+        if(!copyIn(op_sec_pool, alterTabPtr.p->m_newAttrData, attrData, 2))
+        {
+          jam();
+          setError(error, SchemaTransBeginRef::OutOfSchemaTransMemory, __LINE__);
+          return;
+        }
       }
       list.next(attrPtr);
     }
@@ -9000,7 +8906,7 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
      */
     {
       Ptr<SchemaOp> tmp = op_ptr;
-      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       for (list.prev(tmp); !tmp.isNull(); list.prev(tmp))
       {
         jam();
@@ -9075,7 +8981,7 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
 
   bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
   if (savetodisk) {
-    writeTableFile(signal, impl_req->tableId, tabInfoSec, &callback);
+    writeTableFile(signal, op_ptr, impl_req->tableId, tabInfoSec, &callback);
   } else {
     execute(signal, callback, 0);
   }
@@ -9153,7 +9059,14 @@ Dbdict::alterTable_toLocal(Signal* signal, SchemaOpPtr op_ptr)
   {
     jam();
     LinearSectionPtr ptr[3];
-    ptr[0].p = alterTabPtr.p->m_newAttrData;
+    Uint32 newAttrData[2 * MAX_ATTRIBUTES_IN_TABLE];
+    ndbrequire(impl_req->noOfNewAttr <= MAX_ATTRIBUTES_IN_TABLE);
+    ndbrequire(2 * impl_req->noOfNewAttr == alterTabPtr.p->m_newAttrData.getSize());
+    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+    bool ok = copyOut(op_sec_pool, alterTabPtr.p->m_newAttrData, newAttrData, 2 * impl_req->noOfNewAttr);
+    ndbrequire(ok);
+
+    ptr[0].p = newAttrData;
     ptr[0].sz = 2 * impl_req->noOfNewAttr;
     sendSignal(blockRef, GSN_ALTER_TAB_REQ, signal,
                AlterTabReq::SignalLength, JBB, ptr, 1);
@@ -9164,7 +9077,8 @@ Dbdict::alterTable_toLocal(Signal* signal, SchemaOpPtr op_ptr)
     const OpSection& fragInfoSec =
       getOpSection(op_ptr, AlterTabReq::FRAGMENTATION);
     SegmentedSectionPtr fragInfoPtr;
-    bool ok = copyOut(fragInfoSec, fragInfoPtr);
+    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+    bool ok = copyOut(op_sec_pool, fragInfoSec, fragInfoPtr);
     ndbrequire(ok);
 
     if (AlterTableReq::getReorgFragFlag(req->changeMask))
@@ -9516,7 +9430,8 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     const OpSection& tabInfoSec =
       getOpSection(op_ptr, AlterTabReq::DICT_TAB_INFO);
     SegmentedSectionPtr tabInfoPtr;
-    bool ok = copyOut(tabInfoSec, tabInfoPtr);
+    LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+    bool ok = copyOut(op_sec_pool, tabInfoSec, tabInfoPtr);
     ndbrequire(ok);
 
     SectionHandle handle(this, tabInfoPtr.i);
@@ -10683,6 +10598,7 @@ flush:
 const Dbdict::OpInfo
 Dbdict::CreateIndexRec::g_opInfo = {
   { 'C', 'I', 'n', 0 },
+  ~RT_DBDICT_CREATE_INDEX,
   GSN_CREATE_INDX_IMPL_REQ,
   CreateIndxImplReq::SignalLength,
   //
@@ -11437,6 +11353,7 @@ Dbdict::execCREATE_INDX_IMPL_REF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::DropIndexRec::g_opInfo = {
   { 'D', 'I', 'n', 0 },
+  ~RT_DBDICT_DROP_INDEX,
   GSN_DROP_INDX_IMPL_REQ,
   DropIndxImplReq::SignalLength,
   //
@@ -11880,6 +11797,7 @@ Dbdict::execDROP_INDX_IMPL_REF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::AlterIndexRec::g_opInfo = {
   { 'A', 'I', 'n', 0 },
+  ~RT_DBDICT_ALTER_INDEX,
   GSN_ALTER_INDX_IMPL_REQ,
   AlterIndxImplReq::SignalLength,
   //
@@ -12129,7 +12047,7 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
        *   (i.e recursivly, assuming that no operation can come inbetween)
        */
       Ptr<SchemaOp> baseop = op_ptr;
-      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       ndbrequire(list.prev(baseop));
       Uint32 sz = sizeof(baseop.p->m_oprec_ptr.p->m_opType);
       const char * opType = baseop.p->m_oprec_ptr.p->m_opType;
@@ -12828,7 +12746,8 @@ Dbdict::alterIndex_toAddPartitions(Signal* signal, SchemaOpPtr op_ptr)
   const OpSection& fragInfoSec =
     getOpSection(base_op, AlterTabReq::FRAGMENTATION);
   SegmentedSectionPtr fragInfoPtr;
-  bool ok = copyOut(fragInfoSec, fragInfoPtr);
+  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  bool ok = copyOut(op_sec_pool, fragInfoSec, fragInfoPtr);
   ndbrequire(ok);
   SectionHandle handle(this, fragInfoPtr.i);
 
@@ -13100,6 +13019,7 @@ Dbdict::execALTER_INDX_IMPL_REF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::BuildIndexRec::g_opInfo = {
   { 'B', 'I', 'n', 0 },
+  ~RT_DBDICT_BUILD_INDEX,
   GSN_BUILD_INDX_IMPL_REQ,
   BuildIndxImplReq::SignalLength,
   //
@@ -13873,6 +13793,7 @@ Dbdict::execBUILD_INDX_IMPL_REF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::IndexStatRec::g_opInfo = {
   { 'S', 'I', 'n', 0 },
+  ~RT_DBDICT_INDEX_STAT,
   GSN_INDEX_STAT_IMPL_REQ,
   IndexStatImplReq::SignalLength,
   //
@@ -14622,6 +14543,7 @@ Dbdict::indexStatBg_sendContinueB(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::CopyDataRec::g_opInfo = {
   { 'D', 'C', 'D', 0 },
+  ~RT_DBDICT_COPY_DATA,
   GSN_COPY_DATA_IMPL_REQ,
   CopyDataImplReq::SignalLength,
 
@@ -17623,6 +17545,7 @@ void Dbdict::dropEvent_sendReply(Signal* signal,
 const Dbdict::OpInfo
 Dbdict::CreateTriggerRec::g_opInfo = {
   { 'C', 'T', 'r', 0 },
+  ~RT_DBDICT_CREATE_TRIGGER,
   GSN_CREATE_TRIG_IMPL_REQ,
   CreateTrigImplReq::SignalLength,
   //
@@ -18010,7 +17933,6 @@ Dbdict::createTrigger_create_drop_trigger_operation(Signal* signal,
 {
   jam();
 
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateTriggerRecPtr createTriggerPtr;
   getOpRec(op_ptr, createTriggerPtr);
   CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
@@ -18018,11 +17940,9 @@ Dbdict::createTrigger_create_drop_trigger_operation(Signal* signal,
   /**
    * Construct a dropTrigger operation
    */
-  SchemaOpPtr& oplnk_ptr = op_ptr.p->m_oplnk_ptr;
-  ndbrequire(oplnk_ptr.isNull());
+  SchemaOpPtr oplnk_ptr;
   DropTriggerRecPtr dropTriggerPtr;
-  seizeSchemaOp(oplnk_ptr, dropTriggerPtr);
-  if (oplnk_ptr.isNull())
+  if(!seizeLinkedSchemaOp(op_ptr, oplnk_ptr, dropTriggerPtr))
   {
     jam();
     setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
@@ -18042,9 +17962,6 @@ Dbdict::createTrigger_create_drop_trigger_operation(Signal* signal,
   aux_impl_req->triggerId = impl_req->triggerId;
   aux_impl_req->triggerInfo = impl_req->triggerInfo;
 
-  // link other way too
-  oplnk_ptr.p->m_opbck_ptr = op_ptr;
-  oplnk_ptr.p->m_trans_ptr = trans_ptr;
   dropTriggerPtr.p->m_main_op = createTriggerPtr.p->m_main_op;
 
   if (createTriggerPtr.p->m_main_op)
@@ -18574,6 +18491,7 @@ Dbdict::execCREATE_TRIG_IMPL_REF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::DropTriggerRec::g_opInfo = {
   { 'D', 'T', 'r', 0 },
+  ~RT_DBDICT_DROP_TRIGGER,
   GSN_DROP_TRIG_IMPL_REQ,
   DropTrigImplReq::SignalLength,
   //
@@ -19548,7 +19466,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
 #endif
      
      SchemaOpPtr op_ptr;
-     LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+     LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
      bool pending_op = list.first(op_ptr);
      if (pending_op &&
          (trans_ptr.p->m_state == SchemaTrans::TS_COMPLETING ||
@@ -20125,7 +20043,8 @@ void Dbdict::check_takeover_replies(Signal* signal)
               SchemaOpPtr missing_op_ptr;
               const OpInfo& info =
                 *findOpInfo(nodePtr.p->takeOverConf.highest_op_impl_req_gsn);
-              if (seizeSchemaOp(missing_op_ptr,
+              if (seizeSchemaOp(trans_ptr,
+                                missing_op_ptr,
                                 nodePtr.p->takeOverConf.highest_op,
                                 info))
               {
@@ -20133,7 +20052,6 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
                 ndbout_c("Created missing operation %u, on new master", missing_op_ptr.p->op_key);
 #endif
-                addSchemaOp(trans_ptr, missing_op_ptr);
                 missing_op_ptr.p->m_state = nodePtr.p->takeOverConf.highest_op_state;
                 masterNodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
                 masterNodePtr.p->start_op = masterNodePtr.p->takeOverConf.highest_op;
@@ -20168,7 +20086,8 @@ void Dbdict::check_takeover_replies(Signal* signal)
             Uint32 op_state = nodePtr.p->takeOverConf.lowest_op_state;
             const OpInfo& info =
               *findOpInfo(nodePtr.p->takeOverConf.lowest_op_impl_req_gsn);
-            if (seizeSchemaOp(missing_op_ptr,
+            if (seizeSchemaOp(trans_ptr,
+                              missing_op_ptr,
                               op_key,
                               info))
             {
@@ -20176,7 +20095,6 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
               ndbout_c("Created ressurected operation %u, on new master", op_key);
 #endif
-              addSchemaOp(trans_ptr, missing_op_ptr);
               trans_ptr.p->ressurected_op = true;
               missing_op_ptr.p->m_state = op_state;
               nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
@@ -20637,6 +20555,7 @@ Dbdict::getTableEntry(const XSchemaFile * xsf, Uint32 tableId)
 const Dbdict::OpInfo
 Dbdict::CreateFileRec::g_opInfo = {
   { 'C', 'F', 'l', 0 },
+  ~RT_DBDICT_CREATE_FILE,
   GSN_CREATE_FILE_IMPL_REQ,
   CreateFileImplReq::SignalLength,
   //
@@ -21153,7 +21072,7 @@ Dbdict::createFile_prepare(Signal* signal, SchemaOpPtr op_ptr)
   }
 
   const OpSection& objInfoSec = getOpSection(op_ptr, 0);
-  writeTableFile(signal, impl_req->file_id, objInfoSec, &cb);
+  writeTableFile(signal, op_ptr, impl_req->file_id, objInfoSec, &cb);
 }
 
 void
@@ -21387,6 +21306,7 @@ Dbdict::execCREATE_FILE_IMPL_CONF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::CreateFilegroupRec::g_opInfo = {
   { 'C', 'F', 'G', 0 },
+  ~RT_DBDICT_CREATE_FILEGROUP,
   GSN_CREATE_FILEGROUP_IMPL_REQ,
   CreateFilegroupImplReq::SignalLength,
   //
@@ -21840,7 +21760,7 @@ Dbdict::createFilegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
   }
 
   const OpSection& objInfoSec = getOpSection(op_ptr, 0);
-  writeTableFile(signal, impl_req->filegroup_id, objInfoSec, &cb);
+  writeTableFile(signal, op_ptr, impl_req->filegroup_id, objInfoSec, &cb);
 }
 
 void
@@ -22000,6 +21920,7 @@ Dbdict::execCREATE_FILEGROUP_IMPL_CONF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::DropFileRec::g_opInfo = {
   { 'D', 'F', 'l', 0 },
+  ~RT_DBDICT_DROP_FILE,
   GSN_DROP_FILE_IMPL_REQ,
   DropFileImplReq::SignalLength,
   //
@@ -22357,6 +22278,7 @@ Dbdict::send_drop_file(Signal* signal, Uint32 op_key, Uint32 fileId,
 const Dbdict::OpInfo
 Dbdict::DropFilegroupRec::g_opInfo = {
   { 'D', 'F', 'g', 0 },
+  ~RT_DBDICT_DROP_FILEGROUP,
   GSN_DROP_FILEGROUP_IMPL_REQ,
   DropFilegroupImplReq::SignalLength,
   //
@@ -22784,6 +22706,7 @@ Dbdict::send_drop_fg(Signal* signal, Uint32 op_key, Uint32 filegroupId,
 const Dbdict::OpInfo
 Dbdict::CreateNodegroupRec::g_opInfo = {
   { 'C', 'N', 'G', 0 },
+  ~RT_DBDICT_CREATE_NODEGROUP,
   GSN_CREATE_NODEGROUP_IMPL_REQ,
   CreateNodegroupImplReq::SignalLength,
   //
@@ -23383,6 +23306,7 @@ Dbdict::execCREATE_HASH_MAP_CONF(Signal* signal)
 const Dbdict::OpInfo
 Dbdict::DropNodegroupRec::g_opInfo = {
   { 'D', 'N', 'G', 0 },
+  ~RT_DBDICT_DROP_NODEGROUP,
   GSN_DROP_NODEGROUP_IMPL_REQ,
   DropNodegroupImplReq::SignalLength,
   //
@@ -24063,7 +23987,7 @@ Dbdict::findOpInfo(Uint32 gsn)
 // OpSection
 
 bool
-Dbdict::copyIn(OpSection& op_sec, const SegmentedSectionPtr& ss_ptr)
+Dbdict::copyIn(OpSectionBufferPool& pool, OpSection& op_sec, const SegmentedSectionPtr& ss_ptr)
 {
   const Uint32 size = 1024;
   Uint32 buf[size];
@@ -24075,7 +23999,7 @@ Dbdict::copyIn(OpSection& op_sec, const SegmentedSectionPtr& ss_ptr)
   {
     jam();
     ndbrequire(reader.getWords(buf, size));
-    if (!copyIn(op_sec, buf, size))
+    if (!copyIn(pool, op_sec, buf, size))
     {
       jam();
       return false;
@@ -24084,7 +24008,7 @@ Dbdict::copyIn(OpSection& op_sec, const SegmentedSectionPtr& ss_ptr)
   }
 
   ndbrequire(reader.getWords(buf, len));
-  if (!copyIn(op_sec, buf, len))
+  if (!copyIn(pool, op_sec, buf, len))
   {
     jam();
     return false;
@@ -24094,9 +24018,9 @@ Dbdict::copyIn(OpSection& op_sec, const SegmentedSectionPtr& ss_ptr)
 }
 
 bool
-Dbdict::copyIn(OpSection& op_sec, const Uint32* src, Uint32 srcSize)
+Dbdict::copyIn(OpSectionBufferPool& pool, OpSection& op_sec, const Uint32* src, Uint32 srcSize)
 {
-  OpSectionBuffer buffer(c_opSectionBufferPool, op_sec.m_head);
+  OpSectionBuffer buffer(pool, op_sec.m_head);
   if (!buffer.append(src, srcSize)) {
     jam();
     return false;
@@ -24121,14 +24045,15 @@ Dbdict::copyOut(Dbdict::OpSectionBuffer & buffer,
 }
 
 bool
-Dbdict::copyOut(const OpSection& op_sec, SegmentedSectionPtr& ss_ptr)
+Dbdict::copyOut(OpSectionBufferPool& pool, const OpSection& op_sec, SegmentedSectionPtr& ss_ptr)
 {
   const Uint32 size = 1024;
   Uint32 buf[size];
 
   Uint32 len = op_sec.getSize();
   OpSectionBufferHead tmp_head = op_sec.m_head;
-  OpSectionBuffer buffer(c_opSectionBufferPool, tmp_head);
+
+  OpSectionBuffer buffer(pool, tmp_head);
 
   OpSectionBufferConstIterator iter;
   buffer.first(iter);
@@ -24169,7 +24094,7 @@ fail:
 }
 
 bool
-Dbdict::copyOut(const OpSection& op_sec, Uint32* dst, Uint32 dstSize)
+Dbdict::copyOut(OpSectionBufferPool& pool, const OpSection& op_sec, Uint32* dst, Uint32 dstSize)
 {
   if (op_sec.getSize() > dstSize) {
     jam();
@@ -24178,7 +24103,7 @@ Dbdict::copyOut(const OpSection& op_sec, Uint32* dst, Uint32 dstSize)
 
   // there is no const version of LocalDataBuffer
   OpSectionBufferHead tmp_head = op_sec.m_head;
-  OpSectionBuffer buffer(c_opSectionBufferPool, tmp_head);
+  OpSectionBuffer buffer(pool, tmp_head);
 
   OpSectionBufferConstIterator iter;
   Uint32 n = 0;
@@ -24192,9 +24117,9 @@ Dbdict::copyOut(const OpSection& op_sec, Uint32* dst, Uint32 dstSize)
 }
 
 void
-Dbdict::release(OpSection& op_sec)
+Dbdict::release(OpSectionBufferPool& pool, OpSection& op_sec)
 {
-  OpSectionBuffer buffer(c_opSectionBufferPool, op_sec.m_head);
+  OpSectionBuffer buffer(pool, op_sec.m_head);
   buffer.release();
 }
 
@@ -24210,7 +24135,7 @@ Dbdict::getOpInfo(SchemaOpPtr op_ptr)
 }
 
 bool
-Dbdict::seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info)
+Dbdict::seizeSchemaOp(SchemaTransPtr trans_ptr, SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info, bool linked)
 {
   if ((ERROR_INSERTED(6111) && 
        (info.m_impl_req_gsn == GSN_CREATE_TAB_REQ ||
@@ -24235,14 +24160,20 @@ Dbdict::seizeSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key, const OpInfo& info)
 
   if (!findSchemaOp(op_ptr, op_key)) {
     jam();
-    if (c_schemaOpHash.seize(op_ptr)) {
+    if (c_schemaOpPool.seize(trans_ptr.p->m_arena, op_ptr)) {
       jam();
       new (op_ptr.p) SchemaOp();
       op_ptr.p->op_key = op_key;
+      op_ptr.p->m_trans_ptr = trans_ptr;
       if ((this->*(info.m_seize))(op_ptr)) {
         jam();
+
+        if(!linked) {
+          jam();
+          addSchemaOp(op_ptr);
+        }
+
         c_schemaOpHash.add(op_ptr);
-        op_ptr.p->m_magic = SchemaOp::DICT_MAGIC;
         D("seizeSchemaOp" << V(op_key) << V(info.m_opType));
         return true;
       }
@@ -24294,8 +24225,9 @@ Dbdict::releaseSchemaOp(SchemaOpPtr& op_ptr)
   }
 
   ndbrequire(op_ptr.p->m_magic == SchemaOp::DICT_MAGIC);
-  op_ptr.p->m_magic = 0;
-  c_schemaOpHash.release(op_ptr);
+  c_schemaOpHash.remove(op_ptr);
+  c_schemaOpPool.release(op_ptr);
+  ndbrequire(op_ptr.p->m_magic == 0);
   op_ptr.setNull();
 }
 
@@ -24326,7 +24258,8 @@ Dbdict::saveOpSection(SchemaOpPtr op_ptr,
   OpSection& op_sec = op_ptr.p->m_section[ss_no];
   op_ptr.p->m_sections++;
 
-  bool ok = copyIn(op_sec, ss_ptr);
+  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  bool ok =  copyIn(op_sec_pool, op_sec, ss_ptr);
   ndbrequire(ok);
   return true;
 }
@@ -24336,19 +24269,19 @@ Dbdict::releaseOpSection(SchemaOpPtr op_ptr, Uint32 ss_no)
 {
   ndbrequire(ss_no + 1 == op_ptr.p->m_sections);
   OpSection& op_sec = op_ptr.p->m_section[ss_no];
-  release(op_sec);
+  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
+  release(op_sec_pool, op_sec);
   op_ptr.p->m_sections = ss_no;
 }
 
 // add schema op to trans during parse phase
 
 void
-Dbdict::addSchemaOp(SchemaTransPtr trans_ptr, SchemaOpPtr& op_ptr)
+Dbdict::addSchemaOp(SchemaOpPtr op_ptr)
 {
-  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
   list.addLast(op_ptr);
-
-  op_ptr.p->m_trans_ptr = trans_ptr;
 
   // jonas_todo REMOVE side effect
   // add global flags from trans
@@ -24526,7 +24459,7 @@ Dbdict::findDictObjectOp(SchemaOpPtr& op_ptr, DictObjectPtr obj_ptr)
     D("found" << *trans_ptr.p);
 
     {
-      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       SchemaOpPtr loop_ptr;
       list.first(loop_ptr);
       while (!loop_ptr.isNull()) {
@@ -24559,17 +24492,21 @@ Dbdict::seizeSchemaTrans(SchemaTransPtr& trans_ptr, Uint32 trans_key)
   }
   if (!findSchemaTrans(trans_ptr, trans_key)) {
     jam();
-    if (c_schemaTransHash.seize(trans_ptr)) {
+    ArenaHead arena;
+    bool ok = c_arenaAllocator.seize(arena);
+    ndbrequire(ok); // TODO: report error
+    if (c_schemaTransPool.seize(arena, trans_ptr)) {
       jam();
       new (trans_ptr.p) SchemaTrans();
       trans_ptr.p->trans_key = trans_key;
+      trans_ptr.p->m_arena = arena;
       c_schemaTransHash.add(trans_ptr);
       c_schemaTransList.addLast(trans_ptr);
       c_schemaTransCount++;
-      trans_ptr.p->m_magic = SchemaTrans::DICT_MAGIC;
       D("seizeSchemaTrans" << V(trans_key));
       return true;
     }
+    c_arenaAllocator.release(arena);
   }
   trans_ptr.setNull();
   return false;
@@ -24611,26 +24548,29 @@ Dbdict::releaseSchemaTrans(SchemaTransPtr& trans_ptr)
 {
   D("releaseSchemaTrans" << V(trans_ptr.p->trans_key));
 
-  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+  LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
   SchemaOpPtr op_ptr;
   while (list.first(op_ptr)) {
     list.remove(op_ptr);
     releaseSchemaOp(op_ptr);
   }
   ndbrequire(trans_ptr.p->m_magic == SchemaTrans::DICT_MAGIC);
-  trans_ptr.p->m_magic = 0;
   ndbrequire(c_schemaTransCount != 0);
   c_schemaTransCount--;
   c_schemaTransList.remove(trans_ptr);
-  c_schemaTransHash.release(trans_ptr);
+  c_schemaTransHash.remove(trans_ptr);
+  ArenaHead arena = trans_ptr.p->m_arena;
+  c_schemaTransPool.release(trans_ptr);
+  c_arenaAllocator.release(arena);
   trans_ptr.setNull();
 
   if (c_schemaTransCount == 0)
   {
     jam();
 
-    ndbrequire(c_schemaOpPool.getNoOfFree() == c_schemaOpPool.getSize());
-    ndbrequire(c_opSectionBufferPool.getNoOfFree() == c_opSectionBufferPool.getSize());
+    Resource_limit rl;
+    m_ctx.m_mm.get_resource_limit(RG_SCHEMA_TRANS_MEMORY, rl);
+    ndbrequire(rl.m_curr <= 1); // ArenaAllocator can keep one page for empty pool
 #ifdef VM_TRACE
     if (getNodeState().startLevel == NodeState::SL_STARTED)
       check_consistency();
@@ -25449,7 +25389,7 @@ Dbdict::trans_prepare_first(Signal* signal, SchemaTransPtr trans_ptr)
   {
     bool first;
     {
-      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       first = list.first(op_ptr);
     }
     if (first)
@@ -25485,7 +25425,7 @@ Dbdict::trans_prepare_next(Signal* signal,
   if (ERROR_INSERTED(6143))
   {
     jam();
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     if (!list.hasNext(op_ptr))
     {
       /*
@@ -25534,7 +25474,7 @@ Dbdict::trans_prepare_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   {
     bool next;
     {
-      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       next = list.next(op_ptr);
     }
     if (next)
@@ -25580,7 +25520,7 @@ Dbdict::trans_abort_parse_start(Signal* signal, SchemaTransPtr trans_ptr)
   SchemaOpPtr op_ptr;
   bool last = false;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     last =  list.last(op_ptr);
   }
 
@@ -25605,7 +25545,7 @@ Dbdict::trans_abort_parse_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
     SchemaOpPtr last_op = op_ptr;
     bool prev = false;
     {
-      LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+      LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       prev = list.prev(op_ptr);
       list.remove(last_op);         // Release aborted op
     }
@@ -25690,7 +25630,7 @@ Dbdict::trans_abort_parse_next(Signal* signal,
   if (ERROR_INSERTED(6144))
   {
     jam();
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     if (!list.hasNext(op_ptr))
     {
       /*
@@ -25737,7 +25677,7 @@ Dbdict::trans_abort_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
   bool last = false;
   SchemaOpPtr op_ptr;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     last = list.last(op_ptr);
   }
 
@@ -25765,7 +25705,7 @@ Dbdict::trans_abort_prepare_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 
   bool prev = false;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     prev = list.prev(op_ptr);
   }
 
@@ -25879,7 +25819,7 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
   if (ERROR_INSERTED(6145))
   {
     jam();
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     if (!list.hasPrev(op_ptr))
     {
       /*
@@ -25934,7 +25874,7 @@ Dbdict::trans_rollback_sp_start(Signal* signal, SchemaTransPtr trans_ptr)
   SchemaOpPtr op_ptr;
 
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     ndbrequire(list.last(op_ptr));
   }
 
@@ -25981,7 +25921,7 @@ Dbdict::trans_rollback_sp_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   }
 
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
 
     SchemaOpPtr last_op = op_ptr;
     ndbrequire(list.prev(op_ptr)); // Must have prev, as not SP
@@ -26013,7 +25953,7 @@ Dbdict::trans_rollback_sp_next(Signal* signal,
   if (ERROR_INSERTED(6144))
   {
     jam();
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     if (!list.hasPrev(op_ptr))
     {
       /*
@@ -26055,7 +25995,7 @@ Dbdict::trans_rollback_sp_done(Signal* signal,
   const OpInfo info = getOpInfo(op_ptr);
   (this->*(info.m_reply))(signal, op_ptr, error);
 
-  LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+  LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
   list.remove(op_ptr);
   releaseSchemaOp(op_ptr);
 
@@ -26292,7 +26232,7 @@ Dbdict::trans_commit_mutex_locked(Signal* signal,
   bool first = false;
   SchemaOpPtr op_ptr;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     first = list.first(op_ptr);
   }
 
@@ -26383,7 +26323,7 @@ Dbdict::trans_commit_next(Signal* signal,
 
   if (ERROR_INSERTED(6147))
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     if (!list.hasNext(op_ptr))
     {
       jam();
@@ -26454,7 +26394,7 @@ Dbdict::trans_commit_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 
   bool next = false;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     next = list.next(op_ptr);
   }
 
@@ -26630,7 +26570,7 @@ Dbdict::trans_complete_first(Signal * signal, SchemaTransPtr trans_ptr)
   bool first = false;
   SchemaOpPtr op_ptr;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     first = list.first(op_ptr);
   }
 
@@ -26708,7 +26648,7 @@ Dbdict::trans_complete_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 
   bool next = false;
   {
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     next = list.next(op_ptr);
   }
   
@@ -26795,7 +26735,7 @@ Dbdict::check_partial_trans_end_recv_reply(SchemaTransPtr trans_ptr)
      */
     jam();
     SchemaOpPtr op_ptr;
-    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
     list.remove(op_ptr);
 #ifdef VM_TRACE
     ndbout_c("Releasing ressurected op %u", op_ptr.p->op_key);
@@ -27114,7 +27054,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
         /**
          * Remove op (except at coordinator
          */
-        LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+        LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
         list.remove(op_ptr);
         releaseSchemaOp(op_ptr);
       }
@@ -27240,7 +27180,7 @@ Dbdict::slave_run_parse(Signal *signal,
       jam();
       setError(error, AlterTableRef::SingleUser, __LINE__);
     }
-    else if (seizeSchemaOp(op_ptr, op_key, info))
+    else if (seizeSchemaOp(trans_ptr, op_ptr, op_key, info))
     {
       jam();
 
@@ -27251,7 +27191,6 @@ Dbdict::slave_run_parse(Signal *signal,
       Uint32* dst = oprec_ptr.p->m_impl_req_data;
       memcpy(dst, src, len << 2);
 
-      addSchemaOp(trans_ptr, op_ptr);
       op_ptr.p->m_state = SchemaOp::OS_PARSING;
       (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
     } else {
@@ -28307,6 +28246,7 @@ ArrayPool<Hash2FragmentMap> g_hash_map;
 const Dbdict::OpInfo
 Dbdict::CreateHashMapRec::g_opInfo = {
   { 'C', 'H', 'M', 0 },
+  ~RT_DBDICT_CREATE_HASH_MAP,
   GSN_CREATE_HASH_MAP_REQ,
   CreateHashMapReq::SignalLength,
   //
@@ -28869,7 +28809,7 @@ Dbdict::createHashMap_prepare(Signal* signal, SchemaOpPtr op_ptr)
   cb.m_callbackFunction = safe_cast(&Dbdict::createHashMap_writeObjConf);
 
   const OpSection& tabInfoSec = getOpSection(op_ptr, 0);
-  writeTableFile(signal, impl_req->objectId, tabInfoSec, &cb);
+  writeTableFile(signal, op_ptr, impl_req->objectId, tabInfoSec, &cb);
 }
 
 void

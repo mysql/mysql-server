@@ -517,11 +517,11 @@ DLHashTableImpl<P, T, U>::find(Ptr<T> & ptr, const T & key) const
 
 // Specializations
 
-template <typename T, typename U = T>
-class DLHashTable : public DLHashTableImpl<ArrayPool<T>, T, U>
+template <typename T, typename U = T, typename P = ArrayPool<T> >
+class DLHashTable : public DLHashTableImpl<P, T, U>
 {
 public:
-  DLHashTable(ArrayPool<T> & p) : DLHashTableImpl<ArrayPool<T>, T, U>(p) {}
+  DLHashTable(P & p) : DLHashTableImpl<P, T, U>(p) {}
 };
 
 #endif
