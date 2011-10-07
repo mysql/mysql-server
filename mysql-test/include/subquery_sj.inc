@@ -4169,4 +4169,76 @@ DROP TABLE t0, t1, t2;
 
 --echo # End of test for bug#12867557
 
+--echo #
+--echo # Bug#12711441: crash in fix_after_pullout
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  col_int_key int DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key, col_int_key)
+);
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_int_key INT DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t4 (
+  col_int_nokey INT DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key)
+);
+
+CREATE TABLE ts
+  SELECT alias1.col_time_key AS field1
+  FROM v1 AS alias1
+       RIGHT JOIN t3 AS alias2
+       ON alias2.col_int_key = alias1.col_int_nokey
+  WHERE alias1.pk >= SOME(
+    SELECT SQ1_alias1.pk AS SQ1_field1
+    FROM t3 AS SQ1_alias1
+         INNER JOIN (t2 AS SQ1_alias2
+           INNER JOIN t4 AS SQ1_alias3
+           ON SQ1_alias3.col_varchar_key = SQ1_alias2.col_varchar_nokey)
+         ON SQ1_alias3.col_int_nokey = SQ1_alias2.col_int_key
+    WHERE SQ1_alias2.col_varchar_key <= alias1.col_varchar_key
+      AND SQ1_alias3.col_varchar_nokey <> alias1.col_varchar_key)
+;
+
+SELECT * FROM ts WHERE field1 IN (
+  SELECT alias1.col_time_key AS field1
+  FROM v1 AS alias1
+       RIGHT JOIN t3 AS alias2
+       ON alias2.col_int_key = alias1.col_int_nokey
+  WHERE alias1.pk >= SOME(
+    SELECT SQ1_alias1.pk AS SQ1_field1
+    FROM t3 AS SQ1_alias1
+         INNER JOIN (t2 AS SQ1_alias2
+           INNER JOIN t4 AS SQ1_alias3
+           ON SQ1_alias3.col_varchar_key = SQ1_alias2.col_varchar_nokey)
+          ON SQ1_alias3.col_int_nokey = SQ1_alias2.col_int_key
+    WHERE SQ1_alias2.col_varchar_key <= alias1.col_varchar_key
+      AND SQ1_alias3.col_varchar_nokey <> alias1.col_varchar_key)
+);
+
+DROP TABLE t1, t2, t3, t4, ts;
+DROP VIEW v1;
+
+--echo # End of test for bug#12711441.
+
 --echo # End of 5.6 tests
