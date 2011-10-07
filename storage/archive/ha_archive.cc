@@ -93,6 +93,11 @@
      inserts a lot faster, but would mean highly arbitrary reads.
 
     -Brian
+
+  Archive file format versions:
+  <5.1.5 - v.1
+  5.1.5-5.1.15 - v.2
+  >5.1.15 - v.3
 */
 
 /* Variables for archive share methods */
@@ -103,6 +108,14 @@ static HASH archive_open_tables;
 #define ARZ ".ARZ"               // The data file
 #define ARN ".ARN"               // Files used during an optimize call
 #define ARM ".ARM"               // Meta file (deprecated)
+
+/* 5.0 compatibility */
+#define META_V1_OFFSET_CHECK_HEADER  0
+#define META_V1_OFFSET_VERSION       1
+#define META_V1_OFFSET_ROWS_RECORDED 2
+#define META_V1_OFFSET_CHECK_POINT   10
+#define META_V1_OFFSET_CRASHED       18
+#define META_V1_LENGTH               19
 
 /*
   uchar + uchar
@@ -281,6 +294,106 @@ err:
   DBUG_RETURN(1);
 }
 
+
+/**
+  @brief Read version 1 meta file (5.0 compatibility routine).
+
+  @return Completion status
+    @retval  0 Success
+    @retval !0 Failure
+*/
+
+int ha_archive::read_v1_metafile()
+{
+  char file_name[FN_REFLEN];
+  uchar buf[META_V1_LENGTH];
+  File fd;
+  DBUG_ENTER("ha_archive::read_v1_metafile");
+
+  fn_format(file_name, share->data_file_name, "", ARM, MY_REPLACE_EXT);
+  if ((fd= my_open(file_name, O_RDONLY, MYF(0))) == -1)
+    DBUG_RETURN(-1);
+
+  if (my_read(fd, buf, sizeof(buf), MYF(0)) != sizeof(buf))
+  {
+    my_close(fd, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  
+  share->rows_recorded= uint8korr(buf + META_V1_OFFSET_ROWS_RECORDED);
+  share->crashed= buf[META_V1_OFFSET_CRASHED];
+  my_close(fd, MYF(0));
+  DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Write version 1 meta file (5.0 compatibility routine).
+
+  @return Completion status
+    @retval  0 Success
+    @retval !0 Failure
+*/
+
+int ha_archive::write_v1_metafile()
+{
+  char file_name[FN_REFLEN];
+  uchar buf[META_V1_LENGTH];
+  File fd;
+  DBUG_ENTER("ha_archive::write_v1_metafile");
+
+  buf[META_V1_OFFSET_CHECK_HEADER]= ARCHIVE_CHECK_HEADER;
+  buf[META_V1_OFFSET_VERSION]= 1;
+  int8store(buf + META_V1_OFFSET_ROWS_RECORDED, share->rows_recorded);
+  int8store(buf + META_V1_OFFSET_CHECK_POINT, (ulonglong) 0);
+  buf[META_V1_OFFSET_CRASHED]= share->crashed;
+  
+  fn_format(file_name, share->data_file_name, "", ARM, MY_REPLACE_EXT);
+  if ((fd= my_open(file_name, O_WRONLY, MYF(0))) == -1)
+    DBUG_RETURN(-1);
+
+  if (my_write(fd, buf, sizeof(buf), MYF(0)) != sizeof(buf))
+  {
+    my_close(fd, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  
+  my_close(fd, MYF(0));
+  DBUG_RETURN(0);
+}
+
+
+/**
+  @brief Pack version 1 row (5.0 compatibility routine).
+
+  @param[in]  record  the record to pack
+
+  @return Length of packed row
+*/
+
+unsigned int ha_archive::pack_row_v1(uchar *record)
+{
+  uint *blob, *end;
+  uchar *pos;
+  DBUG_ENTER("pack_row_v1");
+  memcpy(record_buffer->buffer, record, table->s->reclength);
+  pos= record_buffer->buffer + table->s->reclength;
+  for (blob= table->s->blob_field, end= blob + table->s->blob_fields;
+       blob != end; blob++)
+  {
+    uint32 length= ((Field_blob *) table->field[*blob])->get_length();
+    if (length)
+    {
+      uchar *data_ptr;
+      ((Field_blob *) table->field[*blob])->get_ptr(&data_ptr);
+      memcpy(pos, data_ptr, length);
+      pos+= length;
+    }
+  }
+  DBUG_RETURN(pos - record_buffer->buffer);
+}
+
+
 /*
   This method reads the header of a datafile and returns whether or not it was successful.
 */
@@ -390,12 +503,8 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
     share->rows_recorded= (ha_rows)archive_tmp.rows;
     share->crashed= archive_tmp.dirty;
-    /*
-      If archive version is less than 3, It should be upgraded before
-      use.
-    */
-    if (archive_tmp.version < ARCHIVE_VERSION)
-      *rc= HA_ERR_TABLE_NEEDS_UPGRADE;
+    if (archive_tmp.version == 1)
+      read_v1_metafile();
     azclose(&archive_tmp);
 
     (void) my_hash_insert(&archive_open_tables, (uchar*) share);
@@ -441,6 +550,8 @@ int ha_archive::free_share()
     */
     if (share->archive_write_open)
     {
+      if (share->archive_write.version == 1)
+        write_v1_metafile();
       if (azclose(&(share->archive_write)))
         rc= 1;
     }
@@ -527,13 +638,7 @@ int ha_archive::open(const char *name, int mode, uint open_options)
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
   share= get_share(name, &rc);
 
- /*
-    Allow open on crashed table in repair mode only.
-    Block open on 5.0 ARCHIVE table. Though we have almost all
-    routines to access these tables, they were not well tested.
-    For now we have to refuse to open such table to avoid
-    potential data loss.
-  */
+  /* Allow open on crashed table in repair mode only. */
   switch (rc)
   {
   case 0:
@@ -541,8 +646,6 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   case HA_ERR_CRASHED_ON_USAGE:
     if (open_options & HA_OPEN_FOR_REPAIR)
       break;
-    /* fall through */
-  case HA_ERR_TABLE_NEEDS_UPGRADE:
     free_share();
     /* fall through */
   default:
@@ -610,11 +713,40 @@ int ha_archive::close(void)
 }
 
 
+void ha_archive::frm_load(const char *name, azio_stream *dst)
+{
+  char name_buff[FN_REFLEN];
+  MY_STAT file_stat;
+  File frm_file;
+  uchar *frm_ptr;
+  DBUG_ENTER("ha_archive::frm_load");
+  fn_format(name_buff, name, "", ".frm", MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+
+  /* Here is where we open up the frm and pass it to archive to store */
+  if ((frm_file= my_open(name_buff, O_RDONLY, MYF(0))) >= 0)
+  {
+    if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
+    {
+      frm_ptr= (uchar *) my_malloc(sizeof(uchar) * file_stat.st_size, MYF(0));
+      if (frm_ptr)
+      {
+        if (my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0)) ==
+            (size_t) file_stat.st_size)
+          azwrite_frm(dst, (char *) frm_ptr, file_stat.st_size);
+        my_free(frm_ptr);
+      }
+    }
+    my_close(frm_file, MYF(0));
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /**
   Copy a frm blob between streams.
 
-  @param  src   The source stream.
-  @param  dst   The destination stream.
+  @param[in]  src   The source stream.
+  @param[in]  dst   The destination stream.
 
   @return Zero on success, non-zero otherwise.
 */
@@ -623,6 +755,13 @@ int ha_archive::frm_copy(azio_stream *src, azio_stream *dst)
 {
   int rc= 0;
   char *frm_ptr;
+
+  /* If there is no .frm in source stream, try to read .frm from file. */
+  if (!src->frm_length)
+  {
+    frm_load(table->s->normalized_path.str, dst);
+    return 0;
+  }
 
   if (!(frm_ptr= (char *) my_malloc(src->frm_length, MYF(0))))
     return HA_ERR_OUT_OF_MEM;
@@ -654,9 +793,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   char linkname[FN_REFLEN];
   int error;
   azio_stream create_stream;            /* Archive file we are working with */
-  File frm_file;                   /* File handler for readers */
   MY_STAT file_stat;  // Stat information for the data file
-  uchar *frm_ptr;
 
   DBUG_ENTER("ha_archive::create");
 
@@ -716,26 +853,8 @@ int ha_archive::create(const char *name, TABLE *table_arg,
 
     if (linkname[0])
       my_symlink(name_buff, linkname, MYF(0));
-    fn_format(name_buff, name, "", ".frm",
-              MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
-    /*
-      Here is where we open up the frm and pass it to archive to store 
-    */
-    if ((frm_file= my_open(name_buff, O_RDONLY, MYF(0))) > 0)
-    {
-      if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
-      {
-        frm_ptr= (uchar *)my_malloc(sizeof(uchar) * file_stat.st_size, MYF(0));
-        if (frm_ptr)
-        {
-          my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
-          azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
-          my_free(frm_ptr);
-        }
-      }
-      my_close(frm_file, MYF(0));
-    }
+    frm_load(name, &create_stream);
 
     if (create_info->comment.str)
       azwrite_comment(&create_stream, create_info->comment.str, 
@@ -828,6 +947,9 @@ unsigned int ha_archive::pack_row(uchar *record)
 
   if (fix_rec_buff(max_row_length(record)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
+
+  if (share->archive_write.version == 1)
+    DBUG_RETURN(pack_row_v1(record));
 
   /* Copy null bits */
   memcpy(record_buffer->buffer+ARCHIVE_ROW_HEADER_SIZE, 
@@ -1382,6 +1504,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   // now we close both our writer and our reader for the rename
   if (share->archive_write_open)
   {
+    if (share->archive_write.version == 1)
+      write_v1_metafile();
     azclose(&(share->archive_write));
     share->archive_write_open= FALSE;
   }
@@ -1664,6 +1788,29 @@ bool ha_archive::is_crashed() const
   DBUG_RETURN(share->crashed); 
 }
 
+
+/**
+  @brief Check for upgrade
+
+  @param[in]  check_opt  check options
+
+  @return Completion status
+    @retval HA_ADMIN_OK            No upgrade required
+    @retval HA_ADMIN_CORRUPT       Cannot read meta-data
+    @retval HA_ADMIN_NEEDS_UPGRADE Upgrade required
+*/
+
+int ha_archive::check_for_upgrade(HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("ha_archive::check_for_upgrade");
+  if (init_archive_reader())
+    DBUG_RETURN(HA_ADMIN_CORRUPT);
+  if (archive.version < ARCHIVE_VERSION)
+    DBUG_RETURN(HA_ADMIN_NEEDS_UPGRADE);
+  DBUG_RETURN(HA_ADMIN_OK);
+}
+
+
 /*
   Simple scan of the tables to make sure everything is ok.
 */
@@ -1677,9 +1824,12 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
 
   old_proc_info= thd_proc_info(thd, "Checking table");
   /* Flush any waiting data */
-  mysql_mutex_lock(&share->mutex);
-  azflush(&(share->archive_write), Z_SYNC_FLUSH);
-  mysql_mutex_unlock(&share->mutex);
+  if (share->archive_write_open)
+  {
+    mysql_mutex_lock(&share->mutex);
+    azflush(&(share->archive_write), Z_SYNC_FLUSH);
+    mysql_mutex_unlock(&share->mutex);
+  }
 
   if (init_archive_reader())
     DBUG_RETURN(HA_ADMIN_CORRUPT);
