@@ -101,6 +101,7 @@ struct view {
     "  WHEN 6 THEN \"TRANSPORTER_BUFFERS\""
     "  WHEN 7 THEN \"DISK_PAGE_BUFFER\""
     "  WHEN 8 THEN \"QUERY_MEMORY\""
+    "  WHEN 9 THEN \"SCHEMA_TRANS_MEMORY\""
     "  ELSE \"<unknown>\" "
     " END AS resource_name, "
     "reserved, used, max "
