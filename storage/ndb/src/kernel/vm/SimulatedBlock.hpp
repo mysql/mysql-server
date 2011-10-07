@@ -634,7 +634,9 @@ private:
    * In MT LQH main instance is the LQH proxy and the others ("workers")
    * are real LQHs run by multiple threads.
    */
-  enum { MaxInstances = 1 + MAX_NDBMT_LQH_WORKERS + 1 }; // main+lqh+extra
+protected:
+  enum { MaxInstances = 3 + MAX_NDBMT_TC_THREADS + MAX_NDBMT_LQH_WORKERS + 1 };
+private:
   SimulatedBlock** theInstanceList; // set in main, indexed by instance
   SimulatedBlock* theMainInstance;  // set in all
   /*

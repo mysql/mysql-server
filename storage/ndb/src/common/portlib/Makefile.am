@@ -22,7 +22,8 @@ libportlib_la_SOURCES = \
 	NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp	    \
 	ndb_daemon.cc NdbMem.c \
 	NdbConfig.c NdbDir.cpp ndb_socket.cpp \
-        NdbMutex_DeadlockDetector.cpp
+        NdbMutex_DeadlockDetector.cpp \
+        NdbGetRUsage.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am

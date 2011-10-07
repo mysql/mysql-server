@@ -29,13 +29,12 @@
 */
 extern Uint32 receiverThreadId;
 
+Uint32 mt_get_instance_count(Uint32 block);
+
 /* Assign block instances to thread */
-void add_thr_map(Uint32 block, Uint32 instance, Uint32 thr_no);
-void add_main_thr_map();
-void add_lqh_worker_thr_map(Uint32 block, Uint32 instance);
-void add_tc_worker_thr_map(Uint32 block, Uint32 instance);
-void add_extra_worker_thr_map(Uint32 block, Uint32 instance);
-void finalize_thr_map();
+void mt_init_thr_map();
+void mt_add_thr_map(Uint32 block, Uint32 instance);
+void mt_finalize_thr_map();
 
 void sendlocal(Uint32 self, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
@@ -86,5 +85,29 @@ void mt_wakeup(class SimulatedBlock*);
  */
 void mt_assert_own_thread(class SimulatedBlock*);
 #endif
+
+/**
+ * return list of references running in this thread
+ */
+Uint32
+mt_get_blocklist(class SimulatedBlock*, Uint32 dst[], Uint32 len);
+
+
+struct ndb_thr_stat
+{
+  Uint32 thr_no;
+  Uint64 os_tid;
+  const char * name;
+  Uint64 loop_cnt;
+  Uint64 exec_cnt;
+  Uint64 wait_cnt;
+  Uint64 local_sent_prioa;
+  Uint64 local_sent_priob;
+  Uint64 remote_sent_prioa;
+  Uint64 remote_sent_priob;
+};
+
+void
+mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst);
 
 #endif
