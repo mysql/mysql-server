@@ -72,11 +72,11 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 
 //#define NDB_MT_LOCK_TO_CPU
 
-#define MAX_BLOCK_INSTANCES (1 + MAX_NDBMT_LQH_WORKERS + 1) //main+lqh+extra
 #define NUM_MAIN_THREADS 2 // except receiver
 #define MAX_THREADS (NUM_MAIN_THREADS +       \
                      MAX_NDBMT_LQH_THREADS +  \
                      MAX_NDBMT_TC_THREADS + 1)
+#define MAX_BLOCK_INSTANCES (MAX_THREADS)
 
 /* If this is too small it crashes before first signal. */
 #define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
@@ -876,10 +876,16 @@ struct thr_data
   /* Watchdog counter for this thread. */
   Uint32 m_watchdog_counter;
   /* Signal delivery statistics. */
-  Uint32 m_prioa_count;
-  Uint32 m_prioa_size;
-  Uint32 m_priob_count;
-  Uint32 m_priob_size;
+  struct
+  {
+    Uint64 m_loop_cnt;
+    Uint64 m_exec_cnt;
+    Uint64 m_wait_cnt;
+    Uint64 m_prioa_count;
+    Uint64 m_prioa_size;
+    Uint64 m_priob_count;
+    Uint64 m_priob_size;
+  } m_stat;
 
   /* Array of node ids with pending remote send data. */
   Uint8 m_pending_send_nodes[MAX_NTRANSPORTERS];
@@ -2592,7 +2598,7 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
 
 /* Static assignment of main instances (before first signal). */
 void
-add_main_thr_map()
+mt_init_thr_map()
 {
   /* Keep mt-classic assignments in MT LQH. */
   const Uint32 thr_GLOBAL = 0;
@@ -2620,33 +2626,72 @@ add_main_thr_map()
   add_thr_map(RESTORE, 0, thr_LOCAL);
   add_thr_map(DBINFO, 0, thr_LOCAL);
   add_thr_map(DBSPJ, 0, thr_GLOBAL);
+  add_thr_map(THRMAN, 0, thr_GLOBAL);
 }
 
-/* Workers added by LocalProxy (before first signal). */
-void
-add_lqh_worker_thr_map(Uint32 block, Uint32 instance)
+Uint32
+mt_get_instance_count(Uint32 block)
 {
-  require(instance != 0);
-  Uint32 i = instance - 1;
-  Uint32 thr_no = NUM_MAIN_THREADS + i % num_lqh_threads;
-  add_thr_map(block, instance, thr_no);
+  switch(block){
+  case DBLQH:
+  case DBACC:
+  case DBTUP:
+  case DBTUX:
+  case BACKUP:
+  case RESTORE:
+    return globalData.ndbMtLqhWorkers;
+    break;
+  case PGMAN:
+    return globalData.ndbMtLqhWorkers + 1;
+    break;
+  case DBTC:
+  case DBSPJ:
+    return globalData.ndbMtTcThreads;
+    break;
+  case THRMAN:
+    return num_threads;
+  default:
+    require(false);
+  }
+  return 0;
 }
 
 void
-add_tc_worker_thr_map(Uint32 block, Uint32 instance)
+mt_add_thr_map(Uint32 block, Uint32 instance)
 {
   require(instance != 0);
-  Uint32 i = instance - 1;
-  Uint32 thr_no = NUM_MAIN_THREADS + num_lqh_threads + i;
-  add_thr_map(block, instance, thr_no);
-}
+  Uint32 thr_no = NUM_MAIN_THREADS;
+  switch(block){
+  case DBLQH:
+  case DBACC:
+  case DBTUP:
+  case DBTUX:
+  case BACKUP:
+  case RESTORE:
+    thr_no += (instance - 1) % num_lqh_threads;
+    break;
+  case PGMAN:
+    if (instance == num_lqh_threads + 1)
+    {
+      // Put extra PGMAN together with it's Proxy
+      thr_no = block2ThreadId(block, 0);
+    }
+    else
+    {
+      thr_no += (instance - 1) % num_lqh_threads;
+    }
+    break;
+  case DBTC:
+  case DBSPJ:
+    thr_no += num_lqh_threads + (instance - 1);
+    break;
+  case THRMAN:
+    thr_no = instance - 1;
+    break;
+  default:
+    require(false);
+  }
 
-/* Extra workers run`in proxy thread. */
-void
-add_extra_worker_thr_map(Uint32 block, Uint32 instance)
-{
-  require(instance != 0);
-  Uint32 thr_no = block2ThreadId(block, 0);
   add_thr_map(block, instance, thr_no);
 }
 
@@ -2661,7 +2706,7 @@ add_extra_worker_thr_map(Uint32 block, Uint32 instance)
  * NOTE: extra pgman worker is instance 5
  */
 void
-finalize_thr_map()
+mt_finalize_thr_map()
 {
   for (Uint32 b = 0; b < NO_OF_BLOCKS; b++)
   {
@@ -2691,60 +2736,6 @@ finalize_thr_map()
         }
       }
     }
-  }
-}
-
-static void reportSignalStats(Uint32 self, Uint32 a_count, Uint32 a_size,
-                              Uint32 b_count, Uint32 b_size)
-{
-  SignalT<6> sT;
-  Signal *s= new (&sT) Signal(0);
-
-  memset(&s->header, 0, sizeof(s->header));
-  s->header.theLength = 6;
-  s->header.theSendersSignalId = 0;
-  s->header.theSendersBlockRef = numberToRef(0, 0);
-  s->header.theVerId_signalNumber = GSN_EVENT_REP;
-  s->header.theReceiversBlockNumber = CMVMI;
-  s->theData[0] = NDB_LE_MTSignalStatistics;
-  s->theData[1] = self;
-  s->theData[2] = a_count;
-  s->theData[3] = a_size;
-  s->theData[4] = b_count;
-  s->theData[5] = b_size;
-  /* ToDo: need this really be prio A like in old code? */
-  sendlocal(self, &s->header, s->theData,
-            NULL);
-}
-
-static inline void
-update_sched_stats(thr_data *selfptr)
-{
-  if(selfptr->m_prioa_count + selfptr->m_priob_count >= 2000000)
-  {
-    reportSignalStats(selfptr->m_thr_no,
-                      selfptr->m_prioa_count,
-                      selfptr->m_prioa_size,
-                      selfptr->m_priob_count,
-                      selfptr->m_priob_size);
-    selfptr->m_prioa_count = 0;
-    selfptr->m_prioa_size = 0;
-    selfptr->m_priob_count = 0;
-    selfptr->m_priob_size = 0;
-
-#if 0
-    Uint32 thr_no = selfptr->m_thr_no;
-    ndbout_c("--- %u fifo: %u jba: %u global: %u",
-             thr_no,
-             fifo_used_pages(selfptr),
-             selfptr->m_jba_head.used(),
-             g_thr_repository.m_free_list.m_cnt);
-    for (Uint32 i = 0; i<num_threads; i++)
-    {
-      ndbout_c("  %u-%u : %u",
-               thr_no, i, selfptr->m_in_queue_head[i].used());
-    }
-#endif
   }
 }
 
@@ -2854,8 +2845,6 @@ mt_receiver_thread_main(void *thr_arg)
   { 
     static int cnt = 0;
 
-    update_sched_stats(selfptr);
-
     if (cnt == 0)
     {
       watchDogCounter = 5;
@@ -2892,6 +2881,8 @@ mt_receiver_thread_main(void *thr_arg)
         has_received = true;
       }
     }
+    selfptr->m_stat.m_loop_cnt++;
+    selfptr->m_stat.m_exec_cnt += sum;
   }
 
   globalEmulatorData.theWatchDog->unregisterWatchedThread(thr_no);
@@ -3028,14 +3019,14 @@ mt_job_thread_main(void *thr_arg)
 
   Uint32 pending_send = 0;
   Uint32 send_sum = 0;
-  int loops = 0;
-  int maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
+  Uint32 loops = 0;
+  Uint32 maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
+  Uint32 waits = 0;
   NDB_TICKS now = selfptr->m_time;
 
   while (globalData.theRestartFlag != perform_stop)
   { 
     loops++;
-    update_sched_stats(selfptr);
 
     watchDogCounter = 2;
     scan_time_queues(selfptr, now);
@@ -3080,9 +3071,12 @@ mt_job_thread_main(void *thr_arg)
                             selfptr);
         if (waited)
         {
+          waits++;
           /* Update current time after sleeping */
           now = NdbTick_CurrentMillisecond();
-          loops = 0;
+          selfptr->m_stat.m_wait_cnt += waits;
+          selfptr->m_stat.m_loop_cnt += loops;
+          waits = loops = 0;
         }
       }
     }
@@ -3097,7 +3091,9 @@ mt_job_thread_main(void *thr_arg)
       {
         /* Update current time after sleeping */
         now = NdbTick_CurrentMillisecond();
-        loops = 0;
+        selfptr->m_stat.m_wait_cnt += waits;
+        selfptr->m_stat.m_loop_cnt += loops;
+        waits = loops = 0;
       }
     }
     else
@@ -3120,8 +3116,11 @@ mt_job_thread_main(void *thr_arg)
       else if (diff > 1 && maxloops > 1)
         maxloops -= ((maxloops/10) + 1); /* Overslept: Need more frequent read*/
 
-      loops = 0;
+      selfptr->m_stat.m_wait_cnt += waits;
+      selfptr->m_stat.m_loop_cnt += loops;
+      waits = loops = 0;
     }
+    selfptr->m_stat.m_exec_cnt += sum;
   }
 
   globalEmulatorData.theWatchDog->unregisterWatchedThread(thr_no);
@@ -3150,9 +3149,9 @@ sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
   assert(pthread_equal(selfptr->m_thr_id, pthread_self()));
   struct thr_data * dstptr = rep->m_thread + dst;
 
-  selfptr->m_priob_count++;
+  selfptr->m_stat.m_priob_count++;
   Uint32 siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
-  selfptr->m_priob_size += siglen;
+  selfptr->m_stat.m_priob_size += siglen;
 
   thr_job_queue *q = dstptr->m_in_queue + self;
   thr_jb_write_state *w = selfptr->m_write_states + dst;
@@ -3178,9 +3177,9 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
          pthread_equal(selfptr->m_thr_id, pthread_self()));
   struct thr_data *dstptr = rep->m_thread + dst;
 
-  selfptr->m_prioa_count++;
+  selfptr->m_stat.m_prioa_count++;
   Uint32 siglen = (sizeof(*s) >> 2) + s->theLength + s->m_noOfSections;
-  selfptr->m_prioa_size += siglen;  
+  selfptr->m_stat.m_prioa_size += siglen;
 
   thr_job_queue *q = &(dstptr->m_jba);
   thr_jb_write_state w;
@@ -3359,10 +3358,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   }
   queue_init(&selfptr->m_tq);
 
-  selfptr->m_prioa_count = 0;
-  selfptr->m_prioa_size = 0;
-  selfptr->m_priob_count = 0;
-  selfptr->m_priob_size = 0;
+  bzero(&selfptr->m_stat, sizeof(selfptr->m_stat));
 
   selfptr->m_pending_send_count = 0;
   selfptr->m_pending_send_mask.clear();
@@ -4085,6 +4081,40 @@ mt_assert_own_thread(SimulatedBlock* block)
   }
 }
 #endif
+
+
+Uint32
+mt_get_blocklist(SimulatedBlock * block, Uint32 arr[], Uint32 len)
+{
+  Uint32 thr_no = block->getThreadId();
+  thr_data *thr_ptr = g_thr_repository.m_thread + thr_no;
+
+  for (Uint32 i = 0; i < thr_ptr->m_instance_count; i++)
+  {
+    arr[i] = thr_ptr->m_instance_list[i];
+  }
+
+  return thr_ptr->m_instance_count;
+}
+
+void
+mt_get_thr_stat(class SimulatedBlock * block, ndb_thr_stat* dst)
+{
+  bzero(dst, sizeof(* dst));
+  Uint32 thr_no = block->getThreadId();
+  thr_data *selfptr = g_thr_repository.m_thread + thr_no;
+
+  THRConfigApplier & conf = globalEmulatorData.theConfiguration->m_thr_config;
+  dst->thr_no = thr_no;
+  dst->name = conf.getName(selfptr->m_instance_list, selfptr->m_instance_count);
+  dst->os_tid = NdbThread_GetTid(selfptr->m_thread);
+  dst->loop_cnt = selfptr->m_stat.m_loop_cnt;
+  dst->exec_cnt = selfptr->m_stat.m_exec_cnt;
+  dst->wait_cnt = selfptr->m_stat.m_wait_cnt;
+  dst->local_sent_prioa = selfptr->m_stat.m_prioa_count;
+  dst->local_sent_priob = selfptr->m_stat.m_priob_count;
+}
+
 
 /**
  * Global data
