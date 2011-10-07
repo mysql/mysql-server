@@ -106,9 +106,6 @@ operator<<(NdbOut& out, Dbtc::ConnectionState state){
   case Dbtc::CS_DISCONNECTED: out << "CS_DISCONNECTED"; break;
   case Dbtc::CS_STARTED: out << "CS_STARTED"; break;
   case Dbtc::CS_RECEIVING: out << "CS_RECEIVING"; break;
-  case Dbtc::CS_PREPARED: out << "CS_PREPARED"; break;
-  case Dbtc::CS_START_PREPARING: out << "CS_START_PREPARING"; break;
-  case Dbtc::CS_REC_PREPARING: out << "CS_REC_PREPARING"; break;
   case Dbtc::CS_RESTART: out << "CS_RESTART"; break;
   case Dbtc::CS_ABORTING: out << "CS_ABORTING"; break;
   case Dbtc::CS_COMPLETING: out << "CS_COMPLETING"; break;
@@ -1054,17 +1051,6 @@ Dbtc::handleFailedApiNode(Signal* signal,
         capiConnectClosing[TapiFailedNode]++;
         abort010Lab(signal);
         TloopCount = 256;
-        break;
-      case CS_PREPARED:
-        jam();
-      case CS_REC_PREPARING:
-        jam();
-      case CS_START_PREPARING:
-        jam();
-        /*********************************************************************/
-        // Not implemented yet.
-        /*********************************************************************/
-        systemErrorLab(signal, __LINE__);
         break;
       case CS_RESTART:
         jam();
@@ -6582,16 +6568,6 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
       /***********************************************************************/
       errorCode = ZSCANINPROGRESS;
       break;
-    case CS_PREPARED:
-      jam();
-      return;
-    case CS_START_PREPARING:
-      jam();
-      return;
-    case CS_REC_PREPARING:
-      jam();
-      return;
-      break;
     default:
       warningHandlerLab(signal, __LINE__);
       return;
@@ -6709,12 +6685,6 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
     jam();
     apiConnectptr.p->returnsignal = RS_TCROLLBACKCONF;
     break;
-  case CS_START_PREPARING:
-    jam();
-  case CS_PREPARED:
-    jam();
-  case CS_REC_PREPARING:
-    jam();
   default:
     goto TC_ROLL_system_error;
     break;
@@ -7738,12 +7708,6 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   case CS_FAIL_COMMITTING:
     jam();
   case CS_FAIL_COMMITTED:
-    jam();
-  case CS_REC_PREPARING:
-    jam();
-  case CS_START_PREPARING:
-    jam();
-  case CS_PREPARED:
     jam();
   case CS_RESTART:
     jam();
@@ -13324,12 +13288,123 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
 
     break;
   }
+  case Ndbinfo::TRANSACTIONS_TABLEID:{
+    ApiConnectRecordPtr ptr;
+    ptr.i = cursor->data[0];
+    const Uint32 maxloop = 256;
+    for (Uint32 i = 0; i < maxloop; i++)
+    {
+      ptrCheckGuard(ptr, capiConnectFilesize, apiConnectRecord);
+      ndbinfo_write_trans(signal, &req, &rl, ptr);
 
+      ptr.i ++;
+      if (ptr.i == capiConnectFilesize)
+      {
+        goto done;
+      }
+      else if (rl.need_break(req))
+      {
+        break;
+      }
+    }
+    ndbinfo_send_scan_break(signal, req, rl, ptr.i);
+    return;
+  }
   default:
     break;
   }
 
+done:
   ndbinfo_send_scan_conf(signal, req, rl);
+}
+
+void
+Dbtc::ndbinfo_write_trans(Signal* signal,
+                          DbinfoScanReq * req,
+                          Ndbinfo::Ratelimit * rl,
+                          ApiConnectRecordPtr transPtr)
+{
+  Uint32 conState = transPtr.p->apiConnectstate;
+
+  if (conState == CS_ABORTING && transPtr.p->abortState == AS_IDLE)
+  {
+    /**
+     * These is for all practical purposes equal
+     */
+    conState = CS_CONNECTED;
+  }
+
+  if (conState == CS_CONNECTED ||
+      conState == CS_DISCONNECTED ||
+      conState == CS_RESTART)
+  {
+    return;
+  }
+
+  char transid[64];
+  BaseString::snprintf(transid, sizeof(transid),
+                       "%.8x.%.8x",
+                       transPtr.p->transid[0],
+                       transPtr.p->transid[1]);
+
+  Ndbinfo::Row row(signal, *req);
+  row.write_uint32(getOwnNodeId());
+  row.write_uint32(instance());   // block instance
+  row.write_uint32(transPtr.i);
+  row.write_uint32(transPtr.p->ndbapiBlockref);
+  row.write_string(transid);
+  row.write_uint32(conState);
+  row.write_uint32(transPtr.p->m_flags);
+  row.write_uint32(transPtr.p->lqhkeyreqrec);
+  Uint32 outstanding = 0;
+  switch((ConnectionState)conState) {
+  case CS_CONNECTED:
+  case CS_DISCONNECTED:
+    break;
+  case CS_STARTED:
+  case CS_RECEIVING:
+  case CS_REC_COMMITTING:
+  case CS_START_COMMITTING:
+  case CS_SEND_FIRE_TRIG_REQ:
+  case CS_WAIT_FIRE_TRIG_REQ:
+    outstanding = transPtr.p->lqhkeyreqrec - transPtr.p->lqhkeyconfrec;
+    break;
+  case CS_COMMITTING:
+  case CS_COMPLETING:
+  case CS_COMMIT_SENT:
+  case CS_COMPLETE_SENT:
+  case CS_ABORTING:
+    outstanding = transPtr.p->counter;
+    break;
+  case CS_PREPARE_TO_COMMIT:
+    break;
+  case CS_START_SCAN:
+    // TODO
+    break;
+  case CS_WAIT_ABORT_CONF:
+  case CS_WAIT_COMMIT_CONF:
+  case CS_WAIT_COMPLETE_CONF:
+    // not easily computed :-(
+    break;
+  case CS_FAIL_PREPARED:
+  case CS_FAIL_ABORTED:
+    // we're assembling a state...
+    break;
+  case CS_FAIL_COMMITTING:
+  case CS_FAIL_COMMITTED:
+  case CS_FAIL_ABORTING:
+  case CS_FAIL_COMPLETED:
+    // not easily computed :_(
+    break;
+  case CS_RESTART:
+    break;
+  }
+
+  row.write_uint32(outstanding);
+
+  Uint32 apiTimer = getApiConTimer(transPtr.i);
+  row.write_uint32(apiTimer ? (ctcTimer - apiTimer) / 100 : 0);
+  ndbinfo_send_row(signal, *req, row, *rl);
 }
 
 bool
@@ -13464,9 +13539,6 @@ Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
   case CS_FAIL_PREPARED:
   case CS_FAIL_COMMITTING:
   case CS_FAIL_COMMITTED:
-  case CS_REC_PREPARING:
-  case CS_START_PREPARING:
-  case CS_PREPARED:
   case CS_RESTART:
   case CS_FAIL_ABORTED:
   case CS_DISCONNECTED:

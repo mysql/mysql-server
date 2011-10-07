@@ -124,6 +124,7 @@ class THRConfigApplier : public THRConfig
 public:
   int create_cpusets();
 
+  const char * getName(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const unsigned short list[], unsigned cnt) const;
   int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
   int do_bind_io(NdbThread*);
