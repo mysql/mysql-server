@@ -6592,3 +6592,7 @@ ER_PLUGIN_NO_UNINSTALL
 
 ER_PLUGIN_NO_INSTALL
   eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
+
+ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
+  eng "FULLTEXT index is not supported for partitioned tables."
+  swe "FULLTEXT index stöds ej för partitionerade tabeller."
