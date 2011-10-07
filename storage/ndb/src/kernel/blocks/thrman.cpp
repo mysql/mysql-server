@@ -52,7 +52,8 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
     Uint32 arr[NO_OF_BLOCKS];
     Uint32 len = mt_get_blocklist(this, arr, NDB_ARRAY_SIZE(arr));
     Uint32 pos = cursor->data[0];
-    for (; pos < len; pos++) {
+    for (; ; )
+    {
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
       row.write_uint32(getThreadId());             // thr_no
@@ -60,7 +61,13 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
       row.write_uint32(blockToInstance(arr[pos])); // block_instance
       ndbinfo_send_row(signal, req, row, rl);
 
-      if (rl.need_break(req))
+      pos++;
+      if (pos == len)
+      {
+        jam();
+        break;
+      }
+      else if (rl.need_break(req))
       {
         jam();
         ndbinfo_send_scan_break(signal, req, rl, pos);
