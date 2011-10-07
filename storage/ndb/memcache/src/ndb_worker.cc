@@ -827,7 +827,6 @@ bool build_hash_item(workitem *wqitem, Operation &op) {
        && ! (op.isNull(COL_STORE_MATH))) {
       /* in dup_numbers mode, copy the math value */
       ncopied = op.copyValue(COL_STORE_MATH, data_ptr);
-      ncopied-- ; // drop the trailing null
     }
     else {
       /* Build a result containing each column */
