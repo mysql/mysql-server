@@ -169,6 +169,41 @@ DECLARE_NDBINFO_TABLE(DISKPAGEBUFFER, 9) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(THREADBLOCKS, 4) =
+{ { "threadblocks", 4, 0, "which blocks are run in which threads" },
+  {
+    {"node_id",                     Ndbinfo::Number, ""},
+    {"thr_no",                      Ndbinfo::Number, ""},
+    {"block_number",                Ndbinfo::Number, ""},
+    {"block_instance",              Ndbinfo::Number, ""},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(THREADSTAT, 18) =
+{ { "threadstat", 18, 0, "threadstat" },
+  {
+    //{"0123456701234567"}
+    {"node_id",             Ndbinfo::Number, ""},
+    {"thr_no",              Ndbinfo::Number, ""},
+    {"thr_nm",              Ndbinfo::String, ""},
+    {"c_loop",              Ndbinfo::Number64,""},
+    {"c_exec",              Ndbinfo::Number64,""},
+    {"c_wait",              Ndbinfo::Number64,""},
+    {"c_l_sent_prioa",      Ndbinfo::Number64,""},
+    {"c_l_sent_priob",      Ndbinfo::Number64,""},
+    {"c_r_sent_prioa",      Ndbinfo::Number64,""},
+    {"c_r_sent_priob",      Ndbinfo::Number64,""},
+    {"os_tid",              Ndbinfo::Number64,""},
+    {"os_now",              Ndbinfo::Number64,""},
+    {"os_ru_utime",         Ndbinfo::Number64,""},
+    {"os_ru_stime",         Ndbinfo::Number64,""},
+    {"os_ru_minflt",        Ndbinfo::Number64,""},
+    {"os_ru_majflt",        Ndbinfo::Number64,""},
+    {"os_ru_nvcsw",         Ndbinfo::Number64,""},
+    {"os_ru_nivcsw",        Ndbinfo::Number64,""}
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -188,7 +223,9 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(RESOURCES),
   DBINFOTBL(COUNTERS),
   DBINFOTBL(NODES),
-  DBINFOTBL(DISKPAGEBUFFER)
+  DBINFOTBL(DISKPAGEBUFFER),
+  DBINFOTBL(THREADBLOCKS),
+  DBINFOTBL(THREADSTAT)
 };
 
 static int no_ndbinfo_tables =

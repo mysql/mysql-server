@@ -72,7 +72,8 @@ ADD_LIBRARY(ndbblocks STATIC
     dblqh/DblqhCommon.cpp
     PgmanProxy.cpp
     dbtup/DbtupClient.cpp
-    ${EXTRA_SRC})
+    ${EXTRA_SRC}
+    thrman.cpp)
 
 MYSQL_ADD_EXECUTABLE(ndb_print_file
   print_file.cpp
