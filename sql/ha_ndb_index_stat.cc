@@ -145,7 +145,7 @@ struct Ndb_index_stat_opt {
     uint flag;
   };
   enum Idx {
-    Iloop_checkon = 0,
+    Iloop_enable = 0,
     Iloop_idle = 1,
     Iloop_busy = 2,
     Iupdate_batch = 3,
@@ -183,15 +183,15 @@ Ndb_index_stat_opt::Ndb_index_stat_opt(char* buf) :
   val[I##aname].maxval = amaxval; \
   val[I##aname].unit = aunit; \
   val[I##aname].flag = aflag
-  ival(loop_checkon, 1000, 0, ~0, Umsec, 0);
+  ival(loop_enable, 1000, 0, ~0, Umsec, 0);
   ival(loop_idle, 1000, 0, ~0, Umsec, 0);
   ival(loop_busy, 100, 0, ~0, Umsec, 0);
   ival(update_batch, 1, 1, ~0, Usize, 0);
   ival(read_batch, 4, 1, ~0, Usize, 0);
   ival(idle_batch, 32, 1, ~0, Usize, 0);
-  ival(check_batch, 32, 1, ~0, Usize, 0);
-  ival(check_delay, 60, 0, ~0, Utime, 0);
-  ival(clean_delay, 0, 0, ~0, Utime, 0);
+  ival(check_batch, 8, 1, ~0, Usize, 0);
+  ival(check_delay, 600, 0, ~0, Utime, 0);
+  ival(clean_delay, 60, 0, ~0, Utime, 0);
   ival(delete_batch, 8, 1, ~0, Usize, 0);
   ival(error_batch, 4, 1, ~0, Usize, 0);
   ival(error_delay, 60, 0, ~0, Utime, 0);
@@ -2076,7 +2076,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
     const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
     uint msecs= 0;
     if (!enable_ok)
-      msecs= opt.get(Ndb_index_stat_opt::Iloop_checkon);
+      msecs= opt.get(Ndb_index_stat_opt::Iloop_enable);
     else if (!pr.busy)
       msecs= opt.get(Ndb_index_stat_opt::Iloop_idle);
     else
