@@ -352,4 +352,22 @@ mysql_declare_plugin(feedback)
   NULL
 }
 mysql_declare_plugin_end;
-
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+maria_declare_plugin(feedback)
+{
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &feedback::feedback,
+  "FEEDBACK",
+  "Sergei Golubchik",
+  "MariaDB User Feedback Plugin",
+  PLUGIN_LICENSE_GPL,
+  feedback::init,
+  feedback::free,
+  0x0100,
+  NULL,
+  feedback::settings,
+  "1.0",
+  MariaDB_PLUGIN_MATURITY_BETA
+}
+mysql_declare_plugin_end;
+#endif
