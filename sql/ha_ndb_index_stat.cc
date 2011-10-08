@@ -64,7 +64,7 @@ struct Ndb_index_stat {
   uint sample_version;  /* goes with read_time */
   time_t check_time;    /* when checked for updated stats (>= read_time) */
   bool cache_clean;     /* old caches have been deleted */
-  uint force_update;    /* one-time force update from analyze table */
+  bool force_update;    /* one-time force update from analyze table */
   bool no_stats;        /* have detected that no stats exist */
   NdbIndexStat::Error error;
   time_t error_time;
@@ -550,7 +550,7 @@ Ndb_index_stat::Ndb_index_stat()
   sample_version= 0;
   check_time= 0;
   cache_clean= false;
-  force_update= 0;
+  force_update= false;
   no_stats= false;
   error_time= 0;
   error_count= 0;
@@ -687,16 +687,20 @@ ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   if (onoff)
   {
-    /* One more request */
-    glob.force_update++;
-    st->force_update++;
+    if (!st->force_update)
+    {
+      glob.force_update++;
+      st->force_update= true;
+    }
   }
   else
   {
-    /* All done */
-    assert(glob.force_update >= st->force_update);
-    glob.force_update-= st->force_update;
-    st->force_update= 0;
+    if (st->force_update)
+    {
+      assert(glob.force_update != 0);
+      glob.force_update--;
+      st->force_update= false;
+    }
   }
 }
 
@@ -986,9 +990,8 @@ struct Ndb_index_stat_proc {
 void
 ndb_index_stat_proc_new(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
-  if (st->error.code != 0)
-    pr.lt= Ndb_index_stat::LT_Error;
-  else if (st->force_update)
+  assert(st->error.code == 0);
+  if (st->force_update)
     pr.lt= Ndb_index_stat::LT_Update;
   else
     pr.lt= Ndb_index_stat::LT_Read;
@@ -1058,12 +1061,12 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   {
     pthread_mutex_lock(&ndb_index_stat_stat_mutex);
     ndb_index_stat_error(st, "read_stat", __LINE__);
-    const uint force_update= st->force_update;
+    const bool force_update= st->force_update;
     ndb_index_stat_force_update(st, false);
 
     /* no stats is not unexpected error, unless analyze was done */
     if (st->is->getNdbError().code == NdbIndexStat::NoIndexStats &&
-        force_update == 0)
+        !force_update)
     {
       ndb_index_stat_no_stats(st, true);
       pr.lt= Ndb_index_stat::LT_Idle;
