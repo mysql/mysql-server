@@ -1209,7 +1209,6 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr)
     pr.busy= true;
 }
 
-// wl4124_todo detect force_update faster
 void
 ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
@@ -1234,12 +1233,20 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   if (st->force_update)
   {
     pr.lt= Ndb_index_stat::LT_Update;
+    pr.busy= true;
     return;
   }
   if (check_wait <= 0)
   {
-    pr.lt= Ndb_index_stat::LT_Check;
-    return;
+    // avoid creating "idle" entries on Check list
+    const int lt_check= Ndb_index_stat::LT_Check;
+    const Ndb_index_stat_list &list_check= ndb_index_stat_list[lt_check];
+    const uint check_batch= opt.get(Ndb_index_stat_opt::Icheck_batch);
+    if (list_check.count < check_batch)
+    {
+      pr.lt= Ndb_index_stat::LT_Check;
+      return;
+    }
   }
   pr.lt= Ndb_index_stat::LT_Idle;
 }
@@ -1252,6 +1259,18 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
   Ndb_index_stat_list &list= ndb_index_stat_list[lt];
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   uint batch= opt.get(Ndb_index_stat_opt::Iidle_batch);
+  {
+    pthread_mutex_lock(&ndb_index_stat_stat_mutex);
+    const Ndb_index_stat_glob &glob= ndb_index_stat_glob;
+    const int lt_update= Ndb_index_stat::LT_Update;
+    const Ndb_index_stat_list &list_update= ndb_index_stat_list[lt_update];
+    if (glob.force_update > list_update.count)
+    {
+      // probably there is a force update waiting on Idle list
+      batch= ~0;
+    }
+    pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
+  }
   // entry may be moved to end of this list
   if (batch > list.count)
     batch= list.count;
