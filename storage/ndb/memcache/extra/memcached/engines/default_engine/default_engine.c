@@ -218,15 +218,11 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
          .lock = PTHREAD_MUTEX_INITIALIZER,
          .size = 10,
       },
-      .info.engine_info = {
-           .description = "Default engine v0.1",
-           .num_features = 1,
-           .features = {
-               [0].feature = ENGINE_FEATURE_LRU
-           }
-       }
    };
-
+  default_engine.info.engine_info.description = "Default engine v0.1";
+  default_engine.info.engine_info.num_features = 1;
+  default_engine.info.engine_info.features[0].feature = ENGINE_FEATURE_LRU;
+    
    *engine = default_engine;
    engine->tap_connections.clients = calloc(default_engine.tap_connections.size, sizeof(void*));
    if (engine->tap_connections.clients == NULL) {
