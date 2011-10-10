@@ -103,4 +103,14 @@ Rot_file::~Rot_file()
 }
 
 
+enum_return_status Rot_file::delete_files()
+{
+  // @todo implement for sub-files /sven
+  DBUG_ENTER("Rot_file::delete_files");
+  if (my_delete_allow_opened(sub_file.filename, MYF(MY_WME)) != 0)
+    RETURN_REPORTED_ERROR;
+  RETURN_OK;
+}
+
+
 #endif

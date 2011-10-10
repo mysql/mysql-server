@@ -1924,8 +1924,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
 #ifdef HAVE_UGID
   sid_lock.rdlock();
-  if (sid_map.open(sid_map_filename) != 0 ||
-      group_log.open(group_log_filename) != 0)
+  if (sid_map.open(sid_map_filename) != RETURN_STATUS_OK ||
+      group_log.open(group_log_filename) != RETURN_STATUS_OK)
   {
     sid_lock.unlock();
     DBUG_RETURN(1);
@@ -2555,6 +2555,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       init_sid_map() != 0 ||
       group_log_state.ensure_sidno() != RETURN_STATUS_OK)
     goto err;
+  group_log.delete_files();
 #endif
 
   if (!open_index_file(index_file_name, 0, FALSE))

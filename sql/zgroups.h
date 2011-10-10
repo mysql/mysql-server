@@ -3032,6 +3032,10 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status close();
+  /**
+    Delete the underlying files.
+  */
+  enum_return_status delete_files();
 protected:
   /// @see Appender::do_append
   enum_return_status do_append(const uchar *data, size_t length)
@@ -3264,6 +3268,10 @@ public:
     Return true iff this Group_log has been (successfully) opened.
   */
   bool is_open() { return rot_file.is_open(); }
+  /**
+    Delete the underlying files.
+  */
+  enum_return_status delete_files();
 #ifndef MYSQL_CLIENT
   /**
     Writes the given Subgroup to the log.
