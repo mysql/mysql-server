@@ -4329,7 +4329,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` join `test`.`t2` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` left join `test`.`t3` on(multiple equal(NULL, `test`.`t4`.`a`)) where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or isnull(NULL)))) having trigcond(<is_not_null_test>(NULL))))))
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` join `test`.`t2` where (not(<expr_cache><10,`test`.`t1`.`a`>(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` left join `test`.`t3` on(multiple equal(NULL, `test`.`t4`.`a`)) where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or isnull(NULL)))) having trigcond(<is_not_null_test>(NULL)))))))
 SELECT * FROM t1, t2
 WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
 WHERE t4.a >= t1.a);
@@ -4345,7 +4345,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'v1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` join `test`.`t2` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` left join `test`.`t3` on(multiple equal(NULL, `test`.`t4`.`a`)) where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or isnull(NULL)))) having trigcond(<is_not_null_test>(NULL))))))
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` join `test`.`t2` where (not(<expr_cache><10,`test`.`t1`.`a`>(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` left join `test`.`t3` on(multiple equal(NULL, `test`.`t4`.`a`)) where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or isnull(NULL)))) having trigcond(<is_not_null_test>(NULL)))))))
 SELECT * FROM v1, t2
 WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
 WHERE t4.a >= v1.a);

@@ -608,7 +608,8 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA)
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
