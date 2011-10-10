@@ -2145,8 +2145,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_current          %"PRId64"\n", engstat.cachetable_size_current);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_max              %"PRId64"\n", engstat.cachetable_size_max);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_leaf             %"PRId64"\n", engstat.cachetable_size_leaf);
-	n += snprintf(buff + n, bufsiz - n, "cachetable_size_nonleaf          %"PRId64"\n", engstat.cachetable_size_nonleaf);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_leaf             %"PRIu64"\n", engstat.cachetable_size_leaf);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_nonleaf          %"PRIu64"\n", engstat.cachetable_size_nonleaf);
 	n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
 	n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
 	n += snprintf(buff + n, bufsiz - n, "local_checkpoint                 %"PRId64"\n", engstat.local_checkpoint);
