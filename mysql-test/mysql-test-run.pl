@@ -1502,6 +1502,10 @@ sub command_line_setup {
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
+
+    # Turn off check testcases to save time 
+    mtr_report("Turning off --check-testcases to save time when valgrinding");
+    $opt_check_testcases = 0;
   }
 
   mtr_report("Checking supported features...");
