@@ -1,0 +1,19 @@
+include/master-slave.inc
+[connection master]
+include/rpl_reset.inc
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+use test;
+drop table if exists foo;
+create table foo (i int, j int, bar int auto_increment, unique key (bar))
+engine= innodb;
+set autocommit= 0;
+insert into foo (i, j) values (Rand(), @2);
+commit;
+drop table if exists foo;
+# Search for occurrences of SET INSERT_ID in the output from mysqlbinlog
+# Search for occurrences of RAND in the output from mysqlbinlog
+# Search for occurrences of USER_VAR in the output from mysqlbinlog
+- Occurrences: 0
+- Occurrences: 0
+- Occurrences: 0
+include/rpl_end.inc

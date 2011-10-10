@@ -43,12 +43,15 @@
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
+#define INTVAR_DYNAMIC_INIT	16
+#define INTVAR_DYNAMIC_INCR	1
 
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
 char server_version[SERVER_VERSION_LENGTH];
 ulong server_id = 0;
+DYNAMIC_ARRAY buff_ev;
 
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -719,11 +722,53 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (!((Query_log_event*)ev)->is_trans_keyword() &&
-          shall_skip_database(((Query_log_event*)ev)->db))
+    {
+      bool parent_query_skips=
+          !((Query_log_event*) ev)->is_trans_keyword() &&
+           shall_skip_database(((Query_log_event*) ev)->db);
+           
+      if(buff_count == 0)
+      {   
+        if (parent_query_skips)
+          goto end;
+        ev->print(result_file, print_event_info);
+        break;
+      }
+          
+      for (uint i=0; i < buff_ev.elements; i++)
+      {
+        Log_event* temp_ev= (Log_event *) pop_dynamic(&buff_ev);
+        if (!parent_query_skips)
+          temp_ev->print(result_file, print_event_info);
+        delete temp_ev;
+      }
+      freeze_size(&buff_ev);
+      reset_dynamic(&buff_ev);
+
+      if (parent_query_skips)
         goto end;
       ev->print(result_file, print_event_info);
       break;
+    }
+          
+    case INTVAR_EVENT:
+    {
+      insert_dynamic(&buff_ev, (uchar*) ev);
+      break;
+    }
+    	
+    case RAND_EVENT:
+    {
+      insert_dynamic(&buff_ev, (uchar*) ev);
+      break;
+    }
+    
+    case USER_VAR_EVENT:
+    {
+      insert_dynamic(&buff_ev, (uchar*) ev);
+      break; 
+    }
+
 
     case CREATE_FILE_EVENT:
     {
@@ -2184,6 +2229,18 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
+   /*
+    A pointer of type Log_event can point to
+     INTVAR
+     USER_VAR
+     RANDOM
+    events,  when we allocate a element of sizeof(Log_event*) 
+    for the DYNAMIC_ARRAY.
+  */
+
+  if((my_init_dynamic_array(&buff_ev, sizeof(Log_event*), 
+                            INTVAR_DYNAMIC_INIT, INTVAR_DYNAMIC_INCR)))
+    exit(1);
 
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
