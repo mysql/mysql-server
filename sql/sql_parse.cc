@@ -1912,13 +1912,30 @@ bool alloc_query(THD *thd, const char *packet, uint packet_length)
     pos--;
     packet_length--;
   }
-  /* We must allocate some extra memory for query cache */
+  /* We must allocate some extra memory for query cache 
+
+    The query buffer layout is:
+       buffer :==
+            <statement>   The input statement(s)
+            '\0'          Terminating null char  (1 byte)
+            <length>      Length of following current database name (size_t)
+            <db_name>     Name of current database
+            <flags>       Flags struct
+  */
   if (! (query= (char*) thd->memdup_w_gap(packet,
                                           packet_length,
-                                          1 + thd->db_length +
+                                          1 + sizeof(size_t) + thd->db_length +
                                           QUERY_CACHE_FLAGS_SIZE)))
       return TRUE;
   query[packet_length]= '\0';
+  /*
+    Space to hold the name of the current database is allocated.  We
+    also store this length, in case current database is changed during
+    execution.  We might need to reallocate the 'query' buffer
+  */
+  size_t *len = (size_t *) (query + packet_length + 1);
+  *len= thd->db_length;
+    
   thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
