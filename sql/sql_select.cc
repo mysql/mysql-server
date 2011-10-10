@@ -2933,6 +2933,118 @@ disable_sorted_access(JOIN_TAB* join_tab)
 
 
 /**
+  Prepare join result.
+
+  @details Prepare join result prior to join execution or describing.
+  Instantiate derived tables and get schema tables result if necessary.
+
+  @return
+    TRUE  An error during derived or schema tables instantiation.
+    FALSE Ok
+*/
+
+bool JOIN::prepare_result()
+{
+  DBUG_ENTER("JOIN::prepare_result");
+
+  error= 0;
+  /* Create result tables for materialized views. */
+  if (select_lex->handle_derived(thd->lex, &mysql_derived_create))
+    goto err;
+
+  (void) result->prepare2(); // Currently, this cannot fail.
+
+  if ((select_lex->options & OPTION_SCHEMA_TABLE) &&
+      get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
+    goto err;
+
+  DBUG_RETURN(FALSE);
+
+err:
+  error= 1;
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
+  Explain join.
+*/
+
+void
+JOIN::explain()
+{
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_exec(trace, "join_explain");
+  trace_exec.add_select_number(select_lex->select_number);
+  Opt_trace_array trace_steps(trace, "steps");
+
+  DBUG_ENTER("JOIN::explain");
+
+  THD_STAGE_INFO(thd, stage_explaining);
+
+  if (prepare_result())
+    DBUG_VOID_RETURN;
+
+  if (!tables_list && (tables || !select_lex->with_sum_func))
+  {                                           // Only test of functions
+    explain_no_table(thd, this, zero_result_cause ? zero_result_cause 
+                                                  : "No tables used");
+    /* Single select (without union) always returns 0 or 1 row */
+    thd->limit_found_rows= send_records;
+    thd->set_examined_row_count(0);
+    DBUG_VOID_RETURN;
+  }
+  /*
+    Don't reset the found rows count if there're no tables as
+    FOUND_ROWS() may be called. Never reset the examined row count here.
+    It must be accumulated from all join iterations of all join parts.
+  */
+  if (tables)
+    thd->limit_found_rows= 0;
+
+  if (zero_result_cause)
+  {
+    explain_no_table(thd, this, zero_result_cause);
+    DBUG_VOID_RETURN;
+  }
+
+  /*
+    Check if we managed to optimize ORDER BY away and don't use temporary
+    table to resolve ORDER BY: in that case, we only may need to do
+    filesort for GROUP BY.
+  */
+  if (!order && !no_order && (!skip_sort_order || !need_tmp))
+  {
+    /*
+      Reset 'order' to 'group_list' and reinit variables describing
+      'order'
+    */
+    order= group_list;
+    simple_order= simple_group;
+    skip_sort_order= 0;
+  }
+  if (order && 
+      (order != group_list || !(select_options & SELECT_BIG_RESULT)) &&
+      (const_tables == tables ||
+       ((simple_order || skip_sort_order) &&
+        test_if_skip_sort_order(&join_tab[const_tables], order,
+                                m_select_limit, 0, 
+                                &join_tab[const_tables].table->
+                                keys_in_use_for_query))))
+    order=0;
+  having= tmp_having;
+  if (tables)
+    explain_query_specification(thd, this, need_tmp,
+                                order != 0 && !skip_sort_order,
+                                select_distinct);
+  else
+    explain_no_table(thd, this, "No tables used");
+
+  DBUG_VOID_RETURN;
+}
+
+/**
   Exec select.
 
   @todo
@@ -2951,18 +3063,19 @@ JOIN::exec()
   Opt_trace_object trace_exec(trace, "join_execution");
   trace_exec.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
-
   List<Item> *columns_list= &fields_list;
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
 
-  const bool has_group_by= this->group;
+  DBUG_ASSERT(!(select_options & SELECT_DESCRIBE));
 
   THD_STAGE_INFO(thd, stage_executing);
-  error= 0;
-  /* Create result tables for materialized views. */
-  if (select_lex->handle_derived(thd->lex, &mysql_derived_create))
+
+  const bool has_group_by= this->group;
+
+  if (prepare_result())
     DBUG_VOID_RETURN;
+
   if (procedure)
   {
     procedure_fields_list= fields_list;
@@ -2975,50 +3088,44 @@ JOIN::exec()
     }
     columns_list= &procedure_fields_list;
   }
-  (void) result->prepare2(); // Currently, this cannot fail.
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
-    if (select_options & SELECT_DESCRIBE)
-      explain_no_table(thd, this, zero_result_cause ? zero_result_cause 
-                                                    : "No tables used");
-    else
+    if (result->send_result_set_metadata(*columns_list,
+                                         Protocol::SEND_NUM_ROWS |
+                                         Protocol::SEND_EOF))
     {
-      if (result->send_result_set_metadata(*columns_list,
-                                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-      {
-        DBUG_VOID_RETURN;
-      }
-      /*
-        We have to test for 'conds' here as the WHERE may not be constant
-        even if we don't have any tables for prepared statements or if
-        conds uses something like 'rand()'.
-        If the HAVING clause is either impossible or always true, then
-        JOIN::having is set to NULL by optimize_cond.
-        In this case JOIN::exec must check for JOIN::having_value, in the
-        same way it checks for JOIN::cond_value.
-      */
-      if (select_lex->cond_value != Item::COND_FALSE &&
-          select_lex->having_value != Item::COND_FALSE &&
-          (!conds || conds->val_int()) &&
-          (!having || having->val_int()))
-      {
-	if (do_send_rows &&
-            (procedure ? (procedure->send_row(procedure_fields_list) ||
-             procedure->end_of_records()) : result->send_data(fields_list)))
-	  error= 1;
-	else
-	{
-	  error= (int) result->send_eof();
-	  send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
-                         thd->get_sent_row_count());
-	}
-      }
+      DBUG_VOID_RETURN;
+    }
+    /*
+      We have to test for 'conds' here as the WHERE may not be constant
+      even if we don't have any tables for prepared statements or if
+      conds uses something like 'rand()'.
+      If the HAVING clause is either impossible or always true, then
+      JOIN::having is set to NULL by optimize_cond.
+      In this case JOIN::exec must check for JOIN::having_value, in the
+      same way it checks for JOIN::cond_value.
+    */
+    if (select_lex->cond_value != Item::COND_FALSE &&
+        select_lex->having_value != Item::COND_FALSE &&
+        (!conds || conds->val_int()) &&
+        (!having || having->val_int()))
+    {
+      if (do_send_rows &&
+          (procedure ? (procedure->send_row(procedure_fields_list) ||
+           procedure->end_of_records()) : result->send_data(fields_list)))
+        error= 1;
       else
       {
-	error=(int) result->send_eof();
-        send_records= 0;
+        error= (int) result->send_eof();
+        send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
+                       thd->get_sent_row_count());
       }
+    }
+    else
+    {
+      error=(int) result->send_eof();
+      send_records= 0;
     }
     /* Single select (without union) always returns 0 or 1 row */
     thd->limit_found_rows= send_records;
@@ -3041,46 +3148,6 @@ JOIN::exec()
 			    select_options,
 			    zero_result_cause,
 			    having);
-    DBUG_VOID_RETURN;
-  }
-
-  if ((this->select_lex->options & OPTION_SCHEMA_TABLE) &&
-      get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
-    DBUG_VOID_RETURN;
-
-  if (select_options & SELECT_DESCRIBE)
-  {
-    /*
-      Check if we managed to optimize ORDER BY away and don't use temporary
-      table to resolve ORDER BY: in that case, we only may need to do
-      filesort for GROUP BY.
-    */
-    if (!order && !no_order && (!skip_sort_order || !need_tmp))
-    {
-      /*
-	Reset 'order' to 'group_list' and reinit variables describing
-	'order'
-      */
-      order= group_list;
-      simple_order= simple_group;
-      skip_sort_order= 0;
-    }
-    if (order && 
-        (order != group_list || !(select_options & SELECT_BIG_RESULT)) &&
-	(const_tables == tables ||
- 	 ((simple_order || skip_sort_order) &&
-	  test_if_skip_sort_order(&join_tab[const_tables], order,
-				  m_select_limit, 0, 
-                                  &join_tab[const_tables].table->
-                                    keys_in_use_for_query))))
-      order=0;
-    having= tmp_having;
-    if (tables)
-      explain_query_specification(thd, this, need_tmp,
-                                  order != 0 && !skip_sort_order,
-                                  select_distinct);
-    else
-      explain_no_table(thd, this, "No tables used");
     DBUG_VOID_RETURN;
   }
 
@@ -3590,27 +3657,6 @@ JOIN::exec()
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
                         (ulong) thd->get_examined_row_count()));
 
-  /* 
-    With EXPLAIN EXTENDED we have to restore original ref_array
-    for a derived table which is always materialized.
-    We also need to do this when we have temp table(s).
-    Otherwise we would not be able to print the query correctly.
-    Same applies to the optimizer trace; note that changing the ref_array like
-    this affects the Item-s, so we don't do it unless the expanded query
-    is needed (@see opt_trace_print_expanded_query()).
-  */
-  if (!items0.is_null() && ((thd->lex->describe & DESCRIBE_EXTENDED)
-#ifdef OPTIMIZER_TRACE
-                            || trace->support_I_S()
-#endif
-                            ) &&
-      (select_lex->linkage == DERIVED_TABLE_TYPE ||
-       exec_tmp_table1 || exec_tmp_table2))
-  {
-    DBUG_PRINT("info", ("restoring ref array for EXPLAIN / opt trace"));
-    set_items_ref_array(items0);
-  }
-
   DBUG_VOID_RETURN;
 }
 
@@ -3800,24 +3846,16 @@ mysql_select(THD *thd,
     goto err;					// 1
   }
 
-  if (thd->lex->describe & DESCRIBE_EXTENDED)
-  {
-    join->conds_history= join->conds;
-    join->having_history= (join->having?join->having:join->tmp_having);
-  }
-
   if (thd->is_error())
     goto err;
 
-  join->exec();
-
-  if (thd->lex->describe & DESCRIBE_EXTENDED)
-  {
-    select_lex->where= join->conds_history;
-    select_lex->having= join->having_history;
-  }
   if (select_options & SELECT_DESCRIBE)
+  {
+    join->explain();
     free_join= 0;
+  }
+  else
+    join->exec();
 
 err:
   if (free_join)
@@ -13234,12 +13272,6 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 		 const char *info, Item *having)
 {
   DBUG_ENTER("return_zero_rows");
-
-  if (select_options & SELECT_DESCRIBE)
-  {
-    explain_no_table(join->thd, join, info);
-    DBUG_RETURN(0);
-  }
 
   join->join_free();
 

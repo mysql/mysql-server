@@ -1941,8 +1941,6 @@ public:
   */
   Item       *conds;                      ///< The where clause item tree
   Item       *having;                     ///< The having clause item tree
-  Item       *conds_history;              ///< store WHERE for explain
-  Item       *having_history;             ///< Store having for explain
   Item       *tmp_having; ///< To store having when processed temporary table
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
@@ -2028,7 +2026,7 @@ public:
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
     procedure= 0;
-    having= tmp_having= having_history= 0;
+    having= tmp_having= 0;
     select_options= select_options_arg;
     result= result_arg;
     lock= thd_arg->lock;
@@ -2074,6 +2072,8 @@ public:
   int optimize();
   void reset();
   void exec();
+  bool prepare_result();
+  void explain();
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();

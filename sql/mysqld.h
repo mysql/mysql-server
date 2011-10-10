@@ -345,6 +345,7 @@ extern PSI_stage_info stage_discard_or_import_tablespace;
 extern PSI_stage_info stage_end;
 extern PSI_stage_info stage_executing;
 extern PSI_stage_info stage_execution_of_init_command;
+extern PSI_stage_info stage_explaining;
 extern PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog;
 extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
 extern PSI_stage_info stage_flushing_relay_log_info_file;
