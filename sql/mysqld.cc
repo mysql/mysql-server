@@ -8556,6 +8556,7 @@ PSI_stage_info stage_discard_or_import_tablespace= { 0, "discard_or_import_table
 PSI_stage_info stage_end= { 0, "end", 0};
 PSI_stage_info stage_executing= { 0, "executing", 0};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0};
+PSI_stage_info stage_explaining= { 0, "explaining", 0};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0};
 PSI_stage_info stage_flushing_relay_log_and_master_info_repository= { 0, "Flushing relay log and master info repository.", 0};
 PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0};
@@ -8659,6 +8660,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_end,
   & stage_executing,
   & stage_execution_of_init_command,
+  & stage_explaining,
   & stage_finished_reading_one_binlog_switching_to_next_binlog,
   & stage_flushing_relay_log_and_master_info_repository,
   & stage_flushing_relay_log_info_file,

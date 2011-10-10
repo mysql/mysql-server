@@ -19,8 +19,8 @@
 #include "sql_select.h"
 #include "sql_partition.h" // for make_used_partitions_str()
 
-static bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
-                                select_result *result);
+static bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit,
+                               select_result *result);
 
 /**
   A base for all Explain_* classes
@@ -433,7 +433,7 @@ bool Explain::send()
   for (SELECT_LEX_UNIT *unit= select_lex()->first_inner_unit();
        unit && !ret;
        unit= unit->next_unit())
-    ret= mysql_explain_union(thd, unit, result);
+    ret= mysql_explain_unit(thd, unit, result);
 
   if (external_result == NULL)
   {
@@ -1445,7 +1445,7 @@ bool explain_query_expression(THD *thd, select_result *result)
 {
   DBUG_ENTER("explain_query_expression");
   const bool res= thd->send_explain_fields(result) ||
-                  mysql_explain_union(thd, &thd->lex->unit, result) ||
+                  mysql_explain_unit(thd, &thd->lex->unit, result) ||
                   thd->is_error();
   /*
     The code which prints the extended description is not robust
@@ -1483,9 +1483,9 @@ bool explain_query_expression(THD *thd, select_result *result)
 
   @return false if success, true if error
 */
-bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
+bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 {
-  DBUG_ENTER("mysql_explain_union");
+  DBUG_ENTER("mysql_explain_unit");
   bool res= 0;
   SELECT_LEX *first= unit->first_select();
 
@@ -1513,12 +1513,13 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   }
   if (unit->is_union())
   {
-    unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
+    unit->fake_select_lex->select_number= UINT_MAX; // just for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE) ||
-         unit->optimize() ||
-         unit->exec();
+         unit->optimize();
+    if (!res)
+      unit->explain();
   }
   else
   {

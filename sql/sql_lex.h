@@ -590,6 +590,7 @@ public:
   bool prepare(THD *thd, select_result *result, ulong additional_options);
   bool optimize();
   bool exec();
+  void explain();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
@@ -597,7 +598,7 @@ public:
   void print(String *str, enum_query_type query_type);
 
   bool add_fake_select_lex(THD *thd);
-  void init_prepare_fake_select_lex(THD *thd);
+  bool init_prepare_fake_select_lex(THD *thd, bool no_const_tables);
   inline bool is_prepared() { return prepared; }
   bool change_result(select_result_interceptor *result,
                      select_result_interceptor *old_result);
