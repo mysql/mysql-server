@@ -24,6 +24,11 @@
 
 #if defined (_WIN32)
 #define HAVE_SYS_UTSNAME_H
+
+#ifndef VER_SUITE_WH_SERVER
+#define VER_SUITE_WH_SERVER 0x00008000
+#endif
+
 struct utsname {
   char  sysname[16];  // Name of this implementation of the operating system. 
   char  nodename[16]; // Name of this node within the communications 
