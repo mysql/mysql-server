@@ -38,6 +38,15 @@ enum_return_status Group_log::close()
 }
 
 
+enum_return_status Group_log::delete_files()
+{
+  DBUG_ENTER("Group_log::delete_files()");
+  rot_file.delete_files();
+  RETURN_OK;
+}
+
+
+
 #ifndef MYSQL_CLIENT
 enum_return_status
 Group_log::write_subgroup(const THD *thd, const Cached_subgroup *subgroup,
