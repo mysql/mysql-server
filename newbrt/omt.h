@@ -407,6 +407,36 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
 
+int toku_omt_clone(OMT *dest, OMT src, u_int32_t eltsize);
+// Effect: Creates a copy of an omt.
+//  Sets *dest to the clone
+//  Each element is allocated separately with toku_xmalloc and is assumed to be eltsize big.
+// Returns 0 on success
+//  ENOMEM on out of memory.
+// On error, nothing is modified.
+// Performance: time between O(n) and O(n log n), depending how long it
+//  takes to traverse src.
+
+int toku_omt_clone_pool(OMT *dest, OMT src, u_int32_t eltsize);
+// Effect: Creates a copy of an omt.
+//  Sets *dest to the clone
+//  Each element is copied to a contiguous buffer allocated with toku_xmalloc and each element is assumed to be eltsize big.
+// Returns 0 on success
+//  ENOMEM on out of memory.
+// On error, nothing is modified.
+// Performance: time between O(n) and O(n log n), depending how long it
+//  takes to traverse src.
+
+int toku_omt_clone_noptr(OMT *dest, OMT src);
+// Effect: Creates a copy of an omt.
+//  Sets *dest to the clone
+//  Each element is assumed to be stored directly in the omt, that is, the OMTVALUEs are not pointers, they are data.  Thus no extra memory allocation is required.
+// Returns 0 on success
+//  ENOMEM on out of memory.
+// On error, nothing is modified.
+// Performance: time between O(n) and O(n log n), depending how long it
+//  takes to traverse src.
+
 void toku_omt_clear(OMT omt);
 // Effect: Set the tree to be empty.
 //  Note: Will not reallocate or resize any memory, since returning void precludes calling malloc.

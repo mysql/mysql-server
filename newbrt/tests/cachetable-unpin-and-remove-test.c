@@ -10,6 +10,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        long s      __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        BOOL f_ckpt __attribute__((__unused__))
@@ -51,7 +52,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
@@ -98,7 +99,7 @@ cachetable_unpin_and_remove_test (int n) {
     while (nkeys > 0) {
         i = random() % nkeys;
         u_int32_t hi = toku_cachetable_hash(f1, make_blocknum(testkeys[i].b));
-        r = toku_cachetable_unpin_and_remove(f1, testkeys[i]);
+        r = toku_cachetable_unpin_and_remove(f1, testkeys[i], FALSE);
         assert(r == 0);
 
         toku_cachefile_verify(f1);
@@ -113,7 +114,7 @@ cachetable_unpin_and_remove_test (int n) {
 
     // verify that all are really removed
     for (i=0; i<n; i++) {
-        r = toku_cachetable_unpin_and_remove(f1, keys[i]);
+        r = toku_cachetable_unpin_and_remove(f1, keys[i], FALSE);
         // assert(r != 0);
         if (r == 0) printf("%s:%d warning %d\n", __FILE__, __LINE__, r);
     }
@@ -161,7 +162,7 @@ cachetable_put_evict_remove_test (int n) {
     assert(r == 0);
         
     // remove 0
-    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(0));
+    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(0), FALSE);
     assert(r == 0);
 
     char *error_string;

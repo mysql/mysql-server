@@ -12,6 +12,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *v,
        void *e     __attribute__((__unused__)),
        long s      __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep,
        BOOL c      __attribute__((__unused__))
@@ -49,6 +50,7 @@ other_flush (CACHEFILE f __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        long s      __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__))
@@ -75,7 +77,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 1;
+    *bytes_freed = bytes_to_free-1;
     expected_bytes_to_free--;
     int* foo = brtnode_pv;
     int blah = *foo;

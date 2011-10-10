@@ -9,6 +9,7 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
        void *v          __attribute__((__unused__)),
        void *extraargs  __attribute__((__unused__)),
        long size        __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
        BOOL write_me    __attribute__((__unused__)),
        BOOL keep_me     __attribute__((__unused__)),
        BOOL for_checkpoint    __attribute__((__unused__))
@@ -24,19 +25,6 @@ fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t hash, void **vptr, long
     *vptr = toku_malloc(*sizep);
     *dirtyp = 0;
     return 0;
-}
-
-static int
-fetch_error (CACHEFILE cf       __attribute__((__unused__)),
-             int UU(fd),
-	     CACHEKEY key       __attribute__((__unused__)),
-	     u_int32_t fullhash __attribute__((__unused__)),
-	     void **value       __attribute__((__unused__)),
-	     long *sizep        __attribute__((__unused__)),
-	     int  *dirtyp       __attribute__((__unused__)),
-	     void*extraargs     __attribute__((__unused__))
-	     ) {
-    return -1;
 }
 
 static void 
@@ -59,7 +47,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
@@ -83,15 +71,6 @@ cachetable_getandpin_test (int n) {
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     int i;
-
-    // test get_and_pin fails
-    for (i=1; i<=n; i++) {
-        u_int32_t hi;
-        hi = toku_cachetable_hash(f1, make_blocknum(i));
-        void *v; long size;
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, flush, fetch_error, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0);
-        assert(r == -1);
-    }
 
     // test get_and_pin size
     for (i=1; i<=n; i++) {

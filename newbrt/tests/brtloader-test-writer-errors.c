@@ -40,9 +40,10 @@ static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *
     abort();
 }
 
-static void write_dbfile (char *template, int n, char *output_name, BOOL expect_error, int testno) {
+static int write_dbfile (char *template, int n, char *output_name, BOOL expect_error, int testno) {
     if (verbose) printf("test start %d %d testno=%d\n", n, expect_error, testno);
 
+    int result = 0;
     DB *dest_db = NULL;
     struct brtloader_s bl = {
         .temp_file_template = template,
@@ -74,7 +75,6 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
     brt_loader_init_poll_callback(&bl.poll_callback);
     r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints);  CKERR(r);
-    // destroy_rowset(&aset);
 
     brtloader_fi_close_all(&bl.file_infos);
 
@@ -132,9 +132,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brt_loader_set_error_function(&bl.error_callback, NULL, NULL);
     brt_loader_set_poll_function(&bl.poll_callback, loader_poll_callback, NULL);
 
-    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0, 0, 0);
-    // if (!(expect_error ? r != 0 : r == 0)) printf("WARNING%%d expect_error=%d r=%d\n", __LINE__, expect_error, r); 
-    assert(expect_error ? r != 0 : r == 0);
+    result = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0, 0, 0);
 
     toku_set_func_malloc_only(NULL);
     toku_set_func_realloc_only(NULL);
@@ -147,11 +145,12 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brt_loader_lock_destroy(&bl);
     
     r = queue_destroy(q2);
-    //if (r != 0) printf("WARNING%d r=%d\n", __LINE__, r);
     assert(r==0);
    
     destroy_merge_fileset(&fs);
     brtloader_fi_destroy(&bl.file_infos, expect_error);
+    
+    return result;
 }
 
 static int usage(const char *progname, int n) {
@@ -222,7 +221,7 @@ int test_main (int argc, const char *argv[]) {
     int r;
     r = system(unlink_all); CKERR(r);
     r = toku_os_mkdir(directory, 0755); CKERR(r);
-    write_dbfile(template, n, output_name, FALSE, 0);
+    r = write_dbfile(template, n, output_name, FALSE, 0); CKERR(r);
 
     if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
     if (verbose) printf("my_realloc_count=%d big_count=%d\n", my_realloc_count, my_big_realloc_count);
@@ -230,13 +229,19 @@ int test_main (int argc, const char *argv[]) {
     int event_limit = event_count;
     if (verbose) printf("event_limit=%d\n", event_limit);
 
+    // we computed an upper bound on the number of events.  since the loader continues to malloc after a
+    // malloc failure, the actual number of events that can induce a failed load is less than the upper
+    // bound. 
     for (int i = 1; i <= event_limit; i++) {
         reset_event_counts();
         reset_my_malloc_counts();
         event_count_trigger = i;
         r = system(unlink_all); CKERR(r);
         r = toku_os_mkdir(directory, 0755); CKERR(r);
-        write_dbfile(template, n, output_name, TRUE, i);
+        r = write_dbfile(template, n, output_name, TRUE, i);
+        if (verbose) printf("event_count=%d\n", event_count);
+        if (r == 0)
+            break;
     }
 
     r = system(unlink_all); CKERR(r);

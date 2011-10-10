@@ -56,7 +56,7 @@ toku_delete_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     if (txn->pinned_inprogress_rollback_log == log) {
         txn->pinned_inprogress_rollback_log = NULL;
     }
-    r = toku_cachetable_unpin_and_remove (cf, log->thislogname);
+    r = toku_cachetable_unpin_and_remove (cf, log->thislogname, FALSE);
     assert(r==0);
     toku_free_blocknum(h->blocktable, &to_free, h);
     return r;
@@ -141,10 +141,10 @@ toku_apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
 
 int
 toku_find_xid_by_xid (OMTVALUE v, void *xidv) {
-    TXNID *xid = v;
-    TXNID *xidfind = xidv;
-    if (*xid<*xidfind) return -1;
-    if (*xid>*xidfind) return +1;
+    TXNID xid = (TXNID) v;
+    TXNID xidfind = (TXNID) xidv;
+    if (xid<xidfind) return -1;
+    if (xid>xidfind) return +1;
     return 0;
 }
 
@@ -168,8 +168,8 @@ toku_find_pair_by_xid (OMTVALUE v, void *xidv) {
 static int
 live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
     TOKUTXN txn = txnv;
-    TXNID xid   = txn->txnid64;       // xid of txn that is closing
-    TXNID *live_xid = live_xidv;      // xid on closing txn's live list
+    TXNID xid = txn->txnid64;          // xid of txn that is closing
+    TXNID *live_xid = live_xidv;       // xid on closing txn's live list
     OMTVALUE pairv;
     XID_PAIR pair;
     uint32_t idx;
@@ -182,20 +182,20 @@ live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), voi
     invariant(pair->xid1 == *live_xid); //sanity check
     if (pair->xid2 == xid) {
         //There is a record that needs to be either deleted or updated
-        TXNID *olderxid;
+        TXNID olderxid;
         OMTVALUE olderv;
         uint32_t olderidx;
         OMT snapshot = txn->logger->snapshot_txnids;
         BOOL should_delete = TRUE;
         // find the youngest txn in snapshot that is older than xid
-        r = toku_omt_find(snapshot, toku_find_xid_by_xid, &xid, -1, &olderv, &olderidx);
+        r = toku_omt_find(snapshot, toku_find_xid_by_xid, (OMTVALUE) xid, -1, &olderv, &olderidx);
         if (r==0) {
             //There is an older txn
-            olderxid = olderv;
-            invariant(*olderxid < xid);
-            if (*olderxid >= *live_xid) {
+            olderxid = (TXNID) olderv;
+            invariant(olderxid < xid);
+            if (olderxid >= *live_xid) {
                 //Older txn is new enough, we need to update.
-                pair->xid2 = *olderxid;
+                pair->xid2 = olderxid;
                 should_delete = FALSE;
             }
         }
@@ -232,6 +232,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
     assert(txn->spilled_rollback_tail.b == ROLLBACK_NONE.b);
     assert(txn->current_rollback.b == ROLLBACK_NONE.b);
     int r;
+    r = toku_pthread_mutex_lock(&txn->logger->txn_list_lock); assert_zero(r);
     {
         {
             //Remove txn from list (omt) of live transactions
@@ -266,13 +267,12 @@ void toku_rollback_txn_close (TOKUTXN txn) {
                 u_int32_t idx;
                 OMTVALUE v;
                 //Free memory used for snapshot_txnids
-                r = toku_omt_find_zero(txn->logger->snapshot_txnids, toku_find_xid_by_xid, &txn->txnid64, &v, &idx);
+                r = toku_omt_find_zero(txn->logger->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, &v, &idx);
                 invariant(r==0);
-                TXNID *xid = v;
-                invariant(*xid == txn->txnid64);
+                TXNID xid = (TXNID) v;
+                invariant(xid == txn->txnid64);
                 r = toku_omt_delete_at(txn->logger->snapshot_txnids, idx);
                 invariant(r==0);
-                toku_free(v);
             }
             live_list_reverse_note_txn_end(txn);
             {
@@ -287,6 +287,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             }
         }
     }
+    r = toku_pthread_mutex_unlock(&txn->logger->txn_list_lock); assert_zero(r);
 
     assert(txn->logger->oldest_living_xid <= txn->txnid64);
     if (txn->txnid64 == txn->logger->oldest_living_xid) {
@@ -466,7 +467,7 @@ toku_rollback_log_free(ROLLBACK_LOG_NODE *log_p) {
 }
 
 static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
-                                          void *rollback_v, void *extraargs, long UU(size),
+                                          void *rollback_v, void *extraargs, long size, long* new_size,
                                           BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
     int r;
     ROLLBACK_LOG_NODE  log = rollback_v;
@@ -491,6 +492,7 @@ static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM 
             }
         }
     }
+    *new_size = size;
     if (!keep_me) {
         toku_rollback_log_free(&log);
     }
@@ -581,6 +583,16 @@ static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t o
     txn->current_rollback_hash = log->thishash;
     txn->pinned_inprogress_rollback_log = log;
     return 0;
+}
+
+int
+toku_unpin_inprogress_rollback_log(TOKUTXN txn) {
+    if (txn->pinned_inprogress_rollback_log) {
+        return toku_rollback_log_unpin(txn, txn->pinned_inprogress_rollback_log);
+    }
+    else {
+        return 0;
+    }
 }
 
 int
@@ -827,7 +839,8 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,
                                         h,
-                                        h);
+                                        h
+                                        );
         assert(r==0);
         log = (ROLLBACK_LOG_NODE)log_v;
     }

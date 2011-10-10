@@ -747,7 +747,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // Each partition represents a compressed sub block
     // For internal nodes, a sub block is a message buffer
     // For leaf nodes, a sub block is a basement node
-    struct sub_block *MALLOC_N(npartitions, sb);
+    struct sub_block *XMALLOC_N(npartitions, sb);
     struct sub_block sb_node_info;
     for (int i = 0; i < npartitions; i++) {
         sub_block_init(&sb[i]);;
@@ -874,9 +874,9 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
     int nfresh = 0, nstale = 0;
     int nbroadcast_offsets = 0;
     if (cmp) {
-        MALLOC_N(n_in_this_buffer, stale_offsets);
-        MALLOC_N(n_in_this_buffer, fresh_offsets);
-        MALLOC_N(n_in_this_buffer, broadcast_offsets);
+        XMALLOC_N(n_in_this_buffer, stale_offsets);
+        XMALLOC_N(n_in_this_buffer, fresh_offsets);
+        XMALLOC_N(n_in_this_buffer, broadcast_offsets);
     }
     for (int i = 0; i < n_in_this_buffer; i++) {
         bytevec key; ITEMLEN keylen;

@@ -93,9 +93,7 @@ static int
 snapshot_txnids_note_txn(TOKUTXN txn) {
     int r;
     OMT txnids = txn->logger->snapshot_txnids;
-    TXNID *XMALLOC(xid);
-    *xid = txn->txnid64;
-    r = toku_omt_insert_at(txnids, xid, toku_omt_size(txnids));
+    r = toku_omt_insert_at(txnids, (OMTVALUE) txn->txnid64, toku_omt_size(txnids));
     assert_zero(r);
     return r;
 }
@@ -208,6 +206,7 @@ int toku_txn_begin_with_xid (
     }
     assert(logger->oldest_living_xid <= result->txnid64);
 
+    r = toku_pthread_mutex_lock(&logger->txn_list_lock); assert_zero(r);
     {
         //Add txn to list (omt) of live transactions
         //We know it is the newest one.
@@ -264,6 +263,7 @@ int toku_txn_begin_with_xid (
             }
         }
     }
+    r = toku_pthread_mutex_unlock(&logger->txn_list_lock); assert_zero(r);
 
     result->rollentry_raw_count = 0;
     result->force_fsync_on_commit = FALSE;
@@ -332,12 +332,17 @@ struct xcommit_info {
     TOKUTXN txn;
 };
 
+BOOL toku_txn_requires_checkpoint(TOKUTXN txn) {
+    return (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit));
+}
+
 //Called during a yield (ydb lock NOT held).
 static void
 local_checkpoints_and_log_xcommit(void *thunk) {
     struct xcommit_info *info = thunk;
     TOKUTXN txn = info->txn;
 
+#if 0
     if (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit)) {
         toku_poll_txn_progress_function(txn, TRUE, TRUE);
         //Do local checkpoints that must happen BEFORE logging xcommit
@@ -364,7 +369,13 @@ local_checkpoints_and_log_xcommit(void *thunk) {
         toku_free(cachefiles);
         toku_poll_txn_progress_function(txn, TRUE, FALSE);
     }
-
+#endif
+    // not sure how the elements in the list are getting freed, so I am doing this
+    if (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit)) {
+        while (!toku_list_empty(&txn->checkpoint_before_commit)) {
+            toku_list_pop(&txn->checkpoint_before_commit);
+        }
+    }
     info->r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64); // exits holding neither of the tokulogger locks.
 }
 
@@ -538,7 +549,7 @@ verify_snapshot_system(TOKULOGGER logger) {
         OMTVALUE v;
         r = toku_omt_fetch(logger->snapshot_txnids, i, &v);
         assert_zero(r);
-        snapshot_txnids[i] = *(TXNID*)v;
+        snapshot_txnids[i] = (TXNID) v;
     }
     for (i = 0; i < num_live_txns; i++) {
         OMTVALUE v;
@@ -595,7 +606,7 @@ verify_snapshot_system(TOKULOGGER logger) {
                 OMTVALUE v2;
                 r = toku_omt_find_zero(logger->snapshot_txnids,
                                        toku_find_xid_by_xid,
-                                       &pair->xid2, &v2, &index);
+                                       (OMTVALUE) pair->xid2, &v2, &index);
                 assert_zero(r);
             }
             for (j = 0; j < num_live_txns; j++) {
@@ -621,7 +632,7 @@ verify_snapshot_system(TOKULOGGER logger) {
                 OMTVALUE v2;
                 r = toku_omt_find_zero(logger->snapshot_txnids,
                                        toku_find_xid_by_xid,
-                                       &txn->txnid64, &v2, &index);
+                                       (OMTVALUE) txn->txnid64, &v2, &index);
                 invariant(r==0 || r==DB_NOTFOUND);
                 invariant((r==0) == (expect!=0));
             }

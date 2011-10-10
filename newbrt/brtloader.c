@@ -2776,7 +2776,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     DBT theval = { .data = val, .size = vallen };
     BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, lbuf->xids, .u.id = { &thekey, &theval } };
     uint64_t workdone=0;
-    brt_leaf_apply_cmd_once(BLB(leafnode,0), &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL, &workdone);
+    brt_leaf_apply_cmd_once(BLB(leafnode,0), &BP_SUBTREE_EST(leafnode,0), &cmd, idx, NULL, NULL, NULL, &workdone);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {
@@ -3002,6 +3002,8 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     BRTNODE XMALLOC(node);
     toku_initialize_empty_brtnode(node, make_blocknum(blocknum_of_new_node), height, n_children, 
                                  BRT_LAYOUT_VERSION, target_nodesize, 0);
+    for (int i=0; i<n_children-1; i++)
+        node->childkeys[i] = NULL;
     unsigned int totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
 	struct kv_pair *childkey = kv_pair_malloc(pivots[i].data, pivots[i].size, NULL, 0);

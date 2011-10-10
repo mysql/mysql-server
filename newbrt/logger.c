@@ -66,6 +66,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     // ct is uninitialized on purpose
     result->lg_max = 100<<20; // 100MB default
     // lsn is uninitialized
+    r = toku_pthread_mutex_init(&result->txn_list_lock, 0); if (r!=0) goto panic;
     r = toku_omt_create(&result->live_txns); if (r!=0) goto panic;
     r = toku_omt_create(&result->live_root_txns); if (r!=0) goto panic;
     r = toku_omt_create(&result->snapshot_txnids); if (r!=0) goto panic;

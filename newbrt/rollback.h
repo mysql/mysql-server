@@ -21,6 +21,7 @@ int toku_get_and_pin_rollback_log_for_new_entry (TOKUTXN txn, ROLLBACK_LOG_NODE 
 int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLOCKNUM name, uint32_t hash, ROLLBACK_LOG_NODE *result);
 int toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log);
 int toku_rollback_log_unpin(TOKUTXN txn, ROLLBACK_LOG_NODE log);
+int toku_unpin_inprogress_rollback_log(TOKUTXN txn);
 int toku_delete_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log);
 
 typedef int(*apply_rollback_item)(TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);

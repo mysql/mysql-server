@@ -200,7 +200,7 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
         toku_brtnode_pf_callback,
 	&bfe,
 	brt->h
-	);
+        );
     if (r!=0) return r;
     BRTNODE node=node_v;
     assert(node->height>0);
