@@ -821,5 +821,6 @@ f3	f4	f4
 x	x	g
 x	x	g
 set optimizer_switch= @tmp_869012;
+DROP TABLE t1,t2,t3;
 # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
