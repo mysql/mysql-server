@@ -988,5 +988,25 @@ WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # BUG#869012: Wrong result with semijoin + materialization + AND in WHERE
+--echo #
+CREATE TABLE t1 (f3 varchar(1) , f4 varchar(1) ) engine=InnoDB;
+INSERT IGNORE INTO t1 VALUES ('x','x'),('x','x');
+CREATE TABLE t2 ( f4 varchar(1) ) ;
+INSERT IGNORE INTO t2 VALUES ('g');
+CREATE TABLE t3 (f4 varchar(1) ) Engine=InnoDB;
+INSERT IGNORE INTO t3 VALUES ('x');
 
+set @tmp_869012=@@optimizer_switch;
+SET optimizer_switch='semijoin=on,materialization=on';
+SELECT *
+FROM t1 , t2
+WHERE ( t1.f4 ) IN ( SELECT f4 FROM t3 )
+AND t2.f4 != t1.f3 ;
+set optimizer_switch= @tmp_869012;
+
+
+
+--echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
