@@ -1006,7 +1006,7 @@ WHERE ( t1.f4 ) IN ( SELECT f4 FROM t3 )
 AND t2.f4 != t1.f3 ;
 set optimizer_switch= @tmp_869012;
 
-
+DROP TABLE t1,t2,t3;
 
 --echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
