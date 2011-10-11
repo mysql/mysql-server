@@ -193,9 +193,8 @@ IF(UNIX)
 
   # OSX flags
   IF(APPLE)
-    SET(COMMON_C_FLAGS                 "-g -fno-common -fno-strict-aliasing")
-    # XXX: why are we using -felide-constructors on OSX?
-    SET(COMMON_CXX_FLAGS               "-g -fno-common -felide-constructors -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS                 "-g -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-g -fno-strict-aliasing")
     SET(CMAKE_C_FLAGS_DEBUG            "-O ${COMMON_C_FLAGS}")
     SET(CMAKE_CXX_FLAGS_DEBUG          "-O ${COMMON_CXX_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-Os ${COMMON_C_FLAGS}")
