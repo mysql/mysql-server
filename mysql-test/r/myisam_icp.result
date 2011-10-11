@@ -238,4 +238,26 @@ SELECT b FROM t1 WHERE a != 1 AND c IS NULL ORDER BY 1;
 b
 byluovkgwoukfxedyeffsedajyqkyhpaqqpozn
 DROP TABLE t1;
+#
+# Bug#870046: ICP for a GROUP BY query
+#
+CREATE TABLE t1 (a int, b varchar(1), c varchar(1), INDEX idx(b));
+INSERT INTO t1 VALUES (2,'x','x'), (5,'x','y');
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx	idx	4	const	1	Using where; Using temporary; Using filesort
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+a	MIN(c)
+5	y
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx	idx	4	const	1	Using index condition; Using where; Using temporary; Using filesort
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+a	MIN(c)
+5	y
+DROP TABLE t1;
 set optimizer_switch=@myisam_icp_tmp;

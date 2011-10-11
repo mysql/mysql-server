@@ -19895,6 +19895,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     DBUG_RETURN(FALSE);
 
   Item_cond_and *cond=new Item_cond_and();
+  Item *cond_copy;
   TABLE *table=join_tab->table;
   int error= 0;
   if (!cond)
@@ -19909,13 +19910,14 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   }
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
-
   if (!cond->fixed)
   {
     Item *tmp_item= (Item*) cond;
     cond->fix_fields(thd, &tmp_item);
     DBUG_ASSERT(cond == tmp_item);
   }
+  if (join_tab->select->pre_idx_push_select_cond)
+    cond_copy= cond->copy_andor_structure(thd);
   if (join_tab->select)
   {
     if (join_tab->select->cond)
@@ -19923,7 +19925,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     join_tab->select->cond= cond;
     if (join_tab->select->pre_idx_push_select_cond)
     {
-      Item *new_cond= and_conds(join_tab->select->pre_idx_push_select_cond, cond);
+      Item *new_cond= and_conds(cond_copy, join_tab->select->pre_idx_push_select_cond);
       if (!new_cond->fixed && new_cond->fix_fields(thd, &new_cond))
         error= 1;
       join_tab->select->pre_idx_push_select_cond= new_cond;

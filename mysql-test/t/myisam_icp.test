@@ -209,4 +209,22 @@ INSERT INTO t1 VALUES
 SELECT b FROM t1 WHERE a != 1 AND c IS NULL ORDER BY 1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#870046: ICP for a GROUP BY query
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1), c varchar(1), INDEX idx(b));
+INSERT INTO t1 VALUES (2,'x','x'), (5,'x','y');
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+
+DROP TABLE t1;
+
 set optimizer_switch=@myisam_icp_tmp;
