@@ -32,6 +32,7 @@ use Getopt::Long;
 # straight through
 my $opt_debug;
 my $opt_build_type;
+my $opt_build = 1;
 
 Getopt::Long::Configure("pass_through");
 GetOptions(
@@ -40,6 +41,7 @@ GetOptions(
   'debug' => \$opt_debug,
   'with-debug:s' => sub { $opt_debug = 1; },
   'build-type=s' => \$opt_build_type,
+  'build!' => \$opt_build,
 ) or exit(1);
 
 # Find source root directory, assume this script is
@@ -97,6 +99,13 @@ my $cmake_version_id;
 
   cmd($^X, @args, @ARGV, @opt_build_type_arg);
 }
+
+if (!$opt_build)
+{
+  print "Configuration completed, skipping build(used --no-build)\n";
+  exit(0);
+}
+
 
 #
 # Build
