@@ -291,7 +291,7 @@ from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	9	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	9	func	1	Using where
 2	SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
 2	SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
 2	SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
@@ -814,6 +814,27 @@ WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1
 f12
 y
 DROP TABLE t1,t2,t3;
+#
+# BUG#869012: Wrong result with semijoin + materialization + AND in WHERE
+#
+CREATE TABLE t1 (f3 varchar(1) , f4 varchar(1) ) engine=InnoDB;
+INSERT IGNORE INTO t1 VALUES ('x','x'),('x','x');
+CREATE TABLE t2 ( f4 varchar(1) ) ;
+INSERT IGNORE INTO t2 VALUES ('g');
+CREATE TABLE t3 (f4 varchar(1) ) Engine=InnoDB;
+INSERT IGNORE INTO t3 VALUES ('x');
+set @tmp_869012=@@optimizer_switch;
+SET optimizer_switch='semijoin=on,materialization=on';
+SELECT *
+FROM t1 , t2
+WHERE ( t1.f4 ) IN ( SELECT f4 FROM t3 )
+AND t2.f4 != t1.f3 ;
+f3	f4	f4
+x	x	g
+x	x	g
+set optimizer_switch= @tmp_869012;
+DROP TABLE t1,t2,t3;
+# This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
 set optimizer_switch=default;
 select @@optimizer_switch like '%materialization=on%';
