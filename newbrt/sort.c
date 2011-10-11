@@ -107,7 +107,6 @@ swap(void *va, void *vb, int width)
         ia++;
         ib++;
     }
-    if (width == 0) { return; }
     unsigned char *ca = (void *) ia, *cb = (void *) ib, ct;
     while (width > 0) {
         ct = *ca;
@@ -128,8 +127,6 @@ quicksort_r(void *va, int n, int width,
     unsigned char *lo = a;
     unsigned char *pivot = &a[(n / 2) * width];
     unsigned char *hi = &a[(n - 1) * width];
-    // The pivot is the last position in the array, but is the median of
-    // three elements (first, middle, last).
     if (cmp(extra, lo, pivot) > 0) {
         swap(lo, pivot, width);
     }

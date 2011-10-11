@@ -33,14 +33,13 @@ rand_bytes(void *dest, int size)
     }
 }
 
-#if 0
 static void
 rand_bytes_limited(void *dest, int size)
 {
     long *l;
     for (l = dest; (unsigned int) size >= (sizeof *l); ++l, size -= (sizeof *l)) {
         char c = random() & 0xff;
-        int i = 0;
+        unsigned int i = 0;
         for (char *p = (char *) l; i < (sizeof *l); ++i) {
             *p = c;
         }
@@ -50,7 +49,6 @@ rand_bytes_limited(void *dest, int size)
         *p = c;
     }
 }
-#endif
 
 static void
 insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_out, XIDS xids, int pfx)
@@ -85,7 +83,6 @@ insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_ou
     assert_zero(r);
 }
 
-#if 0
 static void
 insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
 {
@@ -97,7 +94,6 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
     rand_bytes_limited((char *) key + (sizeof pfx), keylen);
     rand_bytes(val, vallen);
     MSN msn = next_dummymsn();
-    bool is_fresh = (random() & 0x100) == 0;
 
     DBT *keydbt, *valdbt;
     keydbt = toku_xmalloc(sizeof *keydbt);
@@ -163,7 +159,6 @@ insert_random_update_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_f
                                 NULL, dummy_cmp);
     assert_zero(r);
 }
-#endif
 
 const int M = 1024 * 1024;
 
@@ -422,7 +417,6 @@ flush_to_internal_multiple(BRT t) {
     toku_free(child_messages_is_fresh);
 }
 
-#if 0
 static void
 flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     int r;
@@ -457,7 +451,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
             u_int32_t keylen;
             char *key = le_key_and_len(child_messages[i], &keylen);
             DBT keydbt;
-            if (dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), childkeys[i%8]) > 0) {
+            if (dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) > 0) {
                 toku_fill_dbt(&childkeys[i%8], key, keylen);
             }
         }
@@ -490,9 +484,13 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
                 toku_apply_cmd_to_leaf(t, child, parent_messages[i], &made_change, &workdone, NULL, NULL);
             }
         }
-        child->stale_ancestor_messages_applied = true;
+        for (i = 0; i < 8; ++i) {
+            BLB(child, i)->stale_ancestor_messages_applied = true;
+        }
     } else {
-        child->stale_ancestor_messages_applied = false;
+        for (i = 0; i < 8; ++i) {
+            BLB(child, i)->stale_ancestor_messages_applied = false;
+        }
     }
 
     if (use_flush) {
@@ -501,9 +499,9 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
         BRTNODE XMALLOC(parentnode);
         BLOCKNUM parentblocknum = { 17 };
         toku_initialize_empty_brtnode(parentnode, parentblocknum, 1, 1, BRT_LAYOUT_VERSION, 4*M, 0);
-        destroy_nonleaf_childinfo(BNC(parent, 0));
-        set_BNC(parent, 0, parent_bnc);
-        BP_STATE(parent, 0) = PT_AVAIL;
+        destroy_nonleaf_childinfo(BNC(parentnode, 0));
+        set_BNC(parentnode, 0, parent_bnc);
+        BP_STATE(parentnode, 0) = PT_AVAIL;
         struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
         const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
         maybe_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds);
@@ -589,7 +587,6 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     toku_free(parent_messages_is_fresh);
     toku_free(child_messages_is_fresh);
 }
-#endif
 
 int
 test_main (int argc, const char *argv[]) {
@@ -611,7 +608,6 @@ test_main (int argc, const char *argv[]) {
     for (int i = 0; i < 10; ++i) {
         flush_to_internal_multiple(t);
     }
-#if 0
     r = toku_brt_set_update(t, orthopush_flush_update_fun); assert(r==0);
     for (int i = 0; i < 10; ++i) {
         flush_to_leaf(t, false, false);
@@ -619,7 +615,6 @@ test_main (int argc, const char *argv[]) {
         flush_to_leaf(t, true, false);
         flush_to_leaf(t, true, true);
     }
-#endif
 
     r = toku_close_brt(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
