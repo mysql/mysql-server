@@ -7969,7 +7969,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       */
       JOIN_TAB *first_inner_tab= tab->first_inner;
 
-      if (tab->table)
+      if (!tab->bush_children)
         current_map= tab->table->map;
       else
         current_map= tab->bush_children->start->emb_sj_nest->sj_inner_tables;
