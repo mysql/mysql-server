@@ -280,12 +280,20 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   }
 
   /*
-    handler_entry should not be NULL here, as that indicates
+    handler_entry usually should not be NULL here, as that indicates
     that the parser context thinks a HANDLER should be activated,
     but the runtime context cannot find it.
-    However, this can currently happen if a statement that can
-    legally be written before DECLARE HANDLER raises a condition.
-    E.g. DECLARE var1 INTEGER DEFAULT 'get'.
+
+    However, this can happen (and this is in line with the Standard)
+    if SQL-condition has been raised before DECLARE HANDLER instruction
+    is processed.
+
+    For example:
+    CREATE PROCEDURE p()
+    BEGIN
+      DECLARE v INT DEFAULT 'get'; -- raises SQL-warning here
+      DECLARE EXIT HANDLER ...     -- this handler does not catch the warning
+    END
   */
   if (!handler_entry)
     DBUG_RETURN(false);

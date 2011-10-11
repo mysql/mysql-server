@@ -3718,12 +3718,14 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 --echo
+--echo # Bug#13059316: ASSERTION FAILURE IN SP_RCONTEXT.CC 
 --echo # Check DECLARE statements that raise conditions before handlers
 --echo # are declared.
 --echo
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
 --enable_warnings
 
 delimiter |;
@@ -3731,13 +3733,24 @@ delimiter |;
 CREATE PROCEDURE p1()
 BEGIN
   DECLARE var1 INTEGER DEFAULT 'string';
-  DECLARE EXIT HANDLER FOR SQLWARNING BEGIN END;
+  DECLARE EXIT HANDLER FOR SQLWARNING SELECT 'H1';
 END|
+
+--echo
+CALL p1()|
+--echo
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLWARNING SELECT 'H2';
+  CALL p1();
+END|
+
+--echo
+CALL p2()|
 
 delimiter ;|
 
 --echo
-CALL p1();
-
---echo
 DROP PROCEDURE p1;
+DROP PROCEDURE p2;
