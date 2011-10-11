@@ -40,7 +40,7 @@ ut_crc32_init();
 Calculates CRC32.
 @return CRC32 (CRC-32C, using the GF(2) primitive polynomial 0x11EDC6F41,
 or 0x1EDC6F41 without the high-order bit) */
-UNIV_INTERN
+extern
 ib_uint32_t
 (*ut_crc32)(
 /*========*/

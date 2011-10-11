@@ -3713,6 +3713,8 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
       insert_events_waits_history_long(wait);
     thread->m_events_waits_count--;
   }
+
+  table->m_has_io_stats= true;
 }
 
 /**
@@ -3790,6 +3792,8 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
       insert_events_waits_history_long(wait);
     thread->m_events_waits_count--;
   }
+
+  table->m_has_lock_stats= true;
 }
 
 static void start_file_wait_v1(PSI_file_locker *locker,

@@ -429,8 +429,8 @@ The following options may be given as the first argument:
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
  engine_condition_pushdown, index_condition_pushdown, mrr,
- mrr_cost_based, block_nested_loop, batch_key_access} and
- val is one of {on, off, default}
+ mrr_cost_based, block_nested_loop, batched_key_access}
+ and val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option

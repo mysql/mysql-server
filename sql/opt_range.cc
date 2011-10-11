@@ -2103,7 +2103,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
   const KEY_PART_INFO *key_part= cur_key.key_part;
 
   trace_object->add_alnum("type", "range_scan").
-    add_utf8("index", cur_key.name).add("records", records);
+    add_utf8("index", cur_key.name).add("rows", records);
 
   Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
 
@@ -2167,7 +2167,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
 {
 #ifdef OPTIMIZER_TRACE
   trace_object->add_alnum("type", "index_roworder_intersect").
-    add("records", records).
+    add("rows", records).
     add("cost", read_cost).
     add("covering", is_covering).
     add("clustered_pk_scan", cpk_scan != NULL);
@@ -2183,7 +2183,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
 
     Opt_trace_object trace_isect_idx(trace);
     trace_isect_idx.add_alnum("type", "range_scan").
-      add_utf8("index", cur_key.name).add("records", (*cur_scan)->records);
+      add_utf8("index", cur_key.name).add("rows", (*cur_scan)->records);
 
     Opt_trace_array trace_range(trace, "ranges");
     for (const SEL_ARG *current= (*cur_scan)->sel_arg;
@@ -2362,7 +2362,7 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
   trace_object->add("min_aggregate", have_min).
     add("max_aggregate", have_max).
     add("distinct_aggregate", have_agg_distinct).
-    add("records", records).
+    add("rows", records).
     add("cost", read_cost);
 
   const KEY_PART_INFO *key_part= index_info->key_part;
@@ -2530,7 +2530,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_range(trace, "range_analysis");
   Opt_trace_object(trace, "table_scan").
-    add("records", head->file->stats.records).
+    add("rows", head->file->stats.records).
     add("cost", read_time);
 
   keys_to_use.intersect(head->keys_in_use_for_query);
@@ -2830,7 +2830,7 @@ free_mem:
                                           "range_access_plan");
         best_trp->trace_basic_info(&param, &trace_range_plan);
       }
-      trace_range_summary.add("records_for_plan", quick->records).
+      trace_range_summary.add("rows_for_plan", quick->records).
         add("cost_for_plan", quick->read_time).
         add("chosen", true);
     }
@@ -5082,7 +5082,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     }
     
     trace_idx.add("usable", true).
-      add("matching_records_now", intersect->out_rows).
+      add("matching_rows_now", intersect->out_rows).
       add("cumulated_cost", intersect->total_cost).
       add("isect_covering_with_this_index", intersect->is_covering);
 
@@ -5102,7 +5102,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   if (intersect_scans_best == intersect_scans)
   {
     trace_ror.add("chosen", false).
-      add("cause", "does_not_increase_selectivity");
+      add_alnum("cause", "does_not_increase_selectivity");
     DBUG_PRINT("info", ("None of scans increase selectivity"));
     DBUG_RETURN(NULL);
   }
@@ -5167,7 +5167,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     trp->index_scan_costs= intersect_best->index_scan_costs;
     trp->cpk_scan= cpk_scan_used? cpk_scan: NULL;
 
-    trace_ror.add("records", trp->records).
+    trace_ror.add("rows", trp->records).
       add("cost", trp->read_cost).
       add("covering", trp->is_covering).
       add("chosen", true);
@@ -5355,7 +5355,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   trp->cpk_scan= NULL;
   set_if_smaller(param->table->quick_condition_rows, records); 
 
-  trace_covering.add("records", trp->records).
+  trace_covering.add("rows", trp->records).
     add("cost", trp->read_cost).
     add("chosen", true);
 
@@ -5454,7 +5454,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 #endif
 
       trace_idx.add("index_only", read_index_only).
-        add("records", found_records).
+        add("rows", found_records).
         add("cost", cost.total_cost());
 
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
@@ -6088,8 +6088,21 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   if (cond_func->functype() == Item_func::BETWEEN ||
       cond_func->functype() == Item_func::IN_FUNC)
     inv= ((Item_func_opt_neg *) cond_func)->negated;
-  else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-    DBUG_RETURN(0);			       
+  else
+  {
+    /*
+      During the cond_func->select_optimize() evaluation we can come across a
+      subselect item which may allocate memory on the thd->mem_root and assumes
+      all the memory allocated has the same life span as the subselect item
+      itself. So we have to restore the thread's mem_root here.
+    */
+    MEM_ROOT *tmp_root= param->mem_root;
+    param->thd->mem_root= param->old_root;
+    Item_func::optimize_type opt_type= cond_func->select_optimize();
+    param->thd->mem_root= tmp_root;
+    if (opt_type == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(NULL);
+  }
 
   param->cond= cond;
 
@@ -10918,7 +10931,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       Do not compare doubles directly because they may have different
       representations (64 vs. 80 bits).
     */
-    trace_idx.add("records", cur_records).add("cost", cur_read_cost);
+    trace_idx.add("rows", cur_records).add("cost", cur_read_cost);
     if (cur_read_cost < best_read_cost - (DBL_EPSILON * cur_read_cost))
     {
       index_info= cur_index_info;

@@ -81,7 +81,13 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
 
@@ -462,6 +468,7 @@ void lex_start(THD *thd)
 
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
+  lex->reset_slave_info.all= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1772,6 +1779,8 @@ void st_select_lex_unit::init_query()
 void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
+  resolve_place= RESOLVE_NONE;
+  resolve_nest= NULL;
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
@@ -2181,6 +2190,9 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   if (!ref_pointer_array.is_null())
     return false;
 #endif
+
+  // find_order_in_list() may need some extra space, so multiply by two.
+  order_group_num*= 2;
 
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num*= 2;

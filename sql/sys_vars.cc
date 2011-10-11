@@ -1671,7 +1671,7 @@ static const char *optimizer_switch_names[]=
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
   "index_condition_pushdown" , "mrr", "mrr_cost_based",
-  "block_nested_loop", "batch_key_access",
+  "block_nested_loop", "batched_key_access",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
 #endif
@@ -1697,7 +1697,7 @@ static Sys_var_flagset Sys_optimizer_switch(
        ", materialization, "
        "semijoin, loosescan, firstmatch"
 #endif
-       ", block_nested_loop, batch_key_access"
+       ", block_nested_loop, batched_key_access"
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),

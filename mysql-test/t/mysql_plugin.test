@@ -45,7 +45,6 @@ use File::Basename;
   my $plugindir_ini= "$ENV{PLUGIN_DIR}/daemon_example.ini";
   my $notfound= "";
   open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/mysqld.inc") or die;
-  print FILE "let \$MYSQLD= $mysqld;\n";
   print FILE "let \$MYSQLD_BASEDIR= $mysqld_basedir;\n";
   print FILE "let \$MYSQL_MY_PRINT_DEFAULTS_BASEDIR= $my_print_defaults_basedir;\n";
   if ((!-e $daemonexample_ini) || (!-r $daemonexample_ini))
@@ -224,6 +223,7 @@ let $MYSQL_PLUGIN_CMD= $MYSQL_PLUGIN -n --datadir=/data_not_there/ --basedir=$MY
 --echo # Attempt to use bad paths - basedir
 --echo #
 let $MYSQL_PLUGIN_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQLD_DATADIR --basedir=/basedir_not_there/ --plugin-dir=$PLUGIN_DIR --mysqld=$MYSQLD_BASEDIR --my-print-defaults=$MYSQL_MY_PRINT_DEFAULTS_BASEDIR;
+replace_result "/basedir_not_there//" "/basedir_not_there/";
 --error 1,2,256
 --exec $MYSQL_PLUGIN_CMD DISABLE daemon_example 2>&1
 

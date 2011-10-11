@@ -2075,7 +2075,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         }
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thd_info->start_time= tmp->start_time;
-        thread_infos.append(thd_info);
+        thread_infos.push_front(thd_info);
       }
     }
   }

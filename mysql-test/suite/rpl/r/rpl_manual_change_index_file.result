@@ -5,7 +5,6 @@ CREATE TABLE t1(c1 INT);
 FLUSH LOGS;
 call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
 include/wait_for_slave_io_error.inc [errno=1236]
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'could not find next log''
 CREATE TABLE t2(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t3(c1 INT);
