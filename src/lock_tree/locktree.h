@@ -615,11 +615,11 @@ void toku_ltm_lock_mutex(toku_ltm *mgr);
 // unlock the lock tree
 void toku_ltm_unlock_mutex(toku_ltm *mgr);
 
-// set the default lock timeout. units are microseconds.
-void toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_usec);
+// set the default lock timeout. units are milliseconds
+void toku_ltm_set_lock_wait_time(toku_ltm *mgr, uint64_t lock_wait_time_msec);
 
 // get the default lock timeout
-void toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_usec);
+void toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_msec);
 
 #if defined(__cplusplus)
 }

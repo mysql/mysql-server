@@ -69,7 +69,7 @@ int main(int argc, const char *argv[]) {
 
     r = write_lock(ltm, lt, txn_a, "L"); assert(r == 0);
     for (int t = 1; t < 10; t++) {
-        toku_ltm_set_lock_wait_time(ltm, t * 1000000);
+        toku_ltm_set_lock_wait_time(ltm, t * 1000);
         r = read_lock(ltm, lt, txn_b, "L"); 
         assert(r == DB_LOCK_NOTGRANTED);
         r = write_lock(ltm, lt, txn_b, "L"); 
