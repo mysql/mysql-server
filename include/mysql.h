@@ -42,7 +42,7 @@
 extern "C" {
 #endif
 
-#ifndef _global_h				/* If not standard header */
+#ifndef MY_GLOBAL_INCLUDED                /* If not standard header */
 #ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
 #endif
@@ -66,7 +66,7 @@ typedef char my_bool;
 typedef int my_socket;
 #endif /* __WIN__ */
 #endif /* my_socket_defined */
-#endif /* _global_h */
+#endif /* MY_GLOBAL_INCLUDED */
 
 #include "mysql_version.h"
 #include "mysql_com.h"
@@ -118,7 +118,7 @@ typedef struct st_mysql_field {
 typedef char **MYSQL_ROW;		/* return data as array of strings */
 typedef unsigned int MYSQL_FIELD_OFFSET; /* offset to current field */
 
-#ifndef _global_h
+#ifndef MY_GLOBAL_INCLUDED
 #if defined(NO_CLIENT_LONG_LONG)
 typedef unsigned long my_ulonglong;
 #elif defined (__WIN__)

@@ -65,12 +65,17 @@ IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 ENDIF()
 
+# The default C++ library for SunPro is really old, and not standards compliant.
+# http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
+# Use stlport rather than Rogue Wave.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+    SET(CMAKE_CXX_FLAGS 
+      "${CMAKE_CXX_FLAGS} -library=stlport4")
+  ENDIF()
+ENDIF()
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
-  # MySQL "canonical" GCC flags. At least -fno-rtti flag affects
-  # ABI and cannot be simply removed. 
-  SET(CMAKE_CXX_FLAGS 
-    "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
   IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
      OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
      SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
@@ -884,16 +889,6 @@ CHECK_C_SOURCE_COMPILES("
     HAVE_WEAK_SYMBOL
 )
 
-
-CHECK_CXX_SOURCE_COMPILES("
-    #include <new>
-    int main()
-    {
-      char *c = new char;
-      return 0;
-    }"
-    HAVE_CXX_NEW
-)
 
 CHECK_CXX_SOURCE_COMPILES("
     #undef inline

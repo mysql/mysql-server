@@ -14,6 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+
+#include <vector>
+#include <algorithm>
+#include <functional>
+
 #include "sql_priv.h"
 #include "unireg.h"
 #include <signal.h>
@@ -96,6 +101,7 @@
 
 using std::min;
 using std::max;
+using std::vector;
 
 #define mysqld_charset &my_charset_latin1
 
@@ -957,7 +963,7 @@ uint connection_count= 0;
 pthread_handler_t signal_hand(void *arg);
 static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
-static bool add_terminator(DYNAMIC_ARRAY *options);
+static void add_terminator(vector<my_option> *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
@@ -4667,14 +4673,14 @@ int mysqld_main(int argc, char **argv)
     before to-be-instrumented objects of the server are initialized.
   */
   int ho_error;
-  DYNAMIC_ARRAY all_early_options;
+  vector<my_option> all_early_options;
+  all_early_options.reserve(100);
 
   my_getopt_register_get_addr(NULL);
   /* Skip unknown options so that they may be processed later */
   my_getopt_skip_unknown= TRUE;
 
   /* prepare all_early_options array */
-  my_init_dynamic_array(&all_early_options, sizeof(my_option), 100, 25);
   sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
   add_terminator(&all_early_options);
 
@@ -4687,8 +4693,10 @@ int mysqld_main(int argc, char **argv)
   my_charset_error_reporter= buffered_option_error_reporter;
 
   ho_error= handle_options(&remaining_argc, &remaining_argv,
-                           (my_option*)(all_early_options.buffer), NULL);
-  delete_dynamic(&all_early_options);
+                           &all_early_options[0], NULL);
+  // Swap with an empty vector, i.e. delete elements and free allocated space.
+  vector<my_option>().swap(all_early_options);
+
   if (ho_error == 0)
   {
     /* Add back the program name handle_options removes */
@@ -5536,7 +5544,7 @@ void handle_connections_sockets()
   MYSQL_SOCKET pfs_fds[2]; // for performance schema
 #else
   fd_set readFDs,clientFDs;
-  uint max_used_connection= max<uint>(max<uint>(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock))+1);
+  uint max_used_connection= max<uint>(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock)) + 1;
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
@@ -6121,7 +6129,7 @@ error:
   Handle start options
 ******************************************************************************/
 
-DYNAMIC_ARRAY all_options;
+vector<my_option> all_options;
 
 /**
   System variables are automatically command-line options (few
@@ -7154,10 +7162,11 @@ SHOW_VAR status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-bool add_terminator(DYNAMIC_ARRAY *options)
+void add_terminator(vector<my_option> *options)
 {
-  my_option empty_element= {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
-  return insert_dynamic(options, &empty_element);
+  my_option empty_element=
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
+  options->push_back(empty_element);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7170,10 +7179,10 @@ static void print_version(void)
 }
 
 /** Compares two options' names, treats - and _ the same */
-static int option_cmp(my_option *a, my_option *b)
+static bool operator<(const my_option &a, const my_option &b)
 {
-  const char *sa= a->name;
-  const char *sb= b->name;
+  const char *sa= a.name;
+  const char *sb= b.name;
   for (; *sa || *sb; sa++, sb++)
   {
     if (*sa < *sb)
@@ -7181,18 +7190,18 @@ static int option_cmp(my_option *a, my_option *b)
       if (*sa == '-' && *sb == '_')
         continue;
       else
-        return -1;
+        return true;
     }
     if (*sa > *sb)
     {
       if (*sa == '_' && *sb == '-')
         continue;
       else
-        return 1;
+        return false;
     }
   }
-  DBUG_ASSERT(a->name == b->name);
-  return 0;
+  DBUG_ASSERT(a.name == b.name);
+  return false;
 }
 
 static void print_help()
@@ -7200,17 +7209,18 @@ static void print_help()
   MEM_ROOT mem_root;
   init_alloc_root(&mem_root, 4096, 4096);
 
-  pop_dynamic(&all_options);
+  all_options.pop_back();
   sys_var_add_options(&all_options, sys_var::PARSE_EARLY);
   add_plugin_options(&all_options, &mem_root);
-  sort_dynamic(&all_options, (qsort_cmp) option_cmp);
+  std::sort(all_options.begin(), all_options.end(), std::less<my_option>());
+  //sort_dynamic(&all_options, (qsort_cmp) option_cmp);
   add_terminator(&all_options);
 
-  my_print_help((my_option*) all_options.buffer);
-  my_print_variables((my_option*) all_options.buffer);
+  my_print_help(&all_options[0]);
+  my_print_variables(&all_options[0]);
 
   free_root(&mem_root, MYF(0));
-  delete_dynamic(&all_options);
+  vector<my_option>().swap(all_options);  // Deletes the vector contents.
 }
 
 static void usage(void)
@@ -7829,25 +7839,23 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   my_getopt_error_reporter= option_error_reporter;
 
   /* prepare all_options array */
-  my_init_dynamic_array(&all_options, sizeof(my_option),
-                        array_elements(my_long_options),
-                        array_elements(my_long_options)/4);
+  all_options.reserve(array_elements(my_long_options));
   for (my_option *opt= my_long_options;
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
-    insert_dynamic(&all_options, opt);
+    all_options.push_back(*opt);
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown= TRUE;
 
-  if ((ho_error= handle_options(argc_ptr, argv_ptr, (my_option*)(all_options.buffer),
+  if ((ho_error= handle_options(argc_ptr, argv_ptr, &all_options[0],
                                 mysqld_get_one_option)))
     return ho_error;
 
   if (!opt_help)
-    delete_dynamic(&all_options);
+    vector<my_option>().swap(all_options);  // Deletes the vector contents.
 
   /* Add back the program name handle_options removes */
   (*argc_ptr)++;

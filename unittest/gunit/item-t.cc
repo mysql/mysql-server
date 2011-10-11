@@ -341,6 +341,16 @@ TEST_F(ItemTest, OutOfMemory)
 #endif
 }
 
+
+// We never use dynamic_cast, but we expect it to work.
+TEST_F(ItemTest, DynamicCast)
+{
+  Item *item= new Item_int(42);
+  const Item_int *null_item= NULL;
+  EXPECT_NE(null_item, dynamic_cast<Item_int*>(item));
+}
+
+
 TEST_F(ItemTest, ItemFuncXor)
 {
   const uint length= 1U;

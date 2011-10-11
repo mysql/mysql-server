@@ -14,10 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* This is the include file that should be included 'first' in every C file. */
+#ifndef MY_GLOBAL_INCLUDED
+#define MY_GLOBAL_INCLUDED
 
-#ifndef _global_h
-#define _global_h
+/* This is the include file that should be included 'first' in every C file. */
 
 /* Client library users on Windows need this macro defined here. */
 #if !defined(__WIN__) && defined(_WIN32)
@@ -302,12 +302,6 @@ C_MODE_END
 #undef HAVE_INITGROUPS
 #endif
 
-/* gcc/egcs issues */
-
-#if defined(__GNUC) && defined(__EXCEPTIONS)
-#error "Please add -fno-exceptions to CXXFLAGS and reconfigure/recompile"
-#endif
-
 #if defined(_lint) && !defined(lint)
 #define lint
 #endif
@@ -484,17 +478,6 @@ typedef unsigned short ushort;
 #endif
 
 #include <my_compiler.h>
-
-/*
-  Wen using the embedded library, users might run into link problems,
-  duplicate declaration of __cxa_pure_virtual, solved by declaring it a
-  weak symbol.
-*/
-#if defined(USE_MYSYS_NEW) && ! defined(DONT_DECLARE_CXA_PURE_VIRTUAL)
-C_MODE_START
-int __cxa_pure_virtual () __attribute__ ((weak));
-C_MODE_END
-#endif
 
 /* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
@@ -792,9 +775,13 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif /* HAVE_FINITE */
 #endif /* isfinite */
 
+#include <math.h>
 #ifndef HAVE_ISNAN
 #define isnan(x) ((x) != (x))
 #endif
+C_MODE_START
+extern double my_double_isnan(double x);
+C_MODE_END
 
 #ifdef HAVE_ISINF
 /* Check if C compiler is affected by GCC bug #39228 */
@@ -1494,4 +1481,4 @@ enum loglevel {
 };
 
 
-#endif /* my_global_h */
+#endif  // MY_GLOBAL_INCLUDED

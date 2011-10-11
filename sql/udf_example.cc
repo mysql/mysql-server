@@ -111,21 +111,13 @@
 **
 */
 
-#ifdef STANDARD
-/* STANDARD is defined, don't use any mysql functions */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#ifdef __WIN__
-typedef unsigned __int64 ulonglong;	/* Microsofts 64 bit types */
-typedef __int64 longlong;
-#else
-typedef unsigned long long ulonglong;
-typedef long long longlong;
-#endif /*__WIN__*/
-#else
 #include <my_global.h>
 #include <my_sys.h>
+
+#include <new>
+#include <vector>
+#include <algorithm>
+
 #if defined(MYSQL_SERVER)
 #include <m_string.h>		/* To get strmov() */
 #else
@@ -133,7 +125,7 @@ typedef long long longlong;
 #include <string.h>
 #define strmov(a,b) stpcpy(a,b)
 #endif
-#endif
+
 #include <mysql.h>
 #include <ctype.h>
 
@@ -150,6 +142,7 @@ static pthread_mutex_t LOCK_hostname;
 
 /* These must be right or mysqld will not find the symbol! */
 
+C_MODE_START;
 my_bool metaphon_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void metaphon_deinit(UDF_INIT *initid);
 char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
@@ -173,7 +166,7 @@ double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 my_bool is_const_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 char *is_const(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long
                *length, char *is_null, char *error);
-
+C_MODE_END;
 
 /*************************************************************************
 ** Example of init function
@@ -696,6 +689,7 @@ longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 #include <netdb.h>
 #endif
 
+C_MODE_START;
 my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void lookup_deinit(UDF_INIT *initid);
 char *lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
@@ -704,6 +698,7 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void reverse_lookup_deinit(UDF_INIT *initid);
 char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 		     unsigned long *length, char *null_value, char *error);
+C_MODE_END;
 
 
 /****************************************************************************
@@ -939,7 +934,7 @@ avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
   initid->decimals	= 4;		/* We want 4 decimals in the result */
   initid->max_length	= 20;		/* 6 digits + . + 10 decimals */
 
-  if (!(data = (struct avgcost_data*) malloc(sizeof(struct avgcost_data))))
+  if (!(data = new (std::nothrow) avgcost_data))
   {
     strmov(message,"Couldn't allocate memory");
     return 1;
@@ -955,7 +950,9 @@ avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
 void
 avgcost_deinit( UDF_INIT* initid )
 {
-  free(initid->ptr);
+  void *void_ptr= initid->ptr;
+  avgcost_data *data= static_cast<avgcost_data*>(void_ptr);
+  delete data;
 }
 
 
@@ -1110,6 +1107,7 @@ char * is_const(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
 
 
 
+extern "C"
 my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   if (args->arg_count != 1)
@@ -1133,6 +1131,7 @@ my_bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return 0;
 }
 
+extern "C"
 char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
                 char *result, unsigned long *length,
                 char *is_null, char *error __attribute__((unused)))
@@ -1143,5 +1142,80 @@ char * check_const_len(UDF_INIT *initid, UDF_ARGS *args __attribute__((unused)),
   return result;
 }
 
+
+C_MODE_START;
+my_bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message);
+void     my_median_deinit(UDF_INIT* initid);
+void     my_median_add   (UDF_INIT* initid, UDF_ARGS* args,
+                          char* is_null, char *error);
+void     my_median_clear (UDF_INIT* initid, UDF_ARGS* args,
+                          char* is_null, char *error);
+longlong my_median       (UDF_INIT* initid, UDF_ARGS* args,
+                          char* is_null, char *error);
+C_MODE_END;
+
+struct My_median_data
+{
+  std::vector<longlong> vec;
+};
+
+
+my_bool  my_median_init  (UDF_INIT *initid, UDF_ARGS *args, char *message)
+{
+  My_median_data *data= new (std::nothrow) My_median_data;
+  if (!data)
+  {
+    strmov(message,"Could not allocate memory");
+    return true;
+  }
+  initid->ptr= static_cast<char*>(static_cast<void*>(data));
+  return false;
+}
+
+void my_median_deinit(UDF_INIT* initid)
+{
+  My_median_data *data=
+    static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
+  delete data;
+}
+
+void my_median_add(UDF_INIT* initid, UDF_ARGS* args,
+                   char* is_null __attribute__((unused)),
+                   char* message __attribute__((unused)))
+{
+  My_median_data *data=
+    static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
+  if (args->args[0])
+  {
+    void *arg0= args->args[0];
+    longlong number= *(static_cast<longlong*>(arg0));
+    data->vec.push_back(number);
+  }
+}
+
+void my_median_clear(UDF_INIT* initid, UDF_ARGS* args,
+                     char* is_null __attribute__((unused)),
+                     char* message __attribute__((unused)))
+{
+  My_median_data *data=
+    static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
+  data->vec.clear();
+}
+
+longlong my_median(UDF_INIT* initid, UDF_ARGS* args,
+                   char* is_null,
+                   char* message __attribute__((unused)))
+{
+  My_median_data *data=
+    static_cast<My_median_data*>(static_cast<void*>(initid->ptr));
+  if (data->vec.size() == 0)
+  {
+    *is_null= 1;
+    return 0;
+  }
+  const size_t ix= data->vec.size() / 2;
+  std::nth_element(data->vec.begin(), data->vec.begin() + ix, data->vec.end());
+  return data->vec[ix];
+}
 
 #endif /* HAVE_DLOPEN */

@@ -17,7 +17,8 @@
 #define SQL_TABLE_INCLUDED
 
 #include "my_global.h"                          /* my_bool */
-#include "my_sys.h"                             // pthread_mutex_t
+#include "my_pthread.h"
+#include "m_ctype.h"                            /* CHARSET_INFO */
 
 class Alter_info;
 class Create_field;

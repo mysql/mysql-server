@@ -21,6 +21,8 @@
 
 /* Definitions for parameters to do with handler-routines */
 
+#include "my_pthread.h"
+#include <algorithm>
 #include "sql_const.h"
 #include "mysqld.h"                             /* server_id */
 #include "sql_plugin.h"        /* plugin_ref, st_plugin_int, plugin */
@@ -28,7 +30,6 @@
 #include "sql_cache.h"
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
-#include <algorithm>
 #include <my_global.h>
 #include <my_compare.h>
 #include <ft_global.h>
@@ -1103,7 +1104,7 @@ public:
     if (io_count_sum != 0.0)
       avg_io_cost= (io_count * avg_io_cost + 
                     add_io_cnt * add_avg_cost) / io_count_sum;
-    DBUG_ASSERT(!isnan(avg_io_cost));
+    DBUG_ASSERT(!my_double_isnan(avg_io_cost));
     io_count= io_count_sum;
   }
 
@@ -1986,15 +1987,30 @@ public:
   { return (HA_ERR_WRONG_COMMAND); }
 
   uint max_record_length() const
-  { return std::min(HA_MAX_REC_LENGTH, max_supported_record_length()); }
+  {
+    using std::min;
+    return min(HA_MAX_REC_LENGTH, max_supported_record_length());
+  }
   uint max_keys() const
-  { return std::min(MAX_KEY, max_supported_keys()); }
+  {
+    using std::min;
+    return min(MAX_KEY, max_supported_keys());
+  }
   uint max_key_parts() const
-  { return std::min(MAX_REF_PARTS, max_supported_key_parts()); }
+  {
+    using std::min;
+    return min(MAX_REF_PARTS, max_supported_key_parts());
+  }
   uint max_key_length() const
-  { return std::min(MAX_KEY_LENGTH, max_supported_key_length()); }
+  {
+    using std::min;
+    return min(MAX_KEY_LENGTH, max_supported_key_length());
+  }
   uint max_key_part_length() const
-  { return std::min(MAX_KEY_LENGTH, max_supported_key_part_length()); }
+  {
+    using std::min;
+    return min(MAX_KEY_LENGTH, max_supported_key_part_length());
+  }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   virtual uint max_supported_keys() const { return 0; }

@@ -151,7 +151,7 @@ debug_cflags="$debug_cflags -DSAFE_MUTEX"
 error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
-base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
+base_cxxflags="-felide-constructors"
 #
 # Flags for optimizing builds.
 # Be as fast as we can be without losing our ability to backtrace.

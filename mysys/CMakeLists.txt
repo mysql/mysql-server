@@ -25,6 +25,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				my_compress.c my_copy.c  my_create.c my_delete.c
 				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c 
 				my_gethwaddr.c my_getopt.c my_getsystime.c my_getwd.c my_compare.c my_init.c
+				my_isnan.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c my_pthread.c
 				my_quick.c my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
@@ -34,7 +35,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_atomic.c my_getncpus.c
-				my_rdtsc.c waiting_threads.c psi_noop.cc)
+				my_rdtsc.c waiting_threads.c psi_noop.c)
 
 IF (WIN32)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
@@ -42,12 +43,6 @@ ENDIF()
 
 IF(HAVE_ALARM)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_alarm.c)
-ENDIF()
-
-IF(NOT HAVE_CXX_NEW)
- # gcc as C++ compiler  does not have new/delete
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_new.cc)
- ADD_DEFINITIONS( -DUSE_MYSYS_NEW)
 ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
