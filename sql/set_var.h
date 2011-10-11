@@ -21,6 +21,7 @@
 */
 
 #include <my_getopt.h>
+#include <vector>
 
 class sys_var;
 class set_var;
@@ -127,10 +128,10 @@ public:
     }
     return true; // keep gcc happy
   }
-  bool register_option(DYNAMIC_ARRAY *array, int parse_flags)
+  bool register_option(std::vector<my_option> *array, int parse_flags)
   {
     return (option.id != -1) && (m_parse_flag & parse_flags) &&
-           insert_dynamic(array, &option);
+      (array->push_back(option), false);
   }
 
 private:
@@ -331,7 +332,7 @@ extern sys_var *Sys_autocommit_ptr;
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 
 int sys_var_init();
-int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags);
+int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
 
 #endif

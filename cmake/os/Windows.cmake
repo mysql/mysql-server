@@ -72,19 +72,21 @@ IF(MSVC)
   ENDFOREACH()
   
   # Force static runtime libraries
+  # Choose C++ exception handling:
+  #   If /EH is not specified, the compiler will catch structured and
+  #   C++ exceptions, but will not destroy C++ objects that will go out of
+  #   scope as a result of the exception.
+  #   /EHsc catches C++ exceptions only and tells the compiler to assume that
+  #   extern C functions never throw a C++ exception.
   FOREACH(flag 
    CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO 
    CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT 
    CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
    CMAKE_CXX_FLAGS_DEBUG  CMAKE_CXX_FLAGS_DEBUG_INIT)
    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+   SET("${flag}" "${${flag}} /EHcs")
   ENDFOREACH()
   
-  # Remove support for exceptions
-  FOREACH(flag CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_INIT)
-   STRING(REPLACE "/EHsc" ""   "${flag}" "${${flag}}") 
-  ENDFOREACH()
- 
   # Fix CMake's predefined huge stack size
   FOREACH(type EXE SHARED MODULE)
    STRING(REGEX REPLACE "/STACK:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS "${CMAKE_${type}_LINKER_FLAGS}")

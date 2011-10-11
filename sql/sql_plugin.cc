@@ -3552,7 +3552,7 @@ err:
 ****************************************************************************/
 
 
-void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root)
+void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root)
 {
   struct st_plugin_int *p;
   my_option *opt;
@@ -3570,7 +3570,7 @@ void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root)
     /* Only options with a non-NULL comment are displayed in help text */
     for (;opt->name; opt++)
       if (opt->comment)
-        insert_dynamic(options, opt);
+        options->push_back(*opt);
   }
 }
 

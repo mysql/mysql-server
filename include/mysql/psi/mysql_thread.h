@@ -69,7 +69,13 @@
 struct st_mysql_mutex
 {
   /** The real mutex. */
+#ifdef SAFE_MUTEX
+  safe_mutex_t m_mutex;
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  my_pthread_fastmutex_t m_mutex;
+#else
   pthread_mutex_t m_mutex;
+#endif
   /**
     The instrumentation hook.
     Note that this hook is not conditionally defined,
@@ -610,6 +616,8 @@ static inline int inline_mysql_mutex_init(
 #endif
 #ifdef SAFE_MUTEX
   return safe_mutex_init(&that->m_mutex, attr, src_file, src_line);
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  return my_pthread_fastmutex_init(&that->m_mutex, attr);
 #else
   return pthread_mutex_init(&that->m_mutex, attr);
 #endif
@@ -628,6 +636,8 @@ static inline int inline_mysql_mutex_destroy(
 #endif
 #ifdef SAFE_MUTEX
   return safe_mutex_destroy(&that->m_mutex, src_file, src_line);
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  return pthread_mutex_destroy(&that->m_mutex.mutex);
 #else
   return pthread_mutex_destroy(&that->m_mutex);
 #endif
@@ -650,6 +660,8 @@ static inline int inline_mysql_mutex_lock(
     PSI_CALL(start_mutex_wait)(locker, src_file, src_line);
 #ifdef SAFE_MUTEX
     result= safe_mutex_lock(&that->m_mutex, FALSE, src_file, src_line);
+#elif defined(MY_PTHREAD_FASTMUTEX)
+    result= my_pthread_fastmutex_lock(&that->m_mutex);
 #else
     result= pthread_mutex_lock(&that->m_mutex);
 #endif
@@ -660,6 +672,8 @@ static inline int inline_mysql_mutex_lock(
 
 #ifdef SAFE_MUTEX
   result= safe_mutex_lock(&that->m_mutex, FALSE, src_file, src_line);
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  result= my_pthread_fastmutex_lock(&that->m_mutex);
 #else
   result= pthread_mutex_lock(&that->m_mutex);
 #endif
@@ -683,6 +697,8 @@ static inline int inline_mysql_mutex_trylock(
     PSI_CALL(start_mutex_wait)(locker, src_file, src_line);
 #ifdef SAFE_MUTEX
     result= safe_mutex_lock(&that->m_mutex, TRUE, src_file, src_line);
+#elif defined(MY_PTHREAD_FASTMUTEX)
+    result= my_pthread_fastmutex_lock(&that->m_mutex);
 #else
     result= pthread_mutex_trylock(&that->m_mutex);
 #endif
@@ -693,6 +709,8 @@ static inline int inline_mysql_mutex_trylock(
 
 #ifdef SAFE_MUTEX
   result= safe_mutex_lock(&that->m_mutex, TRUE, src_file, src_line);
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  result= my_pthread_fastmutex_lock(&that->m_mutex);
 #else
   result= pthread_mutex_trylock(&that->m_mutex);
 #endif
@@ -712,6 +730,8 @@ static inline int inline_mysql_mutex_unlock(
 #endif
 #ifdef SAFE_MUTEX
   result= safe_mutex_unlock(&that->m_mutex, src_file, src_line);
+#elif defined(MY_PTHREAD_FASTMUTEX)
+  result= pthread_mutex_unlock(&that->m_mutex.mutex);
 #else
   result= pthread_mutex_unlock(&that->m_mutex);
 #endif
@@ -1033,13 +1053,13 @@ static inline int inline_mysql_cond_wait(
   if (likely(locker != NULL))
   {
     PSI_CALL(start_cond_wait)(locker, src_file, src_line);
-    result= pthread_cond_wait(&that->m_cond, &mutex->m_mutex);
+    result= my_cond_wait(&that->m_cond, &mutex->m_mutex);
     PSI_CALL(end_cond_wait)(locker, result);
     return result;
   }
 #endif
 
-  result= pthread_cond_wait(&that->m_cond, &mutex->m_mutex);
+  result= my_cond_wait(&that->m_cond, &mutex->m_mutex);
   return result;
 }
 
@@ -1061,13 +1081,13 @@ static inline int inline_mysql_cond_timedwait(
   if (likely(locker != NULL))
   {
     PSI_CALL(start_cond_wait)(locker, src_file, src_line);
-    result= pthread_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime);
+    result= my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime);
     PSI_CALL(end_cond_wait)(locker, result);
     return result;
   }
 #endif
 
-  result= pthread_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime);
+  result= my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime);
   return result;
 }
 

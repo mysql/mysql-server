@@ -55,10 +55,10 @@ sub set_installdir
 }
 
 # CMake understands CC and CXX env.variables correctly, if they  contain 1 or 2 tokens
-# e.g CXX=gcc and CXX="ccache gcc" are ok. However it could have a problem if there
-# (recognizing gcc) with more tokens ,e.g CXX="ccache gcc --pipe".
+# e.g CXX=g++ and CXX="ccache g++" are ok. However it could have a problem if there
+# (recognizing ++) with more tokens ,e.g CXX="ccache g++ --pipe".
 # The problem is simply fixed by splitting compiler and flags, e.g
-# CXX="ccache gcc --pipe" => CXX=ccache gcc CXXFLAGS=--pipe
+# CXX="ccache g++ --pipe" => CXX=ccache g++ CXXFLAGS=--pipe
 
 sub check_compiler
 {
@@ -85,6 +85,19 @@ sub check_compiler
 
 check_compiler("CC", "CFLAGS");
 check_compiler("CXX", "CXXFLAGS");
+
+if(defined $ENV{"CXX"} and $ENV{"CXX"} =~ m/gcc/)
+{
+  my $old_cxx= $ENV{"CXX"};
+  $ENV{"CXX"} =~ s/gcc/g++/;    
+  print("configure.pl : switching CXX compiler from $old_cxx to $ENV{CXX}\n");
+}
+
+if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
+{
+  $ENV{"CXXFLAGS"} =~ s/-fno-exceptions//;
+  print("configure.pl : stripping off -fno-exceptions CXXFLAGS=$ENV{CXXFLAGS}\n");
+}
 
 foreach my $option (@ARGV)
 {

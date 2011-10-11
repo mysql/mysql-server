@@ -451,7 +451,7 @@ my_bool	net_write_command(NET *net,unsigned char command,
 my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
-#ifdef _global_h
+#ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 #endif
@@ -544,7 +544,7 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 my_bool my_thread_init(void);
 void my_thread_end(void);
 
-#ifdef _global_h
+#ifdef MY_GLOBAL_INCLUDED
 ulong STDCALL net_field_length(uchar **packet);
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);

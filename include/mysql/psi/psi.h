@@ -16,7 +16,7 @@
 #ifndef MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 #define MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 
-#ifndef _global_h
+#ifndef MY_GLOBAL_INCLUDED
 /*
   Make sure a .c or .cc file contains an include to my_global.h first.
   When this include is missing, all the #ifdef HAVE_XXX have no effect,

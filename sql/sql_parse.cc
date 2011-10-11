@@ -5390,7 +5390,7 @@ bool check_stack_overrun(THD *thd, long margin,
       Do not use stack for the message buffer to ensure correct
       behaviour in cases we have close to no stack left.
     */
-    char* ebuff= new char[MYSQL_ERRMSG_SIZE];
+    char* ebuff= new (std::nothrow) char[MYSQL_ERRMSG_SIZE];
     if (ebuff) {
       my_snprintf(ebuff, MYSQL_ERRMSG_SIZE, ER(ER_STACK_OVERRUN_NEED_MORE),
                   stack_used, my_thread_stack_size, margin);

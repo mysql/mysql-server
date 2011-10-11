@@ -314,15 +314,11 @@ class set_var_base;
   Note that the debug binary may crash if OOM (OOM can cause syntax
   errors...).
   @todo @c new error handling. In released and pushbuild2 builds, @c
-  my_new.cc:new is used, which is broken (BUG#11822322). In builds with g++,
-  the standard @c new doesn't work either (it throws an exception but as we
-  use -fno-exceptions we cannot catch it and it kills the program).
-  As we don't support exceptions, we need new(nothrow) in order to be able to
-  handle OOM.
-  But "nothrow" is in the standard C++ library, which we don't link with.
-  So we have two calls to "new" (one to create Opt_trace_context_impl, one to
-  create Opt_trace_stmt), which may crash. When we have nothrow we should
-  change them to new(nothrow).
+  my_new.cc:new has traditionally been used, which was broken (BUG#11822322).
+  In builds with g++, the standard @c new doesn't work either
+  (it throws an exception but as we do not catch it, it will kill the program).
+  As we don't support exceptions, we need new(std::nothrow) in order to be
+  able to handle OOM.
 
   @section TRACE_SECURITY Description of trace-induced security checks.
 

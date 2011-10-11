@@ -984,7 +984,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
   DBUG_EXECUTE_IF("no_new_opt_trace_stmt", DBUG_ASSERT(0););
 
   if (pimpl == NULL)
-    pimpl= new Opt_trace_context_impl(); // OOM-unsafe new.
+    pimpl= new (std::nothrow) Opt_trace_context_impl();
 
   /*
     If tracing is disabled by some caller, then don't change settings (offset
@@ -1027,11 +1027,10 @@ bool Opt_trace_context::start(bool support_I_S_arg,
   }
   {
     /*
-      OOM-unsafe "new".
       We don't allocate it in THD's MEM_ROOT as it must survive until a next
       statement (SELECT) reads the trace.
     */
-    Opt_trace_stmt *stmt= new Opt_trace_stmt(this);
+    Opt_trace_stmt *stmt= new (std::nothrow) Opt_trace_stmt(this);
 
     DBUG_PRINT("opt",("new stmt %p support_I_S %d", stmt, support_I_S_arg));
 

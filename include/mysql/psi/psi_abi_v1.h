@@ -21,6 +21,6 @@
 */
 #define USE_PSI_1
 #define HAVE_PSI_INTERFACE
-#define _global_h
+#define MY_GLOBAL_INCLUDED
 #include "mysql/psi/psi.h"
 

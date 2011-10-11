@@ -17,6 +17,7 @@
 #define _sql_plugin_h
 
 #include <my_global.h>
+#include <vector>
 
 /**
   the following #define adds server-only members to enum_mysql_show_type,
@@ -32,6 +33,7 @@
 
 #include "m_string.h"                       /* LEX_STRING */
 #include "my_alloc.h"                       /* MEM_ROOT */
+#include "my_getopt.h"
 
 class sys_var;
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
@@ -139,7 +141,7 @@ extern const LEX_STRING plugin_type_names[];
 
 extern int plugin_init(int *argc, char **argv, int init_flags);
 extern void plugin_shutdown(void);
-void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root);
+void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
 extern bool plugin_is_ready(const LEX_STRING *name, int type);
 #define my_plugin_lock_by_name(A,B,C) plugin_lock_by_name(A,B,C)
 #define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C)

@@ -21,8 +21,8 @@
 
 volatile uint32 bad;
 pthread_attr_t thr_attr;
-pthread_mutex_t mutex;
-pthread_cond_t cond;
+mysql_mutex_t mutex;
+mysql_cond_t cond;
 uint running_threads;
 
 void do_tests();
@@ -43,10 +43,10 @@ void test_concurrently(const char *test, pthread_handler handler, int n, int m)
       abort();
     }
   }
-  pthread_mutex_lock(&mutex);
+  mysql_mutex_lock(&mutex);
   while (running_threads)
-    pthread_cond_wait(&cond, &mutex);
-  pthread_mutex_unlock(&mutex);
+    mysql_cond_wait(&cond, &mutex);
+  mysql_mutex_unlock(&mutex);
 
   now= my_getsystime()-now;
   ok(!bad, "tested %s in %g secs (%d)", test, ((double)now)/1e7, bad);
@@ -59,8 +59,8 @@ int main(int argc __attribute__((unused)), char **argv)
   if (argv[1] && *argv[1])
     DBUG_SET_INITIAL(argv[1]);
 
-  pthread_mutex_init(&mutex, 0);
-  pthread_cond_init(&cond, 0);
+  mysql_mutex_init(0, &mutex, 0);
+  mysql_cond_init(0, &cond, 0);
   pthread_attr_init(&thr_attr);
   pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
 
@@ -84,8 +84,8 @@ int main(int argc __attribute__((unused)), char **argv)
     (BUG#22320).
   */
   sleep(2);
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&cond);
+  mysql_mutex_destroy(&mutex);
+  mysql_cond_destroy(&cond);
   pthread_attr_destroy(&thr_attr);
   my_end(0);
   return exit_status();

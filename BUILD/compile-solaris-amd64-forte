@@ -38,7 +38,7 @@ ASFLAGS="$EXTRA_64_BIT"
 CC=cc-5.0
 CFLAGS="-Xa -xstrconst $STD"
 CXX=CC
-CXXFLAGS="-noex $STD"
+CXXFLAGS="$STD"
 LIBS=-lmtmalloc
 ./configure \
     --prefix=/usr/local/mysql \

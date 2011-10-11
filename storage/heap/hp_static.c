@@ -18,7 +18,7 @@
   a shared library
 */
 
-#ifndef _global_h
+#ifndef MY_GLOBAL_INCLUDED
 #include "heapdef.h"
 #endif
 

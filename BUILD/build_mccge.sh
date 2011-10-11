@@ -431,7 +431,7 @@ extended_usage()
 
     In all cases it is possible to override the definition of CC and CXX
     by calling the script as follows:
-    CC="/usr/local/bin/gcc" CXX="/usr/local/bin/gcc" BUILD/build_mccge.sh
+    CC="/usr/local/bin/gcc" CXX="/usr/local/bin/g++" BUILD/build_mccge.sh
 
   Feedback profiler on gcc
   ------------------------
@@ -1368,10 +1368,10 @@ set_icc_special_options()
 set_cc_and_cxx_for_gcc()
 {
   if test "x$CC" = "x" ; then
-    CC="gcc -static-libgcc -fno-exceptions"
+    CC="gcc -static-libgcc"
   fi
   if test "x$CXX" = "x" ; then
-    CXX="gcc -static-libgcc -fno-exceptions"
+    CXX="g++ -static-libgcc"
   fi
 }
 
@@ -1388,10 +1388,10 @@ set_cc_and_cxx_for_icc()
 set_cc_and_cxx_for_open64()
 {
   if test "x$CC" = "x" ; then
-    CC="opencc -static-libgcc -fno-exceptions"
+    CC="opencc -static-libgcc"
   fi
   if test "x$CXX" = "x" ; then
-    CXX="openCC -static-libgcc -fno-exceptions"
+    CXX="openCC -static-libgcc"
   fi
 }
 
@@ -1689,7 +1689,6 @@ set_solaris_configs()
     fi
     if test "x$cpu_base_type" = "xx86" ; then
       compiler_flags="$compiler_flags -nofstore"
-      base_cxx_flags="$base_cxx_flags -features=no%except"
       if test "x$fast_flag" = "xyes" ; then
         compiler_flags="$compiler_flags -xregs=frameptr"
         compiler_flags="$compiler_flags -xO4"
@@ -1705,7 +1704,6 @@ set_solaris_configs()
 #Using SPARC cpu with SunStudio (Forte) compiler
       ASFLAGS="$ASFLAGS -xarch=sparc"
       LDFLAGS="$LDFLAGS -xarch=sparc"
-      base_cxxflags="$base_cxxflags -noex"
       base_cflags="$base_cflags -xstrconst"
       compiler_flags="$compiler_flags -xarch=sparc"
       if test "x$fast_flag" = "xyes" ; then
