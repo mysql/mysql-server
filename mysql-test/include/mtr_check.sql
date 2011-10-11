@@ -19,32 +19,34 @@ use mtr||
 
 CREATE DEFINER=root@localhost PROCEDURE check_testcase_perfschema()
 BEGIN
+  IF ((SELECT count(*) from information_schema.engines
+       where engine='PERFORMANCE_SCHEMA' and support='YES') = 1) THEN
   BEGIN
-    -- For tests tampering with performance_schema table structure
-    DECLARE CONTINUE HANDLER for SQLEXCEPTION
+
     BEGIN
+      -- For tests tampering with performance_schema table structure
+      DECLARE CONTINUE HANDLER for SQLEXCEPTION
+      BEGIN
+      END;
+
+      -- Leave the instruments in the same state
+      SELECT * from performance_schema.setup_instruments
+        where enabled='NO' order by NAME;
     END;
 
-    -- Leave the instruments in the same state
-    SELECT * from performance_schema.setup_instruments
-      where enabled='NO' order by NAME;
+    -- Leave the consumers in the same state
+    SELECT * from performance_schema.setup_consumers
+      order by NAME;
+
+    -- Leave the actors setup in the same state
+    SELECT * from performance_schema.setup_actors
+      order by USER, HOST;
+
+    -- Leave the objects setup in the same state
+    SELECT * from performance_schema.setup_objects
+      order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
   END;
-
-  -- Leave the consumers in the same state
-  SELECT * from performance_schema.setup_consumers
-    order by NAME;
-
-  -- Leave the actors setup in the same state
-  SELECT * from performance_schema.setup_actors
-    order by USER, HOST;
-
-  -- Leave the objects setup in the same state
-  SELECT * from performance_schema.setup_objects
-    order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
-
-  -- Leave the same number of socket instances
-  --SELECT COUNT(*) FROM performance_schema.socket_instances;
-
+  END IF;
 END||
 
 --
@@ -59,7 +61,8 @@ BEGIN
   -- Dump all global variables except those that may change.
   -- timestamp changes if time passes. server_uuid changes if server restarts.
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-    WHERE variable_name != 'timestamp' AND variable_name != 'server_uuid'
+    WHERE variable_name NOT IN ('timestamp', 'server_uuid',
+                                'innodb_file_format_max')
     ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none

@@ -180,11 +180,7 @@ trx_purge_sys_close(void)
 
 	purge_sys->sess = NULL;
 
-	if (purge_sys->view != NULL) {
-		read_view_remove(purge_sys->view);
-
-		purge_sys->view = NULL;
-	}
+	purge_sys->view = NULL;
 
 	rw_lock_free(&purge_sys->latch);
 	mutex_free(&purge_sys->bh_mutex);
@@ -1203,8 +1199,6 @@ trx_purge(
 	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
 	rw_lock_x_lock(&purge_sys->latch);
-
-	read_view_remove(purge_sys->view);
 
 	purge_sys->view = NULL;
 

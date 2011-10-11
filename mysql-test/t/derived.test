@@ -953,3 +953,28 @@ SELECT 1 FROM (
 DROP TABLE t1,t2;
 --echo #
 
+--echo #
+--echo # Bug#12910006: MRR initialization on a derived table caused crash.
+--echo #
+SET @save_switch= @@SESSION.optimizer_switch;
+SET @@SESSION.optimizer_switch="batched_key_access=on";
+
+CREATE TABLE t1 ( pk integer auto_increment,
+col_blob_key blob, primary key (pk)) ENGINE=innodb;
+
+CREATE TABLE t2 (col_tinytext tinytext null,
+pk integer auto_increment, col_text text,
+col_blob blob, primary key (pk)) ENGINE=innodb;
+
+SELECT alias1.col_text AS field1 ,
+       alias1.col_tinytext AS field2
+FROM t2 AS alias1
+  LEFT OUTER JOIN ( SELECT * FROM t1 ) AS alias2 ON alias1.pk = alias2.pk
+WHERE alias2.pk >=1  AND alias2.pk < 3
+ORDER BY field1,field2 ASC;
+
+SET @@SESSION.optimizer_switch= @save_switch;
+DROP TABLE t1, t2;
+
+--echo #
+

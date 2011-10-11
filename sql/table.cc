@@ -1173,7 +1173,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     else
 #endif
-    if (share->mysql_version >= 50110)
+    if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1981,9 +1981,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   {
     memcpy(outparam->record[0], share->default_values, share->rec_buff_length);
     memcpy(outparam->record[1], share->default_values, share->null_bytes);
-    if (records > 2)
-      memcpy(outparam->record[1], share->default_values,
-             share->rec_buff_length);
   }
 #endif
 

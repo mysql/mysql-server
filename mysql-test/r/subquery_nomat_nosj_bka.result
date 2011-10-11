@@ -1,4 +1,4 @@
-set optimizer_switch='batch_key_access=on,mrr_cost_based=off';
+set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
@@ -1674,8 +1674,8 @@ id	text	id	text	id	text
 explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	14	100.00	
-1	SIMPLE	b	eq_ref	PRIMARY	PRIMARY	4	test.a.id	2	100.00	Using join buffer (Batch Key Access)
-1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index condition; Using join buffer (Batch Key Access)
+1	SIMPLE	b	eq_ref	PRIMARY	PRIMARY	4	test.a.id	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or isnull(`test`.`b`.`id`))) join `test`.`t1` `c` where (if(isnull(`test`.`b`.`id`),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
 drop table t1,t2;
@@ -4354,7 +4354,7 @@ from t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	4	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where; Using join buffer (Batch Key Access)
+2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `Z` from `test`.`t3`
@@ -4382,7 +4382,7 @@ from t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	DEPENDENT SUBQUERY	t1	ref	a	a	4	func	2	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	100.00	Using where; Using join buffer (Batch Key Access)
+2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond_if(outer_field_is_not_null, (<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`), true)))) AS `Z` from `test`.`t3`
@@ -6734,5 +6734,96 @@ COUNT(*)
 6
 DROP TABLE t1, t2, t3;
 #
+# Bug#12838171: 51VS56: TRANSFORMED IN()+SUBQ QUERY 
+#               PRODUCES EMPTY RESULT ON 5.6, 1 ROW ON 5.1
+#
+CREATE TABLE ot (
+col_int_nokey int(11), 
+col_varchar_nokey varchar(1)
+) ;
+INSERT INTO ot VALUES (1,'x');
+CREATE TABLE it (
+col_int_key int(11), 
+col_varchar_key varchar(1), 
+KEY idx_cvk_cik (col_varchar_key,col_int_key)
+) ;
+INSERT INTO it VALUES (NULL,'x'), (NULL,'f');
+
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+(SELECT col_varchar_key
+FROM it 
+WHERE col_int_key IS NULL);
+col_int_nokey
+1
+
+EXPLAIN EXTENDED
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+(SELECT col_varchar_key
+FROM it 
+WHERE col_int_key IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	it	index_subquery	idx_cvk_cik	idx_cvk_cik	9	func,const	2	100.00	Using index; Using where
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where <in_optimizer>('x',<exists>(<index_lookup>(<cache>('x') in it on idx_cvk_cik where (isnull(`test`.`it`.`col_int_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key`)))))
+
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+(SELECT col_varchar_key
+FROM it 
+WHERE coalesce(col_int_nokey, 1) );
+col_int_nokey
+1
+
+EXPLAIN EXTENDED
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+(SELECT col_varchar_key
+FROM it 
+WHERE coalesce(col_int_nokey, 1) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	it	index_subquery	idx_cvk_cik	idx_cvk_cik	4	func	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where <in_optimizer>('x',<exists>(<index_lookup>(<cache>('x') in it on idx_cvk_cik)))
+DROP TABLE it;
+CREATE TABLE it (
+col_int_key int(11),
+col_varchar_key varchar(1),
+col_varchar_key2 varchar(1),
+KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+INSERT INTO it VALUES (NULL,'x','x'), (NULL,'f','f');
+SELECT col_int_nokey
+FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2
+FROM it
+WHERE col_int_key IS NULL);
+col_int_nokey
+1
+
+EXPLAIN EXTENDED
+SELECT col_int_nokey
+FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+(SELECT col_varchar_key, col_varchar_key2
+FROM it
+WHERE col_int_key IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	ot	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	it	index_subquery	idx_cvk_cvk2_cik,idx_cvk_cik	idx_cvk_cvk2_cik	13	func,const,const	2	100.00	Using index; Using where
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `col_int_nokey` from dual where <in_optimizer>(('x','x'),<exists>(<index_lookup>(<cache>('x') in it on idx_cvk_cvk2_cik where (isnull(`test`.`it`.`col_int_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key`) and (<cache>('x') = `test`.`it`.`col_varchar_key2`)))))
+
+DROP TABLE it, ot;
 set optimizer_switch=default;
 set optimizer_switch=default;

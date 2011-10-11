@@ -161,6 +161,21 @@ int Handshake_client::write_packet(Blob &data)
       keep all the data.
     */
     unsigned block_count= data.len()/512 + ((data.len() % 512) ? 1 : 0);
+
+#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+
+    /*
+      For testing purposes, use wrong block count to see how server
+      handles this.
+    */
+    DBUG_EXECUTE_IF("winauth_first_packet_test",{
+      block_count= data.len() == 601 ? 0 :
+                   data.len() == 602 ? 1 : 
+                   block_count;
+    });
+
+#endif
+
     DBUG_ASSERT(block_count < (unsigned)0x100);
     saved_byte= data[254];
     data[254] = block_count;
@@ -323,13 +338,13 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     int opt_val= opt ? atoi(opt) : 0;
     if (opt && !opt_val)
     {
-      if (!strncasecmp("on", opt, 2))    opt_val= 1;
-      if (!strncasecmp("yes", opt, 3))   opt_val= 1;
-      if (!strncasecmp("true", opt, 4))  opt_val= 1;
-      if (!strncasecmp("debug", opt, 5)) opt_val= 2;
-      if (!strncasecmp("dbug", opt, 4))  opt_val= 2;
+      if (!strncasecmp("on", opt, 2))    opt_val= 2;
+      if (!strncasecmp("yes", opt, 3))   opt_val= 2;
+      if (!strncasecmp("true", opt, 4))  opt_val= 2;
+      if (!strncasecmp("debug", opt, 5)) opt_val= 4;
+      if (!strncasecmp("dbug", opt, 4))  opt_val= 4;
     }
-    opt_auth_win_client_log= opt_val;
+    set_log_level(opt_val);
   }
 
   ERROR_LOG(INFO, ("Authentication handshake for account %s", mysql->user));
