@@ -50,36 +50,36 @@ MYSQL_STORAGE_ENGINE(ARIA)
 IF(NOT SOURCE_SUBLIBS)
 
 
-  ADD_DEPENDENCIES(aria GenError)
+  ADD_DEPENDENCIES(libaria_s GenError)
 
 MYSQL_ADD_EXECUTABLE(aria_ftdump maria_ftdump.c)
-TARGET_LINK_LIBRARIES(aria_ftdump aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(aria_ftdump libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 MYSQL_ADD_EXECUTABLE(aria_chk maria_chk.c)
-TARGET_LINK_LIBRARIES(aria_chk aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(aria_chk libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 MYSQL_ADD_EXECUTABLE(aria_read_log maria_read_log.c)
-TARGET_LINK_LIBRARIES(aria_read_log aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(aria_read_log libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 MYSQL_ADD_EXECUTABLE(aria_pack maria_pack.c)
-TARGET_LINK_LIBRARIES(aria_pack aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(aria_pack libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 MYSQL_ADD_EXECUTABLE(aria_dump_log maria_dump_log.c unittest/ma_loghandler_examples.c)
-TARGET_LINK_LIBRARIES(aria_dump_log aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(aria_dump_log libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 
 ADD_EXECUTABLE(ma_test1 ma_test1.c)
-TARGET_LINK_LIBRARIES(ma_test1 aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_test1 libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_test2 ma_test2.c)
-TARGET_LINK_LIBRARIES(ma_test2 aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_test2 libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_test3 ma_test3.c)
-TARGET_LINK_LIBRARIES(ma_test3 aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_test3 libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_rt_test ma_rt_test.c)
-TARGET_LINK_LIBRARIES(ma_rt_test aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_rt_test libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 
 ADD_EXECUTABLE(ma_sp_test ma_sp_test.c)
-TARGET_LINK_LIBRARIES(ma_sp_test aria myisam mysys dbug strings zlib wsock32)
+TARGET_LINK_LIBRARIES(ma_sp_test libaria_s libmyisam_s mysys dbug strings zlib wsock32)
 ENDIF(NOT SOURCE_SUBLIBS)

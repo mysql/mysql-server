@@ -13,7 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-# This is the CMakeLists for InnoDB Plugin
+# This is the CMakeLists for XtraDB
+
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 
 IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 	SET(WIN64 TRUE)

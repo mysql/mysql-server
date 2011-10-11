@@ -14,8 +14,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sp_cache.h"
 #include "sql_trigger.h"
 
@@ -23,7 +23,7 @@
 
 static bool
 create_string(THD *thd, String *buf,
-	      int sp_type,
+	      stored_procedure_type sp_type,
 	      const char *db, ulong dblen,
 	      const char *name, ulong namelen,
 	      const char *params, ulong paramslen,
@@ -33,7 +33,8 @@ create_string(THD *thd, String *buf,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host);
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+db_load_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
@@ -490,7 +491,8 @@ static TABLE *open_proc_table_for_update(THD *thd)
 */
 
 static int
-db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
+db_find_routine_aux(THD *thd, stored_procedure_type type, sp_name *name,
+                    TABLE *table)
 {
   uchar key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
@@ -543,7 +545,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
 */
 
 static int
-db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
+db_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_head **sphp)
 {
   TABLE *table;
   const char *params, *returns, *body;
@@ -711,7 +714,8 @@ Silence_deprecated_warning::handle_error(uint sql_errno, const char *message,
 
 
 static int
-db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
+db_load_routine(THD *thd, stored_procedure_type type,
+                sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
@@ -890,7 +894,7 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
 */
 
 int
-sp_create_routine(THD *thd, int type, sp_head *sp)
+sp_create_routine(THD *thd, stored_procedure_type type, sp_head *sp)
 {
   int ret;
   TABLE *table;
@@ -906,7 +910,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   bool save_binlog_row_based;
 
   DBUG_ENTER("sp_create_routine");
-  DBUG_PRINT("enter", ("type: %d  name: %.*s",type, (int) sp->m_name.length,
+  DBUG_PRINT("enter", ("type: %d  name: %.*s", (int) type,
+                       (int) sp->m_name.length,
                        sp->m_name.str));
   String retstr(64);
   retstr.set_charset(system_charset_info);
@@ -1151,7 +1156,7 @@ done:
 */
 
 int
-sp_drop_routine(THD *thd, int type, sp_name *name)
+sp_drop_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   TABLE *table;
   int ret;
@@ -1211,14 +1216,16 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
 */
 
 int
-sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
+sp_update_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                  st_sp_chistics *chistics)
 {
   TABLE *table;
   int ret;
   bool save_binlog_row_based;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+		       (int) type,
+                       (int) name->m_name.length, name->m_name.str));
 
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
@@ -1346,7 +1353,7 @@ err:
 */
 
 bool
-sp_show_create_routine(THD *thd, int type, sp_name *name)
+sp_show_create_routine(THD *thd, stored_procedure_type type, sp_name *name)
 {
   bool err_status= TRUE;
   sp_head *sp;
@@ -1404,8 +1411,8 @@ sp_show_create_routine(THD *thd, int type, sp_name *name)
 */
 
 sp_head *
-sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
-                bool cache_only)
+sp_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                sp_cache **cp, bool cache_only)
 {
   sp_head *sp;
   ulong depth= (type == TYPE_ENUM_PROCEDURE ?
@@ -1562,7 +1569,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any)
 */
 
 int
-sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
+sp_routine_exists_in_table(THD *thd, stored_procedure_type type, sp_name *name)
 {
   TABLE *table;
   int ret;
@@ -1729,7 +1736,7 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
 */
 
 void sp_add_used_routine(LEX *lex, Query_arena *arena,
-                         sp_name *rt, char rt_type)
+                         sp_name *rt, enum stored_procedure_type rt_type)
 {
   rt->set_routine_type(rt_type);
   (void)add_used_routine(lex, arena, &rt->m_sroutines_key, 0);
@@ -1885,9 +1892,11 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
   for (Sroutine_hash_entry *rt= start; rt; rt= rt->next)
   {
     sp_name name(thd, rt->key.str, rt->key.length);
-    int type= rt->key.str[0];
+    stored_procedure_type type= (stored_procedure_type) rt->key.str[0];
     sp_head *sp;
 
+    if (type == TYPE_ENUM_TRIGGER)
+      continue;
     if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
                               &thd->sp_func_cache : &thd->sp_proc_cache),
                               &name)))
@@ -2076,7 +2085,7 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
 */
 static bool
 create_string(THD *thd, String *buf,
-              int type,
+              stored_procedure_type type,
               const char *db, ulong dblen,
               const char *name, ulong namelen,
               const char *params, ulong paramslen,

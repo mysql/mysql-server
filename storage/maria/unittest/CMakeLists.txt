@@ -13,10 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/unittest/mytap)
-LINK_LIBRARIES(maria myisam mytap mysys dbug strings wsock32 zlib)
+LINK_LIBRARIES(libmaria_s libmyisam_s mytap mysys dbug strings wsock32 zlib)
 
 ADD_EXECUTABLE(ma_control_file-t ma_control_file-t.c)
 ADD_EXECUTABLE(trnman-t trnman-t.c)

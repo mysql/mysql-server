@@ -1,0 +1,10 @@
+if (`select count(*) = 0 from information_schema.plugins where plugin_name = 'feedback' and plugin_status='active'`)
+{
+  --skip Feedback plugin is not active
+}
+
+select plugin_status from information_schema.plugins where plugin_name='feedback';
+--replace_result https http
+--sorted_result
+select * from information_schema.feedback where variable_name like 'feed%'
+       and variable_name not like  '%_uid';

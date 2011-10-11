@@ -17,13 +17,27 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
-
 /*
   On Windows, exports from DLL need to be declared
+  Also, plugin needs to be declared as extern "C" because MSVC 
+  unlike other compilers, uses C++ mangling for variables not only
+  for functions.
 */
-#if (defined(_WIN32) && defined(MYSQL_DYNAMIC_PLUGIN))
-#define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
-#else
+#if defined(_MSC_VER)
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
+  #else
+    #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
+  #endif
+#else /* MYSQL_DYNAMIC_PLUGIN */
+  #ifdef __cplusplus
+    #define  MYSQL_PLUGIN_EXPORT extern "C"
+  #else
+    #define MYSQL_PLUGIN_EXPORT 
+  #endif
+#endif /*MYSQL_DYNAMIC_PLUGIN */
+#else /*_MSC_VER */
 #define MYSQL_PLUGIN_EXPORT
 #endif
 

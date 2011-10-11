@@ -4515,9 +4515,10 @@ create_sp_error:
           */
           /* Conditionally writes to binlog */
 
-          int type= lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
-                    TYPE_ENUM_PROCEDURE :
-                    TYPE_ENUM_FUNCTION;
+          stored_procedure_type type;
+          type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
+                 TYPE_ENUM_PROCEDURE :
+                 TYPE_ENUM_FUNCTION);
 
           sp_result= sp_update_routine(thd,
                                        type,
@@ -4545,8 +4546,8 @@ create_sp_error:
   case SQLCOM_DROP_FUNCTION:
     {
       int sp_result;
-      int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
+      stored_procedure_type type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+                                   TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
       sp_result= sp_routine_exists_in_table(thd, type, lex->spname);
       mysql_reset_errors(thd, 0);
@@ -4573,9 +4574,10 @@ create_sp_error:
 #endif
         /* Conditionally writes to binlog */
 
-        int type= lex->sql_command == SQLCOM_DROP_PROCEDURE ?
-                  TYPE_ENUM_PROCEDURE :
-                  TYPE_ENUM_FUNCTION;
+        stored_procedure_type type;
+        type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+               TYPE_ENUM_PROCEDURE :
+               TYPE_ENUM_FUNCTION);
 
         sp_result= sp_drop_routine(thd, type, lex->spname);
       }
