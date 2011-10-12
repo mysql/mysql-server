@@ -776,7 +776,9 @@ void toku_brtnode_pe_est_callback(
     // we estimate the compressed size of data to be how large
     // the compressed data is on disk
     for (int i = 0; i < node->n_children; i++) {
-        if (BP_STATE(node,i) == PT_AVAIL && BP_SHOULD_EVICT(node,i)) {
+        if (BP_STATE(node,i) == PT_AVAIL && 
+            BP_SHOULD_EVICT(node,i) && 
+            toku_bnc_nbytesinbuf(BNC(node, i)) > 0) {
             // calculate how much data would be freed if
             // we compress this node and add it to
             // bytes_to_free
@@ -836,7 +838,9 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* by
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    cilk_spawn compress_internal_node_partition(node, i);
+                    if (toku_bnc_nbytesinbuf(BNC(node, i)) > 0) {
+                        cilk_spawn compress_internal_node_partition(node, i);
+                    }
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
