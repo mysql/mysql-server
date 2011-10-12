@@ -1,0 +1,4 @@
+--master-retry-count=1
+$PLUGIN_AUTH_OPT
+$PLUGIN_AUTH_LOAD
+

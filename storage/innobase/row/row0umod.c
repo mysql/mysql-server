@@ -573,6 +573,14 @@ row_undo_mod_upd_del_sec(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+
+		/* Skip all corrupted secondary index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		entry = row_build_index_entry(node->row, node->ext,
@@ -626,6 +634,13 @@ row_undo_mod_del_mark_sec(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		/* Skip all corrupted secondary index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		entry = row_build_index_entry(node->row, node->ext,
@@ -677,6 +692,13 @@ row_undo_mod_upd_exist_sec(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		/* Skip all corrupted secondary index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		if (row_upd_changes_ord_field_binary(node->index, node->update,
@@ -858,6 +880,9 @@ row_undo_mod(
 
 	node->index = dict_table_get_next_index(
 		dict_table_get_first_index(node->table));
+
+	/* Skip all corrupted secondary index */
+	dict_table_skip_corrupt_index(node->index);
 
 	if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 
