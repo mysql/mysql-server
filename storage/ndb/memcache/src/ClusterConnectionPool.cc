@@ -193,7 +193,7 @@ void ClusterConnectionPool::add_stats(const char *prefix,
   
     for(int s = 0 ; s < Ndb::NumClientStatistics ; s++) {
       klen = sprintf(key, "%s_conn%d_%s", prefix, i, db.getClientStatName(s));
-      vlen = sprintf(val, "%"PRIu64, ndb_stats[s]);
+      vlen = sprintf(val, "%llu", ndb_stats[s]);
       add_stat(key, klen, val, vlen, cookie);
     }
   }

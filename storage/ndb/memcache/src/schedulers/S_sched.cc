@@ -708,15 +708,15 @@ void S::Connection::add_stats(const char *stat_key,
   int klen, vlen;
 
   klen = sprintf(key, "cl%d.conn%d.sent_operations", cluster.cluster_id, id);
-  vlen = sprintf(val, "%"PRIu64, stats.sent_operations);
+  vlen = sprintf(val, "%llu", stats.sent_operations);
   add_stat(key, klen, val, vlen, cookie);
   
   klen = sprintf(key, "cl%d.conn%d.batches", cluster.cluster_id, id);
-  vlen = sprintf(val, "%"PRIu64, stats.batches);
+  vlen = sprintf(val, "%llu", stats.batches);
   add_stat(key, klen, val, vlen, cookie);
 
   klen = sprintf(key, "cl%d.conn%d.timeout_races", cluster.cluster_id, id);
-  vlen = sprintf(val, "%"PRIu64, stats.timeout_races);
+  vlen = sprintf(val, "%llu", stats.timeout_races);
   add_stat(key, klen, val, vlen, cookie);
 }                              
   
