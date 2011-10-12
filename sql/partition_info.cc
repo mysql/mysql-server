@@ -720,6 +720,7 @@ bool partition_info::check_range_constants(THD *thd)
         List_iterator<part_elem_value> list_val_it(part_def->list_val_list);
         part_elem_value *range_val= list_val_it++;
         part_column_list_val *col_val= range_val->col_val_array;
+        DBUG_ASSERT(part_def->list_val_list.elements == 1);
 
         if (fix_column_value_functions(thd, range_val, i))
           goto end;
@@ -1608,11 +1609,11 @@ id_err:
 
 
 /**
-  Check what kind of error to report
+  Check what kind of error to report.
 
   @param use_subpart_expr Use the subpart_expr instead of part_expr
-  @param part_str         Name of partition to report error (or NULL)
 */
+
 void partition_info::report_part_expr_error(bool use_subpart_expr)
 {
   Item *expr= part_expr;
@@ -1652,18 +1653,17 @@ void partition_info::report_part_expr_error(bool use_subpart_expr)
 }
  
 
-/*
-  Create a new column value in current list with maxvalue
-  Called from parser
+/**
+  Create a new column value in current list with maxvalue.
 
-  SYNOPSIS
-    add_max_value()
-  RETURN
-    TRUE               Error
-    FALSE              Success
+  @return Operation status
+    @retval TRUE   Error
+    @retval FALSE  Success
+
+  @note Called from parser.
 */
 
-int partition_info::add_max_value()
+bool partition_info::add_max_value()
 {
   DBUG_ENTER("partition_info::add_max_value");
 
@@ -1676,16 +1676,16 @@ int partition_info::add_max_value()
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Create a new column value in current list
-  Called from parser
 
-  SYNOPSIS
-    add_column_value()
-  RETURN
-    >0                 A part_column_list_val object which have been
-                       inserted into its list
-    0                  Memory allocation failure
+/**
+  Create a new column value in current list.
+
+  @return Pointer to a new part_column_list_val
+    @retval  != 0  A part_column_list_val object which have been
+                   inserted into its list
+    @retval  NULL  Memory allocation failure
+    
+  @note Called from parser.
 */
 
 part_column_list_val *partition_info::add_column_value()
@@ -1710,7 +1710,7 @@ part_column_list_val *partition_info::add_column_value()
       into the structure used for 1 column. After this we call
       ourselves recursively which should always succeed.
     */
-    if (!reorganize_into_single_field_col_val())
+    if (!reorganize_into_single_field_col_val() && !init_column_part())
     {
       DBUG_RETURN(add_column_value());
     }
@@ -1731,19 +1731,19 @@ part_column_list_val *partition_info::add_column_value()
 }
 
 
-/*
-  Initialise part_elem_value object at setting of a new object
-  (Helper functions to functions called by parser)
+/**
+  Initialise part_elem_value object at setting of a new object.
 
-  SYNOPSIS
-    init_col_val
-    col_val                  Column value object to be initialised
-    item                     Item object representing column value
+  @param col_val  Column value object to be initialised
+  @param item     Item object representing column value
 
-  RETURN VALUES
-    TRUE                     Failure
-    FALSE                    Success
+  @return Operation status
+    @retval TRUE   Failure
+    @retval FALSE  Success
+
+  @note Helper functions to functions called by parser.
 */
+
 void partition_info::init_col_val(part_column_list_val *col_val, Item *item)
 {
   DBUG_ENTER("partition_info::init_col_val");
@@ -1768,20 +1768,21 @@ void partition_info::init_col_val(part_column_list_val *col_val, Item *item)
   col_val->part_info= NULL;
   DBUG_VOID_RETURN;
 }
-/*
-  Add a column value in VALUES LESS THAN or VALUES IN
-  (Called from parser)
 
-  SYNOPSIS
-    add_column_list_value()
-    lex                      Parser's lex object
-    thd                      Thread object
-    item                     Item object representing column value
 
-  RETURN VALUES
-    TRUE                     Failure
-    FALSE                    Success
+/**
+  Add a column value in VALUES LESS THAN or VALUES IN.
+
+  @param thd   Thread object
+  @param item  Item object representing column value
+
+  @return Operation status
+    @retval TRUE   Failure
+    @retval FALSE  Success
+
+  @note Called from parser.
 */
+
 bool partition_info::add_column_list_value(THD *thd, Item *item)
 {
   part_column_list_val *col_val;
@@ -1830,19 +1831,19 @@ bool partition_info::add_column_list_value(THD *thd, Item *item)
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Initialise part_info object for receiving a set of column values
+
+/**
+  Initialize a new column for VALUES {LESS THAN|IN}.
+
+  Initialize part_info object for receiving a set of column values
   for a partition, called when parser reaches VALUES LESS THAN or
   VALUES IN.
 
-  SYNOPSIS
-    init_column_part()
-    lex                    Parser's lex object
-
-  RETURN VALUES
-    TRUE                     Failure
-    FALSE                    Success
+  @return Operation status
+    @retval TRUE   Failure
+    @retval FALSE  Success
 */
+
 bool partition_info::init_column_part()
 {
   partition_element *p_elem= curr_part_elem;
@@ -1876,8 +1877,15 @@ bool partition_info::init_column_part()
   DBUG_RETURN(FALSE);
 }
 
-/*
-  In the case of ALTER TABLE ADD/REORGANIZE PARTITION for LIST
+
+/**
+  Reorganize the preallocated buffer into a single field col list.
+
+  @return Operation status
+    @retval  true   Failure
+    @retval  false  Success
+
+  @note In the case of ALTER TABLE ADD/REORGANIZE PARTITION for LIST
   partitions we can specify list values as:
   VALUES IN (v1, v2,,,, v17) if we're using the first partitioning
   variant with a function or a column list partitioned table with
@@ -1889,30 +1897,27 @@ bool partition_info::init_column_part()
   partitioning and we used a VALUES IN like above where number of
   values was smaller than MAX_REF_PARTS or equal, then we will
   reorganize after discovering this in the parser.
-
-  SYNOPSIS
-    reorganize_into_single_field_col_val()
-
-  RETURN VALUES
-    TRUE                     Failure
-    FALSE                    Success
 */
-int partition_info::reorganize_into_single_field_col_val()
+
+bool partition_info::reorganize_into_single_field_col_val()
 {
   part_column_list_val *col_val, *new_col_val;
   part_elem_value *val= curr_list_val;
-  uint loc_num_columns= num_columns;
+  uint num_values= num_columns;
   uint i;
   DBUG_ENTER("partition_info::reorganize_into_single_field_col_val");
+  DBUG_ASSERT(part_type == LIST_PARTITION);
+  DBUG_ASSERT(!num_columns || num_columns == val->added_items);
 
+  if (!num_values)
+    num_values= val->added_items;
   num_columns= 1;
   val->added_items= 1U;
   col_val= &val->col_val_array[0];
   init_col_val(col_val, col_val->item_expression);
-  for (i= 1; i < loc_num_columns; i++)
+  for (i= 1; i < num_values; i++)
   {
     col_val= &val->col_val_array[i];
-    DBUG_ASSERT(part_type == LIST_PARTITION);
     if (init_column_part())
     {
       DBUG_RETURN(TRUE);
@@ -1928,27 +1933,28 @@ int partition_info::reorganize_into_single_field_col_val()
   DBUG_RETURN(FALSE);
 }
 
-/*
+
+/**
   This function handles the case of function-based partitioning.
+  
   It fixes some data structures created in the parser and puts
   them in the format required by the rest of the partitioning
   code.
 
-  SYNOPSIS
-  fix_partition_values()
-  thd                             Thread object
-  col_val                         Array of one value
-  part_elem                       The partition instance
-  part_id                         Id of partition instance
+  @param thd        Thread object
+  @param col_val    Array of one value
+  @param part_elem  The partition instance
+  @param part_id    Id of partition instance
 
-  RETURN VALUES
-    TRUE                     Failure
-    FALSE                    Success
+  @return Operation status
+    @retval TRUE   Failure
+    @retval FALSE  Success
 */
-int partition_info::fix_partition_values(THD *thd,
-                                         part_elem_value *val,
-                                         partition_element *part_elem,
-                                         uint part_id)
+
+bool partition_info::fix_partition_values(THD *thd,
+                                          part_elem_value *val,
+                                          partition_element *part_elem,
+                                          uint part_id)
 {
   part_column_list_val *col_val= val->col_val_array;
   DBUG_ENTER("partition_info::fix_partition_values");
@@ -2015,17 +2021,16 @@ int partition_info::fix_partition_values(THD *thd,
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Get column item with a proper character set according to the field
 
-  SYNOPSIS
-    get_column_item()
-    item                     Item object to start with
-    field                    Field for which the item will be compared to
+/**
+  Get column item with a proper character set according to the field.
 
-  RETURN VALUES
-    NULL                     Error
-    item                     Returned item
+  @param item   Item object to start with
+  @param field  Field for which the item will be compared to
+
+  @return Column item
+    @retval NULL  Error
+    @retval item  Returned item
 */
 
 Item* partition_info::get_column_item(Item *item, Field *field)
@@ -2044,19 +2049,18 @@ Item* partition_info::get_column_item(Item *item, Field *field)
 }
 
 
-/*
-  Evaluate VALUES functions for column list values
-  SYNOPSIS
-    fix_column_value_functions()
-    thd                              Thread object
-    col_val                          List of column values
-    part_id                          Partition id we are fixing
+/**
+  Evaluate VALUES functions for column list values.
 
-  RETURN VALUES
-    TRUE                             Error
-    FALSE                            Success
-  DESCRIPTION
-    Fix column VALUES and store in memory array adapted to the data type
+  @param thd      Thread object
+  @param col_val  List of column values
+  @param part_id  Partition id we are fixing
+
+  @return Operation status
+    @retval TRUE   Error
+    @retval FALSE  Success
+  
+  @note Fix column VALUES and store in memory array adapted to the data type.
 */
 
 bool partition_info::fix_column_value_functions(THD *thd,
@@ -2126,9 +2130,11 @@ end:
   DBUG_RETURN(result);
 }
 
-/*
-  The parser generates generic data structures, we need to set them up
-  as the rest of the code expects to find them. This is in reality part
+/**
+  Fix partition data from parser.
+
+  @details The parser generates generic data structures, we need to set them
+  up as the rest of the code expects to find them. This is in reality part
   of the syntax check of the parser code.
 
   It is necessary to call this function in the case of a CREATE TABLE
@@ -2160,16 +2166,14 @@ end:
   and number of elements are in synch with each other. So only partitioning
   using functions need to be set-up to their data structures.
 
-  SYNOPSIS
-    fix_parser_data()
-    thd                      Thread object
+  @param thd  Thread object
 
-  RETURN VALUES
-    TRUE                     Failure
-    FALSE                    Success
+  @return Operation status
+    @retval TRUE   Failure
+    @retval FALSE  Success
 */
 
-int partition_info::fix_parser_data(THD *thd)
+bool partition_info::fix_parser_data(THD *thd)
 {
   List_iterator<partition_element> it(partitions);
   partition_element *part_elem;
@@ -2231,6 +2235,7 @@ int partition_info::fix_parser_data(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
+
 void partition_info::print_debug(const char *str, uint *value)
 {
   DBUG_ENTER("print_debug");
@@ -2262,7 +2267,7 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
   return FALSE;
 }
 
-int partition_info::reorganize_into_single_field_col_val()
+bool partition_info::reorganize_into_single_field_col_val()
 {
   return 0;
 }
@@ -2276,9 +2281,10 @@ bool partition_info::add_column_list_value(THD *thd, Item *item)
 {
   return FALSE;
 }
-int partition_info::add_max_value()
+
+bool partition_info::add_max_value()
 {
-  return 0;
+  return false;
 }
 
 void partition_info::print_debug(const char *str, uint *value)
