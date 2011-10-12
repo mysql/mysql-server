@@ -23393,12 +23393,126 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
+  case Ndbinfo::OPERATIONS_TABLEID:{
+    Uint32 bucket = cursor->data[0];
+
+    while (true)
+    {
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, bucket);
+        return;
+      }
+
+      for (; bucket < NDB_ARRAY_SIZE(ctransidHash); bucket++)
+      {
+        if (ctransidHash[bucket] != RNIL)
+          break;
+      }
+
+      if (bucket == NDB_ARRAY_SIZE(ctransidHash))
+      {
+        break;
+      }
+
+      TcConnectionrecPtr tcPtr;
+      tcPtr.i = ctransidHash[bucket];
+      while (tcPtr.i != RNIL)
+      {
+        jam();
+        ptrCheckGuard(tcPtr, ctcConnectrecFileSize, tcConnectionrec);
+        ndbinfo_write_op(signal, &req, &rl, tcPtr);
+        tcPtr.i = tcPtr.p->nextHashRec;
+      }
+      bucket++;
+    }
+  }
 
   default:
     break;
   }
 
   ndbinfo_send_scan_conf(signal, req, rl);
+}
+
+void
+Dblqh::ndbinfo_write_op(Signal* signal,
+                        DbinfoScanReq * req,
+                        Ndbinfo::Ratelimit * rl,
+                        TcConnectionrecPtr tcPtr)
+{
+  Ndbinfo::Row row(signal, *req);
+  row.write_uint32(getOwnNodeId());
+  row.write_uint32(instance());          // block instance
+  row.write_uint32(tcPtr.i);             // objid
+  row.write_uint32(tcPtr.p->tcBlockref); // tcref
+  row.write_uint32(tcPtr.p->applRef);    // apiref
+
+  char transid[64];
+  BaseString::snprintf(transid, sizeof(transid),
+                       "%.8x.%.8x",
+                       tcPtr.p->transid[0],
+                       tcPtr.p->transid[1]);
+  row.write_string(transid);
+  row.write_uint32(tcPtr.p->tableref);
+  row.write_uint32(tcPtr.p->fragmentid);
+
+  if (tcPtr.p->tcScanRec != RNIL)
+  {
+    ScanRecordPtr sp;
+    sp.i = tcPtr.p->tcScanRec;
+    c_scanRecordPool.getPtr(sp);
+
+    Uint32 op = NDB_INFO_OP_SCAN_UNKNOWN;
+    if (sp.p->scanLockMode)
+      op = NDB_INFO_OP_SCAN_EX;
+    else if (sp.p->scanLockHold)
+      op = NDB_INFO_OP_SCAN_SH;
+    else
+      op = NDB_INFO_OP_SCAN;
+
+    row.write_uint32(op);
+    row.write_uint32(sp.p->scanState);
+    row.write_uint32(0);
+  }
+  else
+  {
+    Uint32 op = NDB_INFO_OP_UNKNOWN;
+    switch(tcPtr.p->operation){
+    case ZREAD:
+      if (tcPtr.p->lockType)
+	op = NDB_INFO_OP_READ_EX;
+      else if (!tcPtr.p->dirtyOp)
+	op = NDB_INFO_OP_READ_SH;
+      else
+        op = NDB_INFO_OP_READ;
+      break;
+    case ZINSERT:
+      op = NDB_INFO_OP_INSERT;
+      break;
+    case ZUPDATE:
+      op = NDB_INFO_OP_UPDATE;
+      break;
+    case ZDELETE:
+      op = NDB_INFO_OP_DELETE;
+      break;
+    case ZWRITE:
+      op = NDB_INFO_OP_WRITE;
+      break;
+    case ZUNLOCK:
+      op = NDB_INFO_OP_UNLOCK;
+      break;
+    case ZREFRESH:
+      op = NDB_INFO_OP_REFRESH;
+      break;
+    }
+    row.write_uint32(op);
+    row.write_uint32(tcPtr.p->transactionState);
+    row.write_uint32(0);
+  }
+
+  ndbinfo_send_row(signal, *req, row, *rl);
 }
 
 
