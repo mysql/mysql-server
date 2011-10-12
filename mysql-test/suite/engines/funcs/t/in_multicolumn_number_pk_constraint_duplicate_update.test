@@ -1,6 +1,8 @@
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
+# Set Correct timezone to match result
+SET TIME_ZONE="+03:00";
 CREATE TABLE t1(c1 DATE NOT NULL, c2 DATE NOT NULL, c3 DATE NOT NULL, PRIMARY KEY(c1,c2,c3));
 SET TIMESTAMP=1171346973; # 2007-02-13 15:09:33
 INSERT INTO t1 (c1,c2,c3) VALUES(NOW(),NOW(),NOW());
@@ -93,4 +95,6 @@ INSERT INTO t1 (c1,c2,c3) VALUES(1999,1999,2000) ON DUPLICATE KEY UPDATE c1=2011
 --sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
+# Restore timezone to default
+SET TIME_ZONE= @@global.time_zone;
 

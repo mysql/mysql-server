@@ -594,6 +594,39 @@ drop table t3|
 
 
 #
+# BUG#11758414: Default storage_engine not honored when set
+#               from within a stored procedure
+#
+SELECT @@GLOBAL.storage_engine INTO @old_engine|
+SET @@GLOBAL.storage_engine=InnoDB|
+SET @@SESSION.storage_engine=InnoDB|
+# show defaults at define-time
+SHOW GLOBAL VARIABLES LIKE 'storage_engine'|
+SHOW SESSION VARIABLES LIKE 'storage_engine'|
+CREATE PROCEDURE bug11758414()
+BEGIN
+ SET @@GLOBAL.storage_engine="MyISAM";
+ SET @@SESSION.storage_engine="MyISAM"; 
+ # show defaults at execution time / that setting them worked
+ SHOW GLOBAL VARIABLES LIKE 'storage_engine';
+ SHOW SESSION VARIABLES LIKE 'storage_engine';
+ CREATE TABLE t1 (id int);
+ CREATE TABLE t2 (id int) ENGINE=InnoDB;
+ # show we're heeding the default (at run-time, not parse-time!)
+ SHOW CREATE TABLE t1;
+ # show that we didn't break explicit override with ENGINE=...
+ SHOW CREATE TABLE t2;
+END;
+|
+CALL bug11758414|
+# show that changing defaults within SP stuck
+SHOW GLOBAL VARIABLES LIKE 'storage_engine'|
+SHOW SESSION VARIABLES LIKE 'storage_engine'|
+DROP PROCEDURE bug11758414|
+DROP TABLE t1, t2|
+SET @@GLOBAL.storage_engine=@old_engine|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
