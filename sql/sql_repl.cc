@@ -352,7 +352,7 @@ Increase max_allowed_packet on master";
     *errmsg = "memory allocation failed reading log event";
     break;
   case LOG_READ_TRUNC:
-    *errmsg = "binlog truncated in the middle of event";
+    *errmsg = "binlog truncated in the middle of event; consider out of disk space on master";
     break;
   default:
     *errmsg = "unknown error reading log event on the master";
@@ -447,6 +447,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error";
+  const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
+  char llbuff1[22], llbuff2[22];
+  char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
@@ -677,10 +680,8 @@ impossible position";
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
 
-    my_off_t prev_pos= pos;
-    while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+    while (!(error= Log_event::read_log_event(&log, packet, log_lock)))
     {
-      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -764,17 +765,6 @@ impossible position";
       /* reset transmit packet for next loop */
       if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
         goto err;
-    }
-
-    /*
-      here we were reading binlog that was not closed properly (as a result
-      of a crash ?). treat any corruption as EOF
-    */
-    if (binlog_can_be_corrupted &&
-        error != LOG_READ_MEM && error != LOG_READ_EOF)
-    {
-      my_b_seek(&log, prev_pos);
-      error=LOG_READ_EOF;
     }
 
     /*
@@ -1021,6 +1011,21 @@ end:
 
 err:
   thd_proc_info(thd, "Waiting to finalize termination");
+  if (my_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG && my_b_inited(&log))
+  {
+    /* 
+       detailing the fatal error message with coordinates 
+       of the last position read.
+    */
+    char b_start[FN_REFLEN], b_end[FN_REFLEN];
+    fn_format(b_start, coord->file_name, "", "", MY_REPLACE_DIR);
+    fn_format(b_end,   log_file_name,    "", "", MY_REPLACE_DIR);
+    my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
+                b_start, (llstr(coord->pos, llbuff1), llbuff1),
+                b_end, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+  }
+  else
+    strcpy(error_text, errmsg);
   end_io_cache(&log);
   RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
@@ -1037,7 +1042,7 @@ err:
     mysql_file_close(file, MYF(MY_WME));
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
-  my_message(my_errno, errmsg, MYF(0));
+  my_message(my_errno, error_text, MYF(0));
   DBUG_VOID_RETURN;
 }
 
