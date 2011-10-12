@@ -39,9 +39,10 @@ table_id	table_name	comment
 11	threadblocks	which blocks are run in which threads
 12	threadstat	threadstat
 13	transactions	transactions
+14	operations	operations
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-14
+15
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -55,11 +56,12 @@ table_id	table_name	comment
 11	threadblocks	which blocks are run in which threads
 12	threadstat	threadstat
 13	transactions	transactions
+14	operations	operations
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-196
+225
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -78,6 +80,7 @@ table_id	table_name
 6	logbuffers
 5	logspaces
 9	nodes
+14	operations
 3	pools
 7	resources
 0	tables
@@ -135,6 +138,7 @@ table_id
 11
 12
 13
+14
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
