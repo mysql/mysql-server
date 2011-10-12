@@ -785,7 +785,7 @@ int dth_encode_unsigned(const NdbDictionary::Column *col, size_t len,
 int dth_decode_bigint(const NdbDictionary::Column *col,  
                       char * &str, const void *buf) {
   LOAD_ALIGNED_DATA(Int64, int64val, buf);
-  return sprintf(str, "%"PRId64, int64val);
+  return sprintf(str, "%lld", int64val);
 }
 
 int dth_encode_bigint(const NdbDictionary::Column *col, size_t len,
@@ -805,7 +805,7 @@ int dth_encode_bigint(const NdbDictionary::Column *col, size_t len,
 int dth_decode_ubigint(const NdbDictionary::Column *col,  
                        char * &str, const void *buf) {
   LOAD_ALIGNED_DATA(Uint64, uint64val, buf);
-  return sprintf(str, "%"PRIu64, uint64val);
+  return sprintf(str, "%llu", uint64val);
 }
 
 int dth_encode_ubigint(const NdbDictionary::Column *col, size_t len,
