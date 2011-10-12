@@ -27,7 +27,8 @@ BEGIN
   -- Dump all global variables except those
   -- that are supposed to change
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-    WHERE variable_name != 'timestamp' ORDER BY VARIABLE_NAME;
+    WHERE variable_name NOT IN ('timestamp', 'innodb_file_format_check')
+      ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
@@ -71,4 +72,14 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
+END||
+
+--
+-- Procedure used by test case used to force all
+-- servers to restart after testcase and thus skipping
+-- check test case after test
+--
+CREATE DEFINER=root@localhost PROCEDURE force_restart()
+BEGIN
+  SELECT 1 INTO OUTFILE 'force_restart';
 END||

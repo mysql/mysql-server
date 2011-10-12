@@ -107,3 +107,48 @@ SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
 #
 DROP TABLE mysql_db1.t1;
 DROP DATABASE mysql_db1;
+
+--echo #
+--echo # BUG#11761180 - 53646: MYISAMPACK CORRUPTS TABLES WITH FULLTEXT INDEXES
+--echo #
+CREATE TABLE t1(a CHAR(4), FULLTEXT(a));
+INSERT INTO t1 VALUES('aaaa'),('bbbb'),('cccc');
+FLUSH TABLE t1;
+--exec $MYISAMPACK -sf $MYSQLD_DATADIR/test/t1
+--exec $MYISAMCHK -srq $MYSQLD_DATADIR/test/t1
+CHECK TABLE t1;
+SELECT * FROM t1 WHERE MATCH(a) AGAINST('aaaa' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(a) AGAINST('aaaa');
+DROP TABLE t1;
+
+--echo # Test table with key_reflength > rec_reflength
+CREATE TABLE t1(a CHAR(30), FULLTEXT(a));
+--disable_query_log
+--echo # Populating a table, so it's index file exceeds 65K
+let $1=1700;
+while ($1)
+{
+  eval INSERT INTO t1 VALUES('$1aaaaaaaaaaaaaaaaaaaaaaaaaa');
+  dec $1;
+}
+
+--echo # Populating a table, so index file has second level fulltext tree
+let $1=60;
+while ($1)
+{
+  eval INSERT INTO t1 VALUES('aaaa'),('aaaa'),('aaaa'),('aaaa'),('aaaa');
+  dec $1;
+}
+--enable_query_log
+
+FLUSH TABLE t1;
+--echo # Compressing table
+--exec $MYISAMPACK -sf $MYSQLD_DATADIR/test/t1
+--echo # Fixing index (repair by sort)
+--exec $MYISAMCHK -srnq $MYSQLD_DATADIR/test/t1
+CHECK TABLE t1;
+FLUSH TABLE t1;
+--echo # Fixing index (repair with keycache)
+--exec $MYISAMCHK -soq $MYSQLD_DATADIR/test/t1
+CHECK TABLE t1;
+DROP TABLE t1;

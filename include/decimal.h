@@ -21,6 +21,15 @@ typedef enum
   decimal_round_mode;
 typedef int32 decimal_digit_t;
 
+/**
+    intg is the number of *decimal* digits (NOT number of decimal_digit_t's !)
+         before the point
+    frac is the number of decimal digits after the point
+    len  is the length of buf (length of allocated space) in decimal_digit_t's,
+         not in bytes
+    sign false means positive, true means negative
+    buf  is an array of decimal_digit_t's
+ */
 typedef struct st_decimal_t {
   int    intg, frac, len;
   my_bool sign;
