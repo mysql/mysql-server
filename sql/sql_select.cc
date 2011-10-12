@@ -9614,7 +9614,6 @@ void JOIN_TAB::cleanup()
         table->pos_in_table_list->jtbm_subselect)
     {
       end_read_record(&read_record);
-      //psergey-merge:
       table->pos_in_table_list->jtbm_subselect->cleanup();
       DBUG_VOID_RETURN;
     }
