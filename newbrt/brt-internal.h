@@ -788,6 +788,18 @@ brt_leaf_apply_cmd_once (
     uint64_t *workdonep
     );
 
+void
+brt_leaf_put_cmd (
+    BRT t, 
+    BASEMENTNODE bn, 
+    SUBTREE_EST se, 
+    BRT_MSG cmd, 
+    bool* made_change,
+    uint64_t *workdone,
+    OMT snapshot_txnids,
+    OMT live_list_reverse
+    );
+
 void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, uint64_t *workdone, OMT snapshot_txnids, OMT live_list_reverse);
 
 void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
