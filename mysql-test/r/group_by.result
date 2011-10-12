@@ -1909,3 +1909,18 @@ a	AVG(t1.b)	t11c	t12c
 2	2.0000	7	7
 DROP TABLE t1;
 # End of 5.1 tests
+#
+#  BUG#872702: Crash in add_ref_to_table_cond() when grouping by a PK
+#
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t1 VALUES (14),(15),(16),(17),(18),(19),(20);
+CREATE TABLE t2 (a int) ;
+SELECT a
+FROM t1
+WHERE a = (
+SELECT t2.a
+FROM t2
+) OR t1.a = 73
+GROUP BY 1;
+a
+DROP TABLE t1, t2;
