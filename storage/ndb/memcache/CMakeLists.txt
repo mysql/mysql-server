@@ -39,6 +39,7 @@ endif()
 remove_definitions(-DNDEBUG)
 
 include("FindMemcached.cmake")
+include(CheckLibraryExists)
 
 IF(MEMCACHED_FOUND) 
   MESSAGE(STATUS "Building NDB Memcache using " ${MEMCACHED_ROOT_DIR})
@@ -118,6 +119,9 @@ IF(${CMAKE_COMPILER_IS_GNUCXX})
   STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 ENDIF()
 
+IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "SunPro")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -features=extensions") # __func__
+ENDIF()
 
 ########## ENVIRONMENT TESTS #########
 
@@ -130,6 +134,11 @@ CHECK_FUNCTION_EXISTS(gethrtime  HAVE_GETHRTIME)
 CHECK_FUNCTION_EXISTS(gethrvtime HAVE_GETHRVTIME)
 CHECK_FUNCTION_EXISTS(memset     HAVE_MEMSET)
 # Also: log in libm, dlsym in libdl? 
+CHECK_LIBRARY_EXISTS(dl dlsym "" HAVE_LIBDL)
+SET(LIBDL "")
+if(${HAVE_LIBDL}) 
+    set(LIBDL "dl")
+endif()
 
 CHECK_CXX_SOURCE_RUNS("
     main()  {
@@ -193,16 +202,12 @@ set_target_properties(ndb_engine PROPERTIES
 # Install the ndb_engine.so module
 install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 
-# Install the metadata.sql script
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
-        DESTINATION ${INSTALL_MYSQLSHAREDIR})
-
 ### Install the memcache-api directory  ################
-install(DIRECTORY DESTINATION memcache-api)
-install(PROGRAMS sandbox.sh DESTINATION memcache-api)
-install(FILES README DESTINATION memcache-api)
+install(DIRECTORY DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+install(PROGRAMS sandbox.sh DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+install(FILES README DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
-        DESTINATION memcache-api)
+        DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
         
 # memcached_path.pl is also installed, for use by installed mtr
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
