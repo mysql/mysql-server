@@ -608,7 +608,7 @@ struct TABLE_SHARE
   Field **field;
   Field **found_next_number_field;
   Field *timestamp_field;               /* Used only during open */
-  KEY  *key_info;			/* data of keys in database */
+  KEY  *key_info;			/* data of keys defined for the table */
   uint	*blob_field;			/* Index to blobs in Field arrray*/
 
   uchar	*default_values;		/* row with default values */
@@ -659,8 +659,13 @@ struct TABLE_SHARE
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
-  uint keys, key_parts;
-  uint max_key_length, max_unique_length, total_key_length;
+  uint keys;                            /* Number of keys defined for the table*/
+  uint key_parts;                       /* Number of key parts of all keys
+                                           defined for the table
+                                        */
+  uint max_key_length;                  /* Length of the longest key */
+  uint max_unique_length;               /* Length of the longest unique key */
+  uint total_key_length;
   uint uniques;                         /* Number of UNIQUE index */
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
@@ -982,7 +987,7 @@ public:
   key_map keys_in_use_for_group_by;
   /* Map of keys that can be used to calculate ORDER BY without sorting */
   key_map keys_in_use_for_order_by;
-  KEY  *key_info;			/* data of keys in database */
+  KEY  *key_info;			/* data of keys defined for the table */
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
@@ -1123,6 +1128,8 @@ public:
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
   my_bool m_needs_reopen;
+  bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
+  uint max_keys; /* Size of allocated key_info array. */
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
@@ -1153,7 +1160,7 @@ public:
   {
     read_set= read_set_arg;
     write_set= write_set_arg;
-    if (file)
+    if (file && created)
       file->column_bitmaps_signal();
   }
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
@@ -1174,6 +1181,9 @@ public:
   /** Should this instance of the table be reopened? */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
+  bool alloc_keys(uint key_count);
+  bool add_tmp_key(ulonglong key_parts, char *key_name);
+  void use_index(int key_to_save);
 
   inline void set_keyread(bool flag)
   {
@@ -1300,9 +1310,12 @@ typedef struct st_schema_table
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
 
-#define VIEW_ALGORITHM_UNDEFINED        0
-#define VIEW_ALGORITHM_TMPTABLE         1
-#define VIEW_ALGORITHM_MERGE            2
+enum enum_derived_type {
+  VIEW_ALGORITHM_UNDEFINED = 0,
+  VIEW_ALGORITHM_TMPTABLE,
+  VIEW_ALGORITHM_MERGE,
+  DERIVED_ALGORITHM_TMPTABLE
+};
 
 #define VIEW_SUID_INVOKER               0
 #define VIEW_SUID_DEFINER               1
@@ -1375,6 +1388,21 @@ enum enum_open_type
   OT_TEMPORARY_OR_BASE= 0, OT_TEMPORARY_ONLY, OT_BASE_ONLY
 };
 
+/**
+  This structure is used to keep info about possible key for the result table
+  of a derived table/view.
+  The 'referenced_by' is the table map of tables to which this possible
+    key corresponds.
+  The 'used_field' is a map of fields of which this key consists of.
+  See also the comment for the TABLE_LIST::update_derived_keys function.
+*/
+
+class Derived_key: public Sql_alloc {
+public:
+  table_map referenced_by;
+  key_map used_fields;
+};
+
 class Semijoin_mat_exec;
 class Index_hint;
 class Item_exists_subselect;
@@ -1441,12 +1469,14 @@ struct TABLE_LIST
                      (lock_type >= TL_WRITE_ALLOW_WRITE) ?
                      MDL_SHARED_WRITE : MDL_SHARED_READ,
                      MDL_TRANSACTION);
+    callback_func= 0;
   }
 
   /*
-    List of tables local to a subquery (used by SQL_I_List). Considers
-    views as leaves (unlike 'next_leaf' below). Created at parse time
-    in st_select_lex::add_table_to_list() -> table_list.link_in_list().
+    List of tables local to a subquery or the top-level SELECT (used by
+    SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
+    Created at parse time in st_select_lex::add_table_to_list() ->
+    table_list.link_in_list().
   */
   TABLE_LIST *next_local;
   /* link in a global list of all queries tables */
@@ -1545,6 +1575,11 @@ struct TABLE_LIST
      derived tables. Use TABLE_LIST::is_anonymous_derived_table().
   */
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
+  /*
+    TRUE <=> all possible keys for a derived table were collected and
+    could be re-used while statement re-execution.
+  */
+  bool derived_keys_ready;
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
   /*
@@ -1632,7 +1667,7 @@ struct TABLE_LIST
       - VIEW_ALGORITHM_MERGE
       @to do Replace with an enum 
   */
-  uint8         effective_algorithm;
+  enum_derived_type effective_algorithm;
   GRANT_INFO	grant;
   /* data need by some engines in query cache*/
   ulonglong     engine_data;
@@ -1723,6 +1758,8 @@ struct TABLE_LIST
   LEX_STRING view_body_utf8;
 
    /* End of view definition context. */
+  /* List of possible keys. Valid only for materialized derived tables/views. */
+  List<Derived_key> derived_key_list;
 
   /**
     Indicates what triggers we need to pre-load for this TABLE_LIST
@@ -1732,7 +1769,11 @@ struct TABLE_LIST
   uint8 trg_event_map;
   /* TRUE <=> this table is a const one and was optimized away. */
   bool optimized_away;
-
+  /**
+    TRUE <=> already materialized. Valid only for materialized derived
+    tables/views.
+  */
+  bool materialized;
   uint i_s_requested_object;
   bool has_db_lookup_value;
   bool has_table_lookup_value;
@@ -1780,7 +1821,20 @@ struct TABLE_LIST
       return prep_where(thd, conds, no_where_clause);
     return FALSE;
   }
-
+  /**
+    @returns
+      TRUE  this is a materializable derived table/view.
+      FALSE otherwise.
+  */
+  inline bool uses_materialization()
+  {
+    return (effective_algorithm == VIEW_ALGORITHM_TMPTABLE ||
+            effective_algorithm == DERIVED_ALGORITHM_TMPTABLE);
+  }
+  inline bool is_view_or_derived()
+  {
+    return (effective_algorithm != VIEW_ALGORITHM_UNDEFINED);
+  }
   void register_want_access(ulong want_access);
   bool prepare_security(THD *thd);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1852,6 +1906,11 @@ struct TABLE_LIST
      respectively.
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  int fetch_number_of_rows();
+  bool update_derived_keys(Field*, Item**, uint);
+  bool generate_keys();
+  bool handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*));
+  st_select_lex_unit *get_unit();
 
   /**
     @brief Returns whether the table (or join nest) that this TABLE_LIST 
@@ -2207,6 +2266,7 @@ extern LEX_STRING MYSQL_SCHEMA_NAME;
 /* replication's tables */
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
+extern LEX_STRING WORKER_INFO_NAME;
 
 inline bool is_infoschema_db(const char *name, size_t len)
 {

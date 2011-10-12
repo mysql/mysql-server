@@ -30,6 +30,7 @@ def	mysql	PRIMARY	mysql	proxies_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	servers	PRIMARY KEY
 def	mysql	PRIMARY	mysql	slave_master_info	PRIMARY KEY
 def	mysql	PRIMARY	mysql	slave_relay_log_info	PRIMARY KEY
+def	mysql	PRIMARY	mysql	slave_worker_info	PRIMARY KEY
 def	mysql	PRIMARY	mysql	tables_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone_leap_second	PRIMARY KEY

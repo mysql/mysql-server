@@ -4,6 +4,8 @@
 -- source include/master-slave.inc
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
 --let $engine_type= myisam
 
 # Load some data into t1
@@ -109,7 +111,10 @@ connection slave;
 # the master (so it has a non-zero error code in the binlog).
 # 1053 = ER_SERVER_SHUTDOWN
 --let $slave_sql_errno= 1053
---source include/wait_for_slave_sql_error_and_skip.inc
+###--source include/wait_for_slave_sql_error_and_skip.inc
+--source include/wait_for_slave_sql_error.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+source include/start_slave.inc;
 
 select count(*) from t1;
 connection master1;

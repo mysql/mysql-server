@@ -252,7 +252,7 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
-The caller must be holding trx_sys->lock.
+The caller must be holding trx_sys->mutex.
 @return	the trx handle or NULL if not found;
 the pointer must not be dereferenced unless lock_sys->mutex was
 acquired before calling this function and is still being held */
@@ -283,7 +283,7 @@ trx_list_get_min_trx_id(void);
 /*=========================*/
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
-trx_sys->lock in shared mode. If the caller is not holding
+trx_sys->mutex in shared mode. If the caller is not holding
 lock_sys->mutex, the transaction may already have been committed.
 @return	transaction instance if active, or NULL;
 the pointer must not be dereferenced unless lock_sys->mutex was
@@ -618,7 +618,7 @@ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 /** If this is not yet set to TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
 we must reset the doublewrite buffer, because starting from 4.1.x the
 space id of a data page is stored into
-FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
+FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
 #define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED (24 + FSEG_HEADER_SIZE)
 
 /*-------------------------------------------------------------*/
@@ -659,6 +659,14 @@ struct trx_doublewrite_struct{
 	ulint	block2;		/*!< page number of the second block */
 	ulint	first_free;	/*!< first free position in write_buf measured
 				in units of UNIV_PAGE_SIZE */
+	ulint	n_reserved;	/*!< number of slots currently reserved
+				for single page flushes. */
+	ibool*	in_use;		/*!< flag used to indicate if a slot is
+				in use. Only used for single page
+				flushes. */
+	ibool	batch_running;	/*!< set to TRUE if currently a batch
+				is being written from the doublewrite
+				buffer. */
 	byte*	write_buf;	/*!< write buffer used in writing to the
 				doublewrite buffer, aligned to an
 				address divisible by UNIV_PAGE_SIZE

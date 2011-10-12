@@ -3400,7 +3400,8 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if (flush_and_sync(0))
     goto err;
-  if ((uint) my_b_append_tell(&log_file) > max_size)
+  if ((uint) my_b_append_tell(&log_file) >
+      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
     error= new_file_without_locking();
 err:
   mysql_mutex_unlock(&LOCK_log);
@@ -3431,7 +3432,8 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if (flush_and_sync(0))
     goto err;
-  if ((uint) my_b_append_tell(&log_file) > max_size)
+  if ((uint) my_b_append_tell(&log_file) >
+      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
     error= new_file_without_locking();
 err:
   if (!error)
@@ -4245,25 +4247,35 @@ err:
 /**
   Wait until we get a signal that the relay log has been updated.
 
-  @param thd		Thread variable
+  @param[in] thd        Thread variable
+  @param[in] timeout    a pointer to a timespec;
+                        NULL means to wait w/o timeout.
+
+  @retval    0          if got signalled on update
+  @retval    non-0      if wait timeout elapsed
 
   @note
     One must have a lock on LOCK_log before calling this function.
-    This lock will be released before return! That's required by
-    THD::enter_cond() (see NOTES in sql_class.h).
 */
 
-void MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd)
+int MYSQL_BIN_LOG::wait_for_update_relay_log(THD* thd, const struct timespec *timeout)
 {
+  int ret= 0;
   PSI_stage_info old_stage;
   DBUG_ENTER("wait_for_update_relay_log");
 
   thd->ENTER_COND(&update_cond, &LOCK_log,
                   &stage_slave_has_read_all_relay_log,
                   &old_stage);
-  mysql_cond_wait(&update_cond, &LOCK_log);
+
+  if (!timeout)
+    mysql_cond_wait(&update_cond, &LOCK_log);
+  else
+    ret= mysql_cond_timedwait(&update_cond, &LOCK_log,
+                              const_cast<struct timespec *>(timeout));
   thd->EXIT_COND(&old_stage);
-  DBUG_VOID_RETURN;
+
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -4942,6 +4954,70 @@ THD::binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional)
 }
 
 /**
+   @param db    db name c-string to be inserted into alphabetically sorted
+                THD::binlog_accessed_db_names list.
+                
+                Note, that space for both the data and the node
+                struct are allocated in THD::main_mem_root.
+                The list lasts for the top-level query time and is reset
+                in @c THD::cleanup_after_query().
+*/
+void
+THD::add_to_binlog_accessed_dbs(const char *db)
+{
+  char *after_db;
+  MEM_ROOT *db_mem_root= &main_mem_root;
+
+  if (!binlog_accessed_db_names)
+    binlog_accessed_db_names= new (db_mem_root) List<char>;
+
+  if (binlog_accessed_db_names->elements >  MAX_DBS_IN_EVENT_MTS)
+  {
+    push_warning_printf(this, Sql_condition::WARN_LEVEL_WARN,
+                        ER_MTS_UPDATED_DBS_GREATER_MAX,
+                        ER(ER_MTS_UPDATED_DBS_GREATER_MAX),
+                        MAX_DBS_IN_EVENT_MTS);
+    return;
+  }
+
+  after_db= strdup_root(db_mem_root, db);
+
+  /* 
+     sorted insertion is implemented with first rearranging data
+     (pointer to char*) of the links and final appending of the least
+     ordered data to create a new link in the list.
+  */
+  if (binlog_accessed_db_names->elements != 0)
+  {
+    List_iterator<char> it(*get_binlog_accessed_db_names());
+
+    while (it++)
+    {
+      char *swap= NULL;
+      char **ref_cur_db= it.ref();
+      int cmp= strcmp(after_db, *ref_cur_db);
+
+      DBUG_ASSERT(!swap || cmp < 0);
+      
+      if (cmp == 0)
+      {
+        after_db= NULL;  /* dup to ignore */
+        break;
+      }
+      else if (swap || cmp > 0)
+      {
+        swap= *ref_cur_db;
+        *ref_cur_db= after_db;
+        after_db= swap;
+      }
+    }
+  }
+  if (after_db)
+    binlog_accessed_db_names->push_back(after_db, &main_mem_root);
+}
+
+
+/**
   Decide on logging format to use for the statement and issue errors
   or warnings as needed.  The decision depends on the following
   parameters:
@@ -5296,6 +5372,23 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     if (error) {
       DBUG_PRINT("info", ("decision: no logging since an error was generated"));
       DBUG_RETURN(-1);
+    }
+
+    if (is_write && !is_current_stmt_binlog_format_row() &&
+        lex->sql_command != SQLCOM_END /* rows-event applying by slave */)
+    {
+      /*
+        Master side of DML in the STMT format events parallelization.
+        All involving table db:s are stored in a abc-ordered name list.
+        In case the number of databases exceeds MAX_DBS_IN_EVENT_MTS maximum
+        the list gathering breaks since it won't be sent to the slave.
+      */
+      for (TABLE_LIST *table= tables; table; table= table->next_global)
+      {
+        if (table->placeholder())
+          continue;
+        add_to_binlog_accessed_dbs(table->db);
+      }
     }
     DBUG_PRINT("info", ("decision: logging in %s format",
                         is_current_stmt_binlog_format_row() ?
@@ -6011,6 +6104,7 @@ mysql_declare_plugin(binlog)
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,  
 }
 mysql_declare_plugin_end;

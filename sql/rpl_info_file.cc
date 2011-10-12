@@ -39,7 +39,8 @@ Rpl_info_file::Rpl_info_file(const int nparam, const char* param_info_fname)
   DBUG_VOID_RETURN;
 }
 
-int Rpl_info_file::do_init_info()
+int Rpl_info_file::do_init_info(const ulong *uidx __attribute__((unused)),
+                                const uint nidx __attribute__((unused)))
 {
   int error= 0;
 
@@ -47,7 +48,7 @@ int Rpl_info_file::do_init_info()
   DBUG_ENTER("Rpl_info_file::do_init_info");
 
   /* does info file exist ? */
-  if (do_check_info())
+  if (do_check_info(uidx, nidx))
   {
     /*
       If someone removed the file from underneath our feet, just close
@@ -110,45 +111,39 @@ file '%s')", info_fname);
   DBUG_RETURN(error);
 }
 
-int Rpl_info_file::do_prepare_info_for_read()
+int Rpl_info_file::do_prepare_info_for_read(const uint nidx
+                                            __attribute__((unused)))
 {
   cursor= 0;
   prv_error= FALSE;
   return (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0));
 }
 
-int Rpl_info_file::do_prepare_info_for_write()
+int Rpl_info_file::do_prepare_info_for_write(const uint nidx
+                                             __attribute__((unused)))
 {
   cursor= 0;
   prv_error= FALSE;
   return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, 0, 1));
 }
 
-int Rpl_info_file::do_check_info()
+int Rpl_info_file::do_check_info(const ulong *uidx __attribute__((unused)),
+                                 const uint nidx __attribute__((unused)))
 {
   /*
-    This function checks if the file exists and in other modules
-    further actions are taken based on this. If the file exists
-    but users do not have the appropriated rights to access it,
-    other modules will assume that the file does not exist and
-    will take the appropriate actions and most likely will fail
-    safely after trying to create it. 
+    This function is used by callers to check if the file exists.
 
-    This is behavior is not a problem. However, in other modules,
-    it is not possible to print out what is the root of the
-    failure as a detailed error code is not returned. For that
-    reason, we print out such information in here.
+    If the file exists but users do not have the appropriated
+    rights to access it, callers will assume that the file does
+    not exist taking the appropriate actions and failing when
+    trying to create the file.
   */
-  if (my_access(info_fname, F_OK | R_OK | W_OK))
-    sql_print_information("Info file %s cannot be accessed (errno %d)."
-                          " Most likely this is a new slave or you are "
-                          " changing the repository type.", info_fname,
-                          errno);
-  
   return my_access(info_fname, F_OK);
 }
 
-int Rpl_info_file::do_flush_info(const bool force)
+int Rpl_info_file::do_flush_info(const ulong *uidx,
+                                 const uint nidx,
+                                 const bool force)
 {
   int error= 0;
 
@@ -168,7 +163,8 @@ int Rpl_info_file::do_flush_info(const bool force)
   DBUG_RETURN(error);
 }
 
-void Rpl_info_file::do_end_info()
+void Rpl_info_file::do_end_info(const ulong *uidx __attribute__((unused)),
+                                const uint nidx __attribute__((unused)))
 {
   DBUG_ENTER("Rpl_info_file::do_end_info");
 
@@ -183,7 +179,8 @@ void Rpl_info_file::do_end_info()
   DBUG_VOID_RETURN;
 }
 
-int Rpl_info_file::do_remove_info()
+int Rpl_info_file::do_remove_info(const ulong *uidx __attribute__((unused)),
+                                  const uint nidx __attribute__((unused)))
 {
   MY_STAT stat_area;
   int error= 0;
@@ -200,6 +197,12 @@ bool Rpl_info_file::do_set_info(const int pos, const char *value)
 {
   return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?
           FALSE : TRUE);
+}
+
+bool Rpl_info_file::do_set_info(const int pos, const uchar *value,
+                                const size_t size)
+{
+  return (my_b_write(&info_file, value, size));
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const ulong value)
@@ -235,7 +238,7 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
           FALSE : TRUE);
 }
 
-bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
+bool Rpl_info_file::do_set_info(const int pos, const Dynamic_ids *value)
 {
   bool error= TRUE;
   String buffer;
@@ -243,7 +246,7 @@ bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
   /*
     This produces a line listing the total number and all the server_ids.
   */
-  if (const_cast<Server_ids *>(value)->pack_server_ids(&buffer))
+  if (const_cast<Dynamic_ids *>(value)->pack_dynamic_ids(&buffer))
     goto err;
 
   error= (my_b_printf(&info_file, "%s\n", buffer.c_ptr_safe()) >
@@ -257,6 +260,12 @@ bool Rpl_info_file::do_get_info(const int pos, char *value, const size_t size,
 {
   return (init_strvar_from_file(value, size, &info_file,
                                 default_value));
+}
+
+bool Rpl_info_file::do_get_info(const int pos, uchar *value, const size_t size,
+                                const uchar *default_value)
+{
+  return(my_b_read(&info_file, value, size));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, ulong *value,
@@ -280,8 +289,8 @@ bool Rpl_info_file::do_get_info(const int pos, float *value,
                                   default_value));
 }
 
-bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
-                                const Server_ids *default_value __attribute__((unused)))
+bool Rpl_info_file::do_get_info(const int pos, Dynamic_ids *value,
+                                const Dynamic_ids *default_value __attribute__((unused)))
 {
   /*
     Static buffer to use most of the times. However, if it is not big
@@ -295,7 +304,7 @@ bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
                                              &buffer_act,
                                              &info_file);
   if (!error)
-    value->unpack_server_ids(buffer_act);
+    value->unpack_dynamic_ids(buffer_act);
 
   if (buffer != buffer_act)
   {

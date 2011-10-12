@@ -1017,6 +1017,8 @@ srv_undo_tablespace_create(
 
 			err = DB_ERROR;
 		}
+
+		os_file_close(fh);
 	}
 
 	return(err);
@@ -1395,6 +1397,11 @@ innobase_start_or_create_for_mysql(void)
 			" InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
+#if defined(COMPILER_HINTS_ENABLED)
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Compiler hints enabled.\n");
+#endif /* defined(COMPILER_HINTS_ENABLED) */
+
 	ut_print_timestamp(stderr);
 	fputs(" InnoDB: " IB_ATOMICS_STARTUP_MSG "\n", stderr);
 
@@ -1695,6 +1702,21 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 #endif /* UNIV_LOG_ARCHIVE */
+
+	if (srv_n_log_files * srv_log_file_size * UNIV_PAGE_SIZE
+	    >= 549755813888ULL /* 512G */) {
+		/* log_block_convert_lsn_to_no() limits the returned block
+		number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
+		bytes, then we have a limit of 512 GB. If that limit is to
+		be raised, then log_block_convert_lsn_to_no() must be
+		modified. */
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Error: combined size of log files"
+			" must be < 512 GB\n");
+
+		return(DB_ERROR);
+	}
 
 	if (srv_n_log_files * srv_log_file_size >= ULINT_MAX) {
 		/* fil_io() takes ulint as an argument and we are passing
@@ -2433,12 +2455,12 @@ innobase_shutdown_for_mysql(void)
 
 	logs_empty_and_mark_files_at_shutdown();
 
-	if (srv_conc_n_threads != 0) {
+	if (srv_conc_get_active_threads() != 0) {
 		fprintf(stderr,
 			"InnoDB: Warning: query counter shows %ld queries"
 			" still\n"
 			"InnoDB: inside InnoDB at shutdown\n",
-			srv_conc_n_threads);
+			srv_conc_get_active_threads());
 	}
 
 	/* 2. Make all threads created by InnoDB to exit */

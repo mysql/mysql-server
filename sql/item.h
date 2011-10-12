@@ -2656,6 +2656,9 @@ public:
     return (*ref)->walk(processor, walk_subquery, arg) ||
            (this->*processor)(arg);
   }
+  virtual Item* transform(Item_transformer, uchar *arg);
+  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
+                        Item_transformer transformer, uchar *arg_t);
   virtual void print(String *str, enum_query_type query_type);
   bool result_as_longlong()
   {

@@ -1239,6 +1239,11 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    DBUG_RETURN(TRUE);
+  }
   /*
      first table in list is the one we'll INSERT into, requires INSERT_ACL.
      all others require SELECT_ACL only. the ACL requirement below is for
@@ -2178,7 +2183,7 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
         goto end_create;
       }
       mysql_mutex_lock(&LOCK_delayed_insert);
-      delayed_threads.append(di);
+      delayed_threads.push_front(di);
       mysql_mutex_unlock(&LOCK_delayed_insert);
     }
     mysql_mutex_unlock(&LOCK_delayed_create);
@@ -2626,7 +2631,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
-  threads.append(thd);
+  threads.push_front(thd);
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   mysql_mutex_unlock(&LOCK_thread_count);
 

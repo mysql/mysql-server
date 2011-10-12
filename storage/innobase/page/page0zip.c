@@ -38,12 +38,16 @@ Created June 2005 by Marko Makela
 #include "log0recv.h"
 #include "zlib.h"
 #ifndef UNIV_HOTBACKUP
+# include "buf0buf.h"
 # include "buf0lru.h"
 # include "btr0sea.h"
 # include "dict0boot.h"
 # include "lock0lock.h"
 # include "srv0mon.h"
+# include "srv0srv.h"
+# include "ut0crc32.h"
 #else /* !UNIV_HOTBACKUP */
+# include "buf0checksum.h"
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
@@ -641,7 +645,7 @@ page_zip_dir_encode(
 		}
 
 		info_bits = rec_get_info_bits(rec, TRUE);
-		if (UNIV_UNLIKELY(info_bits & REC_INFO_DELETED_FLAG)) {
+		if (info_bits & REC_INFO_DELETED_FLAG) {
 			info_bits &= ~REC_INFO_DELETED_FLAG;
 			offs |= PAGE_ZIP_DIR_SLOT_DEL;
 		}
@@ -1089,7 +1093,7 @@ page_zip_compress_clust(
 		/* Check if there are any externally stored columns.
 		For each externally stored column, store the
 		BTR_EXTERN_FIELD_REF separately. */
-		if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
+		if (rec_offs_any_extern(offsets)) {
 			ut_ad(dict_index_is_clust(index));
 
 			err = page_zip_compress_clust_ext(
@@ -1750,7 +1754,7 @@ page_zip_set_extra_bytes(
 	for (i = 0; i < n; i++) {
 		offs = page_zip_dir_get(page_zip, i);
 
-		if (UNIV_UNLIKELY(offs & PAGE_ZIP_DIR_SLOT_DEL)) {
+		if (offs & PAGE_ZIP_DIR_SLOT_DEL) {
 			info_bits |= REC_INFO_DELETED_FLAG;
 		}
 		if (UNIV_UNLIKELY(offs & PAGE_ZIP_DIR_SLOT_OWNED)) {
@@ -2632,7 +2636,7 @@ page_zip_decompress_clust(
 		For each externally stored column, restore the
 		BTR_EXTERN_FIELD_REF separately. */
 
-		if (UNIV_UNLIKELY(rec_offs_any_extern(offsets))) {
+		if (rec_offs_any_extern(offsets)) {
 			if (UNIV_UNLIKELY
 			    (!page_zip_decompress_clust_ext(
 				    d_stream, rec, offsets, trx_id_col))) {
@@ -4292,7 +4296,7 @@ page_zip_dir_add_slot(
 	if (!page_is_leaf(page_zip->data)) {
 		ut_ad(!page_zip->n_blobs);
 		stored = dir - n_dense * REC_NODE_PTR_SIZE;
-	} else if (UNIV_UNLIKELY(is_clustered)) {
+	} else if (is_clustered) {
 		/* Move the BLOB pointer array backwards to make space for the
 		roll_ptr and trx_id columns and the dense directory slot. */
 		byte*	externs;
@@ -4494,7 +4498,7 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
+	if (!page_zip_compress(page_zip, page, index, mtr)) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);
@@ -4675,21 +4679,111 @@ ulint
 page_zip_calc_checksum(
 /*===================*/
 	const void*	data,	/*!< in: compressed page */
-	ulint		size)	/*!< in: size of compressed page */
+	ulint		size,	/*!< in: size of compressed page */
+	srv_checksum_algorithm_t algo) /*!< in: algorithm to use */
 {
+	const Bytef*	s = data;
+	uLong		adler;
+	ib_uint32_t	crc32;
+
 	/* Exclude FIL_PAGE_SPACE_OR_CHKSUM, FIL_PAGE_LSN,
 	and FIL_PAGE_FILE_FLUSH_LSN from the checksum. */
 
-	const Bytef*	s	= data;
-	uLong		adler;
+	switch (algo) {
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 
-	ut_ad(size > FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		ut_ad(size > FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	adler = adler32(0L, s + FIL_PAGE_OFFSET,
-			FIL_PAGE_LSN - FIL_PAGE_OFFSET);
-	adler = adler32(adler, s + FIL_PAGE_TYPE, 2);
-	adler = adler32(adler, s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-			size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		crc32 = ut_crc32(s + FIL_PAGE_OFFSET,
+				 FIL_PAGE_LSN - FIL_PAGE_OFFSET)
+			^ ut_crc32(s + FIL_PAGE_TYPE, 2)
+			^ ut_crc32(s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+				   size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	return((ulint) adler);
+		return((ulint) crc32);
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+		ut_ad(size > FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
+		adler = adler32(0L, s + FIL_PAGE_OFFSET,
+				FIL_PAGE_LSN - FIL_PAGE_OFFSET);
+		adler = adler32(adler, s + FIL_PAGE_TYPE, 2);
+		adler = adler32(adler, s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+				size - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+
+		return((ulint) adler);
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+		return(BUF_NO_CHECKSUM_MAGIC);
+	/* no default so the compiler will emit a warning if new enum
+	is added and not handled here */
+	}
+
+	ut_error;
+	return(0);
+}
+
+/**********************************************************************//**
+Verify a compressed page's checksum.
+@return	TRUE if the stored checksum is valid according to the value of
+innodb_checksum_algorithm */
+UNIV_INTERN
+ibool
+page_zip_verify_checksum(
+/*=====================*/
+	const void*	data,	/*!< in: compressed page */
+	ulint		size)	/*!< in: size of compressed page */
+{
+	ib_uint32_t	stored;
+	ib_uint32_t	calc;
+	ib_uint32_t	crc32 = 0 /* silence bogus warning */;
+	ib_uint32_t	innodb = 0 /* silence bogus warning */;
+
+	stored = mach_read_from_4(
+		(const unsigned char*) data + FIL_PAGE_SPACE_OR_CHKSUM);
+
+	/* declare empty pages non-corrupted */
+	if (stored == 0) {
+		/* make sure that the page is really empty */
+		ut_d(ulint i; for (i = 0; i < size; i++) {
+		     ut_a(*((const char*) data + i) == 0); });
+
+		return(TRUE);
+	}
+
+	calc = page_zip_calc_checksum(data, size, srv_checksum_algorithm);
+
+	if (stored == calc) {
+		return(TRUE);
+	}
+
+	switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+		return(stored == calc);
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+		if (stored == BUF_NO_CHECKSUM_MAGIC) {
+			return(TRUE);
+		}
+		crc32 = calc;
+		innodb = page_zip_calc_checksum(
+			data, size, SRV_CHECKSUM_ALGORITHM_INNODB);
+		break;
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+		if (stored == BUF_NO_CHECKSUM_MAGIC) {
+			return(TRUE);
+		}
+		crc32 = page_zip_calc_checksum(
+			data, size, SRV_CHECKSUM_ALGORITHM_CRC32);
+		innodb = calc;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+		return(TRUE);
+	/* no default so the compiler will emit a warning if new enum
+	is added and not handled here */
+	}
+
+	return(stored == crc32 || stored == innodb);
 }

@@ -58,7 +58,13 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
 
@@ -436,6 +442,7 @@ void lex_start(THD *thd)
 
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
+  lex->reset_slave_info.all= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1735,11 +1742,14 @@ void st_select_lex_unit::init_query()
   item_list.empty();
   describe= 0;
   found_rows_for_union= 0;
+  result= NULL;
 }
 
 void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
+  resolve_place= RESOLVE_NONE;
+  resolve_nest= NULL;
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
@@ -1776,6 +1786,7 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  select_list_tables= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
 }
@@ -3259,6 +3270,35 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
                                             current_index_hint_clause,
                                             str, length));
 }
+
+
+/**
+  @brief Process all derived tables/views of the SELECT.
+
+  @param lex    LEX of this thread
+
+  @details
+  This function runs given processor on all derived tables from the
+  table_list of this select.
+
+  @return FALSE ok.
+  @return TRUE an error occur.
+*/
+
+bool st_select_lex::handle_derived(LEX *lex,
+                                   bool (*processor)(THD*, LEX*, TABLE_LIST*))
+{
+  for (TABLE_LIST *table_ref= get_table_list();
+       table_ref;
+       table_ref= table_ref->next_local)
+  {
+    if (table_ref->is_view_or_derived() &&
+        table_ref->handle_derived(lex, processor))
+      return TRUE;
+  }
+  return FALSE;
+}
+
 
 /**
   A routine used by the parser to decide whether we are specifying a full

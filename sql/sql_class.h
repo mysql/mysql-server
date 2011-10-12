@@ -82,7 +82,7 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
-                            SLAVE_EXEC_MODE_LAST_BIT};
+                            SLAVE_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
 enum enum_mark_columns
@@ -455,7 +455,6 @@ typedef struct system_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
-  ulong optimizer_join_cache_level;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
@@ -554,70 +553,75 @@ typedef struct system_variables
 
 typedef struct system_status_var
 {
-  ulong com_other;
-  ulong com_stat[(uint) SQLCOM_END];
-  ulong created_tmp_disk_tables;
-  ulong created_tmp_tables;
-  ulong ha_commit_count;
-  ulong ha_delete_count;
-  ulong ha_read_first_count;
-  ulong ha_read_last_count;
-  ulong ha_read_key_count;
-  ulong ha_read_next_count;
-  ulong ha_read_prev_count;
-  ulong ha_read_rnd_count;
-  ulong ha_read_rnd_next_count;
+  ulonglong created_tmp_disk_tables;
+  ulonglong created_tmp_tables;
+  ulonglong ha_commit_count;
+  ulonglong ha_delete_count;
+  ulonglong ha_read_first_count;
+  ulonglong ha_read_last_count;
+  ulonglong ha_read_key_count;
+  ulonglong ha_read_next_count;
+  ulonglong ha_read_prev_count;
+  ulonglong ha_read_rnd_count;
+  ulonglong ha_read_rnd_next_count;
   /*
     This number doesn't include calls to the default implementation and
     calls made by range access. The intent is to count only calls made by
     BatchedKeyAccess.
   */
-  ulong ha_multi_range_read_init_count;
-  ulong ha_rollback_count;
-  ulong ha_update_count;
-  ulong ha_write_count;
-  ulong ha_prepare_count;
-  ulong ha_discover_count;
-  ulong ha_savepoint_count;
-  ulong ha_savepoint_rollback_count;
-  ulong ha_external_lock_count;
+  ulonglong ha_multi_range_read_init_count;
+  ulonglong ha_rollback_count;
+  ulonglong ha_update_count;
+  ulonglong ha_write_count;
+  ulonglong ha_prepare_count;
+  ulonglong ha_discover_count;
+  ulonglong ha_savepoint_count;
+  ulonglong ha_savepoint_rollback_count;
+  ulonglong ha_external_lock_count;
 
+#if 0
+  /* Tatiana thinks this may be dead now. */
   /* KEY_CACHE parts. These are copies of the original */
-  ulong key_blocks_changed;
-  ulong key_blocks_used;
-  ulong key_cache_r_requests;
-  ulong key_cache_read;
-  ulong key_cache_w_requests;
-  ulong key_cache_write;
+  ulonglong key_blocks_changed;
+  ulonglong key_blocks_used;
+  ulonglong key_cache_r_requests;
+  ulonglong key_cache_read;
+  ulonglong key_cache_w_requests;
+  ulonglong key_cache_write;
   /* END OF KEY_CACHE parts */
+#endif
 
-  ulong opened_tables;
-  ulong opened_shares;
-  ulong select_full_join_count;
-  ulong select_full_range_join_count;
-  ulong select_range_count;
-  ulong select_range_check_count;
-  ulong select_scan_count;
-  ulong long_query_count;
-  ulong filesort_merge_passes;
-  ulong filesort_range_count;
-  ulong filesort_rows;
-  ulong filesort_scan_count;
+  ulonglong opened_tables;
+  ulonglong opened_shares;
+  ulonglong select_full_join_count;
+  ulonglong select_full_range_join_count;
+  ulonglong select_range_count;
+  ulonglong select_range_check_count;
+  ulonglong select_scan_count;
+  ulonglong long_query_count;
+  ulonglong filesort_merge_passes;
+  ulonglong filesort_range_count;
+  ulonglong filesort_rows;
+  ulonglong filesort_scan_count;
   /* Prepared statements and binary protocol */
-  ulong com_stmt_prepare;
-  ulong com_stmt_reprepare;
-  ulong com_stmt_execute;
-  ulong com_stmt_send_long_data;
-  ulong com_stmt_fetch;
-  ulong com_stmt_reset;
-  ulong com_stmt_close;
-  /*
-    Number of statements sent from the client
-  */
-  ulong questions;
+  ulonglong com_stmt_prepare;
+  ulonglong com_stmt_reprepare;
+  ulonglong com_stmt_execute;
+  ulonglong com_stmt_send_long_data;
+  ulonglong com_stmt_fetch;
+  ulonglong com_stmt_reset;
+  ulonglong com_stmt_close;
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+  /*
+    Number of statements sent from the client
+  */
+  ulonglong questions;
+
+  ulong com_other;
+  ulong com_stat[(uint) SQLCOM_END];
+
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
@@ -823,6 +827,23 @@ public:
     ENGINE INNODB STATUS.
   */
   CSET_STRING query_string;
+
+  /*
+    In some cases, we may want to modify the query (i.e. replace
+    passwords with their hashes before logging the statement etc.).
+
+    In case the query was rewritten, the original query will live in
+    query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, query_string should be logged.
+    If rewritten_query is non-empty, the rewritten query it contains
+    should be used in logs (general log, slow query log, binary log).
+
+    Currently, password obfuscation is the only rewriting we do; more
+    may follow at a later date, both pre- and post parsing of the query.
+    Rewriting of binloggable statements must preserve all pertinent
+    information.
+  */
+  String      rewritten_query;
 
   inline char *query() const { return query_string.str(); }
   inline uint32 query_length() const { return query_string.length(); }
@@ -1420,7 +1441,8 @@ enum enum_thread_type
   SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
   SYSTEM_THREAD_EVENT_SCHEDULER= 16,
   SYSTEM_THREAD_EVENT_WORKER= 32,
-  SYSTEM_THREAD_INFO_REPOSITORY= 64
+  SYSTEM_THREAD_INFO_REPOSITORY= 64,
+  SYSTEM_THREAD_SLAVE_WORKER= 128
 };
 
 inline char const *
@@ -1437,6 +1459,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -1878,15 +1901,6 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
-  /* Place to store various things */
-  union 
-  { 
-    /*
-      Used by subquery optimizations, see
-      Item_exists_subselect::embedding_join_nest.
-    */
-    TABLE_LIST *emb_on_expr_nest;
-  } thd_marker;
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -1937,7 +1951,7 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
   /** Tells whether the given optimizer_switch flag is on */
-  inline bool optimizer_switch_flag(ulonglong flag)
+  inline bool optimizer_switch_flag(ulonglong flag) const
   {
     return (variables.optimizer_switch & flag);
   }
@@ -1968,6 +1982,11 @@ private:
     transaction cache.
   */
   uint binlog_table_maps;
+  /*
+    MTS: db names listing to be updated by the query databases
+  */
+  List<char> *binlog_accessed_db_names;
+
 public:
   void issue_unsafe_warnings();
 
@@ -1977,6 +1996,24 @@ public:
   void clear_binlog_table_maps() {
     binlog_table_maps= 0;
   }
+
+  /*
+    MTS: accessor to binlog_accessed_db_names list
+  */
+  List<char> * get_binlog_accessed_db_names()
+  {
+    return binlog_accessed_db_names;
+  }
+
+  /*
+     MTS: resetter of binlog_accessed_db_names list normally
+     at the end of the query execution
+  */
+  void clear_binlog_accessed_db_names() { binlog_accessed_db_names= NULL; }
+
+  /* MTS: method inserts a new unique name into binlog_updated_dbs */
+  void add_to_binlog_accessed_dbs(const char *db);
+
 #endif /* MYSQL_CLIENT */
 
 public:
@@ -3366,6 +3403,11 @@ protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
 public:
+  /**
+    Number of records estimated in this result.
+    Valid only for materialized derived tables/views.
+  */
+  ha_rows estimated_rowcount;
   select_result();
   virtual ~select_result() {};
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -3647,6 +3689,13 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
+  /**
+    TRUE <=> don't actually create table handler when creating the result
+    table. This allows range optimizer to add indexes later.
+    Used for materialized derived tables/views.
+    @see TABLE_LIST::update_derived_keys.
+  */
+  bool skip_create_table;
   /*
     If TRUE, create_tmp_field called from create_tmp_table will convert
     all BIT fields to 64-bit longs. This is a workaround the limitation
@@ -3658,7 +3707,7 @@ public:
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     bit_fields_as_long(0)
+     skip_create_table(FALSE), bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3689,7 +3738,9 @@ public:
   void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
-                           const char *alias, bool bit_fields_as_long);
+                           const char *alias, bool bit_fields_as_long,
+                           bool create_table);
+  friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
 };
 
 /* Base subselect interface class */

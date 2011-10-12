@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -110,6 +110,8 @@ enum db_err {
 					foreign keys as its prefix columns */
 	DB_TOO_BIG_INDEX_COL,		/* index column size exceeds maximum
 					limit */
+	DB_INDEX_CORRUPT,		/* we have corrupted index */
+	DB_UNDO_RECORD_TOO_BIG,		/* the undo log record is too big */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

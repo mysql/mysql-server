@@ -101,14 +101,22 @@ row_sel_sec_rec_is_for_blob(
 	ulint		clust_len,	/*!< in: length of clust_field */
 	const byte*	sec_field,	/*!< in: column in secondary index */
 	ulint		sec_len,	/*!< in: length of sec_field */
+	ulint		prefix_len,	/*!< in: index column prefix length
+					in bytes */
 	dict_table_t*	table)		/*!< in: table */
 {
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	ulint	zip_size = dict_table_flags_to_zip_size(table->flags);
-	ulint	max_prefix_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
 
+	/* This function should never be invoked on an Antelope format
+	table, because they should always contain enough prefix in the
+	clustered index record. */
+	ut_ad(dict_table_get_format(table) >= UNIV_FORMAT_B);
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+	ut_ad(prefix_len >= sec_len);
+	ut_ad(prefix_len > 0);
+	ut_a(prefix_len <= sizeof buf);
 
 	if (UNIV_UNLIKELY
 	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -120,7 +128,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, max_prefix_len,
+	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
 						      zip_size,
 						      clust_field, clust_len);
 
@@ -134,7 +142,7 @@ row_sel_sec_rec_is_for_blob(
 	}
 
 	len = dtype_get_at_most_n_mbchars(prtype, mbminmaxlen,
-					  sec_len, len, (const char*) buf);
+					  prefix_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
@@ -226,6 +234,7 @@ row_sel_sec_rec_is_for_clust_rec(
 					    col->mbminmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
+					    ifield->prefix_len,
 					    clust_index->table)) {
 					goto inequal;
 				}
@@ -495,7 +504,7 @@ sel_col_prefetch_buf_alloc(
 		sel_buf = column->prefetch_buf + i;
 
 		sel_buf->data = NULL;
-
+		sel_buf->len = 0;
 		sel_buf->val_buf_size = 0;
 	}
 }
@@ -520,6 +529,8 @@ sel_col_prefetch_buf_free(
 			mem_free(sel_buf->data);
 		}
 	}
+
+	mem_free(prefetch_buf);
 }
 
 /*********************************************************************//**
@@ -3360,16 +3371,16 @@ row_sel_prefetch_cache_init(
 }
 
 /********************************************************************//**
-Pushes a row for MySQL to the fetch cache. */
+Get the last fetch cache buffer from the queue.
+@return pointer to buffer. */
 UNIV_INLINE
-void
-row_sel_enqueue_cache_row_for_mysql(
-/*================================*/
-	byte*		mysql_rec,	/*!< in/out: MySQL record */
+byte*
+row_sel_fetch_last_buf(
+/*===================*/
 	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
 {
-	ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
-	ut_a(!prebuilt->templ_contains_blob);
+	ut_ad(!prebuilt->templ_contains_blob);
+	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
 
 	if (prebuilt->fetch_cache[0] == NULL) {
 		/* Allocate memory for the fetch cache */
@@ -3382,8 +3393,26 @@ row_sel_enqueue_cache_row_for_mysql(
 	UNIV_MEM_INVALID(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
 			 prebuilt->mysql_row_len);
 
-	memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
-	       mysql_rec, prebuilt->mysql_row_len);
+	return(prebuilt->fetch_cache[prebuilt->n_fetch_cached]);
+}
+
+/********************************************************************//**
+Pushes a row for MySQL to the fetch cache. */
+UNIV_INLINE
+void
+row_sel_enqueue_cache_row_for_mysql(
+/*================================*/
+	byte*		mysql_rec,	/*!< in/out: MySQL record */
+	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
+{
+	/* For non ICP code path the row should already exist in the
+	next fetch cache slot. */
+
+	if (prebuilt->idx_cond != NULL) {
+		byte*	dest = row_sel_fetch_last_buf(prebuilt);
+
+		ut_memcpy(dest, mysql_rec, prebuilt->mysql_row_len);
+	}
 
 	++prebuilt->n_fetch_cached;
 }
@@ -3637,6 +3666,13 @@ row_search_for_mysql(
 		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 		return(DB_MISSING_HISTORY);
+	}
+
+	if (dict_index_is_corrupted(index)) {
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+		return(DB_CORRUPTION);
 	}
 
 	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
@@ -4363,8 +4399,7 @@ wrong_offs:
 		if (!set_also_gap_locks
 		    || srv_locks_unsafe_for_binlog
 		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    || (unique_search
-			&& !UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp)))) {
+		    || (unique_search && !rec_get_deleted_flag(rec, comp))) {
 
 			goto no_gap_lock;
 		} else {
@@ -4551,7 +4586,7 @@ locks_ok:
 	point that rec is on a buffer pool page. Functions like
 	page_rec_is_comp() cannot be used! */
 
-	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp))) {
+	if (rec_get_deleted_flag(rec, comp)) {
 
 		/* The record is delete-marked: we can skip it */
 
@@ -4649,7 +4684,7 @@ requires_clust_rec:
 			goto lock_wait_or_error;
 		}
 
-		if (UNIV_UNLIKELY(rec_get_deleted_flag(clust_rec, comp))) {
+		if (rec_get_deleted_flag(clust_rec, comp)) {
 
 			/* The record is delete marked: we can skip it */
 
@@ -4730,7 +4765,8 @@ requires_clust_rec:
 
 		if (!prebuilt->idx_cond
 		    && !row_sel_store_mysql_rec(
-			    buf, prebuilt, result_rec,
+			    row_sel_fetch_last_buf(prebuilt),
+			    prebuilt, result_rec,
 			    result_rec != rec,
 			    result_rec != rec ? clust_index : index,
 			    offsets)) {

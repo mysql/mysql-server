@@ -1,0 +1,49 @@
+##---------------------------------------------------------------------------
+# Purpose: Testing error messages for --replicate-rewrite-db option
+##--------------------------------------------------------------------------
+
+#check single character databases. Bug#11747866
+--let $rpl_skip_reset_master_and_slave= 1
+--let $rpl_skip_change_master= 1
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+--connection master
+
+#check for normal functionality
+--echo testing for normal fuctionality
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= --replicate-rewrite-db='mysql->test'
+--source include/rpl_start_server.inc
+--echo [PASS]
+
+#check for single characters databases. BUG#11747866
+--echo testing with single letter databases name.
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= --replicate-rewrite-db='a->b'
+--source include/rpl_start_server.inc
+--echo [PASS]
+
+#check for '->' operator not found. Should fail with error
+--echo check for '->' operator not found. Should FAIL with error
+--disable_result_log
+--error 1 
+exec $MYSQLD --replicate-rewrite-db='mysql' 2>&1;
+--enable_result_log
+--echo [FAIL]
+
+#check for empty "from" db name. Should fail with error
+--echo check for empty "from" db name. Should FAIL with error
+--disable_result_log
+--error 1
+exec $MYSQLD --replicate-rewrite-db= '->test ' 2>&1;
+--enable_result_log
+--echo [FAIL]
+
+#check for empty "to" db name. Should fail with error.
+--echo check for empty "to" db name. Should FAIL with error
+--disable_result_log
+--error 1
+exec $MYSQLD --replicate-rewrite-db='acc-> ' 2>&1;
+--enable_result_log
+--echo [FAIL]
+

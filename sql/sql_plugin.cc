@@ -49,8 +49,8 @@ static TYPELIB global_plugin_typelib=
   { array_elements(global_plugin_typelib_names)-1,
     "", global_plugin_typelib_names, NULL };
 
-
-char *opt_plugin_load= NULL;
+static I_List<i_string> opt_plugin_load_list;
+I_List<i_string> *opt_plugin_load_list_ptr= &opt_plugin_load_list;
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
 /*
@@ -539,6 +539,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 #endif
     }
 
+    /*
+      What's the purpose of this loop? If the goal is to catch a
+      missing 0 record at the end of a list, it will fail miserably
+      since the compiler is likely to optimize this away. /Matz
+     */
     for (i= 0;
          ((struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
          i++)
@@ -566,6 +571,23 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     sym= cur;
   }
   plugin_dl.plugins= (struct st_mysql_plugin *)sym;
+
+  /*
+    If report is REPORT_TO_USER, we were called from
+    mysql_install_plugin. Otherwise, we are called directly or
+    indirectly from plugin_init.
+   */
+  if (report == REPORT_TO_USER)
+  {
+    st_mysql_plugin *plugin= plugin_dl.plugins;
+    for ( ; plugin->info ; ++plugin)
+      if (plugin->flags & PLUGIN_OPT_NO_INSTALL)
+      {
+        report_error(report, ER_PLUGIN_NO_INSTALL, plugin->name);
+        free_plugin_mem(&plugin_dl);
+        DBUG_RETURN(0);
+   }
+  }
 
   /* Duplicate and convert dll name */
   plugin_dl.dl.length= dl->length * files_charset_info->mbmaxlen + 1;
@@ -1335,8 +1357,11 @@ int plugin_init(int *argc, char **argv, int flags)
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING))
   {
-    if (opt_plugin_load)
-      plugin_load_list(&tmp_root, argc, argv, opt_plugin_load);
+    I_List_iterator<i_string> iter(opt_plugin_load_list);
+    i_string *item;
+    while (NULL != (item= iter++))
+      plugin_load_list(&tmp_root, argc, argv, item->ptr);
+
     if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
       plugin_load(&tmp_root, argc, argv);
   }
@@ -1889,6 +1914,16 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   if (plugin->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
   {
     my_error(ER_PLUGIN_IS_PERMANENT, MYF(0), name->str);
+    goto err;
+  }
+  /*
+    Error message for ER_PLUGIN_IS_PERMANENT is not suitable for
+    plugins marked as not dynamically uninstallable, so we have a
+    separate one instead of changing the old one.
+   */
+  if (plugin->plugin->flags & PLUGIN_OPT_NO_UNINSTALL)
+  {
+    my_error(ER_PLUGIN_NO_UNINSTALL, MYF(0), plugin->plugin->name);
     goto err;
   }
 

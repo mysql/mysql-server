@@ -1089,6 +1089,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_CA_SYM
 %token  MASTER_SSL_CERT_SYM
 %token  MASTER_SSL_CIPHER_SYM
+%token  MASTER_SSL_CRL_SYM
+%token  MASTER_SSL_CRLPATH_SYM
 %token  MASTER_SSL_KEY_SYM
 %token  MASTER_SSL_SYM
 %token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
@@ -1965,6 +1967,14 @@ master_def:
             Lex->mi.ssl_verify_server_cert= $3 ?
               LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
+        | MASTER_SSL_CRL_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.ssl_crl= $3.str;
+          }
+        | MASTER_SSL_CRLPATH_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.ssl_crlpath= $3.str;
+          }
 
         | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
           {
@@ -2073,9 +2083,6 @@ create:
             lex->change=NullS;
             memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.options=$2 | $4;
-            lex->create_info.db_type=
-              lex->create_info.options & HA_LEX_CREATE_TMP_TABLE ?
-              ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
             lex->create_info.default_table_charset= NULL;
             lex->name.str= 0;
             lex->name.length= 0;
@@ -2086,7 +2093,8 @@ create:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->current_select= &lex->select_lex; 
-            if (!lex->create_info.db_type)
+            if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
+                !lex->create_info.db_type)
             {
               lex->create_info.db_type=
                 lex->create_info.options & HA_LEX_CREATE_TMP_TABLE ?
@@ -5082,8 +5090,7 @@ create_table_option:
           ENGINE_SYM opt_equal storage_engines
           {
             Lex->create_info.db_type= $3;
-            if ($3)
-              Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
           }
         | MAX_ROWS opt_equal ulonglong_num
           {
@@ -6883,6 +6890,11 @@ alter_list_item:
           {
             LEX *lex=Lex;
             lex->alter_info.flags|= ALTER_OPTIONS;
+            if ((lex->create_info.used_fields & HA_CREATE_USED_ENGINE) &&
+                !lex->create_info.db_type)
+            {
+              lex->create_info.used_fields&= ~HA_CREATE_USED_ENGINE;
+            }
           }
         | FORCE_SYM
           {
@@ -12778,6 +12790,8 @@ keyword_sp:
         | MASTER_SSL_CAPATH_SYM    {}
         | MASTER_SSL_CERT_SYM      {}
         | MASTER_SSL_CIPHER_SYM    {}
+        | MASTER_SSL_CRL_SYM       {}
+        | MASTER_SSL_CRLPATH_SYM   {}
         | MASTER_SSL_KEY_SYM       {}
         | MAX_CONNECTIONS_PER_HOUR {}
         | MAX_QUERIES_PER_HOUR     {}
@@ -13159,10 +13173,12 @@ option_value:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
+            int flags= $2 ? 0 : set_var_collation_client::SET_CS_DEFAULT;
             const CHARSET_INFO *cs2;
             cs2= $2 ? $2: global_system_variables.character_set_client;
             set_var_collation_client *var;
-            var= new set_var_collation_client(cs2,
+            var= new set_var_collation_client(flags,
+                                              cs2,
                                               thd->variables.collation_database,
                                               cs2);
             if (var == NULL)
@@ -13189,6 +13205,9 @@ option_value:
             LEX *lex= Lex;
             const CHARSET_INFO *cs2;
             const CHARSET_INFO *cs3;
+            int flags= set_var_collation_client::SET_CS_NAMES
+                       | ($2 ? 0 : set_var_collation_client::SET_CS_DEFAULT)
+                       | ($3 ? set_var_collation_client::SET_CS_COLLATE : 0);
             cs2= $2 ? $2 : global_system_variables.character_set_client;
             cs3= $3 ? $3 : cs2;
             if (!my_charset_same(cs2, cs3))
@@ -13198,7 +13217,7 @@ option_value:
               MYSQL_YYABORT;
             }
             set_var_collation_client *var;
-            var= new set_var_collation_client(cs3, cs3, cs3);
+            var= new set_var_collation_client(flags, cs3, cs3, cs3);
             if (var == NULL)
               MYSQL_YYABORT;
             lex->var_list.push_back(var);
@@ -13222,6 +13241,7 @@ option_value:
               MYSQL_YYABORT;
             user->host=null_lex_str;
             user->user.str=thd->security_ctx->user;
+            user->user.length= strlen(thd->security_ctx->user);
             set_var_password *var= new set_var_password(user, $3);
             if (var == NULL)
               MYSQL_YYABORT;

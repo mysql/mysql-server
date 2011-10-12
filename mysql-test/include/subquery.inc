@@ -4058,6 +4058,37 @@ SET SESSION sql_mode=@old_sql_mode;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+--echo #
+
+create table t2(i int);
+insert into t2 values(0);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+CREATE VIEW v1 AS  
+SELECT 'f' FROM t2 UNION SELECT 'x' FROM t2
+;
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+SELECT t1.pk
+FROM t1
+WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 )
+;
+
+SET SESSION sql_mode=@old_sql_mode;
+
+drop table t2, t1;
+drop view v1;
+
 --echo End of 5.0 tests.
 
 #
@@ -5502,3 +5533,113 @@ eval $query;
 eval explain $query;
 
 DROP TABLE t1,t3;
+
+--echo #
+--echo # Bug#12795555: Missing rows with ALL/ANY subquery
+--echo #
+# Test the case when Item_maxmin_subselect is used
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VAlUES (NULL),(1),(NULL),(2);
+SELECT f1 FROM t1 WHERE f1 < ALL (SELECT 1 FROM DUAL WHERE 0);
+DROP TABLE t1;
+# Test the case when Item_sum_[max|min] is used
+CREATE TABLE t1 (k VARCHAR(1), KEY k(k));
+INSERT INTO t1 VALUES ('r'), (NULL), (NULL);
+
+CREATE TABLE t2 (c VARCHAR(1));
+INSERT INTO t2 VALUES ('g'), (NULL);
+
+CREATE TABLE t3 (c VARCHAR(1));
+
+SELECT COUNT(*)
+FROM t1 JOIN t2
+WHERE t1.k < ALL(
+  SELECT c
+  FROM t3
+);
+
+DROP TABLE t1, t2, t3; 
+
+--echo #
+--echo # Bug#12838171: 51VS56: TRANSFORMED IN()+SUBQ QUERY 
+--echo #               PRODUCES EMPTY RESULT ON 5.6, 1 ROW ON 5.1
+--echo #
+CREATE TABLE ot (
+  col_int_nokey int(11), 
+  col_varchar_nokey varchar(1)
+) ;
+
+INSERT INTO ot VALUES (1,'x');
+
+CREATE TABLE it (
+  col_int_key int(11), 
+  col_varchar_key varchar(1), 
+  KEY idx_cvk_cik (col_varchar_key,col_int_key)
+) ;
+
+INSERT INTO it VALUES (NULL,'x'), (NULL,'f');
+
+--echo
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE col_int_key IS NULL);
+
+--echo
+EXPLAIN EXTENDED
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE col_int_key IS NULL);
+
+--echo
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE coalesce(col_int_nokey, 1) );
+
+--echo
+EXPLAIN EXTENDED
+SELECT col_int_nokey 
+FROM ot 
+WHERE col_varchar_nokey IN
+   (SELECT col_varchar_key
+    FROM it 
+    WHERE coalesce(col_int_nokey, 1) );
+
+DROP TABLE it;
+
+CREATE TABLE it (
+   col_int_key int(11),
+   col_varchar_key varchar(1),
+   col_varchar_key2 varchar(1),
+   KEY idx_cvk_cvk2_cik (col_varchar_key, col_varchar_key2, col_int_key),
+   KEY idx_cvk_cik (col_varchar_key, col_int_key)
+);
+
+INSERT INTO it VALUES (NULL,'x','x'), (NULL,'f','f');
+
+SELECT col_int_nokey
+FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+    (SELECT col_varchar_key, col_varchar_key2
+     FROM it
+     WHERE col_int_key IS NULL);
+
+--echo
+EXPLAIN EXTENDED
+SELECT col_int_nokey
+FROM ot
+WHERE (col_varchar_nokey, 'x') IN
+    (SELECT col_varchar_key, col_varchar_key2
+     FROM it
+     WHERE col_int_key IS NULL);
+
+--echo
+DROP TABLE it, ot;

@@ -2042,5 +2042,167 @@ DROP USER 'mysqluser1'@'%';
 DROP USER 'mysqluser2'@'%';
 
 
+--echo #
+--echo # Test for bug #11766767 - "59957: VIEW USING MERGE PERMISSIONS
+--echo #                           IN MULTI-TABLE UPDATE".
+--echo #
+--disable_warnings
+drop database if exists mysqltest1;
+drop database if exists mysqltest2;
+--enable_warnings
+--echo #
+--echo # Prepare playground. 
+create database mysqltest1;
+create database mysqltest2;
+create user user_11766767;
+grant select on mysqltest1.* to user_11766767;
+grant all on mysqltest2.* to user_11766767;
+use mysqltest1;
+create table t1 (id int primary key, val varchar(20));
+insert into t1 values (1, 'test1');
+create table t11 (id int primary key);
+insert into t11 values (1);
+create algorithm=temptable view v1_temp as select * from t1;
+create algorithm=merge view v1_merge as select * from t1;
+create algorithm=temptable view v11_temp as
+  select t1.id as id, t1.val as val from t1, t11 where t1.id= t11.id;
+create algorithm=merge view v11_merge as
+  select t1.id as id, t1.val as val from t1, t11 where t1.id= t11.id;
+use mysqltest2;
+create table t2 (id int primary key, val varchar(20));
+insert into t2 values (1, 'test2');
+create table t21 (id int primary key);
+insert into t21 values (1);
+create algorithm=temptable view v2_temp as select * from t2;
+create algorithm=merge view v2_merge as select * from t2;
+create algorithm=temptable view v21_temp as 
+  select t2.id as id, t2.val as val from t2, t21 where t2.id= t21.id;
+create algorithm=merge view v21_merge as
+  select t2.id as id, t2.val as val from t2, t21 where t2.id= t21.id;
+create algorithm=temptable sql security invoker view v3_temp as
+  select t1.id as id, t1.val as val from mysqltest1.t1 as t1, mysqltest1.t11 as t11
+    where t1.id = t11.id;
+create algorithm=merge sql security invoker view v3_merge as
+  select t1.id as id, t1.val as val from mysqltest1.t1 as t1, mysqltest1.t11 as t11
+    where t1.id = t11.id;
+create sql security invoker view v31 as
+  select t2.id as id, t2.val as val from mysqltest2.t2 as t2, mysqltest1.t11 as t11
+    where t2.id = t11.id;
+create sql security invoker view v4 as
+  select t2.id as id, t2.val as val from mysqltest2.t2 as t2, mysqltest1.v1_merge as v1
+    where t2.id = v1.id;
+create sql security invoker view v41 as
+  select v1.id as id, v1.val as val from mysqltest2.t2 as t2, mysqltest1.v1_merge as v1
+    where t2.id = v1.id;
+create sql security invoker view v42 as
+  select v2.id as id, v2.val as val from mysqltest2.t2 as t2, mysqltest2.v2_merge as v2
+    where t2.id = v2.id;
+
+
+--echo #
+--echo # Connect as user_11766767
+connect (conn_11766767, localhost, user_11766767,,);
+
+--echo #
+--echo # A) Check how we handle privilege checking in multi-update for 
+--echo #    directly used views.
+--echo #
+--echo # A.1) Originally reported problem, view is used in read-only mode.
+--echo #      This should work with only SELECT privilege for both mergeable
+--echo #      and temptable algorithms.
+update mysqltest2.t2 as t2, mysqltest1.v1_merge as v1 set t2.val= 'test3'
+  where t2.id= v1.id;
+update mysqltest2.t2 as t2, mysqltest1.v1_temp as v1 set t2.val= 'test4'
+  where t2.id= v1.id;
+--echo #
+--echo # A.2) If view is updated an UPDATE privilege on it is required.
+--echo #      Temptable views can't be updated.
+--error ER_TABLEACCESS_DENIED_ERROR
+update mysqltest2.t2 as t2, mysqltest1.v1_merge as v1 set v1.val= 'test5'
+  where t2.id= v1.id;
+update mysqltest1.t1 as t1, mysqltest2.v2_merge as v2 set v2.val= 'test6'
+  where t1.id= v2.id;
+--echo #
+--echo #      Note that the below error is OK even though user lacks UPDATE
+--echo #      privilege on v1_temp since he/she still has SELECT privilege on
+--echo #      this view.
+--error ER_NON_UPDATABLE_TABLE
+update mysqltest2.t2 as t2, mysqltest1.v1_temp as v1 set v1.val= 'test7'
+  where t2.id= v1.id;
+--error ER_NON_UPDATABLE_TABLE
+update mysqltest1.t1 as t1, mysqltest2.v2_temp as v2 set v2.val= 'test8'
+  where t1.id= v2.id;
+--echo #
+--echo # A.3) This also works for correctly for multi-table views.
+--echo #      When usage is read-only SELECT is enough.
+update mysqltest2.t2 as t2, mysqltest1.v11_merge as v11 set t2.val= 'test9'
+  where t2.id= v11.id;
+update mysqltest2.t2 as t2, mysqltest1.v11_temp as v11 set t2.val= 'test10'
+  where t2.id= v11.id;
+--echo #      When one of view's tables is updated, UPDATE is required
+--echo #      on a view.
+--error ER_TABLEACCESS_DENIED_ERROR
+update mysqltest2.t2 as t2, mysqltest1.v11_merge as v11 set v11.val= 'test11'
+  where t2.id= v11.id;
+update mysqltest1.t1 as t1, mysqltest2.v21_merge as v21 set v21.val= 'test12'
+  where t1.id= v21.id;
+--echo #      As before, temptable views are not updateable.
+--error ER_NON_UPDATABLE_TABLE
+update mysqltest2.t2 as t2, mysqltest1.v11_temp as v11 set v11.val= 'test13'
+  where t2.id= v11.id;
+--error ER_NON_UPDATABLE_TABLE
+update mysqltest1.t1 as t1, mysqltest2.v21_temp as v21 set v21.val= 'test14'
+  where t1.id= v21.id;
+
+--echo #
+--echo # B) Now check that correct privileges are required on underlying
+--echo #    tables. To simplify this part of test we will use SECURITY
+--echo #    INVOKER views in it.
+--echo #
+--echo # B.1) In case when view is used for read only it is enough to have
+--echo #      SELECT on its underlying tables.
+update mysqltest2.t2 as t2, mysqltest2.v3_merge as v3 set t2.val= 'test15'
+  where t2.id= v3.id;
+update mysqltest2.t2 as t2, mysqltest2.v3_temp as v3 set t2.val= 'test16'
+  where t2.id= v3.id;
+--echo #
+--echo # B.2) If view is updated, UPDATE privilege on the table being updated
+--echo #      is required (since we already checked that temptable views are
+--echo #      not updateable we don't test them here).
+--error ER_VIEW_INVALID
+update mysqltest2.t2 as t2, mysqltest2.v3_merge as v3 set v3.val= 'test17'
+  where t2.id= v3.id;
+update mysqltest1.t11 as t11, mysqltest2.v31 as v31 set v31.val= 'test18'
+  where t11.id= v31.id;
+
+--echo #
+--echo # C) Finally, check how we handle privilege checking in case when
+--echo #    view is used through another view. Again we will use SECURITY
+--echo #    INVOKER views for simplicity.
+--echo #
+--echo # C.1) As usual, when a view used by another view is going to be used
+--echo #      in read-only fashion, only SELECT privilege is necessary.
+update mysqltest1.t11 as t11, mysqltest2.v4 as v4 set v4.val= 'test19'
+  where t11.id= v4.id;
+--echo #
+--echo # C.2) If one of underlying tables of the view is updated then
+--echo #      UPDATE on a view is necessary.
+--error ER_VIEW_INVALID
+update mysqltest1.t11 as t11, mysqltest2.v41 as v4 set v4.val= 'test20'
+  where t11.id= v4.id;
+update mysqltest1.t11 as t11, mysqltest2.v42 as v4 set v4.val= 'test20'
+  where t11.id= v4.id;
+
+--echo #
+--echo # Clean-up.
+--echo #
+--echo # Switching to connection 'default'.
+disconnect conn_11766767;
+connection default;
+drop user user_11766767;
+drop database mysqltest1;
+drop database mysqltest2;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
