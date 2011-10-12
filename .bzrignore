@@ -1975,3 +1975,8 @@ CPackSourceConfig.cmake
 win/nmake_cache.txt
 *.manifest
 *.resource.txt
+plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.c
+plugin/handler_socket/perl-Net-HandlerSocket/blib
+plugin/handler_socket/perl-Net-HandlerSocket/pm_to_blib
+plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.bs
+plugin/handler_socket/perl-Net-HandlerSocket/Makefile.PL
