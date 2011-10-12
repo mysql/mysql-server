@@ -216,6 +216,25 @@ TEST(SqlIlistTest, Iterate)
   }
 }
 
+// Another iteration test over intrusive lists.
+TEST(SqlIlistTest, PushFrontAndIterate)
+{
+  I_List<Linked_node> i_list;
+  I_List_iterator<Linked_node> i_list_iter(i_list);
+  int values[] = {11, 22, 33, 42, 5};
+  for (int ix= 0; ix < array_size(values); ++ix)
+  {
+    i_list.push_front(new Linked_node(values[ix]));
+  }
+
+  Linked_node *node;
+  int value_number= array_size(values) - 1;
+  while ((node= i_list_iter++))
+  {
+    EXPECT_EQ(values[value_number--], node->get_value());
+  }
+}
+
 static int cmp_test(void *a, void *b, void *c)
 {
   EXPECT_EQ(c, (void *)0xFEE1BEEF);
