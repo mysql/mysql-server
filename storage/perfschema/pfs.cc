@@ -3932,8 +3932,6 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     case PSI_FILE_RENAME:
     case PSI_FILE_SYNC:
     case PSI_FILE_STAT:
-      byte_stat= &file->m_file_stat.m_io_stat.m_misc;
-      break;
     case PSI_FILE_CLOSE:
       byte_stat= &file->m_file_stat.m_io_stat.m_misc;
       break;
