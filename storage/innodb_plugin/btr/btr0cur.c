@@ -1777,7 +1777,7 @@ btr_cur_update_in_place(
 	was_delete_marked = rec_get_deleted_flag(
 		rec, page_is_comp(buf_block_get_frame(block)));
 
-	is_hashed = block->is_hashed;
+	is_hashed = (block->index != NULL);
 
 	if (is_hashed) {
 		/* TO DO: Can we skip this if none of the fields
