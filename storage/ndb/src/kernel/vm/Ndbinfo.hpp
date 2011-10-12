@@ -49,7 +49,8 @@ public:
     DISKPAGEBUFFER_TABLEID =     10,
     THREADBLOCKS_TABLEID =       11,
     THREADSTAT_TABLEID =         12,
-    TRANSACTIONS_TABLEID =       13
+    TRANSACTIONS_TABLEID =       13,
+    OPERATIONS_TABLEID =         14
   };
 
   struct Table {

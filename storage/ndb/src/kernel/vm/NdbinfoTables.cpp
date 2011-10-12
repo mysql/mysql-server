@@ -220,6 +220,23 @@ DECLARE_NDBINFO_TABLE(TRANSACTIONS, 10) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(OPERATIONS, 11) =
+{ { "operations", 11, 0, "operations" },
+  {
+    {"node_id",             Ndbinfo::Number, ""},
+    {"block_instance",      Ndbinfo::Number, ""},
+    {"objid",               Ndbinfo::Number, ""},
+    {"tcref",               Ndbinfo::Number, ""},
+    {"apiref",              Ndbinfo::Number, ""},
+    {"transid",             Ndbinfo::String, ""},
+    {"tableid",             Ndbinfo::Number, ""},
+    {"fragmentid",          Ndbinfo::Number, ""},
+    {"op",                  Ndbinfo::Number, ""},
+    {"state",               Ndbinfo::Number, ""},
+    {"flags",               Ndbinfo::Number, ""}
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -242,7 +259,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(DISKPAGEBUFFER),
   DBINFOTBL(THREADBLOCKS),
   DBINFOTBL(THREADSTAT),
-  DBINFOTBL(TRANSACTIONS)
+  DBINFOTBL(TRANSACTIONS),
+  DBINFOTBL(OPERATIONS)
 };
 
 static int no_ndbinfo_tables =
