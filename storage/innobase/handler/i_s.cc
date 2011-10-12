@@ -3412,7 +3412,7 @@ i_s_innodb_buffer_page_get_info(
 
 			block = reinterpret_cast<const buf_block_t*>(bpage);
 			frame = block->frame;
-			page_info->hashed = block->is_hashed;
+			page_info->hashed = (block->index != NULL);
 		} else {
 			ut_ad(page_info->zip_ssize);
 			frame = bpage->zip.data;
