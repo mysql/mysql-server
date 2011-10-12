@@ -130,26 +130,14 @@ int Rpl_info_file::do_prepare_info_for_write(const uint nidx
 int Rpl_info_file::do_check_info(const ulong *uidx __attribute__((unused)),
                                  const uint nidx __attribute__((unused)))
 {
-#ifndef NO_DBUG
   /*
-    This function checks if the file exists and in other modules
-    further actions are taken based on this. If the file exists
-    but users do not have the appropriated rights to access it,
-    other modules will assume that the file does not exist and
-    will take the appropriate actions and most likely will fail
-    safely after trying to create it. 
+    This function is used by callers to check if the file exists.
 
-    This is behavior is not a problem. However, in other modules,
-    it is not possible to print out what is the root of the
-    failure as a detailed error code is not returned. For that
-    reason, we print out such information in here.
+    If the file exists but users do not have the appropriated
+    rights to access it, callers will assume that the file does
+    not exist taking the appropriate actions and failing when
+    trying to create the file.
   */
-  if (my_access(info_fname, F_OK | R_OK | W_OK))
-    sql_print_information("Info file %s cannot be accessed (errno %d)."
-                          " Most likely this is a new slave or you are"
-                          " changing the repository type.", info_fname,
-                          errno);
-#endif
   return my_access(info_fname, F_OK);
 }
 

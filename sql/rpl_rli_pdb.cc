@@ -692,12 +692,11 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       Unless \exists the last assigned Worker, get a free worker based
       on a policy described in the function get_least_occupied_worker().
     */
+    mysql_mutex_lock(&slave_worker_hash_lock);
+
     entry->worker= (!last_worker) ?
       get_least_occupied_worker(workers) : last_worker;
     entry->worker->usage_partition++;
-
-    mysql_mutex_lock(&slave_worker_hash_lock);
-
     if (mapping_db_to_worker.records > mts_partition_hash_soft_max)
     {
       /* remove zero-usage (todo: rare or long ago scheduled) records */
