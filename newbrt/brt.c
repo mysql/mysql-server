@@ -2830,7 +2830,7 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 // As output, two of node's children are merged or rebalanced, and node is unlocked
 //
 static void
-brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react)
+brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge)
 {
     if (node->n_children < 2) {
         toku_unpin_brtnode(t, node);
@@ -2904,7 +2904,6 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react)
 	if (childa->height>0) { int i; for (i=0; i+1<childa->n_children; i++) assert(childa->childkeys[i]); }
 	//toku_verify_estimates(t,childa);
 	// the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
-	*did_react = (BOOL)(did_merge || did_rebalance);
 	if (did_merge) assert(!splitk_kvpair); else assert(splitk_kvpair);
 
 	node->totalchildkeylens -= deleted_size; // The key was free()'d inside the maybe_merge_pinned_nodes.
@@ -3219,7 +3218,6 @@ flush_some_child (BRT t, BRTNODE parent)
         brt_split_child(t, parent, childnum, child);
     }
     else if (child_re == RE_FUSIBLE) {
-        BOOL did_react;
         //
         // There is probably a way to pass BRTNODE child
         // into brt_merge_child, but for simplicity for now,
@@ -3231,7 +3229,7 @@ flush_some_child (BRT t, BRTNODE parent)
         //
         // it is responsibility of brt_merge_child to unlock parent
         //
-        brt_merge_child(t, parent, childnum, &did_react);
+        brt_merge_child(t, parent, childnum);
     }
     else {
         assert(FALSE);
