@@ -19895,7 +19895,6 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     DBUG_RETURN(FALSE);
 
   Item_cond_and *cond=new Item_cond_and();
-  Item *cond_copy;
   TABLE *table=join_tab->table;
   int error= 0;
   if (!cond)
@@ -19918,6 +19917,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   }
   if (join_tab->select)
   {
+    Item *cond_copy;
     UNINIT_VAR(cond_copy); // used when pre_idx_push_select_cond!=NULL
     if (join_tab->select->pre_idx_push_select_cond)
       cond_copy= cond->copy_andor_structure(thd);
