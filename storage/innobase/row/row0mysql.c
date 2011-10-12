@@ -576,6 +576,7 @@ handle_new_error:
 	case DB_DUPLICATE_KEY:
 	case DB_FOREIGN_DUPLICATE_KEY:
 	case DB_TOO_BIG_RECORD:
+	case DB_UNDO_RECORD_TOO_BIG:
 	case DB_ROW_IS_REFERENCED:
 	case DB_NO_REFERENCED_ROW:
 	case DB_CANNOT_ADD_CONSTRAINT:
@@ -3098,7 +3099,8 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low_ignore_err(name, DICT_ERR_IGNORE_INDEX_ROOT);
+	table = dict_table_get_low_ignore_err(
+		name, DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -3245,6 +3247,19 @@ check_next_foreign:
 			   "index_id CHAR;\n"
 			   "foreign_id CHAR;\n"
 			   "found INT;\n"
+
+			   "DECLARE CURSOR cur_fk IS\n"
+			   "SELECT ID FROM SYS_FOREIGN\n"
+			   "WHERE FOR_NAME = :table_name\n"
+			   "AND TO_BINARY(FOR_NAME)\n"
+			   "  = TO_BINARY(:table_name)\n"
+			   "LOCK IN SHARE MODE;\n"
+
+			   "DECLARE CURSOR cur_idx IS\n"
+			   "SELECT ID FROM SYS_INDEXES\n"
+			   "WHERE TABLE_ID = table_id\n"
+			   "LOCK IN SHARE MODE;\n"
+
 			   "BEGIN\n"
 			   "SELECT ID INTO table_id\n"
 			   "FROM SYS_TABLES\n"
@@ -3267,13 +3282,9 @@ check_next_foreign:
 			   "IF (:table_name = 'SYS_FOREIGN_COLS') THEN\n"
 			   "       found := 0;\n"
 			   "END IF;\n"
+			   "OPEN cur_fk;\n"
 			   "WHILE found = 1 LOOP\n"
-			   "       SELECT ID INTO foreign_id\n"
-			   "       FROM SYS_FOREIGN\n"
-			   "       WHERE FOR_NAME = :table_name\n"
-			   "               AND TO_BINARY(FOR_NAME)\n"
-			   "                 = TO_BINARY(:table_name)\n"
-			   "               LOCK IN SHARE MODE;\n"
+			   "       FETCH cur_fk INTO foreign_id;\n"
 			   "       IF (SQL % NOTFOUND) THEN\n"
 			   "               found := 0;\n"
 			   "       ELSE\n"
@@ -3283,12 +3294,11 @@ check_next_foreign:
 			   "               WHERE ID = foreign_id;\n"
 			   "       END IF;\n"
 			   "END LOOP;\n"
+			   "CLOSE cur_fk;\n"
 			   "found := 1;\n"
+			   "OPEN cur_idx;\n"
 			   "WHILE found = 1 LOOP\n"
-			   "       SELECT ID INTO index_id\n"
-			   "       FROM SYS_INDEXES\n"
-			   "       WHERE TABLE_ID = table_id\n"
-			   "       LOCK IN SHARE MODE;\n"
+			   "       FETCH cur_idx INTO index_id;\n"
 			   "       IF (SQL % NOTFOUND) THEN\n"
 			   "               found := 0;\n"
 			   "       ELSE\n"
@@ -3299,6 +3309,7 @@ check_next_foreign:
 			   "               AND TABLE_ID = table_id;\n"
 			   "       END IF;\n"
 			   "END LOOP;\n"
+			   "CLOSE cur_idx;\n"
 			   "DELETE FROM SYS_COLUMNS\n"
 			   "WHERE TABLE_ID = table_id;\n"
 			   "DELETE FROM SYS_TABLES\n"

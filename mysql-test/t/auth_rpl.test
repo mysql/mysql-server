@@ -1,0 +1,66 @@
+--source include/have_plugin_auth.inc
+--source include/not_embedded.inc
+--source include/master-slave.inc
+
+#
+# Check that replication slave can connect to master using an account
+# which authenticates with an external authentication plugin (bug#12897501).
+
+#
+# First stop the slave to guarantee that nothing is replicated.
+#
+--connection slave
+--echo [connection slave]
+--source include/stop_slave.inc
+#
+# Create an replication account on the master.
+#
+--connection master
+--echo [connection master]
+CREATE USER 'plug_user' IDENTIFIED WITH 'test_plugin_server' AS 'plug_user';
+GRANT REPLICATION SLAVE ON *.* TO plug_user;
+FLUSH PRIVILEGES;
+
+#
+# Now go to slave and change the replication user.
+#
+--connection slave
+--echo [connection slave]
+--let $master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
+CHANGE MASTER TO 
+  MASTER_USER=     'plug_user',
+  MASTER_PASSWORD= 'plug_user';
+
+#
+# Start slave with new replication account - this should trigger connection
+# to the master server.
+#
+--source include/start_slave.inc
+
+# Replicate all statements executed on master, in this case,
+# (creation of the plug_user account).
+#
+--connection master
+--sync_slave_with_master
+--echo # Slave in-sync with master now.
+
+SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug_user';
+
+#
+# Now we can stop the slave and clean up.
+#
+# Note: it is important that slave is stopped at this
+# moment - otherwise master's cleanup statements
+# would be replicated on slave!
+#
+--echo # Cleanup (on slave).
+--source include/stop_slave.inc
+eval CHANGE MASTER TO MASTER_USER='$master_user';
+DROP USER 'plug_user';
+
+--echo # Cleanup (on master).
+--connection master
+DROP USER 'plug_user';
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

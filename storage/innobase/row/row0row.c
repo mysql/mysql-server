@@ -233,7 +233,6 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(!mutex_own(&kernel_mutex));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -242,21 +241,13 @@ row_build(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	/* This condition can occur during crash recovery before
-	trx_rollback_active() has completed execution.
-
-	This condition is possible if the server crashed
-	during an insert or update before
-	btr_store_big_rec_extern_fields() did mtr_commit() all
-	BLOB pointers to the clustered index record.
-
-	If the record contains a null BLOB pointer, look up the
-	transaction that holds the implicit lock on this record, and
-	assert that it was recovered (and will soon be rolled back). */
-	ut_a(!rec_offs_any_null_extern(rec, offsets)
-	     || trx_assert_recovered(row_get_rec_trx_id(rec, index, offsets)));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+#if 0 && defined UNIV_BLOB_NULL_DEBUG
+	/* This one can fail in trx_rollback_active() if
+	the server crashed during an insert before the
+	btr_store_big_rec_extern_fields() did mtr_commit()
+	all BLOB pointers to the clustered index record. */
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* 0 && UNIV_BLOB_NULL_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
@@ -441,10 +432,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+#ifdef UNIV_BLOB_NULL_DEBUG
 	} else {
 		ut_a(!rec_offs_any_null_extern(rec, offsets));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+#endif /* UNIV_BLOB_NULL_DEBUG */
 	}
 
 	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);
