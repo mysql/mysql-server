@@ -37,7 +37,7 @@ NONSTANDARD_SRCS= \
 		  $(RECOVER_SRCS) \
 		  $(LOADER_SRCS) \
 
-FAIL3312C_SRCS = filesize.c test_update_broadcast_stress.c test3529.c
+FAIL3312C_SRCS = filesize.c test3529.c
 
 #SRCS = $(sort $(wildcard *.c))
 # To patch out upgrade tests, replace line above with line below,
