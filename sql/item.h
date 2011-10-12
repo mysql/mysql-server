@@ -592,7 +592,7 @@ public:
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);
-  Field *make_string_field(TABLE *table);
+  virtual Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, Item **);
   /*
     should be used in case where we are sure that we do not need
