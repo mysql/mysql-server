@@ -24227,7 +24227,6 @@ Dbdict::releaseSchemaOp(SchemaOpPtr& op_ptr)
   ndbrequire(op_ptr.p->m_magic == SchemaOp::DICT_MAGIC);
   c_schemaOpHash.remove(op_ptr);
   c_schemaOpPool.release(op_ptr);
-  ndbrequire(op_ptr.p->m_magic == 0);
   op_ptr.setNull();
 }
 
@@ -24548,11 +24547,17 @@ Dbdict::releaseSchemaTrans(SchemaTransPtr& trans_ptr)
 {
   D("releaseSchemaTrans" << V(trans_ptr.p->trans_key));
 
-  LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
-  SchemaOpPtr op_ptr;
-  while (list.first(op_ptr)) {
-    list.remove(op_ptr);
-    releaseSchemaOp(op_ptr);
+  {
+    /**
+     * Put in own scope...since LocalSchemaOp_list stores back head
+     *   in destructor
+     */
+    LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    SchemaOpPtr op_ptr;
+    while (list.first(op_ptr)) {
+      list.remove(op_ptr);
+      releaseSchemaOp(op_ptr);
+    }
   }
   ndbrequire(trans_ptr.p->m_magic == SchemaTrans::DICT_MAGIC);
   ndbrequire(c_schemaTransCount != 0);

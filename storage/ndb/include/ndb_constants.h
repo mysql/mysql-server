@@ -124,4 +124,22 @@
 
 #define NDB_INDEX_STAT_PREFIX        "ndb_index_stat"
 
+/**
+ * Defines for NDB$INFO.OPERATIONS
+ */
+#define NDB_INFO_OP_UNKNOWN  0
+#define NDB_INFO_OP_READ     1
+#define NDB_INFO_OP_READ_SH  2
+#define NDB_INFO_OP_READ_EX  3
+#define NDB_INFO_OP_INSERT   4
+#define NDB_INFO_OP_UPDATE   5
+#define NDB_INFO_OP_DELETE   6
+#define NDB_INFO_OP_WRITE    7
+#define NDB_INFO_OP_UNLOCK   8
+#define NDB_INFO_OP_REFRESH  9
+#define NDB_INFO_OP_SCAN_UNKNOWN (256 + 0)
+#define NDB_INFO_OP_SCAN         (256 + 1)
+#define NDB_INFO_OP_SCAN_SH      (256 + 2)
+#define NDB_INFO_OP_SCAN_EX      (256 + 3)
+
 #endif
