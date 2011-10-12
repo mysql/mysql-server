@@ -22,7 +22,6 @@
 --source include/have_debug.inc
 --source include/master-slave.inc
 --source include/not_embedded.inc
---source include/not_var_link.inc
 
 ##########################################################################
 #                            Loading data
@@ -52,7 +51,13 @@ connection slave;
 #  - Last_Errno     29 (File not found)
 # Unix like OS: 
 #  - Last_Errno      13 (Can't stat file)
---let $slave_sql_errno= 29, 13
+#  - Last_Errno     1290 (When datadir was set to a symlink when the load 
+#                         data file is removed the server won't be able to 
+#                         resolve the realpath, ending up stating that we 
+#                         have a mismatch)
+call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir");
+call mtr.add_suppression("The MySQL server is running with the --slave-load-tmpdir option so it cannot execute this statement.*Error_code: 1290");
+--let $slave_sql_errno= 29, 13, 1290
 --source include/wait_for_slave_sql_error.inc
 
 ##########################################################################
@@ -72,6 +77,8 @@ call mtr.add_suppression("Slave: Can't get stat of .*");
 call mtr.add_suppression("Slave SQL: Error .Can.t get stat of.* Error_code: 13");
 call mtr.add_suppression("Slave: File.* not found.*");
 call mtr.add_suppression("Slave SQL: Error .File.* not found.* Error_code: 29");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+
 --let $rpl_only_running_threads= 1
 
 eval SET @@GLOBAL.DEBUG = '$old_debug';

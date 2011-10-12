@@ -145,6 +145,10 @@ struct buf_pool_info_struct{
 	ulint	n_pend_reads;		/*!< buf_pool->n_pend_reads, pages
 					pending read */
 	ulint	n_pending_flush_lru;	/*!< Pages pending flush in LRU */
+	ulint	n_pending_flush_single_page;/*!< Pages pending to be
+					flushed as part of single page
+					flushes issued by various user
+					threads */
 	ulint	n_pending_flush_list;	/*!< Pages pending flush in FLUSH
 					LIST */
 	ulint	n_pages_made_young;	/*!< number of pages made young */
@@ -496,15 +500,6 @@ buf_page_peek(
 /*==========*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
-/********************************************************************//**
-Resets the check_index_page_at_flush field of a page if found in the buffer
-pool. */
-UNIV_INTERN
-void
-buf_reset_check_index_page_at_flush(
-/*================================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset);/*!< in: page number */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
@@ -640,29 +635,6 @@ buf_block_buf_fix_inc_func(
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
 #endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**
-Calculates a page checksum which is stored to the page when it is written
-to a file. Note that we must be careful to calculate the same value
-on 32-bit and 64-bit architectures.
-@return	checksum */
-UNIV_INTERN
-ulint
-buf_calc_page_new_checksum(
-/*=======================*/
-	const byte*	page);	/*!< in: buffer page */
-/********************************************************************//**
-In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
-looked at the first few bytes of the page. This calculates that old
-checksum.
-NOTE: we must first store the new formula checksum to
-FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
-because this takes that field as an input!
-@return	checksum */
-UNIV_INTERN
-ulint
-buf_calc_page_old_checksum(
-/*=======================*/
-	const byte*	 page);	/*!< in: buffer page */
-/********************************************************************//**
 Checks if a page is corrupt.
 @return	TRUE if corrupted */
 UNIV_INTERN
@@ -730,8 +702,9 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size);	/*!< in: compressed page size, or
+	ulint		zip_size)	/*!< in: compressed page size, or
 					0 for uncompressed pages */
+	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Decompress a block.
 @return	TRUE if successful */
@@ -965,7 +938,27 @@ buf_block_set_io_fix(
 /*=================*/
 	buf_block_t*	block,	/*!< in/out: control block */
 	enum buf_io_fix	io_fix);/*!< in: io_fix state */
-
+/*********************************************************************//**
+Makes a block sticky. A sticky block implies that even after we release
+the buf_pool->mutex and the block->mutex:
+* it cannot be removed from the flush_list
+* the block descriptor cannot be relocated
+* it cannot be removed from the LRU list
+Note that:
+* the block can still change its position in the LRU list
+* the next and previous pointers can change. */
+UNIV_INLINE
+void
+buf_page_set_sticky(
+/*================*/
+	buf_page_t*	bpage);	/*!< in/out: control block */
+/*********************************************************************//**
+Removes stickiness of a block. */
+UNIV_INLINE
+void
+buf_page_unset_sticky(
+/*==================*/
+	buf_page_t*	bpage);	/*!< in/out: control block */
 /********************************************************************//**
 Determine if a buffer block can be relocated in memory.  The block
 can be dirty, but it must not be I/O-fixed or bufferfixed. */
@@ -1094,7 +1087,7 @@ buf_block_get_zip_size(
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
-	(UNIV_LIKELY_NULL((block)->page.zip.data) ? &(block)->page.zip : NULL)
+	((block)->page.zip.data ? &(block)->page.zip : NULL)
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Gets the block to whose frame the pointer is pointing to.
@@ -1844,10 +1837,16 @@ struct buf_pool_struct{
 					to read this for heuristic
 					purposes without holding any
 					mutex or latch */
-	ulint		LRU_flush_ended;/*!< when an LRU flush ends for a page,
-					this is incremented by one; this is
-					set to zero when a buffer block is
-					allocated */
+	ibool		try_LRU_scan;	/*!< Set to FALSE when an LRU
+					scan for free block fails. This
+					flag is used to avoid repeated
+					scans of LRU list when we know
+					that there is no free block
+					available in the scan depth for
+					eviction. Set to TRUE whenever
+					we flush a batch from the
+					buffer pool. Protected by the
+					buf_pool->mutex */
 	/* @} */
 
 	/** @name LRU replacement algorithm fields */

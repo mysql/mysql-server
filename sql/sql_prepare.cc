@@ -1357,6 +1357,12 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     goto error;
 
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    goto error;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
   want_privilege= (table_list->view ? UPDATE_ACL :
@@ -1473,7 +1479,6 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
 
   thd->lex->used_tables= 0;                        // Updated by setup_fields
-  thd->thd_marker.emb_on_expr_nest= 0;
 
   /*
     JOIN::prepare calls

@@ -2190,22 +2190,24 @@ static void test_wl4435_3()
 
   puts("");
 
-  // The following types are not supported:
-  //   - ENUM
-  //   - SET
-  //
-  // The following types are supported but can not be used for
-  // OUT-parameters:
-  //   - MEDIUMINT;
-  //   - BIT(..);
-  //
-  // The problem is that those types are not supported for IN-parameters,
-  // and OUT-parameters should be bound as IN-parameters before execution.
-  //
-  // The following types should not be used:
-  //   - MYSQL_TYPE_YEAR (use MYSQL_TYPE_SHORT instead);
-  //   - MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB
-  //     (use MYSQL_TYPE_BLOB instead);
+  /*
+    The following types are not supported:
+     - ENUM
+     - SET
+
+    The following types are supported but can not be used for
+    OUT-parameters:
+     - MEDIUMINT;
+     - BIT(..);
+
+    The problem is that those types are not supported for IN-parameters,
+    and OUT-parameters should be bound as IN-parameters before execution
+
+    The following types should not be used:
+     - MYSQL_TYPE_YEAR (use MYSQL_TYPE_SHORT instead);
+     - MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB
+       (use MYSQL_TYPE_BLOB instead);
+  */
 
   WL4435_TEST("TINYINT", "127",
               MYSQL_TYPE_TINY, MYSQL_TYPE_TINY,
@@ -13446,7 +13448,10 @@ static void test_truncation()
              ")";
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
-  stmt_text= "insert into t1 VALUES ("
+
+  {
+    const char insert_text[]= 
+             "insert into t1 VALUES ("
              "-10, "                            /* i8 */
              "200, "                            /* ui8 */
              "32000, "                          /* i16 */
@@ -13462,8 +13467,9 @@ static void test_truncation()
              "'12345.67 	      ', "      /* tx_1 */
              "'12345.67abc'"                    /* ch_2 */
              ")";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
-  myquery(rc);
+    rc= mysql_real_query(mysql, insert_text, strlen(insert_text));
+    myquery(rc);
+  }
 
   stmt_text= "select i8 c1, i8 c2, ui8 c3, i16_1 c4, ui16 c5, "
              "       i16 c6, ui16 c7, i32 c8, i32_1 c9, i32_1 c10, "

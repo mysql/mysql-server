@@ -327,6 +327,20 @@ longlong Item_func_not_all::val_int()
 
 bool Item_func_not_all::empty_underlying_subquery()
 {
+  DBUG_ASSERT(subselect || !(test_sum_item || test_sub_item));
+  /*
+   When outer argument is NULL the subquery has not yet been evaluated, we
+   need to evaluate it to get to know whether it returns any rows to return
+   the correct result. 'ANY' subqueries are an exception because the
+   result would be false or null which for a top level item always mean false.
+   The subselect->unit->item->... chain should be used instead of
+   subselect->... to workaround subquery transformation which could make
+   subselect->engine unusable.
+  */
+  if (subselect && 
+      subselect->substype() != Item_subselect::ANY_SUBS &&
+      !subselect->unit->item->is_evaluated())
+    subselect->unit->item->exec();
   return ((test_sum_item && !test_sum_item->any_value()) ||
           (test_sub_item && !test_sub_item->any_value()));
 }
@@ -4376,13 +4390,14 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
+  st_select_lex::Resolve_place save_resolve=
+    thd->lex->current_select->resolve_place;
   uchar buff[sizeof(char*)];			// Max local vars in function
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
 
   if (functype() != COND_AND_FUNC)
-    thd->thd_marker.emb_on_expr_nest= NULL;
+    thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4441,7 +4456,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
+  thd->lex->current_select->resolve_place= save_resolve;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
@@ -5767,33 +5782,7 @@ void Item_equal::merge(Item_equal *item)
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  bool swap;
-  List_iterator<Item_field> it(fields);
-  do
-  {
-    Item_field *item1= it++;
-    Item_field **ref1= it.ref();
-    Item_field *item2;
-
-    swap= FALSE;
-    while ((item2= it++))
-    {
-      Item_field **ref2= it.ref();
-      if (compare(item1, item2, arg) < 0)
-      {
-        Item_field *item= *ref1;
-        *ref1= *ref2;
-        *ref2= item;
-        swap= TRUE;
-      }
-      else
-      {
-        item1= item2;
-        ref1= ref2;
-      }
-    }
-    it.rewind();
-  } while (swap);
+  fields.sort((Node_cmp_func)compare, arg);
 }
 
 

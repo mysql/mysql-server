@@ -2817,6 +2817,76 @@ err:
 }
 
 
+
+void Item_func_space::fix_length_and_dec()
+{
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII); 
+  if (args[0]->const_item())
+  {
+    /* must be longlong to avoid truncation */
+    longlong count= args[0]->val_int();
+    if (args[0]->null_value)
+      goto end;
+    /*
+     Assumes that the maximum length of a String is < INT_MAX32. 
+     Set here so that rest of code sees out-of-bound value as such. 
+    */
+    if (count > INT_MAX32)
+      count= INT_MAX32;
+    fix_char_length_ulonglong(count); 
+    return;
+  }
+
+end:
+  max_length= MAX_BLOB_WIDTH;
+  maybe_null= 1;
+}
+
+
+String *Item_func_space::val_str(String *str)
+{
+  uint tot_length;
+  longlong count= args[0]->val_int();
+  const CHARSET_INFO *cs= collation.collation;
+   
+  if (args[0]->null_value)
+    goto err;				// string and/or delim are null
+  null_value= 0;
+
+  if (count <= 0 && (count == 0 || !args[0]->unsigned_flag))
+    return make_empty_result();
+  /*
+   Assumes that the maximum length of a String is < INT_MAX32. 
+   Bounds check on count:  If this is triggered, we will error. 
+  */
+  if ((ulonglong) count > INT_MAX32)
+    count= INT_MAX32;
+
+  // Safe length check
+  tot_length= (uint) count * cs->mbminlen;
+  if (tot_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(),
+                        current_thd->variables.max_allowed_packet);
+    goto err;
+   }
+
+  if (str->alloc(tot_length))
+    goto err;
+  str->length(tot_length);
+  str->set_charset(cs);
+  cs->cset->fill(cs, (char*) str->ptr(), tot_length, ' ');
+  return str; 
+
+err:
+  null_value= 1;
+  return 0;
+}
+
+
 void Item_func_rpad::fix_length_and_dec()
 {
   // Handle character set for args[0] and args[2].

@@ -94,7 +94,7 @@ extern CHARSET_INFO *character_set_filesystem;
 extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
-extern my_bool opt_log, opt_slow_log;
+extern my_bool opt_log, opt_slow_log, opt_log_raw;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
 extern ulonglong log_output_options;
@@ -138,7 +138,8 @@ extern ulong current_pid;
 extern ulong expire_logs_days;
 extern my_bool relay_log_recovery;
 extern uint sync_binlog_period, sync_relaylog_period, 
-            sync_relayloginfo_period, sync_masterinfo_period;
+            sync_relayloginfo_period, sync_masterinfo_period,
+            mts_checkpoint_period, mts_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
@@ -172,7 +173,7 @@ extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
-extern ulong slave_open_temp_tables;
+extern int32 slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
@@ -183,6 +184,8 @@ extern my_bool allow_slave_start;
 extern LEX_CSTRING reason_slave_blocked;
 extern ulong slave_trans_retries;
 extern uint  slave_net_timeout;
+extern ulong opt_mts_slave_parallel_workers;
+extern ulonglong opt_mts_pending_jobs_size_max;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
@@ -263,6 +266,8 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
   key_relay_log_info_sleep_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
+  key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
+  key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
@@ -284,7 +289,8 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_master_info_sleep_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
-  key_relay_log_info_sleep_cond,
+  key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
+  key_cond_slave_parallel_worker,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 extern PSI_cond_key key_RELAYLOG_update_cond;
@@ -306,6 +312,7 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_trg, key_file_trn, key_file_init;
 extern PSI_file_key key_file_query_log, key_file_slow_log;
 extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
+extern PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
 
 void init_server_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
@@ -407,7 +414,11 @@ extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
 extern PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
 extern PSI_stage_info stage_waiting_to_get_readlock;
-
+extern PSI_stage_info stage_slave_waiting_worker_to_release_partition;
+extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
+extern PSI_stage_info stage_slave_waiting_worker_queue;
+extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
+extern PSI_stage_info stage_slave_waiting_workers_to_exit;
 #ifdef HAVE_PSI_INTERFACE
 /**
   Statement instrumentation keys (sql).
@@ -483,9 +494,10 @@ extern mysql_cond_t COND_thread_count;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
 extern my_atomic_rwlock_t thread_running_lock;
+extern my_atomic_rwlock_t slave_open_temp_tables_lock;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
-            *opt_ssl_key;
+            *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
 extern MYSQL_PLUGIN_IMPORT pthread_key(THD*, THR_THD);
 
@@ -507,6 +519,7 @@ enum options_mysqld
   OPT_DEBUG_SYNC_TIMEOUT,
   OPT_DELAY_KEY_WRITE_ALL,
   OPT_ISAM_LOG,
+  OPT_IGNORE_DB_DIRECTORY,
   OPT_KEY_BUFFER_SIZE,
   OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_KEY_CACHE_BLOCK_SIZE,
@@ -541,7 +554,11 @@ enum options_mysqld
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,
   OPT_LOG_ERROR,
-  OPT_MAX_LONG_DATA_SIZE
+  OPT_MAX_LONG_DATA_SIZE,
+  OPT_PLUGIN_LOAD,
+  OPT_PLUGIN_LOAD_ADD,
+  OPT_SSL_CRL,
+  OPT_SSL_CRLPATH
 };
 
 

@@ -345,7 +345,7 @@ row_upd_rec_sys_fields_in_recovery(
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_write_trx_id_and_roll_ptr(
 			page_zip, rec, offsets, pos, trx_id, roll_ptr);
 	} else {
@@ -541,7 +541,7 @@ row_upd_rec_in_place(
 #endif /* UNIV_BLOB_DEBUG */
 	}
 
-	if (UNIV_LIKELY_NULL(page_zip)) {
+	if (page_zip) {
 		page_zip_write_rec(page_zip, rec, index, offsets, 0);
 	}
 }
@@ -889,8 +889,8 @@ row_upd_build_difference_binary(
 			goto skip_compare;
 		}
 
-		if (UNIV_UNLIKELY(!dfield_is_ext(dfield)
-				  != !rec_offs_nth_extern(offsets, i))
+		if (!dfield_is_ext(dfield)
+		    != !rec_offs_nth_extern(offsets, i)
 		    || !dfield_data_is_binary_equal(dfield, len, data)) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
@@ -1290,7 +1290,7 @@ row_upd_changes_ord_field_binary_func(
 		if (UNIV_LIKELY(ind_field->prefix_len == 0)
 		    || dfield_is_null(dfield)) {
 			/* do nothing special */
-		} else if (UNIV_LIKELY_NULL(ext)) {
+		} else if (ext) {
 			/* Silence a compiler warning without
 			silencing a Valgrind error. */
 			dfield_len = 0;
@@ -2004,21 +2004,22 @@ row_upd_clust_rec(
 		rec_offs_init(offsets_);
 
 		ut_a(err == DB_SUCCESS);
-		/* Write out the externally stored columns while still
-		x-latching index->lock and block->lock. We have to
-		mtr_commit(mtr) first, so that the redo log will be
-		written in the correct order. Otherwise, we would run
-		into trouble on crash recovery if mtr freed B-tree
-		pages on which some of the big_rec fields will be
-		written. */
-		btr_cur_mtr_commit_and_start(btr_cur, mtr);
+		/* Write out the externally stored columns, but
+		allocate the pages and write the pointers using the
+		mini-transaction of the record update. If any pages
+		were freed in the update, temporarily mark them
+		allocated so that off-page columns will not overwrite
+		them. We must do this, because we write the redo log
+		for the BLOB writes before writing the redo log for
+		the record update. */
 
+		btr_mark_freed_leaves(index, mtr, TRUE);
 		rec = btr_cur_get_rec(btr_cur);
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
-			mtr, TRUE, big_rec);
+			big_rec, mtr, TRUE, mtr);
 		/* If writing big_rec fails (for example, because of
 		DB_OUT_OF_FILE_SPACE), the record will be corrupted.
 		Even if we did not update any externally stored
@@ -2028,6 +2029,8 @@ row_upd_clust_rec(
 		to the undo log, and thus the record cannot be rolled
 		back. */
 		ut_a(err == DB_SUCCESS);
+		/* Free the pages again in order to avoid a leak. */
+		btr_mark_freed_leaves(index, mtr, FALSE);
 	}
 
 	mtr_commit(mtr);
@@ -2316,6 +2319,13 @@ row_upd(
 	}
 
 	do {
+		/* Skip corrupted index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		log_free_check();
 		err = row_upd_sec_step(node, thr);
 

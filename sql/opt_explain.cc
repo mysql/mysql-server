@@ -848,7 +848,7 @@ bool Explain_join::explain_key_and_len()
 {
   if (tab->ref.key_parts)
     return explain_key_and_len_index(tab->ref.key, tab->ref.key_length);
-  else if (tab->type == JT_NEXT)
+  else if (tab->type == JT_INDEX_SCAN)
     return explain_key_and_len_index(tab->index);
   else if (tab->select && tab->select->quick)
     return explain_key_and_len_quick(tab->select);
@@ -888,11 +888,16 @@ bool Explain_join::explain_ref()
   if (tab->ref.key_parts)
   {
     StringBuffer<512> str_ref(cs);
-    for (const store_key *const *ref= tab->ref.key_copy; *ref; ref++)
+
+    for (uint part_no= 0; part_no < tab->ref.key_parts; part_no++)
     {
+      const store_key *const s_key= tab->ref.key_copy[part_no];
+      if (s_key == NULL)
+        continue;
+
       if (str_ref.length())
         str_ref.append(',');
-      str_ref.append((*ref)->name(), strlen((*ref)->name()), cs);
+      str_ref.append(s_key->name(), strlen(s_key->name()), cs);
     }
     return col_ref.set(str_ref);
   }
@@ -908,13 +913,13 @@ bool Explain_join::explain_rows_and_filtered()
   double examined_rows;
   if (tab->select && tab->select->quick)
     examined_rows= rows2double(tab->select->quick->records);
-  else if (tab->type == JT_NEXT || tab->type == JT_ALL)
+  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
   {
     if (tab->limit)
       examined_rows= rows2double(tab->limit);
     else
     {
-      table->file->info(HA_STATUS_VARIABLE);
+      table->pos_in_table_list->fetch_number_of_rows();
       examined_rows= rows2double(table->file->stats.records);
     }
   }
@@ -993,7 +998,7 @@ bool Explain_join::explain_extra()
       else
         str_extra.append(STRING_WITH_LEN("; Scanned all databases"));
     }
-    if (((tab->type == JT_NEXT || tab->type == JT_CONST) &&
+    if (((tab->type == JT_INDEX_SCAN || tab->type == JT_CONST) &&
          table->covering_keys.is_set(tab->index)) ||
         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&
          !((QUICK_ROR_INTERSECT_SELECT*) select->quick)->need_to_fetch_row) ||
@@ -1070,17 +1075,13 @@ bool Explain_join::explain_extra()
     {
       str_extra.append(STRING_WITH_LEN("; Using join buffer ("));
       if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))
-        str_extra.append(STRING_WITH_LEN("BNL"));
+        str_extra.append(STRING_WITH_LEN("Block Nested Loop)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA))
-        str_extra.append(STRING_WITH_LEN("BKA"));
+        str_extra.append(STRING_WITH_LEN("Batched Key Access)"));
       else if ((tab->use_join_cache & JOIN_CACHE::ALG_BKA_UNIQUE))
-        str_extra.append(STRING_WITH_LEN("BKA_UNIQUE"));
+        str_extra.append(STRING_WITH_LEN("Batched Key Access (unique))"));
       else
         DBUG_ASSERT(0); /* purecov: inspected */
-      if (tab->use_join_cache & JOIN_CACHE::NON_INCREMENTAL_BUFFER)
-        str_extra.append(STRING_WITH_LEN(", regular buffers)"));
-      else
-        str_extra.append(STRING_WITH_LEN(", incremental buffers)"));
     }
 
     /* Skip initial "; "*/
@@ -1138,8 +1139,9 @@ bool Explain_table::explain_rows_and_filtered()
     examined_rows= rows2double(limit);
   else
   {
-    table->file->info(HA_STATUS_VARIABLE);
+    table->pos_in_table_list->fetch_number_of_rows();
     examined_rows= rows2double(table->file->stats.records);
+
   }
   col_rows= new Item_int((longlong) (ulonglong) examined_rows,
                          MY_INT64_NUM_DECIMAL_DIGITS);
@@ -1514,8 +1516,9 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
-      res= unit->exec();
+    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE) ||
+         unit->optimize() ||
+         unit->exec();
   }
   else
   {

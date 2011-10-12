@@ -150,6 +150,12 @@ int table_ews_by_thread_by_event_name::rnd_next(void)
         case pos_ews_by_thread_by_event_name::VIEW_TABLE:
           instr_class= find_table_class(m_pos.m_index_3);
           break;
+        case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
+          instr_class= find_socket_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_IDLE:
+          instr_class= find_idle_class(m_pos.m_index_3);
+          break;
         default:
           DBUG_ASSERT(false);
           instr_class= NULL;
@@ -199,6 +205,12 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
   case pos_ews_by_thread_by_event_name::VIEW_TABLE:
     instr_class= find_table_class(m_pos.m_index_3);
     break;
+  case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
+    instr_class= find_socket_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_thread_by_event_name::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_3);
+    break;
   default:
     DBUG_ASSERT(false);
     instr_class= NULL;
@@ -226,7 +238,21 @@ void table_ews_by_thread_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_wait_visitor visitor(klass);
-  PFS_connection_iterator::visit_thread(thread, & visitor);
+  PFS_connection_iterator::visit_thread(thread, &visitor);
+
+  /*
+     If the aggregation for this class is deferred, then we must pull the
+     current wait stats from the instances associated with this thread.
+  */  
+  if (klass->is_deferred())
+  {
+    /* Visit instances owned by this thread. Do not visit the class. */
+    PFS_instance_wait_visitor inst_visitor;
+    PFS_instance_iterator::visit_instances(klass, &inst_visitor,
+                                           thread, false);
+    /* Combine the deferred stats and global stats */
+    visitor.m_stat.aggregate(&inst_visitor.m_stat);
+  }
 
   if (! thread->m_lock.end_optimistic_lock(&lock))
     return;

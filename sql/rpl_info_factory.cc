@@ -18,9 +18,12 @@
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"
 
+#define NUMBER_OF_FIELDS_TO_IDENTIFY_COORDINATOR 1
+#define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
+
 /**
   Creates both a Master info and a Relay log info repository whose types are
-  defined as parameters.
+  defined as parameters. Nothing is done for Workers here.
 
   @todo Make the repository a pluggable component.
   
@@ -32,10 +35,10 @@
   @retval FALSE No error
   @retval TRUE  Failure
 */ 
-bool Rpl_info_factory::create(uint mi_option, Master_info **mi,
-                              uint rli_option, Relay_log_info **rli)
+bool Rpl_info_factory::create_coordinators(uint mi_option, Master_info **mi,
+                                           uint rli_option, Relay_log_info **rli)
 {
-  DBUG_ENTER("Rpl_info_factory::create");
+  DBUG_ENTER("Rpl_info_factory::create_coordinators");
 
   if (!((*mi)= Rpl_info_factory::create_mi(mi_option)))
     DBUG_RETURN(TRUE);
@@ -75,6 +78,7 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option)
   Master_info* mi= NULL;
   Rpl_info_handler*  handler_src= NULL;
   Rpl_info_handler*  handler_dest= NULL;
+  ulong *key_info_idx= NULL;
   const char *msg= "Failed to allocate memory for the master info "
                    "structure";
 
@@ -93,6 +97,12 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option)
                            )))
     goto err;
 
+  if (!(key_info_idx= new ulong[NUMBER_OF_FIELDS_TO_IDENTIFY_COORDINATOR]))
+     goto err;
+
+  key_info_idx[0]= server_id;
+  mi->set_idx_info(key_info_idx, NUMBER_OF_FIELDS_TO_IDENTIFY_COORDINATOR);
+
   if(init_mi_repositories(mi, mi_option, &handler_src, &handler_dest, &msg))
     goto err;
 
@@ -104,12 +114,14 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option)
 err:
   delete handler_src;
   delete handler_dest;
+  delete []key_info_idx;
   if (mi)
   {
     /*
       The handler was previously deleted so we need to remove
       any reference to it.  
     */
+    mi->set_idx_info(NULL, 0);
     mi->set_rpl_info_handler(NULL);
     mi->set_rpl_info_type(INVALID_INFO_REPOSITORY);
     delete mi;
@@ -176,6 +188,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
   Relay_log_info *rli= NULL;
   Rpl_info_handler* handler_src= NULL;
   Rpl_info_handler* handler_dest= NULL;
+  ulong *key_info_idx= NULL;
   const char *msg= "Failed to allocate memory for the relay log info "
                    "structure";
 
@@ -194,6 +207,11 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
                                )))
     goto err;
 
+  if (!(key_info_idx= new ulong[NUMBER_OF_FIELDS_TO_IDENTIFY_COORDINATOR]))
+     goto err;
+  key_info_idx[0]= server_id;
+  rli->set_idx_info(key_info_idx, NUMBER_OF_FIELDS_TO_IDENTIFY_COORDINATOR);
+
   if(init_rli_repositories(rli, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
 
@@ -205,12 +223,14 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
 err:
   delete handler_src;
   delete handler_dest;
+  delete []key_info_idx;
   if (rli) 
   {
     /*
       The handler was previously deleted so we need to remove
       any reference to it.  
     */
+    rli->set_idx_info(NULL, 0);
     rli->set_rpl_info_handler(NULL);
     rli->set_rpl_info_type(INVALID_INFO_REPOSITORY);
     delete rli;
@@ -257,6 +277,77 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+Slave_worker *Rpl_info_factory::create_worker(uint worker_option, uint worker_id,
+                                              Relay_log_info *rli)
+{
+  char info_fname[FN_REFLEN];
+  char info_name[FN_REFLEN];
+  Rpl_info_handler* handler_src= NULL;
+  Rpl_info_handler* handler_dest= NULL;
+  ulong *key_info_idx= NULL;
+  Slave_worker* worker= NULL;
+  const char *msg= "Failed to allocate memory for the worker info "
+                   "structure";
+
+  DBUG_ENTER("Rpl_info_factory::create_worker");
+
+  /*
+    Defining the name of the worker and its repository.
+  */
+  char *pos= strmov(info_fname, relay_log_info_file);
+  sprintf(pos, ".%u", worker_id);
+  pos= strmov(info_name, "worker");
+  sprintf(pos, ".%u", worker_id);
+
+  if (!(worker= new Slave_worker(rli
+#ifdef HAVE_PSI_INTERFACE
+                                 ,&key_relay_log_info_run_lock,
+                                 &key_relay_log_info_data_lock,
+                                 &key_relay_log_info_sleep_lock,
+                                 &key_relay_log_info_data_cond,
+                                 &key_relay_log_info_start_cond,
+                                 &key_relay_log_info_stop_cond,
+                                 &key_relay_log_info_sleep_cond
+#endif
+                                )))
+    goto err;
+
+  if (!(key_info_idx= new ulong[NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER]))
+     goto err;
+  key_info_idx[0]= server_id;
+  key_info_idx[1]= worker_id;
+  worker->set_idx_info(key_info_idx, NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER);
+  worker->id= worker_id;
+
+  if(init_worker_repositories(worker, worker_option, info_fname, &handler_src,
+                              &handler_dest, &msg))
+    goto err;
+
+  if (decide_repository(worker, worker_option, &handler_src, &handler_dest,
+                        &msg))
+    goto err;
+
+  DBUG_RETURN(worker);
+
+err:
+  delete handler_src;
+  delete handler_dest;
+  delete []key_info_idx;
+  if (worker)
+  {
+    /*
+      The handler was previously deleted so we need to remove
+      any reference to it.  
+    */
+    worker->set_idx_info(NULL, 0);
+    worker->set_rpl_info_handler(NULL);
+    worker->set_rpl_info_type(INVALID_INFO_REPOSITORY);
+    delete worker;
+  }
+  sql_print_error("Error creating relay log info: %s.", msg);
+  DBUG_RETURN(NULL);
+}
+
 /**
   Decides during startup what repository will be used based on the following
   decision table:
@@ -292,8 +383,12 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
 {
 
   DBUG_ENTER("Rpl_info_factory::decide_repository");
- 
   bool error= TRUE;
+
+  DBUG_ASSERT((*handler_dest) != NULL);
+  if (option == INFO_REPOSITORY_DUMMY)
+    DBUG_RETURN(FALSE);
+
   /*
     check_info() returns FALSE if the repository exists. If a FILE, 
     for example, this means that FALSE is returned if a file exists.
@@ -311,8 +406,9 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
 
     /Alfranio
   */
-  bool is_src= !((*handler_src)->check_info());
-  bool is_dest= !((*handler_dest)->check_info());
+
+  bool is_src= !((*handler_src)->check_info(info->uidx, info->nidx));
+  bool is_dest= !((*handler_dest)->check_info(info->uidx, info->nidx));
 
   DBUG_ASSERT((*handler_dest) != NULL && (*handler_dest) != NULL);
   if (is_src && is_dest)
@@ -325,7 +421,8 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
 
   if (!is_dest && is_src)
   {
-    if ((*handler_src)->init_info() || (*handler_dest)->init_info())
+    if ((*handler_src)->init_info(info->uidx, info->nidx) ||
+        (*handler_dest)->init_info(info->uidx, info->nidx))
     {
       *msg= "Error transfering information";
       goto err;
@@ -339,13 +436,14 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
 
       /Alfranio
     */
-    if (info->copy_info(*handler_src, *handler_dest))
+    if (info->copy_info(*handler_src, *handler_dest) ||
+        (*handler_dest)->flush_info(info->uidx, info->nidx, TRUE))
     {
       *msg= "Error transfering information";
       goto err;
     }
-    (*handler_src)->end_info();
-    if ((*handler_src)->remove_info())
+    (*handler_src)->end_info(info->uidx, info->nidx);
+    if ((*handler_src)->remove_info(info->uidx, info->nidx))
     {
       *msg= "Error removing old repository";
       goto err;
@@ -400,9 +498,9 @@ bool Rpl_info_factory::change_repository(Rpl_info *info,
   DBUG_ENTER("Rpl_info_factory::change_repository");
 
   DBUG_ASSERT((*handler_dest) != NULL && (*handler_dest) != NULL);
-  if (!(*handler_src)->check_info())
+  if (!(*handler_src)->check_info(info->uidx, info->nidx))
   {
-    if ((*handler_dest)->init_info())
+    if ((*handler_dest)->init_info(info->uidx, info->nidx))
     {
       *msg= "Error initializing new repository";
       goto err;
@@ -417,14 +515,15 @@ bool Rpl_info_factory::change_repository(Rpl_info *info,
 
       /Alfranio
     */
-    if (info->copy_info(*handler_src, *handler_dest))
+    if (info->copy_info(*handler_src, *handler_dest) ||
+        (*handler_dest)->flush_info(info->uidx, info->nidx, TRUE))
     {
       *msg= "Error transfering information";
       goto err;
     }
   }
-  (*handler_src)->end_info();
-  if ((*handler_src)->remove_info())
+  (*handler_src)->end_info(info->uidx, info->nidx);
+  if ((*handler_src)->remove_info(info->uidx, info->nidx))
   {
     *msg= "Error removing old repository";
     goto err;
@@ -476,19 +575,25 @@ bool Rpl_info_factory::init_mi_repositories(Master_info *mi,
         goto err;
       if (handler_src &&
           !(*handler_src= new Rpl_info_table(mi->get_number_info_mi_fields() + 1,
-                                             MI_FIELD_ID, MYSQL_SCHEMA_NAME.str, MI_INFO_NAME.str)))
+                                             MYSQL_SCHEMA_NAME.str, MI_INFO_NAME.str)))
         goto err;
     break;
 
     case INFO_REPOSITORY_TABLE:
       if (!(*handler_dest= new Rpl_info_table(mi->get_number_info_mi_fields() + 1,
-                                              MI_FIELD_ID, MYSQL_SCHEMA_NAME.str, MI_INFO_NAME.str)))
+                                              MYSQL_SCHEMA_NAME.str, MI_INFO_NAME.str)))
         goto err;
       if (handler_src &&
           !(*handler_src= new Rpl_info_file(mi->get_number_info_mi_fields(),
                                             master_info_file)))
         goto err;
     break;
+
+    case INFO_REPOSITORY_DUMMY:
+      if (!(*handler_dest= new Rpl_info_dummy(mi->get_number_info_mi_fields())))
+        goto err;
+    break;
+
     default:
       DBUG_ASSERT(0);
   }
@@ -533,19 +638,74 @@ bool Rpl_info_factory::init_rli_repositories(Relay_log_info *rli,
         goto err;
       if (handler_src &&
           !(*handler_src= new Rpl_info_table(rli->get_number_info_rli_fields() + 1,
-                                             RLI_FIELD_ID, MYSQL_SCHEMA_NAME.str, RLI_INFO_NAME.str)))
+                                             MYSQL_SCHEMA_NAME.str, RLI_INFO_NAME.str)))
         goto err;
     break;
 
     case INFO_REPOSITORY_TABLE:
       if (!(*handler_dest= new Rpl_info_table(rli->get_number_info_rli_fields() + 1,
-                                              RLI_FIELD_ID, MYSQL_SCHEMA_NAME.str, RLI_INFO_NAME.str)))
+                                              MYSQL_SCHEMA_NAME.str, RLI_INFO_NAME.str)))
         goto err;
       if (handler_src &&
           !(*handler_src= new Rpl_info_file(rli->get_number_info_rli_fields(),
                                             relay_log_info_file)))
         goto err;
     break;
+
+    case INFO_REPOSITORY_DUMMY:
+      if (!(*handler_dest= new Rpl_info_dummy(rli->get_number_info_rli_fields())))
+        goto err;
+    break;
+
+    default:
+      DBUG_ASSERT(0);
+  }
+  error= FALSE;
+
+err:
+  DBUG_RETURN(error);
+}
+
+bool Rpl_info_factory::init_worker_repositories(Slave_worker *worker,
+                                                uint worker_option,
+                                                const char* info_fname,
+                                                Rpl_info_handler **handler_src,
+                                                Rpl_info_handler **handler_dest,
+                                                const char **msg)
+{
+  bool error= TRUE;
+  *msg= "Failed to allocate memory for worker info repositories";
+
+  DBUG_ENTER("Rpl_info_factory::init_worker_repositories");
+
+  DBUG_ASSERT(handler_dest != NULL);
+  switch (worker_option)
+  {
+    case INFO_REPOSITORY_FILE:
+      if (!(*handler_dest= new Rpl_info_file(worker->get_number_worker_fields(),
+                                             info_fname)))
+        goto err;
+      if (handler_src &&
+          !(*handler_src= new Rpl_info_table(worker->get_number_worker_fields() + 2,
+                                             MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str)))
+        goto err;
+    break;
+
+    case INFO_REPOSITORY_TABLE:
+      if (!(*handler_dest= new Rpl_info_table(worker->get_number_worker_fields() + 2,
+                                              MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str)))
+        goto err;
+      if (handler_src &&
+          !(*handler_src= new Rpl_info_file(worker->get_number_info_rli_fields(),
+                                            info_fname)))
+        goto err;
+    break;
+
+    case INFO_REPOSITORY_DUMMY:
+      if (!(*handler_dest= new Rpl_info_dummy(worker->get_number_worker_fields())))
+        goto err;
+    break;
+
     default:
       DBUG_ASSERT(0);
   }

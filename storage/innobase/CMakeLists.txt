@@ -38,9 +38,9 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
-# Enable InnoDB's UNIV_DEBUG for debug builds
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUNIV_DEBUG")
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
+# Enable InnoDB's UNIV_DEBUG and UNIV_SYNC_DEBUG in debug builds
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUNIV_DEBUG -DUNIV_SYNC_DEBUG")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG -DUNIV_SYNC_DEBUG")
 
 # Add -Wconversion if compiling with GCC
 ## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
@@ -227,6 +227,7 @@ SET(INNOBASE_SOURCES
 	btr/btr0sea.c
 	buf/buf0buddy.c
 	buf/buf0buf.c
+	buf/buf0checksum.c
 	buf/buf0dump.c
 	buf/buf0flu.c
 	buf/buf0lru.c
@@ -309,6 +310,7 @@ SET(INNOBASE_SOURCES
 	usr/usr0sess.c
 	ut/ut0bh.c
 	ut/ut0byte.c
+	ut/ut0crc32.c
 	ut/ut0dbg.c
 	ut/ut0list.c
 	ut/ut0mem.c

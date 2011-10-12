@@ -21,6 +21,7 @@ mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -54,6 +55,7 @@ mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -87,6 +89,7 @@ mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -122,6 +125,7 @@ mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -161,6 +165,7 @@ mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -203,6 +208,7 @@ mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
 mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK

@@ -5,6 +5,7 @@ CREATE TABLE t2_11753004 (c1 INT);
 INSERT INTO t1_11753004 VALUES (1);
 INSERT INTO t2_11753004 VALUES (2);
 call mtr.add_suppression(".*Found table map event mapping table id 0 which was already mapped but with different settings.*");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/stop_slave.inc
 SET @save_debug= @@global.debug;
 SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";

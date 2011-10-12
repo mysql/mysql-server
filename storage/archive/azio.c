@@ -71,6 +71,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->version = (unsigned char)az_magic[1]; /* this needs to be a define to version */
   s->minor_version= (unsigned char) az_magic[2]; /* minor version */
   s->dirty= AZ_STATE_CLEAN;
+  s->start= 0;
 
   /*
     We do our own version of append by nature. 
@@ -168,6 +169,9 @@ int write_header(azio_stream *s)
 {
   char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
   char *ptr= buffer;
+
+  if (s->version == 1)
+    return 0;
 
   s->block_size= AZ_BUFSIZE_WRITE;
   s->version = (unsigned char)az_magic[1];
@@ -290,9 +294,9 @@ void check_header(azio_stream *s)
   /* Peek ahead to check the gzip magic header */
   if ( s->stream.next_in[0] == gz_magic[0]  && s->stream.next_in[1] == gz_magic[1])
   {
+    read_header(s, s->stream.next_in);
     s->stream.avail_in -= 2;
     s->stream.next_in += 2;
-    s->version= (unsigned char)2;
 
     /* Check the rest of the gzip header */
     method = get_byte(s);
@@ -321,7 +325,8 @@ void check_header(azio_stream *s)
       for (len = 0; len < 2; len++) (void)get_byte(s);
     }
     s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
-    s->start = my_tell(s->file, MYF(0)) - s->stream.avail_in;
+    if (!s->start)
+      s->start= my_tell(s->file, MYF(0)) - s->stream.avail_in;
   }
   else if ( s->stream.next_in[0] == az_magic[0]  && s->stream.next_in[1] == az_magic[1])
   {
@@ -365,9 +370,11 @@ void read_header(azio_stream *s, unsigned char *buffer)
   else if (buffer[0] == gz_magic[0]  && buffer[1] == gz_magic[1])
   {
     /*
-      Set version number to previous version (2).
+      Set version number to previous version (1).
     */
-    s->version= (unsigned char) 2;
+    s->version= 1;
+    s->auto_increment= 0;
+    s->frm_length= 0;
   } else {
     /*
       Unknown version.

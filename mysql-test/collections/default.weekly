@@ -5,6 +5,7 @@
 # 3. nist suite
 # 4. engine independant suite
 # 5. Covers debug and non-debug runs
+# 6. Covers all suites with Multi-Threaded-Slave and MIXED binlog-format
 
 # Repeat daily run
 # big-test option for normal runs 
@@ -73,3 +74,6 @@ perl mysql-test-run.pl --timer --force --parallel=auto  --comment=eits-rpl-binlo
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --parallel=auto --comment=eits-tests-innodb-engine-big --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --skip-test-list=collections/disabled-weekly.list
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=eits-rpl-binlog-row-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-binlog-row-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --do-test=rpl --mysqld=--binlog-format=row --skip-test-list=collections/disabled-weekly.list
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=eits-rpl-binlog-mixed-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-binlog-mixed-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --do-test=rpl --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-weekly.list
+
+# Multi-Thread Slave
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix-MTS --vardir=var-mts-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0

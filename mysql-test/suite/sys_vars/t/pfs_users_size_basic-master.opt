@@ -1,0 +1,2 @@
+--loose-enable-performance-schema
+--loose-performance-schema-users-size=123

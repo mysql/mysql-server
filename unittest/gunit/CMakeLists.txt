@@ -96,14 +96,22 @@ SET(GTEST_DOWNLOAD_URL
 # "https://clustra.norway.sun.com/~td136807/${GTEST_TARBALL}"
   )
   
+MACRO(HTTP_PROXY_HINT)
+  MESSAGE(STATUS
+    "If you are inside a firewall, you may need to use an http proxy: "
+    "export http_proxy=http://foo.bar.com:80")
+ENDMACRO()
+
+
 IF(NOT GTEST_FOUND)
   IF(NOT ENABLE_DOWNLOADS)
     # Give one-time warning
     IF(NOT ONETIME_GTEST_WARNING)
       MESSAGE(STATUS 
         "Googletest was not found. gtest-based unit tests will be disabled. "
-        "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download and "
-        "build required components from source.")
+        "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download "
+        "and build required components from source.")
+      HTTP_PROXY_HINT()
       SET(ONETIME_GTEST_WARNING 1 CACHE INTERNAL "")
     ENDIF()
     RETURN()
@@ -119,17 +127,30 @@ IF(NOT GTEST_FOUND)
         MARK_AS_ADVANCED(WGET_EXECUTABLE)
         IF(WGET_EXECUTABLE)
           EXECUTE_PROCESS(COMMAND ${WGET_EXECUTABLE} -T 30 ${GTEST_DOWNLOAD_URL}
-            WORKING_DIRECTORY ${DOWNLOAD_ROOT} RESULT_VARIABLE ERR)
-          IF(ERR EQUAL 0)
+            WORKING_DIRECTORY ${DOWNLOAD_ROOT}
+            ERROR_VARIABLE ERR
+            OUTPUT_VARIABLE OUT
+            RESULT_VARIABLE RES
+          )
+          IF(RES EQUAL 0)
             SET(DOWNLOAD_SUCCEEDED 1)
+          ELSE()
+            MESSAGE(STATUS "Download failed, "
+              "command: ${WGET_EXECUTABLE} -T 30 ${GTEST_DOWNLOAD_URL}")
+            MESSAGE(STATUS "stdout: ${OUT}")
+            MESSAGE(STATUS "stderr: ${ERR}")
           ENDIF()
         ENDIF()
       ELSE()
         # Use CMake builtin download capabilities
         FILE(DOWNLOAD ${GTEST_DOWNLOAD_URL}
-          ${DOWNLOAD_ROOT}/${GTEST_TARBALL} 30 STATUS ERR)
+          ${DOWNLOAD_ROOT}/${GTEST_TARBALL} TIMEOUT 30 STATUS ERR)
         IF(ERR EQUAL 0)
           SET(DOWNLOAD_SUCCEEDED 1)
+        ELSE()
+          MESSAGE(STATUS "Download failed, error: ${ERR}")
+          # A failed DOWNLOAD leaves an empty file, remove it
+          FILE(REMOVE ${DOWNLOAD_ROOT}/${GTEST_TARBALL})
         ENDIF()
       ENDIF()
       
@@ -140,6 +161,7 @@ IF(NOT GTEST_FOUND)
         MESSAGE(STATUS 
           "To enable google test, please download ${GTEST_DOWNLOAD_URL} "
           "to the directory ${DOWNLOAD_ROOT}")
+        HTTP_PROXY_HINT()
         RETURN()
       ENDIF()
     ENDIF()
@@ -152,8 +174,10 @@ IF(NOT GTEST_FOUND)
         ERROR_QUIET
       )
   ENDIF()
-  SET(GTEST_DOWNLOADED 1 CACHE INTERNAL "")
-  SET(GTEST_FOUND 1 CACHE INTERNAL "")
+  IF(EXISTS ${GTEST_SOURCE_DIR})
+    SET(GTEST_DOWNLOADED 1 CACHE INTERNAL "")
+    SET(GTEST_FOUND 1 CACHE INTERNAL "")
+  ENDIF()
 ENDIF()
 
 IF(NOT GTEST_FOUND)
@@ -207,6 +231,7 @@ SET(TESTS
   bounded_queue
   bounds_checked_array
   dbug
+  decimal
   dynarray
   mdl
   mdl_mytap

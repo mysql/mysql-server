@@ -24,9 +24,14 @@
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
 
-#define COUNT_SETUP_TIMERS 3
+#define COUNT_SETUP_TIMERS 4
+
 static row_setup_timers all_setup_timers_data[COUNT_SETUP_TIMERS]=
 {
+  {
+    { C_STRING_WITH_LEN("idle") },
+    &idle_timer
+  },
   {
     { C_STRING_WITH_LEN("wait") },
     &wait_timer

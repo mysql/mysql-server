@@ -170,7 +170,7 @@ buf_page_peek_if_too_old(
 {
 	buf_pool_t*		buf_pool = buf_pool_from_bpage(bpage);
 
-	if (UNIV_UNLIKELY(buf_pool->freed_page_clock == 0)) {
+	if (buf_pool->freed_page_clock == 0) {
 		/* If eviction has not started yet, do not update the
 		statistics or move blocks in the LRU list.  This is
 		either the warm-up phase or an in-memory workload. */
@@ -373,9 +373,10 @@ buf_page_get_flush_type(
 	switch (flush_type) {
 	case BUF_FLUSH_LRU:
 	case BUF_FLUSH_LIST:
+	case BUF_FLUSH_SINGLE_PAGE:
 		return(flush_type);
 	case BUF_FLUSH_N_TYPES:
-		break;
+		ut_error;
 	}
 	ut_error;
 #endif /* UNIV_DEBUG */
@@ -424,6 +425,7 @@ buf_page_get_io_fix(
 	case BUF_IO_NONE:
 	case BUF_IO_READ:
 	case BUF_IO_WRITE:
+	case BUF_IO_PIN:
 		return(io_fix);
 	}
 	ut_error;
@@ -472,6 +474,49 @@ buf_block_set_io_fix(
 	enum buf_io_fix	io_fix)	/*!< in: io_fix state */
 {
 	buf_page_set_io_fix(&block->page, io_fix);
+}
+
+/*********************************************************************//**
+Makes a block sticky. A sticky block implies that even after we release
+the buf_pool->mutex and the block->mutex:
+* it cannot be removed from the flush_list
+* the block descriptor cannot be relocated
+* it cannot be removed from the LRU list
+Note that:
+* the block can still change its position in the LRU list
+* the next and previous pointers can change. */
+UNIV_INLINE
+void
+buf_page_set_sticky(
+/*================*/
+	buf_page_t*	bpage)	/*!< in/out: control block */
+{
+#ifdef UNIV_DEBUG
+	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ut_ad(buf_pool_mutex_own(buf_pool));
+#endif
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
+
+	bpage->io_fix = BUF_IO_PIN;
+}
+
+/*********************************************************************//**
+Removes stickiness of a block. */
+UNIV_INLINE
+void
+buf_page_unset_sticky(
+/*==================*/
+	buf_page_t*	bpage)	/*!< in/out: control block */
+{
+#ifdef UNIV_DEBUG
+	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ut_ad(buf_pool_mutex_own(buf_pool));
+#endif
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_PIN);
+
+	bpage->io_fix = BUF_IO_NONE;
 }
 
 /********************************************************************//**

@@ -310,7 +310,7 @@ row_merge_buf_add(
 		if (dfield_is_null(field)) {
 			ut_ad(!(col->prtype & DATA_NOT_NULL));
 			continue;
-		} else if (UNIV_LIKELY(!ext)) {
+		} else if (!ext) {
 		} else if (dict_index_is_clust(index)) {
 			/* Flag externally stored fields. */
 			const byte*	buf = row_ext_lookup(ext, col_no,
@@ -2561,8 +2561,9 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	return(!trx->read_view
-	       || read_view_sees_trx_id(trx->read_view, index->trx_id));
+	return(!dict_index_is_corrupted(index)
+	       && (!trx->read_view
+	           || read_view_sees_trx_id(trx->read_view, index->trx_id)));
 }
 
 /*********************************************************************//**

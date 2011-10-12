@@ -216,4 +216,47 @@ TEST(SqlIlistTest, Iterate)
   }
 }
 
+// Another iteration test over intrusive lists.
+TEST(SqlIlistTest, PushFrontAndIterate)
+{
+  I_List<Linked_node> i_list;
+  I_List_iterator<Linked_node> i_list_iter(i_list);
+  int values[] = {11, 22, 33, 42, 5};
+  for (int ix= 0; ix < array_size(values); ++ix)
+  {
+    i_list.push_front(new Linked_node(values[ix]));
+  }
+
+  Linked_node *node;
+  int value_number= array_size(values) - 1;
+  while ((node= i_list_iter++))
+  {
+    EXPECT_EQ(values[value_number--], node->get_value());
+  }
+}
+
+static int cmp_test(void *a, void *b, void *c)
+{
+  EXPECT_EQ(c, (void *)0xFEE1BEEF);
+  return (*(int*)a < *(int*)b) ? -1 : (*(int*)a > *(int*)b) ? 1 : 0;
+}
+
+// Tests list sorting.
+TEST_F(SqlListTest, Sort)
+{
+  int values[] = {1, 9, 2, 7, 3, 6, 4, 5, 8};
+  insert_values(values, &m_int_list);
+  m_int_list.sort(cmp_test, (void*)0xFEE1BEEF);
+  for (int i= 1; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+  EXPECT_TRUE(m_int_list.is_empty());
+  // Test sorting of empty string.
+  m_int_list.sort(cmp_test, (void*)0xFEE1BEEF);
+  // Check that nothing has changed.
+  EXPECT_TRUE(m_int_list.is_empty());
+}
+
+
 }  // namespace
