@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2011, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -400,10 +400,8 @@ void
 sync_thread_add_level(
 /*==================*/
 	void*	latch,	/*!< in: pointer to a mutex or an rw-lock */
-	ulint	level,	/*!< in: level in the latching order; if
+	ulint	level);	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
-	ibool	relock)	/*!< in: TRUE if re-entering an x-lock */
-	__attribute__((nonnull));
 /******************************************************************//**
 Removes a latch from the thread level array if it is found there.
 @return TRUE if found in the array; it is no error if the latch is
@@ -672,7 +670,6 @@ or row lock! */
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
 #define	SYNC_WORK_QUEUE		162
-#define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
 					heap that can be extended to the
 					buffer pool, its logical level is
