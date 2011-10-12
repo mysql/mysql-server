@@ -215,12 +215,6 @@ page_set_max_trx_id(
 {
 	page_t*		page		= buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
-	const ibool	is_hashed	= block->is_hashed;
-
-	if (is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
-
 	ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -241,12 +235,6 @@ page_set_max_trx_id(
 	} else {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	}
-
-#ifndef UNIV_HOTBACKUP
-	if (is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
-	}
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /************************************************************//**
