@@ -4724,7 +4724,7 @@ part_values_in:
                 arrays with one entry in each array. This can happen
                 in the first partition of an ALTER TABLE statement where
                 we ADD or REORGANIZE partitions. Also can only happen
-                for LIST partitions.
+                for LIST [COLUMNS] partitions.
               */
               if (part_info->reorganize_into_single_field_col_val())
               {
