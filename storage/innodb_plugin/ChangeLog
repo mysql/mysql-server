@@ -1,3 +1,19 @@
+2011-10-12	The InnoDB Team
+
+	* btr/btr0cur.c, btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c,
+	ha/ha0ha.c, handler/ha_innodb.cc, ibuf/ibuf0ibuf.c, include/btr0sea.h,
+	include/btr0types.h, include/buf0buf.h, include/ha0ha.h,
+	include/ha0ha.ic, include/row0upd.ic, include/sync0sync.h,
+	page/page0page.c, sync/sync0sync.c:
+	Fix Bug#13006367 62487: innodb takes 3 minutes to clean up
+	the adaptive hash index at shutdown
+
+2011-10-04	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0rw.c:
+	Fix Bug#13034534 RQG TESTS FAIL ON WINDOWS WITH CRASH NEAR
+	RW_LOCK_DEBUG_PRINT
+
 2011-09-20	The InnoDB Team
 
 	* row/row0purge.c:
