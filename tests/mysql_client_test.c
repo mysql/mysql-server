@@ -13445,7 +13445,10 @@ static void test_truncation()
              ")";
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
-  stmt_text= "insert into t1 VALUES ("
+
+  {
+    const char insert_text[]= 
+             "insert into t1 VALUES ("
              "-10, "                            /* i8 */
              "200, "                            /* ui8 */
              "32000, "                          /* i16 */
@@ -13461,8 +13464,9 @@ static void test_truncation()
              "'12345.67 	      ', "      /* tx_1 */
              "'12345.67abc'"                    /* ch_2 */
              ")";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
-  myquery(rc);
+    rc= mysql_real_query(mysql, insert_text, strlen(insert_text));
+    myquery(rc);
+  }
 
   stmt_text= "select i8 c1, i8 c2, ui8 c3, i16_1 c4, ui16 c5, "
              "       i16 c6, ui16 c7, i32 c8, i32_1 c9, i32_1 c10, "

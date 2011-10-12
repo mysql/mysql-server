@@ -416,6 +416,7 @@ int ha_heap::info(uint flag)
   stats.index_file_length=    hp_info.index_length;
   stats.max_data_file_length= hp_info.max_records * hp_info.reclength;
   stats.delete_length=        hp_info.deleted * hp_info.reclength;
+  stats.create_time=          (ulong) hp_info.create_time;
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= hp_info.auto_increment;
   /*
@@ -825,6 +826,7 @@ mysql_declare_plugin(heap)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0,                          /* flags                           */
 }
 mysql_declare_plugin_end;
