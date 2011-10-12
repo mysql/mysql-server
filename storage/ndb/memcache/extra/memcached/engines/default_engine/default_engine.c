@@ -217,8 +217,8 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
       .tap_connections = {
          .lock = PTHREAD_MUTEX_INITIALIZER,
          .size = 10,
-      },
-   };
+      }
+  };
   default_engine.info.engine_info.description = "Default engine v0.1";
   default_engine.info.engine_info.num_features = 1;
   default_engine.info.engine_info.features[0].feature = ENGINE_FEATURE_LRU;
