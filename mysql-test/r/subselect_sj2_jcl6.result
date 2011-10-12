@@ -833,6 +833,32 @@ x	x	g
 x	x	g
 set optimizer_switch= @tmp_869012;
 DROP TABLE t1,t2,t3;
+#
+# BUG#869001: Wrong result with semijoin + materialization + firstmatch + multipart key
+#
+set @tmp869001_jcl= @@join_cache_level;
+set @tmp869001_os= @@optimizer_switch;
+SET join_cache_level=0;
+SET optimizer_switch='materialization=on,semijoin=on,firstmatch=on,loosescan=off';
+CREATE TABLE t1 ( f2 int, f3 varchar(1), KEY (f3,f2)) engine=innodb;
+INSERT INTO t1 VALUES (8,'x'),(NULL,'x'),(8,'c');
+CREATE TABLE t2 ( f4 varchar(1)) engine=innodb;
+INSERT INTO t2 VALUES ('x');
+CREATE TABLE t3 ( f1 int) engine=innodb;
+INSERT INTO t3 VALUES (8),(6),(2),(9),(6);
+CREATE TABLE t4 ( f3 varchar(1)) engine=innodb;
+INSERT INTO t4 VALUES ('p'),('j'),('c');
+SELECT *
+FROM t1 JOIN t2 ON (t2.f4 = t1.f3 )
+WHERE ( 8 ) IN (
+SELECT t3.f1 FROM t3 , t4
+);
+f2	f3	f4
+NULL	x	x
+8	x	x
+DROP TABLE t1, t2, t3, t4;
+set join_cache_level= @tmp869001_jcl;
+set optimizer_switch= @tmp869001_os;
 # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
 set join_cache_level=default;

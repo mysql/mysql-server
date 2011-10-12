@@ -2179,6 +2179,17 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   pos->sj_strategy= SJ_OPT_NONE;
   
   pos->prefix_dups_producing_tables= join->cur_dups_producing_tables;
+
+  /* We're performing optimization inside SJ-Materialization nest */
+  if (join->emb_sjm_nest)
+  {
+    pos->invalidate_firstmatch_prefix();
+    pos->first_loosescan_table= MAX_TABLES; 
+    pos->dupsweedout_tables= 0;
+    pos->sjm_scan_need_tables= 0;
+    return;
+  }
+
   /* Initialize the state or copy it from prev. tables */
   if (idx == join->const_tables)
   {
