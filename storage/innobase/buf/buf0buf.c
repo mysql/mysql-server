@@ -873,8 +873,6 @@ buf_block_init(
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
 
-	block->is_hashed = FALSE;
-
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
 	block->page.in_zip_hash = FALSE;
@@ -1279,108 +1277,47 @@ buf_pool_free(
 }
 
 /********************************************************************//**
-Drops adaptive hash index for a buffer pool instance. */
-static
-void
-buf_pool_drop_hash_index_instance(
-/*==============================*/
-	buf_pool_t*	buf_pool,		/*!< in: buffer pool instance */
-	ibool*		released_search_latch)	/*!< out: flag for signalling
-						whether the search latch was
-						released */
-{
-	buf_chunk_t*	chunks	= buf_pool->chunks;
-	buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
-
-	while (--chunk >= chunks) {
-		ulint		i;
-		buf_block_t*	block	= chunk->blocks;
-
-		for (i = chunk->size; i--; block++) {
-			/* block->is_hashed cannot be modified
-			when we have an x-latch on btr_search_latch;
-			see the comment in buf0buf.h */
-
-			if (!block->is_hashed) {
-				continue;
-			}
-
-			/* To follow the latching order, we
-			have to release btr_search_latch
-			before acquiring block->latch. */
-			rw_lock_x_unlock(&btr_search_latch);
-			/* When we release the search latch,
-			we must rescan all blocks, because
-			some may become hashed again. */
-			*released_search_latch = TRUE;
-
-			rw_lock_x_lock(&block->lock);
-
-			/* This should be guaranteed by the
-			callers, which will be holding
-			btr_search_enabled_mutex. */
-			ut_ad(!btr_search_enabled);
-
-			/* Because we did not buffer-fix the
-			block by calling buf_block_get_gen(),
-			it is possible that the block has been
-			allocated for some other use after
-			btr_search_latch was released above.
-			We do not care which file page the
-			block is mapped to.  All we want to do
-			is to drop any hash entries referring
-			to the page. */
-
-			/* It is possible that
-			block->page.state != BUF_FILE_PAGE.
-			Even that does not matter, because
-			btr_search_drop_page_hash_index() will
-			check block->is_hashed before doing
-			anything.  block->is_hashed can only
-			be set on uncompressed file pages. */
-
-			btr_search_drop_page_hash_index(block);
-
-			rw_lock_x_unlock(&block->lock);
-
-			rw_lock_x_lock(&btr_search_latch);
-
-			ut_ad(!btr_search_enabled);
-		}
-	}
-}
-
-/********************************************************************//**
-Drops the adaptive hash index.  To prevent a livelock, this function
-is only to be called while holding btr_search_latch and while
-btr_search_enabled == FALSE. */
+Clears the adaptive hash index on all pages in the buffer pool. */
 UNIV_INTERN
 void
-buf_pool_drop_hash_index(void)
-/*==========================*/
+buf_pool_clear_hash_index(void)
+/*===========================*/
 {
-	ibool		released_search_latch;
+	ulint	p;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!btr_search_enabled);
 
-	do {
- 		ulint	i;
+	for (p = 0; p < srv_buf_pool_instances; p++) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(p);
+		buf_chunk_t*	chunks	= buf_pool->chunks;
+		buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
 
-		released_search_latch = FALSE;
+		while (--chunk >= chunks) {
+			buf_block_t*	block	= chunk->blocks;
+			ulint		i	= chunk->size;
 
-		for (i = 0; i < srv_buf_pool_instances; i++) {
- 			buf_pool_t*	buf_pool;
+			for (; i--; block++) {
+				dict_index_t*	index	= block->index;
 
-			buf_pool = buf_pool_from_array(i);
+				/* We can set block->index = NULL
+				when we have an x-latch on btr_search_latch;
+				see the comment in buf0buf.h */
 
-			buf_pool_drop_hash_index_instance(
-				buf_pool, &released_search_latch);
+				if (!index) {
+					/* Not hashed */
+					continue;
+				}
+
+				block->index = NULL;
+# if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+				block->n_pointers = 0;
+# endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+			}
 		}
-
-	} while (released_search_latch);
+	}
 }
 
 /********************************************************************//**
@@ -1740,38 +1677,6 @@ buf_reset_check_index_page_at_flush(
 	buf_pool_mutex_exit(buf_pool);
 }
 
-/********************************************************************//**
-Returns the current state of is_hashed of a page. FALSE if the page is
-not in the pool. NOTE that this operation does not fix the page in the
-pool if it is found there.
-@return	TRUE if page hash index is built in search system */
-UNIV_INTERN
-ibool
-buf_page_peek_if_search_hashed(
-/*===========================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: page number */
-{
-	buf_block_t*	block;
-	ibool		is_hashed;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
-
-	buf_pool_mutex_enter(buf_pool);
-
-	block = (buf_block_t*) buf_page_hash_get(buf_pool, space, offset);
-
-	if (!block || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
-		is_hashed = FALSE;
-	} else {
-		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, &block->page));
-		is_hashed = block->is_hashed;
-	}
-
-	buf_pool_mutex_exit(buf_pool);
-
-	return(is_hashed);
-}
-
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
@@ -1981,7 +1886,6 @@ buf_block_init_low(
 	block->index		= NULL;
 
 	block->n_hash_helps	= 0;
-	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
