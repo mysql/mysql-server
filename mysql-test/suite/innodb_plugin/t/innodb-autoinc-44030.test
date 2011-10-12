@@ -2,8 +2,6 @@
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc
 
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -34,10 +32,3 @@ SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
-
-#
-# restore environment to the state it was before this test execution
-#
-
--- disable_query_log
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;
