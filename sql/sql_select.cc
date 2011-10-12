@@ -19916,10 +19916,11 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     cond->fix_fields(thd, &tmp_item);
     DBUG_ASSERT(cond == tmp_item);
   }
-  if (join_tab->select->pre_idx_push_select_cond)
-    cond_copy= cond->copy_andor_structure(thd);
   if (join_tab->select)
   {
+    UNINIT_VAR(cond_copy); // used when pre_idx_push_select_cond!=NULL
+    if (join_tab->select->pre_idx_push_select_cond)
+      cond_copy= cond->copy_andor_structure(thd);
     if (join_tab->select->cond)
       error=(int) cond->add(join_tab->select->cond);
     join_tab->select->cond= cond;
