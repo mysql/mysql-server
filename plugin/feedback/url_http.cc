@@ -198,7 +198,7 @@ int Url_http::send(const char* data, size_t data_length)
   }
 
 #ifdef HAVE_OPENSSL
-  struct st_VioSSLFd *ssl_fd;
+  struct st_VioSSLFd *UNINIT_VAR(ssl_fd);
   if (ssl)
   {
     buf[0]= 0;
