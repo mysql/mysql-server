@@ -63,8 +63,8 @@ toku_thread_run(struct toku_thread *thread, void *(*f)(void *arg), void *arg) {
     toku_thread_pool_lock(thread->pool);
     thread->f = f;
     thread->arg = arg;
-    toku_thread_pool_unlock(thread->pool);
     r = toku_pthread_cond_signal(&thread->wait); resource_assert_zero(r);
+    toku_thread_pool_unlock(thread->pool);
 }
 
 static void 

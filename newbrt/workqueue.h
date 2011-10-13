@@ -111,9 +111,9 @@ static void workqueue_set_closed(WORKQUEUE wq, int dolock) {
     int r;
     if (dolock) workqueue_lock(wq);
     wq->closed = 1;
-    if (dolock) workqueue_unlock(wq);
     r = toku_pthread_cond_broadcast(&wq->wait_read); assert(r == 0);
     r = toku_pthread_cond_broadcast(&wq->wait_write); assert(r == 0);
+    if (dolock) workqueue_unlock(wq);
 }
 
 // Determine whether or not the work queue is empty

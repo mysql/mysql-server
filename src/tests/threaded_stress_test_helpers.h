@@ -20,7 +20,7 @@
 #include <db.h>
 
 
-bool run_test;
+volatile bool run_test; // should be volatile since we are communicating through this variable.
 
 typedef struct arg *ARG;
 typedef int (*operation_t)(DB_ENV *env, DB** dbp, DB_TXN *txn, ARG arg);
@@ -504,9 +504,10 @@ static void *test_time(void *arg) {
     // if num_Seconds is set to 0, run indefinitely
     //
     if (num_seconds != 0) {
+	if (verbose) printf("Sleeping for %d seconds\n", num_seconds);
         usleep(num_seconds*1000*1000);
         if (verbose) printf("should now end test\n");
-        run_test = false;
+        __sync_bool_compare_and_swap(&run_test, true, false); // make this atomic to make valgrind --tool=drd happy.
         if (tte->crash_at_end) {
             toku_hard_crash_on_purpose();
         }
@@ -540,6 +541,7 @@ static int run_workers(struct arg *thread_args, int num_threads, u_int32_t num_s
     }
     rwlock_destroy(&rwlock);
     if (verbose) printf("ending test, pthreads have joined\n");
+    toku_pthread_mutex_destroy(&mutex);
     return r;
 }
 
@@ -558,6 +560,7 @@ static int create_table(DB_ENV **env_res, DB **db_res,
 
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
+    r = env->set_redzone(env, 0); CKERR(r);
     r=env->set_default_bt_compare(env, bt_compare); CKERR(r);
     r = env->set_cachesize(env, 0, cachesize, 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
@@ -646,6 +649,7 @@ static int open_table(DB_ENV **env_res, DB **db_res,
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
+    r = env->set_redzone(env, 0); CKERR(r);
     r=env->set_default_bt_compare(env, bt_compare); CKERR(r);
     env->set_update(env, f);
     // set the cache size to 10MB
@@ -719,14 +723,14 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         do_usage:
             fprintf(stderr, "Usage:\n%s [-h|-v|-q] [OPTIONS] [--only_create|--only_stress]\n", argv0);
             fprintf(stderr, "OPTIONS are among:\n");
-            fprintf(stderr, "\t--num_elements             INT\n");
-            fprintf(stderr, "\t--num_seconds              INT\n");
-            fprintf(stderr, "\t--node_size                INT\n");
-            fprintf(stderr, "\t--basement_node_size       INT\n");
-            fprintf(stderr, "\t--cachetable_size          INT\n");
-            fprintf(stderr, "\t--checkpointing_period     INT\n");
-            fprintf(stderr, "\t--update_broadcast_period  INT\n");
-            fprintf(stderr, "\t--num_ptquery_threads      INT\n");
+            fprintf(stderr, "\t--num_elements             INT (default %d)\n", DEFAULT_ARGS.num_elements);
+            fprintf(stderr, "\t--num_seconds              INT (default %ds)\n", DEFAULT_ARGS.time_of_test);
+            fprintf(stderr, "\t--node_size                INT (default %d bytes)\n", DEFAULT_ARGS.node_size);
+            fprintf(stderr, "\t--basement_node_size       INT (default %d bytes)\n", DEFAULT_ARGS.basement_node_size);
+            fprintf(stderr, "\t--cachetable_size          INT (default %ld bytes)\n", DEFAULT_ARGS.cachetable_size);
+            fprintf(stderr, "\t--checkpointing_period     INT (default %ds)\n",      DEFAULT_ARGS.checkpointing_period);
+            fprintf(stderr, "\t--update_broadcast_period  INT (default %dms)\n",     DEFAULT_ARGS.update_broadcast_period_ms);
+            fprintf(stderr, "\t--num_ptquery_threads      INT (default %d threads)\n", DEFAULT_ARGS.num_ptquery_threads);
             exit(resultcode);
         }
         else if (strcmp(argv[1], "--num_elements") == 0) {

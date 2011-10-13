@@ -1,0 +1,23 @@
+{
+   write_problem
+   drd:ConflictingAccess
+   fun:write
+}
+
+{
+   pread_problem
+   drd:ConflictingAccess
+   fun:pread
+}
+
+{
+   pwrite_problem
+   drd:ConflictingAccess
+   fun:pwrite
+}
+
+{
+   pwrite_problem
+   drd:ConflictingAccess
+   fun:fsync
+}
