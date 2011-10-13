@@ -38,7 +38,7 @@ table_id	table_name	comment
 9	nodes	node status
 10	diskpagebuffer	disk page buffer info
 11	threadblocks	which blocks are run in which threads
-12	threadstat	threadstat
+12	threadstat	Statistics on execution threads
 13	transactions	transactions
 14	operations	operations
 SELECT COUNT(*) FROM ndb$tables;
@@ -55,7 +55,7 @@ table_id	table_name	comment
 9	nodes	node status
 10	diskpagebuffer	disk page buffer info
 11	threadblocks	which blocks are run in which threads
-12	threadstat	threadstat
+12	threadstat	Statistics on execution threads
 13	transactions	transactions
 14	operations	operations
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
