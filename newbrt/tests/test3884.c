@@ -152,7 +152,7 @@ test_split_with_everything_on_the_left(void)
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
     LEAFENTRY big_element;
-    char *big_val;
+    char *big_val = NULL;
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_SUBTREE_EST(&sn,bn).ndata = random() + (((long long)random())<<32);
         BP_SUBTREE_EST(&sn,bn).nkeys = random() + (((long long)random())<<32);
@@ -212,7 +212,9 @@ test_split_with_everything_on_the_left(void)
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
-    toku_free(big_val);
+    if (big_val) {
+        toku_free(big_val);
+    }
 }
 
 static void
@@ -244,7 +246,7 @@ test_split_on_boundary_of_last_node(void)
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
     LEAFENTRY big_element;
-    char *big_val;
+    char *big_val = NULL;
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_SUBTREE_EST(&sn,bn).ndata = random() + (((long long)random())<<32);
         BP_SUBTREE_EST(&sn,bn).nkeys = random() + (((long long)random())<<32);
@@ -304,7 +306,9 @@ test_split_on_boundary_of_last_node(void)
     }
     toku_free(sn.bp);
     toku_free(sn.childkeys);
-    toku_free(big_val);
+    if (big_val) {
+        toku_free(big_val);
+    }
 }
 
 static void
