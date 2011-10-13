@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.h,v 1.17 2006/03/06 21:11:56 christos Exp $	*/
+/*	$NetBSD: chared.h,v 1.21 2010/08/28 15:44:59 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -63,25 +63,25 @@
 typedef struct c_macro_t {
 	int	  level;
 	int	  offset;
-	char	**macro;
+	Char	**macro;
 } c_macro_t;
 
 /*
  * Undo information for vi - no undo in emacs (yet)
  */
 typedef struct c_undo_t {
-	int	 len;			/* length of saved line */
+	ssize_t	 len;			/* length of saved line */
 	int	 cursor;		/* position of saved cursor */
-	char	*buf;			/* full saved text */
+	Char	*buf;			/* full saved text */
 } c_undo_t;
 
 /* redo for vi */
 typedef struct c_redo_t {
-	char	*buf;			/* redo insert key sequence */
-	char	*pos;
-	char	*lim;
+	Char	*buf;			/* redo insert key sequence */
+	Char	*pos;
+	Char	*lim;
 	el_action_t	cmd;		/* command to redo */
-	char	ch;			/* char that invoked it */
+	Char	ch;			/* char that invoked it */
 	int	count;
 	int	action;			/* from cv_action() */
 } c_redo_t;
@@ -91,17 +91,19 @@ typedef struct c_redo_t {
  */
 typedef struct c_vcmd_t {
 	int	 action;
-	char	*pos;
+	Char	*pos;
 } c_vcmd_t;
 
 /*
  * Kill buffer for emacs
  */
 typedef struct c_kill_t {
-	char	*buf;
-	char	*last;
-	char	*mark;
+	Char	*buf;
+	Char	*last;
+	Char	*mark;
 } c_kill_t;
+
+typedef void (*el_zfunc_t)(EditLine *, void *);
 
 /*
  * Note that we use both data structures because the user can bind
@@ -113,13 +115,14 @@ typedef struct el_chared_t {
 	c_redo_t	c_redo;
 	c_vcmd_t	c_vcmd;
 	c_macro_t	c_macro;
+	el_zfunc_t	c_resizefun;
+	void *		c_resizearg;
 } el_chared_t;
 
 
 #define	STRQQ		"\"\""
 
 #define	isglob(a)	(strchr("*[]?", (a)) != NULL)
-#define	isword(a)	(el_isprint(a))
 
 #define	NOP		0x00
 #define	DELETE		0x01
@@ -140,27 +143,28 @@ typedef struct el_chared_t {
 #include "fcns.h"
 
 
-protected int	 cv__isword(int);
-protected int	 cv__isWord(int);
+protected int	 cv__isword(Int);
+protected int	 cv__isWord(Int);
 protected void	 cv_delfini(EditLine *);
-protected char	*cv__endword(char *, char *, int, int (*)(int));
-protected int	 ce__isword(int);
+protected Char	*cv__endword(Char *, Char *, int, int (*)(Int));
+protected int	 ce__isword(Int);
 protected void	 cv_undo(EditLine *);
-protected void	 cv_yank(EditLine *, const char *, int);
-protected char	*cv_next_word(EditLine*, char *, char *, int, int (*)(int));
-protected char	*cv_prev_word(char *, char *, int, int (*)(int));
-protected char	*c__next_word(char *, char *, int, int (*)(int));
-protected char	*c__prev_word(char *, char *, int, int (*)(int));
+protected void	 cv_yank(EditLine *, const Char *, int);
+protected Char	*cv_next_word(EditLine*, Char *, Char *, int, int (*)(Int));
+protected Char	*cv_prev_word(Char *, Char *, int, int (*)(Int));
+protected Char	*c__next_word(Char *, Char *, int, int (*)(Int));
+protected Char	*c__prev_word(Char *, Char *, int, int (*)(Int));
 protected void	 c_insert(EditLine *, int);
 protected void	 c_delbefore(EditLine *, int);
 protected void	 c_delbefore1(EditLine *);
 protected void	 c_delafter(EditLine *, int);
 protected void	 c_delafter1(EditLine *);
-protected int	 c_gets(EditLine *, char *, const char *);
+protected int	 c_gets(EditLine *, Char *, const Char *);
 protected int	 c_hpos(EditLine *);
 
 protected int	 ch_init(EditLine *);
 protected void	 ch_reset(EditLine *, int);
+protected int	 ch_resizefun(EditLine *, el_zfunc_t, void *);
 protected int	 ch_enlargebufs(EditLine *, size_t);
 protected void	 ch_end(EditLine *);
 
