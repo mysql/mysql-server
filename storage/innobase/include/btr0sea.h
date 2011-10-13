@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -141,8 +141,8 @@ btr_search_drop_page_hash_index(
 				for which we know that
 				block->buf_fix_count == 0 */
 /********************************************************************//**
-Drops a page hash index when a page is freed from a fseg to the file system.
-Drops possible hash index if the page happens to be in the buffer pool. */
+Drops a possible page hash index when a page is evicted from the buffer pool
+or freed in a file segment. */
 UNIV_INTERN
 void
 btr_search_drop_page_hash_when_freed(
@@ -191,16 +191,6 @@ btr_search_validate(void);
 #else
 # define btr_search_validate()	TRUE
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
-
-/** Flag: has the search system been enabled?
-Protected by btr_search_latch and btr_search_enabled_mutex. */
-extern char	btr_search_enabled;
-
-/** Flag: whether the search system has completed its disabling process,
-It is set to TRUE right after buf_pool_drop_hash_index() in
-btr_search_disable(), indicating hash index entries are cleaned up.
-Protected by btr_search_latch and btr_search_enabled_mutex. */
-extern ibool	btr_search_fully_disabled;
 
 /** The search info struct in an index */
 struct btr_search_struct{

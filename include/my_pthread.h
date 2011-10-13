@@ -542,8 +542,8 @@ void safe_mutex_end(FILE *file);
           DBUG_ASSERT(! (mp)->count || \
                       ! pthread_equal(pthread_self(), (mp)->thread))
 #else
-#define safe_mutex_assert_owner(mp)
-#define safe_mutex_assert_not_owner(mp)
+#define safe_mutex_assert_owner(mp) do {} while (0)
+#define safe_mutex_assert_not_owner(mp) do {} while (0)
 #endif /* SAFE_MUTEX */
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)

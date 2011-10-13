@@ -20,7 +20,7 @@
 ** The functions name, type and shared library is saved in the new system
 ** table 'func'.  To be able to create new functions one must have write
 ** privilege for the database 'mysql'.	If one starts MySQL with
-** --skip-grant, then UDF initialization will also be skipped.
+** --skip-grant-tables, then UDF initialization will also be skipped.
 **
 ** Syntax for the new commands are:
 ** create function <function_name> returns {string|real|integer}
