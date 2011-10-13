@@ -542,8 +542,6 @@ static void table_def_use_table(THD *thd, TABLE *table)
   DBUG_ASSERT(table->db_stat && table->file);
   /* The children must be detached from the table. */
   DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
-
-  table->file->rebind_psi();
 }
 
 
@@ -560,7 +558,6 @@ static void table_def_unuse_table(TABLE *table)
   DBUG_ASSERT(! table->s->has_old_version());
 
   table->in_use= 0;
-  table->file->unbind_psi();
 
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);
@@ -1655,6 +1652,10 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
     table->file->ha_reset();
   }
 
+  /* Do this *before* entering the LOCK_open critical section. */
+  if (table->file != NULL)
+    table->file->unbind_psi();
+
   mysql_mutex_lock(&LOCK_open);
 
   if (table->s->has_old_version() || table->needs_reopen() ||
@@ -2731,6 +2732,8 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   int error;
   TABLE_SHARE *share;
   my_hash_value_type hash_value;
+  bool recycled_free_table;
+
   DBUG_ENTER("open_table");
 
   /*
@@ -3088,6 +3091,7 @@ retry_share:
   {
     table= share->free_tables.front();
     table_def_use_table(thd, table);
+    recycled_free_table= true;
     /* We need to release share as we have EXTRA reference to it in our hands. */
     release_table_share(share);
   }
@@ -3099,6 +3103,7 @@ retry_share:
 
     mysql_mutex_unlock(&LOCK_open);
 
+    recycled_free_table= false;
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
       goto err_lock;
@@ -3139,6 +3144,13 @@ retry_share:
   }
 
   mysql_mutex_unlock(&LOCK_open);
+
+  /* Call rebind_psi outside of the LOCK_open critical section. */
+  if (recycled_free_table)
+  {
+    DBUG_ASSERT(table->file != NULL);
+    table->file->rebind_psi();
+  }
 
   table->mdl_ticket= mdl_ticket;
 
@@ -8315,29 +8327,33 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
 }
 
 
-/*
-  prepare tables and check access for the view tables
+/**
+  Prepare tables and check access for the view tables.
 
-  SYNOPSIS
-    setup_tables_and_check_view_access()
-    thd		  Thread handler
-    context       name resolution contest to setup table list there
-    from_clause   Top-level list of table references in the FROM clause
-    tables	  Table list (select_lex->table_list)
-    conds	  Condition of current SELECT (can be changed by VIEW)
-    leaves        List of join table leaves list (select_lex->leaf_tables)
-    refresh       It is onle refresh for subquery
-    select_insert It is SELECT ... INSERT command
-    want_access   what access is needed
+  @param thd                Thread context.
+  @param context            Name resolution contest to setup table list
+                            there.
+  @param from_clause        Top-level list of table references in the
+                            FROM clause.
+  @param tables             Table list (select_lex->table_list).
+  @param leaves[in/out]     List of join table leaves list
+                            (select_lex->leaf_tables).
+  @param select_insert      It is SELECT ... INSERT command/
+  @param want_access_first  What access is requested of the first leaf.
+  @param want_access        What access is requested on the rest of leaves.
 
-  NOTE
-    a wrapper for check_tables that will also check the resulting
-    table leaves list for access to all the tables that belong to a view
+  @note A wrapper for check_tables that will also check the resulting
+        table leaves list for access to all the tables that belong to
+        a view.
 
-  RETURN
-    FALSE ok;  In this case *map will include the chosen index
-    TRUE  error
+  @note Beware that it can't properly check privileges in cases when
+        table being changed is not the first table in the list of leaf
+        tables (for example, for multi-UPDATE).
+
+  @retval FALSE - Success.
+  @retval TRUE  - Error.
 */
+
 bool setup_tables_and_check_access(THD *thd, 
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause,
@@ -8643,7 +8659,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
     which belong to LEX, i.e. most up SELECT) will be updated by
@@ -8666,19 +8681,43 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 
   for (table= tables; table; table= table->next_local)
   {
+    select_lex->resolve_place= st_select_lex::RESOLVE_CONDITION;
+    /*
+      Walk up tree of join nests and try to find outer join nest.
+      This is needed because simplify_joins() has not yet been called,
+      and hence inner join nests have not yet been removed.
+    */
+    for (TABLE_LIST *embedding= table;
+         embedding;
+         embedding= embedding->embedding)
+    {
+      if (embedding->outer_join)
+      {
+        /*
+          The join condition belongs to an outer join next.
+          Record this fact and the outer join nest for possible transformation
+          of subqueries into semi-joins.
+        */  
+        select_lex->resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
+        select_lex->resolve_nest= embedding;
+        break;
+      }
+    }
     if (table->prepare_where(thd, conds, FALSE))
       goto err_no_arena;
+    select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
+    select_lex->resolve_nest= NULL;
   }
 
-  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
   if (*conds)
   {
+    select_lex->resolve_place= st_select_lex::RESOLVE_CONDITION;
     thd->where="where clause";
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
+    select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8694,13 +8733,16 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
-        thd->thd_marker.emb_on_expr_nest= embedded;
+        select_lex->resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
+        select_lex->resolve_nest= embedded;
         thd->where="on clause";
         if ((!embedded->on_expr->fixed &&
             embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
+        select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
+        select_lex->resolve_nest= NULL;
       }
       embedding= embedded->embedding;
     }
@@ -8719,7 +8761,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       }
     }
   }
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {

@@ -1214,12 +1214,10 @@ sync_thread_add_level(
 	case SYNC_WORK_QUEUE:
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
-	case SYNC_THR_LOCAL:
 	case SYNC_ANY_LATCH:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:
-	case SYNC_SEARCH_SYS_CONF:
 	case SYNC_THREADS:
 	case SYNC_LOCK_SYS:
 	case SYNC_LOCK_WAIT_SYS:
@@ -1355,8 +1353,7 @@ sync_thread_add_level(
 		break;
 	case SYNC_IBUF_INDEX_TREE:
 		if (sync_thread_levels_contain(array, SYNC_FSP)) {
-			ut_a(sync_thread_levels_g(
-				     array, SYNC_FSP_PAGE - 1, TRUE));
+			ut_a(sync_thread_levels_g(array, level - 1, TRUE));
 		} else {
 			ut_a(sync_thread_levels_g(
 				     array, SYNC_IBUF_TREE_NODE - 1, TRUE));

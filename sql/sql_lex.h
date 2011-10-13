@@ -622,6 +622,14 @@ class st_select_lex: public st_select_lex_node
 {
 public:
   Name_resolution_context context;
+  /*
+    Two fields used by semi-join transformations to know when semi-join is
+    possible, and in which condition tree the subquery predicate is located.
+  */
+  enum Resolve_place { RESOLVE_NONE, RESOLVE_JOIN_NEST, RESOLVE_CONDITION,
+                       RESOLVE_HAVING };
+  Resolve_place resolve_place; // Indicates part of query being resolved
+  TABLE_LIST *resolve_nest;    // Used when resolving outer join condition
   char *db;
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
@@ -1224,6 +1232,48 @@ public:
       tables and write to any of them are unsafe.
     */
     BINLOG_STMT_UNSAFE_MIXED_STATEMENT,
+
+    /**
+      INSERT...IGNORE SELECT is unsafe because which rows are ignored depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT,
+
+    /**
+      INSERT...SELECT...UPDATE is unsafe because which rows are updated depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE,
+
+    /**
+      INSERT...REPLACE SELECT is unsafe because which rows are replaced depends
+      on the order that rows are retrieved by SELECT. This order cannot be
+      predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_REPLACE_SELECT,
+
+    /**
+      CREATE TABLE... IGNORE... SELECT is unsafe because which rows are ignored
+      depends on the order that rows are retrieved by SELECT. This order cannot
+      be predicted and may differ on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT,
+
+    /**
+      CREATE TABLE...REPLACE... SELECT is unsafe because which rows are replaced
+      depends on the order that rows are retrieved from SELECT. This order
+      cannot be predicted and may differ on master and the slave
+    */
+    BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT,
+
+    /**
+      UPDATE...IGNORE is unsafe because which rows are ignored depends on the
+      order that rows are updated. This order cannot be predicted and may differ
+      on master and the slave.
+    */
+    BINLOG_STMT_UNSAFE_UPDATE_IGNORE,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT

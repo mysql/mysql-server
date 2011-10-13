@@ -222,6 +222,13 @@ ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 
+OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
+MARK_AS_ADVANCED(DEBUG_EXTNAME)
+
+IF(DEBUG_EXTNAME)
+  SET_TARGET_PROPERTIES(mysqld PROPERTIES DEBUG_OUTPUT_NAME "mysqld-debug")
+ENDIF()
+
 IF(APPLE) 
   # Add CoreServices framework since some dloadable plugins may need it 
   FIND_LIBRARY(CORESERVICES NAMES CoreServices) 
@@ -287,10 +294,17 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
-INSTALL_DEBUG_TARGET(mysqld 
-  DESTINATION ${INSTALL_SBINDIR} 
-  PDB_DESTINATION ${INSTALL_SBINDIR}/debug
-  RENAME mysqld-debug)
+IF(DEBUG_EXTNAME)
+  INSTALL_DEBUG_TARGET(mysqld 
+    DESTINATION ${INSTALL_SBINDIR} 
+    PDB_DESTINATION ${INSTALL_SBINDIR}
+    SUFFIX "-debug")
+ELSE()
+  INSTALL_DEBUG_TARGET(mysqld 
+    DESTINATION ${INSTALL_SBINDIR} 
+    PDB_DESTINATION ${INSTALL_SBINDIR}/debug
+    RENAME mysqld-debug)
+ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 

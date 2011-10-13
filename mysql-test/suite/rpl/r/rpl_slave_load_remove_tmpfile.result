@@ -7,7 +7,9 @@ insert into t1(b) values (1);
 insert into t1(b) values (2);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 commit;
-include/wait_for_slave_sql_error.inc [errno=29, 13]
+call mtr.add_suppression("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir");
+call mtr.add_suppression("The MySQL server is running with the --slave-load-tmpdir option so it cannot execute this statement.*Error_code: 1290");
+include/wait_for_slave_sql_error.inc [errno=29, 13, 1290]
 drop table t1;
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
