@@ -111,12 +111,14 @@ test_big_merge (void) {
 
 	u_int64_t an = twoG;
 	u_int64_t bn = 1;
-	struct block_allocator_blockpair *MALLOC_N(an+bn, a);
+	struct block_allocator_blockpair *MALLOC_N(an+bn, a); 
+        assert(a);
 	struct block_allocator_blockpair *MALLOC_N(bn,    b);
+        assert(b);
 	for (u_int64_t i=0; i<an; i++) a[i].offset=i+1;
 	b[0].offset = 0;
 	block_allocator_merge_blockpairs_into(an, a, bn, b);
-	for (u_int64_t i=0; i<an+bn; i++) assert(a[i].offset=i);
+	for (u_int64_t i=0; i<an+bn; i++) assert(a[i].offset == i);
 	toku_free(a);
 	toku_free(b);
     }
