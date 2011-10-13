@@ -782,6 +782,8 @@ public:
   static Uint32 mt_buildIndexFragment_wrapper(void*);
 private:
   Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
+
+  Signal* c_signal_bug32040;
 };
 
 // Dbtux::TupLoc
