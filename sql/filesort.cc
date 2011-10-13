@@ -314,7 +314,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   maxbuffer= (uint) (my_b_tell(&buffpek_pointers)/sizeof(*buffpek));
 
   Opt_trace_object(trace, "filesort_summary")
-    .add("records", num_rows)
+    .add("rows", num_rows)
+    .add("examined_rows", param.examined_rows)
     .add("number_of_tmp_files", maxbuffer)
     .add_alnum("sort_mode",
                param.addon_field ?
@@ -1223,8 +1224,8 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
 
   trace_filesort
     .add("limit", param->max_rows)
-    .add("records_estimate", num_rows)
-    .add("record_size", param->rec_length)
+    .add("rows_estimate", num_rows)
+    .add("row_size", param->rec_length)
     .add("memory_available", memory_available);
 
   if (param->max_rows + 2 >= UINT_MAX)
@@ -1274,7 +1275,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
     num_available_keys= memory_available / row_length;
 
     Opt_trace_object trace_addon(trace, "strip_additional_fields");
-    trace_addon.add("record_size", row_length);
+    trace_addon.add("row_size", row_length);
 
     // Can we fit all the keys in memory?
     if (param->max_keys_per_buffer >= num_available_keys)

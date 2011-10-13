@@ -6385,7 +6385,8 @@ trace
             "filesort_execution": [
             ] /* filesort_execution */,
             "filesort_summary": {
-              "records": 2,
+              "rows": 2,
+              "examined_rows": 2,
               "number_of_tmp_files": 0,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
