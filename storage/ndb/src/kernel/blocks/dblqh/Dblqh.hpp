@@ -2687,10 +2687,7 @@ private:
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, Ptr<TcConnectionrec>);
-  void ndbinfo_write_op(Signal* signal,
-                        DbinfoScanReq * req,
-                        Ndbinfo::Ratelimit * rl,
-                        TcConnectionrecPtr tcPtr);
+  void ndbinfo_write_op(Ndbinfo::Row&, TcConnectionrecPtr tcPtr);
 
   void define_backup(Signal*);
   void execDEFINE_BACKUP_REF(Signal*);
