@@ -13295,7 +13295,12 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
     for (Uint32 i = 0; i < maxloop; i++)
     {
       ptrCheckGuard(ptr, capiConnectFilesize, apiConnectRecord);
-      ndbinfo_write_trans(signal, &req, &rl, ptr);
+      Ndbinfo::Row row(signal, req);
+      if (ndbinfo_write_trans(row, ptr))
+      {
+        jam();
+        ndbinfo_send_row(signal, req, row, rl);
+      }
 
       ptr.i ++;
       if (ptr.i == capiConnectFilesize)
@@ -13318,11 +13323,8 @@ done:
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
-void
-Dbtc::ndbinfo_write_trans(Signal* signal,
-                          DbinfoScanReq * req,
-                          Ndbinfo::Ratelimit * rl,
-                          ApiConnectRecordPtr transPtr)
+bool
+Dbtc::ndbinfo_write_trans(Ndbinfo::Row & row, ApiConnectRecordPtr transPtr)
 {
   Uint32 conState = transPtr.p->apiConnectstate;
 
@@ -13338,7 +13340,7 @@ Dbtc::ndbinfo_write_trans(Signal* signal,
       conState == CS_DISCONNECTED ||
       conState == CS_RESTART)
   {
-    return;
+    return false;
   }
 
   char transid[64];
@@ -13347,7 +13349,6 @@ Dbtc::ndbinfo_write_trans(Signal* signal,
                        transPtr.p->transid[0],
                        transPtr.p->transid[1]);
 
-  Ndbinfo::Row row(signal, *req);
   row.write_uint32(getOwnNodeId());
   row.write_uint32(instance());   // block instance
   row.write_uint32(transPtr.i);
@@ -13404,7 +13405,7 @@ Dbtc::ndbinfo_write_trans(Signal* signal,
 
   Uint32 apiTimer = getApiConTimer(transPtr.i);
   row.write_uint32(apiTimer ? (ctcTimer - apiTimer) / 100 : 0);
-  ndbinfo_send_row(signal, *req, row, *rl);
+  return true;
 }
 
 bool
