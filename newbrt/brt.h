@@ -243,6 +243,9 @@ struct brtstat64_s {
     u_int64_t dsize; /* estimate the sum of the sizes of the pairs (exact when flattened and committed) */
     u_int64_t fsize;  /* the size of the underlying file                                                */
     u_int64_t ffree; /* Number of free bytes in the underlying file                                    */
+    // 4018
+    u_int64_t create_time_sec;  /* creation time in seconds. */
+    u_int64_t modify_time_sec; /* time of last serialization, in seconds. */ 
 };
 int toku_brt_stat64 (BRT, TOKUTXN,
 		     struct brtstat64_s *stat

@@ -430,6 +430,9 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t bt_ndata; /* how many key-value pairs (an estimate, but exact when flattened)                       */\n");
     printf("  u_int64_t bt_dsize; /* how big are the keys+values (not counting the lengths) (an estimate, unless flattened) */\n");
     printf("  u_int64_t bt_fsize; /* how big is the underlying file                                                         */\n");
+    // 4018
+    printf("  u_int64_t bt_create_time_sec; /* Creation time, in seconds */\n");
+    printf("  u_int64_t bt_modify_time_sec; /* Time of last serialization, in seconds */\n");
     printf("} DB_BTREE_STAT64;\n");
 
     //bulk loader

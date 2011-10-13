@@ -1667,10 +1667,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_int(wbuf, h->layout_version_original);
     wbuf_int(wbuf, h->build_id_original);
     wbuf_ulonglong(wbuf, h->time_of_creation);
-    {   // time_of_last_modification
-	uint64_t now = (uint64_t) time(NULL);
-	wbuf_ulonglong(wbuf, now);
-    }
+    wbuf_ulonglong(wbuf, h->time_of_last_modification);
     wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade);
     wbuf_TXNID(wbuf, h->root_xid_that_created);
     wbuf_int(wbuf, h->basementnodesize);

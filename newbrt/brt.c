@@ -776,9 +776,7 @@ void toku_brtnode_pe_est_callback(
     // we estimate the compressed size of data to be how large
     // the compressed data is on disk
     for (int i = 0; i < node->n_children; i++) {
-        if (BP_STATE(node,i) == PT_AVAIL && 
-            BP_SHOULD_EVICT(node,i) && 
-            toku_bnc_nbytesinbuf(BNC(node, i)) > 0) {
+        if (BP_STATE(node,i) == PT_AVAIL && BP_SHOULD_EVICT(node,i)) {
             // calculate how much data would be freed if
             // we compress this node and add it to
             // bytes_to_free
@@ -838,9 +836,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, long UU(bytes_to_free), long* by
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    if (toku_bnc_nbytesinbuf(BNC(node, i)) > 0) {
-                        cilk_spawn compress_internal_node_partition(node, i);
-                    }
+                    cilk_spawn compress_internal_node_partition(node, i);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -2834,7 +2830,7 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 // As output, two of node's children are merged or rebalanced, and node is unlocked
 //
 static void
-brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge)
+brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_react)
 {
     if (node->n_children < 2) {
         toku_unpin_brtnode(t, node);
@@ -2908,6 +2904,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge)
 	if (childa->height>0) { int i; for (i=0; i+1<childa->n_children; i++) assert(childa->childkeys[i]); }
 	//toku_verify_estimates(t,childa);
 	// the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
+	*did_react = (BOOL)(did_merge || did_rebalance);
 	if (did_merge) assert(!splitk_kvpair); else assert(splitk_kvpair);
 
 	node->totalchildkeylens -= deleted_size; // The key was free()'d inside the maybe_merge_pinned_nodes.
@@ -3222,6 +3219,7 @@ flush_some_child (BRT t, BRTNODE parent)
         brt_split_child(t, parent, childnum, child);
     }
     else if (child_re == RE_FUSIBLE) {
+        BOOL did_react;
         //
         // There is probably a way to pass BRTNODE child
         // into brt_merge_child, but for simplicity for now,
@@ -3233,7 +3231,7 @@ flush_some_child (BRT t, BRTNODE parent)
         //
         // it is responsibility of brt_merge_child to unlock parent
         //
-        brt_merge_child(t, parent, childnum);
+        brt_merge_child(t, parent, childnum, &did_react);
     }
     else {
         assert(FALSE);
@@ -5008,15 +5006,14 @@ toku_brtheader_checkpoint (CACHEFILE cf, int fd, void *header_v)
 	    r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
 	    if (r!=0) goto handle_error;
 	}
-	{
-	    ch->checkpoint_count++;
-	    // write translation and header to disk (or at least to OS internal buffer)
-	    r = toku_serialize_brt_header_to(fd, ch);
-	    if (r!=0) goto handle_error;
-	}
+        h->time_of_last_modification = ch->time_of_last_modification = time(NULL); // 4018
+        ch->checkpoint_count++;
+        // write translation and header to disk (or at least to OS internal buffer)
+        r = toku_serialize_brt_header_to(fd, ch);
+        if (r!=0) goto handle_error;
 	ch->dirty = 0;		      // this is only place this bit is cleared (in checkpoint_header)
-    }
-    else toku_block_translation_note_skipped_checkpoint(ch->blocktable);
+    } else 
+        toku_block_translation_note_skipped_checkpoint(ch->blocktable);
     if (0) {
 handle_error:
 	if (h->panic) r = h->panic;
@@ -6796,10 +6793,13 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     int i;
     for (i=0; i<node->n_children; i++) {
         SUBTREE_EST se = &BP_SUBTREE_EST(node,i);
-	s->nkeys += se->nkeys;
-	s->ndata += se->ndata;
-	s->dsize += se->dsize;
+        s->nkeys += se->nkeys;
+        s->ndata += se->ndata;
+        s->dsize += se->dsize;
     }
+    // 4018
+    s->create_time_sec = brt->h->time_of_creation;
+    s->modify_time_sec = brt->h->time_of_last_modification;
     
     int r = toku_cachetable_unpin(brt->cf, root, fullhash, CACHETABLE_CLEAN, 0);
     if (r!=0) return r;

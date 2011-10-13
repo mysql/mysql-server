@@ -5527,10 +5527,13 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     }
     int r = toku_brt_stat64(db->i->brt, tokutxn, &brtstat);
     if (r==0) {
-	s->bt_nkeys = brtstat.nkeys;
-	s->bt_ndata = brtstat.ndata;
-	s->bt_dsize = brtstat.dsize;
-	s->bt_fsize = brtstat.fsize;
+        s->bt_nkeys = brtstat.nkeys;
+        s->bt_ndata = brtstat.ndata;
+        s->bt_dsize = brtstat.dsize;
+        s->bt_fsize = brtstat.fsize;
+        // 4018
+        s->bt_create_time_sec = brtstat.create_time_sec;
+        s->bt_modify_time_sec = brtstat.modify_time_sec;
     }
     return r;
 }
