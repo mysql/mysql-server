@@ -147,12 +147,24 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -167,15 +179,17 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true,
-                      "use_temp_table": true
+                      "use_tmp_table": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
+                "sort_cost": 100,
+                "new_cost_for_plan": 122.49,
                 "chosen": true
               }
             ]
@@ -215,7 +229,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -313,12 +327,24 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -333,14 +359,14 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -380,7 +406,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -512,12 +538,24 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -532,14 +570,14 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -579,7 +617,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -721,16 +759,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -745,14 +795,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -792,7 +842,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -944,16 +994,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -968,14 +1030,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -1015,7 +1077,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -1102,16 +1164,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -1126,14 +1200,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -1173,7 +1247,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -1242,12 +1316,24 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -1262,14 +1348,14 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -1306,7 +1392,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -1364,12 +1450,24 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -1384,14 +1482,14 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -1428,7 +1526,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -1520,12 +1618,24 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -1540,14 +1650,14 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -1587,7 +1697,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -1719,12 +1829,24 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -1739,14 +1861,14 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -1786,7 +1908,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -1928,16 +2050,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -1952,14 +2086,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -1999,7 +2133,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -2151,16 +2285,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -2175,14 +2321,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -2222,7 +2368,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -2309,16 +2455,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -2333,14 +2491,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -2380,7 +2538,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -2485,12 +2643,24 @@ ORDER BY f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -2505,14 +2675,14 @@ ORDER BY f1, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -2552,7 +2722,7 @@ ORDER BY f1, f0 LIMIT 30	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -2624,12 +2794,24 @@ ORDER BY f1, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -2644,14 +2826,14 @@ ORDER BY f1, f0 LIMIT 0	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -2691,7 +2873,7 @@ ORDER BY f1, f0 LIMIT 0	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -2803,16 +2985,28 @@ ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -2827,14 +3021,14 @@ ORDER BY f2, f0 LIMIT 20	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -2874,7 +3068,7 @@ ORDER BY f2, f0 LIMIT 20	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -2966,16 +3160,28 @@ ORDER BY f2, f0 LIMIT 0	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -2990,14 +3196,14 @@ ORDER BY f2, f0 LIMIT 0	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -3037,7 +3243,7 @@ ORDER BY f2, f0 LIMIT 0	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -3139,16 +3345,28 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -3163,14 +3381,14 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -3210,7 +3428,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -3302,16 +3520,28 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 2
                 }
               }
@@ -3326,14 +3556,14 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 2.4883,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 22.488,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -3373,7 +3603,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -3480,6 +3710,15 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where (`test`.`t1`.`f2` = `test`.`tmp`.`f2`) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30"
+            }
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
@@ -3500,16 +3739,36 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "database": "test",
+                "table": "tmp",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               },
@@ -3517,7 +3776,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 "database": "test",
                 "table": "tmp",
                 "table_scan": {
-                  "records": 300,
+                  "rows": 300,
                   "cost": 3
                 }
               }
@@ -3532,14 +3791,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 300,
+                      "rows": 300,
                       "cost": 3.4648,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 63.465,
-                "records_for_plan": 300,
+                "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
                     "database": "test",
@@ -3549,14 +3808,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 500,
+                          "rows": 500,
                           "cost": 4.7057,
                           "chosen": true
                         }
                       ]
                     },
                     "cost_for_plan": 30068,
-                    "records_for_plan": 150000,
+                    "rows_for_plan": 150000,
                     "chosen": true
                   }
                 ]
@@ -3568,14 +3827,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "pruned_by_heuristic": true
               }
             ]
@@ -3620,12 +3879,12 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
               {
                 "database": "test",
                 "table": "tmp",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -3724,6 +3983,15 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where (`test`.`t1`.`f2` = `test`.`tmp`.`f2`) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+            }
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
@@ -3744,16 +4012,36 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "database": "test",
+                "table": "tmp",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               },
@@ -3761,7 +4049,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "database": "test",
                 "table": "tmp",
                 "table_scan": {
-                  "records": 300,
+                  "rows": 300,
                   "cost": 3
                 }
               }
@@ -3776,14 +4064,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 300,
+                      "rows": 300,
                       "cost": 3.4648,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 63.465,
-                "records_for_plan": 300,
+                "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
                     "database": "test",
@@ -3793,14 +4081,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 500,
+                          "rows": 500,
                           "cost": 4.7057,
                           "chosen": true
                         }
                       ]
                     },
                     "cost_for_plan": 30068,
-                    "records_for_plan": 150000,
+                    "rows_for_plan": 150000,
                     "chosen": true
                   }
                 ]
@@ -3812,14 +4100,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "pruned_by_heuristic": true
               }
             ]
@@ -3864,12 +4152,12 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               {
                 "database": "test",
                 "table": "tmp",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -3973,6 +4261,15 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where (`test`.`t1`.`f2` = `test`.`tmp`.`f2`) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+            }
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
@@ -3993,16 +4290,36 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "database": "test",
+                "table": "tmp",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               },
@@ -4010,7 +4327,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "database": "test",
                 "table": "tmp",
                 "table_scan": {
-                  "records": 300,
+                  "rows": 300,
                   "cost": 3
                 }
               }
@@ -4025,14 +4342,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 300,
+                      "rows": 300,
                       "cost": 3.4648,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 63.465,
-                "records_for_plan": 300,
+                "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
                     "database": "test",
@@ -4042,14 +4359,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 500,
+                          "rows": 500,
                           "cost": 4.7057,
                           "chosen": true
                         }
                       ]
                     },
                     "cost_for_plan": 30068,
-                    "records_for_plan": 150000,
+                    "rows_for_plan": 150000,
                     "chosen": true
                   }
                 ]
@@ -4061,14 +4378,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "pruned_by_heuristic": true
               }
             ]
@@ -4113,12 +4430,12 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               {
                 "database": "test",
                 "table": "tmp",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -4250,6 +4567,15 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where ((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`)) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+            }
+          },
+          {
             "condition_processing": {
               "condition": "WHERE",
               "original_condition": "((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`))",
@@ -4270,16 +4596,36 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "database": "test",
+                "table": "tmp",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               },
@@ -4287,7 +4633,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "database": "test",
                 "table": "tmp",
                 "table_scan": {
-                  "records": 300,
+                  "rows": 300,
                   "cost": 3
                 }
               }
@@ -4302,14 +4648,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 300,
+                      "rows": 300,
                       "cost": 3.4648,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 63.465,
-                "records_for_plan": 300,
+                "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
                     "database": "test",
@@ -4319,14 +4665,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 500,
+                          "rows": 500,
                           "cost": 4.7057,
                           "chosen": true
                         }
                       ]
                     },
                     "cost_for_plan": 30068,
-                    "records_for_plan": 150000,
+                    "rows_for_plan": 150000,
                     "chosen": true
                   }
                 ]
@@ -4338,14 +4684,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "pruned_by_heuristic": true
               }
             ]
@@ -4390,12 +4736,12 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               {
                 "database": "test",
                 "table": "tmp",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -4547,12 +4893,24 @@ SELECT * FROM v1	{
               "select#": 2,
               "steps": [
                 {
-                  "records_estimation": [
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
                     {
                       "database": "test",
                       "table": "t1",
                       "table_scan": {
-                        "records": 500,
+                        "rows": 500,
                         "cost": 4
                       }
                     }
@@ -4567,14 +4925,14 @@ SELECT * FROM v1	{
                         "considered_access_paths": [
                           {
                             "access_type": "scan",
-                            "records": 500,
+                            "rows": 500,
                             "cost": 4.4414,
                             "chosen": true
                           }
                         ]
                       },
                       "cost_for_plan": 104.44,
-                      "records_for_plan": 500,
+                      "rows_for_plan": 500,
                       "chosen": true
                     }
                   ]
@@ -4614,7 +4972,7 @@ SELECT * FROM v1	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ]
                 }
@@ -4622,12 +4980,24 @@ SELECT * FROM v1	{
             }
           },
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "v1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "",
                 "table": "v1",
                 "table_scan": {
-                  "records": 30,
+                  "rows": 30,
                   "cost": 11
                 }
               }
@@ -4642,14 +5012,14 @@ SELECT * FROM v1	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 30,
+                      "rows": 30,
                       "cost": 11.5,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 17.5,
-                "records_for_plan": 30,
+                "rows_for_plan": 30,
                 "chosen": true
               }
             ]
@@ -4673,7 +5043,7 @@ SELECT * FROM v1	{
               {
                 "database": "",
                 "table": "v1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -4802,12 +5172,24 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
-                  "records_estimation": [
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
                     {
                       "database": "test",
                       "table": "t1",
                       "table_scan": {
-                        "records": 500,
+                        "rows": 500,
                         "cost": 4
                       }
                     }
@@ -4822,14 +5204,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "access_type": "scan",
-                            "records": 500,
+                            "rows": 500,
                             "cost": 4.4414,
                             "chosen": true
                           }
                         ]
                       },
                       "cost_for_plan": 104.44,
-                      "records_for_plan": 500,
+                      "rows_for_plan": 500,
                       "chosen": true
                     }
                   ]
@@ -4869,7 +5251,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ]
                 }
@@ -4877,12 +5259,24 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "v1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "",
                 "table": "v1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 15
                 }
               }
@@ -4897,14 +5291,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 15,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 35,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -4944,7 +5338,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               {
                 "database": "",
                 "table": "v1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -5123,12 +5517,24 @@ LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
-                  "records_estimation": [
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
                     {
                       "database": "test",
                       "table": "t1",
                       "table_scan": {
-                        "records": 500,
+                        "rows": 500,
                         "cost": 4
                       }
                     }
@@ -5143,14 +5549,14 @@ LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "access_type": "scan",
-                            "records": 500,
+                            "rows": 500,
                             "cost": 4.4414,
                             "chosen": true
                           }
                         ]
                       },
                       "cost_for_plan": 104.44,
-                      "records_for_plan": 500,
+                      "rows_for_plan": 500,
                       "chosen": true
                     }
                   ]
@@ -5190,7 +5596,7 @@ LIMIT 30	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ]
                 }
@@ -5202,12 +5608,24 @@ LIMIT 30	{
               "select#": 3,
               "steps": [
                 {
-                  "records_estimation": [
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
                     {
                       "database": "test",
                       "table": "t1",
                       "table_scan": {
-                        "records": 500,
+                        "rows": 500,
                         "cost": 4
                       }
                     }
@@ -5222,14 +5640,14 @@ LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "access_type": "scan",
-                            "records": 500,
+                            "rows": 500,
                             "cost": 4.4414,
                             "chosen": true
                           }
                         ]
                       },
                       "cost_for_plan": 104.44,
-                      "records_for_plan": 500,
+                      "rows_for_plan": 500,
                       "chosen": true
                     }
                   ]
@@ -5269,11 +5687,20 @@ LIMIT 30	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ]
                 }
               ]
+            }
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from `test`.`v1` join `test`.`v2` where (`v1`.`f1` = `v2`.`f1`) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
             }
           },
           {
@@ -5295,6 +5722,26 @@ LIMIT 30	{
                 }
               ]
             }
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "v1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "database": "",
+                "table": "v2",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
           },
           {
             "ref_optimizer_key_uses": [
@@ -5329,12 +5776,12 @@ LIMIT 30	{
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "",
                 "table": "v1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 15
                 }
               },
@@ -5342,7 +5789,7 @@ LIMIT 30	{
                 "database": "",
                 "table": "v2",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 15
                 }
               }
@@ -5369,14 +5816,14 @@ LIMIT 30	{
                     },
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 15,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 35,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "rest_of_plan": [
                   {
                     "database": "",
@@ -5386,28 +5833,28 @@ LIMIT 30	{
                         {
                           "access_type": "ref",
                           "index": "auto_key0",
-                          "records": 10,
+                          "rows": 10,
                           "cost": 1002,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "auto_key1",
-                          "records": 10,
+                          "rows": 10,
                           "cost": 1002,
                           "chosen": false
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 75,
+                          "rows": 75,
                           "cost": 22.403,
                           "chosen": false
                         }
                       ]
                     },
                     "cost_for_plan": 1235,
-                    "records_for_plan": 1000,
+                    "rows_for_plan": 1000,
                     "chosen": true
                   }
                 ]
@@ -5431,14 +5878,14 @@ LIMIT 30	{
                     },
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 15,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 35,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "rest_of_plan": [
                   {
                     "database": "",
@@ -5448,28 +5895,28 @@ LIMIT 30	{
                         {
                           "access_type": "ref",
                           "index": "auto_key0",
-                          "records": 10,
+                          "rows": 10,
                           "cost": 1002,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "auto_key1",
-                          "records": 10,
+                          "rows": 10,
                           "cost": 1002,
                           "chosen": false
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 75,
+                          "rows": 75,
                           "cost": 22.403,
                           "chosen": false
                         }
                       ]
                     },
                     "cost_for_plan": 1235,
-                    "records_for_plan": 1000,
+                    "rows_for_plan": 1000,
                     "pruned_by_cost": true
                   }
                 ]
@@ -5519,7 +5966,7 @@ LIMIT 30	{
               {
                 "database": "",
                 "table": "v1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "",
@@ -5677,12 +6124,24 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               }
@@ -5697,14 +6156,14 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "chosen": true
               }
             ]
@@ -5757,7 +6216,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -5923,16 +6382,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               }
@@ -5947,14 +6418,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "chosen": true
               }
             ]
@@ -5994,7 +6465,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -6094,16 +6565,28 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               }
@@ -6118,14 +6601,14 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "chosen": true
               }
             ]
@@ -6165,7 +6648,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -6266,16 +6749,28 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               }
@@ -6290,14 +6785,14 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "chosen": true
               }
             ]
@@ -6337,7 +6832,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -6457,12 +6952,24 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
-                  "records_estimation": [
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
                     {
                       "database": "test",
                       "table": "t1",
                       "table_scan": {
-                        "records": 500,
+                        "rows": 500,
                         "cost": 4
                       }
                     }
@@ -6477,14 +6984,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "access_type": "scan",
-                            "records": 500,
+                            "rows": 500,
                             "cost": 4.4414,
                             "chosen": true
                           }
                         ]
                       },
                       "cost_for_plan": 104.44,
-                      "records_for_plan": 500,
+                      "rows_for_plan": 500,
                       "chosen": true
                     }
                   ]
@@ -6524,7 +7031,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ]
                 }
@@ -6532,12 +7039,24 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "",
+                "table": "v1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "",
                 "table": "v1",
                 "table_scan": {
-                  "records": 100,
+                  "rows": 100,
                   "cost": 15
                 }
               }
@@ -6552,14 +7071,14 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 100,
+                      "rows": 100,
                       "cost": 15,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 35,
-                "records_for_plan": 100,
+                "rows_for_plan": 100,
                 "chosen": true
               }
             ]
@@ -6599,7 +7118,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               {
                 "database": "",
                 "table": "v1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -6752,12 +7271,24 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
-                  "records_estimation": [
+                  "table_dependencies": [
+                    {
+                      "database": "test",
+                      "table": "t1",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "rows_estimation": [
                     {
                       "database": "test",
                       "table": "t1",
                       "table_scan": {
-                        "records": 500,
+                        "rows": 500,
                         "cost": 4
                       }
                     }
@@ -6772,14 +7303,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "access_type": "scan",
-                            "records": 500,
+                            "rows": 500,
                             "cost": 4.4414,
                             "chosen": true
                           }
                         ]
                       },
                       "cost_for_plan": 104.44,
-                      "records_for_plan": 500,
+                      "rows_for_plan": 500,
                       "chosen": true
                     }
                   ]
@@ -6816,12 +7347,41 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                     {
                       "database": "test",
                       "table": "t1",
-                      "scan_type": "table"
+                      "access_type": "table_scan"
                     }
                   ]
                 }
               ]
             }
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from `test`.`t1` left join (/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1` limit 30) `d1` on((`test`.`t1`.`f1` = `d1`.`f1`)) order by `d1`.`f2` desc limit 30"
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              },
+              {
+                "database": "",
+                "table": "d1",
+                "row_may_be_null": true,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                  0
+                ]
+              }
+            ]
           },
           {
             "ref_optimizer_key_uses": [
@@ -6842,12 +7402,12 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               },
@@ -6855,7 +7415,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "database": "",
                 "table": "d1",
                 "table_scan": {
-                  "records": 30,
+                  "rows": 30,
                   "cost": 11
                 }
               }
@@ -6870,14 +7430,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "rest_of_plan": [
                   {
                     "database": "",
@@ -6887,28 +7447,30 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                         {
                           "access_type": "ref",
                           "index": "auto_key0",
-                          "records": 3,
+                          "rows": 3,
                           "cost": 1500.6,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "auto_key1",
-                          "records": 3,
+                          "rows": 3,
                           "cost": 1500.6,
                           "chosen": false
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
-                          "records": 23,
+                          "rows": 23,
                           "cost": 13.119,
                           "chosen": false
                         }
                       ]
                     },
                     "cost_for_plan": 1904.4,
-                    "records_for_plan": 1500,
+                    "rows_for_plan": 1500,
+                    "sort_cost": 1500,
+                    "new_cost_for_plan": 3404.4,
                     "chosen": true
                   }
                 ]
@@ -6952,12 +7514,12 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               },
               {
                 "database": "",
                 "table": "d1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -7070,7 +7632,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
+                  "subselect_evaluation": [
                   ],
                   "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1), `test`.`t1`.`f1`)"
                 },
@@ -7086,16 +7648,28 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               }
@@ -7110,14 +7684,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "chosen": true
               }
             ]
@@ -7141,7 +7715,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -7161,12 +7735,24 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                     "select#": 2,
                     "steps": [
                       {
-                        "records_estimation": [
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "rows_estimation": [
                           {
                             "database": "test",
                             "table": "t1",
                             "table_scan": {
-                              "records": 500,
+                              "rows": 500,
                               "cost": 4
                             }
                           }
@@ -7181,14 +7767,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                               "considered_access_paths": [
                                 {
                                   "access_type": "scan",
-                                  "records": 500,
+                                  "rows": 500,
                                   "cost": 4.4414,
                                   "chosen": true
                                 }
                               ]
                             },
                             "cost_for_plan": 104.44,
-                            "records_for_plan": 500,
+                            "rows_for_plan": 500,
                             "chosen": true
                           }
                         ]
@@ -7225,7 +7811,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                           {
                             "database": "test",
                             "table": "t1",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ]
                       }
@@ -10801,7 +11387,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
+                  "subselect_evaluation": [
                   ],
                   "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2), `test`.`t1`.`f1`)"
                 },
@@ -10817,16 +11403,28 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
             }
           },
           {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
             "ref_optimizer_key_uses": [
             ]
           },
           {
-            "records_estimation": [
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 500,
+                  "rows": 500,
                   "cost": 4
                 }
               }
@@ -10841,14 +11439,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 500,
+                      "rows": 500,
                       "cost": 4.4414,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 104.44,
-                "records_for_plan": 500,
+                "rows_for_plan": 500,
                 "chosen": true
               }
             ]
@@ -10872,7 +11470,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }
@@ -10892,12 +11490,24 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                     "select#": 2,
                     "steps": [
                       {
-                        "records_estimation": [
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "rows_estimation": [
                           {
                             "database": "test",
                             "table": "t1",
                             "table_scan": {
-                              "records": 500,
+                              "rows": 500,
                               "cost": 4
                             }
                           }
@@ -10912,14 +11522,14 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                               "considered_access_paths": [
                                 {
                                   "access_type": "scan",
-                                  "records": 500,
+                                  "rows": 500,
                                   "cost": 4.4414,
                                   "chosen": true
                                 }
                               ]
                             },
                             "cost_for_plan": 104.44,
-                            "records_for_plan": 500,
+                            "rows_for_plan": 500,
                             "chosen": true
                           }
                         ]
@@ -10956,7 +11566,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                           {
                             "database": "test",
                             "table": "t1",
-                            "scan_type": "table"
+                            "access_type": "table_scan"
                           }
                         ]
                       }
@@ -11140,12 +11750,24 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
-            "records_estimation": [
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
               {
                 "database": "test",
                 "table": "t1",
                 "table_scan": {
-                  "records": 438500,
+                  "rows": 438500,
                   "cost": 2143
                 }
               }
@@ -11160,14 +11782,14 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
                   "considered_access_paths": [
                     {
                       "access_type": "scan",
-                      "records": 438500,
+                      "rows": 438500,
                       "cost": 2143.1,
                       "chosen": true
                     }
                   ]
                 },
                 "cost_for_plan": 89843,
-                "records_for_plan": 438500,
+                "rows_for_plan": 438500,
                 "chosen": true
               }
             ]
@@ -11204,7 +11826,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
               {
                 "database": "test",
                 "table": "t1",
-                "scan_type": "table"
+                "access_type": "table_scan"
               }
             ]
           }

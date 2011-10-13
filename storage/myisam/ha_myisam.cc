@@ -2171,7 +2171,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
     pushed index condition and the BLOB field might be part of the
     range evaluation done by the ICP code.
   */
-  const KEY *key= &table->key_info[keyno_arg];
+  const KEY *key= &table_share->key_info[keyno_arg];
 
   for (uint k= 0; k < key->key_parts; ++k)
   {

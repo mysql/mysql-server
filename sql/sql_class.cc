@@ -345,7 +345,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
     my_micro_time();
-  threads.append(thd);
+  threads.push_front(thd);
   thd_unlock_thread_count(thd);
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
@@ -2080,7 +2080,7 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
   change= new (change_mem) Item_change_record;
   change->place= place;
   change->old_value= old_value;
-  change_list.append(change);
+  change_list.push_front(change);
 }
 
 

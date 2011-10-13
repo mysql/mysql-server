@@ -6477,23 +6477,19 @@ void ha_partition::late_extra_no_cache(uint partition_id)
                 MODULE optimiser support
 ****************************************************************************/
 
-/*
-  Get keys to use for scanning
+/**
+  Get keys to use for scanning.
 
-  SYNOPSIS
-    keys_to_use_for_scanning()
+  @return key_map of keys usable for scanning
 
-  RETURN VALUE
-    key_map of keys usable for scanning
+  @note No need to use read_partitions here, since it does not depend on
+  which partitions is used, only which storage engine used.
 */
 
 const key_map *ha_partition::keys_to_use_for_scanning()
 {
-  uint first_used_partition;
   DBUG_ENTER("ha_partition::keys_to_use_for_scanning");
-
-  first_used_partition= bitmap_get_first_set(&(m_part_info->read_partitions));
-  DBUG_RETURN(m_file[first_used_partition]->keys_to_use_for_scanning());
+  DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());
 }
 
 #define MAX_PARTS_FOR_OPTIMIZER_CALLS 10U
@@ -7339,6 +7335,27 @@ void ha_partition::release_auto_increment()
 void ha_partition::init_table_handle_for_HANDLER()
 {
   return;
+}
+
+
+/**
+  Return the checksum of the table (all partitions)
+*/
+
+uint ha_partition::checksum() const
+{
+  ha_checksum sum= 0;
+
+  DBUG_ENTER("ha_partition::checksum");
+  if ((table_flags() & HA_HAS_CHECKSUM))
+  {
+    handler **file= m_file;
+    do
+    {
+      sum+= (*file)->checksum();
+    } while (*(++file));
+  }
+  DBUG_RETURN(sum);
 }
 
 

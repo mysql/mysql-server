@@ -2169,6 +2169,14 @@ public:
 
  virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
 
+ /** Reset information about pushed index conditions */
+ virtual void cancel_pushed_idx_cond()
+ {
+   pushed_idx_cond= NULL;
+   pushed_idx_cond_keyno= MAX_KEY;
+   in_range_check_pushed_down= false;
+ }
+
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }

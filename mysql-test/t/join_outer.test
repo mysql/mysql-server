@@ -1342,3 +1342,42 @@ execute prep_stmt_9846;
 deallocate prepare prep_stmt_9846;
 drop table t1;
 
+--echo #
+--echo # Bug#13040136 - ASSERT IN PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG()
+--echo #
+CREATE TABLE t1 (
+  col_varchar_10 VARCHAR(10),
+  col_int_key INTEGER,
+  col_varchar_10_key VARCHAR(10),
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_10_key)
+);
+INSERT INTO t1 VALUES ('q',NULL,'o',1);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL AUTO_INCREMENT,
+  col_varchar_10_key VARCHAR(10),
+  col_int_key INTEGER,
+  col_varchar_10 VARCHAR(10),
+  PRIMARY KEY (pk),
+  KEY (col_varchar_10_key),
+  KEY col_int_key (col_int_key)
+);
+INSERT INTO t2 VALUES
+(1,'r',NULL,'would'),(2,'tell',-655032320,'t'),
+(3,'d',9,'a'),(4,'gvafasdkiy',6,'ugvafasdki'),
+(5,'that\'s',NULL,'she'),(6,'bwftwugvaf',7,'cbwftwugva'),
+(7,'f',-700055552,'mkacbwftwu'),(8,'a',9,'be'),
+(9,'d',NULL,'u'),(10,'ckiixcsxmk',NULL,'o');
+
+SELECT DISTINCT t2.col_int_key 
+FROM
+t1
+LEFT JOIN t2
+ON t1.col_varchar_10 = t2.col_varchar_10_key 
+WHERE t2.pk
+ORDER BY t2.col_int_key;
+
+DROP TABLE t1,t2;

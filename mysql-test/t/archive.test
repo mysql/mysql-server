@@ -12,6 +12,7 @@ DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
 
 SET default_storage_engine=ARCHIVE;
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 CREATE TABLE t1 (
   Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
@@ -1641,18 +1642,14 @@ DROP TABLE t1,t2;
 #
 # BUG#47012 archive tables are not upgradeable, and server crashes on any access
 #
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
 copy_file std_data/bug47012.frm $MYSQLD_DATADIR/test/t1.frm;
 copy_file std_data/bug47012.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
 copy_file std_data/bug47012.ARM $MYSQLD_DATADIR/test/t1.ARM;
 
---error ER_TABLE_NEEDS_UPGRADE
 SHOW CREATE TABLE t1;
 
---error ER_TABLE_NEEDS_UPGRADE
 SELECT * FROM t1;
 
---error ER_TABLE_NEEDS_UPGRADE
 INSERT INTO t1 (col1, col2) VALUES (1, "value");
 
 REPAIR TABLE t1;
@@ -1715,7 +1712,6 @@ CREATE TABLE t1 (a int) ENGINE=ARCHIVE;
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES (1);
 OPTIMIZE TABLE t1;
-let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test/t1.frm;
 FLUSH TABLES;
 INSERT INTO t1 VALUES (2);
@@ -1745,3 +1741,33 @@ INSERT INTO t1 SELECT t1.* FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6;
 SELECT * FROM t1 ORDER BY f LIMIT 1;
 DROP TABLE t1;
 SET sort_buffer_size=DEFAULT;
+
+--echo #
+--echo # BUG#11756687 - 48633: ARCHIVE TABLES ARE NOT UPGRADEABLE
+--echo #
+copy_file std_data/bug48633.frm $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/bug48633.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
+copy_file std_data/bug48633.ARM $MYSQLD_DATADIR/test/t1.ARM;
+SHOW CREATE TABLE t1;
+# Test first table scan
+SELECT * FROM t1;
+# Test second table scan
+SELECT * FROM t1;
+# Test table close
+FLUSH TABLE t1;
+SELECT * FROM t1;
+# Test check
+CHECK TABLE t1;
+SELECT * FROM t1;
+# Test insert
+INSERT INTO t1 VALUES(3, 'text', 'varchar', 'blob1', 'blob2');
+SELECT * FROM t1;
+# Test table close after insert
+FLUSH TABLE t1;
+SELECT * FROM t1;
+# Test repair
+REPAIR TABLE t1;
+SELECT * FROM t1;
+# Test check table after upgrade
+CHECK TABLE t1;
+DROP TABLE t1;
