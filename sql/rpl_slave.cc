@@ -425,11 +425,10 @@ int init_recovery(Master_info* mi, const char** errmsg)
 
 int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 {
-  int error= 0;
-  int necessary_to_configure= 0;
-
   DBUG_ENTER("init_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
+  int init_error= 0;
+  enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -445,26 +444,30 @@ int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
     SLAVE_SQL thread is being started or was not initialized as it is
     required by the SLAVE_IO thread.
   */
-  necessary_to_configure= mi->check_info();
-  if (!(ignore_if_no_info && necessary_to_configure))
+  check_return= mi->check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+    goto end;
+
+  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
-    if ((thread_mask & SLAVE_IO) != 0 &&
-        mi->init_info())
-      error= 1;
+    if ((thread_mask & SLAVE_IO) != 0 && mi->init_info())
+      init_error= 1;
   }
 
-  necessary_to_configure= mi->rli->check_info();
-  if (!(ignore_if_no_info && necessary_to_configure))
+  check_return= mi->rli->check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+    goto end;
+  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
-     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
-         && mi->rli->init_info())
-    error= 1;
+    if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
+        && mi->rli->init_info())
+      init_error= 1;
   }
 
+end:
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-
-  DBUG_RETURN(error);
+  DBUG_RETURN(check_return == ERROR_CHECKING_REPOSITORY || init_error);
 }
 
 void end_info(Master_info* mi)
@@ -742,7 +745,10 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the relay log info regardles of the sync_relay_log_info option.
     */
     if (mi->rli->flush_info(TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     mysql_mutex_unlock(log_lock);
   }
@@ -767,14 +773,20 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the master info regardles of the sync_master_info option.
     */
     if (mi->flush_info(TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     /*
       Flushes the relay log regardles of the sync_relay_log option.
     */
     if (mi->rli->relay_log.is_open() &&
         mi->rli->relay_log.flush_and_sync(0, TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     mysql_mutex_unlock(log_lock);
   }
@@ -2011,7 +2023,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
       if (flush_master_info(mi, TRUE))
-        sql_print_error("Failed to flush master info file");
+        sql_print_error("Failed to flush master info file.");
       delete ev;
     }
     else
@@ -2917,20 +2929,19 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
   if (exec_res == 0)
   {
     /*
-      Positions are not updated here when an XID is processed and the relay
-      log info is stored in a transactional engine such as Innodb. To make
-      a slave crash-safe, positions must be updated while processing a XID
-      event and as such do not need to be updated here again.
+      Positions are not updated here when an XID is processed. To make
+      a slave crash-safe, positions must be updated while processing a
+      XID event and as such do not need to be updated here again.
 
-      However, if the event needs to be skipped, this means that it will not
-      be processed and then positions need to be updated here.
+      However, if the event needs to be skipped, this means that it
+      will not be processed and then positions need to be updated here.
 
       See sql/rpl_rli.h for further details.
     */
     int error= 0;
     if (*ptr_ev &&
-        (!(ev->get_type_code() == XID_EVENT && rli->is_transactional()) ||
-         skip_event || (rli->is_mts_recovery() && 
+        (ev->get_type_code() != XID_EVENT ||
+         skip_event || (rli->is_mts_recovery() &&
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
@@ -3644,7 +3655,9 @@ Stopping slave I/O thread due to out-of-memory error from master");
       mysql_mutex_lock(&mi->data_lock);
       if (flush_master_info(mi, FALSE))
       {
-        sql_print_error("Failed to flush master info file");
+        mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                   ER(ER_SLAVE_FATAL_ERROR),
+                   "Failed to flush master info.");
         mysql_mutex_unlock(&mi->data_lock);
         goto err;
       }

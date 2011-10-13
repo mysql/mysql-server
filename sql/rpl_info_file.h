@@ -45,7 +45,7 @@ private:
   IO_CACHE info_file;
 
   int do_init_info(const ulong *uidx, const uint nidx);
-  int do_check_info(const ulong *uidx, const uint nidx);
+  enum_return_check do_check_info(const ulong *uidx, const uint nidx);
   void do_end_info(const ulong *uidx, const uint nidx);
   int do_flush_info(const ulong *uidx, const uint nidx,
                     const bool force);
