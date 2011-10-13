@@ -19,8 +19,8 @@
 */
 
 #include "my_global.h"
-#include "pfs_digest.h"
 #include "my_sys.h"
+#include "pfs_digest.h"
 #include "pfs_global.h"
 #include <string.h>
 
