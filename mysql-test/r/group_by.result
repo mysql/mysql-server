@@ -1676,7 +1676,7 @@ c	(SELECT a FROM t1 WHERE b = c)
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42000: non-grouping field 'b' is used in HAVING clause
+ERROR 42000: Non-grouping field 'b' is used in HAVING clause
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
@@ -2108,3 +2108,17 @@ pk
 DROP VIEW v1;
 DROP TABLE t1,t2;
 # End of Bug#12798270
+#
+# Bug#12837714: ADDITIONAL NULL IN 5.6 ON GROUPED SELECT
+#
+CREATE TABLE t1 (vc varchar(1), INDEX vc_idx (vc)) ;
+INSERT INTO t1 VALUES (NULL), ('o'), (NULL), ('p'), ('c');
+FLUSH TABLE t1;
+SELECT vc FROM t1 GROUP BY vc;
+vc
+NULL
+c
+o
+p
+DROP TABLE t1;
+# End of Bug#12837714

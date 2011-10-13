@@ -3461,6 +3461,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     {
       if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
       {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+        if (file->ht == partition_hton)
+        {
+          my_message(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING,
+                     ER(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING),
+                     MYF(0));
+          DBUG_RETURN(TRUE);
+        }
+#endif
 	my_message(ER_TABLE_CANT_HANDLE_FT, ER(ER_TABLE_CANT_HANDLE_FT),
                    MYF(0));
 	DBUG_RETURN(TRUE);

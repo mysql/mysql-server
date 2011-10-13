@@ -695,7 +695,7 @@ void *create_embedded_thd(int client_flag)
   memset(&thd->net, 0, sizeof(thd->net));
 
   thread_count++;
-  threads.append(thd);
+  threads.push_front(thd);
   thd->mysys_var= 0;
   return thd;
 err:

@@ -2171,7 +2171,7 @@ subselect_single_select_engine(st_select_lex *select,
 			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg),
-   prepared(0), executed(0), select_lex(select), join(0)
+   prepared(0), executed(0), optimize_error(0), select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
 }
@@ -2180,7 +2180,7 @@ subselect_single_select_engine(st_select_lex *select,
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= executed= 0;
+  prepared= executed= optimize_error= false;
   join= 0;
   result->cleanup();
   DBUG_VOID_RETURN;
@@ -2392,6 +2392,10 @@ int join_read_next_same_or_null(READ_RECORD *info);
 bool subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+
+  if (optimize_error)
+    DBUG_RETURN(true);
+
   int rc= 0;
   THD * const thd= item->unit->thd;
   char const *save_where= thd->where;
@@ -2402,9 +2406,13 @@ bool subselect_single_select_engine::exec()
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
 
     unit->set_limit(unit->global_parameters);
+
+    DBUG_EXECUTE_IF("bug11747970_simulate_error",
+                    DBUG_SET("+d,bug11747970_raise_error"););
+
     if (join->optimize())
     {
-      executed= true;
+      optimize_error= true;
       rc= join->error ? join->error : 1;
       goto exit;
     }
@@ -2558,6 +2566,7 @@ bool subselect_uniquesubquery_engine::scan_table()
 
     if (!cond || cond->val_int())
     {
+      static_cast<Item_in_subselect*>(item)->value= true;
       empty_result_set= FALSE;
       break;
     }
@@ -2568,79 +2577,86 @@ bool subselect_uniquesubquery_engine::scan_table()
 }
 
 
-/*
+/**
   Copy ref key and check for null parts in it
 
-  SYNOPSIS
-    subselect_uniquesubquery_engine::copy_ref_key()
+  Construct a search tuple to be used for index lookup. If one of the
+  key parts have a NULL value, the following logic applies:
 
-  DESCRIPTION
-    Copy ref key and check for null parts in it.
-    Depending on the nullability and conversion problems this function
-    recognizes and processes the following states :
-      1. Partial match on top level. This means IN has a value of FALSE
-         regardless of the data in the subquery table.
-         Detected by finding a NULL in the left IN operand of a top level
-         expression.
-         We may actually skip reading the subquery, so return TRUE to skip
-         the table scan in subselect_uniquesubquery_engine::exec and make
-         the value of the IN predicate a NULL (that is equal to FALSE on
-         top level).
-      2. No exact match when IN is nested inside another predicate.
-         Detected by finding a NULL in the left IN operand when IN is not
-         a top level predicate.
-         We cannot have an exact match. But we must proceed further with a
-         table scan to find out if it's a partial match (and IN has a value
-         of NULL) or no match (and IN has a value of FALSE).
-         So we return FALSE to continue with the scan and see if there are
-         any record that would constitute a partial match (as we cannot
-         determine that from the index).
-      3. Error converting the left IN operand to the column type of the
-         right IN operand. This counts as no match (and IN has the value of
-         FALSE). We mark the subquery table cursor as having no more rows
-         (to ensure that the processing that follows will not find a match)
-         and return FALSE, so IN is not treated as returning NULL.
+  For top level items, e.g.
 
+     "WHERE <outer_value_list> IN (SELECT <inner_value_list>...)"
 
-  RETURN
-    FALSE - The value of the IN predicate is not known. Proceed to find the
-            value of the IN predicate using the determined values of
-            null_keypart and table->status.
-    TRUE  - IN predicate has a value of NULL. Stop the processing right there
-            and return NULL to the outer predicates.
+  where one of the outer values are NULL, the IN predicate evaluates
+  to false/UNKNOWN (we don't care) and it's not necessary to evaluate
+  the subquery. That shortcut is taken in
+  Item_in_optimizer::val_int(). Thus, if a key part with a NULL value
+  is found here, the NULL is either not outer or this subquery is not
+  top level. Therefore we cannot shortcut subquery execution if a NULL
+  is found here.
+
+  Thus, if one of the key parts have a NULL value there are two
+  possibilities:
+
+  a) The NULL is from the outer_value_list. Since this is not a top
+     level item (see above) we need to check whether this predicate
+     evaluates to NULL or false. That is done by checking if the
+     subquery has a row if the conditions based on outer NULL values
+     are disabled. Index lookup cannot be used for this, so a table
+     scan must be done.
+
+  b) The NULL is local to the subquery, e.g.:
+
+        "WHERE ... IN (SELECT ... WHERE inner_col IS NULL)"
+
+     In this case we're looking for rows with the exact inner_col
+     value of NULL, not rows that match if the "inner_col IS NULL"
+     condition is disabled. Index lookup can be used for this.
+
+  @see subselect_uniquesubquery_engine::exec()
+  @see Item_in_optimizer::val_int()
+
+  @param[out] require_scan   true if a NULL value is found that falls 
+                             into category a) above, false if index 
+                             lookup can be used.
+  @param[out] convert_error  true if an error occured during conversion
+                             of values from one type to another, false
+                             otherwise.
+  
 */
-
-bool subselect_uniquesubquery_engine::copy_ref_key()
+void subselect_uniquesubquery_engine::copy_ref_key(bool *require_scan, 
+                                                   bool *convert_error)
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::copy_ref_key");
 
-  for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
+  *require_scan= false;
+  *convert_error= false;
+  for (uint part_no= 0; part_no < tab->ref.key_parts; part_no++)
   {
-    enum store_key::store_key_result store_res;
-    store_res= (*copy)->copy();
+    store_key *s_key= tab->ref.key_copy[part_no];
+    if (s_key == NULL)
+      continue; // key is const and does not need to be reevaluated
+
+    const enum store_key::store_key_result store_res= s_key->copy();
     tab->ref.key_err= store_res;
 
-    /*
-      When there is a NULL part in the key we don't need to make index
-      lookup for such key thus we don't need to copy whole key.
-      If we later should do a sequential scan return OK. Fail otherwise.
-
-      See also the comment for the subselect_uniquesubquery_engine::exec()
-      function.
-    */
-    null_keypart= (*copy)->null_key;
-    if (null_keypart)
+    if (s_key->null_key)
     {
-      bool top_level= ((Item_in_subselect *) item)->is_top_level_item();
-      if (top_level)
+      const bool *cond_guard= tab->ref.cond_guards[part_no];
+
+      /*
+        NULL value is from the outer_value_list if the key part has a
+        cond guard that deactivates the condition. @see
+        TABLE_REF::cond_guards
+
+      */
+      if (cond_guard && !*cond_guard)
       {
-        /* Partial match on top level */
-        DBUG_RETURN(1);
-      }
-      else
-      {
-        /* No exact match when IN is nested inside another predicate */
-        break;
+        DBUG_ASSERT(!(static_cast <Item_in_subselect*>(item)
+                      ->is_top_level_item()));
+
+        *require_scan= true;
+        DBUG_VOID_RETURN;
       }
     }
 
@@ -2659,10 +2675,11 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
        IN operand. 
       */
       tab->table->status= STATUS_NOT_FOUND;
-      break;
+      *convert_error= true;
+      DBUG_VOID_RETURN;
     }
   }
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2719,22 +2736,20 @@ bool subselect_uniquesubquery_engine::exec()
       DBUG_RETURN(1);
   }
 
-  /* TODO: change to use of 'full_scan' here? */
-  if (copy_ref_key())
-    DBUG_RETURN(1);
-  if (table->status)
+  /* Copy the ref key and check for nulls... */
+  bool require_scan, convert_error;
+  copy_ref_key(&require_scan, &convert_error);
+  if (convert_error)
   {
-    /* 
-      We know that there will be no rows even if we scan. 
-      Can be set in copy_ref_key.
-    */
     ((Item_in_subselect *) item)->value= 0;
     DBUG_RETURN(0);
   }
 
-  if (null_keypart)
-    DBUG_RETURN(scan_table());
- 
+  if (require_scan)
+  {
+    const bool scan_result= scan_table();
+    DBUG_RETURN(scan_result);
+  }
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 0);
   error= table->file->ha_index_read_map(table->record[0],
@@ -2824,7 +2839,6 @@ bool subselect_indexsubquery_engine::exec()
 
   ((Item_in_subselect *) item)->value= 0;
   empty_result_set= TRUE;
-  null_keypart= 0;
   table->status= 0;
 
   if (tl->uses_materialization() && !tl->materialized)
@@ -2848,21 +2862,19 @@ bool subselect_indexsubquery_engine::exec()
   }
 
   /* Copy the ref key and check for nulls... */
-  if (copy_ref_key())
-    DBUG_RETURN(1);
-
-  if (table->status)
+  bool require_scan, convert_error;
+  copy_ref_key(&require_scan, &convert_error);
+  if (convert_error)
   {
-    /* 
-      We know that there will be no rows even if we scan. 
-      Can be set in copy_ref_key.
-    */
     ((Item_in_subselect *) item)->value= 0;
     DBUG_RETURN(0);
   }
 
-  if (null_keypart)
-    DBUG_RETURN(scan_table());
+  if (require_scan)
+  {
+    const bool scan_result= scan_table();
+    DBUG_RETURN(scan_result);
+  }
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 1);
@@ -3365,14 +3377,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   if (!(tmp_tab->ref.key_buff=
         (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
       !(tmp_tab->ref.key_copy=
-        (store_key**) thd->alloc((sizeof(store_key*) *
-                                  (tmp_key_parts + 1)))) ||
+        (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
       !(tmp_tab->ref.items=
         (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
     DBUG_RETURN(TRUE);
 
-  KEY_PART_INFO *cur_key_part= tmp_key->key_part;
-  store_key **ref_key= tmp_tab->ref.key_copy;
   uchar *cur_ref_buff= tmp_tab->ref.key_buff;
 
   /*
@@ -3405,16 +3414,20 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   context->first_name_resolution_table=
     context->last_name_resolution_table= tmp_table_ref;
   
-  for (uint i= 0; i < tmp_key_parts; i++, cur_key_part++, ref_key++)
+  KEY_PART_INFO *key_parts= tmp_key->key_part;
+  for (uint part_no= 0; part_no < tmp_key_parts; part_no++)
   {
-    Item_func_eq *eq_cond; /* New equi-join condition for the current column. */
+    /* New equi-join condition for the current column. */
+    Item_func_eq *eq_cond; 
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
-    int null_count= test(cur_key_part->field->real_maybe_null());
-    tmp_tab->ref.items[i]= item_in->left_expr->element_index(i);
+    int null_count= test(key_parts[part_no].field->real_maybe_null());
+    tmp_tab->ref.items[part_no]= item_in->left_expr->element_index(part_no);
 
-    if (!(right_col_item= new Item_field(thd, context, cur_key_part->field)) ||
-        !(eq_cond= new Item_func_eq(tmp_tab->ref.items[i], right_col_item)) ||
+    if (!(right_col_item= new Item_field(thd, context, 
+                                         key_parts[part_no].field)) ||
+        !(eq_cond= new Item_func_eq(tmp_tab->ref.items[part_no],
+                                    right_col_item)) ||
         ((Item_cond_and*)cond)->add(eq_cond))
     {
       delete cond;
@@ -3422,19 +3435,20 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       DBUG_RETURN(TRUE);
     }
 
-    *ref_key= new store_key_item(thd, cur_key_part->field,
-                                 /* TODO:
-                                    the NULL byte is taken into account in
-                                    cur_key_part->store_length, so instead of
-                                    cur_ref_buff + test(maybe_null), we could
-                                    use that information instead.
-                                 */
-                                 cur_ref_buff + null_count,
-                                 null_count ? cur_ref_buff : 0,
-                                 cur_key_part->length, tmp_tab->ref.items[i]);
-    cur_ref_buff+= cur_key_part->store_length;
+    tmp_tab->ref.key_copy[part_no]= 
+      new store_key_item(thd, key_parts[part_no].field,
+                         /* TODO:
+                            the NULL byte is taken into account in
+                            key_parts[part_no].store_length, so instead of
+                            cur_ref_buff + test(maybe_null), we could
+                            use that information instead.
+                         */
+                         cur_ref_buff + null_count,
+                         null_count ? cur_ref_buff : 0,
+                         key_parts[part_no].length,
+                         tmp_tab->ref.items[part_no]);
+    cur_ref_buff+= key_parts[part_no].store_length;
   }
-  *ref_key= NULL; /* End marker. */
   tmp_tab->ref.key_err= 1;
   tmp_tab->ref.key_parts= tmp_key_parts;
 
