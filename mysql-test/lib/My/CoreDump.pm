@@ -81,7 +81,7 @@ sub _gdb {
   return if $? >> 8;
   return unless $gdb_output;
 
-  resfile_print <<EOF, $gdb_output, "\n";
+  resfile_print <<EOF . $gdb_output . "\n";
 Output from gdb follows. The first stack trace is from the failing thread.
 The following stack traces are from all threads (so the failing one is
 duplicated).
@@ -245,7 +245,7 @@ sub _cdb {
   $cdb_output=~ s/^Child\-SP          RetAddr           Call Site//gm;
   $cdb_output=~ s/\+0x([0-9a-fA-F]+)//gm;
   
-  resfile_print <<EOF, $cdb_output, "\n";
+  resfile_print <<EOF . $cdb_output . "\n";
 Output from cdb follows. Faulting thread is printed twice,with and without function parameters
 Search for STACK_TEXT to see the stack trace of 
 the faulting thread. Callstacks of other threads are printed after it.

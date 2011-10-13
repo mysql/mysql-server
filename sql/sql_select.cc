@@ -4994,6 +4994,16 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
+
+    DBUG_EXECUTE_IF("bug11747970_raise_error",
+                    {
+                      if (!error)
+                      {
+                        my_error(ER_UNKNOWN_ERROR, MYF(0));
+                        goto error;
+                      }
+                    });
+
     if (error)
     {
       table->file->print_error(error, MYF(0));
@@ -11768,7 +11778,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     for any join operation (inner join, outer join, semi-join) with 'JT_ALL' 
     access method.  In that case, a JOIN_CACHE_BNL object is always employed.
 
-    If an index is used to access rows of the joined table and batch_key_access
+    If an index is used to access rows of the joined table and batched_key_access
     is on, then a JOIN_CACHE_BKA object is employed. (Unless debug flag,
     test_bka unique, is set, then a JOIN_CACHE_BKA_UNIQUE object is employed
     instead.) 
@@ -13135,7 +13145,10 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     {
       if (order->item[0]->has_subquery() && 
           !(join->select_lex->options & SELECT_DESCRIBE))
+      {
+        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
         order->item[0]->val_str(&order->item[0]->str_value);
+      }
       trace_one_item.add("uses_only_constant_tables", true);
       continue;					// skip const item
     }
@@ -15968,7 +15981,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array
-          trace_subselect(trace, "subselect_equality_propagation");
+          trace_subselect(trace, "subselect_evaluation");
         conds= build_equal_items(join->thd, conds, NULL, join_list,
                                  &join->cond_equal);
       }
@@ -15983,7 +15996,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array
-          trace_subselect(trace, "subselect_constant_propagation");
+          trace_subselect(trace, "subselect_evaluation");
         propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
       }
       step_wrapper.add("resulting_condition", conds);
@@ -16000,7 +16013,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
       {
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
-        Opt_trace_array trace_subselect(trace, "subselect_cond_removal");
+        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
         conds= remove_eq_conds(thd, conds, cond_value) ;
       }
       step_wrapper.add("resulting_condition", conds);

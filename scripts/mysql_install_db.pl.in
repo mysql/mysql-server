@@ -538,7 +538,7 @@ else
          "",
         "Examine the logs in $opt->{ldata} for more information.",
         "You can try to start the mysqld daemon with:",
-        "$mysqld --skip-grant &",
+        "$mysqld --skip-grant-tables &",
         "and use the command line tool",
         "$bindir/mysql to connect to the mysql",
         "database and look at the grant tables:",
