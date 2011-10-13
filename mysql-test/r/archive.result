@@ -12729,15 +12729,17 @@ id	id	name	name
 2	2	a	b
 DROP TABLE t1,t2;
 SHOW CREATE TABLE t1;
-ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `col2` varchar(20) DEFAULT NULL
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
 SELECT * FROM t1;
-ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+col1	col2
 INSERT INTO t1 (col1, col2) VALUES (1, "value");
-ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
-test.t1	repair	error	Corrupt
+test.t1	repair	status	OK
 DROP TABLE t1;
 #
 # BUG#48757 - missing .ARZ file causes server crash
@@ -12823,3 +12825,59 @@ a	b	c	d	e	f
 -1	b	c	d	e	1
 DROP TABLE t1;
 SET sort_buffer_size=DEFAULT;
+#
+# BUG#11756687 - 48633: ARCHIVE TABLES ARE NOT UPGRADEABLE
+#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` text,
+  `c` varchar(255) DEFAULT NULL,
+  `d` blob,
+  `e` blob
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b	c	d	e
+1	text	varchar	blob1	blob2
+2	text	varchar	blob1	blob2
+SELECT * FROM t1;
+a	b	c	d	e
+1	text	varchar	blob1	blob2
+2	text	varchar	blob1	blob2
+FLUSH TABLE t1;
+SELECT * FROM t1;
+a	b	c	d	e
+1	text	varchar	blob1	blob2
+2	text	varchar	blob1	blob2
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+SELECT * FROM t1;
+a	b	c	d	e
+1	text	varchar	blob1	blob2
+2	text	varchar	blob1	blob2
+INSERT INTO t1 VALUES(3, 'text', 'varchar', 'blob1', 'blob2');
+SELECT * FROM t1;
+a	b	c	d	e
+1	text	varchar	blob1	blob2
+2	text	varchar	blob1	blob2
+3	text	varchar	blob1	blob2
+FLUSH TABLE t1;
+SELECT * FROM t1;
+a	b	c	d	e
+1	text	varchar	blob1	blob2
+2	text	varchar	blob1	blob2
+3	text	varchar	blob1	blob2
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+SELECT * FROM t1;
+a	b	c	d	e
+1	text	varchar	blob1	blob2
+2	text	varchar	blob1	blob2
+3	text	varchar	blob1	blob2
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

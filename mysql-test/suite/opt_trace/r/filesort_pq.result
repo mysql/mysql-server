@@ -7632,7 +7632,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
+                  "subselect_evaluation": [
                   ],
                   "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1), `test`.`t1`.`f1`)"
                 },
@@ -11387,7 +11387,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
+                  "subselect_evaluation": [
                   ],
                   "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2), `test`.`t1`.`f1`)"
                 },

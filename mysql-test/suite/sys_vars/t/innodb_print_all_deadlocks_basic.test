@@ -1,0 +1,81 @@
+
+# 2010-01-25 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_print_all_deadlocks;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF' 
+SELECT @@global.innodb_print_all_deadlocks in (0, 1);
+SELECT @@global.innodb_print_all_deadlocks;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_print_all_deadlocks;
+SHOW global variables LIKE 'innodb_print_all_deadlocks';
+SHOW session variables LIKE 'innodb_print_all_deadlocks';
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+
+#
+# SHOW that it's writable
+#
+SET global innodb_print_all_deadlocks='OFF';
+SELECT @@global.innodb_print_all_deadlocks;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SET @@global.innodb_print_all_deadlocks=1;
+SELECT @@global.innodb_print_all_deadlocks;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SET global innodb_print_all_deadlocks=0;
+SELECT @@global.innodb_print_all_deadlocks;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SET @@global.innodb_print_all_deadlocks='ON';
+SELECT @@global.innodb_print_all_deadlocks;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+--error ER_GLOBAL_VARIABLE
+SET session innodb_print_all_deadlocks='OFF';
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_print_all_deadlocks='ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_print_all_deadlocks=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_print_all_deadlocks=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_print_all_deadlocks=2;
+--echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+SET global innodb_print_all_deadlocks=-3;
+SELECT @@global.innodb_print_all_deadlocks;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_print_all_deadlocks';
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_print_all_deadlocks='AUTO';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_print_all_deadlocks = @start_global_value;
+SELECT @@global.innodb_print_all_deadlocks;

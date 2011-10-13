@@ -1,4 +1,4 @@
-set optimizer_switch='block_nested_loop=off,batch_key_access=off';
+set optimizer_switch='block_nested_loop=off,batched_key_access=off';
 
 if (`select locate('mrr_cost_based', @@optimizer_switch) > 0`) 
 {
