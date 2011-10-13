@@ -29,8 +29,6 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 
-static bool convert_const_to_int(THD *, Item_field *, Item **);
-
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
 {
@@ -515,7 +513,6 @@ static bool convert_const_to_int(THD *thd, Item_field *field_item,
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
-  THD *thd;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -547,14 +544,14 @@ void Item_bool_func2::fix_length_and_dec()
 
   /*
     Make a special case of compare with fields to get nicer comparisons
-    of numbers with constant string.
+    of bigint numbers with constant string.
     This directly contradicts the manual (number and a string should
     be compared as doubles), but seems to provide more
     "intuitive" behavior in some cases (but less intuitive in others).
 
     But disable conversion in case of LIKE function.
   */
-  thd= current_thd;
+  THD *thd= current_thd;
   if (functype() != LIKE_FUNC && !thd->lex->is_ps_or_view_context_analysis())
   {
     int field;
@@ -562,7 +559,8 @@ void Item_bool_func2::fix_length_and_dec()
         args[field= 1]->real_item()->type() == FIELD_ITEM)
     {
       Item_field *field_item= (Item_field*) (args[field]->real_item());
-      if (field_item->cmp_type() == INT_RESULT &&
+      if ((field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+           field_item->field_type() ==  MYSQL_TYPE_YEAR) &&
           convert_const_to_int(thd, field_item, &args[!field]))
         args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
     }
@@ -2188,7 +2186,8 @@ void Item_func_between::fix_length_and_dec()
       !thd->lex->is_ps_or_view_context_analysis())
   {
     Item_field *field_item= (Item_field*) (args[0]->real_item());
-    if (field_item->cmp_type() == INT_RESULT)
+    if (field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+        field_item->field_type() ==  MYSQL_TYPE_YEAR)
     {
       /*
         The following can't be recoded with || as convert_const_to_int
@@ -3894,7 +3893,8 @@ void Item_func_in::fix_length_and_dec()
         !thd->lex->is_ps_or_view_context_analysis() && cmp_type != INT_RESULT)
     {
       Item_field *field_item= (Item_field*) (args[0]->real_item());
-      if (field_item->cmp_type() == INT_RESULT)
+      if (field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+          field_item->field_type() ==  MYSQL_TYPE_YEAR)
       {
         bool all_converted= TRUE;
         for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
