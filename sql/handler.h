@@ -164,6 +164,10 @@
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
+/*
+  The handler supports read before write removal optimization
+*/
+#define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -1795,6 +1799,28 @@ public:
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
+
+  /**
+    Informs handler that it is possible to optimize away the real read
+    operation from the handler for the current table and instead
+    use a generated read to optimze simple UPDATEs and DELETEs.
+
+    @return true if handler supports rbwr for this write
+  */
+  virtual bool read_before_write_removal_possible(void)
+  { return false; }
+
+  /**
+    Return the number of rows the handler has written while using
+    read before write removal
+
+    @return the number of rows actually written
+   */
+  virtual ha_rows read_before_write_removal_rows_written(void) const
+  {
+    DBUG_ASSERT(false);
+    return (ha_rows) 0;
+  }
 
   /**
     In an UPDATE or DELETE, if the row under the cursor was locked by another
