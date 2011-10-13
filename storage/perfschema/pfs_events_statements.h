@@ -23,30 +23,12 @@
 
 #include "pfs_column_types.h"
 #include "pfs_events.h"
+#include "pfs_digest.h"
 
 struct PFS_thread;
 struct PFS_account;
 struct PFS_user;
 struct PFS_host;
-
-/**
-  Structure to store a MD5 hash value (digest) for a statement.
-*/
-struct {
-         unsigned char m_md5[16];
-       }typedef PFS_digest_hash;
-
-/**
-  Structure to store token count/array for a statement
-  on which digest is to be calculated.
-*/
-#define PFS_MAX_TOKEN_COUNT 1024
-struct {
-         uint m_token_count;
-         uint m_token_array[PFS_MAX_TOKEN_COUNT];
-         PFS_digest_hash m_digest_hash;
-       } typedef PFS_digest_storage;
-
 
 /** A statement record. */
 struct PFS_events_statements : public PFS_events
