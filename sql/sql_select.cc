@@ -18992,7 +18992,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
 
   join->return_tab= join_tab;
-  join_tab->not_null_compl= TRUE;
+  join_tab->not_null_compl= true;
+  join_tab->found_match= false;
 
   if (join_tab->last_inner)
   {
