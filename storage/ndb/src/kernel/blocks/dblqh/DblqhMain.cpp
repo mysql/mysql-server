@@ -23422,7 +23422,9 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       {
         jam();
         ptrCheckGuard(tcPtr, ctcConnectrecFileSize, tcConnectionrec);
-        ndbinfo_write_op(signal, &req, &rl, tcPtr);
+        Ndbinfo::Row row(signal, req);
+        ndbinfo_write_op(row, tcPtr);
+        ndbinfo_send_row(signal, req, row, rl);
         tcPtr.i = tcPtr.p->nextHashRec;
       }
       bucket++;
@@ -23437,12 +23439,8 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
 }
 
 void
-Dblqh::ndbinfo_write_op(Signal* signal,
-                        DbinfoScanReq * req,
-                        Ndbinfo::Ratelimit * rl,
-                        TcConnectionrecPtr tcPtr)
+Dblqh::ndbinfo_write_op(Ndbinfo::Row & row, TcConnectionrecPtr tcPtr)
 {
-  Ndbinfo::Row row(signal, *req);
   row.write_uint32(getOwnNodeId());
   row.write_uint32(instance());          // block instance
   row.write_uint32(tcPtr.i);             // objid
@@ -23511,8 +23509,6 @@ Dblqh::ndbinfo_write_op(Signal* signal,
     row.write_uint32(tcPtr.p->transactionState);
     row.write_uint32(0);
   }
-
-  ndbinfo_send_row(signal, *req, row, *rl);
 }
 
 

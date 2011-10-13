@@ -1986,10 +1986,7 @@ private:
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, ApiConnectRecordPtr);
-  void ndbinfo_write_trans(Signal* signal,
-                           DbinfoScanReq * req,
-                           Ndbinfo::Ratelimit * rl,
-                           ApiConnectRecordPtr transPtr);
+  bool ndbinfo_write_trans(Ndbinfo::Row&, ApiConnectRecordPtr);
 
 #ifdef ERROR_INSERT
   bool testFragmentDrop(Signal* signal);
