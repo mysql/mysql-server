@@ -4163,14 +4163,9 @@ public:
 #define CF_HA_CLOSE             (1U << 11)
 
 /**
-  Identifies statements that can directly update a rpl info table.
-*/
-#define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
-
-/**
   Identifies statements that can be explained with EXPLAIN.
 */
-#define CF_CAN_BE_EXPLAINED       (1U << 13)
+#define CF_CAN_BE_EXPLAINED       (1U << 12)
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)

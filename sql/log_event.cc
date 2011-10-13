@@ -775,6 +775,7 @@ inline int Log_event::do_apply_event_worker(Slave_worker *w)
 
 int Log_event::do_update_pos(Relay_log_info *rli)
 {
+  int error= 0;
   DBUG_ASSERT(!rli->belongs_to_client());
   /*
     rli is null when (as far as I (Guilhem) know) the caller is
@@ -792,8 +793,8 @@ int Log_event::do_update_pos(Relay_log_info *rli)
   DBUG_ASSERT(!is_mts_worker(rli->info_thd));
 
   if (rli)
-    rli->stmt_done(log_pos);
-  return 0;                                   // Cannot fail currently
+    error= rli->stmt_done(log_pos);
+  return error;
 }
 
 
@@ -6254,6 +6255,7 @@ bool Rotate_log_event::write(IO_CACHE* file)
 */
 int Rotate_log_event::do_update_pos(Relay_log_info *rli)
 {
+  int error= 0;
   DBUG_ENTER("Rotate_log_event::do_update_pos");
 #ifndef DBUG_OFF
   char buf[32];
@@ -6292,7 +6294,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
         synchronization point. For that reason, the checkpoint
         routine is being called here.
       */
-      (void) mts_checkpoint_routine(rli, 0, FALSE, TRUE); // TODO: ALFRANIO ERROR
+      if ((error= mts_checkpoint_routine(rli, 0, FALSE, TRUE)))
+        goto err;
     }
 
     mysql_mutex_lock(&rli->data_lock);
@@ -6304,7 +6307,11 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
-    rli->inc_group_relay_log_pos(pos, TRUE /* skip_lock */);
+    if ((error=  rli->inc_group_relay_log_pos(pos, true)))
+    {
+      mysql_mutex_unlock(&rli->data_lock);
+      goto err;
+    }
 
     DBUG_PRINT("info", ("new group_master_log_name: '%s'  "
                         "new group_master_log_pos: %lu",
@@ -6330,8 +6337,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
   else
     rli->inc_event_relay_log_pos();
 
-
-  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(error);
 }
 
 
@@ -6682,7 +6689,6 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 int Xid_log_event::do_apply_event_worker(Slave_worker *w)
 {
   int error= 0;
-  bool is_trans_repo= w->is_transactional();
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
 
   /* For a slave Xid_log_event is COMMIT */
@@ -6701,14 +6707,11 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
                   sql_print_information("Crashing crash_before_update_pos.");
                   DBUG_SUICIDE(););
 
-  if (is_trans_repo)
-  {
-    ulong gaq_idx= mts_group_idx;
-    Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
+  ulong gaq_idx= mts_group_idx;
+  Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
 
-    if ((error= w->commit_positions(this, ptr_group, true)))
-      goto err;
-  }
+  if ((error= w->commit_positions(this, ptr_group, true)))
+    goto err;
 
   DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
                      w->get_group_master_log_name(),
@@ -6737,22 +6740,11 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   int error= 0;
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
-  /*
-    If the repository is transactional, i.e., created over a
-    transactional table, we need to update the positions within
-    the context of the current transaction in order to provide
-    data integrity. See sql/rpl_rli.h for further details.
-  */
-  bool is_trans_repo= rli_ptr->is_transactional();
-
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
 
-  if (is_trans_repo)
-  {
-    mysql_mutex_lock(&rli_ptr->data_lock);
-  }
+  mysql_mutex_lock(&rli_ptr->data_lock);
 
   DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
@@ -6769,22 +6761,17 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   /*
     We need to update the positions in here to make it transactional.  
   */
-  if (is_trans_repo)
-  {
-    rli_ptr->inc_event_relay_log_pos();
-    rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
-    rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
+  rli_ptr->inc_event_relay_log_pos();
+  rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
+  rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
 
-    rli_ptr->notify_group_relay_log_name_update();
+  rli_ptr->notify_group_relay_log_name_update();
 
-    if (log_pos) // 3.23 binlogs don't have log_posx
-    {
-      rli_ptr->set_group_master_log_pos(log_pos);
-    }
+  if (log_pos) // 3.23 binlogs don't have log_posx
+    rli_ptr->set_group_master_log_pos(log_pos);
   
-    if ((error= rli_ptr->flush_info(TRUE)))
-      goto err;
-  }
+  if ((error= rli_ptr->flush_info(TRUE)))
+    goto err;
 
   DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
     rli_ptr->get_group_master_log_name(),
@@ -6805,11 +6792,9 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   thd->mdl_context.release_transactional_locks();
 
 err:
-  if (is_trans_repo)
-  {
-    mysql_cond_broadcast(&rli_ptr->data_cond);
-    mysql_mutex_unlock(&rli_ptr->data_lock);
-  }
+  mysql_cond_broadcast(&rli_ptr->data_cond);
+  mysql_mutex_unlock(&rli_ptr->data_lock);
+
   return error;
 }
 
@@ -7310,6 +7295,8 @@ void Stop_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 int Stop_log_event::do_update_pos(Relay_log_info *rli)
 {
+  int error_inc= 0;
+  int error_flush= 0;
   /*
     We do not want to update master_log pos because we get a rotate event
     before stop, so by now group_master_log_name is set to the next log.
@@ -7321,10 +7308,10 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     rli->inc_event_relay_log_pos();
   else
   {
-    rli->inc_group_relay_log_pos(0);
-    rli->flush_info(TRUE);
+    error_inc= rli->inc_group_relay_log_pos(false);
+    error_flush= rli->flush_info(TRUE);
   }
-  return 0;
+  return (error_inc || error_flush);
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -9143,14 +9130,7 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
       Step the group log position if we are not in a transaction,
       otherwise increase the event log position.
     */
-    rli->stmt_done(log_pos);
-    /*
-      Clear any errors in thd->net.last_err*. It is not known if this is
-      needed or not. It is believed that any errors that may exist in
-      thd->net.last_err* are allowed. Examples of errors are "key not
-      found", which is produced in the test case rpl_row_conflicts.test
-    */
-    thd->clear_error();
+    error= rli->stmt_done(log_pos);
   }
   else
   {

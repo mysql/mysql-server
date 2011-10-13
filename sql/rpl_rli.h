@@ -50,18 +50,17 @@ is rotated, (ii) SQL Thread is stopped, (iii) while processing a Xid_log_event,
 any statement written to the binary log without a transaction context.
 
 The Xid_log_event is a commit for transactional engines and must be handled
-differently to provide reliability/data integrity. While committing updates to
-transactional engines the following behavior shall be implemented:
+differently to provide reliability/data integrity. In this case, positions
+are updated within the context of the current transaction. So
 
-  . If the relay.info is stored in a transactional repository, for instance, a
-  system table created using Innodb, the positions are updated in the context
-  of the transaction that updated data. Therefore, should the server crash 
-  before successfully committing the transaction the changes to the position 
-  table will be rolled back too.
+  . If the relay.info is stored in a transactional repository and the server
+  crashes before successfully committing the transaction the changes to the
+  position table will be rolled back along with the data.
 
   . If the relay.info is stored in a non-transactional repository, for instance,
-  a file or a system table created using MyIsam, the positions are update after
-  processing the commit as in (iv) and (v).
+  a file or a system table created using MyIsam, and the server crashes before
+  successfully committing the transaction the changes to the position table
+  will not be rolled back but data will.
 
 In particular, when there are mixed transactions, i.e a transaction that updates
 both transaction and non-transactional engines, the Xid_log_event is still used
@@ -361,7 +360,7 @@ public:
     event_relay_log_pos= future_event_relay_log_pos;
   }
 
-  void inc_group_relay_log_pos(ulonglong log_pos,
+  int inc_group_relay_log_pos(ulonglong log_pos,
 			       bool skip_lock= FALSE);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
@@ -597,7 +596,7 @@ public:
     relay log info and used to produce information for <code>SHOW
     SLAVE STATUS</code>.
   */
-  void stmt_done(my_off_t event_log_pos);
+  int stmt_done(my_off_t event_log_pos);
 
 
   /**
