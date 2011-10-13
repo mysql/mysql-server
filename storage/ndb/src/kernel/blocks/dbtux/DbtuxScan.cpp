@@ -875,6 +875,12 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
     debugOut << "Enter next scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
+  // cannot be moved away from tuple we have locked
+#if defined VM_TRACE || defined ERROR_INSERT
+  ndbrequire(scan.m_state != ScanOp::Locked);
+#else
+  ndbrequire(fromMaintReq || scan.m_state != ScanOp::Locked);
+#endif
   // set up index keys for this operation
   setKeyAttrs(c_ctx, frag);
   // scan direction
@@ -891,7 +897,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
     jam();
     if (scan.m_accLockOp != RNIL) {
       jam();
-      Signal* signal = &globalData.VMSignals[0]; // ugly
+      Signal* signal = c_signal_bug32040;
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Abort;

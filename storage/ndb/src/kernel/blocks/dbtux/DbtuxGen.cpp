@@ -78,6 +78,8 @@ Dbtux::Dbtux(Block_context& ctx) :
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
 
   addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
+
+  c_signal_bug32040 = 0;
 }
 
 Dbtux::~Dbtux()
@@ -133,6 +135,7 @@ Dbtux::execSTTOR(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     c_tup = (Dbtup*)globalData.getBlock(DBTUP);
     ndbrequire(c_tup != 0);
+    c_signal_bug32040 = signal;
     break;
   case 3:
     jam();
