@@ -4193,7 +4193,6 @@ brt_init_header (BRT t, TOKUTXN txn) {
 static int 
 brt_alloc_init_header(BRT t, TOKUTXN txn) {
     int r;
-    uint64_t now = (uint64_t) time(NULL);
 
     r = brtheader_alloc(&t->h);
     if (r != 0) {
@@ -4208,9 +4207,10 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
 
     t->h->build_id = BUILD_ID;
     t->h->build_id_original = BUILD_ID;
-    
+
+    uint64_t now = (uint64_t) time(NULL);
     t->h->time_of_creation = now;
-    t->h->time_of_last_modification = 0;
+    t->h->time_of_last_modification = now;
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
 
@@ -5006,7 +5006,9 @@ toku_brtheader_checkpoint (CACHEFILE cf, int fd, void *header_v)
 	    r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
 	    if (r!=0) goto handle_error;
 	}
-        h->time_of_last_modification = ch->time_of_last_modification = time(NULL); // 4018
+        uint64_t now = (uint64_t) time(NULL); // 4018;
+        h->time_of_last_modification = now;
+        ch->time_of_last_modification = now;
         ch->checkpoint_count++;
         // write translation and header to disk (or at least to OS internal buffer)
         r = toku_serialize_brt_header_to(fd, ch);

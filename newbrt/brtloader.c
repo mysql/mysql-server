@@ -2863,7 +2863,9 @@ write_header (struct dbout *out, long long translation_location_on_disk, long lo
     h.layout_version_original = BRT_LAYOUT_VERSION;
     h.build_id         = BUILD_ID;
     h.build_id_original = BUILD_ID;
-    h.time_of_creation = (uint64_t) time(NULL);
+    uint64_t now = (uint64_t) time(NULL);
+    h.time_of_creation = now;
+    h.time_of_last_modification = now;
     h.checkpoint_count = 1;
     h.checkpoint_lsn   = load_lsn;
     h.nodesize         = target_nodesize;
