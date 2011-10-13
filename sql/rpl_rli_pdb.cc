@@ -692,12 +692,11 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       Unless \exists the last assigned Worker, get a free worker based
       on a policy described in the function get_least_occupied_worker().
     */
+    mysql_mutex_lock(&slave_worker_hash_lock);
+
     entry->worker= (!last_worker) ?
       get_least_occupied_worker(workers) : last_worker;
     entry->worker->usage_partition++;
-
-    mysql_mutex_lock(&slave_worker_hash_lock);
-
     if (mapping_db_to_worker.records > mts_partition_hash_soft_max)
     {
       /* remove zero-usage (todo: rare or long ago scheduled) records */
@@ -1352,7 +1351,11 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
   DBUG_ENTER("wait_for_workers_to_finish");
 
   llstr(const_cast<Relay_log_info*>(rli)->get_event_relay_log_pos(), llbuf);
-  sql_print_information("Coordinator enter synchronization when distributes event relay-log: %s pos: %s", const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(), llbuf);
+  if (global_system_variables.log_warnings > 1)
+    sql_print_information("Coordinator and workers enter synchronization procedure "
+                          "when scheduling event relay-log: %s pos: %s", 
+                          const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(), 
+                          llbuf);
 
   for (uint i= 0, ret= 0; i < hash->records; i++)
   {
@@ -1406,7 +1409,10 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
 
   if (!ignore)
   {
-    sql_print_information("Coordinator synchronized with Workers, waited entries: %d, cant_sync: %d", ret, cant_sync);
+    if (global_system_variables.log_warnings > 1)
+      sql_print_information("Coordinator synchronized with Workers, "
+                            "waited entries: %d, cant_sync: %d", 
+                            ret, cant_sync);
 
     const_cast<Relay_log_info*>(rli)->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   }
@@ -1801,10 +1807,12 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
-    sql_print_information("Worker %lu is exiting: killed %i, error %i, "
-                          "running_status %d",
-                          worker->id, thd->killed, thd->is_error(),
-                          worker->running_status);
+
+    if (global_system_variables.log_warnings > 1)
+      sql_print_information("Worker %lu is exiting: killed %i, error %i, "
+                            "running_status %d",
+                            worker->id, thd->killed, thd->is_error(),
+                            worker->running_status);
     worker->slave_worker_ends_group(ev, error);
   }
   

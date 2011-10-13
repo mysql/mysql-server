@@ -463,7 +463,7 @@ buf_page_is_corrupted(
 	ulint		checksum_field2;
 	ib_uint32_t	crc32;
 
-	if (UNIV_LIKELY(!zip_size)
+	if (!zip_size
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
 		      read_buf + UNIV_PAGE_SIZE
 		      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
@@ -509,7 +509,7 @@ buf_page_is_corrupted(
 		return(FALSE);
 	}
 
-	if (UNIV_UNLIKELY(zip_size)) {
+	if (zip_size) {
 		return(!page_zip_verify_checksum(read_buf, zip_size));
 	}
 
@@ -871,8 +871,6 @@ buf_block_init(
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
 
-	block->is_hashed = FALSE;
-
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
 	block->page.in_zip_hash = FALSE;
@@ -1227,7 +1225,6 @@ buf_pool_free_instance(
 	}
 
 	mem_free(buf_pool->chunks);
-	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
 }
@@ -1291,108 +1288,47 @@ buf_pool_free(
 }
 
 /********************************************************************//**
-Drops adaptive hash index for a buffer pool instance. */
-static
-void
-buf_pool_drop_hash_index_instance(
-/*==============================*/
-	buf_pool_t*	buf_pool,		/*!< in: buffer pool instance */
-	ibool*		released_search_latch)	/*!< out: flag for signalling
-						whether the search latch was
-						released */
-{
-	buf_chunk_t*	chunks	= buf_pool->chunks;
-	buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
-
-	while (--chunk >= chunks) {
-		ulint		i;
-		buf_block_t*	block	= chunk->blocks;
-
-		for (i = chunk->size; i--; block++) {
-			/* block->is_hashed cannot be modified
-			when we have an x-latch on btr_search_latch;
-			see the comment in buf0buf.h */
-
-			if (!block->is_hashed) {
-				continue;
-			}
-
-			/* To follow the latching order, we
-			have to release btr_search_latch
-			before acquiring block->latch. */
-			rw_lock_x_unlock(&btr_search_latch);
-			/* When we release the search latch,
-			we must rescan all blocks, because
-			some may become hashed again. */
-			*released_search_latch = TRUE;
-
-			rw_lock_x_lock(&block->lock);
-
-			/* This should be guaranteed by the
-			callers, which will be holding
-			btr_search_enabled_mutex. */
-			ut_ad(!btr_search_enabled);
-
-			/* Because we did not buffer-fix the
-			block by calling buf_block_get_gen(),
-			it is possible that the block has been
-			allocated for some other use after
-			btr_search_latch was released above.
-			We do not care which file page the
-			block is mapped to.  All we want to do
-			is to drop any hash entries referring
-			to the page. */
-
-			/* It is possible that
-			block->page.state != BUF_FILE_PAGE.
-			Even that does not matter, because
-			btr_search_drop_page_hash_index() will
-			check block->is_hashed before doing
-			anything.  block->is_hashed can only
-			be set on uncompressed file pages. */
-
-			btr_search_drop_page_hash_index(block);
-
-			rw_lock_x_unlock(&block->lock);
-
-			rw_lock_x_lock(&btr_search_latch);
-
-			ut_ad(!btr_search_enabled);
-		}
-	}
-}
-
-/********************************************************************//**
-Drops the adaptive hash index.  To prevent a livelock, this function
-is only to be called while holding btr_search_latch and while
-btr_search_enabled == FALSE. */
+Clears the adaptive hash index on all pages in the buffer pool. */
 UNIV_INTERN
 void
-buf_pool_drop_hash_index(void)
-/*==========================*/
+buf_pool_clear_hash_index(void)
+/*===========================*/
 {
-	ibool		released_search_latch;
+	ulint	p;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!btr_search_enabled);
 
-	do {
- 		ulint	i;
+	for (p = 0; p < srv_buf_pool_instances; p++) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(p);
+		buf_chunk_t*	chunks	= buf_pool->chunks;
+		buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
 
-		released_search_latch = FALSE;
+		while (--chunk >= chunks) {
+			buf_block_t*	block	= chunk->blocks;
+			ulint		i	= chunk->size;
 
-		for (i = 0; i < srv_buf_pool_instances; i++) {
- 			buf_pool_t*	buf_pool;
+			for (; i--; block++) {
+				dict_index_t*	index	= block->index;
 
-			buf_pool = buf_pool_from_array(i);
+				/* We can set block->index = NULL
+				when we have an x-latch on btr_search_latch;
+				see the comment in buf0buf.h */
 
-			buf_pool_drop_hash_index_instance(
-				buf_pool, &released_search_latch);
+				if (!index) {
+					/* Not hashed */
+					continue;
+				}
+
+				block->index = NULL;
+# if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+				block->n_pointers = 0;
+# endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+			}
 		}
-
-	} while (released_search_latch);
+	}
 }
 
 /********************************************************************//**
@@ -1796,37 +1732,28 @@ buf_page_set_accessed_make_young(
 }
 
 /********************************************************************//**
-Returns the current state of is_hashed of a page. FALSE if the page is
-not in the pool. NOTE that this operation does not fix the page in the
-pool if it is found there.
-@return	TRUE if page hash index is built in search system */
+Resets the check_index_page_at_flush field of a page if found in the buffer
+pool. */
 UNIV_INTERN
-ibool
-buf_page_peek_if_search_hashed(
-/*===========================*/
+void
+buf_reset_check_index_page_at_flush(
+/*================================*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: page number */
 {
 	buf_block_t*	block;
-	ibool		is_hashed;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
-	rw_lock_t*	hash_lock;
 
-	block = buf_block_hash_get_s_locked(buf_pool, space, offset,
-					    &hash_lock);
+	buf_pool_mutex_enter(buf_pool);
 
-	if (!block || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
-		is_hashed = FALSE;
-	} else {
+	block = (buf_block_t*) buf_page_hash_get(buf_pool, space, offset);
+
+	if (block && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, &block->page));
-		is_hashed = block->is_hashed;
+		block->check_index_page_at_flush = FALSE;
 	}
 
-	if (block) {
-		rw_lock_s_unlock(hash_lock);
-	}
-
-	return(is_hashed);
+	buf_pool_mutex_exit(buf_pool);
 }
 
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
@@ -1978,7 +1905,7 @@ lookup:
 
 	ut_ad(buf_page_hash_lock_held_s(buf_pool, bpage));
 
-	if (UNIV_UNLIKELY(!bpage->zip.data)) {
+	if (!bpage->zip.data) {
 		/* There is no compressed page. */
 err_exit:
 		rw_lock_s_unlock(hash_lock);
@@ -2077,7 +2004,6 @@ buf_block_init_low(
 	block->index		= NULL;
 
 	block->n_hash_helps	= 0;
-	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
@@ -3185,19 +3111,20 @@ buf_page_init_low(
 
 /********************************************************************//**
 Inits a page to the buffer buf_pool. */
-static
+static __attribute__((nonnull))
 void
 buf_page_init(
 /*==========*/
+	buf_pool_t*	buf_pool,/*!< in/out: buffer pool */
 	ulint		space,	/*!< in: space id */
 	ulint		offset,	/*!< in: offset of the page within space
 				in units of a page */
 	ulint		fold,	/*!< in: buf_page_address_fold(space,offset) */
-	buf_block_t*	block)	/*!< in: block to init */
+	buf_block_t*	block)	/*!< in/out: block to init */
 {
 	buf_page_t*	hash_page;
-	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
+	ut_ad(buf_pool == buf_pool_get(space, offset));
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	ut_ad(mutex_own(&(block->mutex)));
@@ -3320,8 +3247,7 @@ buf_page_init_for_read(
 		ut_ad(mode == BUF_READ_ANY_PAGE);
 	}
 
-	if (zip_size && UNIV_LIKELY(!unzip)
-	    && UNIV_LIKELY(!recv_recovery_is_on())) {
+	if (zip_size && !unzip && !recv_recovery_is_on()) {
 		block = NULL;
 	} else {
 		block = buf_LRU_get_free_block(buf_pool);
@@ -3367,7 +3293,7 @@ err_exit:
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-		buf_page_init(space, offset, fold, block);
+		buf_page_init(buf_pool, space, offset, fold, block);
 		rw_lock_x_unlock(hash_lock);
 
 		/* The block must be put to the LRU list, to the old blocks */
@@ -3385,7 +3311,7 @@ err_exit:
 		rw_lock_x_lock_gen(&block->lock, BUF_IO_READ);
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-		if (UNIV_UNLIKELY(zip_size)) {
+		if (zip_size) {
 			page_zip_set_size(&block->page.zip, zip_size);
 
 			/* buf_pool->mutex may be released and
@@ -3590,7 +3516,7 @@ buf_page_create(
 
 	mutex_enter(&block->mutex);
 
-	buf_page_init(space, offset, fold, block);
+	buf_page_init(buf_pool, space, offset, fold, block);
 
 	rw_lock_x_unlock(hash_lock);
 
@@ -4255,6 +4181,9 @@ assert_s_latched:
 					ut_a(rw_lock_is_locked(&block->lock,
 							       RW_LOCK_EX));
 					break;
+
+				case BUF_IO_PIN:
+					break;
 				}
 
 				n_lru++;
@@ -4284,6 +4213,7 @@ assert_s_latched:
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
 		switch (buf_page_get_io_fix(b)) {
 		case BUF_IO_NONE:
+		case BUF_IO_PIN:
 			/* All clean blocks should be I/O-unfixed. */
 			break;
 		case BUF_IO_READ:
@@ -4324,6 +4254,7 @@ assert_s_latched:
 			switch (buf_page_get_io_fix(b)) {
 			case BUF_IO_NONE:
 			case BUF_IO_READ:
+			case BUF_IO_PIN:
 				break;
 			case BUF_IO_WRITE:
 				switch (buf_page_get_flush_type(b)) {

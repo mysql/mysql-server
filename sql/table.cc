@@ -73,6 +73,10 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
 static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
+static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
+                               const char *name,
+                               Name_resolution_context *context);
+
 inline bool is_system_table_name(const char *name, uint length);
 
 static ulong get_form_pos(File file, uchar *head);
@@ -1173,7 +1177,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     else
 #endif
-    if (share->mysql_version >= 50110)
+    if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1981,9 +1985,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   {
     memcpy(outparam->record[0], share->default_values, share->rec_buff_length);
     memcpy(outparam->record[1], share->default_values, share->null_bytes);
-    if (records > 2)
-      memcpy(outparam->record[1], share->default_values,
-             share->rec_buff_length);
   }
 #endif
 
@@ -4434,8 +4435,9 @@ Item *Natural_join_column::create_item(THD *thd)
   if (view_field)
   {
     DBUG_ASSERT(table_field == NULL);
+    SELECT_LEX *select= thd->lex->current_select;
     return create_view_field(thd, table_ref, &view_field->item,
-                             view_field->name);
+                             view_field->name, &select->context);
   }
   return table_field;
 }
@@ -4525,11 +4527,14 @@ const char *Field_iterator_view::name()
 
 Item *Field_iterator_view::create_item(THD *thd)
 {
-  return create_view_field(thd, view, &ptr->item, ptr->name);
+  SELECT_LEX *select= thd->lex->current_select;
+  return create_view_field(thd, view, &ptr->item, ptr->name,
+                           &select->context);
 }
 
-Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
-                        const char *name)
+static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
+                               const char *name,
+                               Name_resolution_context *context)
 {
   bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
   Item *field= *field_ref;
@@ -4562,7 +4567,8 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(view, field_ref, name);
+  Item *item= new Item_direct_view_ref(context, field_ref,
+                                       view->alias, view->table_name, name);
   DBUG_RETURN(item);
 }
 

@@ -101,14 +101,22 @@ row_sel_sec_rec_is_for_blob(
 	ulint		clust_len,	/*!< in: length of clust_field */
 	const byte*	sec_field,	/*!< in: column in secondary index */
 	ulint		sec_len,	/*!< in: length of sec_field */
+	ulint		prefix_len,	/*!< in: index column prefix length
+					in bytes */
 	dict_table_t*	table)		/*!< in: table */
 {
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	ulint	zip_size = dict_table_flags_to_zip_size(table->flags);
-	ulint	max_prefix_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
 
+	/* This function should never be invoked on an Antelope format
+	table, because they should always contain enough prefix in the
+	clustered index record. */
+	ut_ad(dict_table_get_format(table) >= UNIV_FORMAT_B);
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+	ut_ad(prefix_len >= sec_len);
+	ut_ad(prefix_len > 0);
+	ut_a(prefix_len <= sizeof buf);
 
 	if (UNIV_UNLIKELY
 	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
@@ -120,7 +128,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, max_prefix_len,
+	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
 						      zip_size,
 						      clust_field, clust_len);
 
@@ -134,7 +142,7 @@ row_sel_sec_rec_is_for_blob(
 	}
 
 	len = dtype_get_at_most_n_mbchars(prtype, mbminmaxlen,
-					  sec_len, len, (const char*) buf);
+					  prefix_len, len, (const char*) buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
@@ -226,6 +234,7 @@ row_sel_sec_rec_is_for_clust_rec(
 					    col->mbminmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
+					    ifield->prefix_len,
 					    clust_index->table)) {
 					goto inequal;
 				}
@@ -495,7 +504,7 @@ sel_col_prefetch_buf_alloc(
 		sel_buf = column->prefetch_buf + i;
 
 		sel_buf->data = NULL;
-
+		sel_buf->len = 0;
 		sel_buf->val_buf_size = 0;
 	}
 }
@@ -520,6 +529,8 @@ sel_col_prefetch_buf_free(
 			mem_free(sel_buf->data);
 		}
 	}
+
+	mem_free(prefetch_buf);
 }
 
 /*********************************************************************//**
@@ -1389,11 +1400,9 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			if (!btr_search_fully_disabled) {
-				rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_lock(&btr_search_latch);
 
-				search_latch_locked = TRUE;
-			}
+			search_latch_locked = TRUE;
 		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
@@ -3869,8 +3878,7 @@ row_search_for_mysql(
 			hash index semaphore! */
 
 #ifndef UNIV_SEARCH_DEBUG
-			if (!trx->has_search_latch
-			    &&(!btr_search_fully_disabled)) {
+			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
 				trx->has_search_latch = TRUE;
 			}
@@ -4388,8 +4396,7 @@ wrong_offs:
 		if (!set_also_gap_locks
 		    || srv_locks_unsafe_for_binlog
 		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    || (unique_search
-			&& !UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp)))) {
+		    || (unique_search && !rec_get_deleted_flag(rec, comp))) {
 
 			goto no_gap_lock;
 		} else {
@@ -4576,7 +4583,7 @@ locks_ok:
 	point that rec is on a buffer pool page. Functions like
 	page_rec_is_comp() cannot be used! */
 
-	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp))) {
+	if (rec_get_deleted_flag(rec, comp)) {
 
 		/* The record is delete-marked: we can skip it */
 
@@ -4674,7 +4681,7 @@ requires_clust_rec:
 			goto lock_wait_or_error;
 		}
 
-		if (UNIV_UNLIKELY(rec_get_deleted_flag(clust_rec, comp))) {
+		if (rec_get_deleted_flag(clust_rec, comp)) {
 
 			/* The record is delete marked: we can skip it */
 

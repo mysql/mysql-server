@@ -513,6 +513,11 @@
 #cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine USE_SYMDIR 1
 
+/*
+   InnoDB config options
+*/
+#cmakedefine INNODB_COMPILER_HINTS
+
 /* Character sets and collations */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
