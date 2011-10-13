@@ -729,8 +729,8 @@ update t set b=b where a<=2;
 select * from t;
 connection conn1;
 
-# testing with timeout 500000
-set global tokudb_lock_timeout=500000;
+# testing with timeout 500
+set global tokudb_lock_timeout=500;
 
 # testing each point query vs each point query
 # testing conflict "select for update" vs. "select for update"
@@ -1747,5 +1747,5 @@ connection conn2;
 reap;
 # clean it all up
 drop table t;
-set global tokudb_lock_timeout=30000000;
+set global tokudb_lock_timeout=4000;
 
