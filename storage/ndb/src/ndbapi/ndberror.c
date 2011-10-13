@@ -493,7 +493,8 @@ ErrorBundle ErrorCodes[] = {
   { 786,  DMEC, NR, "Schema transaction aborted due to node-failure" },
   { 792,  DMEC, SE, "Default value for primary key column not supported" },
   { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
-  
+  { 796,  DMEC, SE, "Out of schema transaction memory" },
+
   /**
    * FunctionNotImplemented
    */

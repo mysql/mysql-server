@@ -466,6 +466,7 @@ extern void ndb_index_stat_end();
 
 struct st_ndb_status g_ndb_status;
 
+const char *g_ndb_status_index_stat_status = "";
 long g_ndb_status_index_stat_cache_query = 0;
 long g_ndb_status_index_stat_cache_clean = 0;
 
@@ -814,6 +815,7 @@ static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 SHOW_VAR ndb_status_index_stat_variables[]= {
+  {"status",          (char*) &g_ndb_status_index_stat_status, SHOW_CHAR_PTR},
   {"cache_query",     (char*) &g_ndb_status_index_stat_cache_query, SHOW_LONG},
   {"cache_clean",     (char*) &g_ndb_status_index_stat_cache_clean, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}

@@ -964,6 +964,14 @@ THRConfigApplier::appendInfo(BaseString& str,
   }
 }
 
+const char *
+THRConfigApplier::getName(const unsigned short list[], unsigned cnt) const
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  assert(thr != 0);
+  return getEntryName(thr->m_type);
+}
+
 int
 THRConfigApplier::create_cpusets()
 {
