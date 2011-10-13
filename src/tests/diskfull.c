@@ -174,6 +174,9 @@ do_writes_that_fail (void) {
     db_env_set_func_full_write (write_counting_and_failing);
     write_count=0;
     do_db_work();
+    if (fail_at != FAIL_NEVER && write_count <= fail_at) {
+	abort(); // if we don't encounter the write (because there are not enough), then in fail_at mode, we need to abort so that the test will be happy.
+    }
     printf("%d", write_count);
 }
 
