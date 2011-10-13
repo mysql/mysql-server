@@ -92,11 +92,12 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
       Safety: this can only happen if someone started the server and then
       altered the table.
     */
+    ha_rollback_trans(thd, FALSE);
+    close_thread_tables(thd);
+    thd->restore_backup_open_tables_state(backup);
     my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
              tables.table->s->db.str, tables.table->s->table_name.str,
              max_num_field, tables.table->s->fields);
-    close_thread_tables(thd);
-    thd->restore_backup_open_tables_state(backup);
     DBUG_RETURN(TRUE);
   }
 

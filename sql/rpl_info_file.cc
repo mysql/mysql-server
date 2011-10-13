@@ -43,12 +43,11 @@ int Rpl_info_file::do_init_info(const ulong *uidx __attribute__((unused)),
                                 const uint nidx __attribute__((unused)))
 {
   int error= 0;
-
-  /* Don't init if there is no storage */
   DBUG_ENTER("Rpl_info_file::do_init_info");
 
   /* does info file exist ? */
-  if (do_check_info(uidx, nidx))
+  enum_return_check ret_check= do_check_info(uidx, nidx);
+  if (ret_check == REPOSITORY_DOES_NOT_EXIST)
   {
     /*
       If someone removed the file from underneath our feet, just close
@@ -81,7 +80,7 @@ file '%s')", info_fname);
     }
   }
   /* file exists */
-  else
+  else if (ret_check == REPOSITORY_EXISTS)
   {
     if (info_fd >= 0)
       reinit_io_cache(&info_file, READ_CACHE, 0L,0,0);
@@ -108,6 +107,8 @@ file '%s')", info_fname);
       }
     }
   }
+  else
+    error= 1;
   DBUG_RETURN(error);
 }
 
@@ -127,18 +128,16 @@ int Rpl_info_file::do_prepare_info_for_write(const uint nidx
   return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, 0, 1));
 }
 
-int Rpl_info_file::do_check_info(const ulong *uidx __attribute__((unused)),
-                                 const uint nidx __attribute__((unused)))
+enum_return_check Rpl_info_file::do_check_info(const ulong *uidx __attribute__((unused)),
+                                               const uint nidx __attribute__((unused)))
 {
-  /*
-    This function is used by callers to check if the file exists.
+  if (my_access(info_fname, F_OK))
+    return REPOSITORY_DOES_NOT_EXIST;
 
-    If the file exists but users do not have the appropriated
-    rights to access it, callers will assume that the file does
-    not exist taking the appropriate actions and failing when
-    trying to create the file.
-  */
-  return my_access(info_fname, F_OK);
+  if (my_access(info_fname, F_OK | R_OK | W_OK))
+    return ERROR_CHECKING_REPOSITORY;
+    
+  return REPOSITORY_EXISTS;
 }
 
 int Rpl_info_file::do_flush_info(const ulong *uidx,

@@ -151,7 +151,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 
 int Slave_worker::init_info()
 {
-  int necessary_to_configure= 0;
+  enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
   DBUG_ENTER("Slave_worker::init_info");
 
@@ -159,24 +159,28 @@ int Slave_worker::init_info()
     DBUG_RETURN(0);
 
   /*
-    The init_info() is used to either create or read information
-    from the repository, in order to initialize the Slave_worker.
+    This checks if the repository was created before and thus there
+    will be values to be read. Please, do not move this call after
+    the handler->init_info(). 
   */
-  necessary_to_configure= check_info();
+  return_check= check_info(); 
+  if (return_check == ERROR_CHECKING_REPOSITORY)
+    goto err;
 
   if (handler->init_info(uidx, nidx))
     goto err;
 
-  if (!necessary_to_configure && read_info(handler))
-    goto err;
-
-  if (flush_info(TRUE))
+  if (return_check == REPOSITORY_EXISTS && read_info(handler))
     goto err;
 
   inited= 1;
+  if (flush_info(TRUE))
+    goto err;
+
   DBUG_RETURN(0);
 
 err:
+  inited= 0;
   sql_print_error("Error reading slave worker configuration");
   DBUG_RETURN(1);
 }
@@ -198,6 +202,9 @@ void Slave_worker::end_info()
 int Slave_worker::flush_info(const bool force)
 {
   DBUG_ENTER("Slave_worker::flush_info");
+
+  if (!inited)
+    DBUG_RETURN(0);
 
   /*
     We update the sync_period at this point because only here we
@@ -895,7 +902,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
                 ptr_g->group_relay_log_name != NULL);
     DBUG_ASSERT(ptr_g->worker_id == id);
 
-    if (!(ev->get_type_code() == XID_EVENT && is_transactional()))
+    if (ev->get_type_code() != XID_EVENT)
     {
       commit_positions(ev, ptr_g, false);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
