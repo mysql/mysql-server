@@ -159,6 +159,34 @@ static bool check_fields(THD *thd, List<Item> &items)
 
 
 /**
+  Check if all expressions in list are constant expressions
+
+  @param[in] values List of expessions
+
+  @return true Only constant expressions
+  @return false At least one non-constant expression
+*/
+
+static bool check_constant_expressions(List<Item> &values)
+{
+  Item *value;
+  List_iterator_fast<Item> v(values);
+  DBUG_ENTER("check_constant_expressions");
+
+  while ((value= v++))
+  {
+    if (!value->const_item())
+    {
+      DBUG_PRINT("exit", ("expression is not constant"));
+      DBUG_RETURN(false);
+    }
+  }
+  DBUG_PRINT("exit", ("expression is constant"));
+  DBUG_RETURN(true);
+}
+
+
+/**
   Re-read record if more columns are needed for error message.
 
   If we got a duplicate key error, we want to write an error
@@ -423,6 +451,36 @@ int mysql_update(THD *thd,
     DBUG_RETURN(0);
   }
 
+  /*
+    Read removal is possible if the selected quick read
+    method is using full unique index
+
+    NOTE! table->read_set currently holds the columns which are
+    used for the WHERE clause(this info is most likely already
+    available in select->quick, but where?)
+  */
+  bool read_removal= false;
+  if (table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL &&
+      select && select->quick && select->quick->index != MAX_KEY &&
+      !ignore &&
+      !using_limit)
+  {
+    const uint idx= select->quick->index;
+    DBUG_PRINT("rbwr", ("checking index: %d", idx));
+    const KEY *key= table->key_info + idx;
+    if (key->flags & HA_NOSAME)
+    {
+      DBUG_PRINT("rbwr", ("index is unique"));
+      bitmap_clear_all(&table->tmp_set);
+      table->mark_columns_used_by_index_no_reset(idx, &table->tmp_set);
+      if (bitmap_cmp(&table->tmp_set, table->read_set))
+      {
+        DBUG_PRINT("rbwr", ("using full index, rbwr possible"));
+        read_removal= true;
+      }
+    }
+  }
+
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -595,6 +653,10 @@ int mysql_update(THD *thd,
     }
     if (table->key_read)
       table->restore_column_maps_after_mark_index();
+
+    /* Rows are already read -> not possible to remove */
+    DBUG_PRINT("rbwr", ("rows are already read, turning off rbwr"));
+    read_removal= false;
   }
 
   if (ignore)
@@ -633,6 +695,14 @@ int mysql_update(THD *thd,
   }
   else
     will_batch= !table->file->start_bulk_update();
+
+  if (read_removal &&
+      will_batch &&
+      check_constant_expressions(values))
+  {
+    DBUG_ASSERT(select && select->quick);
+    read_removal= table->file->read_before_write_removal_possible();
+  }
 
   /*
     Assure that we can use position()
@@ -839,6 +909,20 @@ int mysql_update(THD *thd,
   if (will_batch)
     table->file->end_bulk_update();
   table->file->try_semi_consistent_read(0);
+
+  if (read_removal)
+  {
+    /* Only handler knows how many records really was written */
+    DBUG_PRINT("rbwr", ("adjusting updated: %ld, found: %ld",
+                        (long)updated, (long)found));
+
+    updated= table->file->read_before_write_removal_rows_written();
+    if (!records_are_comparable(table))
+      found= updated;
+
+    DBUG_PRINT("rbwr", ("really updated: %ld, found: %ld",
+                        (long)updated, (long)found));
+  }
 
   if (!transactional_table && updated > 0)
     thd->transaction.stmt.mark_modified_non_trans_table();
