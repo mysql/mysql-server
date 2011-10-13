@@ -239,8 +239,17 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
+  Uint32 stpages = 64;
+  {
+    Resource_limit rl;
+    rl.m_min = stpages;
+    rl.m_max = 0;
+    rl.m_resource_id = RG_SCHEMA_TRANS_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages;
+    pgman_pages + stpages;
 
   if (sum)
   {

@@ -68,7 +68,8 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dblqh/DblqhCommon.cpp \
   PgmanProxy.cpp \
   dbtup/DbtupClient.cpp \
-  dbtc/DbtcProxy.cpp
+  dbtc/DbtcProxy.cpp \
+  thrman.cpp
 
 ndbtools_PROGRAMS = ndb_print_file
 ndb_print_file_SOURCES = print_file.cpp diskpage.cpp dbtup/tuppage.cpp

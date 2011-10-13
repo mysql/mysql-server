@@ -1,4 +1,5 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,22 +12,35 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
-#ifndef NDB_DBSPJ_PROXY_HPP
-#define NDB_DBSPJ_PROXY_HPP
+#ifndef NDB_GET_RUSAGE_H
+#define NDB_GET_RUSAGE_H
 
-#include <LocalProxy.hpp>
+#include <ndb_global.h>
 
-class DbspjProxy : public LocalProxy {
-public:
-  DbspjProxy(Block_context& ctx);
-  virtual ~DbspjProxy();
-  BLOCK_DEFINES(DbspjProxy);
-
-protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
-
+struct ndb_rusage
+{
+  Uint64 ru_utime;
+  Uint64 ru_stime;
+  Uint64 ru_minflt;
+  Uint64 ru_majflt;
+  Uint64 ru_nvcsw;
+  Uint64 ru_nivcsw;
 };
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+  /**
+   * Get resource usage for calling thread
+   */
+  int Ndb_GetRUSage(ndb_rusage * dst);
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif
