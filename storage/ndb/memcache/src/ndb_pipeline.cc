@@ -133,15 +133,12 @@ void pipeline_add_stats(ndb_pipeline *self,
                         ADD_STAT add_stat, 
                         const void *cookie) {
   char key[128];
-  char val[128];
-  int klen, vlen;
-  char id;
 
   DEBUG_ENTER();
   const Configuration & conf = get_Configuration();
 
   if(strncasecmp(stat_key,"ndb",3) == 0) {
-    for(int i = 0 ; i < conf.nclusters ; i ++) {
+    for(unsigned int i = 0 ; i < conf.nclusters ; i ++) {
       sprintf(key, "cl%d", i);
       conf.getConnectionPoolById(i)->add_stats(key, add_stat, cookie);
     }
@@ -331,7 +328,7 @@ void memory_pool_free(memory_pool *pool) {
   do {
     array = next;
     next = (allocation_reference *) array->pointer;
-    for(int i = 1; i < array->d.cells_idx ; i++) {  // free each block
+    for(unsigned int i = 1; i < array->d.cells_idx ; i++) {  // free each block
       allocation_reference &r = array[i];
       pipeline_free(pool->pipeline, r.pointer, r.d.slab_class);
     }
@@ -381,6 +378,7 @@ void init_allocator(ndb_pipeline *self) {
   if(workitem_class_id > 8) 
     malloc_new_slab(& self->alligator[workitem_class_id]);   /* for workitems */
   malloc_new_slab(& self->alligator[13]);  /* The 8KB class, for row buffers */
+  malloc_new_slab(& self->alligator[14]);  /* The 16KB class for 13K rows */
 }
 
 
@@ -400,7 +398,7 @@ int init_slab_class(allocator_slab_class *c, int size) {
    once the scheduler has been started, you must hold p->lock to call this. 
 */
 int malloc_new_slab(allocator_slab_class *c) {  
-  int num = c->perslab;
+  unsigned int num = c->perslab;
   void **new_list;
   char *ptr;
 
@@ -415,7 +413,7 @@ int malloc_new_slab(allocator_slab_class *c) {
   void **cur = c->list;
   ptr = (char *) malloc(ALLIGATOR_SLAB_SIZE);
   if (ptr == 0) return 0;
-  for (int i = 0; i < num; i++) {
+  for (unsigned int i = 0; i < num; i++) {
     *cur = ptr;       /* push the pointer onto the list */
     cur++;            /* bump the list forward one position */
     ptr += c->size;   /* bump the pointer to the next block */

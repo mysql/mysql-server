@@ -2,14 +2,18 @@
 # Wait for the memcached server to be ready
 #
 
--- perl 
-use lib "lib/";
-use My::Memcache;
+-- perl WAIT_READY
 
-my $mc = My::Memcache->new();
-my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
-my $r = $mc->connect("localhost",$port);
-die unless($r);
+  use lib "lib/";
+  use IO::File;
+  use My::Memcache;
 
-$mc->get("dummy");
-EOF
+  my $mc = My::Memcache->new();
+  my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
+  my $r = $mc->connect("localhost",$port);
+  die unless($r);
+
+  $mc->get("dummy");
+  $mc->note_config_version();
+
+WAIT_READY

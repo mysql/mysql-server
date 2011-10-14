@@ -23,10 +23,10 @@
 #include "all_tests.h"
 
 
-int run_pool_test(QueryPlan *plan, int v) {
+int run_pool_test(QueryPlan *plan, Ndb *db1, int v) {
   int conn_retries = 0;
   int r;
-  Ndb_cluster_connection &main_conn = plan->db->get_ndb_cluster_connection();  
+  Ndb_cluster_connection &main_conn = db1->get_ndb_cluster_connection();  
 
   /* The pooled connection */  
   Ndb_cluster_connection * nc = new Ndb_cluster_connection(connect_string, & main_conn);
@@ -75,13 +75,13 @@ int run_pool_test(QueryPlan *plan, int v) {
          nc->node_id(), nc->get_connected_host(), nc->get_connected_port());  
   require(nc->node_id());
 
-  Ndb *db = new Ndb(nc);
-  require(db);
+  Ndb *db2 = new Ndb(nc);
+  require(db2);
   detail(v, "Created an Ndb object.\n");
   
-  db->init(4);
+  db2->init(4);
 
-  NdbTransaction *tx = db->startTransaction();
+  NdbTransaction *tx = db2->startTransaction();
   require(tx);
   detail(v, "Started a transaction.\n");
   
