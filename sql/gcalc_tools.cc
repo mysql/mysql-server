@@ -192,7 +192,7 @@ int Gcalc_function::count_internal(const char *cur_func, uint set_type,
         result= result & !next_res;
         break;
       default:
-        DBUG_ASSERT(FALSE);
+        GCALC_DBUG_ASSERT(FALSE);
     };
   }
 
@@ -262,7 +262,8 @@ void Gcalc_function::reset()
 
 int Gcalc_function::check_function(Gcalc_scan_iterator &scan_it)
 {
-  const Gcalc_scan_iterator::point *eq_start, *cur_eq, *events;
+  const Gcalc_scan_iterator::point *eq_start, *cur_eq;
+  const Gcalc_scan_iterator::event_point *events;
   GCALC_DBUG_ENTER("Gcalc_function::check_function");
 
   while (scan_it.more_points())
@@ -502,7 +503,7 @@ int Gcalc_result_receiver::complete_shape()
   }
   else
   {
-    DBUG_ASSERT(cur_shape != Gcalc_function::shape_point);
+    GCALC_DBUG_ASSERT(cur_shape != Gcalc_function::shape_point);
     if (cur_shape == Gcalc_function::shape_hole)
     {
       shape_area+= prev_x*first_y - prev_y*first_x;
@@ -534,7 +535,7 @@ do_complete:
 
   if (!n_shapes++)
   {
-    DBUG_ASSERT(cur_shape != Gcalc_function::shape_hole);
+    GCALC_DBUG_ASSERT(cur_shape != Gcalc_function::shape_hole);
     common_shapetype= cur_shape;
   }
   else if (cur_shape == Gcalc_function::shape_hole)
@@ -587,7 +588,7 @@ int Gcalc_result_receiver::get_result_typeid()
       return (n_shapes == 1) ? Geometry::wkb_linestring :
                                Geometry::wkb_multilinestring;
     default:
-      DBUG_ASSERT(0);
+      GCALC_DBUG_ASSERT(0);
   }
   return 0;
 }
@@ -648,12 +649,19 @@ Gcalc_operation_reducer(Gcalc_function *fn, modes mode, size_t blk_size) :
 }
 
 
+#ifdef TMP_BLOCK
 void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
 {
   if ((intersection_point= si->intersection_step()))
     ii= si->get_cur_ii();
   else
     pi= si->get_cur_pi();
+}
+#endif /*TMP_BLOCK*/
+void Gcalc_operation_reducer::res_point::set(const Gcalc_scan_iterator *si)
+{
+  intersection_point= si->intersection_step();
+  pi= si->get_cur_pi();
 }
 
 
@@ -726,7 +734,7 @@ int Gcalc_operation_reducer::continue_range(active_thread *t,
 
 
 inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
-			            const Gcalc_heap::Intersection_info *ii)
+			            const Gcalc_heap::Info *ii)
 {
   res_point *rp= add_res_point(t->rp->type);
   GCALC_DBUG_ENTER("Gcalc_operation_reducer::continue_i_range");
@@ -736,7 +744,7 @@ inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
   rp->down= t->rp;
   t->rp->up= rp;
   rp->intersection_point= true;
-  rp->ii= ii;
+  rp->pi= ii;
   t->rp= rp;
   GCALC_DBUG_RETURN(0);
 }
@@ -746,7 +754,7 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
 {
   res_point *rp0, *rp1;
   GCALC_DBUG_ENTER("Gcalc_operation_reducer::end_couple");
-  DBUG_ASSERT(t0->rp->type == t1->rp->type);
+  GCALC_DBUG_ASSERT(t0->rp->type == t1->rp->type);
   if (!(rp0= add_res_point(t0->rp->type)) ||
       !(rp1= add_res_point(t0->rp->type)))
     GCALC_DBUG_RETURN(1);
@@ -769,7 +777,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
   int prev_state= 0;
   int sav_prev_state;
   active_thread *prev_range= NULL;
-  const Gcalc_scan_iterator::point *events;
+  const Gcalc_scan_iterator::event_point *events;
   const Gcalc_scan_iterator::point *eq_start;
   active_thread **cur_t_hook= &m_first_active_thread;
   active_thread **starting_t_hook;
@@ -834,7 +842,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
         break;
       }
       default:
-        DBUG_ASSERT(0);
+        GCALC_DBUG_ASSERT(0);
     }
     GCALC_DBUG_RETURN(0);
   }
@@ -875,7 +883,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
       {
         if (cur_t->rp->type == Gcalc_function::shape_line)
         {
-          DBUG_ASSERT(!prev_state);
+          GCALC_DBUG_ASSERT(!prev_state);
           add_line(1, cur_t, events);
         }
         else
@@ -971,7 +979,7 @@ int Gcalc_operation_reducer::count_slice(Gcalc_scan_iterator *si)
     {
       poly_border *pb1, *pb2;
       pb1= m_poly_borders;
-      DBUG_ASSERT(m_poly_borders->next);
+      GCALC_DBUG_ASSERT(m_poly_borders->next);
 
       pb2= get_pair_border(pb1);
       /* Remove pb1 from the list. The pb2 already removed in get_pair_border. */
@@ -1098,7 +1106,7 @@ int Gcalc_operation_reducer::connect_threads(
   if (incoming_a && incoming_b)
   {
     res_point *rpa, *rpb;
-    DBUG_ASSERT(ta->rp->type == tb->rp->type);
+    GCALC_DBUG_ASSERT(ta->rp->type == tb->rp->type);
     if (!(rpa= add_res_point(ta->rp->type)) ||
         !(rpb= add_res_point(ta->rp->type)))
       GCALC_DBUG_RETURN(1);
@@ -1116,7 +1124,7 @@ int Gcalc_operation_reducer::connect_threads(
   }
   if (!incoming_a)
   {
-    DBUG_ASSERT(!incoming_b);
+    GCALC_DBUG_ASSERT(!incoming_b);
 
     res_point *rp0, *rp1;
     if (!(rp0= add_res_point(s_t)) || !(rp1= add_res_point(s_t)))
@@ -1152,14 +1160,14 @@ int Gcalc_operation_reducer::connect_threads(
   }
   /* else, if only ta is incoming */
 
-  DBUG_ASSERT(tb != ta);
+  GCALC_DBUG_ASSERT(tb != ta);
   tb->rp= ta->rp;
   tb->thread_start= ta->thread_start;
   if (Gcalc_scan_iterator::point::
       cmp_dx_dy(ta->p1, ta->p2, pb->pi, pb->next_pi) != 0)
   {
     if (si->intersection_step() ?
-          continue_i_range(tb, si->get_cur_ii()) :
+          continue_i_range(tb, si->get_cur_pi()) :
           continue_range(tb, si->get_cur_pi(), pb->next_pi))
       GCALC_DBUG_RETURN(1);
   }
@@ -1191,7 +1199,7 @@ int Gcalc_operation_reducer::end_line(active_thread *t,
                                       const Gcalc_scan_iterator *si)
 {
   GCALC_DBUG_ENTER("Gcalc_operation_reducer::end_line");
-  DBUG_ASSERT(t->rp->type == Gcalc_function::shape_line);
+  GCALC_DBUG_ASSERT(t->rp->type == Gcalc_function::shape_line);
   res_point *rp= add_res_point(Gcalc_function::shape_line);
   if (!rp)
     GCALC_DBUG_RETURN(1);
@@ -1237,7 +1245,7 @@ inline int Gcalc_operation_reducer::get_single_result(res_point *res,
   if (res->intersection_point)
   {
     double x, y;
-    res->ii->calc_xy(&x, &y);
+    res->pi->calc_xy(&x, &y);
     if (storage->single_point(x,y))
       GCALC_DBUG_RETURN(1);
   }
@@ -1264,7 +1272,7 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
     {
       if (cur->intersection_point)
       {
-        cur->ii->calc_xy(&x, &y);
+        cur->pi->calc_xy(&x, &y);
       }
       else
       {
@@ -1368,7 +1376,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
         uint32 insert_position, hole_position, position_shift;
         poly_instance *cur_poly;
         insert_position= m_result->outer_poly->first_poly_node->poly_position;
-        DBUG_ASSERT(insert_position);
+        GCALC_DBUG_ASSERT(insert_position);
         hole_position= storage->position();
         storage->start_shape(Gcalc_function::shape_hole);
         if (get_polygon_result(m_result, storage,

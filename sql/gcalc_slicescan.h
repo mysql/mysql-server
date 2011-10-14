@@ -28,11 +28,13 @@
 #define GCALC_DBUG_PRINT(b) DBUG_PRINT("Gcalc", b)
 #define GCALC_DBUG_ENTER(a) DBUG_ENTER("Gcalc "a)
 #define GCALC_DBUG_RETURN(r) DBUG_RETURN(r)
+#define GCALC_DBUG_VOID_RETURN DBUG_VOID_RETURN
 #define GCALC_DBUG_ASSERT(r) DBUG_ASSERT(r)
 #else
 #define GCALC_DBUG_PRINT(b)     do {} while(0)
 #define GCALC_DBUG_ENTER(a)     do {} while(0)
 #define GCALC_DBUG_RETURN(r)    return (r)
+#define GCALC_DBUG_VOID_RETURN  do {} while(0)
 #define GCALC_DBUG_ASSERT(r)    do {} while(0)
 #endif /*GCALC_DBUG_OFF*/
 
@@ -158,6 +160,18 @@ public:
 };
 
 
+class Gcalc_coord3 : public Gcalc_internal_coord
+{
+  gcalc_digit_t c[GCALC_COORD_BASE*3];
+  public:
+  void init()
+  {
+    n_digits= GCALC_COORD_BASE*3;
+    digits= c;
+  }
+};
+
+
 void gcalc_mul_coord(Gcalc_internal_coord *result,
                      const Gcalc_internal_coord *a,
                      const Gcalc_internal_coord *b);
@@ -192,41 +206,71 @@ typedef uint gcalc_shape_info;
 class Gcalc_heap : public Gcalc_dyn_list
 {
 public:
+  enum node_type
+  {
+    nt_shape_node,
+    nt_intersection,
+    nt_eq_node
+  };
   class Info : public Gcalc_dyn_list::Item
   {
   public:
-    gcalc_shape_info shape;
-    Info *left;
-    Info *right;
-    double x,y;
-    Gcalc_coord1 ix, iy;
+    node_type type;
+    union
+    {
+      struct
+      {
+        /* nt_shape_node */
+        gcalc_shape_info shape;
+        Info *left;
+        Info *right;
+        double x,y;
+        Gcalc_coord1 ix, iy;
+        int top_node;
+      };
+      struct
+      {
+        /* nt_intersection */
+        /* Line p1-p2 supposed to intersect line p3-p4 */
+        const Info *p1;
+        const Info *p2;
+        const Info *p3;
+        const Info *p4;
+        void *intersection_data;
+        int equal_intersection;
+      };
+      struct
+      {
+        /* nt_eq_node */
+        const Info *node;
+        void *eq_data;
+      };
+    };
 
-    inline bool is_bottom() const { return !left; }
-    inline Info *get_next() { return (Info *)next; }
-    inline const Info *get_next() const { return (const Info *)next; }
-  };
-  class Intersection_info : public Gcalc_dyn_list::Item
-  {
-  public:
-    /* Line p1-p2 supposed to intersect line p3-p4 */
-    const Info *p1;
-    const Info *p2;
-    const Info *p3;
-    const Info *p4;
+    bool is_bottom() const
+      { GCALC_DBUG_ASSERT(type == nt_shape_node); return !left; }
+    bool is_top() const
+      { GCALC_DBUG_ASSERT(type == nt_shape_node); return top_node; }
+    bool is_single_node() const
+      { return is_bottom() && is_top(); }
+
     void calc_xy(double *x, double *y) const;
+    int equal_pi(const Info *pi) const;
 #ifdef GCALC_CHECK_WITH_FLOAT
     void calc_xy_ld(long double *x, long double *y) const;
 #endif /*GCALC_CHECK_WITH_FLOAT*/
+
+    Info *get_next() { return (Info *)next; }
+    const Info *get_next() const { return (const Info *)next; }
   };
 
   Gcalc_heap(size_t blk_size=8192) :
     Gcalc_dyn_list(blk_size, sizeof(Info)),
-    m_hook(&m_first), m_n_points(0),
-    m_intersection_hook((Gcalc_dyn_list::Item **) &m_first_intersection)
+    m_hook(&m_first), m_n_points(0)
   {}
   Info *new_point_info(double x, double y, gcalc_shape_info shape);
-  Intersection_info *new_intersection(const Info *p1, const Info *p2,
-                                      const Info *p3, const Info *p4);
+  Info *new_intersection(const Info *p1, const Info *p2,
+                         const Info *p3, const Info *p4);
   void prepare_operation();
   inline bool ready() const { return m_hook == NULL; }
   Info *get_first() { return (Info *)m_first; }
@@ -240,8 +284,6 @@ private:
   Gcalc_dyn_list::Item *m_first;
   Gcalc_dyn_list::Item **m_hook;
   int m_n_points;
-  Intersection_info *m_first_intersection;
-  Gcalc_dyn_list::Item **m_intersection_hook;
   double coord_extent;
 };
 
@@ -345,7 +387,6 @@ enum Gcalc_scan_events
   scev_single_point= 64  /* Got single point */
 };
 
-typedef int sc_thread_id;
 
 /* 
    Gcalc_scan_iterator incapsulates the slisescan algorithm.
@@ -366,12 +407,11 @@ public:
     Gcalc_coord1 dy;
     Gcalc_heap::Info *pi;
     Gcalc_heap::Info *next_pi;
-    sc_thread_id thread;
+    Gcalc_heap::Info *ev_pi;
     const Gcalc_coord1 *l_border;
     const Gcalc_coord1 *r_border;
-    int always_on_left;
+    point *ev_next;
 
-    const point *intersection_link;
     Gcalc_scan_events event;
 
     inline const point *c_get_next() const
@@ -380,9 +420,6 @@ public:
     gcalc_shape_info get_shape() const { return pi->shape; }
     inline point *get_next() { return (point *)next; }
     inline const point *get_next() const { return (const point *)next; }
-    /* copies all but 'next' 'x' and 'precursor' */
-    void copy_core(const point *from);
-    void copy_all(const point *from);
     /* Compare the dx_dy parameters regarding the horiz_dir */
     /* returns -1 if less, 0 if equal, 1 if bigger          */
     static int cmp_dx_dy(const Gcalc_coord1 *dx_a,
@@ -394,48 +431,52 @@ public:
                          const Gcalc_heap::Info *p3,
                          const Gcalc_heap::Info *p4);
     int cmp_dx_dy(const point *p) const;
-    int simple_event() const
-    {
-      return !next ? (event & (scev_point | scev_end)) : 
-                     (!next->next && event == scev_two_ends);
-    }
-#ifndef DBUG_OFF
-    void dbug_print();
-#endif /*DBUG_OFF*/
+    point **next_ptr() { return (point **) &next; }
+#ifndef GCALC_DBUG_OFF
+    unsigned int thread;
+#endif /*GCALC_DBUG_OFF*/
 #ifdef GCALC_CHECK_WITH_FLOAT
     void calc_x(long double *x, long double y, long double ix) const;
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   };
 
-  class intersection : public Gcalc_dyn_list::Item
+  /* That class introduced mostly for the 'typecontrol' reason.      */
+  /* only difference from the point classis the get_next() function. */
+  class event_point : public point
   {
   public:
-    int n_row;
-    sc_thread_id thread_a;
-    sc_thread_id thread_b;
-    const Gcalc_heap::Intersection_info *ii;
-    inline intersection *get_next() { return (intersection *)next; }
+    inline const event_point *get_next() const
+    { return (const event_point*) ev_next; }
+    int simple_event() const
+    {
+      return !ev_next ? (event & (scev_point | scev_end)) : 
+        (!ev_next->ev_next && event == scev_two_ends);
+    }
   };
+
+  class intersection_info : public Gcalc_dyn_list::Item
+  {
+  public:
+    point *edge_a;
+    point *edge_b;
+
+    Gcalc_coord2 t_a;
+    Gcalc_coord2 t_b;
+    int t_calculated;
+    Gcalc_coord3 x_exp;
+    int x_calculated;
+    Gcalc_coord3 y_exp;
+    int y_calculated;
+  };
+
 
   class slice_state
   {
   public:
     point *slice;
-    point *event_position;
-    Gcalc_dyn_list::Item **event_position_hook;
-    Gcalc_dyn_list::Item **event_end_hook;
-    int intersection_scan;
-    union
-    {
-      const Gcalc_heap::Info *pi;
-      const Gcalc_heap::Intersection_info *isc;
-    };
-    slice_state() : slice(NULL) {}
-    void clear_event_position()
-    {
-      event_position= NULL;
-      event_end_hook= (Gcalc_dyn_list::Item **) &event_position;
-    }
+    point **event_position_hook;
+    point *event_end;
+    const Gcalc_heap::Info *pi;
   };
 
 public:
@@ -443,68 +484,56 @@ public:
 
   void init(Gcalc_heap *points); /* Iterator can be reused */
   void reset();
-  int step()
-  {
-    DBUG_ASSERT(more_points());
-    return m_intersections ? intersection_scan() : normal_scan();
-  }
+  int step();
 
-  inline Gcalc_heap::Info *more_points() { return m_cur_pi; }
-  inline bool more_trapezoids()
+  Gcalc_heap::Info *more_points() { return m_cur_pi; }
+  bool more_trapezoids()
     { return m_cur_pi && m_cur_pi->next; }
 
-  inline const point *get_events() const
-    { return m_events; }
-  inline const point *get_event_position() const
-    { return current_state->event_position; }
-  inline const point *get_event_end() const
-    { return (point *) *current_state->event_end_hook; }
-  inline const point *get_b_slice() const { return current_state->slice; }
-  inline const point *get_t_slice() const { return next_state->slice; }
+  const point *get_bottom_points() const
+    { return m_bottom_points; }
+  const point *get_event_position() const
+    { return *state.event_position_hook; }
+  const point *get_event_end() const
+    { return state.event_end; }
+  const event_point *get_events() const
+    { return (const event_point *)
+        (*state.event_position_hook == state.event_end ?
+            m_bottom_points : *state.event_position_hook); }
+  const point *get_b_slice() const { return state.slice; }
   double get_h() const;
   double get_y() const;
   double get_event_x() const;
   double get_sp_x(const point *sp) const;
-  int intersection_step() const { return current_state->intersection_scan; }
+  int intersection_step() const
+    { return state.pi->type == Gcalc_heap::nt_intersection; }
   const Gcalc_heap::Info *get_cur_pi() const
   {
-    DBUG_ASSERT(!intersection_step());
-    return current_state->pi;
-  }
-  const Gcalc_heap::Intersection_info *get_cur_ii() const
-  {
-    DBUG_ASSERT(intersection_step());
-    return current_state->isc;
+    return state.pi;
   }
 
 private:
   Gcalc_heap *m_heap;
   Gcalc_heap::Info *m_cur_pi;
-  slice_state state0, state1, state_s;
-  slice_state *current_state;
-  slice_state *next_state;
-  slice_state *saved_state;
+  slice_state state;
 
-  intersection *m_intersections;
-  int m_n_intersections;
-  intersection *m_cur_intersection;
-  bool m_next_is_top_point;
-  sc_thread_id m_cur_thread;
+#ifndef GCALC_DBUG_OFF
+  unsigned int m_cur_thread;
+#endif /*GCALC_DBUG_OFF*/
 
-  point *m_events;
-  int normal_scan();
-  int intersection_scan();
-  void sort_intersections();
-  int handle_intersections();
-  int insert_top_point();
-  int add_intersection(int n_row, const point *a, const point *b,
-		       Gcalc_dyn_list::Item ***p_hook);
-  int find_intersections();
+  point *m_bottom_points;
+  point **m_bottom_hook;
 
-  intersection *new_intersection()
-  {
-    return (intersection *)new_item();
-  }
+  int node_scan();
+  void eq_scan();
+  void intersection_scan();
+  void remove_bottom_node();
+  int insert_top_node();
+  int add_intersection(point *sp_a, point *sp_b,
+                       Gcalc_heap::Info *pi_from);
+  int add_eq_node(Gcalc_heap::Info *node, point *sp);
+  int add_events_for_node(point *sp_node);
+
   point *new_slice_point()
   {
     point *new_point= (point *)new_item();
@@ -512,9 +541,15 @@ private:
     new_point->dy.init();
     return new_point;
   }
-  point *new_slice(point *example);
-  int arrange_event();
-  void mark_event_position1(point *ep, Gcalc_dyn_list::Item **ep_hook);
+  intersection_info *new_intersection_info(point *a, point *b)
+  {
+    intersection_info *ii= (intersection_info *)new_item();
+    ii->edge_a= a;
+    ii->edge_b= b;
+    ii->t_calculated= ii->x_calculated= ii->y_calculated= 0;
+    return ii;
+  }
+  int arrange_event(int do_sorting, int n_intersections);
 };
 
 
@@ -525,6 +560,7 @@ private:
    previous and current slices.
 */
 
+#ifdef TMP_BLOCK
 class Gcalc_trapezoid_iterator
 {
 protected:
@@ -556,6 +592,7 @@ public:
     sp1= rt();
   }
 };
+#endif /*TMP_BLOCK*/
 
 
 /* 

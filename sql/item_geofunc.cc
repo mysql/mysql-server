@@ -1445,7 +1445,7 @@ longlong Item_func_issimple::val_int()
   Gcalc_operation_transporter trn(&func, &collector);
   Geometry *g;
   int result= 1;
-  const Gcalc_scan_iterator::point *ev;
+  const Gcalc_scan_iterator::event_point *ev;
 
   DBUG_ENTER("Item_func_issimple::val_int");
   DBUG_ASSERT(fixed == 1);
@@ -1669,7 +1669,7 @@ double Item_func_distance::val_real()
   bool above_cur_point, cur_point_edge;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
-  const Gcalc_scan_iterator::point *ev;
+  const Gcalc_scan_iterator::event_point *ev;
   double t, distance, cur_distance;
   double x1, x2, y1, y2;
   double ex, ey, vx, vy, e_sqrlen;

@@ -233,7 +233,6 @@ public:
     union
     {
       const Gcalc_heap::Info *pi;
-      const Gcalc_heap::Intersection_info *ii;
       res_point *first_poly_node;
     };
     union
@@ -331,7 +330,7 @@ private:
   int continue_range(active_thread *t, const Gcalc_heap::Info *p,
                      const Gcalc_heap::Info *p_next);
   int continue_i_range(active_thread *t,
-                       const Gcalc_heap::Intersection_info *ii);
+                       const Gcalc_heap::Info *ii);
   int end_couple(active_thread *t0, active_thread *t1, const Gcalc_heap::Info *p);
   int get_single_result(res_point *res, Gcalc_result_receiver *storage);
   int get_result_thread(res_point *cur, Gcalc_result_receiver *storage,
