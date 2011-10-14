@@ -467,6 +467,9 @@ public:
     int x_calculated;
     Gcalc_coord3 y_exp;
     int y_calculated;
+    void calc_t();
+    void calc_y_exp();
+    void calc_x_exp();
   };
 
 

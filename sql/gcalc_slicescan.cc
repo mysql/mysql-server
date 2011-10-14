@@ -634,6 +634,7 @@ class Gcalc_coord5 : public Gcalc_internal_coord
 };
 
 
+#ifdef TMP_BLOCK
 static void calc_isc_exp(Gcalc_coord5 *exp,
                          const Gcalc_coord2 *bb2,
                          const Gcalc_coord1 *ya1,
@@ -701,27 +702,94 @@ static int cmp_intersections(const Gcalc_heap::Info *i1,
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   return result;
 }
+#endif /*TMP_BLOCK*/
+
+
+void Gcalc_scan_iterator::intersection_info::calc_t()
+{
+  if (t_calculated)
+    return;
+
+  Gcalc_coord1 a2_a1x, a2_a1y;
+  Gcalc_coord2 x1y2, x2y1;
+  t_a.init();
+  t_b.init();
+
+  a2_a1x.init();
+  a2_a1y.init();
+  x1y2.init();
+  x2y1.init();
+
+  gcalc_sub_coord(&a2_a1x, &edge_b->pi->ix, &edge_a->pi->ix);
+  gcalc_sub_coord(&a2_a1y, &edge_b->pi->iy, &edge_a->pi->iy);
+
+  GCALC_DBUG_ASSERT(!edge_a->dy.is_zero() || !edge_b->dy.is_zero());
+
+  gcalc_mul_coord(&x1y2, &edge_a->dx, &edge_b->dy);
+  gcalc_mul_coord(&x2y1, &edge_a->dy, &edge_b->dx);
+  gcalc_sub_coord(&t_b, &x1y2, &x2y1);
+
+
+  gcalc_mul_coord(&x1y2, &a2_a1x, &edge_b->dy);
+  gcalc_mul_coord(&x2y1, &a2_a1y, &edge_b->dx);
+  gcalc_sub_coord(&t_a, &x1y2, &x2y1);
+  t_calculated= 1;
+}
+
+
+void Gcalc_scan_iterator::intersection_info::calc_y_exp()
+{
+  if (y_calculated)
+    return;
+  GCALC_DBUG_ASSERT(t_calculated);
+
+  Gcalc_coord3 a_tb, b_ta;
+
+  y_exp.init();
+  a_tb.init();
+  b_ta.init();
+  gcalc_mul_coord(&a_tb, &t_b, &edge_a->pi->iy);
+  gcalc_mul_coord(&b_ta, &t_a, &edge_a->dy);
+
+  gcalc_add_coord(&y_exp, &a_tb, &b_ta);
+  y_calculated= 1;
+}
+
+
+void Gcalc_scan_iterator::intersection_info::calc_x_exp()
+{
+  if (x_calculated)
+    return;
+  GCALC_DBUG_ASSERT(t_calculated);
+
+  Gcalc_coord3 a_tb, b_ta;
+
+  x_exp.init();
+  a_tb.init();
+  b_ta.init();
+  gcalc_mul_coord(&a_tb, &t_b, &edge_a->pi->ix);
+  gcalc_mul_coord(&b_ta, &t_a, &edge_a->dx);
+
+  gcalc_add_coord(&x_exp, &a_tb, &b_ta);
+  x_calculated= 1;
+}
 
 
 static int cmp_node_isc(const Gcalc_heap::Info *node,
                         const Gcalc_heap::Info *isc)
 {
   GCALC_DBUG_ASSERT(node->type == Gcalc_heap::nt_shape_node);
-  Gcalc_coord3 exp_a, exp_b;
-  Gcalc_coord1 xb1, yb1, d0;
-  Gcalc_coord2 t_a, t_b;
+  Gcalc_scan_iterator::intersection_info *inf= i_data(isc);
+  Gcalc_coord3 exp;
   int result;
-  exp_a.init();
-  exp_b.init();
-  d0.init();
+  exp.init();
 
-  calc_t(&t_a, &t_b, &xb1, &yb1, isc);
+  inf->calc_t();
+  inf->calc_y_exp();
 
-  gcalc_sub_coord(&d0, &node->iy, &isc->p1->iy);
-  gcalc_mul_coord(&exp_a, &d0, &t_b);
-  gcalc_mul_coord(&exp_b, &yb1, &t_a);
+  gcalc_mul_coord(&exp, &node->iy, &inf->t_b);
 
-  result= gcalc_cmp_coord(&exp_a, &exp_b);
+  result= gcalc_cmp_coord(&exp, &inf->y_exp);
 #ifdef GCALC_CHECK_WITH_FLOAT
   long double int_x, int_y;
   isc->calc_xy_ld(&int_x, &int_y);
@@ -735,11 +803,11 @@ static int cmp_node_isc(const Gcalc_heap::Info *node,
   if (result)
     goto exit;
 
-  gcalc_sub_coord(&d0, &node->ix, &isc->p1->ix);
-  gcalc_mul_coord(&exp_a, &d0, &t_b);
-  gcalc_mul_coord(&exp_b, &xb1, &t_a);
 
-  result= gcalc_cmp_coord(&exp_a, &exp_b);
+  inf->calc_x_exp();
+  gcalc_mul_coord(&exp, &node->ix, &inf->t_b);
+
+  result= gcalc_cmp_coord(&exp, &inf->x_exp);
 #ifdef GCALC_CHECK_WITH_FLOAT
   if (result < 0)
     GCALC_DBUG_ASSERT(de_check(int_x, node->x) || node->x < int_x);
@@ -753,6 +821,59 @@ exit:
 }
 
 
+static int cmp_intersections(const Gcalc_heap::Info *i1,
+                             const Gcalc_heap::Info *i2)
+{
+  Gcalc_scan_iterator::intersection_info *inf1= i_data(i1);
+  Gcalc_scan_iterator::intersection_info *inf2= i_data(i2);
+  Gcalc_coord5 exp_a, exp_b;
+  int result;
+
+  inf1->calc_t();
+  inf2->calc_t();
+
+  inf1->calc_y_exp();
+  inf2->calc_y_exp();
+
+  exp_a.init();
+  exp_b.init();
+  gcalc_mul_coord(&exp_a, &inf1->y_exp, &inf2->t_b);
+  gcalc_mul_coord(&exp_b, &inf2->y_exp, &inf1->t_b);
+
+  result= gcalc_cmp_coord(&exp_a, &exp_b);
+#ifdef GCALC_CHECK_WITH_FLOAT
+  long double x1, y1, x2, y2;
+  i1->calc_xy_ld(&x1, &y1);
+  i2->calc_xy_ld(&x2, &y2);
+
+  if (result == 0)
+    GCALC_DBUG_ASSERT(de_check(y1, y2));
+  if (result < 0)
+    GCALC_DBUG_ASSERT(de_check(y1, y2) || y1 < y2);
+  if (result > 0)
+    GCALC_DBUG_ASSERT(de_check(y1, y2) || y1 > y2);
+#endif /*GCALC_CHECK_WITH_FLOAT*/
+
+  if (result != 0)
+    return result;
+
+
+  inf1->calc_x_exp();
+  inf2->calc_x_exp();
+  gcalc_mul_coord(&exp_a, &inf1->x_exp, &inf2->t_b);
+  gcalc_mul_coord(&exp_b, &inf2->x_exp, &inf1->t_b);
+
+  result= gcalc_cmp_coord(&exp_a, &exp_b);
+#ifdef GCALC_CHECK_WITH_FLOAT
+  if (result == 0)
+    GCALC_DBUG_ASSERT(de_check(x1, x2));
+  if (result < 0)
+    GCALC_DBUG_ASSERT(de_check(x1, x2) || x1 < x2);
+  if (result > 0)
+    GCALC_DBUG_ASSERT(de_check(x1, x2) || x1 > x2);
+#endif /*GCALC_CHECK_WITH_FLOAT*/
+  return result;
+}
 /* Internal coordinates implementation end */
 
 
