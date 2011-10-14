@@ -50,7 +50,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
   const Configuration & conf = get_Configuration();
 
   /* How many NDB instances are needed per cluster? */
-  for(int c = 0 ; c < conf.nclusters ; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     ClusterConnectionPool *pool = conf.getConnectionPoolById(c);
     double total_ndb_objects = conf.figureInFlightTransactions(c);
     cluster[c].nInst = (int) total_ndb_objects / nthreads;
@@ -58,17 +58,20 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
                 c, conf.max_tps, pool->usec_rtt, cluster[c].nInst);
   }
   
-  // Get the NDB instances. 
-  for(int c = 0 ; c < conf.nclusters ; c++) {
+  // Get the ConnQueryPlanSet and NDB instances for each cluster.
+  for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     cluster[c].instances = (NdbInstance**) 
       calloc(cluster[c].nInst, sizeof(NdbInstance *));
     
     ClusterConnectionPool *pool = conf.getConnectionPoolById(c);
     Ndb_cluster_connection *conn = pool->getPooledConnection(my_thread);
 
+    cluster[c].plan_set = new ConnQueryPlanSet(conn, conf.nprefixes);
+    cluster[c].plan_set->buildSetForConfiguration(&conf, c);
+
     cluster[c].nextFree = NULL;    
     for(int i = 0; i < cluster[c].nInst ; i++) {
-      NdbInstance *inst = new NdbInstance(conn, conf.nprefixes, 1);
+      NdbInstance *inst = new NdbInstance(conn, 1);
       cluster[c].instances[i] = inst;
       inst->next = cluster[c].nextFree;
       cluster[c].nextFree = inst;
@@ -77,23 +80,23 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
     logger->log(LOG_WARNING, 0, "Pipeline %d using %u Ndb instances for Cluster %u.\n",
                 my_thread, cluster[c].nInst, c);
   }
-  
+
+
   /* Hoard a transaction (an API connect record) for each Ndb object.  This
      first call to startTransaction() will send TC_SEIZEREQ and wait for a 
      reply, but later at runtime startTransaction() should return immediately.
-     Also, for each NDB instance, ore-build the QueryPlan for the default key prefix.
      TODO? Start one tx on each data node.
   */
   QueryPlan *plan;
-  const KeyPrefix *default_prefix = conf.getDefaultPrefix();
-  for(int c = 0 ; c < conf.nclusters ; c++) {
+  const KeyPrefix *default_prefix = conf.getDefaultPrefix();  // TODO: something
+  for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     const KeyPrefix *prefix = conf.getNextPrefixForCluster(c, NULL); 
     if(prefix) {
       NdbTransaction ** txlist;
       txlist = ( NdbTransaction **) calloc(cluster[c].nInst, sizeof(NdbTransaction *));
       // Open them all.
       for(int i = 0 ; i < cluster[c].nInst ; i++) {
-        plan = cluster[c].instances[i]->getPlanForPrefix(prefix);
+        plan = cluster[c].plan_set->getPlanForPrefix(prefix);
         txlist[i] = cluster[c].instances[i]->db->startTransaction();
       }
       // Close them all.
@@ -109,7 +112,7 @@ void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_s
      The engine thread will add items to this queue, and the commit thread will 
      consume them. 
   */
-  for(int c = 0 ; c < conf.nclusters; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     cluster[c].queue = (struct workqueue *) malloc(sizeof(struct workqueue));
     workqueue_init(cluster[c].queue, 8192, 1);
   }  
@@ -124,7 +127,7 @@ void Scheduler_stockholm::attach_thread(thread_identifier * parent) {
               "launching %d commit thread%s.\n", pipeline->id, conf.nclusters,
               conf.nclusters == 1 ? "" : "s");
 
-  for(int c = 0 ; c < conf.nclusters; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     cluster[c].stats.cycles = 0;
     cluster[c].stats.commit_thread_vtime = 0;
 
@@ -140,11 +143,11 @@ void Scheduler_stockholm::shutdown() {
   const Configuration & conf = get_Configuration();
 
   /* Shut down the workqueues */
-  for(int c = 0 ; c < conf.nclusters; c++)
+  for(unsigned int c = 0 ; c < conf.nclusters; c++)
     workqueue_abort(cluster[c].queue);
   
   /* Close all of the Ndbs */
-  for(int c = 0 ; c < conf.nclusters; c++) {
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     for(int i = 0 ; i < cluster[c].nInst ; i++) {
       delete cluster[c].instances[i];
     }
@@ -185,7 +188,7 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
   workitem_set_NdbInstance(newitem, inst);
   
   // Fetch the query plan for this prefix.
-  newitem->plan = inst->getPlanForPrefix(pfx);
+  newitem->plan = cluster[c].plan_set->getPlanForPrefix(pfx);
   if(! newitem->plan) return ENGINE_FAILED;
   
   // Build the NDB transaction
@@ -231,7 +234,7 @@ void Scheduler_stockholm::add_stats(const char *stat_key,
                                     const void * cookie) {
   char key[128];
   char val[128];
-  int klen, vlen, p;
+  int klen, vlen;
   const Configuration & conf = get_Configuration();
 
   if(strncasecmp(stat_key, "reconf", 6) == 0) {
@@ -239,7 +242,7 @@ void Scheduler_stockholm::add_stats(const char *stat_key,
     return;
   }
   
-  for(int c = 0 ; c < conf.nclusters; c++) {  
+  for(unsigned int c = 0 ; c < conf.nclusters; c++) {
     klen = sprintf(key, "pipeline_%d_cluster_%d_commit_cycles", pipeline->id, c);
     vlen = sprintf(val, "%"PRIu64, cluster[c].stats.cycles);
     add_stat(key, klen, val, vlen, cookie);

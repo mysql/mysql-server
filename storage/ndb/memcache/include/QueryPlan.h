@@ -47,12 +47,12 @@ class QueryPlan {
   QueryPlan() : initialized(0)  {};  
   QueryPlan(Ndb *, const TableSpec *, PlanOpts opts = NoOptions); 
   ~QueryPlan();
-  bool keyIsPrimaryKey();
-  
+  bool keyIsPrimaryKey() const;
+  void debug_dump() const;
+   
   /* public instance variables */
   bool initialized;
   bool dup_numbers;
-  Ndb *db;
   const TableSpec *spec;
   NdbDictionary::Dictionary *dict;
   const NdbDictionary::Table *table;
@@ -76,6 +76,7 @@ class QueryPlan {
   const NdbDictionary::Index * chooseIndex();
 
   /* Private instance variables */
+  Ndb *db;
 };
 
 
