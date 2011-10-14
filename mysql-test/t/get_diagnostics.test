@@ -1,0 +1,869 @@
+--echo #
+--echo # WL#2111: GET DIAGNOSTICS tests
+--echo #
+
+--echo #
+--echo # Test reserved keywords: GET
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (get INT);
+
+DELIMITER |;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE get INT DEFAULT 1;
+END|
+DELIMITER ;|
+
+--echo # Quoting
+
+CREATE TABLE t1 (`get` INT);
+INSERT INTO t1 (`get`) values (1);
+SELECT `get` FROM t1 WHERE `get` = 1;
+DROP TABLE t1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE `get` INT DEFAULT 1;
+  SELECT `get`;
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Test non-reserved keywords: CURRENT, DIAGNOSTICS, NUMBER, RETURNED_SQLSTATE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1 (current INT, diagnostics INT, number INT, returned_sqlstate INT);
+INSERT INTO t1 (current, diagnostics, number, returned_sqlstate) values (1,2,3,4);
+SELECT current, diagnostics, number, returned_sqlstate FROM t1 WHERE number = 3;
+SELECT `current`, `number` FROM t1 WHERE `current` = 1 AND `number` = 3;
+DROP TABLE t1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE current INT DEFAULT 1;
+  DECLARE diagnostics INT DEFAULT 2;
+  DECLARE number INT DEFAULT 3;
+  DECLARE returned_sqlstate INT DEFAULT 4;
+  SELECT current, diagnostics, number, returned_sqlstate;
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Test GET DIAGNOSTICS syntax
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+--error ER_PARSE_ERROR
+GET;
+--error ER_PARSE_ERROR
+GET CURRENT;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS;
+--error ER_PARSE_ERROR
+GET CURRENT DIAGNOSTICS;
+
+--echo
+--echo # Statement information syntax
+--echo
+
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var;
+
+--error ER_SP_UNDECLARED_VAR
+GET DIAGNOSTICS var;
+
+DELIMITER |;
+--error ER_SP_UNDECLARED_VAR
+CREATE PROCEDURE p1()
+BEGIN
+  GET DIAGNOSTICS var;
+END|
+DELIMITER ;|
+
+DELIMITER |;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var INT;
+  GET DIAGNOSTICS var;
+END|
+DELIMITER ;|
+
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var =;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var = INVALID;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var = MORE;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var = CLASS_ORIGIN;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var = INVALID,;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var1 = NUMBER, @var2;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var1 = NUMBER, @var2 = INVALID;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @@var1 = NUMBER;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS @var1 = NUMBER, @@var2 = NUMBER;
+
+DELIMITER |;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var INT;
+  GET DIAGNOSTICS var = INVALID;
+END|
+DELIMITER ;|
+
+DELIMITER |;
+--error ER_SP_UNDECLARED_VAR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var CONDITION FOR SQLSTATE '12345';
+  GET DIAGNOSTICS var = NUMBER;
+END|
+DELIMITER ;|
+
+DELIMITER |;
+--error ER_SP_UNDECLARED_VAR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var INT;
+  GET DIAGNOSTICS var = NUMBER, var1 = ROW_COUNT;
+END|
+DELIMITER ;|
+
+GET DIAGNOSTICS @var = NUMBER;
+GET DIAGNOSTICS @var = ROW_COUNT;
+GET DIAGNOSTICS @var1 = NUMBER, @var2 = ROW_COUNT;
+GET DIAGNOSTICS @var1 = ROW_COUNT, @var2 = NUMBER;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var  INT;
+  DECLARE var1 INT;
+  DECLARE var2 INT;
+  GET DIAGNOSTICS var = NUMBER;
+  GET DIAGNOSTICS var = ROW_COUNT;
+  GET DIAGNOSTICS var1 = NUMBER, var2 = ROW_COUNT;
+  GET DIAGNOSTICS var1 = ROW_COUNT, var2 = NUMBER;
+END|
+DELIMITER ;|
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Condition information syntax
+--echo
+
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION a;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1;
+
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var;
+
+--error ER_SP_UNDECLARED_VAR
+GET DIAGNOSTICS CONDITION 1 var;
+
+DELIMITER |;
+--error ER_SP_UNDECLARED_VAR
+CREATE PROCEDURE p1()
+BEGIN
+  GET DIAGNOSTICS CONDITION 1 var;
+END|
+DELIMITER ;|
+
+DELIMITER |;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var INT;
+  GET DIAGNOSTICS CONDITION 1 var;
+END|
+DELIMITER ;|
+
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var =;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var = INVALID;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var = NUMBER;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var = INVALID,;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @var2;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @var2 = INVALID;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @@var1 = CLASS_ORIGIN;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @@var2 = CLASS_ORIGIN;
+
+DELIMITER |;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var INT;
+  GET DIAGNOSTICS CONDITION 1 var = INVALID;
+END|
+DELIMITER ;|
+
+DELIMITER |;
+--error ER_SP_UNDECLARED_VAR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var CONDITION FOR SQLSTATE '12345';
+  GET DIAGNOSTICS CONDITION 1 var = NUMBER;
+END|
+DELIMITER ;|
+
+DELIMITER |;
+--error ER_SP_UNDECLARED_VAR
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var INT;
+  GET DIAGNOSTICS CONDITION 1 var = CLASS_ORIGIN, var1 = SUBCLASS_ORIGIN;
+END|
+DELIMITER ;|
+
+GET DIAGNOSTICS CONDITION 1 @var = CLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 @var = SUBCLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 @var1 = CLASS_ORIGIN, @var2 = SUBCLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION 1 @var1 = SUBCLASS_ORIGIN, @var2 = CLASS_ORIGIN;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var  INT;
+  DECLARE var1 INT;
+  DECLARE var2 INT;
+  GET DIAGNOSTICS CONDITION 1 var = CLASS_ORIGIN;
+  GET DIAGNOSTICS CONDITION 1 var = SUBCLASS_ORIGIN;
+  GET DIAGNOSTICS CONDITION 1 var1 = CLASS_ORIGIN, var2 = SUBCLASS_ORIGIN;
+  GET DIAGNOSTICS CONDITION 1 var1 = SUBCLASS_ORIGIN, var2 = CLASS_ORIGIN;
+END|
+DELIMITER ;|
+
+DROP PROCEDURE p1;
+
+--echo # Condition number expression
+
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION -1 @var = CLASS_ORIGIN;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION 1+1 @var = CLASS_ORIGIN;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION ? @var = CLASS_ORIGIN;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION (1) @var = CLASS_ORIGIN;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION p1() @var = CLASS_ORIGIN;
+--error ER_PARSE_ERROR
+GET DIAGNOSTICS CONDITION ABS(2) @var = CLASS_ORIGIN;
+
+# Unfortunate side effects...
+GET DIAGNOSTICS CONDITION 1.1 @var = CLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION "1" @var = CLASS_ORIGIN;
+
+# Reset warnings
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+
+GET DIAGNOSTICS CONDITION 9999 @var = CLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION NULL @var = CLASS_ORIGIN;
+GET DIAGNOSTICS CONDITION a @var = CLASS_ORIGIN;
+
+# Reset warnings
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+
+SET @cond = 1;
+GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
+
+SET @cond = "invalid";
+GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
+
+# Reset warnings
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE cond INT DEFAULT 1;
+  DECLARE var INT;
+  GET DIAGNOSTICS CONDITION cond var = CLASS_ORIGIN;
+END|
+DELIMITER ;|
+
+DROP PROCEDURE p1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE cond TEXT;
+  DECLARE var INT;
+  GET DIAGNOSTICS CONDITION cond var = CLASS_ORIGIN;
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Test GET DIAGNOSTICS runtime
+--echo #
+
+--echo
+--echo # GET DIAGNOSTICS cannot be the object of a PREPARE statement.
+--echo
+
+--error ER_UNSUPPORTED_PS
+PREPARE stmt FROM "GET DIAGNOSTICS CONDITION 1 @var = CLASS_ORIGIN";
+--error ER_UNSUPPORTED_PS
+PREPARE stmt FROM "GET DIAGNOSTICS @var = NUMBER";
+
+--echo
+--echo # GET DIAGNOSTICS does not clear the diagnostics area.
+--echo
+
+SELECT CAST(-19999999999999999999 AS SIGNED);
+GET DIAGNOSTICS @var = NUMBER;
+SHOW WARNINGS;
+
+--echo #
+--echo # If GET DIAGNOSTICS itself causes an error, an error message is appended.
+--echo #
+
+SELECT CAST(-19999999999999999999 AS SIGNED);
+GET DIAGNOSTICS CONDITION 99999 @var = CLASS_ORIGIN;
+SHOW WARNINGS;
+
+--echo
+--echo # Statement information runtime
+--echo
+
+SELECT CAST(-19999999999999999999 AS SIGNED),
+       CAST(-19999999999999999999 AS SIGNED);
+GET DIAGNOSTICS @var = NUMBER;
+SELECT @var;
+
+SELECT COUNT(max_questions) INTO @var FROM mysql.user;
+GET DIAGNOSTICS @var = NUMBER;
+SELECT @var;
+
+SELECT 1;
+GET DIAGNOSTICS @var = ROW_COUNT;
+SELECT @var;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+GET DIAGNOSTICS @var = ROW_COUNT;
+SELECT @var;
+DROP TABLE t1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE number INT;
+  DECLARE row_count INT;
+
+  SELECT CAST(-19999999999999999999 AS SIGNED),
+         CAST(-19999999999999999999 AS SIGNED);
+
+  GET DIAGNOSTICS number = NUMBER;
+
+  CREATE TABLE t1 (a INT);
+  INSERT INTO t1 VALUES (1),(2),(3);
+  GET DIAGNOSTICS row_count = ROW_COUNT;
+  DROP TABLE t1;
+
+  SELECT number, row_count;
+
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Condition information runtime
+--echo
+
+SELECT CAST(-19999999999999999999 AS SIGNED);
+
+GET DIAGNOSTICS CONDITION 1
+  @class_origin = CLASS_ORIGIN,
+  @subclass_origin = SUBCLASS_ORIGIN,
+  @constraint_catalog = CONSTRAINT_CATALOG,
+  @constraint_schema = CONSTRAINT_SCHEMA,
+  @constraint_name = CONSTRAINT_NAME,
+  @catalog_name = CATALOG_NAME,
+  @schema_name = SCHEMA_NAME,
+  @table_name = TABLE_NAME,
+  @column_name = COLUMN_NAME,
+  @cursor_name = CURSOR_NAME,
+  @message_text = MESSAGE_TEXT,
+  @mysql_errno = MYSQL_ERRNO,
+  @returned_sqlstate = RETURNED_SQLSTATE;
+
+--vertical_results
+SELECT
+  @class_origin,
+  @subclass_origin,
+  @constraint_catalog,
+  @constraint_schema,
+  @constraint_name,
+  @catalog_name,
+  @schema_name,
+  @table_name,
+  @column_name,
+  @cursor_name,
+  @message_text,
+  @mysql_errno,
+  @returned_sqlstate;
+--horizontal_results
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+    DECLARE class_origin TEXT DEFAULT "a";
+    DECLARE subclass_origin TEXT DEFAULT "a";
+    DECLARE constraint_catalog TEXT DEFAULT "a";
+    DECLARE constraint_schema TEXT DEFAULT "a";
+    DECLARE constraint_name TEXT DEFAULT "a";
+    DECLARE catalog_name TEXT DEFAULT "a";
+    DECLARE schema_name TEXT DEFAULT "a";
+    DECLARE table_name TEXT DEFAULT "a";
+    DECLARE column_name TEXT DEFAULT "a";
+    DECLARE cursor_name TEXT DEFAULT "a";
+    DECLARE message_text TEXT DEFAULT "a";
+    DECLARE mysql_errno INT DEFAULT 1;
+    DECLARE returned_sqlstate TEXT DEFAULT "a";
+
+  SELECT CAST(-19999999999999999999 AS SIGNED);
+
+  GET DIAGNOSTICS CONDITION 1
+    class_origin = CLASS_ORIGIN,
+    subclass_origin = SUBCLASS_ORIGIN,
+    constraint_catalog = CONSTRAINT_CATALOG,
+    constraint_schema = CONSTRAINT_SCHEMA,
+    constraint_name = CONSTRAINT_NAME,
+    catalog_name = CATALOG_NAME,
+    schema_name = SCHEMA_NAME,
+    table_name = TABLE_NAME,
+    column_name = COLUMN_NAME,
+    cursor_name = CURSOR_NAME,
+    message_text = MESSAGE_TEXT,
+    mysql_errno = MYSQL_ERRNO,
+    returned_sqlstate = RETURNED_SQLSTATE;
+
+  SELECT
+    class_origin,
+    subclass_origin,
+    constraint_catalog,
+    constraint_schema,
+    constraint_name,
+    catalog_name,
+    schema_name,
+    table_name,
+    column_name,
+    cursor_name,
+    message_text,
+    mysql_errno,
+    returned_sqlstate;
+END|
+DELIMITER ;|
+
+--vertical_results
+CALL p1();
+--horizontal_results
+
+DROP PROCEDURE p1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE errno1 INT;
+  DECLARE errno2 INT;
+  DECLARE msg1 TEXT;
+  DECLARE msg2 TEXT;
+
+  SELECT CAST(-19999999999999999999 AS SIGNED);
+  GET DIAGNOSTICS CONDITION 99999 msg1 = MESSAGE_TEXT;
+
+  GET DIAGNOSTICS CONDITION 1 errno1 = MYSQL_ERRNO, msg1 = MESSAGE_TEXT;
+  GET DIAGNOSTICS CONDITION 2 errno2 = MYSQL_ERRNO, msg2 = MESSAGE_TEXT;
+
+  SELECT errno1, msg1, errno2, msg2;
+END|
+DELIMITER ;|
+
+--vertical_results
+CALL p1();
+--horizontal_results
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Interaction with SIGNAL
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE errno INT DEFAULT 0;
+  DECLARE msg TEXT DEFAULT "foo";
+  DECLARE cond CONDITION FOR SQLSTATE "01234";
+  DECLARE CONTINUE HANDLER for 1012
+  BEGIN
+    GET DIAGNOSTICS CONDITION 1 errno = MYSQL_ERRNO, msg = MESSAGE_TEXT;
+  END;
+
+  SIGNAL cond SET MESSAGE_TEXT = "Signal message", MYSQL_ERRNO = 1012;
+
+  SELECT errno, msg;
+END|
+DELIMITER ;|
+
+--vertical_results
+CALL p1();
+--horizontal_results
+
+DROP PROCEDURE p1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  SIGNAL SQLSTATE '77777' SET MYSQL_ERRNO = 1000, MESSAGE_TEXT='ÁÂÃÅÄ';
+END|
+DELIMITER ;|
+
+--error 1000
+CALL p1();
+
+GET DIAGNOSTICS CONDITION 1
+  @mysql_errno = MYSQL_ERRNO, @message_text = MESSAGE_TEXT,
+  @returned_sqlstate = RETURNED_SQLSTATE, @class_origin = CLASS_ORIGIN;
+
+--vertical_results
+SELECT @mysql_errno, @message_text, @returned_sqlstate, @class_origin;
+--horizontal_results
+
+DROP PROCEDURE p1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE cond CONDITION FOR SQLSTATE '12345';
+  SIGNAL cond SET
+    CLASS_ORIGIN = 'CLASS_ORIGIN text',
+    SUBCLASS_ORIGIN = 'SUBCLASS_ORIGIN text',
+    CONSTRAINT_CATALOG = 'CONSTRAINT_CATALOG text',
+    CONSTRAINT_SCHEMA = 'CONSTRAINT_SCHEMA text',
+    CONSTRAINT_NAME = 'CONSTRAINT_NAME text',
+    CATALOG_NAME = 'CATALOG_NAME text',
+    SCHEMA_NAME = 'SCHEMA_NAME text',
+    TABLE_NAME = 'TABLE_NAME text',
+    COLUMN_NAME = 'COLUMN_NAME text',
+    CURSOR_NAME = 'CURSOR_NAME text',
+    MESSAGE_TEXT = 'MESSAGE_TEXT text',
+    MYSQL_ERRNO = 54321;
+END|
+DELIMITER ;|
+
+--error 54321
+CALL p1();
+
+GET DIAGNOSTICS CONDITION 1
+  @class_origin = CLASS_ORIGIN,
+  @subclass_origin = SUBCLASS_ORIGIN,
+  @constraint_catalog = CONSTRAINT_CATALOG,
+  @constraint_schema = CONSTRAINT_SCHEMA,
+  @constraint_name = CONSTRAINT_NAME,
+  @catalog_name = CATALOG_NAME,
+  @schema_name = SCHEMA_NAME,
+  @table_name = TABLE_NAME,
+  @column_name = COLUMN_NAME,
+  @cursor_name = CURSOR_NAME,
+  @message_text = MESSAGE_TEXT,
+  @mysql_errno = MYSQL_ERRNO,
+  @returned_sqlstate = RETURNED_SQLSTATE;
+
+--vertical_results
+SELECT
+  @class_origin,
+  @subclass_origin,
+  @constraint_catalog,
+  @constraint_schema,
+  @constraint_name,
+  @catalog_name,
+  @schema_name,
+  @table_name,
+  @column_name,
+  @cursor_name,
+  @message_text,
+  @mysql_errno,
+  @returned_sqlstate;
+--horizontal_results
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Demonstration
+--echo #
+
+--echo
+--echo # The same statement information item can be used multiple times.
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE var INT;
+  GET DIAGNOSTICS var = NUMBER, @var = NUMBER;
+  SELECT var, @var;
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Setting TABLE_NAME is currently not implemented.
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v VARCHAR(64);
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    GET DIAGNOSTICS CONDITION 1 v = TABLE_NAME;
+  DROP TABLE no_such_table;
+  SELECT v;
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Message is truncated to fit into target. No truncation warning.
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v CHAR(1);
+  CREATE TABLE IF NOT EXISTS t1 (a INT);
+  GET DIAGNOSTICS CONDITION 1 v = MESSAGE_TEXT;
+  SELECT v;
+END|
+DELIMITER ;|
+
+CREATE TABLE t1 (a INT);
+CALL p1();
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Returns number of rows updated by the UPDATE statements.
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1(IN param INT)
+LANGUAGE SQL
+BEGIN
+  DECLARE v INT DEFAULT 0;
+  DECLARE rcount_each INT;
+  DECLARE rcount_total INT DEFAULT 0;
+  WHILE v < 5 DO
+    UPDATE t1 SET a = a * 1.1  WHERE b = param;
+    GET DIAGNOSTICS rcount_each = ROW_COUNT;
+    SET rcount_total = rcount_total + rcount_each;
+    SET v = v + 1;
+    END WHILE;
+  SELECT rcount_total;
+END|
+DELIMITER ;|
+
+CREATE TABLE t1 (a REAL, b INT);
+INSERT INTO t1 VALUES (1.1, 1);
+CALL p1(1);
+DROP TABLE t1;
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # GET DIAGNOSTICS doesn't clear the diagnostics area.
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+      GET CURRENT DIAGNOSTICS CONDITION 1 @x = RETURNED_SQLSTATE;
+      SIGNAL SQLSTATE '01002';
+      GET CURRENT DIAGNOSTICS CONDITION 1 @y = RETURNED_SQLSTATE;
+    END;
+  SIGNAL SQLSTATE '01001';
+  SELECT @x, @y;
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Using OUT and INOUT parameters as the target variables.
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1(OUT number INT, INOUT message TEXT)
+BEGIN
+  DECLARE warn CONDITION FOR SQLSTATE "01234";
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+      GET DIAGNOSTICS number = NUMBER;
+      GET DIAGNOSTICS CONDITION 1 message = MESSAGE_TEXT;
+    END;
+  SELECT message;
+  SIGNAL warn SET MESSAGE_TEXT = "inout parameter";
+END|
+DELIMITER ;|
+
+SET @var1 = 0;
+SET @var2 = "message text";
+CALL p1(@var1, @var2);
+SELECT @var1, @var2;
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Using an IN parameter as the target variable.
+--echo
+
+DELIMITER |;
+CREATE PROCEDURE p1(IN number INT)
+BEGIN
+  SELECT number;
+  GET DIAGNOSTICS number = NUMBER;
+  SELECT number;
+END|
+DELIMITER ;|
+
+SET @var1 = 9999;
+CALL p1(@var1);
+SELECT @var1;
+
+DROP PROCEDURE p1;
+
+--echo
+--echo # Using GET DIAGNOSTICS in a stored function.
+--echo
+
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS TEXT
+BEGIN
+  DECLARE message TEXT;
+  DECLARE warn CONDITION FOR SQLSTATE "01234";
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    BEGIN
+      GET DIAGNOSTICS CONDITION 1 message = MESSAGE_TEXT;
+    END;
+  SIGNAL warn SET MESSAGE_TEXT = "message text";
+  return message;
+END|
+DELIMITER ;|
+
+SELECT f1();
+
+DROP FUNCTION f1;
+
+--echo
+--echo # Using GET DIAGNOSTICS in a trigger.
+--echo
+
+CREATE TABLE t1 (a INT);
+
+DELIMITER |;
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  DECLARE var INT DEFAULT row_count();
+  GET DIAGNOSTICS @var1 = ROW_COUNT;
+  SET @var2 = var;
+END|
+DELIMITER ;|
+
+SET @var1 = 9999, @var2 = 9999;
+INSERT INTO t1 VALUES (1), (2);
+SELECT @var1, @var2;
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+--echo
+--echo # GET DIAGNOSTICS does not reset ROW_COUNT
+--echo
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+GET DIAGNOSTICS @var1 = ROW_COUNT;
+GET DIAGNOSTICS @var2 = ROW_COUNT;
+SELECT @var1, @var2;
+DROP TABLE t1;
+
+--echo
+--echo # Items are UTF8 (utf8_general_ci default collation)
+--echo
+
+SELECT CAST(-19999999999999999999 AS SIGNED);
+GET DIAGNOSTICS CONDITION 1 @var1 = MESSAGE_TEXT, @var2 = CLASS_ORIGIN;
+SELECT CHARSET(@var1), COLLATION(@var1), COERCIBILITY(@var1);
+SELECT CHARSET(@var2), COLLATION(@var2), COERCIBILITY(@var2);
+
+--echo #
+--echo # Command statistics
+--echo #
+
+FLUSH STATUS;
+SHOW STATUS LIKE 'Com%get_diagnostics';
+GET DIAGNOSTICS @var1 = NUMBER;
+SHOW STATUS LIKE 'Com%get_diagnostics';

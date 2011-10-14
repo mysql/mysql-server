@@ -93,8 +93,7 @@ This file contains the implementation of error and warnings related
   (#6) The statements SHOW WARNINGS and SHOW ERRORS display the content of
   the warning list.
 
-  (#7) The GET DIAGNOSTICS statement (planned, not implemented yet) will
-  also read the content of:
+  (#7) The GET DIAGNOSTICS statement reads the content of:
   - the top level statement condition area (when executed in a query),
   - a sub statement (when executed in a stored program)
   and return the data stored in a Sql_condition.
@@ -145,7 +144,7 @@ This file contains the implementation of error and warnings related
 
   (#6) (SHOW WARNINGS) produces data in the 'error_message_charset_info' CHARSET
 
-  (#7) (GET DIAGNOSTICS) is not implemented.
+  (#7) (GET DIAGNOSTICS) is implemented.
 
   (#8) (RESIGNAL) produces data internally in UTF8 (see #3)
 
@@ -166,9 +165,6 @@ This file contains the implementation of error and warnings related
     In practice, this means changing the type of the message text to
     '<UTF8 String 128 class> Sql_condition::m_message_text', and is a direct
     consequence of WL#751.
-
-  - Implement (#9) (GET DIAGNOSTICS).
-    See WL#2111 (Stored Procedures: Implement GET DIAGNOSTICS)
 */
 
 Sql_condition::Sql_condition()
@@ -281,6 +277,8 @@ Sql_condition::set(uint sql_errno, const char* sqlstate,
   memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
 
+  set_class_origin();
+  set_subclass_origin();
   set_builtin_message_text(msg);
   m_level= level;
 }
@@ -316,6 +314,65 @@ Sql_condition::set_sqlstate(const char* sqlstate)
 {
   memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
+}
+
+static LEX_CSTRING sqlstate_origin[]= {
+  { STRING_WITH_LEN("ISO 9075") },
+  { STRING_WITH_LEN("MySQL") }
+};
+
+void
+Sql_condition::set_class_origin()
+{
+  char cls[2];
+  LEX_CSTRING *origin;
+
+  /* Let CLASS = the first two letters of RETURNED_SQLSTATE. */
+  cls[0]= m_returned_sqlstate[0];
+  cls[1]= m_returned_sqlstate[1];
+
+  /* Only digits and upper case latin letter are allowed. */
+  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[0]) ||
+              my_isupper(&my_charset_latin1, cls[0]));
+
+  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[1]) ||
+              my_isupper(&my_charset_latin1, cls[1]));
+
+  /*
+    If CLASS[1] is any of: 0 1 2 3 4 A B C D E F G H
+    and CLASS[2] is any of: 0-9 A-Z
+  */
+  if (((cls[0] >= '0' && cls[0] <= '4') || (cls[0] >= 'A' && cls[0] <= 'H')) &&
+      ((cls[1] >= '0' && cls[1] <= '9') || (cls[1] >= 'A' && cls[1] <= 'Z')))
+    /* then let CLASS_ORIGIN = 'ISO 9075'. */
+    origin= &sqlstate_origin[0];
+  else
+    /* let CLASS_ORIGIN = 'MySQL'. */
+    origin= &sqlstate_origin[1];
+
+  m_class_origin.set_ascii(origin->str, origin->length);
+}
+
+void
+Sql_condition::set_subclass_origin()
+{
+  LEX_CSTRING *origin;
+
+  DBUG_ASSERT(! m_class_origin.is_empty());
+
+  /*
+    Let SUBCLASS = the next three letters of RETURNED_SQLSTATE.
+    If CLASS_ORIGIN = 'ISO 9075' or SUBCLASS = '000'
+  */
+  if (! memcmp(m_class_origin.ptr(), STRING_WITH_LEN("ISO 9075")) ||
+      ! memcmp(m_returned_sqlstate+2, STRING_WITH_LEN("000")))
+    /* then let SUBCLASS_ORIGIN = 'ISO 9075'. */
+    origin= &sqlstate_origin[0];
+  else
+    /* let SUBCLASS_ORIGIN = 'MySQL'. */
+    origin= &sqlstate_origin[1];
+
+  m_subclass_origin.set_ascii(origin->str, origin->length);
 }
 
 Diagnostics_area::Diagnostics_area()

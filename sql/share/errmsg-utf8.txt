@@ -6594,3 +6594,7 @@ ER_PLUGIN_NO_INSTALL
 ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
   eng "FULLTEXT index is not supported for partitioned tables."
   swe "FULLTEXT index stöds ej för partitionerade tabeller."
+
+ER_DA_INVALID_CONDITION_NUMBER 35000
+  eng "Invalid condition number"
+  por "Número de condição inválido"
