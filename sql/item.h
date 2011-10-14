@@ -1816,6 +1816,11 @@ public:
   bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
   bool is_null() { return field->is_null(); }
   void update_null_value();
+  void update_used_tables() 
+  {
+    if (field && field->table)
+      field->table->covering_keys.intersect(field->part_of_key);
+  }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);

@@ -3411,6 +3411,21 @@ void SELECT_LEX::update_used_tables()
   while ((tl= ti++))
   {
     TABLE_LIST *embedding;
+    if (tl->table)
+    {
+      embedding= tl->embedding;
+      for (embedding= tl->embedding; embedding; embedding=embedding->embedding)
+      {
+        if (embedding->is_view_or_derived())
+	{
+          DBUG_ASSERT(embedding->is_merged_derived());
+          TABLE *tab= tl->table;
+          tab->covering_keys= tab->s->keys_for_keyread;
+          tab->covering_keys.intersect(tab->keys_in_use_for_query);
+          break;
+        }
+      }
+    }
     embedding= tl;
     do
     {
