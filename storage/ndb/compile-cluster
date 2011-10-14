@@ -279,6 +279,8 @@ my $cmake_version_id;
   }
   
   # The source directory to build from
+  die "srcdir already contains CMakeCache.txt, this will not work!"
+    if (-f "$opt_srcdir/CMakeCache.txt");
   push(@args, $opt_srcdir);
   
   cmd("cmake", @args);
