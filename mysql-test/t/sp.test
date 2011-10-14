@@ -8877,7 +8877,7 @@ DROP TABLE t1;
 DROP PROCEDURE p1;
 --echo
 
---echo # End of 5.5 test
+--echo # End of 5.5 tests
 
 
 --echo #
@@ -8907,3 +8907,32 @@ delimiter ;$
 SELECT f1();
 
 DROP FUNCTION f1;
+
+--echo #
+--echo # WL#2111: Add non-reserved ROW_COUNT keyword.
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+DELIMITER |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE row_count INT DEFAULT 1;
+  SELECT row_count;
+  SELECT row_count();
+  ROW_COUNT: WHILE row_count > 0 DO
+    SET row_count = row_count - 1;
+  END WHILE ROW_COUNT;
+  SELECT ROW_COUNT;
+END|
+
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo # End of 5.6 tests

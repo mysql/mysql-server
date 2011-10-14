@@ -81,7 +81,7 @@ private:
     The interface of Sql_condition is mostly private, by design,
     so that only the following code:
     - various raise_error() or raise_warning() methods in class THD,
-    - the implementation of SIGNAL / RESIGNAL
+    - the implementation of SIGNAL / RESIGNAL / GET DIAGNOSTICS
     - catch / re-throw of SQL conditions in stored procedures (sp_rcontext)
     is allowed to create / modify a SQL condition.
     Enforcing this policy prevents confusion, since the only public
@@ -95,6 +95,7 @@ private:
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
   friend class sp_rcontext;
+  friend class Condition_information_item;
 
   /**
     Default constructor.
@@ -148,6 +149,12 @@ private:
 
   /** Set the SQLSTATE of this condition. */
   void set_sqlstate(const char* sqlstate);
+
+  /** Set the CLASS_ORIGIN of this condition. */
+  void set_class_origin();
+
+  /** Set the SUBCLASS_ORIGIN of this condition. */
+  void set_subclass_origin();
 
   /**
     Clear this SQL condition.
@@ -402,6 +409,14 @@ private:
   */
   ulong error_count() const
   { return m_warn_count[(uint) Sql_condition::WARN_LEVEL_ERROR]; }
+
+  /**
+    The number of conditions (errors, warnings and notes) in the list.
+  */
+  uint cond_count() const
+  {
+    return m_warn_list.elements();
+  }
 
   /** Id of the warning information area. */
   ulonglong id() const { return m_warn_id; }
@@ -705,6 +720,9 @@ public:
 
   ulong warn_count() const
   { return get_warning_info()->warn_count(); }
+
+  uint cond_count() const
+  { return get_warning_info()->cond_count(); }
 
   Sql_condition_iterator sql_conditions() const
   { return get_warning_info()->m_warn_list; }

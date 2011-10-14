@@ -58,6 +58,7 @@
 #include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
 #include "sql_handler.h"                       // Sql_cmd_handler_*
 #include "sql_signal.h"
+#include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
 #include "event_parse_data.h"
 #include <myisam.h>
 #include <myisammrg.h>
@@ -539,6 +540,58 @@ set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
 
 
 /**
+  Create an object to represent a SP variable in the Item-hierarchy.
+
+  @param  thd         The current thread.
+  @param  name        The SP variable name.
+  @param  spvar       The SP variable (optional).
+  @param  start_in_q  Start position of the SP variable name in the query.
+  @param  end_in_q    End position of the SP variable name in the query.
+
+  @remark If spvar is not specified, the name is used to search for the
+          variable in the parse-time context. If the variable does not
+          exist, a error is set and NULL is returned to the caller.
+
+  @return An Item_splocal object representing the SP variable, or NULL on error.
+*/
+static Item_splocal*
+create_item_for_sp_var(THD *thd, LEX_STRING name, sp_variable *spvar,
+                       const char *start_in_q, const char *end_in_q)
+{
+  Item_splocal *item;
+  LEX *lex= thd->lex;
+  uint pos_in_q, len_in_q;
+  sp_pcontext *spc = lex->spcont;
+
+  /* If necessary, look for the variable. */
+  if (spc && !spvar)
+    spvar= spc->find_variable(name, false);
+
+  if (!spvar)
+  {
+    my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
+    return NULL;
+  }
+
+  DBUG_ASSERT(spc && spvar);
+
+  /* Position and length of the SP variable name in the query. */
+  pos_in_q= start_in_q - lex->sphead->m_tmp_query;
+  len_in_q= end_in_q - start_in_q;
+
+  item= new (thd->mem_root)
+    Item_splocal(name, spvar->offset, spvar->type, pos_in_q, len_in_q);
+
+#ifndef DBUG_OFF
+  if (item)
+    item->m_sp= lex->sphead;
+#endif
+
+  return item;
+}
+
+
+/**
   Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
   See SQL:2003, Part 2, section 8.4 <in predicate>, Note 184, page 383.
   This function returns the proper item for the SQL expression
@@ -775,6 +828,14 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   enum Foreign_key::fk_option m_fk_option;
   enum enum_yes_no_unknown m_yes_no_unk;
   Diag_condition_item_name diag_condition_item_name;
+  Diagnostics_information::Which_area diag_area;
+  Diagnostics_information *diag_info;
+  Statement_information_item *stmt_info_item;
+  Statement_information_item::Name stmt_info_item_name;
+  List<Statement_information_item> *stmt_info_list;
+  Condition_information_item *cond_info_item;
+  Condition_information_item::Name cond_info_item_name;
+  List<Condition_information_item> *cond_info_list;
 }
 
 %{
@@ -900,6 +961,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CROSS                         /* SQL-2003-R */
 %token  CUBE_SYM                      /* SQL-2003-R */
 %token  CURDATE                       /* MYSQL-FUNC */
+%token  CURRENT_SYM                   /* SQL-2003-R */
 %token  CURRENT_USER                  /* SQL-2003-R */
 %token  CURSOR_SYM                    /* SQL-2003-R */
 %token  CURSOR_NAME_SYM               /* SQL-2003-N */
@@ -930,6 +992,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  DESCRIBE                      /* SQL-2003-R */
 %token  DES_KEY_FILE
 %token  DETERMINISTIC_SYM             /* SQL-2003-R */
+%token  DIAGNOSTICS_SYM               /* SQL-2003-N */
 %token  DIRECTORY_SYM
 %token  DISABLE_SYM
 %token  DISCARD
@@ -994,6 +1057,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GEOMETRYCOLLECTION
 %token  GEOMETRY_SYM
 %token  GET_FORMAT                    /* MYSQL-FUNC */
+%token  GET_SYM                       /* SQL-2003-R */
 %token  GLOBAL_SYM                    /* SQL-2003-R */
 %token  GRANT                         /* SQL-2003-R */
 %token  GRANTS
@@ -1151,6 +1215,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NO_WRITE_TO_BINLOG
 %token  NULL_SYM                      /* SQL-2003-R */
 %token  NUM
+%token  NUMBER_SYM                    /* SQL-2003-N */
 %token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
 %token  OFFSET_SYM
@@ -1238,6 +1303,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RESTORE_SYM
 %token  RESTRICT
 %token  RESUME_SYM
+%token  RETURNED_SQLSTATE_SYM         /* SQL-2003-N */
 %token  RETURNS_SYM                   /* SQL-2003-R */
 %token  RETURN_SYM                    /* SQL-2003-R */
 %token  REVERSE_SYM
@@ -1249,6 +1315,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ROWS_SYM                      /* SQL-2003-R */
 %token  ROW_FORMAT_SYM
 %token  ROW_SYM                       /* SQL-2003-R */
+%token  ROW_COUNT_SYM                 /* SQL-2003-N */
 %token  RTREE_SYM
 %token  SAVEPOINT_SYM                 /* SQL-2003-R */
 %token  SCHEDULE_SYM
@@ -1494,6 +1561,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         function_call_generic
         function_call_conflict
         signal_allowed_expr
+        simple_target_specification
+        condition_number
 
 %type <item_num>
         NUM_literal
@@ -1616,7 +1685,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         key_using_alg
         part_column_list
         server_def server_options_list server_option
-        definer_opt no_definer definer
+        definer_opt no_definer definer get_diagnostics
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -1640,6 +1709,15 @@ END_OF_INPUT
 
 %type <NONE> signal_stmt resignal_stmt
 %type <diag_condition_item_name> signal_condition_information_item_name
+
+%type <diag_area> which_area;
+%type <diag_info> diagnostics_information;
+%type <stmt_info_item> statement_information_item;
+%type <stmt_info_item_name> statement_information_item_name;
+%type <stmt_info_list> statement_information;
+%type <cond_info_item> condition_information_item;
+%type <cond_info_item_name> condition_information_item_name;
+%type <cond_info_list> condition_information;
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -1741,6 +1819,7 @@ statement:
         | drop
         | execute
         | flush
+        | get_diagnostics
         | grant
         | handler
         | help
@@ -3143,6 +3222,151 @@ resignal_stmt:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
+        ;
+
+get_diagnostics:
+          GET_SYM which_area DIAGNOSTICS_SYM diagnostics_information
+          {
+            Diagnostics_information *info= $4;
+
+            info->set_which_da($2);
+
+            Lex->sql_command= SQLCOM_GET_DIAGNOSTICS;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_get_diagnostics(info);
+
+            if (Lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
+          }
+        ;
+
+which_area:
+        /* If <which area> is not specified, then CURRENT is implicit. */
+          { $$= Diagnostics_information::CURRENT_AREA; }
+        | CURRENT_SYM
+          { $$= Diagnostics_information::CURRENT_AREA; }
+        ;
+
+diagnostics_information:
+          statement_information
+          {
+            $$= new (YYTHD->mem_root) Statement_information($1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | CONDITION_SYM condition_number condition_information
+          {
+            $$= new (YYTHD->mem_root) Condition_information($2, $3);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        ;
+
+statement_information:
+          statement_information_item
+          {
+            $$= new (YYTHD->mem_root) List<Statement_information_item>;
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT;
+          }
+        | statement_information ',' statement_information_item
+          {
+            if ($1->push_back($3))
+              MYSQL_YYABORT;
+            $$= $1;
+          }
+        ;
+
+statement_information_item:
+          simple_target_specification EQ statement_information_item_name
+          {
+            $$= new (YYTHD->mem_root) Statement_information_item($3, $1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+
+simple_target_specification:
+          ident
+          {
+            Lex_input_stream *lip= &YYTHD->m_parser_state->m_lip;
+            $$= create_item_for_sp_var(YYTHD, $1, NULL,
+                                       lip->get_tok_start(), lip->get_ptr());
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | '@' ident_or_text
+          {
+            $$= new (YYTHD->mem_root) Item_func_get_user_var($2);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        ;
+
+statement_information_item_name:
+          NUMBER_SYM
+          { $$= Statement_information_item::NUMBER; }
+        | ROW_COUNT_SYM
+          { $$= Statement_information_item::ROW_COUNT; }
+        ;
+
+/*
+   Only a limited subset of <expr> are allowed in GET DIAGNOSTICS
+   <condition number>, same subset as for SIGNAL/RESIGNAL.
+*/
+condition_number:
+          signal_allowed_expr
+          { $$= $1; }
+        ;
+
+condition_information:
+          condition_information_item
+          {
+            $$= new (YYTHD->mem_root) List<Condition_information_item>;
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT;
+          }
+        | condition_information ',' condition_information_item
+          {
+            if ($1->push_back($3))
+              MYSQL_YYABORT;
+            $$= $1;
+          }
+        ;
+
+condition_information_item:
+          simple_target_specification EQ condition_information_item_name
+          {
+            $$= new (YYTHD->mem_root) Condition_information_item($3, $1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+
+condition_information_item_name:
+          CLASS_ORIGIN_SYM
+          { $$= Condition_information_item::CLASS_ORIGIN; }
+        | SUBCLASS_ORIGIN_SYM
+          { $$= Condition_information_item::SUBCLASS_ORIGIN; }
+        | CONSTRAINT_CATALOG_SYM
+          { $$= Condition_information_item::CONSTRAINT_CATALOG; }
+        | CONSTRAINT_SCHEMA_SYM
+          { $$= Condition_information_item::CONSTRAINT_SCHEMA; }
+        | CONSTRAINT_NAME_SYM
+          { $$= Condition_information_item::CONSTRAINT_NAME; }
+        | CATALOG_NAME_SYM
+          { $$= Condition_information_item::CATALOG_NAME; }
+        | SCHEMA_NAME_SYM
+          { $$= Condition_information_item::SCHEMA_NAME; }
+        | TABLE_NAME_SYM
+          { $$= Condition_information_item::TABLE_NAME; }
+        | COLUMN_NAME_SYM
+          { $$= Condition_information_item::COLUMN_NAME; }
+        | CURSOR_NAME_SYM
+          { $$= Condition_information_item::CURSOR_NAME; }
+        | MESSAGE_TEXT_SYM
+          { $$= Condition_information_item::MESSAGE_TEXT; }
+        | MYSQL_ERRNO_SYM
+          { $$= Condition_information_item::MYSQL_ERRNO; }
+        | RETURNED_SQLSTATE_SYM
+          { $$= Condition_information_item::RETURNED_SQLSTATE; }
         ;
 
 sp_decl_idents:
@@ -8656,6 +8880,14 @@ function_call_conflict:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
+        | ROW_COUNT_SYM '(' ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_row_count();
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+            Lex->safe_to_cache_query= 0;
+          }
         | TRUNCATE_SYM '(' expr ',' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_round($3,$5,1);
@@ -10123,29 +10355,13 @@ limit_option:
         ident
         {
           Item_splocal *splocal;
-          THD *thd= YYTHD;
-          LEX *lex= thd->lex;
-          Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-          sp_variable *spv;
-          sp_pcontext *spc = lex->spcont;
-          if (spc && (spv = spc->find_variable($1, false)))
-          {
-            splocal= new (thd->mem_root)
-              Item_splocal($1, spv->offset, spv->type,
-                  lip->get_tok_start() - lex->sphead->m_tmp_query,
-                  lip->get_ptr() - lip->get_tok_start());
-            if (splocal == NULL)
-              MYSQL_YYABORT;
-#ifndef DBUG_OFF
-            splocal->m_sp= lex->sphead;
-#endif
-            lex->safe_to_cache_query=0;
-          }
-          else
-          {
-            my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
+          Lex_input_stream *lip= &YYTHD->m_parser_state->m_lip;
+
+          splocal= create_item_for_sp_var(YYTHD, $1, NULL,
+                                          lip->get_tok_start(), lip->get_ptr());
+          if (splocal == NULL)
             MYSQL_YYABORT;
-          }
+          Lex->safe_to_cache_query= 0;
           if (splocal->type() != Item::INT_ITEM)
           {
             my_error(ER_WRONG_SPVAR_TYPE_IN_LIMIT, MYF(0));
@@ -12165,11 +12381,12 @@ simple_ident:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            Lex_input_stream *lip= YYLIP;
             sp_variable *spv;
             sp_pcontext *spc = lex->spcont;
             if (spc && (spv = spc->find_variable($1, false)))
             {
+              Lex_input_stream *lip= &thd->m_parser_state->m_lip;
+
               /* We're compiling a stored procedure and found a variable */
               if (! lex->parsing_options.allows_variable)
               {
@@ -12177,17 +12394,11 @@ simple_ident:
                 MYSQL_YYABORT;
               }
 
-              Item_splocal *splocal;
-              splocal= new (thd->mem_root)
-                         Item_splocal($1, spv->offset, spv->type,
-                                      lip->get_tok_start_prev() - lex->sphead->m_tmp_query,
-                                      lip->get_tok_end() - lip->get_tok_start_prev());
-              if (splocal == NULL)
+              $$= create_item_for_sp_var(thd, $1, spv,
+                                         lip->get_tok_start_prev(),
+                                         lip->get_tok_end());
+              if ($$ == NULL)
                 MYSQL_YYABORT;
-#ifndef DBUG_OFF
-              splocal->m_sp= lex->sphead;
-#endif
-              $$= splocal;
               lex->safe_to_cache_query=0;
             }
             else
@@ -12714,6 +12925,11 @@ keyword_sp:
         | CONTRIBUTORS_SYM         {}
         | CPU_SYM                  {}
         | CUBE_SYM                 {}
+        /*
+          Although a reserved keyword in SQL:2003 (and :2008),
+          not reserved in MySQL per WL#2111 specification.
+        */
+        | CURRENT_SYM              {}
         | CURSOR_NAME_SYM          {}
         | DATA_SYM                 {}
         | DATAFILE_SYM             {}
@@ -12723,6 +12939,7 @@ keyword_sp:
         | DEFINER_SYM              {}
         | DELAY_KEY_WRITE_SYM      {}
         | DES_KEY_FILE             {}
+        | DIAGNOSTICS_SYM          {}
         | DIRECTORY_SYM            {}
         | DISABLE_SYM              {}
         | DISCARD                  {}
@@ -12835,6 +13052,7 @@ keyword_sp:
         | NO_WAIT_SYM              {}
         | NODEGROUP_SYM            {}
         | NONE_SYM                 {}
+        | NUMBER_SYM               {}
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
         | OLD_PASSWORD             {}
@@ -12878,11 +13096,13 @@ keyword_sp:
         | REPLICATION              {}
         | RESOURCES                {}
         | RESUME_SYM               {}
+        | RETURNED_SQLSTATE_SYM    {}
         | RETURNS_SYM              {}
         | REVERSE_SYM              {}
         | ROLLUP_SYM               {}
         | ROUTINE_SYM              {}
         | ROWS_SYM                 {}
+        | ROW_COUNT_SYM            {}
         | ROW_FORMAT_SYM           {}
         | ROW_SYM                  {}
         | RTREE_SYM                {}
