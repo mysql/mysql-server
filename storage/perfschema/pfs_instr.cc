@@ -1473,7 +1473,8 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
     */
   my_socket fd= likely(identity != NULL) ?
                 *(reinterpret_cast<const my_socket*>(identity)) : 0;
-  uint random= randomized_index((const void *)fd, socket_max);
+  my_ptrdiff_t ptr= fd;
+  uint random= randomized_index((const void *)ptr, socket_max);
 
   for (scan.init(random, socket_max);
        scan.has_pass();
