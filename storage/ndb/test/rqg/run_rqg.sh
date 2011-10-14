@@ -201,3 +201,10 @@ do
 	fi
     fi
 done
+
+if [ -f "${opre}.failing.sql" ]
+then
+    echo "*** FAILING QUERIES ***"
+    cat "${opre}.failing.sql"
+    exit 1
+fi
