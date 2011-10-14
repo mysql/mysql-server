@@ -33,11 +33,13 @@
 
 #cmakedefine HAVE_SOLARIS_ATOMICS
 #cmakedefine HAVE_DARWIN_ATOMICS
+#cmakedefine HAVE_GCC_ATOMICS_WITH_ARCH_FLAG
 
 #ifndef HAVE_INTTYPES_H
 #define PRIu64 "llu"
 #endif
  
+#cmakedefine HAVE_FUNC_IN_CXX
 
 
 #endif

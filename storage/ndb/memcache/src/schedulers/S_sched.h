@@ -32,6 +32,7 @@
 #include "ndbmemcache_config.h"
 #include "Scheduler.h"
 #include "KeyPrefix.h"
+#include "ConnQueryPlanSet.h"
 #include "Queue.h"
 
 /* 
@@ -50,7 +51,7 @@ public:
   class SchedulerWorker;     // one object per memcached worker thread 
   class Cluster;             // one object for each cluster
   class Connection;          // one object per connection to a cluster
-  class WorkerConnection;    // one object per {worker,conncetion} pair
+  class WorkerConnection;    // one object per {worker,connection} pair
 };
 
 
@@ -62,6 +63,7 @@ public:
   ~SchedulerGlobal() {};
   void init(int threads, const char *config_string);
   void add_stats(const char *, ADD_STAT, const void *);
+  void reconfigure(Configuration *);
   void shutdown();
   WorkerConnection ** getWorkerConnectionPtr(int thd, int cluster) const {
     return & workerConnections[(thd * nclusters) + cluster];
@@ -96,7 +98,7 @@ private:
 class S::SchedulerWorker : public Scheduler {  
 public:  
   SchedulerWorker() {};
-  ~SchedulerWorker();
+  ~SchedulerWorker() {};
   void init(int threadnum, int nthreads, const char *config_string);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
@@ -121,7 +123,9 @@ public:
   ~Cluster();
   void add_stats(const char *, ADD_STAT, const void *);
   WorkerConnection ** getWorkerConnectionPtr(int thd) const;  
+  void startThreads();
    
+  bool threads_started;
   int cluster_id;
   int nconnections;
   int nreferences;
@@ -140,6 +144,10 @@ public:
   Connection(Cluster &, int connection_id);
   ~Connection();
   void add_stats(const char *, ADD_STAT, const void *);
+  void startThreads();
+
+  /* These are not intended to be part of the public API, but are marked as
+     public so that they can be called from C code in pthread_create(): */
   void * run_ndb_send_thread();
   void * run_ndb_poll_thread();
 
@@ -178,6 +186,7 @@ public:
   WorkerConnection(SchedulerGlobal *, int thd_id, int cluster_id);
   ~WorkerConnection();
   void shutdown();
+  void reconfigure(Configuration *);
 
   struct { 
     int thd           : 8;
@@ -186,6 +195,7 @@ public:
     unsigned int node : 8;
   } id;
   S::Connection *conn;
+  ConnQueryPlanSet *plan_set, *old_plan_set;
   NdbInstance *freelist;
   Queue<NdbInstance> * sendqueue;
 };

@@ -61,7 +61,7 @@ char * tokenize_list(char **stringloc, const char *delim) {
 int TableSpec::build_column_list(const char ** const &col_array, 
                                  const char *list) {
   int n = 0;
-  if(list == 0) return 0;
+  if(list == 0 || *list == 0) return 0;
   char *next = strdup(list);  
   while(next && n < (MAX_KEY_COLUMNS + MAX_VAL_COLUMNS)) {
     char *item = tokenize_list(& next, ", ");
@@ -78,27 +78,27 @@ int TableSpec::build_column_list(const char ** const &col_array,
 */
 TableSpec::TableSpec(const char *sqltable,
                      const char *keycols, const char *valcols) :
-  math_column(0), flags_column(0), static_flags(0), 
-  cas_column(0), exp_column(0),
+  math_column(0), flags_column(0), 
+  cas_column(0), exp_column(0), static_flags(0),
   key_columns(new const char *[MAX_KEY_COLUMNS]) ,
   value_columns(new const char *[MAX_VAL_COLUMNS]) 
 {
   nkeycols = build_column_list(key_columns, keycols);
   if(nkeycols) must_free.first_key = 1;
   nvaluecols = build_column_list(value_columns, valcols);
-  if(nvaluecols) must_free.first_val = 1;
+  must_free.first_val = (nvaluecols);
   if(sqltable) {
     char *sqltabname = strdup(sqltable);
-    char *s;
-    for(s = sqltabname ; *s && *s != '.' ; s++);
     schema_name = sqltabname;
     must_free.schema_name = 1;
+    char *s = sqltabname;
+    for( ; *s && *s != '.' ; s++);
     if(*s) {
       assert(*s == '.');
       *s = '\0' ;
       table_name = s+1;
     }
-    must_free.table_name = 0;
+    must_free.table_name = must_free.all_val_cols = must_free.special_cols = 0;
   }
 }
 
@@ -107,16 +107,16 @@ TableSpec::TableSpec(const char *sqltable,
 TableSpec::TableSpec(const TableSpec &t) :
   nkeycols(t.nkeycols) ,
   nvaluecols(t.nvaluecols) ,
-  key_columns(new const char *[t.nkeycols]) ,
-  value_columns(new const char *[t.nvaluecols]) ,  
   schema_name(strdup(t.schema_name)) ,
   table_name(strdup(t.table_name)) , 
-  math_column(strdup(t.math_column)) 
+  math_column(strdup(t.math_column)) ,
+  key_columns(new const char *[t.nkeycols]) ,
+  value_columns(new const char *[t.nvaluecols])
 { 
    must_free.schema_name = must_free.table_name = 1;
    must_free.special_cols = 1;
    if(nkeycols) {
-     for(int i = 0; i < nkeycols ; i++) 
+    for(int i = 0; i < nkeycols ; i++) 
        key_columns[i] = strdup(t.key_columns[i]);
      must_free.all_key_cols = 1;
    }
@@ -125,7 +125,8 @@ TableSpec::TableSpec(const TableSpec &t) :
        value_columns[i] = strdup(t.value_columns[i]);
      must_free.all_val_cols = 1;
   }
-};
+  must_free.first_key = must_free.first_val = 0;
+}
 
 
 /* destructor */
@@ -150,7 +151,7 @@ TableSpec::~TableSpec() {
   }  
   delete[] key_columns;
   delete[] value_columns;
-};
+}
 
 
 void TableSpec::setKeyColumns(const char *col1, ...) {
