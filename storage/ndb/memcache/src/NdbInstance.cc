@@ -23,19 +23,14 @@
 
 #include "NdbInstance.h"
 #include "debug.h"
-#include "atomics.h"
 
 /* ------------------------------------------
    ------------- NdbInstance ----------------
    ------------------------------------------ */
  
-NdbInstance::NdbInstance(Ndb_cluster_connection *c, int nprefixes,
-                         int ntransactions) :
+NdbInstance::NdbInstance(Ndb_cluster_connection *c, int ntransactions) :
   next(0), wqitem(0)
 {
-  nplans = nprefixes;
-  plans = new QueryPlan *[nplans];
-  memset(plans, 0, (nplans * sizeof(QueryPlan *)));
   if(c) {
     db = new Ndb(c);
     db->init(ntransactions);
@@ -50,23 +45,6 @@ NdbInstance::NdbInstance(Ndb_cluster_connection *c, int nprefixes,
 
 NdbInstance::~NdbInstance() {
   if(db) delete db;
-  
-  for(int i = 0 ; i < nplans ; i++) 
-    if(plans[i])
-      delete plans[i];
 }
 
-
-QueryPlan * NdbInstance::getPlanForPrefix(const KeyPrefix *prefix) {
-  int plan_id = prefix->info.prefix_id;
-
-  if(plans[plan_id] == 0) {
-    plans[plan_id] = new QueryPlan(db, prefix->table);
-  }
-
-  if(plans[plan_id]->initialized)
-    return plans[plan_id];
-  else
-    return 0;
-}
 

@@ -31,7 +31,7 @@ ndbmc_atomic32_t engine_cas_lo = 0xb0000065;
 void worker_set_cas(int verbose, Uint64 *cas);
 
 
-int test_cas_bitshifts(QueryPlan *, int v) {
+int test_cas_bitshifts(QueryPlan *, Ndb *, int v) {
   Uint64 cas = 0ULL;
   worker_set_cas(v, &cas); 
   require(cas == 0x00717530B0000065ULL);
@@ -54,6 +54,6 @@ void worker_set_cas(int verbose, Uint64 *cas) {
     did_inc = atomic_cmp_swap_int(& engine_cas_lo, cas_lo, cas_lo + 1);
   } while(! did_inc);
   *cas = Uint64(cas_lo) | (Uint64(cas_hi) << 32);
-  detail(verbose, "%ull \n", (unsigned long long) *cas);
+  detail(verbose, "%llu \n", (unsigned long long) *cas);
 }
 
