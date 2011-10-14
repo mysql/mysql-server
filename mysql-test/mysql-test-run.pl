@@ -5343,7 +5343,7 @@ sub stop_servers($$) {
 
     # cluster processes
     My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(ndbds(), ndb_mgmds()) );
+			       started(ndbds(), ndb_mgmds(), memcacheds()) );
   }
   else
   {
