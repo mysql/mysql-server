@@ -276,6 +276,8 @@ class Warning_info
   Warning_info *m_next_in_da;
   Warning_info **m_prev_in_da;
 
+  List<Sql_condition> m_marked_sql_conditions;
+
 public:
   Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
@@ -342,11 +344,42 @@ private:
   { m_current_statement_warn_count= 0; }
 
   /**
-    Remove given SQL-condition from the list.
-
-    @param sql_condition The SQL-condition to remove (may be NULL).
+    Mark active SQL-conditions for later removal.
+    This is done to simulate stacked DAs for HANDLER statements.
   */
-  void remove_sql_condition(const Sql_condition *sql_condition);
+  void mark_sql_conditions_for_removal();
+
+  /**
+    Unmark SQL-conditions, which were marked for later removal.
+    This is done to simulate stacked DAs for HANDLER statements.
+  */
+  void unmark_sql_conditions_from_removal()
+  { m_marked_sql_conditions.empty(); }
+
+  /**
+    Remove SQL-conditions that are marked for deletion.
+    This is done to simulate stacked DAs for HANDLER statements.
+  */
+  void remove_marked_sql_conditions();
+
+  /**
+    Check if the given SQL-condition is marked for removal in this Warning_info
+    instance.
+
+    @param cond the SQL-condition.
+
+    @retval true if the given SQL-condition is marked for removal in this
+                 Warning_info instance.
+    @retval false otherwise.
+  */
+  bool is_marked_for_removal(const Sql_condition *cond) const;
+
+  /**
+    Mark a single SQL-condition for removal (add the given SQL-condition to the
+    removal list of this Warning_info instance).
+  */
+  void mark_condition_for_removal(Sql_condition *cond)
+  { m_marked_sql_conditions.push_back(cond, &m_warn_root); }
 
   /**
     Used for @@warning_count system variable, which prints
@@ -473,6 +506,7 @@ private:
 
   // for:
   //   - m_next_in_da / m_prev_in_da
+  //   - is_marked_for_removal()
   friend class Diagnostics_area;
 };
 
@@ -691,8 +725,14 @@ public:
                                             sql_errno, sqlstate, level, msg);
   }
 
-  void remove_sql_condition(const Sql_condition *sql_condition)
-  { get_warning_info()->remove_sql_condition(sql_condition); }
+  void mark_sql_conditions_for_removal()
+  { get_warning_info()->mark_sql_conditions_for_removal(); }
+
+  void unmark_sql_conditions_from_removal()
+  { get_warning_info()->unmark_sql_conditions_from_removal(); }
+
+  void remove_marked_sql_conditions()
+  { get_warning_info()->remove_marked_sql_conditions(); }
 
   const Sql_condition *get_error_condition() const
   { return get_warning_info()->get_error_condition(); }
@@ -780,5 +820,60 @@ uint32 convert_error_message(char *to, uint32 to_length,
                              const CHARSET_INFO *from_cs, uint *errors);
 
 extern const LEX_STRING warning_level_names[];
+
+bool is_sqlstate_valid(const LEX_STRING *sqlstate);
+
+
+/**
+  Checks if the specified SQL-state-string defines COMPLETION condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines COMPLETION condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_completion(const char *s)
+{ return s[0] == '0' && s[1] == '0'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines WARNING condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines WARNING condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_warning(const char *s)
+{ return s[0] == '0' && s[1] == '1'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines NOT FOUND condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines NOT FOUND condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_not_found(const char *s)
+{ return s[0] == '0' && s[1] == '2'; }
+
+
+/**
+  Checks if the specified SQL-state-string defines EXCEPTION condition.
+  This function assumes that the given string contains a valid SQL-state.
+
+  @param s the condition SQLSTATE.
+
+  @retval true if the given string defines EXCEPTION condition.
+  @retval false otherwise.
+*/
+inline bool is_sqlstate_exception(const char *s)
+{ return s[0] != '0' || s[1] > '2'; }
+
 
 #endif // SQL_ERROR_H

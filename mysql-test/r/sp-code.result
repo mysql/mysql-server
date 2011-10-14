@@ -924,16 +924,20 @@ CALL p1();
 Warning found!
 Warning found!
 Level	Code	Message
+Warning	1105	Unknown error
 Warning found!
 Warning found!
 Level	Code	Message
+Warning	1105	Unknown error
 Warning found!
 Warning found!
 Level	Code	Message
+Warning	1105	Unknown error
 End of Result Set found!
 End of Result Set found!
 Level	Code	Message
 Warning	1105	Unknown error
+Error	1329	No data - zero rows fetched, selected, or processed
 SET SESSION debug="-d,bug23032_emit_warning";
 DROP PROCEDURE p1;
 DROP TABLE t1;

@@ -1901,8 +1901,6 @@ END|
 CALL p1();
 exception
 exception
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '10 '
 DROP TABLE t1;
 DROP PROCEDURE p1;
 #
@@ -2020,3 +2018,805 @@ Error	1048	Column 'c' cannot be null
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE p1;
+
+###################################################################
+# Tests for the following bugs:
+#   - Bug#11763171: 55852 - Possibly inappropriate handler activation.
+#   - Bug#11749343: 38806 - Wrong scope for SQL HANDLERS in SP.
+###################################################################
+
+
+# -- Check that SQL-conditions thrown by Statement-blocks are
+# -- handled by Handler-decl blocks properly.
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H2' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should be handled by H2.
+END|
+
+CALL p1()|
+HandlerId
+H2
+
+# -- Check that SQL-conditions thrown by Statement-blocks are
+# -- handled by Handler-decl blocks properly in case of nested
+# -- SQL-blocks.
+
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H2' AS HandlerId;
+BEGIN
+SELECT 'B1' AS BlockId;
+BEGIN
+SELECT 'B2' AS BlockId;
+BEGIN
+SELECT 'B3' AS BlockId;
+SIGNAL SQLSTATE '01000'; # Should be handled by H2.
+END;
+END;
+END;
+END|
+
+CALL p2()|
+BlockId
+B1
+BlockId
+B2
+BlockId
+B3
+HandlerId
+H2
+
+# -- Check SQL-handler resolution rules.
+
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H3' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should be handled by H3.
+END|
+
+CALL p3()|
+HandlerId
+H3
+
+CREATE PROCEDURE p4()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H3' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should be handled by H2.
+END|
+
+CALL p4()|
+HandlerId
+H2
+
+CREATE PROCEDURE p5()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H2' AS HandlerId;
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H3' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should be handled by H3.
+END;
+END|
+
+CALL p5()|
+HandlerId
+H3
+
+# -- Check that handlers don't handle its own exceptions.
+
+CREATE PROCEDURE p6()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'H1' AS HandlerId;
+SIGNAL SQLSTATE 'HY000'; # Should *not* be handled by H1.
+END;
+SELECT 'S1' AS SignalId;
+SIGNAL SQLSTATE 'HY000'; # Should be handled by H1.
+END|
+
+CALL p6()|
+SignalId
+S1
+HandlerId
+H1
+ERROR HY000: Unhandled user-defined exception condition
+
+# -- Check that handlers don't handle its own warnings.
+
+CREATE PROCEDURE p7()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+SELECT 'H1' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should *not* be handled by H1.
+END;
+SELECT 'S1' AS SignalId;
+SIGNAL SQLSTATE '01000'; # Should be handled by H1.
+END|
+
+CALL p7()|
+SignalId
+S1
+HandlerId
+H1
+Warnings:
+Warning	1642	Unhandled user-defined warning condition
+
+# -- Check that conditions for handlers are not handled by the handlers
+# -- from the same block.
+
+CREATE PROCEDURE p8()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'H2' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should *not* be handled by H1.
+END;
+SELECT 'S1' AS SignalId;
+SIGNAL SQLSTATE 'HY000'; # Should be handled by H2.
+END|
+
+CALL p8()|
+SignalId
+S1
+HandlerId
+H2
+Warnings:
+Warning	1642	Unhandled user-defined warning condition
+
+# -- Check that conditions for handlers are not handled by the handlers
+# -- from the same block even if they are thrown deep down the stack.
+
+CREATE PROCEDURE p9()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'Wrong:H1:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H1:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+      SELECT 'Wrong:H2:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H2:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+        SELECT 'Wrong:H3:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H3:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+          SELECT 'Wrong:H4:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H4:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+            SELECT 'Wrong:H5:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H5:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+              SELECT 'Wrong:H6:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H6:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'H2' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should *not* be handled by H1.
+END;
+SELECT 'S6' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S5' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S4' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S3' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S2' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S1' AS SignalId;
+SIGNAL SQLSTATE 'HY000'; # Should be handled by H2.
+END|
+
+CALL p9()|
+SignalId
+S1
+SignalId
+S2
+SignalId
+S3
+SignalId
+S4
+SignalId
+S5
+SignalId
+S6
+HandlerId
+H2
+Warnings:
+Warning	1642	Unhandled user-defined warning condition
+
+# -- Check that handlers are choosen properly in case of deep stack and
+# -- nested SQL-blocks.
+
+CREATE PROCEDURE p10()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+    SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H2' AS HandlerId;
+BEGIN
+BEGIN
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+          SELECT 'Wrong:H1:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H1:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+            SELECT 'Wrong:H2:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H2:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+              SELECT 'Wrong:H3:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H3:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+                SELECT 'Wrong:H4:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H4:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+                  SELECT 'Wrong:H5:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H5:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000'
+                    SELECT 'Wrong:H6:1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'Wrong:H6:2' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'H2' AS HandlerId;
+SIGNAL SQLSTATE '01000'; # Should be handled by H1.
+END;
+SELECT 'S6' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S5' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S4' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S3' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S2' AS SignalId;
+SIGNAL SQLSTATE 'HY000';
+END;
+SELECT 'S1' AS SignalId;
+SIGNAL SQLSTATE 'HY000'; # Should be handled by H2.
+END;
+END;
+END;
+END|
+
+CALL p10()|
+SignalId
+S1
+SignalId
+S2
+SignalId
+S3
+SignalId
+S4
+SignalId
+S5
+SignalId
+S6
+HandlerId
+H2
+HandlerId
+H1
+
+# -- Test stored procedure from Peter's mail.
+
+CREATE PROCEDURE p11()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'H1' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H2' AS HandlerId;
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01000', 1249
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'H3' AS HandlerId;
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'H4' AS HandlerId;
+BEGIN
+SELECT 'H5' AS HandlerId;
+SELECT 'S3' AS SignalId;
+SIGNAL SQLSTATE 'HY000'; # H3
+SELECT 'S4' AS SignalId;
+SIGNAL SQLSTATE '22003'; # H3
+SELECT 'S5' AS SignalId;
+SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1249; # H4
+END;
+END;
+SELECT 'S6' AS SignalId;
+SIGNAL SQLSTATE 'HY000'; # H1
+SELECT 'S7' AS SignalId;
+SIGNAL SQLSTATE '22003'; # H1
+SELECT 'S8' AS SignalId;
+SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1249; # H5
+END;
+SELECT 'S1' AS SignalId;
+SIGNAL SQLSTATE 'HY000'; # H1
+SELECT 'S2' AS SignalId;
+SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1249; # H2
+END|
+
+CALL p11()|
+SignalId
+S6
+HandlerId
+H1
+SignalId
+S7
+HandlerId
+H1
+SignalId
+S8
+HandlerId
+H5
+SignalId
+S3
+HandlerId
+H3
+SignalId
+S4
+HandlerId
+H3
+SignalId
+S5
+HandlerId
+H4
+SignalId
+S1
+HandlerId
+H1
+SignalId
+S2
+HandlerId
+H2
+
+# -- Check that runtime stack-trace can be deeper than parsing-time one.
+
+CREATE PROCEDURE p12()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+  BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+    BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+      BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+        BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01001'
+          BEGIN
+SELECT 'H1:5' AS HandlerId;
+SIGNAL SQLSTATE '01002';
+END;
+SELECT 'H1:4' AS HandlerId;
+SIGNAL SQLSTATE '01001';
+END;
+SELECT 'H1:3' AS HandlerId;
+SIGNAL SQLSTATE '01001';
+END;
+SELECT 'H1:2' AS HandlerId;
+SIGNAL SQLSTATE '01001';
+END;
+SELECT 'H1:1' AS HandlerId;
+SIGNAL SQLSTATE '01001';
+END;
+#########################################################
+DECLARE CONTINUE HANDLER FOR SQLSTATE '01002'
+    SELECT 'OK' AS Msg;
+#########################################################
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+SELECT 'H2:5' AS HandlerId;
+SIGNAL SQLSTATE '01001';
+END;
+SELECT 'H2:4' AS HandlerId;
+SIGNAL SQLSTATE '01000';
+END;
+SELECT 'H2:3' AS HandlerId;
+SIGNAL SQLSTATE '01000';
+END;
+SELECT 'H2:2' AS HandlerId;
+SIGNAL SQLSTATE '01000';
+END;
+SELECT 'H2:1' AS HandlerId;
+SIGNAL SQLSTATE '01000';
+END;
+#######################################################
+SELECT 'Throw 01000' AS Msg;
+SIGNAL SQLSTATE '01000';
+END;
+END|
+
+CALL p12()|
+Msg
+Throw 01000
+HandlerId
+H2:1
+HandlerId
+H2:2
+HandlerId
+H2:3
+HandlerId
+H2:4
+HandlerId
+H2:5
+HandlerId
+H1:1
+HandlerId
+H1:2
+HandlerId
+H1:3
+HandlerId
+H1:4
+HandlerId
+H1:5
+Warnings:
+Warning	1642	Unhandled user-defined warning condition
+
+# -- Check that handler-call-frames are removed properly for EXIT
+# -- handlers.
+
+CREATE PROCEDURE p13()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+BEGIN
+DECLARE EXIT HANDLER FOR SQLWARNING
+BEGIN
+SELECT 'EXIT handler 3' AS Msg;
+END;
+SELECT 'CONTINUE handler 2: 1' AS Msg;
+SIGNAL SQLSTATE '01000';
+SELECT 'CONTINUE handler 2: 2' AS Msg;
+END;
+SELECT 'CONTINUE handler 1: 1' AS Msg;
+SIGNAL SQLSTATE '01000';
+SELECT 'CONTINUE handler 1: 2' AS Msg;
+END;
+SELECT 'Throw 01000' AS Msg;
+SIGNAL SQLSTATE '01000';
+END|
+
+CALL p13()|
+Msg
+Throw 01000
+Msg
+CONTINUE handler 1: 1
+Msg
+CONTINUE handler 2: 1
+Msg
+EXIT handler 3
+Msg
+CONTINUE handler 1: 2
+
+# That's it. Cleanup.
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+DROP PROCEDURE p7;
+DROP PROCEDURE p8;
+DROP PROCEDURE p9;
+DROP PROCEDURE p10;
+DROP PROCEDURE p11;
+DROP PROCEDURE p12;
+DROP PROCEDURE p13;
+
+# Bug#12731619: NESTED SP HANDLERS CAN TRIGGER ASSERTION
+
+DROP FUNCTION IF EXISTS f1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(msg VARCHAR(255));
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION               # handler 1
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION             # handler 2
+BEGIN
+INSERT INTO t1 VALUE('WRONG: Inside H2');
+RETURN 2;
+END;
+INSERT INTO t1 VALUE('CORRECT: Inside H1');
+RETURN 1;
+END;
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING               # handler 3
+BEGIN
+INSERT INTO t1 VALUE('WRONG: Inside H3');
+RETURN 3;
+END;
+INSERT INTO t1 VALUE('CORRECT: Calling f1()');
+RETURN f1(); # -- exception here
+END;
+INSERT INTO t1 VALUE('WRONG: Returning 10');
+RETURN 10;
+END|
+
+SELECT f1();
+f1()
+1
+
+SELECT * FROM t1;
+msg
+CORRECT: Calling f1()
+CORRECT: Inside H1
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+# Check that handled SQL-conditions are properly cleared from DA.
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+DROP PROCEDURE IF EXISTS p5;
+CREATE TABLE t1(a CHAR, b CHAR, c CHAR);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT);
+
+# Check that SQL-conditions for which SQL-handler has been invoked,
+# are cleared from the Diagnostics Area. Note, there might be several
+# SQL-conditions, but SQL-handler must be invoked only once.
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLWARNING
+SELECT 'Warning caught' AS msg;
+# The INSERT below raises 3 SQL-conditions (warnings). The EXIT HANDLER
+# above must be invoked once (for one condition), but all three conditions
+# must be cleared from the Diagnostics Area.
+INSERT INTO t1 VALUES('qqqq', 'ww', 'eee');
+# The following INSERT will not be executed, because of the EXIT HANDLER.
+INSERT INTO t1 VALUES('zzz', 'xx', 'yyyy');
+END|
+
+CALL p1()|
+msg
+Warning caught
+
+SELECT * FROM t1|
+a	b	c
+q	w	e
+
+# Check that SQL-conditions for which SQL-handler has *not* been
+# invoked, are *still* cleared from the Diagnostics Area.
+
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+SELECT 'Warning 1292 caught' AS msg;
+# The following INSERT raises 6 SQL-warnings with code 1292,
+# and 3 SQL-warnings with code 1264. The CONTINUE HANDLER above must be
+# invoked once, and all nine SQL-warnings must be cleared from
+# the Diagnostics Area.
+INSERT INTO t2
+SELECT
+CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p2()|
+msg
+Warning 1292 caught
+
+# Check that if there are two equally ranked SQL-handlers to handle
+# SQL-conditions from SQL-statement, only one of them will be invoked.
+
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+SELECT 'Warning 1292 caught' AS msg;
+DECLARE CONTINUE HANDLER FOR 1264
+SELECT 'Warning 1264 caught' AS msg;
+# The following INSERT raises 6 SQL-warnings with code 1292,
+# and 3 SQL-warnings with code 1264. Only one of the CONTINUE HANDLERs above
+# must be called, and only once. The SQL Standard does not define, which one
+# should be invoked.
+INSERT INTO t2
+SELECT
+CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p3()|
+msg
+Warning 1264 caught
+
+# The same as p3, but 1264 comes first.
+
+CREATE PROCEDURE p4()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+SELECT 'Warning 1292 caught' AS msg;
+DECLARE CONTINUE HANDLER FOR 1264
+SELECT 'Warning 1264 caught' AS msg;
+# The following INSERT raises 4 SQL-warnings with code 1292,
+# and 3 SQL-warnings with code 1264. Only one of the CONTINUE HANDLERs above
+# must be called, and only once. The SQL Standard does not define, which one
+# should be invoked.
+INSERT INTO t2
+SELECT
+CAST(999999 AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p4()|
+msg
+Warning 1264 caught
+
+# Check that if a SQL-handler raised its own SQL-conditions, there are
+# preserved after handler exit.
+
+CREATE PROCEDURE p5()
+BEGIN
+DECLARE EXIT HANDLER FOR 1292
+BEGIN
+SELECT 'Handler for 1292 (1)' AS Msg;
+SIGNAL SQLSTATE '01000' SET MYSQL_ERRNO = 1234;
+SHOW WARNINGS;
+SELECT 'Handler for 1292 (2)' AS Msg;
+END;
+INSERT INTO t2
+SELECT
+CAST(999999 AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p5()|
+Msg
+Handler for 1292 (1)
+Level	Code	Message
+Warning	1234	Unhandled user-defined warning condition
+Msg
+Handler for 1292 (2)
+Warnings:
+Warning	1234	Unhandled user-defined warning condition
+
+# Check that SQL-conditions are available inside the handler, but
+# cleared after the handler exits.
+
+CREATE PROCEDURE p6()
+BEGIN
+DECLARE CONTINUE HANDLER FOR 1292
+BEGIN
+SHOW WARNINGS;
+SELECT 'Handler for 1292' Msg;
+END;
+INSERT INTO t2
+SELECT
+CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+END|
+
+CALL p6()|
+Level	Code	Message
+Warning	1292	Truncated incorrect INTEGER value: '1 '
+Warning	1292	Truncated incorrect INTEGER value: '1999999  '
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '2 '
+Warning	1292	Truncated incorrect INTEGER value: '2999999  '
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '3 '
+Warning	1292	Truncated incorrect INTEGER value: '3999999  '
+Warning	1264	Out of range value for column 'c' at row 1
+Msg
+Handler for 1292
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Bug#13059316: ASSERTION FAILURE IN SP_RCONTEXT.CC 
+# Check DECLARE statements that raise conditions before handlers
+# are declared.
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE var1 INTEGER DEFAULT 'string';
+DECLARE EXIT HANDLER FOR SQLWARNING SELECT 'H1';
+END|
+
+CALL p1()|
+Warnings:
+Warning	1366	Incorrect integer value: 'string' for column 'var1' at row 1
+
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLWARNING SELECT 'H2';
+CALL p1();
+END|
+
+CALL p2()|
+H2
+H2
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
