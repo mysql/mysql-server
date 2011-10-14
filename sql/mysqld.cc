@@ -2761,8 +2761,16 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     my_safe_print_str(thd->query(), min(65536,thd->query_length()));
     fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
-    fprintf(stderr, "Optimizer switch: %s\n", optimizer_switch_str);
-    fputc('\n', stderr);
+    fprintf(stderr, "Optimizer switch: ");
+    ulonglong optsw= thd->variables.optimizer_switch;
+    for (uint i= 0; optimizer_switch_names[i+1]; i++, optsw >>= 1)
+    {
+      if (i)
+        fputc(',', stderr);
+      fprintf(stderr, "%s=%s",
+        optimizer_switch_names[i], optsw & 1 ? "on" : "off");
+    }
+    fprintf(stderr, "\n\n");
   }
   fprintf(stderr, "\
 The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
