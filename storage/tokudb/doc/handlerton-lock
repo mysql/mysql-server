@@ -40,6 +40,7 @@ it is being brought offline.
 == Implementation ==
 
 {{{
+#!c
 tokudb_hton_init_func 
 {
     grab_hton_init_writelock();
