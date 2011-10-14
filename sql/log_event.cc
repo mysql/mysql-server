@@ -1678,11 +1678,6 @@ void Log_event::print_header(IO_CACHE* file,
     if (hex_string[0])
     {
       char emit_buf[256];
-      int pad_length= 48 - strlen(h);
-      DBUG_ASSERT(strlen(h) < 48);
-      for(int pad_done= 0; pad_done < pad_length; pad_done++)
-        *h++ = ' ';
-      *h= '\0';
       size_t const bytes_written=
         my_snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %-48.48s |%s|\n",
