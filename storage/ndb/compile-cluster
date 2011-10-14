@@ -100,7 +100,7 @@ my $cmake_version_id;
   # The cmake generator to use
   if ($opt_build_type)
   {
-    push(@args, "-G $opt_build_type");
+    push(@args, "-G \"$opt_build_type\"");
   }
 
   # Sets installation directory,  bindir, libdir, libexecdir etc.
