@@ -35,9 +35,9 @@
 */
 
 
-Operation::Operation(QueryPlan *p, int o, char *kbuf) : plan(p), 
-                                                        op(o),
-                                                        key_buffer(kbuf)
+Operation::Operation(QueryPlan *p, int o, char *kbuf) : key_buffer(kbuf), 
+                                                        plan(p), 
+                                                        op(o)                                                        
 {
   if(op == OP_READ) record = plan->val_record;
   else if(op == OP_FLUSH) record = plan->key_record;  // scanning delete 
@@ -70,10 +70,10 @@ size_t Operation::copyValue(int idx, char *dest) const {
 
 /* NdbTransaction method wrappers */
 
-NdbTransaction * Operation::startTransaction() const {
+NdbTransaction * Operation::startTransaction(Ndb *db) const {
   char hash_buffer[512];
-  return plan->db->startTransaction(plan->key_record->ndb_record, key_buffer,
-                                    hash_buffer, 512);
+  return db->startTransaction(plan->key_record->ndb_record, key_buffer,
+                              hash_buffer, 512);
 }
 
 NdbIndexScanOperation * Operation::scanIndex(NdbTransaction *tx,

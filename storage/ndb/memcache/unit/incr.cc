@@ -19,47 +19,48 @@
  */
 #include "all_tests.h"
 
-int do_incr(int v, QueryPlan *plan, const char *akey, bool, bool, Uint64 *val);
+int do_incr(int v, QueryPlan *plan, Ndb *db, 
+            const char *akey, bool, bool, Uint64 *val);
 
-int run_incr_test(QueryPlan *plan, int v) {
+int run_incr_test(QueryPlan *plan, Ndb *db, int v) {
   int r = 0;
   Uint64 val = 33;
   
-  delete_row(plan, "incr_unit_test_1", v);
-  delete_row(plan, "incr_unit_test_2", v);
+  delete_row(plan, db, "incr_unit_test_1", v);
+  delete_row(plan, db, "incr_unit_test_2", v);
   
   detail(v, "Test 1: INCR non-existing row, create=false\n");
-  r = do_incr(v, plan, "incr_unit_test_1", false, true, &val);
+  r = do_incr(v, plan, db, "incr_unit_test_1", false, true, &val);
   detail(v, "Result - NDB=%d Val=%llu \n\n", r, (long long unsigned) val);
   require(r == 626);
   require(val == 33);
 
   detail(v, "Test 2: INCR non-existing row, create=true, update = false\n");
-  r = do_incr(v, plan, "incr_unit_test_1", true, false, &val);
+  r = do_incr(v, plan, db, "incr_unit_test_1", true, false, &val);
   detail(v, "Result - NDB=%d Val=%llu \n\n", r, val);
   require(r == 626); // the transaction gets a 626 even if the insert succeeds
   require(val == -1ULL);
 
   detail(v, "test 3: READ row created in test 2\n");
-  r = do_incr(v, plan, "incr_unit_test_1", false, false, &val);
+  r = do_incr(v, plan, db, "incr_unit_test_1", false, false, &val);
   detail(v, "Result - NDB=%d Val=%llu \n\n", r, (long long unsigned) val);
   require(r == 0);
   require(val == -1ULL);
 
   detail(v, "Test 4: INCR non-existing row, create=true\n");
-  r = do_incr(v, plan, "incr_unit_test_2", true, true, &val);
+  r = do_incr(v, plan, db, "incr_unit_test_2", true, true, &val);
   detail(v, "Result - NDB=%d Val=%llu \n\n", r, (long long unsigned) val);
   require(r == 626);
   require(val == 0);
   
   detail(v, "Test 5: INCR existing row, create=false\n");
-  r = do_incr(v, plan, "incr_unit_test_2", false, true, &val);
+  r = do_incr(v, plan, db, "incr_unit_test_2", false, true, &val);
   detail(v, "Result - NDB=%d Val=%llu \n\n", r, (long long unsigned) val);
   require(r == 0);
   require(val == 1);  
 
   detail(v, "Test 6: INCR existing row, create=true\n");
-  r = do_incr(v, plan, "incr_unit_test_2", true, true, &val);
+  r = do_incr(v, plan, db, "incr_unit_test_2", true, true, &val);
   detail(v, "Result - NDB=%d Val=%llu \n\n", r, (long long unsigned) val);
   require(r == 630);   // the insert failed but the update succeeded
   require(val == 2);
@@ -68,11 +69,10 @@ int run_incr_test(QueryPlan *plan, int v) {
 }
 
 
-int do_incr(int v, QueryPlan *plan, const char *akey, 
+int do_incr(int v, QueryPlan *plan, Ndb *db, const char *akey, 
             bool create, bool update, Uint64 *val) {
   int r;
   char key[50];
-  char value[50];
   char ndbkeybuffer[300];
   char ndbrowbuffer1[8192];
   char ndbrowbuffer2[8192];
@@ -97,9 +97,9 @@ int do_incr(int v, QueryPlan *plan, const char *akey,
   op.setColumn(COL_STORE_KEY, key, strlen(key));
   op.setColumnBigUnsigned(COL_STORE_CAS, 0ULL);
 
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(db);
   if(! tx) {
-    int r =  plan->db->RESULT;
+    int r =  db->RESULT;
     detail(v, " get tx: %d \n", r);
     return r;
   }
@@ -135,7 +135,6 @@ int do_incr(int v, QueryPlan *plan, const char *akey,
   
   // NdbOperation #3:  update (interpreted)
   if (update) {
-    int i;
     NdbOperation::OperationOptions options;
     const Uint32 program_size = 10;
     Uint32 program[program_size];
