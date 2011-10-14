@@ -25,6 +25,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"                            // Item
+#include "sp_pcontext.h"                        // sp_pcontext
 
 #include <stddef.h>
 
@@ -49,12 +50,9 @@ sp_map_item_type(enum enum_field_types type);
 uint
 sp_get_flags_for_command(LEX *lex);
 
-struct sp_label;
 class sp_instr;
 class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
-struct sp_condition_value;
-struct sp_variable;
 
 /*************************************************************************/
 
@@ -216,15 +214,11 @@ private:
   uint32 unsafe_flags;
 
 public:
-  inline Stored_program_creation_ctx *get_creation_ctx()
-  {
-    return m_creation_ctx;
-  }
+  Stored_program_creation_ctx *get_creation_ctx()
+  { return m_creation_ctx; }
 
-  inline void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
-  {
-    m_creation_ctx= creation_ctx->clone(mem_root);
-  }
+  void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
+  { m_creation_ctx= creation_ctx->clone(mem_root); }
 
   longlong m_created;
   longlong m_modified;
@@ -320,13 +314,11 @@ public:
   int
   add_instr(sp_instr *instr);
 
-  inline uint
+  uint
   instructions()
-  {
-    return m_instr.elements;
-  }
+  { return m_instr.elements; }
 
-  inline sp_instr *
+  sp_instr *
   last_instruction()
   {
     sp_instr *i;
@@ -415,7 +407,7 @@ public:
 
   void recursion_level_error(THD *thd);
 
-  inline sp_instr *
+  sp_instr *
   get_instr(uint i)
   {
     sp_instr *ip;
@@ -584,7 +576,7 @@ public:
     Get the continuation destination of this instruction.
     @return the continuation destination
   */
-  virtual uint get_cont_dest();
+  virtual uint get_cont_dest() const;
 
   /*
     Execute core function of instruction after all preparations (e.g.
@@ -685,17 +677,13 @@ public:
   int reset_lex_and_exec_core(THD *thd, uint *nextp, bool open_tables,
                               sp_instr* instr);
 
-  inline uint sql_command() const
-  {
-    return (uint)m_lex->sql_command;
-  }
+  uint sql_command() const
+  { return (uint)m_lex->sql_command; }
 
   void disable_query_cache()
-  {
-    m_lex->safe_to_cache_query= 0;
-  }
-private:
+  { m_lex->safe_to_cache_query= 0; }
 
+private:
   LEX *m_lex;
   /**
     Indicates whenever this sp_lex_keeper instance responsible
@@ -856,7 +844,7 @@ public:
   virtual void set_destination(uint old_dest, uint new_dest)
     = 0;
 
-  virtual uint get_cont_dest();
+  virtual uint get_cont_dest() const;
 
 protected:
 
@@ -1007,15 +995,21 @@ class sp_instr_hpush_jump : public sp_instr_jump
 
 public:
 
-  sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int htype, uint fp)
-    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp), m_opt_hpop(0)
+  sp_instr_hpush_jump(uint ip,
+                      sp_pcontext *ctx,
+                      sp_handler *handler)
+   :sp_instr_jump(ip, ctx),
+    m_handler(handler),
+    m_opt_hpop(0),
+    m_frame(ctx->current_var_count())
   {
-    m_cond.empty();
+    DBUG_ASSERT(m_handler->condition_values.elements == 0);
   }
 
   virtual ~sp_instr_hpush_jump()
   {
-    m_cond.empty();
+    m_handler->condition_values.empty();
+    m_handler= NULL;
   }
 
   virtual int execute(THD *thd, uint *nextp);
@@ -1039,18 +1033,22 @@ public:
       m_opt_hpop= dest;
   }
 
-  inline void add_condition(sp_condition_value *cond)
-  {
-    m_cond.push_front(cond);
-  }
+  void add_condition(sp_condition_value *condition_value)
+  { m_handler->condition_values.push_back(condition_value); }
+
+  sp_handler *get_handler()
+  { return m_handler; }
 
 private:
+  /// Handler.
+  sp_handler *m_handler;
 
-  int m_type;			///< Handler type
+  /// hpop marking end of handler scope.
+  uint m_opt_hpop;
+
+  // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
+  // debug version only). It's used in print().
   uint m_frame;
-  uint m_opt_hpop;              // hpop marking end of handler scope.
-  List<sp_condition_value> m_cond;
-
 }; // class sp_instr_hpush_jump : public sp_instr_jump
 
 
@@ -1085,9 +1083,9 @@ class sp_instr_hreturn : public sp_instr_jump
   void operator=(sp_instr_hreturn &);
 
 public:
-
-  sp_instr_hreturn(uint ip, sp_pcontext *ctx, uint fp)
-    : sp_instr_jump(ip, ctx), m_frame(fp)
+  sp_instr_hreturn(uint ip, sp_pcontext *ctx)
+   :sp_instr_jump(ip, ctx),
+    m_frame(ctx->current_var_count())
   {}
 
   virtual ~sp_instr_hreturn()
@@ -1106,9 +1104,9 @@ public:
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
 private:
-
+  // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
+  // debug version only). It's used in print().
   uint m_frame;
-
 }; // class sp_instr_hreturn : public sp_instr_jump
 
 

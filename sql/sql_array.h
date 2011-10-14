@@ -40,6 +40,12 @@ public:
   {}
 
   void reset() { m_array= NULL; m_size= 0; }
+ 
+  void reset(Element_type *array, size_t size)
+  {
+    m_array= array;
+    m_size= size;
+  }
 
   Element_type &operator[](size_t n)
   {
@@ -111,11 +117,25 @@ public:
     return (Elem*)array.buffer;
   }
 
+  /// @returns pointer to first element; undefined behaviour if array is empty
+  const Elem *front() const
+  {
+    DBUG_ASSERT(array.elements >= 1);
+    return (const Elem*)array.buffer;
+  }
+
   /// @returns pointer to last element; undefined behaviour if array is empty.
   Elem *back()
   {
     DBUG_ASSERT(array.elements >= 1);
     return ((Elem*)array.buffer) + (array.elements - 1);
+  }
+
+  /// @returns pointer to last element; undefined behaviour if array is empty.
+  const Elem *back() const
+  {
+    DBUG_ASSERT(array.elements >= 1);
+    return ((const Elem*)array.buffer) + (array.elements - 1);
   }
 
   /**
@@ -128,9 +148,9 @@ public:
   }
 
   /// Pops the last element. Does nothing if array is empty.
-  void pop()
+  Elem& pop()
   {
-    (void)pop_dynamic(&array);
+    return *((Elem*)pop_dynamic(&array));
   }
 
   void del(uint idx)
