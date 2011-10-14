@@ -112,6 +112,8 @@ testMgmd_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include/debugger
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
 testNativeDefault_SOURCES = testNativeDefault.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
+testNdbApi_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/ndbapi \
+	-I$(top_srcdir)/storage/ndb/include/transporter
 testNodeRestart_SOURCES = testNodeRestart.cpp
 testUpgrade_SOURCES = testUpgrade.cpp
 testUpgrade_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
