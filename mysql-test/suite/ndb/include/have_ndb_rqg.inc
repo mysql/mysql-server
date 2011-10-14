@@ -56,19 +56,19 @@ else {
 
 
 if ($runall) {
-  print $F "--let \$RUN_ALL= $env_mysqltest $runall -p \$MASTER_MYPORT\n"
+  print $F "--let \$RUN_ALL= $env_mysqltest bash $runall -p \$MASTER_MYPORT\n"
 } else {
   print $F "skip Could not find load_and_run.sh\n";
 }
 
 if ($loadrqg) {
-  print $F "--let \$LOAD_RQG= $env_mysqltest $loadrqg -p \$MASTER_MYPORT\n"
+  print $F "--let \$LOAD_RQG= $env_mysqltest bash $loadrqg -p \$MASTER_MYPORT\n"
 } else {
   print $F "skip Could not find load_rqg.sh\n";
 }
 
 if ($runrqg) {
-  print $F "--let \$RUN_RQG= $env_mysqltest $runrqg -p \$MASTER_MYPORT\n"
+  print $F "--let \$RUN_RQG= $env_mysqltest bash $runrqg -p \$MASTER_MYPORT\n"
 } else {
   print $F "skip Could not find run_rqg.sh\n";
 }
