@@ -31,7 +31,7 @@
 #define USE_SOLARIS_ATOMICS
 #elif defined HAVE_DARWIN_ATOMICS
 #define USE_DARWIN_ATOMICS 
-#elif defined HAVE_GCC_ATOMIC_BUILTINS
+#elif defined HAVE_GCC_ATOMIC_BUILTINS || defined HAVE_GCC_ATOMICS_WITH_ARCH_FLAG
 #define USE_GCC_ATOMICS
 #else 
 #error No atomic functions available.

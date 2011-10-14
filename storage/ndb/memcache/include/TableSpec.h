@@ -45,17 +45,17 @@ class TableSpec {
   void setValueColumns(const char *col1, ...);
   
   /* Public instance variables */
+  int nkeycols;
+  int nvaluecols;
   const char *schema_name;
   const char *table_name;
   const char *math_column;
   const char *flags_column;
   const char *cas_column;
   const char *exp_column;
+  Uint32 static_flags;
   const char ** const key_columns;
   const char ** const value_columns;
-  int nkeycols;
-  int nvaluecols;
-  Uint32 static_flags;
 
   private:
   /* private instance variables */
@@ -91,12 +91,10 @@ inline TableSpec::TableSpec(int nkeys, int nvals) :
 
 inline TableSpec::TableSpec(const char *db, const char *tab, 
                             int nkeys, int nvals) :
-                            schema_name(db),
-                            table_name(tab),
-                            nkeycols(nkeys), 
-                            nvaluecols(nvals), static_flags(0),
+                            nkeycols(nkeys), nvaluecols(nvals), 
+                            schema_name(db), table_name(tab),
                             math_column(0), flags_column(0), 
-                            cas_column(0), exp_column(0), 
+                            cas_column(0), exp_column(0), static_flags(0),
                             key_columns(new const char *[nkeys]),
                             value_columns(new const char *[nvals]) { 
   must_free.none = 1; 
