@@ -21,35 +21,36 @@
 
 #include "all_tests.h"
 
-int set_row(int, QueryPlan *, const char *, Uint64 , Uint64 );
+int set_row(int, QueryPlan *, Ndb *, const char *, Uint64 , Uint64 );
 void build_cas_routine(NdbInterpretedCode *, QueryPlan *plan, Uint64 *cas);
 
 
 
-int run_cas_test(QueryPlan *plan, int v) {
+int run_cas_test(QueryPlan *plan, Ndb *db, int v) {
   const Uint64 cas = 30090000000000003ULL;
   int r;
   
-  r = set_row(v, plan, "cas_unit_test_1", 0ULL, cas);      // a normal update
+  r = set_row(v, plan, db, "cas_unit_test_1", 0ULL, cas);      // a normal update
   detail(v, "(1): %d\n", r);
   require(r == 0);  
 
-  r = set_row(v, plan, "cas_unit_test_1", cas, cas + 1);   // an interpreted update
+  r = set_row(v, plan, db, "cas_unit_test_1", cas, cas + 1);   // an interpreted update
   detail(v, "(2): %d\n", r);
   require(r == 0);  
   
-  r = set_row(v, plan, "cas_unit_test_2", 0ULL, cas);      // a normal update
+  r = set_row(v, plan, db, "cas_unit_test_2", 0ULL, cas);      // a normal update
   detail(v, "(2): %d\n", r);
   require(r == 0);  
 
-  r = set_row(v, plan, "cas_unit_test_2", cas-1, cas+1);   // this should fail  
+  r = set_row(v, plan, db, "cas_unit_test_2", cas-1, cas+1);   // this should fail  
   detail(v, "(2): %d\n", r);
   require(r == 899);  
   pass;
 }
 
 
-int set_row(int v, QueryPlan *plan, const char *akey, Uint64 old_cas, Uint64 new_cas) {
+int set_row(int v, QueryPlan *plan, Ndb *db,
+            const char *akey, Uint64 old_cas, Uint64 new_cas) {
   NdbOperation::OperationOptions options;
   NdbInterpretedCode code(plan->table);
   char key[50];
@@ -76,7 +77,7 @@ int set_row(int v, QueryPlan *plan, const char *akey, Uint64 old_cas, Uint64 new
   op.setColumn(COL_STORE_VALUE, value, strlen(value));
   op.setColumnBigUnsigned(COL_STORE_CAS, new_cas);
   
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(db);
   
   if(old_cas) {
     /* This is an interpreted update */

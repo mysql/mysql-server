@@ -211,9 +211,10 @@ void * run_reconfig_listener_thread(void *p) {
     }
     else {
       DEBUG_PRINT("error (%d); exiting.", i);
-      pthread_exit(NULL);
+      break;
     }
   }
+  return 0;
 }
 
 

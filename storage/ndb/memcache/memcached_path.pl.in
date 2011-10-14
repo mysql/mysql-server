@@ -20,7 +20,6 @@
 
 use strict;
 
-
 sub memcached_is_available() {
   if("@MEMCACHED_FOUND@" eq "TRUE") {
     return 1;
@@ -30,9 +29,12 @@ sub memcached_is_available() {
   }
 }
 
+sub memcached_is_bundled() {
+  return ("@WITH_BUNDLED_MEMCACHED@" eq "ON") ? 1 : 0;
+}
+
 sub get_memcached_exe_path() {
-  my $memcached_base = "@MEMCACHED_ROOT_DIR@";
-  return "$memcached_base/bin/memcached";
+  return "@MEMCACHED_BIN_PATH@";
 }
 
 1;
