@@ -2756,7 +2756,7 @@ sub check_ndbcluster_support ($) {
     # Enable ndb engine and add more test suites
     $opt_include_ndbcluster = 1;
     $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl";
-    $DEFAULT_SUITES.=",ndb_memcache" unless($opt_embedded_server);
+    $DEFAULT_SUITES.=",ndb_memcache" unless($opt_embedded_server or IS_WINDOWS);
   }
 
 
