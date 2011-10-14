@@ -958,6 +958,19 @@ impossible position";
       else if (event_type == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
+      /*
+        Introduced this code to make the gcc 4.6.1 compiler happy. When
+        warnings are converted to errors, the compiler complains about
+        the fact that binlog_can_be_corrupted is defined but never used.
+
+        We need to check if this is a dead code or if someone removed any
+        code by mistake.
+
+        /Alfranio
+      */
+      if (binlog_can_be_corrupted)
+         sql_print_information("The binlog may be corrupted.");
+
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
                    (thd, flags, packet, log_file_name, pos)))
