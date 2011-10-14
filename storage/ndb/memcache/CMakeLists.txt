@@ -202,12 +202,16 @@ set_target_properties(ndb_engine PROPERTIES
 # Install the ndb_engine.so module
 install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 
-### Install the memcache-api directory  ################
-install(DIRECTORY DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
-install(PROGRAMS sandbox.sh DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
-install(FILES README DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+# Install the metadata.sql script
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
-        DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+        DESTINATION ${INSTALL_MYSQLSHAREDIR})
+
+### Install the memcache-api directory  ################
+install(DIRECTORY DESTINATION memcache-api)
+install(PROGRAMS sandbox.sh DESTINATION memcache-api)
+install(FILES README DESTINATION memcache-api)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
+        DESTINATION memcache-api)
         
 # memcached_path.pl is also installed, for use by installed mtr
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
