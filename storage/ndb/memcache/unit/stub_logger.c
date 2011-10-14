@@ -27,7 +27,7 @@ static const char *stderror_get_name(void) {
   return "standard error";
 }
 
-static void stderror_logger_log(EXTENSION_LOG_LEVEL severity,
+static void stderror_logger_log(EXTENSION_LOG_LEVEL severity __attribute__((unused)),
                                 const void* client_cookie,
                                 const char *fmt, ...)
 {

@@ -1,4 +1,6 @@
-# Source files for this module 
+
+
+######### run_unit_tests ##############
 set(UNIT_SOURCE_FILES
     harness.cc
     alloc.cc
@@ -10,13 +12,24 @@ set(UNIT_SOURCE_FILES
     stub_logger.c
     tsv.cc
  )
-
-
 add_executable(run_unit_tests ${UNIT_SOURCE_FILES})
 target_link_libraries(run_unit_tests ndbmemcache)
+##########################################
 
-add_executable(test_workqueue test_workqueue.c)
-target_link_libraries(test_workqueue ndbmemcache)
+
+### test_workqueue #####################
+set(TEST_WORKQUEUE_SOURCES test_workqueue.c ../src/workqueue.c) 
+if(HAVE_SOLARIS_ATOMICS) 
+  set(TEST_WORKQUEUE_SOURCES ${TEST_WORKQUEUE_SOURCES} ../src/atomics.c)
+endif()
+
+add_executable(test_workqueue ${TEST_WORKQUEUE_SOURCES})
+
+if(LIBRT) 
+  target_link_libraries(test_workqueue rt)
+endif()
+##########################################
+
 
 # Tests which can run without a cluster:
 

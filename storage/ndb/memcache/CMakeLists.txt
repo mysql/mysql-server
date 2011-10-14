@@ -20,7 +20,26 @@ IF(WIN32)
   RETURN()
 ENDIF()
 
+######### BUNDLED SOURCES FOR MEMCACHED AND LIBEVENT
+
+option(WITH_BUNDLED_MEMCACHED "Use bundled memcached" ON)
+option(WITH_BUNDLED_LIBEVENT "Use bundled libevent for building memcached" ON)
+
+if(WITH_BUNDLED_MEMCACHED)
+  add_subdirectory(extra/memcached)
+
+  if(WITH_BUNDLED_LIBEVENT)
+    add_subdirectory(extra/libevent)
+    add_dependencies(memcached event)
+  endif()
+endif()
+####################################################
+
+# Don't disable assert
+remove_definitions(-DNDEBUG)
+
 include("FindMemcached.cmake")
+include(CheckLibraryExists)
 
 IF(MEMCACHED_FOUND) 
   MESSAGE(STATUS "Building NDB Memcache using " ${MEMCACHED_ROOT_DIR})
@@ -29,21 +48,36 @@ ELSE()
   RETURN()
 ENDIF()  
 
+# Check for atomic operations
+include(atomics.cmake)
+if(NO_ATOMICS)
+  RETURN()
+ENDIF()
+
+# Reuse the default engine from the bundled source tree
+set(BUNDLED_MEMCACHED extra/memcached)
+set(CACHE_SRC ${BUNDLED_MEMCACHED}/engines/default_engine)
+
 # Paths to header files
 include_directories(BEFORE include)
-include_directories(BEFORE cache-src)
+include_directories(BEFORE ${CACHE_SRC})
 include_directories(${NDB_SOURCE_DIR}/src/ndbjtie/mysql)
-include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
+include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
+include_directories(AFTER ${BUNDLED_MEMCACHED})
 
 # Paths to libraries
-link_directories(${NDB_SOURCE_DIR}/src ${NDB_SOURCE_DIR}/src/common/util)
+link_directories(${NDB_SOURCE_DIR}/src 
+                 ${NDB_SOURCE_DIR}/src/common/util
+                 ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached
+                )
 
 # Source files for this module 
 set(NDB_MEMCACHE_SOURCE_FILES
     src/ClusterConnectionPool.cc
     src/Configuration.cc
     src/Config_v1.cc
+    src/ConnQueryPlanSet.cc
     src/DataTypeHandler.cc
     src/KeyPrefix.cc
     src/NdbInstance.cc
@@ -66,18 +100,12 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/workqueue.c
     src/schedulers/S_sched.cc
     src/schedulers/Stockholm.cc
-    src/ndb_engine.c
+    ${CACHE_SRC}/items.c
+    ${CACHE_SRC}/assoc.c
+    ${CACHE_SRC}/slabs.c
     src/embedded_default_engine.c
-    cache-src/assoc.c
-    cache-src/items.c
-    cache-src/slabs.c
- )
+)
 
-# Check for atomic operations
-include(atomics.cmake)
-
-# Define DEBUG_OUTPUT by default (enables runtime "debug" option in memcached)
-add_definitions(-DDEBUG_OUTPUT)
 
 # Set extra flags for the C compiler
 IF(${CMAKE_COMPILER_IS_GNUCC})
@@ -91,6 +119,11 @@ IF(${CMAKE_COMPILER_IS_GNUCXX})
   STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 ENDIF()
 
+IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "SunPro")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -features=extensions") # __func__
+ENDIF()
+
+########## ENVIRONMENT TESTS #########
 
 # Checks for system headers
 CHECK_INCLUDE_FILE("mach/mach_time.h" HAVE_MACH_MACH_TIME_H)
@@ -101,6 +134,25 @@ CHECK_FUNCTION_EXISTS(gethrtime  HAVE_GETHRTIME)
 CHECK_FUNCTION_EXISTS(gethrvtime HAVE_GETHRVTIME)
 CHECK_FUNCTION_EXISTS(memset     HAVE_MEMSET)
 # Also: log in libm, dlsym in libdl? 
+CHECK_LIBRARY_EXISTS(dl dlsym "" HAVE_LIBDL)
+SET(LIBDL "")
+if(${HAVE_LIBDL}) 
+    set(LIBDL "dl")
+endif()
+
+CHECK_CXX_SOURCE_RUNS("
+    main()  {
+      const char * f = __func__;
+      return 0;
+    }"
+    HAVE_FUNC_IN_CXX)
+
+# Define DEBUG_OUTPUT by default (enables runtime "debug" option in memcached)
+if(HAVE_FUNC_IN_CXX) 
+  add_definitions(-DDEBUG_OUTPUT)
+endif()
+
+########### GENERATED FILES #############
 
 # Build ndbmemcache_config.h
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.in 
@@ -113,14 +165,23 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
 # Build the perl include file used by mtr
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
                ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl)
-
-# memcached_path.pl is also installed, for use by installed mtr
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
-        DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
                
+######### TARGETS ############
+# Build the convenience library
+ADD_CONVENIENCE_LIBRARY(ndbmemcache ${NDB_MEMCACHE_SOURCE_FILES})
+
+target_link_libraries(ndbmemcache ndbclient_static ndbgeneral memcached_utilities)
+
 # Build the module
-add_library(ndb_engine MODULE ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndb_engine ndbclient_static ndbgeneral)
+add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
+
+target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
+
+
+# If we are using the bundled memcache, it is a dependency:
+if(WITH_BUNDLED_MEMCACHED)
+  add_dependencies(ndb_engine memcached)
+endif()
 
 # Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
@@ -137,26 +198,24 @@ set_target_properties(ndb_engine PROPERTIES
                       PREFIX ""
                       LINK_FLAGS "${FINAL_LINK_FLAGS}")
 
-
+############ INSTALLER RULES #########
 # Install the ndb_engine.so module
 install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 
-# Install the metadata.sql script
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
-        DESTINATION ${INSTALL_MYSQLSHAREDIR})
-
 ### Install the memcache-api directory  ################
-install(DIRECTORY DESTINATION memcache-api)
-install(PROGRAMS sandbox.sh DESTINATION memcache-api)
-install(FILES README DESTINATION memcache-api)
+install(DIRECTORY DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+install(PROGRAMS sandbox.sh DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+install(FILES README DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql 
-        DESTINATION memcache-api)
+        DESTINATION "${INSTALL_MYSQLSHAREDIR}/memcache-api")
+        
+# memcached_path.pl is also installed, for use by installed mtr
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl
+        DESTINATION ${INSTALL_MYSQLTESTDIR}/lib)
+        
 ######################################################## 
 
 
-# Build the library used by the unit tests
-add_library(ndbmemcache SHARED ${NDB_MEMCACHE_SOURCE_FILES})
-target_link_libraries(ndbmemcache ndbclient_static ndbgeneral ${MEMCACHED_UTILITIES_LIBRARY})
-set_target_properties(ndbmemcache PROPERTIES LINK_FLAGS "${FINAL_LINK_FLAGS}")
-
 add_subdirectory(unit)
+
+

@@ -174,7 +174,7 @@ op_status_t worker_do_delete(workitem *wqitem, bool server_cas) {
   Operation op(plan, OP_DELETE, wqitem->ndb_key_buffer);
   const NdbOperation *ndb_op = 0;
 
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
   DEBUG_ASSERT(tx);
   
   op.clearKeyNullBits();
@@ -262,7 +262,7 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
       uint64_t number;
       const int len = wqitem->cache_item->nbytes;
       char value[32];
-      for(size_t i = 0 ; i  < len ; i++) 
+      for(int i = 0 ; i  < len ; i++) 
         value[i] = * (hash_item_get_data(wqitem->cache_item) + i); 
       value[len] = 0;
       if(safe_strtoull(value, &number)) { // numeric: set the math column
@@ -278,9 +278,10 @@ op_status_t worker_do_write(workitem *wqitem, bool server_cas) {
   }
 
   /* Start the transaction */
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
   if(! tx) {
-    logger->log(LOG_WARNING, 0, "tx: %s \n", plan->db->getNdbError().message);
+    logger->log(LOG_WARNING, 0, "tx: %s \n", 
+                wqitem->ndb_instance->db->getNdbError().message);
     DEBUG_ASSERT(false);
   }
   
@@ -335,9 +336,10 @@ op_status_t worker_do_read(workitem *wqitem, bool server_cas) {
   const char *dbkey = workitem_get_key_suffix(wqitem);
 
   /* Use the workitem's inline buffer as a key buffer; 
-     allocate a new result buffer large enough for the result */
+     allocate a new result buffer large enough for the result.
+     Add 2 bytes to hold potential \r\n in a no-copy result. */
   Operation op(plan, OP_READ, wqitem->ndb_key_buffer);
-  workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer());  
+  workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer() + 2);
   op.buffer = wqitem->row_buffer_1;
 
   /* Copy the key into the key buffer, ecnoding it for NDB */
@@ -345,7 +347,7 @@ op_status_t worker_do_read(workitem *wqitem, bool server_cas) {
   op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
 
   /* Start a transaction, and call NdbTransaction::readTuple() */
-  NdbTransaction *tx = op.startTransaction();
+  NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
   DEBUG_ASSERT(tx);
 
   if(! op.readTuple(tx)) {
@@ -435,7 +437,7 @@ op_status_t worker_do_math(workitem *wqitem, bool server_cas) {
   } 
   
   /* Use an op (either one) to start the transaction */
-  NdbTransaction *tx = op1.startTransaction();
+  NdbTransaction *tx = op1.startTransaction(wqitem->ndb_instance->db);
   
   /* NdbOperation #1: READ */
   {
@@ -519,7 +521,6 @@ void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
   ndb_pipeline * & pipeline = wqitem->pipeline;
   status_block * return_status;
-  ENGINE_ERROR_CODE io_status = ENGINE_SUCCESS;
   bool tx_did_match = false;
     
   /************** Error handling ***********/  
@@ -577,22 +578,10 @@ void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
       assert("How did we get here?" == 0);
   }
   
-  tx->close();
-  
-  // If this was a synchronous call, the server is waiting for us 
-  if(wqitem->base.is_sync) {
-    wqitem->status = return_status;
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
-    pipeline->scheduler->yield(wqitem);
-  }
-  else {
-    /* The workitem was allocated back in the engine thread; if used in a
-       callback, it would be freed there, too.  But we must free it here.
-    */
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem->previous);
-    pipeline->scheduler->io_completed(wqitem);
-    workitem_free(wqitem);
-  }
+  tx->close();  
+  wqitem->status = return_status;
+  pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
+  pipeline->scheduler->yield(wqitem);
 }
 
 
@@ -684,7 +673,7 @@ void rewrite_callback(int result, NdbTransaction *tx, void *itemptr) {
 void incr_callback(int result, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
   ndb_pipeline * & pipeline = wqitem->pipeline;
-  status_block * return_status;
+  status_block * return_status = 0;
   ENGINE_ERROR_CODE io_status = ENGINE_SUCCESS;
 
   /*  read  insert  update cr_flag response
@@ -767,23 +756,14 @@ void incr_callback(int result, NdbTransaction *tx, void *itemptr) {
   
   tx->close();
   
-  if(wqitem->base.is_sync) {
-    wqitem->status = return_status;
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
-    pipeline->scheduler->yield(wqitem);    
-  }
-  else {
-    /* The workitem was allocated back in the engine thread; if used in a
-       callback, it would be freed there, too.  But we must free it here.  */
-    pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem->previous);
-    pipeline->scheduler->io_completed(wqitem);
-    workitem_free(wqitem);
-  }
+  wqitem->status = return_status;
+  pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
+  pipeline->scheduler->yield(wqitem);    
 }
 
 
 bool finalize_read(workitem *wqitem) {
-  DEBUG_ENTER();
+  DEBUG_PRINT("%d.%d",wqitem->pipeline->id, wqitem->id);
   
   bool need_hash_item;
   Operation op(wqitem->plan, OP_READ);
@@ -847,7 +827,6 @@ bool build_hash_item(workitem *wqitem, Operation &op) {
        && ! (op.isNull(COL_STORE_MATH))) {
       /* in dup_numbers mode, copy the math value */
       ncopied = op.copyValue(COL_STORE_MATH, data_ptr);
-      ncopied-- ; // drop the trailing null
     }
     else {
       /* Build a result containing each column */
@@ -930,26 +909,24 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
   const Configuration &conf = get_Configuration();
   
   DEBUG_PRINT(" %d prefixes", conf.nprefixes);
-  for(int i = 0 ; i < conf.nprefixes ; i++) {
-    NdbInstance *inst = 0;
-    const KeyPrefix *p = conf.getPrefix(i);
-    if(p->info.use_ndb && p->info.do_db_flush) {
-      ClusterConnectionPool *pool = conf.getConnectionPoolById(p->info.cluster_id);
+  for(unsigned int i = 0 ; i < conf.nprefixes ; i++) {
+    const KeyPrefix *pfx = conf.getPrefix(i);
+    if(pfx->info.use_ndb && pfx->info.do_db_flush) {
+      ClusterConnectionPool *pool = conf.getConnectionPoolById(pfx->info.cluster_id);
       Ndb_cluster_connection *conn = pool->getMainConnection();
-      inst = new NdbInstance(conn, conf.nprefixes, 128);
-      QueryPlan *plan = inst->getPlanForPrefix(p);
-      if(plan->keyIsPrimaryKey()) {
-        /* To flush, scan the table and delete every row */
-        DEBUG_PRINT("prefix %d - deleting from %s", i, p->table->table_name);
-        scan_delete(inst, plan);      
+      NdbInstance inst(conn, 128);
+      QueryPlan plan(inst.db, pfx->table);
+      if(plan.keyIsPrimaryKey()) {
+        // To flush, scan the table and delete every row
+        DEBUG_PRINT("prefix %d - deleting from %s", i, pfx->table->table_name);
+        scan_delete(&inst, &plan);
       }
       else DEBUG_PRINT("prefix %d - not scanning table %s -- accees path "
-                       "is not primary key", i, p->table->table_name);
+                       "is not primary key", i, pfx->table->table_name);
     }
     else DEBUG_PRINT("prefix %d - not scanning table %s -- use_ndb:%d flush:%d",
-                     i, p->table ? p->table->table_name : "",
-                     p->info.use_ndb, p->info.do_db_flush);
-    if(inst) delete inst;
+                     i, pfx->table ? pfx->table->table_name : "",
+                     pfx->info.use_ndb, pfx->info.do_db_flush);
   }
   
   return ENGINE_SUCCESS;
