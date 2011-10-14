@@ -1191,9 +1191,11 @@ TransporterFacade::sendFragmentedSignal(const NdbApiSignal* inputSignal,
       /* This section fits whole, move onto next */
       this_chunk_sz+= remaining_sec_sz;
       i++;
+      continue;
     }
     else
     {
+      assert(this_chunk_sz <= CHUNK_SZ);
       /* This section doesn't fit, truncate it */
       unsigned send_sz= CHUNK_SZ - this_chunk_sz;
       if (i != start_i)
@@ -1205,18 +1207,33 @@ TransporterFacade::sendFragmentedSignal(const NdbApiSignal* inputSignal,
          * The final piece does not need to be a multiple of
          * NDB_SECTION_SEGMENT_SZ
          * 
-         * Note that this can push this_chunk_sz above CHUNK_SZ
-         * Should probably round-down, but need to be careful of
-         * 'can't fit any' cases.  Instead, CHUNK_SZ is defined
-         * with some slack below MAX_SENT_MESSAGE_BYTESIZE
+         * We round down the available send space to the nearest whole 
+         * number of segments.
+         * If there's not enough space for one segment, then we round up
+         * to one segment.  This can make us send more than CHUNK_SZ, which
+         * is ok as it's defined as less than the maximum message length.
          */
-	send_sz=
-	  NDB_SECTION_SEGMENT_SZ
-	  *((send_sz+NDB_SECTION_SEGMENT_SZ-1)
-            /NDB_SECTION_SEGMENT_SZ);
-        if (send_sz > remaining_sec_sz)
-	  send_sz= remaining_sec_sz;
+        send_sz = (send_sz / NDB_SECTION_SEGMENT_SZ) * 
+          NDB_SECTION_SEGMENT_SZ;                        /* Round down */
+        send_sz = MAX(send_sz, NDB_SECTION_SEGMENT_SZ);  /* At least one */
+        send_sz = MIN(send_sz, remaining_sec_sz);        /* Only actual data */
+        
+        /* If we've squeezed the last bit of data in, jump out of 
+         * here to send the last fragment.
+         * Otherwise, send what we've collected so far.
+         */
+        if ((send_sz == remaining_sec_sz) &&      /* All sent */
+            (i == secs - 1))                      /* No more sections */
+        {
+          this_chunk_sz+=  remaining_sec_sz;
+          i++;
+          continue;
+        }
       }
+
+      /* At this point, there must be data to send in a further signal */
+      assert((send_sz < remaining_sec_sz) ||
+             (i < secs - 1));
 
       /* Modify tmp generic section ptr to describe truncated
        * section
@@ -1256,9 +1273,6 @@ TransporterFacade::sendFragmentedSignal(const NdbApiSignal* inputSignal,
                  tmp_signal.readSignalNumber() == GSN_API_REGREQ);
         }
       }
-      // setup variables for next signal
-      start_i= i;
-      this_chunk_sz= 0;
       assert(remaining_sec_sz >= send_sz);
       Uint32 remaining= remaining_sec_sz - send_sz;
       tmp_ptr[i].sz= remaining;
@@ -1271,6 +1285,10 @@ TransporterFacade::sendFragmentedSignal(const NdbApiSignal* inputSignal,
       if (remaining == 0)
         /* This section's done, move onto the next */
 	i++;
+      
+      // setup variables for next signal
+      start_i= i;
+      this_chunk_sz= 0;
     }
   }
 

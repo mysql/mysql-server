@@ -51,6 +51,7 @@
 
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
+#include <SectionReader.hpp>
 
 #define ZREPORT_MEMORY_USAGE 1000
 
@@ -2675,6 +2676,31 @@ Cmvmi::execTESTSIG(Signal* signal){
       (testType < 40))
   {
     testFragmentedCleanup(signal, &handle, testType, ref);
+    return;
+  }
+
+  /**
+   * Testing Api fragmented signal send/receive
+   */
+  if (testType == 40)
+  {
+    /* Fragmented signal sent from Api, we'll check it and return it */
+    Uint32 expectedVal = 0;
+    for (Uint32 s = 0; s < handle.m_cnt; s++)
+    {
+      SectionReader sr(handle.m_ptr[s].i, getSectionSegmentPool());
+      Uint32 received;
+      while (sr.getWord(&received))
+      {
+        ndbrequire(received == expectedVal ++);
+      }
+    }
+
+    /* Now return it back to the Api, no callback, so framework
+     * can time-slice the send
+     */
+    sendFragmentedSignal(ref, GSN_TESTSIG, signal, signal->length(), JBB, &handle);
+
     return;
   }
 
