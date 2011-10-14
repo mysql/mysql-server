@@ -557,6 +557,7 @@ void Gcalc_coord1::copy(const Gcalc_coord1 *from)
 }
 
 
+#ifdef GCALC_CHECK_WITH_FLOAT
 static void calc_t(Gcalc_coord2 *t_a, Gcalc_coord2 *t_b,
                    Gcalc_coord1 *b1x,
                    Gcalc_coord1 *b1y,
@@ -608,6 +609,7 @@ static void calc_t(Gcalc_coord2 *t_a, Gcalc_coord2 *t_b,
   GCALC_DBUG_ASSERT(i->type == Gcalc_heap::nt_intersection);
   calc_t(t_a, t_b, b1x, b1y, i->p1, i->p2, i->p3, i->p4);
 }
+#endif /*GCALC_CHECK_WITH_FLOAT*/
 
 
 class Gcalc_coord4 : public Gcalc_internal_coord
