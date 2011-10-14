@@ -3,19 +3,19 @@
 MySQL interfaces with TokuDB through a set of plugins, which, at
 the time of this writing (October 2011) includes the tokudb storage
 engine plugin, the user data information schema plugin, and the 
-user data exact information schema plugin. Each plugin has its own
+user data exact information schema plugin. Each plugin provides
 initialize and de-initialize functions for mysql to call when
-clients install and uninstall them. 
+they are installed or uninstalled by clients.
 
 == Problem == 
 
 It was originally discovered that the two information schema plugins
-would crash mysqld if the tokudb storage engine failed to init
-properly. A quick fix for this problem was to have the storage engine
-plugin's init function set a global flag, call it tokudb_hton_initialized,
-which would be set if intialize succeeded. Other plugins could then check
-it before proceeding. The original problem is fixed, but the following
-still remain:
+would crash if the tokudb storage engine failed to init properly. The
+information plugins depend on the storage engine plugin, so a quick fix 
+for this problem was to have the storage engine plugin's init function 
+set a global flag if it failed. The information schema plugins could first
+check this flag before proceeding. This fixed the original problem, but
+the following still remain:
 
     * a client connects, uninstalls tokudb storage engine, accesses 
       the tokudb user data/exact table.
@@ -29,20 +29,27 @@ still remain:
 
 == Proposed solution ==
 
-Use a reader-writer lock in the handlerton to protect the existing
-tokudb_hton_initialized variable. All accesses to the handlerton (storage
-engine, information schema, or otherwise) grab a read lock before
-checking the initialized flag. Plugin initializers and de-initializers
-grab a write lock on the initialized flag before writing to it, ensuring
-no client is under the assumption that the handlerton is usable while
-it is being brought offline.
+Use a flag, call it tokudb_hton_initialized, that is set if the  
+storage engine's init function suceeds. The information schema plugins
+will check that this flag is set before proceeding.
+
+To protect against client race conditions, use a reader-writer lock to
+protect the flag. Any clients which depend on the status of the flag
+grab a read lock. Clients that change the status of the flag grab a write
+lock. Using this flag and a protecting reader-writer lock, we can ensure
+that no client is under the assumption that the handlerton is usable
+while it is not, due to failure or uninstallation, etc.
 
 == Implementation ==
 
 {{{
 #!c
-tokudb_hton_init_func 
-{
+
+static int tokudb_hton_initialized;
+
+// grab a write lock when changing the
+// hton_init flag
+tokudb_hton_init_func() {
     grab_hton_init_writelock();
     ...
     tokudb_hton_initialized = 1;
@@ -50,34 +57,39 @@ error:
     release_hton_init_writelock();
 }
 
-tokudb_hton_done_func
-{
+tokudb_hton_done_func() {
     grab_hton_init_writelock();
     ...
     tokudb_hton_initialized = 0;
     release_hton_init_writelock();
 }
 
-tokudb_user_data_init_func
-{
+// grab a read lock while assuming
+// the handlerton is usable
+//
+// the user data init/done functions
+// do not actually require this, but
+// for sake of clarity we describe
+// the algorithms as if they did.
+// more importantly, the user data
+// fill function DOES
+tokudb_user_data_init_func() {
     grab_hton_init_readlock();
     ...
     release_hton_init_readlock();
 }
 
-tokudb_user_data_fill
-{
+tokudb_user_data_fill() {
     grab_hton_init_readlock();
     if (!tokudb_hton_initialized) {
-        return error;
+        goto error;
     }
     ...
 error:
     release_hton_init_readlock();
 }
 
-tokudb_user_data_done_func
-{
+tokudb_user_data_done_func() {
     grab_hton_init_readlock();
     ...
     release_hton_init_readlock();
