@@ -7,6 +7,11 @@ ifneq ($(COMBINE),0)
 COMBINE=1
 endif
 
+COMPRESS = 1
+ifneq ($(COMPRESS), 1)
+  CFLAGS += -DTOKU_CONFIG_NO_COMPRESSION
+endif
+
 #TODO: Replace DEPEND_COMPILE with auto-dependancy generation.
 DEPEND_COMPILE += \
   $(wildcard *.h) \

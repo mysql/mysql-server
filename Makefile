@@ -84,8 +84,27 @@ clean: $(patsubst %,%.dir.clean,$(SRCDIRS)) cleanlib
 cleanlib:
 	rm -rf lib/*.$(SOEXT) lib/*.$(AEXT) lib/*.bundle
 
-install:
-	./install.bash
+# This does not work, and probably hasn't worked since revision ~2000
+# install:
+# ./install.bash
+
+# Default to building locally in one's home directory
+PREFIX = $(HOME)/local
+
+# This is a quick hack for an install rule
+install: release
+	mkdir -p $(PREFIX)/lib $(PREFIX)/include
+	/bin/cp release/lib/libtokudb.so $(PREFIX)/lib
+	/bin/cp release/lib/libtokuportability.so $(PREFIX)/lib
+	/bin/cp release/include/db.h $(PREFIX)/include/tokudb.h
+	/bin/cp release/include/tdb-internal.h $(PREFIX)/include
+	/bin/cp release/include/toku_list.h $(PREFIX)/include
+
+uninstall:
+	/bin/rm -f $(PREFIX)/lib/libtokudb.so $(PREFIX)/lib/libtokuportability.so
+	/bin/rm -f $(PREFIX)/lib/libtokuportability.so
+	/bin/rm -f $(PREFIX)/include/tokudb.h $(PREFIX)/include/tdb-internal.h
+	/bin/rm -f $(PREFIX)/include/toku_list.h
 
 # maybe we should have a coverage target in each makefile
 build-coverage:

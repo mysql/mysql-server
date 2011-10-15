@@ -11,6 +11,7 @@
 // The resulting byte string includes enough information for us to decompress it.  That is, we can tell whether it's z-compressed or qz-compressed.
 
 enum toku_compression_method {
+    TOKU_NO_COMPRESSION = 0, // "identity" compression
     TOKU_ZLIB_METHOD    = 8, // RFC 1950 says use 8 for zlib.  It reserves 15 to allow more bytes.  
     TOKU_QUICKLZ_METHOD = 9  // We use 9 for QUICKLZ with compression level = 3.  I couldn't find any standard for any other numbers, so I just use 9. -Bradley
 };
