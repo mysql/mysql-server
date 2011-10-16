@@ -781,7 +781,7 @@ SELECT * FROM t3
 WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	ref	key0	key0	5	func	2	100.00	
+2	DEPENDENT SUBQUERY	<derived3>	ref	key1	key1	5	func	2	100.00	
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
 Warnings:
@@ -1461,5 +1461,47 @@ b	a
 7	1
 9	2
 7	2
+DROP TABLE t1,t2,t3;
+#
+# LP bug #874006: materialized view used in IN subquery
+#
+CREATE TABLE t3 (a int NOT NULL, b varchar(1), c varchar(1));
+INSERT INTO t3 VALUES (19,NULL,NULL), (20,'r','r');
+CREATE TABLE t1 (a int, b varchar(1) , c varchar(1));
+INSERT INTO t1 VALUES (1,NULL,NULL), (5,'r','r'), (7,'y','y');
+CREATE TABLE t2 (a int NOT NULL , b int, c varchar(1));
+INSERT INTO t2 VALUES (4,3,'r');
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+SET SESSION optimizer_switch='derived_with_keys=off';
+EXPLAIN
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	Using where
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+a	b	c
+20	r	r
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	<derived3>	ref	key1	key1	10	const,const	0	Using where
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t3 
+WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+a	b	c
+20	r	r
+DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 set optimizer_switch=@exit_optimizer_switch;

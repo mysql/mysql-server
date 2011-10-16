@@ -910,5 +910,42 @@ SELECT * FROM t1 , t2
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # LP bug #874006: materialized view used in IN subquery
+--echo #
+
+CREATE TABLE t3 (a int NOT NULL, b varchar(1), c varchar(1));
+INSERT INTO t3 VALUES (19,NULL,NULL), (20,'r','r');
+
+CREATE TABLE t1 (a int, b varchar(1) , c varchar(1));
+INSERT INTO t1 VALUES (1,NULL,NULL), (5,'r','r'), (7,'y','y');
+
+CREATE TABLE t2 (a int NOT NULL , b int, c varchar(1));
+INSERT INTO t2 VALUES (4,3,'r');
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+SET SESSION optimizer_switch='derived_with_keys=off';
+EXPLAIN
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+SELECT * FROM t3 
+  WHERE t3.b IN (SELECT v1.b FROM  v1, t2 
+                   WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
