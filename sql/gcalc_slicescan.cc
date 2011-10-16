@@ -132,40 +132,6 @@ static void GCALC_DBUG_PRINT_PI(const Gcalc_heap::Info *pi)
 }
 
 
-#ifdef TMP_BLOCK
-static void GCALC_DBUG_PRINT_SLICE(const char *header,
-                                   const Gcalc_scan_iterator::point *slice)
-{
-  int nbuf1, nbuf2;
-  int nbuf3, nbuf4;
-  char buf1[1024], buf2[1024];
-  char buf3[1024], buf4[1024];
-  nbuf1= nbuf2= nbuf3= nbuf4= strlen(header);
-  strcpy(buf1, header);
-  strcpy(buf2, header);
-  strcpy(buf3, header);
-  strcpy(buf4, header);
-  for (; slice; slice= slice->get_next())
-  {
-    nbuf1+= sprintf(buf1+nbuf1, "%d\t", slice->thread);
-    nbuf2+= sprintf(buf2+nbuf2, "%s\t", gcalc_ev_name(slice->event));
-
-    nbuf3+= gcalc_pi_str(buf3+nbuf3, slice->pi, "\t");
-    if (slice->is_bottom())
-      nbuf4+= sprintf(buf4+nbuf4, "bt\t");
-    else
-      nbuf4+= gcalc_pi_str(buf4+nbuf4, slice->next_pi, "\t");
-  }
-  buf1[nbuf1]= 0;
-  buf2[nbuf2]= 0;
-  buf3[nbuf3]= 0;
-  buf4[nbuf4]= 0;
-  GCALC_DBUG_PRINT((buf1));
-  GCALC_DBUG_PRINT((buf2));
-  GCALC_DBUG_PRINT((buf3));
-  GCALC_DBUG_PRINT((buf4));
-}
-#endif /*TMP_BLOCK*/
 static void GCALC_DBUG_PRINT_SLICE(const char *header,
                                    const Gcalc_scan_iterator::point *slice)
 {
@@ -1001,17 +967,6 @@ void Gcalc_heap::prepare_operation()
 
 void Gcalc_heap::reset()
 {
-#ifdef TMP_BLOCK
-  if (!m_hook)
-  {
-    m_hook= &m_first;
-    for (; *m_hook; m_hook= &(*m_hook)->next)
-    {}
-  }
-
-  *m_hook= m_free;
-  m_free= m_first;
-#endif /*TMP_BLOCK*/
   if (m_n_points)
   {
     free_list(m_first);
@@ -1537,9 +1492,6 @@ int Gcalc_scan_iterator::insert_top_node()
       else if (cmp_res < 0)
         break;
     }
-#ifdef TMP_BLOCK
-    state.event_position_hook= prev_hook;
-#endif /*TMP_BLOCK*/
   }
 
   if (sp0->event == scev_single_point)
