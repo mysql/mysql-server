@@ -114,78 +114,34 @@ protected:
 /* Internal Gcalc coordinates to provide the precise calculations */
 
 #define GCALC_DIG_BASE     1000000000
-typedef int32 gcalc_digit_t;
-typedef long long gcalc_coord2;
-
+typedef uint32 gcalc_digit_t;
+typedef unsigned long long gcalc_coord2;
+typedef gcalc_digit_t Gcalc_internal_coord;
 #define GCALC_COORD_BASE 2
+#define GCALC_COORD_BASE2 4
+#define GCALC_COORD_BASE3 6
+#define GCALC_COORD_BASE4 8
+#define GCALC_COORD_BASE5 10
 
-class Gcalc_internal_coord
-{
-public:
-  gcalc_digit_t *digits;
-  int sign;
-  int n_digits;
-  void set_zero();
-  int is_zero() const;
-#ifdef GCALC_CHECK_WITH_FLOAT
-  static double *coord_extent;
-  long double get_double() const;
-#endif /*GCALC_CHECK_WITH_FLOAT*/
-};
+typedef gcalc_digit_t Gcalc_coord1[GCALC_COORD_BASE];
+typedef gcalc_digit_t Gcalc_coord2[GCALC_COORD_BASE*2];
+typedef gcalc_digit_t Gcalc_coord3[GCALC_COORD_BASE*3];
 
 
-class Gcalc_coord1 : public Gcalc_internal_coord
-{
-  gcalc_digit_t c[GCALC_COORD_BASE];
-public:
-  void init()
-  {
-    n_digits= GCALC_COORD_BASE;
-    digits= c;
-  }
-  int set_double(double d, double ext);
-  void copy(const Gcalc_coord1 *from);
-};
+void gcalc_mul_coord(Gcalc_internal_coord *result, int result_len,
+                     const Gcalc_internal_coord *a, int a_len,
+                     const Gcalc_internal_coord *b, int b_len);
 
-
-class Gcalc_coord2 : public Gcalc_internal_coord
-{
-  gcalc_digit_t c[GCALC_COORD_BASE*2];
-public:
-  void init()
-  {
-    n_digits= GCALC_COORD_BASE*2;
-    digits= c;
-  }
-};
-
-
-class Gcalc_coord3 : public Gcalc_internal_coord
-{
-  gcalc_digit_t c[GCALC_COORD_BASE*3];
-  public:
-  void init()
-  {
-    n_digits= GCALC_COORD_BASE*3;
-    digits= c;
-  }
-};
-
-
-void gcalc_mul_coord(Gcalc_internal_coord *result,
+void gcalc_add_coord(Gcalc_internal_coord *result, int result_len,
                      const Gcalc_internal_coord *a,
                      const Gcalc_internal_coord *b);
 
-void gcalc_add_coord(Gcalc_internal_coord *result,
-                     const Gcalc_internal_coord *a,
-                     const Gcalc_internal_coord *b);
-
-void gcalc_sub_coord(Gcalc_internal_coord *result,
+void gcalc_sub_coord(Gcalc_internal_coord *result, int result_len,
                      const Gcalc_internal_coord *a,
                      const Gcalc_internal_coord *b);
 
 int gcalc_cmp_coord(const Gcalc_internal_coord *a,
-                    const Gcalc_internal_coord *b);
+                    const Gcalc_internal_coord *b, int len);
 
 /* Internal coordinates declarations end. */
 
@@ -280,11 +236,11 @@ public:
 #ifdef GCALC_CHECK_WITH_FLOAT
   long double get_double(const Gcalc_internal_coord *c) const;
 #endif /*GCALC_CHECK_WITH_FLOAT*/
+  double coord_extent;
 private:
   Gcalc_dyn_list::Item *m_first;
   Gcalc_dyn_list::Item **m_hook;
   int m_n_points;
-  double coord_extent;
 };
 
 
@@ -422,10 +378,10 @@ public:
     inline const point *get_next() const { return (const point *)next; }
     /* Compare the dx_dy parameters regarding the horiz_dir */
     /* returns -1 if less, 0 if equal, 1 if bigger          */
-    static int cmp_dx_dy(const Gcalc_coord1 *dx_a,
-                         const Gcalc_coord1 *dy_a,
-                         const Gcalc_coord1 *dx_b,
-                         const Gcalc_coord1 *dy_b);
+    static int cmp_dx_dy(const Gcalc_coord1 dx_a,
+                         const Gcalc_coord1 dy_a,
+                         const Gcalc_coord1 dx_b,
+                         const Gcalc_coord1 dy_b);
     static int cmp_dx_dy(const Gcalc_heap::Info *p1,
                          const Gcalc_heap::Info *p2,
                          const Gcalc_heap::Info *p3,
@@ -467,9 +423,16 @@ public:
     int x_calculated;
     Gcalc_coord3 y_exp;
     int y_calculated;
-    void calc_t();
-    void calc_y_exp();
-    void calc_x_exp();
+    void calc_t()
+    {if (!t_calculated) do_calc_t(); }
+    void calc_y_exp()
+    { if (!y_calculated) do_calc_y(); }
+    void calc_x_exp()
+    { if (!x_calculated) do_calc_x(); }
+
+    void do_calc_t();
+    void do_calc_x();
+    void do_calc_y();
   };
 
 
@@ -540,8 +503,6 @@ private:
   point *new_slice_point()
   {
     point *new_point= (point *)new_item();
-    new_point->dx.init();
-    new_point->dy.init();
     return new_point;
   }
   intersection_info *new_intersection_info(point *a, point *b)
@@ -553,6 +514,7 @@ private:
     return ii;
   }
   int arrange_event(int do_sorting, int n_intersections);
+  static double get_pure_double(const Gcalc_internal_coord *d, int d_len);
 };
 
 
