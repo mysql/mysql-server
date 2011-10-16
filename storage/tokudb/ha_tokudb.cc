@@ -7092,6 +7092,8 @@ int ha_tokudb::tokudb_add_index(
     bool rw_lock_taken = false;
     *inc_num_DBs = false;
     *modified_DBs = false;
+    invalidate_bulk_fetch();
+    unpack_entire_row = true; // for bulk fetching rows
     for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
         mult_put_flags[i] = 0;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
@@ -7218,6 +7220,14 @@ int ha_tokudb::tokudb_add_index(
     else {
         rw_unlock(&share->num_DBs_lock);
         rw_lock_taken = false;
+        
+        struct smart_dbt_bf_info bf_info;
+        bf_info.ha = this;
+        // you need the val if you have a clustering index and key_read is not 0;
+        bf_info.direction = 1;
+        bf_info.thd = ha_thd();
+        bf_info.need_val = TRUE;
+
         error = db_env->create_loader(
             db_env, 
             txn, 
@@ -7257,13 +7267,38 @@ int ha_tokudb::tokudb_add_index(
             );
         if (error) { goto cleanup; }
 
-        cursor_ret_val = tmp_cursor->c_get(tmp_cursor, &curr_pk_key, &curr_pk_val, DB_NEXT | DB_PRELOCKED);
+        cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED,smart_dbt_bf_callback, &bf_info);
 
-        while (cursor_ret_val != DB_NOTFOUND) {
-            if (cursor_ret_val) {
-                error = cursor_ret_val;
-                goto cleanup;
+        while (cursor_ret_val != DB_NOTFOUND || ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0)) {
+            if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) == 0) {
+                invalidate_bulk_fetch();
+                cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_bf_callback, &bf_info);
+                if (cursor_ret_val != DB_NOTFOUND && cursor_ret_val != 0) {
+                    error = cursor_ret_val;
+                    goto cleanup;
+                }
             }
+            if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) == 0) {
+                break;
+            }
+            // get key info    
+            uchar* curr_pos = range_query_buff+curr_range_query_buff_offset;
+            
+            u_int32_t key_size = *(u_int32_t *)curr_pos;    
+            curr_pos += sizeof(key_size);    
+            uchar* curr_key_buff = curr_pos;    
+            curr_pos += key_size;        
+            curr_pk_key.data = curr_key_buff;    
+            curr_pk_key.size = key_size;
+            
+            u_int32_t val_size = *(u_int32_t *)curr_pos;    
+            curr_pos += sizeof(val_size);    
+            uchar* curr_val_buff = curr_pos;    
+            curr_pos += val_size;        
+            curr_pk_val.data = curr_val_buff;    
+            curr_pk_val.size = val_size;
+            
+            curr_range_query_buff_offset = curr_pos - range_query_buff;
 
             error = loader->put(loader, &curr_pk_key, &curr_pk_val);
             if (error) { goto cleanup; }
@@ -7283,7 +7318,6 @@ int ha_tokudb::tokudb_add_index(
                     goto cleanup;
                 }
             }
-            cursor_ret_val = tmp_cursor->c_get(tmp_cursor, &curr_pk_key, &curr_pk_val, DB_NEXT | DB_PRELOCKED);
         }
         error = tmp_cursor->c_close(tmp_cursor);
         assert(error==0);
