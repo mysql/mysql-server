@@ -129,7 +129,7 @@ public:
 
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
   
-  void* customDataPtr;
+  Uint64 customData;
 
   Uint64 clientStats[ Ndb::NumClientStatistics ];
   
