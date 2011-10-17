@@ -698,7 +698,7 @@ static inline int inline_mysql_mutex_trylock(
 #ifdef SAFE_MUTEX
     result= safe_mutex_lock(&that->m_mutex, TRUE, src_file, src_line);
 #elif defined(MY_PTHREAD_FASTMUTEX)
-    result= my_pthread_fastmutex_lock(&that->m_mutex);
+    result= pthread_mutex_trylock(&that->m_mutex.mutex);
 #else
     result= pthread_mutex_trylock(&that->m_mutex);
 #endif
@@ -710,7 +710,7 @@ static inline int inline_mysql_mutex_trylock(
 #ifdef SAFE_MUTEX
   result= safe_mutex_lock(&that->m_mutex, TRUE, src_file, src_line);
 #elif defined(MY_PTHREAD_FASTMUTEX)
-  result= my_pthread_fastmutex_lock(&that->m_mutex);
+  result= pthread_mutex_trylock(&that->m_mutex.mutex);
 #else
   result= pthread_mutex_trylock(&that->m_mutex);
 #endif
