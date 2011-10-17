@@ -8413,17 +8413,17 @@ bool generate_derived_keys_for_table(KEYUSE *keyuse, uint count, uint keys)
   TABLE *table= keyuse->table;
   if (table->alloc_keys(keys))
     return TRUE;
-  uint keyno= 0;
+  uint key_count= 0;
   KEYUSE *first_keyuse= keyuse;
   uint prev_part= keyuse->keypart;
   uint parts= 0;
   uint i= 0;
 
-  for ( ; i < count && keyno < keys; )
+  for ( ; i < count && key_count < keys; )
   {
     do
     {
-      keyuse->key= keyno;
+      keyuse->key= table->s->keys;
       keyuse->keypart_map= (key_part_map) (1 << parts);     
       keyuse++;
       i++;
@@ -8437,14 +8437,14 @@ bool generate_derived_keys_for_table(KEYUSE *keyuse, uint count, uint keys)
     }
     else
     {
-      if (table->add_tmp_key(keyno, parts, 
+      if (table->add_tmp_key(table->s->keys, parts, 
                              get_next_field_for_derived_key, 
                              (uchar *) &first_keyuse,
                              FALSE))
         return TRUE;
-      table->reginfo.join_tab->keys.set_bit(keyno);
+      table->reginfo.join_tab->keys.set_bit(table->s->keys);
       first_keyuse= keyuse;
-      keyno++;
+      key_count++;
       parts= 0;
       prev_part= keyuse->keypart;
     }
@@ -8471,12 +8471,23 @@ bool generate_derived_keys(DYNAMIC_ARRAY *keyuse_array)
     TABLE_LIST *derived= NULL;
     if (keyuse->table != prev_table)
       derived= keyuse->table->pos_in_table_list;
-    while (derived && derived->is_materialized_derived() && 
-           keyuse->key == MAX_KEY)
+    while (derived && derived->is_materialized_derived())
     {
       if (keyuse->table != prev_table)
       {
         prev_table= keyuse->table;
+        while (keyuse->table == prev_table && keyuse->key != MAX_KEY)
+	{
+          keyuse++;
+          i++;
+        }
+        if (keyuse->table != prev_table)
+	{
+          keyuse--;
+          i--;
+          derived= NULL;
+          continue;
+        }
         first_table_keyuse= keyuse;
         last_used_tables= keyuse->used_tables;
         count= 0;
@@ -8489,11 +8500,13 @@ bool generate_derived_keys(DYNAMIC_ARRAY *keyuse_array)
       }
       count++;
       keyuse++;
+      i++;
       if (keyuse->table != prev_table)
       {
         if (generate_derived_keys_for_table(first_table_keyuse, count, ++keys))
           return TRUE;
         keyuse--;
+        i--;
 	derived= NULL;
       }
     }
@@ -8524,12 +8537,13 @@ void JOIN::drop_unused_derived_keys()
     TABLE *table=tab->table;
     if (!table)
       continue;
-    if (!table->pos_in_table_list->is_materialized_derived() ||
-        table->max_keys <= 1)
+    if (!table->pos_in_table_list->is_materialized_derived())
       continue;
-    table->use_index(tab->ref.key);
+    if (table->max_keys > 1)
+      table->use_index(tab->ref.key);
     if (table->s->keys)
       tab->ref.key= 0;
+    tab->keys= (key_map) (table->s->keys ? 1 : 0);
   }
 }
 

@@ -5220,10 +5220,11 @@ void st_table::mark_virtual_columns_for_write(bool insert_fl)
   @brief
   Allocate space for keys
 
-  @param key_count  number of keys to allocate
+  @param key_count  number of keys to allocate additionally
 
   @details
-  The function allocates memory  to fit 'key_count' keys for this table.
+  The function allocates memory  to fit additionally 'key_count' keys 
+  for this table.
 
   @return FALSE   space was successfully allocated
   @return TRUE    an error occur
@@ -5231,9 +5232,11 @@ void st_table::mark_virtual_columns_for_write(bool insert_fl)
 
 bool TABLE::alloc_keys(uint key_count)
 {
-  key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*key_count);
-  s->keys= 0;
-  max_keys= key_count;
+  key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*(s->keys+key_count));
+  if (s->keys)
+    memmove(key_info, s->key_info, sizeof(KEY)*s->keys);
+  s->key_info= key_info;
+  max_keys= s->keys+key_count;
   return !(key_info);
 }
 
