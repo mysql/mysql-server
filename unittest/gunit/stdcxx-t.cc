@@ -20,6 +20,43 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#if defined(__GNUC__)
+#include <tr1/unordered_map>
+#elif defined(__WIN__)
+#include <hash_map>
+#elif  defined(__SUNPRO_CC)
+#include <hash_map>
+#else 
+#error "Don't know how to implement hash_map"
+#endif
+
+
+template<typename K, typename T>
+struct MyHashMap
+{
+#if defined(__GNUC__)
+  typedef std::tr1::unordered_map<K, T> Type;
+#elif defined(__WIN__)
+  typedef stdext::hash_map<K, T> Type;
+#elif defined(__SUNPRO_CC)
+  typedef std::hash_map<K, T> Type;
+#endif
+};
+
+
+TEST(STDfeatures, HashMap)
+{
+  MyHashMap<int, int>::Type intmap;
+  for (int ix= 0; ix < 10; ++ix)
+  {
+    intmap[ix]= ix * ix;
+  }
+  int t= intmap[0];
+  EXPECT_EQ(0, t);
+  EXPECT_TRUE(0 == intmap.count(42));
+  EXPECT_TRUE(intmap.end() == intmap.find(42));
+}
+
 #if defined(TARGET_OS_LINUX)
 
 #include <malloc.h>
