@@ -204,14 +204,15 @@ DECLARE_NDBINFO_TABLE(THREADSTAT, 18) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(TRANSACTIONS, 10) =
-{ { "transactions", 10, 0, "transactions" },
+DECLARE_NDBINFO_TABLE(TRANSACTIONS, 11) =
+{ { "transactions", 11, 0, "transactions" },
   {
     {"node_id",             Ndbinfo::Number, "node id"},
     {"block_instance",      Ndbinfo::Number, "TC instance no"},
     {"objid",               Ndbinfo::Number, "Object id of transaction object"},
     {"apiref",              Ndbinfo::Number, "API reference"},
-    {"transid",             Ndbinfo::String, "Transaction id"},
+    {"transid0",            Ndbinfo::Number, "Transaction id"},
+    {"transid1",            Ndbinfo::Number, "Transaction id"},
     {"state",               Ndbinfo::Number, "Transaction state"},
     {"flags",               Ndbinfo::Number, "Transaction flags"},
     {"c_ops",               Ndbinfo::Number, "No of operations in transaction" },
@@ -220,15 +221,16 @@ DECLARE_NDBINFO_TABLE(TRANSACTIONS, 10) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(OPERATIONS, 11) =
-{ { "operations", 11, 0, "operations" },
+DECLARE_NDBINFO_TABLE(OPERATIONS, 12) =
+{ { "operations", 12, 0, "operations" },
   {
     {"node_id",             Ndbinfo::Number, "node id"},
     {"block_instance",      Ndbinfo::Number, "LQH instance no"},
     {"objid",               Ndbinfo::Number, "Object id of operation object"},
     {"tcref",               Ndbinfo::Number, "TC reference"},
     {"apiref",              Ndbinfo::Number, "API reference"},
-    {"transid",             Ndbinfo::String, "Transaction id"},
+    {"transid0",            Ndbinfo::Number, "Transaction id"},
+    {"transid1",            Ndbinfo::Number, "Transaction id"},
     {"tableid",             Ndbinfo::Number, "Table id"},
     {"fragmentid",          Ndbinfo::Number, "Fragment id"},
     {"op",                  Ndbinfo::Number, "Operation type"},
