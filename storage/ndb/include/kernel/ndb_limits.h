@@ -172,7 +172,6 @@
 /*
  * Schema transactions
  */
-#define MAX_SCHEMA_TRANSACTIONS 5
 #define MAX_SCHEMA_OPERATIONS 256
 
 /*

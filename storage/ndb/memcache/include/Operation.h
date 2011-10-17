@@ -83,7 +83,7 @@ public:
 
   /* NdbTransaction method wrappers */
   // startTransaction
-  NdbTransaction *startTransaction() const;
+  NdbTransaction *startTransaction(Ndb *) const;
 
   // read
   const NdbOperation *readTuple(NdbTransaction *tx, 

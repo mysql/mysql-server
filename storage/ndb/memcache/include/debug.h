@@ -44,6 +44,17 @@
 
 #ifdef DEBUG_OUTPUT
 
+/* Sometimes __func__ is not available in C++ */
+#if (defined(__cplusplus) && ! defined(HAVE_FUNC_IN_CXX))
+  #define __func__ "?"
+#endif
+
+/* Some Sun compilers also do not have __func__ */
+#if defined(__SUNPRO_C) && ! ((__STDC_VERSION__ >= 199901L) || defined(__C99FEATURES__))
+#define __func__ "?"
+#endif
+
+
 extern int do_debug;
 
 /* There's no if(do_debug) check on DEBUG_INIT or DEBUG_ASSERT */

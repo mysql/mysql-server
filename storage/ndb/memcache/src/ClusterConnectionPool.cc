@@ -18,6 +18,7 @@
  02110-1301  USA
  */
 #include <stdio.h>
+#include <assert.h>
 
 /* C++ files must define __STDC_FORMAT_MACROS in order to get PRIu64 */
 #define __STDC_FORMAT_MACROS 
@@ -95,6 +96,7 @@ ClusterConnectionPool::ClusterConnectionPool(const char *s) :
 Ndb_cluster_connection * ClusterConnectionPool::connect(const char *connectstring) {
   DEBUG_ENTER_METHOD("ClusterConnectionPool::connect");
   int conn_retries = 0;
+  if(connectstring == 0) connectstring = "";
   Ndb_cluster_connection *c = new Ndb_cluster_connection(connectstring);
   
   /* Set name that appears in the cluster log file */
@@ -142,7 +144,7 @@ Ndb_cluster_connection * ClusterConnectionPool::connect(const char *connectstrin
    invalidated.
 */
 ClusterConnectionPool::~ClusterConnectionPool() {
-  for(int i = 0 ; i < pool_size ; i++) {
+  for(unsigned int i = 0 ; i < pool_size ; i++) {
     if(pool_connections[i]) {
       delete pool_connections[i];
       pool_connections[i] = 0;
@@ -186,12 +188,12 @@ void ClusterConnectionPool::add_stats(const char *prefix,
 
   Ndb db(main_conn);
   
-  for(int i = 0 ; i < pool_size ; i++) {
+  for(unsigned int i = 0 ; i < pool_size ; i++) {
     pool_connections[i]->collect_client_stats(ndb_stats, Ndb::NumClientStatistics);
   
     for(int s = 0 ; s < Ndb::NumClientStatistics ; s++) {
       klen = sprintf(key, "%s_conn%d_%s", prefix, i, db.getClientStatName(s));
-      vlen = sprintf(val, "%"PRIu64, ndb_stats[s]);
+      vlen = sprintf(val, "%llu", ndb_stats[s]);
       add_stat(key, klen, val, vlen, cookie);
     }
   }

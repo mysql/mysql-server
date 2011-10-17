@@ -91,6 +91,11 @@ ADD_EXECUTABLE(ndb_dump_frm_data
   ndb_dump_frm_data.cpp)
 TARGET_LINK_LIBRARIES(ndb_dump_frm_data ndbclient_static ndbNDBT)
 
+MYSQL_ADD_EXECUTABLE(ndbinfo_select_all
+  ndbinfo_select_all.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndbinfo_select_all ndbclient_static ndbNDBT)
+
 IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+
   ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)

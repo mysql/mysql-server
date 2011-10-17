@@ -27,12 +27,12 @@
 
 #include "all_tests.h"
 
-int run_allocator_test(QueryPlan *, int v) {
+int run_allocator_test(QueryPlan *, Ndb *, int v) {
   struct request_pipeline *p = get_request_pipeline();
   
   memory_pool *p1 = pipeline_create_memory_pool(p);
   int sz = 13;
-  int tot = 0;
+  uint tot = 0;
   void *v1, *v2;
   for(int i = 0 ; i < 25 ; i++) {
     v1 = memory_pool_alloc(p1, sz);     tot += sz;
@@ -40,10 +40,10 @@ int run_allocator_test(QueryPlan *, int v) {
     sz = (int) (sz * 1.25);
   }
 
-  detail(v, "Total requested: %d  granted: %d \n", tot, p1->size);
+  detail(v, "Total requested: %d  granted: %lu \n", tot, p1->size);
   require(p1->size >= tot);
   /* Get total before freeing the pool */
-  int old_total = p1->size + p1->total;
+  uint old_total = p1->size + p1->total;
   memory_pool_free(p1);
   /* The new total must equal the old_total */
   require(old_total == p1->total);
@@ -56,7 +56,7 @@ int run_allocator_test(QueryPlan *, int v) {
     int free_slot   = p->alligator[i].free_idx;
     size_t alloc_sz = p->alligator[i].total;
     
-    detail(v, "Class %d idx %d used %d \n", i, list_size - free_slot, alloc_sz);
+    detail(v, "Class %d idx %d used %lu \n", i, list_size - free_slot, alloc_sz);
     /* After we destroy the pool, every slab must have 0 allocated blocks */
     require(list_size - free_slot == 0);
     /* But it must have a non-zero size, indicating that it has been used */

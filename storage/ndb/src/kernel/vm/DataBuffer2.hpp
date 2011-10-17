@@ -18,6 +18,8 @@
 #ifndef DATA_BUFFER2_HPP
 #define DATA_BUFFER2_HPP
 
+#include <ErrorReporter.hpp>
+
 /**
  * @class  DataBuffer
  * @brief  Buffer of data words

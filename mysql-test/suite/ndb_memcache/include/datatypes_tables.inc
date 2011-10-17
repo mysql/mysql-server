@@ -2,9 +2,11 @@
 --disable_query_log
 --disable_result_log
 
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+
 use ndbmemcache;
 let $done = query_get_value (select key_prefix k from key_prefixes where container = 'tt001', k, 1);
-if($done != "tt001:") 
+if ($done != "tt001:") 
 {
                 
 set default_storage_engine = ndbcluster;
@@ -17,7 +19,7 @@ CREATE TABLE tt005 (mkey binary(20) not null primary key, sval binary(20));
 CREATE TABLE tt006 (mkey varbinary(32) not null primary key, sval varbinary(32));
 CREATE TABLE tt007 (mkey float not null primary key, sval float);
 CREATE TABLE tt008 (mkey double not null primary key, sval double);
-CREATE TABLE tt009 (mkey decimal not null primary key, sval decimal);
+CREATE TABLE tt009 (mkey decimal(8,2) not null primary key, sval decimal(8,2));
 CREATE TABLE tt010 (mkey date not null primary key, sval date);
 CREATE TABLE tt011 (mkey datetime not null primary key, sval datetime);
 CREATE TABLE tt012 (mkey time not null primary key, sval time);
@@ -48,7 +50,7 @@ UPDATE memcache_server_roles set update_timestamp = now()
   
 DROP VIEW tv_tablist;
 
---real_sleep 1
+--source suite/ndb_memcache/include/wait_for_reconf.inc
 }
 
 --enable_query_log

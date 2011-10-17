@@ -579,6 +579,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   // for md5 of key (could maybe reuse existing temp buffer)
   Uint64 c_dataBuffer[ZWORDS_ON_PAGE/2 + 1];
 
+  // Crash the node when a tuple got corrupted
+  bool c_crashOnCorruptedTuple;
+
   struct Page_request 
   {
     Page_request() {}
@@ -2894,6 +2897,7 @@ private:
   
   Uint32 calculateChecksum(Tuple_header*, Tablerec* regTabPtr);
   void setChecksum(Tuple_header*, Tablerec* regTabPtr);
+  int corruptedTupleDetected(KeyReqStruct*);
 
   void complexTrigger(Signal* signal,
                       KeyReqStruct *req_struct,

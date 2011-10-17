@@ -7,9 +7,7 @@
 # INT        tt021
 # BIGINT     tt022
 
---source suite/ndb_memcache/include/memcached_wait_for_ready.inc
 --source suite/ndb_memcache/include/datatypes_tables.inc
---real_sleep 1
 --perl
 
 use strict;
@@ -18,21 +16,15 @@ use My::Memcache;
 my $mc = My::Memcache->new();  
 my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
 my $r = $mc->connect("localhost",$port);
-my $cf_gen = $mc->wait_for_reconf(2);
 
-if($cf_gen > 0) {
+foreach my $test ( "tt018", "tt019", "tt020", "tt021", "tt022") {
+  $mc->set("$test:1" ,  1);
+  $mc->set("$test:0" ,  0);
+  $mc->set("$test:-1", -1);
 
-  foreach my $test ( "tt018", "tt019", "tt020", "tt021", "tt022") {
-  
-    $mc->set("$test:1" ,  1);
-    $mc->set("$test:0" ,  0);
-    $mc->set("$test:-1", -1);
-  
-    ($mc->get("$test:0") == 0)   || die "get failed $test/0";
-    ($mc->get("$test:-1") == -1) || die "get failed $test/-1";
-    ($mc->get("$test:1") == 1)   || die "get failed $test/1";
-  
-  }
+  ($mc->get("$test:0") == 0)   || die "get failed $test/0";
+  ($mc->get("$test:-1") == -1) || die "get failed $test/-1";
+  ($mc->get("$test:1") == 1)   || die "get failed $test/1";
 }
 
 EOF
@@ -43,5 +35,3 @@ SELECT * FROM tt020 order by mkey;
 SELECT * FROM tt021 order by mkey;
 SELECT * FROM tt022 order by mkey;
 
-
-  

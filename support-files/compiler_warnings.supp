@@ -159,4 +159,10 @@ my_print_defaults/my_print_defaults.c : .*C4090.*
 myisamchk/myisamchk.c                 : .*C4090.*
 mysqlimport/mysqlimport.c             : .*C4090.*
 mysqlcheck/mysqlcheck.c               : .*C4090.*
+
+#
+# Bundled memcached and libevent
+#
+.*/ndb/memcache/extra/.* : .*
+
 ### MCP_COMPILE_WARN_SUPPRESSIONS end ###

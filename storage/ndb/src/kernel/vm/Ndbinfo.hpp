@@ -46,7 +46,11 @@ public:
     RESOURCES_TABLEID =          7,
     COUNTERS_TABLEID =           8,
     NODES_TABLEID =              9,
-    DISKPAGEBUFFER_TABLEID =     10
+    DISKPAGEBUFFER_TABLEID =     10,
+    THREADBLOCKS_TABLEID =       11,
+    THREADSTAT_TABLEID =         12,
+    TRANSACTIONS_TABLEID =       13,
+    OPERATIONS_TABLEID =         14
   };
 
   struct Table {

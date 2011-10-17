@@ -88,6 +88,7 @@ Ndb_connect_count	#
 Ndb_execute_count	#
 Ndb_index_stat_cache_clean	#
 Ndb_index_stat_cache_query	#
+Ndb_index_stat_status	#
 Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_pruned_scan_count	#

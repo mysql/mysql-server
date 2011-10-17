@@ -34,27 +34,22 @@
 struct workitem;
 
 #define VPSZ sizeof(void *)
-#define ISZ  sizeof(int)
-#define TOTAL_SZ (ISZ + (4 * VPSZ))
+#define TOTAL_SZ (3 * VPSZ)
 #define PADDING (64 - TOTAL_SZ)
 
 
 class NdbInstance {
 public:
   /* Public Methods */
-  NdbInstance(Ndb_cluster_connection *, int, int);
+  NdbInstance(Ndb_cluster_connection *, int);
   ~NdbInstance();
-  QueryPlan * getPlanForPrefix(const KeyPrefix *);
 
   /* Public Instance Variables */  
   Ndb *db;
   NdbInstance *next;
   workitem *wqitem;
-  int sched_gen_number;
  
 private:
-  int nplans;
-  QueryPlan **plans;  
   char cache_line_padding[PADDING];
 };
 
