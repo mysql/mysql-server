@@ -5381,7 +5381,7 @@ void TABLE::use_index(int key_to_save)
     /* Drop all keys; */
     i= 0;
 
-  s->keys= (key_to_save < 0) ? 0 : 1;
+  s->keys= i;
 }
 
 /**
