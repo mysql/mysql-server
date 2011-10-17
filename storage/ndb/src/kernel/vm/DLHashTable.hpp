@@ -27,11 +27,16 @@
  *   (with a double linked list)
  *
  * The entries in the hashtable must have the following methods:
- *  -# bool equal(const class T &) const;
+ *  -# bool U::equal(const class U &) const;
  *     Which should return equal if the to objects have the same key
- *  -# Uint32 hashValue() const;
+ *  -# Uint32 U::hashValue() const;
  *     Which should return a 32 bit hashvalue
+ *
+ * and the following members:
+ *  -# Uint32 U::nextHash;
+ *  -# Uint32 U::prevHash;
  */
+
 template <typename P, typename T, typename U = T>
 class DLHashTableImpl 
 {
@@ -211,7 +216,7 @@ inline
 void
 DLHashTableImpl<P, T, U>::add(Ptr<T> & obj)
 {
-  const Uint32 hv = obj.p->hashValue() & mask;
+  const Uint32 hv = obj.p->U::hashValue() & mask;
   const Uint32 i  = hashValues[hv];
   
   if(i == RNIL)
@@ -288,7 +293,7 @@ inline
 void
 DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr, const T & key)
 {
-  const Uint32 hv = key.hashValue() & mask;  
+  const Uint32 hv = key.U::hashValue() & mask;  
   
   Uint32 i;
   T * p;
@@ -300,7 +305,7 @@ DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr, const T & key)
   while(i != RNIL)
   {
     p = thePool.getPtr(i);
-    if(key.equal(* p))
+    if(key.U::equal(* p))
     {
       const Uint32 next = p->U::nextHash;
       if(prev.i == RNIL)
@@ -366,7 +371,7 @@ DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr)
   } 
   else 
   {
-    const Uint32 hv = ptr.p->hashValue() & mask;  
+    const Uint32 hv = ptr.p->U::hashValue() & mask;  
     if (hashValues[hv] == ptr.i)
     {
       hashValues[hv] = next;
@@ -400,7 +405,7 @@ DLHashTableImpl<P, T, U>::release(Ptr<T> & ptr)
   } 
   else 
   {
-    const Uint32 hv = ptr.p->hashValue() & mask;  
+    const Uint32 hv = ptr.p->U::hashValue() & mask;  
     if (hashValues[hv] == ptr.i)
     {
       hashValues[hv] = next;
@@ -493,7 +498,7 @@ inline
 bool
 DLHashTableImpl<P, T, U>::find(Ptr<T> & ptr, const T & key) const 
 {
-  const Uint32 hv = key.hashValue() & mask;  
+  const Uint32 hv = key.U::hashValue() & mask;  
   
   Uint32 i;
   T * p;
@@ -502,7 +507,7 @@ DLHashTableImpl<P, T, U>::find(Ptr<T> & ptr, const T & key) const
   while(i != RNIL)
   {
     p = thePool.getPtr(i);
-    if(key.equal(* p))
+    if(key.U::equal(* p))
     {
       ptr.i = i;
       ptr.p = p;
@@ -517,11 +522,11 @@ DLHashTableImpl<P, T, U>::find(Ptr<T> & ptr, const T & key) const
 
 // Specializations
 
-template <typename T, typename U = T>
-class DLHashTable : public DLHashTableImpl<ArrayPool<T>, T, U>
+template <typename T, typename U = T, typename P = ArrayPool<T> >
+class DLHashTable : public DLHashTableImpl<P, T, U>
 {
 public:
-  DLHashTable(ArrayPool<T> & p) : DLHashTableImpl<ArrayPool<T>, T, U>(p) {}
+  DLHashTable(P & p) : DLHashTableImpl<P, T, U>(p) {}
 };
 
 #endif

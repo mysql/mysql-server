@@ -1712,6 +1712,10 @@ sub command_line_setup {
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
+
+    # Turn off check testcases to save time 
+    mtr_report("Turning off --check-testcases to save time when valgrinding");
+    $opt_check_testcases = 0;
   }
 
   if ($opt_debug_common)
@@ -2774,7 +2778,9 @@ sub check_ndbcluster_support ($) {
     # Enable ndb engine and add more test suites
     $opt_include_ndbcluster = 1;
     $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl";
+    $DEFAULT_SUITES.=",ndb_memcache" unless($opt_embedded_server or IS_WINDOWS);
   }
+
 
   if ($opt_include_ndbcluster)
   {
@@ -3048,8 +3054,8 @@ sub memcached_start {
       "mysql-test/lib"],             # install 
       "memcached_path.pl", NOT_REQUIRED);
   
-  my $found_so = my_find_file($basedir,
-    ["storage/ndb/memcache/",       # source
+  my $found_so = my_find_file($bindir,
+    ["storage/ndb/memcache/",       # source or build
      "lib"],                        # install
     "ndb_engine.so", NOT_REQUIRED); 
      
@@ -3066,6 +3072,7 @@ sub memcached_start {
     $ndb_opt_string = $ndb_opt_string . ";" . $options;
   }
 
+
   $found_perl_source ne "" or return;
   $found_so ne "" or mtr_error("Failed to find ndb_engine.so");  
   require "$found_perl_source";
@@ -3073,8 +3080,19 @@ sub memcached_start {
   {
     mtr_error("Memcached not available.");
   }
-  my $exe = get_memcached_exe_path();
-  
+  my $exe = "";
+  if(memcached_is_bundled())
+  {
+    $exe = my_find_bin($bindir,
+    ["libexec", "sbin", "bin", "storage/ndb/memcache/extra/memcached"],
+    "memcached", NOT_REQUIRED);
+  }
+  else 
+  {
+    $exe = get_memcached_exe_path();
+  }
+  $exe ne "" or mtr_error("Failed to find memcached.");
+
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "-p");
@@ -3129,7 +3147,7 @@ sub memcached_load_metadata($) {
     mtr_init_args(\$args);
     mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
     mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
-    mtr_add_arg($args, "--connect-timeout=10");
+    mtr_add_arg($args, "--connect-timeout=20");
     
     mtr_verbose("Script: $sql_script");
     if ( My::SafeProcess->run(
@@ -5363,7 +5381,7 @@ sub stop_servers($$) {
 
     # cluster processes
     My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(ndbds(), ndb_mgmds()) );
+			       started(ndbds(), ndb_mgmds(), memcacheds()) );
   }
   else
   {
@@ -5564,6 +5582,13 @@ sub start_servers($) {
   { 
     if(memcacheds()) 
     {
+      # In theory maybe you could run the memcached tests with the embedded
+      # server, but for now we skip it.
+      if($opt_embedded_server) 
+      { 
+        mtr_error("Cannot run memcached tests with the embedded server.");
+      }
+      
       my $avail_port = $memcached_base_port;
       my $memcached;
       memcached_load_metadata($cluster);

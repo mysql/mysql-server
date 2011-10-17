@@ -37,12 +37,13 @@
 #include "DataTypeHandler.h"
 #include "debug.h"
 #include "int3korr.h"
+   
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 #define DECODE_ARGS const NdbDictionary::Column *, char * &, const void * const
 #define SFDLEN_ARGS const NdbDictionary::Column *, const void * const
-#define ENCODE_ARGS const NdbDictionary::Column *, size_t, size_t, const char *, void * const
+#define ENCODE_ARGS const NdbDictionary::Column *, size_t, const char *, void * const
 
 typedef int    impl_readFromNdb(DECODE_ARGS);
 typedef size_t impl_getStringifiedLength(SFDLEN_ARGS);
@@ -50,13 +51,13 @@ typedef int    impl_writeToNdb(ENCODE_ARGS);
 
 /* Implementations for NumericHandlers */
 template<typename INTTYPE> int dth_read32(Int32 &, const void * const);
-template<typename INTTYPE> int dth_write32(Int32, const char *);
+template<typename INTTYPE> int dth_write32(Int32, void * const);
 int dth_read32_year(Int32 &, const void * const);
-int dth_write32_year(Int32, const char *);
+int dth_write32_year(Int32, void * const);
 int dth_read32_medium(Int32 &, const void * const);
-int dth_write32_medium(Int32, const char *);
+int dth_write32_medium(Int32, void * const);
 int dth_read32_medium_unsigned(Int32 &, const void * const);
-int dth_write32_medium_unsigned(Int32, const char *);
+int dth_write32_medium_unsigned(Int32, void * const);
 
 
 /* Implementations for readFromNdb() */
@@ -132,12 +133,13 @@ impl_writeToNdb dth_encode_decimal;
 NumericHandler dth_native_int8   = { dth_read32<Int8>,  dth_write32<Int8>  };
 NumericHandler dth_native_int16  = { dth_read32<Int16>, dth_write32<Int16> };
 NumericHandler dth_native_int32  = { dth_read32<Int32>, dth_write32<Int32> };
-NumericHandler dth_native_uint8  = { dth_read32<Uint8>,  dth_write32<Uint8>  };
-NumericHandler dth_native_uint16 = { dth_read32<Uint16>, dth_write32<Uint16> };
-NumericHandler dth_native_uint32 = { dth_read32<Uint32>, dth_write32<Uint32> };
+NumericHandler dth_native_uint8  = { dth_read32<Uint8>,  dth_write32<Uint8> };
+NumericHandler dth_native_uint16 = { dth_read32<Uint16>, dth_write32<Uint16>};
+NumericHandler dth_native_uint32 = { dth_read32<Uint32>, dth_write32<Uint32>};
 NumericHandler dth_native_year   = { dth_read32_year, dth_write32_year };
 NumericHandler dth_native_medium = { dth_read32_medium, dth_write32_medium };
-NumericHandler dth_native_medium_unsigned = { dth_read32_medium_unsigned, dth_write32_medium_unsigned };
+NumericHandler dth_native_medium_unsigned = 
+                 { dth_read32_medium_unsigned, dth_write32_medium_unsigned };
 
 
 /***** Singleton Handlers *****/
@@ -154,7 +156,7 @@ DataTypeHandler Handler_Varchar =  {
   dth_length_varchar,      // getStringifiedLength()
   dth_encode_varchar,      // writeToNdb()
   0,                       // native_handler
-  true                     // contains_string
+  2                        // contains_string + 1-byte length
 };
 
 DataTypeHandler Handler_LongVarchar = {
@@ -162,7 +164,7 @@ DataTypeHandler Handler_LongVarchar = {
   dth_length_longvarchar,
   dth_encode_longvarchar,
   0,
-  true
+  3                       // contains string + 2 length bytes
 };
 
 DataTypeHandler Handler_Char =  {
@@ -170,7 +172,7 @@ DataTypeHandler Handler_Char =  {
   dth_length_char,        // getStringifiedLength()
   dth_encode_char,        // writeToNdb()
   0,                      // native_handler
-  true                    // contains_string
+  1                       // contains_string (no length bytes)
 };
 
 DataTypeHandler Handler_enum = {   /* NDB sees ENUM columns as CHAR(1) */
@@ -217,7 +219,7 @@ DataTypeHandler Handler_Bigint = {
   dth_decode_bigint,
   dth_length_s<Int64>,
   dth_encode_bigint,
-  0,
+  0, 
   false
 };
 
@@ -393,28 +395,6 @@ DataTypeHandler * getDataTypeHandlerForColumn(const NdbDictionary::Column *col) 
   }
 }
 
-/* 
- * getColumnRecordSize() 
- */
-size_t getColumnRecordSize(const NdbDictionary::Column *col) {
-  switch(col->getType()) {
-    case NdbDictionary::Column::Varchar:      
-    case NdbDictionary::Column::Varbinary:
-      return col->getLength() + 1;
-    
-    case NdbDictionary::Column::Longvarchar:
-    case NdbDictionary::Column::Longvarbinary:    
-      return col->getLength() + 2;
-
-    case NdbDictionary::Column::Char:
-    case NdbDictionary::Column::Binary:
-      return col->getLength();
-
-    default:
-      return col->getSizeInBytes();
-  }
-}
-
 
 /******************* IMPLEMENTATIONS *******************/
 /***** UNSUPPORTED COLUMN TYPE ******/
@@ -427,7 +407,7 @@ size_t dth_length_unsupported(const NdbDictionary::Column *, const void *) {
   return 0;
 }
 
-int dth_encode_unsupported(const NdbDictionary::Column *col, size_t, size_t, 
+int dth_encode_unsupported(const NdbDictionary::Column *col, size_t,
                            const char *, void *) {
   logger->log(LOG_WARNING, 0, "Unsupported column type: %s\n", col->getName());
   return DTH_NOT_SUPPORTED;
@@ -451,16 +431,15 @@ size_t dth_length_varchar(const NdbDictionary::Column *col, const void *buf) {
 
 
 int dth_encode_varchar(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, const char *str, void *buf) {
-  size_t total_len = len + offset;
+                       size_t len, const char *str, void *buf) {
   uint8_t * length_byte = (uint8_t *) buf;
-  char *char_buffer = ((char *) buf) + 1 + offset;
+  char *char_buffer = ((char *) buf) + 1;
     
-  if(total_len > col->getLength())
+  if(len > (size_t) col->getLength())
     return DTH_VALUE_TOO_LONG;
   
   /* Set the length byte */
-  *length_byte = (uint8_t) total_len;
+  *length_byte = (uint8_t) len;
   
   /* Copy string value into buffer */
   strncpy(char_buffer, str, len);
@@ -486,12 +465,11 @@ size_t dth_length_longvarchar(const NdbDictionary::Column *col, const void *buf)
   return (size_t) ( *length_byte_1 + (*length_byte_2 << 8));
 }
 
-int dth_encode_longvarchar(const NdbDictionary::Column *col, 
-                           size_t len, size_t offset,
+int dth_encode_longvarchar(const NdbDictionary::Column *col, size_t len, 
                            const char *str, void *buf) {
   char *cbuf = ((char *) buf);
-  char *dest = cbuf + 2 + offset;
-  unsigned short total_len = len + offset;
+  char *dest = cbuf + 2;
+  unsigned short total_len = len;
   const unsigned short short_lo = 255;
   const unsigned short short_hi = 65535 ^ 255; 
   
@@ -520,17 +498,18 @@ size_t dth_length_char(const NdbDictionary::Column *col, const void *buf) {
   return col->getLength();
 }
 
-int dth_encode_char(const NdbDictionary::Column *col, 
-                    size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_char(const NdbDictionary::Column *col, size_t len,
+                    const char *str, void *buf) {
   char *cbuf = ((char *) buf);
-  char *dest = cbuf + offset;
-  if(len > col->getLength()) return DTH_VALUE_TOO_LONG;
+  char *dest = cbuf;
+  if(len > (size_t) col->getLength()) 
+    return DTH_VALUE_TOO_LONG;
 
   /* copy string into buffer */
   memcpy(dest, str, len);
 
   /* right-pad with spaces */
-  for(char *s = dest+len ; len < col->getLength() ; len++) {
+  for(char *s = dest+len ; len <= (size_t) col->getLength() ; len++) {
     *(s++) = ' ';
   }
 
@@ -541,9 +520,10 @@ int dth_encode_char(const NdbDictionary::Column *col,
 
 /* Using separate templates for signed and unsigned types avoids 
    a compiler warning */
+
 template<typename INTTYPE> size_t dth_length_s(const NdbDictionary::Column *,
                                                const void *buf) {
-  INTTYPE i = *((INTTYPE *) buf);
+  LOAD_ALIGNED_DATA(INTTYPE, i, buf);
   size_t len = (i < 0) ? 2 : 1;  
   for( ; i > 0 ; len++) i = i / 10;
   return len;  
@@ -551,21 +531,22 @@ template<typename INTTYPE> size_t dth_length_s(const NdbDictionary::Column *,
 
 template<typename INTTYPE> size_t dth_length_u(const NdbDictionary::Column *,
                                                const void *buf) {
-  INTTYPE i = *((INTTYPE *) buf);
+  LOAD_ALIGNED_DATA(INTTYPE, i, buf);
   size_t len = 1;
   for( ; i > 0 ; len++) i = i / 10;
   return len;  
 }
 
+/* read32: read the value from the buffer into an int32 */
 template<typename INTTYPE> int dth_read32(Int32 &result, const void * const buf) {
-  INTTYPE i = *((INTTYPE *) buf);
+  LOAD_ALIGNED_DATA(INTTYPE, i, buf);
   result = (Int32) i;
   return 1;
 }
 
-template<typename INTTYPE> int dth_write32(Int32 value, const char *buf) {
-  INTTYPE i = (INTTYPE) value;
-  * ((INTTYPE *) buf) = i;
+/* write32: write an int32 into the buffer */
+template<typename INTTYPE> int dth_write32(Int32 value, void *buf) {
+  STORE_ALIGNED_DATA(INTTYPE, value, buf);
   return 1;
 }
 
@@ -573,7 +554,6 @@ template<typename INTTYPE> int dth_write32(Int32 value, const char *buf) {
 /* Make a safe copy of the text representation of a number, discarding 
    any terminal junk characters that may be in the buffer */
 #define MAKE_COPY_BUFFER(sz) \
-  assert(offset == 0); \
   char copy_buff[sz]; \
   if(len >= sz) return DTH_VALUE_TOO_LONG; \
   strncpy(copy_buff, str, len); \
@@ -585,11 +565,11 @@ template<typename INTTYPE> int dth_write32(Int32 value, const char *buf) {
 int dth_decode_tinyint(const NdbDictionary::Column *col,
                        char * &str, const void *buf) {
   char i = * (char *) buf;
-  return sprintf(str, "%d", (int) i) + 1;  // +1 for null terminator
+  return sprintf(str, "%d", (int) i);
 }
 
-int dth_encode_tinyint(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_tinyint(const NdbDictionary::Column *col, size_t len,
+                       const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   int intval = 0;
 
@@ -606,11 +586,11 @@ int dth_encode_tinyint(const NdbDictionary::Column *col,
 int dth_decode_tiny_unsigned(const NdbDictionary::Column *col,
                              char * &str, const void *buf) {
   Uint8 i = * (Uint8 *) buf;
-  return sprintf(str, "%d", (int) i) + 1;  // +1 for null terminator
+  return sprintf(str, "%d", (int) i);
 }
 
 int dth_encode_tiny_unsigned(const NdbDictionary::Column *, size_t len, 
-                             size_t offset, const char *str, void *buf) {
+                             const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   Uint32 intval = 0;
   
@@ -627,39 +607,40 @@ int dth_encode_tiny_unsigned(const NdbDictionary::Column *, size_t len,
 /***** SMALLINT ******/
 int dth_decode_smallint(const NdbDictionary::Column *col,
                         char * &str, const void *buf) {  
-  return sprintf(str, "%hd",* (short *) buf) + 1;  // +1 for null terminator
+  LOAD_ALIGNED_DATA(Int16, shortval, buf);
+  return sprintf(str, "%hd", shortval);
 }
 
-int dth_encode_smallint(const NdbDictionary::Column *col, 
-                        size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_smallint(const NdbDictionary::Column *col, size_t len, 
+                        const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   int intval = 0;
   
   if((! safe_strtol(copy_buff, &intval)) || intval > 32767 || intval < -32768) {
     return DTH_NUMERIC_OVERFLOW;
   }
+  STORE_ALIGNED_DATA(Int16, intval, buf);
   
-  *((Int16 *) buf) = (Int16) intval;
   return len;
 }
 
 
 /***** SMALL UNSIGNED ******/
 int dth_decode_small_unsigned(const NdbDictionary::Column *col,
-                              char * &str, const void *buf) {  
-  return sprintf(str, "%hu",* (short *) buf) + 1;  // +1 for null terminator
+                              char * &str, const void *buf) {
+  LOAD_ALIGNED_DATA(Uint16, shortval, buf);
+  return sprintf(str, "%hu", shortval);
 }
 
-int dth_encode_small_unsigned(const NdbDictionary::Column *col, 
-                              size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_small_unsigned(const NdbDictionary::Column *col, size_t len, 
+                              const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   Uint32 intval = 0;
   
   if((! safe_strtoul(copy_buff, &intval)) || intval > 65535) {
     return DTH_NUMERIC_OVERFLOW;
   }
-  
-  *((Uint16 *) buf) = (Uint16) intval;
+  STORE_ALIGNED_DATA(Uint16, intval, buf);
   return len;
 }
 
@@ -669,7 +650,7 @@ int dth_decode_mediumint(const NdbDictionary::Column *col,
                          char * &str, const void *buf) {
   char * cbuf = (char *) buf;
   int i = sint3korr(cbuf);  
-  return sprintf(str, "%d", i) + 1;  // +1 for null terminator
+  return sprintf(str, "%d", i);
 }
 
 size_t dth_length_mediumint(const NdbDictionary::Column *col, const void *buf) {
@@ -680,8 +661,8 @@ size_t dth_length_mediumint(const NdbDictionary::Column *col, const void *buf) {
   return len;  
 }
 
-int dth_encode_mediumint(const NdbDictionary::Column *col, 
-                         size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_mediumint(const NdbDictionary::Column *col, size_t len,
+                         const char *str, void *buf) {
   int intval = 0;
   const int MAXVAL = 8388607;
   const int MINVAL = -8388608;  
@@ -704,7 +685,7 @@ int dth_read32_medium(Int32 &result, const void * const buf) {
   return 1;
 }
 
-int dth_write32_medium(Int32 value, const char *buf) {
+int dth_write32_medium(Int32 value, void *buf) {
   Int8 *cbuf = (Int8 *) buf;
   cbuf[0] = (Int8) (value);
   cbuf[1] = (Int8) (value >> 8);
@@ -718,7 +699,7 @@ int dth_decode_medium_unsigned(const NdbDictionary::Column *,
                                char * &str, const void *buf) {
   char * cbuf = (char *) buf;
   unsigned int i = uint3korr(cbuf);
-  return sprintf(str, "%u", i) + 1;  // +1 for null terminator
+  return sprintf(str, "%u", i);
 }
 
 size_t dth_length_medium_unsigned(const NdbDictionary::Column *, const void *buf) {
@@ -730,7 +711,7 @@ size_t dth_length_medium_unsigned(const NdbDictionary::Column *, const void *buf
 }
 
 int dth_encode_medium_unsigned(const NdbDictionary::Column *, size_t len,
-                               size_t offset, const char *str, void *buf) {
+                               const char *str, void *buf) {
   MAKE_COPY_BUFFER(16);
   Uint32 intval = 0;
   
@@ -751,7 +732,7 @@ int dth_read32_medium_unsigned(Int32 &result, const void * const buf) {
   return 1;
 }
 
-int dth_write32_medium_unsigned(Int32 value, const char *buf) {
+int dth_write32_medium_unsigned(Int32 value, void *buf) {
   Uint8 *cbuf = (Uint8 *) buf;
   cbuf[0] = (Uint8) (value);
   cbuf[1] = (Uint8) (value >> 8);
@@ -763,72 +744,80 @@ int dth_write32_medium_unsigned(Int32 value, const char *buf) {
 /***** INT *****/
 int dth_decode_int(const NdbDictionary::Column *col,
                    char * &str, const void *buf) {  
-  return sprintf(str, "%d",* (int *) buf) + 1;  // +1 for null terminator
+  LOAD_ALIGNED_DATA(int, i, buf);
+  return sprintf(str, "%d", i);
 }
 
-int dth_encode_int(const NdbDictionary::Column *col, 
-                   size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_int(const NdbDictionary::Column *col, size_t len, 
+                   const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
+  int intval = 0;
 
-  int *ibuf = (int *) buf;
-  if(safe_strtol(copy_buff, ibuf))
-    return len;
-  else
+  if(! safe_strtol(copy_buff, &intval))
     return DTH_NUMERIC_OVERFLOW;
+
+  STORE_ALIGNED_DATA(int, intval, buf);
+  return len;
 }                                 
 
 
 /***** INT UNSIGNED *****/
 int dth_decode_unsigned(const NdbDictionary::Column *col,
                         char * &str, const void *buf) {  
-  return sprintf(str, "%du",* (Uint32 *) buf) + 1;  // +1 for null terminator
+  LOAD_ALIGNED_DATA(Uint32, i, buf)
+  return sprintf(str, "%du", i);
 }
 
-int dth_encode_unsigned(const NdbDictionary::Column *col, 
-                        size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_unsigned(const NdbDictionary::Column *col, size_t len,
+                        const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
+  Uint32 uintval = 0;
   
-  Uint32 *ibuf = (Uint32 *) buf;
-  if(safe_strtoul(copy_buff, ibuf))
-    return len;
-  else
+  if(! safe_strtoul(copy_buff, &uintval))
     return DTH_NUMERIC_OVERFLOW;
+
+  STORE_ALIGNED_DATA(Uint32, uintval, buf);
+  return len;
 }                                 
 
 
 /***** BIGINT *****/
 int dth_decode_bigint(const NdbDictionary::Column *col,  
                       char * &str, const void *buf) {
-  return sprintf(str, "%"PRId64,* (Int64 *) buf) + 1;  // +1 for null
+  LOAD_ALIGNED_DATA(Int64, int64val, buf);
+  return sprintf(str, "%lld", int64val);
 }
 
-int dth_encode_bigint(const NdbDictionary::Column *col, 
-                      size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_bigint(const NdbDictionary::Column *col, size_t len,
+                      const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
+  int64_t int64val = 0;
   
-  int64_t *ibuf = (int64_t *) buf;
-  if(safe_strtoll(copy_buff, ibuf)) 
-    return len;
-  else
+  if(! safe_strtoll(copy_buff, &int64val)) 
     return DTH_NUMERIC_OVERFLOW;
+
+  STORE_ALIGNED_DATA(int64_t, int64val, buf);
+  return len;
 }
 
 
 /***** BIGINT UNSIGNED *****/
 int dth_decode_ubigint(const NdbDictionary::Column *col,  
                        char * &str, const void *buf) {
-  return sprintf(str, "%"PRIu64,* (Uint64 *) buf) + 1;  // +1 for null
+  LOAD_ALIGNED_DATA(Uint64, uint64val, buf);
+  return sprintf(str, "%llu", uint64val);
 }
 
-int dth_encode_ubigint(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, const char *str, void *buf) {
+int dth_encode_ubigint(const NdbDictionary::Column *col, size_t len,
+                       const char *str, void *buf) {
   MAKE_COPY_BUFFER(32);
+  uint64_t uint64val = 0;
 
-  uint64_t *ibuf = (uint64_t *) buf;
-  if(safe_strtoull(copy_buff, ibuf))  
-    return len;
-  else 
+  if(! safe_strtoull(copy_buff, &uint64val))  
     return DTH_NUMERIC_OVERFLOW;
+
+  STORE_ALIGNED_DATA(uint64_t, uint64val, buf);
+  return len;
 }                                 
 
 
@@ -843,9 +832,8 @@ size_t dth_length_enum(const NdbDictionary::Column *col, const void *buf) {
   return 1;
 }
 
-int dth_encode_enum(const NdbDictionary::Column *col, 
-                    size_t len, size_t offset, const char *str, void *buf) {
-  assert(offset == 0);
+int dth_encode_enum(const NdbDictionary::Column *col, size_t len,
+                    const char *str, void *buf) {
   char *cbuf = (char *) buf;
   *cbuf = *str;  
   return 1;
@@ -856,7 +844,7 @@ int dth_encode_enum(const NdbDictionary::Column *col,
 int dth_decode_year(const NdbDictionary::Column *, char * &str, const void *buf) {
   Uint8 i = * (Uint8 *) buf;
   int year = i + 1900;
-  return sprintf(str, "%d", year) + 1;  // +1 for null terminator
+  return sprintf(str, "%d", year);
 }
 
 size_t dth_length_year(const NdbDictionary::Column *col, const void *buf) {
@@ -864,7 +852,7 @@ size_t dth_length_year(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_year(const NdbDictionary::Column *, size_t len, 
-                    size_t offset, const char *str, void *buf) {
+                    const char *str, void *buf) {
   MAKE_COPY_BUFFER(8);
   Uint32 intval = 0;
   
@@ -883,7 +871,7 @@ int dth_read32_year(Int32 &result, const void * const buf) {
   return 1;
 }
 
-int dth_write32_year(Int32 value, const char *buf) {
+int dth_write32_year(Int32 value, void *buf) {
   if(value < 1900 || value > 2155) 
     return 0;
   Uint8 i = (Uint8) (value - 1900);
@@ -895,7 +883,7 @@ int dth_write32_year(Int32 value, const char *buf) {
 /***** DATE & TIME HELPERS *****/
 
 typedef struct {
-  unsigned long year, month, day, hour, minute, second, fraction;
+  unsigned int year, month, day, hour, minute, second, fraction;
   bool is_negative;
 } time_helper;
 
@@ -935,7 +923,7 @@ DateTime_CopyBuffer::DateTime_CopyBuffer(size_t len, const char *str) {
   if(! too_long) {
     if(*c == '-' || *c == '+') *buf++ = *c++;  // tolerate initial + or -
 
-    for(register int i = 0 ; i < len && *c != 0 ; c++, i++ )
+    for(register unsigned int i = 0 ; i < len && *c != 0 ; c++, i++ )
       if(isdigit(*c))
         *buf++ = *c; 
     *buf = 0;
@@ -957,7 +945,7 @@ int dth_decode_date(const NdbDictionary::Column *, char * &str, const void *buf)
   tm.month = (encoded_date >> 5 & 15); // four bits
   tm.year  = (encoded_date >> 9);
   
-  return sprintf(str, "%04d-%02d-%02d",tm.year, tm.month, tm.day) + 1;
+  return sprintf(str, "%04du-%02du-%02du",tm.year, tm.month, tm.day);
 }
 
 size_t dth_length_date(const NdbDictionary::Column *col, const void *buf) {
@@ -965,7 +953,7 @@ size_t dth_length_date(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_date(const NdbDictionary::Column *, size_t len, 
-                    size_t offset, const char *str, void *buf) {
+                    const char *str, void *buf) {
   Int32  int_date;
   Uint32  encoded_date; 
   time_helper tm = { 0,0,0,0,0,0,0, false };
@@ -1001,7 +989,7 @@ int dth_decode_time(const NdbDictionary::Column *, char * &str, const void *buf)
   factor_HHMMSS(& tm, int_time);
   
   /* Stringify it */
-  return sprintf(str, "%s%02d:%02d:%02d", tm.is_negative ? "-" : "" ,
+  return sprintf(str, "%s%02du:%02du:%02du", tm.is_negative ? "-" : "" ,
                  tm.hour, tm.minute, tm.second);
 }
 
@@ -1010,9 +998,8 @@ size_t dth_length_time(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_time(const NdbDictionary::Column *, size_t len, 
-                    size_t offset, const char *str, void *buf) {
+                    const char *str, void *buf) {
   Int32  int_time;
-  time_helper tm = { 0,0,0,0,0,0,0, false };
   
   /* Make a safe (null-terminated) copy */
   DateTime_CopyBuffer copybuff(len, str);
@@ -1029,12 +1016,11 @@ int dth_encode_time(const NdbDictionary::Column *, size_t len,
 /***** DATETIME *****/
 
 int dth_decode_datetime(const NdbDictionary::Column *, char * &str, const void *buf) {
-  Uint64 int_datetime;
   Int32 int_date, int_time;
   time_helper tm = { 0,0,0,0,0,0,0, false };
   
-  /* Read the datetime from the buffer */
-  int_datetime = * ((Uint64 *) buf);
+  /* Read the datetime from the buffer. */
+  LOAD_ALIGNED_DATA(Uint64, int_datetime, buf);
   
   /* Factor it out */
   int_date = int_datetime / 1000000;
@@ -1043,7 +1029,7 @@ int dth_decode_datetime(const NdbDictionary::Column *, char * &str, const void *
   factor_YYYYMMDD(& tm, int_date);
   
   /* Stringify it */
-  return sprintf(str, "%04d-%02d-%02d %02d:%02d:%02d", tm.year, tm.month, 
+  return sprintf(str, "%04du-%02du-%02du %02du:%02du:%02du", tm.year, tm.month, 
                  tm.day, tm.hour, tm.minute, tm.second);
  }
 
@@ -1052,9 +1038,8 @@ size_t dth_length_datetime(const NdbDictionary::Column *col, const void *buf) {
 }
 
 int dth_encode_datetime(const NdbDictionary::Column *, size_t len, 
-                        size_t offset, const char *str, void *buf) {
+                        const char *str, void *buf) {
   uint64_t int_datetime;
-  time_helper tm = { 0,0,0,0,0,0,0, false };
   
   /* Make a safe (null-terminated) copy */
   DateTime_CopyBuffer copybuff(len, str);
@@ -1064,7 +1049,7 @@ int dth_encode_datetime(const NdbDictionary::Column *, size_t len,
   if(! safe_strtoull(copybuff.ptr, &int_datetime)) return DTH_NUMERIC_OVERFLOW;
   
   /* Store it */
-  * ((Uint64 *) buf) = int_datetime;
+  STORE_ALIGNED_DATA(Uint64, int_datetime, buf);
   
   return 1;
 }
@@ -1079,41 +1064,44 @@ int dth_encode_datetime(const NdbDictionary::Column *, size_t len,
 */ 
 int dth_decode_float(const NdbDictionary::Column *col, 
                      char * &str, const void *buf) {
-  double d = (double) (* (float *) buf);
-  return sprintf(str, "%G", d) + 1;
+  LOAD_ALIGNED_DATA(float, fval, buf);
+
+  double dval = fval;
+  return sprintf(str, "%G", dval);
 }
 
 size_t dth_length_float(const NdbDictionary::Column *col,
                         const void *buf) {
   char stack_copy[16];
-  double d = (double) (* (float *) buf);
-  return snprintf(stack_copy, 16, "G", d) + 1;
+  LOAD_ALIGNED_DATA(float, fval, buf);
+  double dval = fval;
+  return snprintf(stack_copy, 16, "%G", dval);
 }
 
 int dth_decode_double(const NdbDictionary::Column *col, 
                      char * &str, const void *buf) {
-  double d = (* (double *) buf);
-  return sprintf(str, "%-20.10F", d) + 1;
+  LOAD_ALIGNED_DATA(double, dval, buf);
+  return sprintf(str, "%.10F", dval);
 }
 
 size_t dth_length_double(const NdbDictionary::Column *col,
                          const void *buf) {
   char stack_copy[30];
-  double d = (* (double *) buf);
-  return snprintf(stack_copy, 30, "%-20.10F", d) + 1;
+  LOAD_ALIGNED_DATA(double, dval, buf);
+  return snprintf(stack_copy, 30, "%.10F", dval);
 }
 
-template <typename T> int dth_encode_fp(const NdbDictionary::Column *col, 
-                                        size_t len, size_t offset, 
-                                        const char *str, void *buf) {
+template <typename FPTYPE> int dth_encode_fp(const NdbDictionary::Column *col, 
+                                             size_t len, const char *str, 
+                                             void *buf) {
   MAKE_COPY_BUFFER(64);
   errno = 0;
-  double d = strtod(copy_buff, NULL);
+  double dval = strtod(copy_buff, NULL);
   if(errno == ERANGE) {
     return DTH_NUMERIC_OVERFLOW;
   }
   
-  *((T *) buf) = (T) d;
+  STORE_ALIGNED_DATA(FPTYPE, dval, buf);
   return len;
 }
 
@@ -1124,21 +1112,26 @@ int dth_decode_decimal(const NdbDictionary::Column *col,
   int scale = col->getScale();
   int prec  = col->getPrecision();
   int len = scale + prec + 3;
-  int r = decimal_bin2str(buf, col->getSizeInBytes(), prec, scale, str, len);
-  return len;
+  decimal_bin2str(buf, col->getSizeInBytes(), prec, scale, str, len);
+  return strlen(str);
 }
 
 size_t dth_length_decimal(const NdbDictionary::Column *col,
                            const void *buf) {
-  return col->getScale() + col->getPrecision() + 3; // sign, point, and terminator
+  return col->getScale() + col->getPrecision() + 2; // 2 for sign and point
 }
 
-int dth_encode_decimal(const NdbDictionary::Column *col, 
-                       size_t len, size_t offset, 
+int dth_encode_decimal(const NdbDictionary::Column *col, size_t len, 
                        const char *str, void *buf) {
   MAKE_COPY_BUFFER(64);
   int scale = col->getScale();
   int prec  = col->getPrecision();
   int r = decimal_str2bin(str, len, prec, scale, buf, col->getSizeInBytes());
-  return (r == 0) ? len : DTH_NUMERIC_OVERFLOW;
+  if(r == E_DEC_OK || r == E_DEC_TRUNCATED) {
+    return len;
+  }
+  else {
+    DEBUG_PRINT("deicmal_str2bin() returns %d", r);
+    return DTH_NUMERIC_OVERFLOW;
+  }
 }

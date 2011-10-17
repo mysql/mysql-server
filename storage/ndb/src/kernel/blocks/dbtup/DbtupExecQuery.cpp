@@ -166,6 +166,20 @@ Dbtup::calculateChecksum(Tuple_header* tuple_ptr,
   return checksum;
 }
 
+int
+Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct)
+{
+  ndbout_c("Tuple corruption detected."); 
+  if (c_crashOnCorruptedTuple)
+  {
+    ndbout_c(" Exiting."); 
+    ndbrequire(false);
+  }
+  terrorCode= ZTUPLE_CORRUPTED_ERROR;
+  tupkeyErrorLab(req_struct);
+  return -1;
+}
+
 /* ----------------------------------------------------------------- */
 /* -----------       INSERT_ACTIVE_OP_LIST            -------------- */
 /* ----------------------------------------------------------------- */
@@ -1014,10 +1028,7 @@ int Dbtup::handleReadReq(Signal* signal,
   if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) {
     jam();
-    ndbout_c("here2");
-    terrorCode= ZTUPLE_CORRUPTED_ERROR;
-    tupkeyErrorLab(req_struct);
-    return -1;
+    return corruptedTupleDetected(req_struct);
   }
 
   const Uint32 node = refToNode(sendBref);
@@ -1139,8 +1150,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
   if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) 
   {
-    terrorCode= ZTUPLE_CORRUPTED_ERROR;
-    goto error;
+    jam();
+    return corruptedTupleDetected(req_struct);
   }
 
   req_struct->m_tuple_ptr= dst;

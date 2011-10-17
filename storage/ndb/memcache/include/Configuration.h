@@ -87,7 +87,7 @@ class Configuration {
   const KeyPrefix * getPrefixForKey(const char *key, int nkey) const;
   const KeyPrefix * getPrefixByInfo(const prefix_info_t info) const;
   const KeyPrefix * getPrefix(int id) const;                          // inlined
-  const KeyPrefix * getNextPrefixForCluster(int cluster_id, KeyPrefix *k) const;
+  const KeyPrefix * getNextPrefixForCluster(uint cluster_id, const KeyPrefix *) const;
   void setPrimaryConnectString(const char *);                         // inlined
   void setServerRole(const char *);                                   // inlined
   const char * getServerRole();                                       // inlined
@@ -113,7 +113,6 @@ class Configuration {
   int storePrefix(KeyPrefix &prefix);
   void storeCAS(uint64_t ndb_engine_cas, uint64_t default_engine_cas);
 
-  Ndb *db;
   const char *primary_connect_string;
   int onlineReloadFlag;
   int (*reload_waiter)(Ndb_cluster_connection *, const char *);
@@ -122,7 +121,7 @@ class Configuration {
   /* private methods */
   void store_default_prefix();
   config_ver_enum get_supported_version();
-  bool fetch_meta_record(QueryPlan *plan, const char *version);
+  bool fetch_meta_record(QueryPlan *plan, Ndb *db, const char *version);
   
   /* private instance variables */
   const char *server_role;

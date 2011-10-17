@@ -25,7 +25,7 @@
 #include "all_tests.h"
 
 
-int run_tsv_test(QueryPlan *, int v) {
+int run_tsv_test(QueryPlan *, Ndb *, int v) {
   {
     TabSeparatedValues t1("frodo.xxx", 4, 5);
     require(t1.getLength() == 5);

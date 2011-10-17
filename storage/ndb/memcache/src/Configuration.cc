@@ -51,15 +51,10 @@ extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 Configuration::Configuration(Configuration *old) :
   nclusters(0), 
   nprefixes(0), 
-  config_version(CONFIG_VER_UNKNOWN),
   primary_connect_string(old->primary_connect_string),
-  primary_conn(old->primary_conn),
-  server_role(old->server_role)
-{
-  db = new Ndb(primary_conn);
-  db->init();
-}
-
+  server_role(old->server_role),
+  config_version(CONFIG_VER_UNKNOWN),
+  primary_conn(old->primary_conn)  {};
 
 
 bool Configuration::connectToPrimary() {
@@ -84,21 +79,21 @@ bool Configuration::connectToPrimary() {
   primary_conn = ClusterConnectionPool::connect(primary_connect_string);
 
   if(primary_conn) {    
-    db = new Ndb(primary_conn);  // This Ndb is used only to read the "meta" table.
-    db->init();
     return true;
   }
-  logger->log(LOG_WARNING, 0, "FAILED.\n");
-  return false;
+  else {
+    logger->log(LOG_WARNING, 0, "FAILED.\n");
+    return false;
+  }
 }
 
 
 bool Configuration::openAllConnections() {
   DEBUG_ENTER_METHOD("Configuration::openAllConnections");
   Ndb_cluster_connection *conn;
-  int n_open = 0;
+  unsigned int n_open = 0;
 
-  for(int i = 0; i < nclusters ; i++) {
+  for(unsigned int i = 0; i < nclusters ; i++) {
     ClusterConnectionPool *pool = getConnectionPoolById(i);
 
     /* if the connect string is NULL, or empty, or identical to the primary 
@@ -127,8 +122,8 @@ bool Configuration::openAllConnections() {
 */
 bool Configuration::prefetchDictionary() {
   DEBUG_ENTER_METHOD("Configuration::prefetchDictionary");
-  int ok = 0;
-  for(int i = 0 ; i < nprefixes ; i++) {
+  unsigned int ok = 0;
+  for(unsigned int i = 0 ; i < nprefixes ; i++) {
     /* Instantiate an Ndb and a QueryPlan, then discard them. 
        The QueryPlan constructor will make calls into NdbDictionary's 
        getTable() and getColumn() methods. 
@@ -200,21 +195,25 @@ const KeyPrefix * Configuration::getPrefixForKey(const char *key, int nkey) cons
 }
 
 
-const KeyPrefix * Configuration::getNextPrefixForCluster(int cluster_id, 
-                                                         KeyPrefix *k) const {
-  int i = 0;
+const KeyPrefix * Configuration::getNextPrefixForCluster(unsigned int cluster_id, 
+                                                         const KeyPrefix *k) const {
+  unsigned int i = 0;
 
-  if(k) while(prefixes[i] != k && i < nprefixes) i++;
+  if(k) {
+    while(prefixes[i] != k && i < nprefixes) i++;  // find k in the list
+    i++;  // then advance one more
+  }
+    
   while(i < nprefixes && prefixes[i]->info.cluster_id != cluster_id) i++;
 
-  if(i == nprefixes) return 0;
+  if(i >= nprefixes) return 0;
   else return prefixes[i];
 }
 
 
 void Configuration::disconnectAll() {
   DEBUG_ENTER_METHOD(" Configuration::disconnectAll");
-  for(int i = 0; i < nclusters; i++) {
+  for(unsigned int i = 0; i < nclusters; i++) {
     ClusterConnectionPool *p = getConnectionPoolById(i);
     delete p;
   }
@@ -283,19 +282,21 @@ void Configuration::storeCAS(uint64_t ndb_engine_cas, uint64_t default_engine_ca
 
 config_ver_enum Configuration::get_supported_version() {
 
+  Ndb db(primary_conn);
+  db.init(1);
   TableSpec ts_meta("ndbmemcache.meta", "application,metadata_version", "");
-  QueryPlan plan(db, &ts_meta);
+  QueryPlan plan(& db, &ts_meta);
   // "initialized" is set only if the ndbmemcache.meta table exists:
   if(plan.initialized) {
-    if(fetch_meta_record(&plan, "1.1")) {
+    if(fetch_meta_record(&plan, &db, "1.1")) {
       DEBUG_PRINT("1.1");
       return CONFIG_VER_1_1;
     }
-    if(fetch_meta_record(&plan, "1.0")) {
+    if(fetch_meta_record(&plan, &db, "1.0")) {
       DEBUG_PRINT("1.0");
       return CONFIG_VER_1_0;
     }
-    if(fetch_meta_record(&plan, "1.0a")) {
+    if(fetch_meta_record(&plan, &db, "1.0a")) {
       DEBUG_PRINT("1.0a");
       logger->log(LOG_WARNING, 0, "\nThe configuration schema from prototype2 is"
                   " no longer supported.\nPlease drop your ndbmemcache database,"
@@ -307,14 +308,15 @@ config_ver_enum Configuration::get_supported_version() {
 }  
 
 
-bool Configuration::fetch_meta_record(QueryPlan *plan, const char *version) {
+bool Configuration::fetch_meta_record(QueryPlan *plan, Ndb *db,
+                                      const char *version) {
   DEBUG_ENTER_METHOD("Configuration::fetch_meta_record");
   bool result = false;
 
   Operation op(plan, OP_READ);
 
-  op.key_buffer = new char[op.requiredKeyBuffer()];
-  op.buffer = new char[op.requiredBuffer()];
+  op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
+  op.buffer     = (char *) malloc(op.requiredBuffer());
   
   NdbTransaction *tx = db->startTransaction();
 
@@ -326,8 +328,8 @@ bool Configuration::fetch_meta_record(QueryPlan *plan, const char *version) {
     result = true;
   tx->close();
   
-  delete[] op.key_buffer;
-  delete[] op.buffer;
+  free(op.key_buffer);
+  free(op.buffer);
   return result;
 }
 

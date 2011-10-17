@@ -34,7 +34,7 @@
 
 char *connect_string;   /* exported to tests */
 
-extern EXTENSION_LOGGER_DESCRIPTOR *logger;
+EXTENSION_LOGGER_DESCRIPTOR *logger;
                        
 Ndb_cluster_connection * connect(const char *);
 
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 
   if(test_number >= 0) {   /* Run a particular test */
     printf("%s\n", all_tests[test_number].name);
-    int r = all_tests[test_number].function(plan, 1);  //verbose
+    int r = all_tests[test_number].function(plan, db, 1);  //verbose
     if(r) {
       printf(" [FAIL] at line %d\n", r); nfail++;
     } else {
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     for(int i = 0; all_tests[i].name; i++) {
       if(all_tests[i].enabled) {
         printf("%-30s", all_tests[i].name);
-        int r = all_tests[i].function(plan, 0);   // quiet
+        int r = all_tests[i].function(plan, db, 0);   // quiet
         printf(" %s\n", r ? "[FAIL]" : "[PASS]");
         if(r) nfail++; 
         else npass++;
@@ -200,7 +200,7 @@ Ndb_cluster_connection * connect(const char *connectstring) {
 }
 
 
-void delete_row(QueryPlan *plan, const char * key, int verbose) {
+void delete_row(QueryPlan *plan, Ndb *db, const char * key, int verbose) {
   char ndbkeybuffer[300];
     
   Operation op(plan, OP_DELETE, ndbkeybuffer);  
@@ -208,7 +208,7 @@ void delete_row(QueryPlan *plan, const char * key, int verbose) {
   op.clearKeyNullBits();
   op.setKeyPart(COL_STORE_KEY, key, strlen(key));
   
-  NdbTransaction * tx = op.startTransaction();
+  NdbTransaction * tx = op.startTransaction(db);
   op.deleteTuple(tx);
   tx->execute(NdbTransaction::Commit);  
 

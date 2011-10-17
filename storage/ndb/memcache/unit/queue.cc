@@ -41,7 +41,7 @@ q_test_obj * get(Queue<q_test_obj> &q, int v);
 const int n_loop_items = 50000;
 
 
-int run_queue_test(QueryPlan *, int v) {
+int run_queue_test(QueryPlan *, Ndb *, int v) {
   Queue<q_test_obj> q(n_loop_items);
   
   /* nothing there */

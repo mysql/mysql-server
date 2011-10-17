@@ -31,6 +31,7 @@
 #include "workitem.h"
 #include "Scheduler.h"
 #include "KeyPrefix.h"
+#include "ConnQueryPlanSet.h"
 
 
 /* 
@@ -42,7 +43,7 @@
 class Scheduler_stockholm : public Scheduler {
 public:
   Scheduler_stockholm() {};
-  ~Scheduler_stockholm();
+  ~Scheduler_stockholm() {};
   void init(int threadnum, int nthreads, const char *config_string);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
@@ -62,6 +63,7 @@ private:
       uint64_t commit_thread_vtime;
     } stats;      
     pthread_t commit_thread_id;
+    ConnQueryPlanSet * plan_set;
     NdbInstance **instances;
     int nInst;
     NdbInstance *nextFree;

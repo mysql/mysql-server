@@ -23,7 +23,7 @@
 #include "TabSeparatedValues.h"
 
 TabSeparatedValues::TabSeparatedValues(const char *string, Uint32 max_parts, size_t length) :
-  parts(0), index(0)
+  index(0), parts(0)
 {
   size_t parsed_len = 0;
 

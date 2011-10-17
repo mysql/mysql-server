@@ -49,7 +49,11 @@ Record::~Record() {
 void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
   assert(index < ncolumns);
 
-  /* place the index correctly into the columns array */
+  /* The "column map" is an array that maps a specifier like 
+     "COL_STORE_VALUE + 1" (the second value column) or 
+     "COL_STORE_CAS" (the cas column) 
+      to that column's index in the record. 
+  */
   switch(col_type) {
     case COL_STORE_KEY:
       map[COL_STORE_KEY + nkeys++] = index;
@@ -68,10 +72,21 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
     default:
       assert("Bad column type" == 0);
   }
-
-  /* Build the Record Specification */
+  
+  /* Link to the Dictionary Column */
   specs[index].column = column;
-  specs[index].offset = rec_size;  /* use the current record size */
+
+  /* Link to the correct DataTypeHandler */
+  handlers[index] = getDataTypeHandlerForColumn(column);
+    
+  /* If the data type requires alignment, insert some padding.
+     This call will alter rec_size if needed */
+  pad_offset_for_alignment();
+
+  /* The current record size is the offset of this column */
+  specs[index].offset = rec_size;  
+
+  /* Set nullbits in the record specification */
   if(column->getNullable()) {
     specs[index].nullbit_byte_offset = n_nullable / 8;
     specs[index].nullbit_bit_in_byte = n_nullable % 8;
@@ -82,12 +97,11 @@ void Record::addColumn(short col_type, const NdbDictionary::Column *column) {
     specs[index].nullbit_bit_in_byte = 0;
   }
 
-  /* Link in the correct DataTypeHandler */
-  handlers[index] = getDataTypeHandlerForColumn(column);
-
   /* Increment the counter and record size */
   index += 1;
-  rec_size += getColumnRecordSize(column);
+
+//  rec_size += getColumnRecordSize(column);
+  rec_size += column->getSizeInBytes();
 };
 
 
@@ -128,9 +142,9 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
 
 
 bool Record::complete(NdbDictionary::Dictionary *dict, 
-                      const NdbDictionary::Index *index) {                       
+                      const NdbDictionary::Index *ndb_index) {                       
   build_null_bitmap();
-  ndb_record = dict->createRecord(index, specs, ncolumns, sizeof(specs[0]));
+  ndb_record = dict->createRecord(ndb_index, specs, ncolumns, sizeof(specs[0]));
 
   if(!ndb_record) {
     logger->log(LOG_WARNING, 0, "createRecord() failure: %s\n",
@@ -153,11 +167,13 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
 */
 bool Record::appendCRLF(int id, size_t len, char *buffer) const {
   int idx = map[id];
-  if(   handlers[idx]->contains_string 
-     && handlers[idx]->writeToNdb(specs[idx].column, 2, len, "\r\n", buffer) 
-     >= 0)
-  {
-    return true; 
+  int length_bytes = handlers[idx]->contains_string;
+
+if(length_bytes) {
+    size_t offset = len + length_bytes - 1;  /* see DataTypeHandler.h */
+    buffer[offset]   = '\r';
+    buffer[offset+1] = '\n';
+    return true;
   }
   return false;
 }
@@ -193,9 +209,9 @@ size_t Record::decodeCopy(int id, char *dest, char *src) const {
 
 
 int Record::getIntValue(int id, char *data) const {
-  int index = map[id];
-  NumericHandler * h = handlers[index]->native_handler;
-  const char * buffer = data + specs[index].offset;
+  int idx = map[id];
+  NumericHandler * h = handlers[idx]->native_handler;
+  const char * buffer = data + specs[idx].offset;
   int i = 0;
   
   if(h) {
@@ -203,61 +219,61 @@ int Record::getIntValue(int id, char *data) const {
   }
   else {
     logger->log(LOG_WARNING, 0, "getIntValue() failed for column %s - "
-                "unsupported column type.", specs[index].column->getName());
+                "unsupported column type.", specs[idx].column->getName());
   }
   return i;
 }
 
 
 bool Record::setIntValue(int id, int value, char *data) const {
-  int index = map[id];
-  NumericHandler * h = handlers[index]->native_handler;
-  const char * buffer = data + specs[index].offset;
-  int i = 0;
+  int idx = map[id];
+  NumericHandler * h = handlers[idx]->native_handler;
+  char * buffer = data + specs[idx].offset;
   
   if(h) {
     return (h->write_int32(value,buffer) > 0);
   } 
   else {
     logger->log(LOG_WARNING, 0, "setIntValue() failed for column %s - "
-                "unsupported column type.", specs[index].column->getName());
+                "unsupported column type.", specs[idx].column->getName());
     return false;
   }
 }
 
 
 Uint64 Record::getUint64Value(int id, char *data) const {
-  int index = map[id];
-  const char * buffer = data + specs[index].offset;
+  int idx = map[id];
+  const char * buffer = data + specs[idx].offset;
 
-  if(specs[index].column->getType() != NdbDictionary::Column::Bigunsigned) {
+  if(specs[idx].column->getType() != NdbDictionary::Column::Bigunsigned) {
     logger->log(LOG_WARNING, 0, "Operation failed - column %s must be BIGINT UNSIGNED",
-                specs[index].column->getName());
+                specs[idx].column->getName());
     return 0;
   }
   
-  return * ((Uint64 *) buffer);
+  LOAD_FOR_ARCHITECTURE(Uint64, value, buffer);
+  return value;
 }
 
 
 bool Record::setUint64Value(int id, Uint64 value, char *data) const {
-  int index = map[id];
-  const char * buffer = data + specs[index].offset;
-  Uint64 i = 0;
+  int idx = map[id];
+  char * buffer = data + specs[idx].offset;
 
-  if(specs[index].column->getType() != NdbDictionary::Column::Bigunsigned) {
+  if(specs[idx].column->getType() != NdbDictionary::Column::Bigunsigned) {
     logger->log(LOG_WARNING, 0, "Operation failed - column %s must be BIGINT UNSIGNED",
-                specs[index].column->getName());
+                specs[idx].column->getName());
     return false;
   }
   
-  * ((Uint64 *) buffer) = value;
+  STORE_FOR_ARCHITECTURE(Uint64, value, buffer);
+  return true;
 }  
 
 
 int Record::encode(int id, const char *key, int nkey,
                    char *buffer) const {
-  return handlers[map[id]]->writeToNdb(specs[map[id]].column, nkey, 0, key, 
+  return handlers[map[id]]->writeToNdb(specs[map[id]].column, nkey, key, 
                                        buffer + specs[map[id]].offset);
 }
 
@@ -272,3 +288,36 @@ size_t Record::getStringifiedLength(char *data) const {
   return total;
 }
 
+
+void Record::pad_offset_for_alignment() {
+  int alignment = 1;
+  int bad_offset = 0;
+  
+  if(index == map[COL_STORE_CAS]) {  // CAS column requires 8-byte alignment
+    alignment = 8;
+  }
+  else if(! handlers[index]->contains_string) {
+     alignment = specs[index].column->getSizeInBytes();
+  }
+
+  switch(alignment) {
+    case 2: case 4: case 8:   /* insert padding */
+      bad_offset = rec_size % alignment;
+      if(bad_offset) 
+        rec_size += (alignment - bad_offset);
+      break;
+    default:
+      break;
+  }
+}
+
+
+void Record::debug_dump() {
+  for(int i = 0 ; i < ncolumns ; i++) {
+    DEBUG_PRINT("Col %d column  : %s %d/%d", i, specs[i].column->getName()
+                , specs[i].column->getSize(), specs[i].column->getSizeInBytes());
+    DEBUG_PRINT("Col %d offset  : %d", i, specs[i].offset);
+    DEBUG_PRINT("Col %d null bit: %d.%d", i,
+                specs[i].nullbit_byte_offset, specs[i].nullbit_bit_in_byte);
+  }
+}

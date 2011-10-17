@@ -1,20 +1,8 @@
-
---source suite/ndb_memcache/include/have_memcache.inc
-
 # Basic test of online reconfiguration
 
 
--- perl 
-# Wait for the server to be ready
-use lib "lib/";
-use My::Memcache;
-
-my $mc = My::Memcache->new();
-my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
-my $r = $mc->connect("localhost",$port);
-die unless($r);
-
-EOF
+--source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
 
 # 
 # Now change the configuration
@@ -43,7 +31,7 @@ my $mc = My::Memcache->new();
 my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
 my $r = $mc->connect("localhost",$port);
 
-my $cf_gen = $mc->wait_for_reconf(2);
+my $cf_gen = $mc->wait_for_reconf();
 
 if($cf_gen > 0) {
   $r = $mc->set("test_key_1", 1515);

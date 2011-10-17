@@ -497,6 +497,14 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   }
   
   initialiseRecordsLab(signal, 0, ref, senderData);
+
+  {
+    Uint32 val = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_CRASH_ON_CORRUPTED_TUPLE,
+                              &val);
+    c_crashOnCorruptedTuple = val ? true : false;
+  }
+
 }//Dbtup::execSIZEALT_REP()
 
 void Dbtup::initRecords() 

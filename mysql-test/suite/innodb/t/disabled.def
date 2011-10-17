@@ -9,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb_bug59641 : jonas 2010-10-15, started failing in spuriously in valgrind after 5.1.16 merge
+

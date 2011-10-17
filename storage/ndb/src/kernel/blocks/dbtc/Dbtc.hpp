@@ -157,9 +157,6 @@ public:
     CS_DISCONNECTED = 1,
     CS_STARTED = 2,
     CS_RECEIVING = 3,
-    CS_PREPARED = 4,
-    CS_START_PREPARING = 5,
-    CS_REC_PREPARING = 6,
     CS_RESTART = 7,
     CS_ABORTING = 8,
     CS_COMPLETING = 9,
@@ -1989,6 +1986,7 @@ private:
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, ApiConnectRecordPtr);
+  bool ndbinfo_write_trans(Ndbinfo::Row&, ApiConnectRecordPtr);
 
 #ifdef ERROR_INSERT
   bool testFragmentDrop(Signal* signal);

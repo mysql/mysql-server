@@ -56,19 +56,14 @@ public:
   BLOCK_DEFINES(LocalProxy);
 
 protected:
-  enum { MaxLqhWorkers = MAX_NDBMT_LQH_WORKERS };
-  enum { MaxExtraWorkers = 1 };
-  enum { MaxWorkers = MaxLqhWorkers + MaxExtraWorkers };
+  enum { MaxWorkers = SimulatedBlock::MaxInstances };
   typedef Bitmask<(MaxWorkers+31)/32> WorkerMask;
-  Uint32 c_lqhWorkers;
-  Uint32 c_extraWorkers;
   Uint32 c_workers;
   // no gaps - extra worker has index c_lqhWorkers (not MaxLqhWorkers)
   SimulatedBlock* c_worker[MaxWorkers];
 
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
   virtual void loadWorkers();
-  virtual void tc_loadWorkers();
 
   // get worker block by index (not by instance)
 
@@ -78,43 +73,22 @@ protected:
     return c_worker[i];
   }
 
-  SimulatedBlock* extraWorkerBlock() {
-    return workerBlock(c_lqhWorkers);
-  }
-
   // get worker block reference by index (not by instance)
 
   BlockReference workerRef(Uint32 i) {
     return numberToRef(number(), workerInstance(i), getOwnNodeId());
   }
 
-  BlockReference extraWorkerRef() {
-    ndbrequire(c_workers == c_lqhWorkers + 1);
-    Uint32 i = c_lqhWorkers;
-    return workerRef(i);
-  }
-
   // convert between worker index and worker instance
 
   Uint32 workerInstance(Uint32 i) const {
     ndbrequire(i < c_workers);
-    Uint32 ino;
-    if (i < c_lqhWorkers)
-      ino = 1 + i;
-    else
-      ino = 1 + MaxLqhWorkers;
-    return ino;
+    return i + 1;
   }
 
   Uint32 workerIndex(Uint32 ino) const {
     ndbrequire(ino != 0);
-    Uint32 i;
-    if (ino != 1 + MaxLqhWorkers)
-      i = ino - 1;
-    else
-      i = c_lqhWorkers;
-    ndbrequire(i < c_workers);
-    return i;
+    return ino - 1;
   }
 
   // support routines and classes ("Ss" = signal state)
@@ -161,14 +135,10 @@ protected:
   // run workers in parallel
   struct SsParallel : SsCommon {
     WorkerMask m_workerMask;
-    bool m_extraLast;   // run extra after LQH workers
-    Uint32 m_extraSent;
     SsParallel() {
-      m_extraLast = false;
-      m_extraSent = 0;
     }
   };
-  void sendREQ(Signal*, SsParallel& ss);
+  void sendREQ(Signal*, SsParallel& ss, bool skipLast = false);
   void recvCONF(Signal*, SsParallel& ss);
   void recvREF(Signal*, SsParallel& ss, Uint32 error);
   // for use in sendREQ
