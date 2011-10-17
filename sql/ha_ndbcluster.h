@@ -682,7 +682,7 @@ class ha_ndbcluster: public handler
   int ndb_update_row(const uchar *old_data, uchar *new_data,
                      int is_bulk_update);
 
-  static Thd_ndb* seize_thd_ndb();
+  static Thd_ndb* seize_thd_ndb(THD*);
   static void release_thd_ndb(Thd_ndb* thd_ndb);
  
 static void set_dbname(const char *pathname, char *dbname);

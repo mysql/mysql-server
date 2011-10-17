@@ -1762,7 +1762,19 @@ public:
   /* Get/Set per-Ndb custom data pointer */
   void setCustomData(void*);
   void* getCustomData() const;
-  
+
+  /* Get/Set per-Ndb custom data pointer */
+  /* NOTE: shares storage with void*
+   * i.e can not be used together with setCustomData
+   */
+  void setCustomData64(Uint64);
+  Uint64 getCustomData64() const;
+
+  /**
+   * transid next startTransaction() on this ndb-object will get
+   */
+  Uint64 getNextTransactionId() const;
+
   /* Some client behaviour counters to assist
    * optimisation
    */
