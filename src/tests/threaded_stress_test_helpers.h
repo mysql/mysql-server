@@ -566,20 +566,22 @@ static int create_table(DB_ENV **env_res, DB **db_res,
                         u_int32_t cachesize,
                         u_int32_t checkpointing_period,
                         u_int32_t pagesize,
-                        u_int32_t readpagesize) {
+                        u_int32_t readpagesize,
+                        char *envdir) {
     int r;
 
-    r = system("rm -rf " ENVDIR);
+    char rmcmd[32 + strlen(envdir)]; sprintf(rmcmd, "rm -rf %s", envdir);
+    r = system(rmcmd);
     CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
-    r=env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
     r = env->set_cachesize(env, 0, cachesize, 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->checkpointing_set_period(env, checkpointing_period);
     CKERR(r);
 
@@ -658,19 +660,20 @@ static int open_table(DB_ENV **env_res, DB **db_res,
                       int (*bt_compare)(DB *, const DBT *, const DBT *),
                       u_int64_t cachesize,
                       u_int32_t checkpointing_period,
-                      test_update_callback_f f) {
+                      test_update_callback_f f,
+                      char *envdir) {
     int r;
 
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
-    r=env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
     env->set_update(env, f);
     // set the cache size to 10MB
     r = env->set_cachesize(env, cachesize / (1 << 30), cachesize % (1 << 30), 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
-    r=env->open(env, ENVDIR, DB_RECOVER|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->open(env, envdir, DB_RECOVER|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->checkpointing_set_period(env, checkpointing_period);
     CKERR(r);
 
@@ -706,6 +709,7 @@ struct cli_args {
     test_update_callback_f update_function;
     bool do_test_and_crash;
     bool do_recover;
+    char *envdir;
 };
 
 static const struct cli_args DEFAULT_ARGS = {
@@ -721,7 +725,8 @@ static const struct cli_args DEFAULT_ARGS = {
     .num_ptquery_threads = 1,
     .update_function = update_op_callback,
     .do_test_and_crash = false,
-    .do_recover = false
+    .do_recover = false,
+    .envdir = ENVDIR,
 };
 
 static inline void parse_stress_test_args (int argc, char *const argv[], struct cli_args *args) {
@@ -749,43 +754,35 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             exit(resultcode);
         }
         else if (strcmp(argv[1], "--num_elements") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->num_elements = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--num_seconds") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->time_of_test = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--node_size") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->node_size = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--basement_node_size") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->basement_node_size = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--cachetable_size") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->cachetable_size = strtoll(argv[1], NULL, 0);
         }
         else if (strcmp(argv[1], "--checkpointing_period") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->checkpointing_period = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--update_broadcast_period") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->update_broadcast_period_ms = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--num_ptquery_threads") == 0) {
-            argc--;
-            argv++;
+            argc--; argv++;
             args->num_ptquery_threads = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--only_create") == 0) {
@@ -799,6 +796,10 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         }
         else if (strcmp(argv[1], "--recover") == 0) {
             args->do_recover = true;
+        }
+        else if (strcmp(argv[1], "--envdir") == 0 && argc > 1) {
+            argc--; argv++;
+            args->envdir = argv[1];
         }
         else {
             resultcode=1;
@@ -828,8 +829,8 @@ stress_test_main(struct cli_args *args)
             args->cachetable_size,
             args->checkpointing_period,
             args->node_size,
-            args->basement_node_size
-            );
+            args->basement_node_size,
+            args->envdir);
         CHK(fill_table_with_zeroes(db, args->num_elements));
         CHK(close_table(env, db));
     }
@@ -839,7 +840,8 @@ stress_test_main(struct cli_args *args)
                        int_dbt_cmp,
                        args->cachetable_size, //cachetable size
                        args->checkpointing_period, // checkpoint period
-                       args->update_function));
+                       args->update_function, 
+                       args->envdir));
         stress_table(env, &db, args);
         CHK(close_table(env, db));
     }
@@ -854,7 +856,8 @@ UU() stress_recover(struct cli_args *args) {
                    int_dbt_cmp,
                    args->cachetable_size, //cachetable size
                    args->checkpointing_period, // checkpoint period
-                   args->update_function));
+                   args->update_function, 
+                   args->envdir));
 
     DB_TXN* txn = NULL;    
     struct arg recover_args;
