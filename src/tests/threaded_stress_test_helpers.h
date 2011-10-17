@@ -73,6 +73,8 @@ static void *worker(void *arg_v) {
     DB_ENV *env = arg->env;
     DB** dbp = arg->dbp;
     DB_TXN *txn = NULL;
+    if (verbose)
+        printf("%lu starting %p\n", toku_pthread_self(), arg->operation);
     while (run_test) {
         if (arg->lock_type != STRESS_LOCK_NONE) {
             toku_pthread_mutex_lock(arg->broadcast_lock_mutex);
@@ -104,6 +106,8 @@ static void *worker(void *arg_v) {
             usleep(arg->sleep_ms * 1000);
         }
     }
+    if (verbose)
+        printf("%lu returning\n", toku_pthread_self());
     return arg;
 }
 
@@ -519,10 +523,14 @@ static void *test_time(void *arg) {
     // if num_Seconds is set to 0, run indefinitely
     //
     if (num_seconds != 0) {
-	if (verbose) printf("Sleeping for %d seconds\n", num_seconds);
+	if (verbose) 
+            printf("Sleeping for %d seconds\n", num_seconds);
         usleep(num_seconds*1000*1000);
-        if (verbose) printf("should now end test\n");
+        if (verbose) 
+            printf("should now end test\n");
         __sync_bool_compare_and_swap(&run_test, true, false); // make this atomic to make valgrind --tool=drd happy.
+        if (verbose) 
+            printf("run_test %d\n", run_test);
         if (tte->crash_at_end) {
             toku_hard_crash_on_purpose();
         }
@@ -546,16 +554,24 @@ static int run_workers(struct arg *thread_args, int num_threads, u_int32_t num_s
         thread_args[i].broadcast_lock = &rwlock;
         thread_args[i].broadcast_lock_mutex = &mutex;
         CHK(toku_pthread_create(&tids[i], NULL, worker, &thread_args[i]));
+        if (verbose) 
+            printf("%lu created\n", tids[i]);
     }
     CHK(toku_pthread_create(&time_tid, NULL, test_time, &tte));
+    if (verbose) 
+        printf("%lu created\n", time_tid);
 
     void *ret;
     r = toku_pthread_join(time_tid, &ret); assert_zero(r);
+    if (verbose) printf("%lu joined\n", time_tid);
     for (int i = 0; i < num_threads; ++i) {
         r = toku_pthread_join(tids[i], &ret); assert_zero(r);
+        if (verbose) 
+            printf("%lu joined\n", tids[i]);
     }
     rwlock_destroy(&rwlock);
-    if (verbose) printf("ending test, pthreads have joined\n");
+    if (verbose) 
+        printf("ending test, pthreads have joined\n");
     toku_pthread_mutex_destroy(&mutex);
     return r;
 }
