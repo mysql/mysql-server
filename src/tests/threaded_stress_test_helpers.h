@@ -733,7 +733,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
     const char *argv0=argv[0];
     while (argc>1) {
         int resultcode=0;
-        if (strcmp(argv[1], "-v")==0) {
+        if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--verbose") == 0) {
             verbose++;
         } 
         else if (strcmp(argv[1], "-q")==0) {
