@@ -1160,7 +1160,6 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
 {
   char bootstrap_cmd[FN_REFLEN];
   int error= 0;
-  int ret= 0;
 
 #ifdef __WIN__
   char *format_str= 0;
@@ -1196,7 +1195,7 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
   if (error)
     fprintf(stderr,
             "ERROR: Unexpected result from bootstrap. Error code: %d.\n",
-            ret);
+            error);
   
   return error;
 }
