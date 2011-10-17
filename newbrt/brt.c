@@ -785,10 +785,7 @@ void toku_brtnode_pe_est_callback(
             // first get an estimate for how much space will be taken 
             // after compression, it is simply the size of compressed
             // data on disk plus the size of the struct that holds it
-            u_int32_t compressed_data_size = 
-                ((i==0) ? 
-                    BP_OFFSET(node,i) : 
-                    (BP_OFFSET(node,i) - BP_OFFSET(node,i-1)));
+            u_int32_t compressed_data_size = BP_SIZE(node, i);
             compressed_data_size += sizeof(struct sub_block);
 
             // now get the space taken now
@@ -1207,7 +1204,6 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     n->childkeys = 0;
     n->bp = 0;
     n->n_children = num_children; 
-    n->bp_offset = 0;
 
     if (num_children > 0) {
         XMALLOC_N(num_children-1, n->childkeys);
@@ -1215,7 +1211,8 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
 	for (int i = 0; i < num_children; i++) {
             BP_BLOCKNUM(n,i).b=0;
             BP_STATE(n,i) = PT_INVALID;
-            BP_OFFSET(n,i) = 0;
+            BP_START(n,i) = 0;
+            BP_SIZE (n,i) = 0;
             BP_SUBTREE_EST(n,i) = zero_estimates;
 	    BP_WORKDONE(n,i) = 0;
             BP_INIT_TOUCHED_CLOCK(n, i);
@@ -1379,7 +1376,8 @@ static void
 init_childinfo(BRTNODE node, int childnum, BRTNODE child) {
     BP_BLOCKNUM(node,childnum) = child->thisnodename;
     BP_STATE(node,childnum) = PT_AVAIL;
-    BP_OFFSET(node,childnum) = 0;
+    BP_START(node,childnum) = 0;
+    BP_SIZE (node,childnum) = 0;
     BP_SUBTREE_EST(node,childnum) = zero_estimates;
     BP_WORKDONE(node, childnum)   = 0;
     set_BNC(node, childnum, toku_create_empty_nl());
@@ -1605,10 +1603,10 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
             REALLOC_N(num_children_in_b,   B->bp);
             B->n_children = num_children_in_b;
             for (int i = 0; i < num_children_in_b; i++) {
-                BP_STATE(B,i) = PT_AVAIL;
-                BP_OFFSET(B,i) = 0;
                 BP_BLOCKNUM(B,i).b = 0;
-                BP_SUBTREE_EST(B,i)= zero_estimates;
+                BP_STATE(B,i) = PT_AVAIL;
+		BP_START(B,i) = 0;
+                BP_SIZE(B,i) = 0;
                 BP_WORKDONE(B,i) = 0;
                 set_BLB(B, i, toku_create_empty_bn());
             }
@@ -1834,7 +1832,8 @@ handle_split_of_child (BRT UU(t), BRTNODE node, int childnum,
     BP_SUBTREE_EST(node,childnum+1) = zero_estimates;
     BP_WORKDONE(node, childnum+1)  = 0;
     BP_STATE(node,childnum+1) = PT_AVAIL;
-    BP_OFFSET(node,childnum+1) = 0;
+    BP_START(node,childnum+1) = 0;
+    BP_SIZE(node,childnum+1) = 0;
     fixup_child_estimates(node, childnum,   childa, TRUE);
     fixup_child_estimates(node, childnum+1, childb, TRUE);
 

@@ -202,6 +202,8 @@ serialize_node_header_size(BRTNODE node) {
     retval += sizeof(node->layout_version);
     retval += sizeof(node->layout_version_original);
     retval += 4; // BUILD_ID
+    retval += 4; // n_children
+    retval += node->n_children*8; // encode start offset and length of each partition
     retval += 4; // checksum
     return retval;
 }
@@ -216,6 +218,12 @@ serialize_node_header(BRTNODE node, struct wbuf *wbuf) {
     wbuf_nocrc_int(wbuf, node->layout_version);
     wbuf_nocrc_int(wbuf, node->layout_version_original);
     wbuf_nocrc_uint(wbuf, BUILD_ID);
+    wbuf_nocrc_int (wbuf, node->n_children);
+    for (int i=0; i<node->n_children; i++) {
+	assert(BP_SIZE(node,i)>0);
+	wbuf_nocrc_int(wbuf, BP_START(node, i)); // save the beginning of the partition
+        wbuf_nocrc_int(wbuf, BP_SIZE (node, i));         // and the size
+    }
     // checksum the header
     u_int32_t end_to_end_checksum = x1764_memory(wbuf->buf, wbuf_get_woffset(wbuf));
     wbuf_nocrc_int(wbuf, end_to_end_checksum);
@@ -375,25 +383,19 @@ serialize_brtnode_info_size(BRTNODE node)
     retval += 4; // nodesize
     retval += 4; // flags
     retval += 4; // height;
-    retval += 4; // n_children
     retval += (3*8+1)*node->n_children; // subtree estimates for each child
     retval += node->totalchildkeylens; // total length of pivots
     retval += (node->n_children-1)*4; // encode length of each pivot
     if (node->height > 0) {
         retval += node->n_children*8; // child blocknum's
     }
-    retval += node->n_children*4; // encode offset of each partition
     retval += 4; // checksum
     return retval;
 }
 
-static void
-serialize_brtnode_info(
-    BRTNODE node, 
-    SUB_BLOCK sb_parts, 
-    SUB_BLOCK sb // output
-    ) 
-{
+static void serialize_brtnode_info(BRTNODE node, 
+				   SUB_BLOCK sb // output
+				   ) {
     assert(sb->uncompressed_size == 0);
     assert(sb->uncompressed_ptr == NULL);
     sb->uncompressed_size = serialize_brtnode_info_size(node);
@@ -406,7 +408,6 @@ serialize_brtnode_info(
     wbuf_nocrc_uint(&wb, node->nodesize);
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
-    wbuf_nocrc_int (&wb, node->n_children);
     // subtree estimates of each child
     for (int i = 0; i < node->n_children; i++) {
         wbuf_nocrc_ulonglong(&wb, BP_SUBTREE_EST(node,i).nkeys);
@@ -425,18 +426,6 @@ serialize_brtnode_info(
         }
     }
 
-    // offsets to other partitions
-    u_int32_t curr_offset = 0;
-    for (int i = 0; i < node->n_children; i++) {
-        // TODO: (Zardosht) figure out if we want to put some padding to align partitions
-        curr_offset += sb_parts[i].compressed_size + 4; // data and checksum
-        //
-        // update the offset in the node
-        //
-        BP_OFFSET(node,i) = curr_offset;
-        wbuf_nocrc_int(&wb, curr_offset);
-    }
-    
     u_int32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
     wbuf_nocrc_int(&wb, end_to_end_checksum);
     invariant(wb.ndone == wb.size);
@@ -763,7 +752,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // Now lets create a sub-block that has the common node information,
     // This does NOT include the header
     //
-    serialize_brtnode_info(node, sb, &sb_node_info);
+    serialize_brtnode_info(node, &sb_node_info);
     compress_brtnode_sub_block(&sb_node_info);
 
     // now we have compressed each of our pieces into individual sub_blocks,
@@ -772,18 +761,16 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
 
     // The total size of the node is:
     // size of header + disk size of the n+1 sub_block's created above
-    u_int32_t total_node_size = 0;
-    total_node_size += serialize_node_header_size(node); //header
-
-    total_node_size += sb_node_info.compressed_size + 4; // total plus checksum
-    for (int i = 0; i < npartitions; i++) {
+    u_int32_t total_node_size = (serialize_node_header_size(node) // uncomrpessed header
+				 + sb_node_info.compressed_size   // compressed nodeinfo (without its checksum)
+				 + 4);                            // nodinefo's checksum
+    // store the BP_SIZESs
+    for (int i = 0; i < node->n_children; i++) {
+	u_int32_t len         = sb[i].compressed_size + 4; // data and checksum
+        BP_SIZE (node,i) = len;
+	BP_START(node,i) = total_node_size;
         total_node_size += sb[i].compressed_size + 4;
     }
-
-    //
-    // set the node bp_offset
-    //
-    node->bp_offset = serialize_node_header_size(node) + sb_node_info.compressed_size + 4;
 
     char *data = toku_xmalloc(total_node_size);
     char *curr_ptr = data;
@@ -1118,12 +1105,14 @@ deserialize_brtnode_info(
     node->nodesize = rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
     node->height = rbuf_int(&rb);
-    node->n_children = rbuf_int(&rb);
 
     // now create the basement nodes or childinfos, depending on whether this is a
     // leaf node or internal node    
     // now the subtree_estimates
-    XMALLOC_N(node->n_children, node->bp);
+
+    // n_children is now in the header, nd the allocatio of the node->bp is in deserialize_brtnode_from_rbuf.
+    assert(node->bp!=NULL); // 
+
     for (int i=0; i < node->n_children; i++) {
         SUBTREE_EST curr_se = &BP_SUBTREE_EST(node,i);
         curr_se->nkeys = rbuf_ulonglong(&rb);
@@ -1158,12 +1147,7 @@ deserialize_brtnode_info(
 	    BP_WORKDONE(node, i) = 0;
         }        
     }
-
-    // read the offsets
-    for (int i = 0; i < node->n_children; i++) {
-        BP_OFFSET(node,i) = rbuf_int(&rb);
-    }
-    
+ 
     // make sure that all the data was read
     if (data_size != rb.ndone) {
         dump_bad_block(rb.buf, rb.size);
@@ -1337,6 +1321,13 @@ deserialize_brtnode_from_rbuf(
     node->layout_version = node->layout_version_read_from_disk;
     node->layout_version_original = rbuf_int(rb);
     node->build_id = rbuf_int(rb);
+    node->n_children = rbuf_int(rb);
+    XMALLOC_N(node->n_children, node->bp);
+    // read the partition locations
+    for (int i=0; i<node->n_children; i++) {
+        BP_START(node,i) = rbuf_int(rb);
+        BP_SIZE (node,i) = rbuf_int(rb);
+    }
     // verify checksum of header stored
     checksum = x1764_memory(rb->buf, rb->ndone);
     stored_checksum = rbuf_int(rb);
@@ -1352,13 +1343,6 @@ deserialize_brtnode_from_rbuf(
     deserialize_brtnode_info(&sb_node_info, node);
     toku_free(sb_node_info.uncompressed_ptr);
 
-    //
-    // now that we have read and decompressed up until
-    // the start of the bp's, we can set the node->bp_offset
-    // so future partial fetches know where to get bp's
-    //
-    node->bp_offset = rb->ndone;
-
     // now that the node info has been deserialized, we can proceed to deserialize
     // the individual sub blocks
     assert(bfe->type == brtnode_fetch_none || bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_all || bfe->type == brtnode_fetch_prefetch);
@@ -1368,14 +1352,16 @@ deserialize_brtnode_from_rbuf(
     // for partitions staying compressed, create sub_block
     setup_brtnode_partitions(node,bfe);
 
-    for (int i = 0; i < node->n_children; i++) {
-        u_int32_t curr_offset = (i==0) ? 0 : BP_OFFSET(node,i-1);
-        u_int32_t curr_size = (i==0) ? BP_OFFSET(node,i) : (BP_OFFSET(node,i) - BP_OFFSET(node,i-1));
+    // Previously, this code was a for loop with spawns inside and a sync at the end.
+    // But now the loop is parallelizeable since we don't have a dependency on the work done so far.
+    cilk_for (int i = 0; i < node->n_children; i++) {
+        u_int32_t curr_offset = BP_START(node,i);
+        u_int32_t curr_size   = BP_SIZE(node,i);
         // the compressed, serialized partitions start at where rb is currently pointing,
         // which would be rb->buf + rb->ndone
         // we need to intialize curr_rbuf to point to this place
         struct rbuf curr_rbuf  = {.buf = NULL, .size = 0, .ndone = 0};
-        rbuf_init(&curr_rbuf, rb->buf + rb->ndone + curr_offset, curr_size);
+        rbuf_init(&curr_rbuf, rb->buf + curr_offset, curr_size);
 
         //
         // now we are at the point where we have:
@@ -1393,18 +1379,28 @@ deserialize_brtnode_from_rbuf(
         struct sub_block curr_sb;
         sub_block_init(&curr_sb);
 
-        //  case where we read and decompress the partition
+	// curr_rbuf is passed by value to decompress_and_deserialize_worker, so there's no ugly race condition.
+	// This would be more obvious if curr_rbuf were an array.
+
         // deserialize_brtnode_info figures out what the state
         // should be and sets up the memory so that we are ready to use it
-        if (BP_STATE(node,i) == PT_AVAIL) {
-            cilk_spawn decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, bfe->cmp_extra, bfe->cmp);
+
+	switch (BP_STATE(node,i)) {
+	case PT_AVAIL:
+	    //  case where we read and decompress the partition
+            decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, bfe->cmp_extra, bfe->cmp);
+	    continue;
+	case PT_COMPRESSED:
+	    // case where we leave the partition in the compressed state
+            check_and_copy_compressed_sub_block_worker(curr_rbuf, curr_sb, node, i);
+	    continue;
+	case PT_INVALID: // this is really bad
+	case PT_ON_DISK: // it's supposed to be in memory.
+	    assert(0);
+	    continue;
         }
-        // case where we leave the partition in the compressed state
-        else if (BP_STATE(node,i) == PT_COMPRESSED) {
-            cilk_spawn check_and_copy_compressed_sub_block_worker(curr_rbuf, curr_sb, node, i);
-        }
+	assert(0);
     }
-    cilk_sync;
     *brtnode = node;
     r = 0;
 cleanup:
@@ -1437,9 +1433,8 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
         &total_node_disk_size
         );
 
-    u_int32_t curr_offset = (childnum==0) ? 0 : BP_OFFSET(node,childnum-1);
-    curr_offset += node->bp_offset;
-    u_int32_t curr_size = (childnum==0) ? BP_OFFSET(node,childnum) : (BP_OFFSET(node,childnum) - BP_OFFSET(node,childnum-1));
+    u_int32_t curr_offset = BP_START(node, childnum);
+    u_int32_t curr_size   = BP_SIZE (node, childnum);
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
 
     u_int8_t *XMALLOC_N(curr_size, raw_block);
