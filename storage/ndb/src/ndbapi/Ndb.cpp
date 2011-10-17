@@ -2254,13 +2254,31 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
 void
 Ndb::setCustomData(void* _customDataPtr)
 {
-  theImpl->customDataPtr = _customDataPtr;
+  theImpl->customData = Uint64(_customDataPtr);
 }
 
 void*
 Ndb::getCustomData() const
 {
-  return theImpl->customDataPtr;
+  return (void*)theImpl->customData;
+}
+
+void
+Ndb::setCustomData64(Uint64 _customData)
+{
+  theImpl->customData = _customData;
+}
+
+Uint64
+Ndb::getCustomData64() const
+{
+  return theImpl->customData;
+}
+
+Uint64
+Ndb::getNextTransactionId() const
+{
+  return theFirstTransId;
 }
 
 Uint32
