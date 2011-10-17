@@ -18213,12 +18213,8 @@ struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 
-#include "ha_ndbinfo.h"
-
-extern struct st_mysql_sys_var* ndbinfo_system_variables[];
-
-struct st_mysql_storage_engine ndbinfo_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION };
+extern struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin;
+extern struct st_mysql_plugin ndbinfo_plugin;
 
 mysql_declare_plugin(ndbcluster)
 {
@@ -18236,21 +18232,9 @@ mysql_declare_plugin(ndbcluster)
   NULL,                       /* config options */
   0                           /* flags */
 },
-{
-  MYSQL_STORAGE_ENGINE_PLUGIN,
-  &ndbinfo_storage_engine,
-  "ndbinfo",
-  "Sun Microsystems Inc.",
-  "MySQL Cluster system information storage engine",
-  PLUGIN_LICENSE_GPL,
-  ndbinfo_init,               /* plugin init */
-  ndbinfo_deinit,             /* plugin deinit */
-  0x0001,                     /* plugin version */
-  NULL,                       /* status variables */
-  ndbinfo_system_variables,   /* system variables */
-  NULL,                       /* config options */
-  0                           /* flags */
-}
+ndbinfo_plugin, /* ndbinfo plugin */
+/* IS plugin table which maps between mysql connection id and ndb trans-id */
+i_s_ndb_transid_mysql_connection_map_plugin
 mysql_declare_plugin_end;
 
 #endif

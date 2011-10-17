@@ -737,7 +737,9 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
 
 handlerton* ndbinfo_hton;
 
-int ndbinfo_init(void *plugin)
+static
+int
+ndbinfo_init(void *plugin)
 {
   DBUG_ENTER("ndbinfo_init");
 
@@ -782,7 +784,9 @@ int ndbinfo_init(void *plugin)
   DBUG_RETURN(0);
 }
 
-int ndbinfo_deinit(void *plugin)
+static
+int
+ndbinfo_deinit(void *plugin)
 {
   DBUG_ENTER("ndbinfo_deinit");
 
@@ -805,6 +809,28 @@ struct st_mysql_sys_var* ndbinfo_system_variables[]= {
   MYSQL_SYSVAR(offline),
 
   NULL
+};
+
+struct st_mysql_storage_engine ndbinfo_storage_engine=
+{
+  MYSQL_HANDLERTON_INTERFACE_VERSION
+};
+
+struct st_mysql_plugin ndbinfo_plugin =
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbinfo_storage_engine,
+  "ndbinfo",
+  "Sun Microsystems Inc.",
+  "MySQL Cluster system information storage engine",
+  PLUGIN_LICENSE_GPL,
+  ndbinfo_init,               /* plugin init */
+  ndbinfo_deinit,             /* plugin deinit */
+  0x0001,                     /* plugin version */
+  NULL,                       /* status variables */
+  ndbinfo_system_variables,   /* system variables */
+  NULL,                       /* config options */
+  0
 };
 
 template class Vector<const NdbInfoRecAttr*>;

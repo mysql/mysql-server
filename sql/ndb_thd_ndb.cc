@@ -43,6 +43,10 @@ Thd_ndb::seize(THD* thd)
     delete thd_ndb;
     thd_ndb= NULL;
   }
+  else
+  {
+    thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
+  }
   DBUG_RETURN(thd_ndb);
 }
 
@@ -80,6 +84,10 @@ Thd_ndb::recycle_ndb(THD* thd)
                          ndb->getNdbError().code,
                          ndb->getNdbError().message));
     DBUG_RETURN(false);
+  }
+  else
+  {
+    ndb->setCustomData64(thd_get_thread_id(thd));
   }
   DBUG_RETURN(true);
 }
