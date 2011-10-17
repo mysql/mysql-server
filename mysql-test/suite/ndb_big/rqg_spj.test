@@ -28,8 +28,19 @@ create temporary table spj_counts_at_startup
 # If you want to reproduce an "run"
 #   add -s <seed value> to command below
 #
---echo Calling: $RUN_RQG -g spj_test.yy -t 3600
---exec $RUN_RQG -g spj_test.yy -t 3600
+# NOTE: CluB get unhappy if a testcase doesnt print for 1800 seconds
+#       So call program several times instead
+#       (having --exec print as it goes would also be nice...instead of
+#        just at the end)
+#
+let $cmd = $RUN_RQG -g spj_test.yy -t 600;
+--echo Calling: $cmd (6 times)
+--exec $cmd
+--exec $cmd
+--exec $cmd
+--exec $cmd
+--exec $cmd
+--exec $cmd
 
 drop database spj_myisam;
 drop database spj_ndb;
