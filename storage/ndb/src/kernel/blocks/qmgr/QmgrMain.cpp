@@ -4788,7 +4788,9 @@ void Qmgr::failReport(Signal* signal,
     if (ERROR_INSERTED(938))
     {
       nodeFailCount++;
-      ndbout_c("QMGR : execFAIL_REP : %u nodes have failed", nodeFailCount);
+      ndbout_c("QMGR : execFAIL_REP(Failed : %u Source : %u  Cause : %u) : "
+               "%u nodes have failed", 
+               aFailedNode, sourceNode, aFailCause, nodeFailCount);
       /* Count DB nodes */
       Uint32 nodeCount = 0;
       for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
@@ -6875,6 +6877,12 @@ Qmgr::execNODE_PINGCONF(Signal* signal)
                            ((m_connectivity_check.m_active)?"":"in"),
                            m_connectivity_check.m_currentRound);
     return;
+  }
+
+  if (ERROR_INSERTED(938))
+  {
+    ndbout_c("QMGR : execNODE_PING_CONF() from %u in tick %u",
+             sendersNodeId, m_connectivity_check.m_tick);
   }
 
   /* Node must have been pinged, we must be waiting for the response,

@@ -13343,17 +13343,12 @@ Dbtc::ndbinfo_write_trans(Ndbinfo::Row & row, ApiConnectRecordPtr transPtr)
     return false;
   }
 
-  char transid[64];
-  BaseString::snprintf(transid, sizeof(transid),
-                       "%.8x.%.8x",
-                       transPtr.p->transid[0],
-                       transPtr.p->transid[1]);
-
   row.write_uint32(getOwnNodeId());
   row.write_uint32(instance());   // block instance
   row.write_uint32(transPtr.i);
   row.write_uint32(transPtr.p->ndbapiBlockref);
-  row.write_string(transid);
+  row.write_uint32(transPtr.p->transid[0]);
+  row.write_uint32(transPtr.p->transid[1]);
   row.write_uint32(conState);
   row.write_uint32(transPtr.p->m_flags);
   row.write_uint32(transPtr.p->lqhkeyreqrec);
