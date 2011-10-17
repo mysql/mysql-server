@@ -67,8 +67,8 @@
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
-#define MAX_SORT_MEMORY 2048*1024
-#define MIN_SORT_MEMORY 32*1024
+#define MAX_SORT_MEMORY (2048U * 1024U)
+#define MIN_SORT_MEMORY (32U * 1024U)
 
 /* Some portable defines */
 

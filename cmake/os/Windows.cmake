@@ -84,7 +84,7 @@ IF(MSVC)
    CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
    CMAKE_CXX_FLAGS_DEBUG  CMAKE_CXX_FLAGS_DEBUG_INIT)
    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
-   SET("${flag}" "${${flag}} /EHcs")
+   SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()
   
   # Fix CMake's predefined huge stack size

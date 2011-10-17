@@ -33,7 +33,7 @@
 
 #include "m_string.h"                       /* LEX_STRING */
 #include "my_alloc.h"                       /* MEM_ROOT */
-#include "my_getopt.h"
+#include "my_getopt.h"                      /* my_option */
 
 class sys_var;
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};

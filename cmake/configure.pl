@@ -56,7 +56,7 @@ sub set_installdir
 
 # CMake understands CC and CXX env.variables correctly, if they  contain 1 or 2 tokens
 # e.g CXX=g++ and CXX="ccache g++" are ok. However it could have a problem if there
-# (recognizing ++) with more tokens ,e.g CXX="ccache g++ --pipe".
+# (recognizing g++) with more tokens ,e.g CXX="ccache g++ --pipe".
 # The problem is simply fixed by splitting compiler and flags, e.g
 # CXX="ccache g++ --pipe" => CXX=ccache g++ CXXFLAGS=--pipe
 

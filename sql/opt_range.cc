@@ -1052,7 +1052,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
 {
   keys_map= arg->keys_map;
   type= arg->type;
-  for (unsigned int idx= 0; idx < MAX_KEY; idx++)
+  for (uint idx= 0; idx < MAX_KEY; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
       keys[idx]->increment_use_count(1);
