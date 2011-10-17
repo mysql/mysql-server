@@ -2098,7 +2098,7 @@ int ndbcluster_log_schema_op(THD *thd,
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb)
   {
-    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb(thd)))
     {
       sql_print_error("Could not allocate Thd_ndb object");
       DBUG_RETURN(1);
@@ -6765,7 +6765,7 @@ restart_cluster_failure:
   int have_injector_mutex_lock= 0;
   do_ndbcluster_binlog_close_connection= BCCC_exit;
 
-  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb(thd)))
   {
     sql_print_error("Could not allocate Thd_ndb object");
     ndb_binlog_thread_running= -1;
