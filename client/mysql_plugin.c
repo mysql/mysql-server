@@ -1081,7 +1081,7 @@ static int build_bootstrap_file(char *operation, char *bootstrap)
   else
   {
     fprintf(file,
-            "DELETE FROM mysql.plugin WHERE name = '%s';", plugin_data.name);
+            "DELETE FROM mysql.plugin WHERE dl = '%s';", plugin_data.so_name);
     if (opt_verbose)
     {
       printf("# Disabling %s...\n", plugin_data.name);
