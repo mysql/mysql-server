@@ -1476,6 +1476,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REFRESH:
   {
     int not_used;
+#ifndef MCP_BUG13001491
+    /*
+      Initialize thd->lex since it's used in many base functions, such as
+      open_tables(). Otherwise, it remains unitialized and may cause crash
+      during execution of COM_REFRESH.
+    */
+    lex_start(thd);
+#endif
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
@@ -6978,7 +6986,18 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     if (ha_flush_logs(NULL))
       result=1;
     if (flush_error_log())
+#ifndef MCP_BUG13001491
+    {
+      /*
+        When flush_error_log() failed, my_error() has not been called.
+        So, we have to do it here to keep the protocol.
+      */
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      result= 1;
+    }
+#else
       result=1;
+#endif
   }
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
