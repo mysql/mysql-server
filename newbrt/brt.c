@@ -5687,8 +5687,7 @@ bnc_apply_messages_to_basement_node(
     OMT snapshot_txnids = logger ? logger->snapshot_txnids : NULL;
     OMT live_list_reverse = logger ? logger->live_list_reverse : NULL;
     MSN max_msn_applied = MIN_MSN;
-    // Temporary fix for #3976
-    if (true || toku_omt_size(bnc->broadcast_list) > 0) {
+    if (toku_omt_size(bnc->broadcast_list) > 0) {
         const int buffer_size = (stale_ube - stale_lbi) + (fresh_ube - fresh_lbi) + toku_omt_size(bnc->broadcast_list);
         long *XMALLOC_N(buffer_size, offsets);
 
@@ -5707,17 +5706,71 @@ bnc_apply_messages_to_basement_node(
         }
 
         toku_free(offsets);
-    } else {
+    } else if (stale_lbi == stale_ube) {
         struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .bn = bn, .se = se, .ancestor = ancestor, .childnum = childnum, .snapshot_txnids = snapshot_txnids, .live_list_reverse = live_list_reverse, .max_msn_applied = &max_msn_applied };
-        if (!bn->stale_ancestor_messages_applied) {
-            r = toku_omt_iterate_on_range(bnc->stale_message_tree, stale_lbi, stale_ube, iterate_do_brt_leaf_put_cmd, &iter_extra); assert_zero(r);
-        }
         struct iterate_do_brt_leaf_put_cmd_and_move_to_stale_extra iter_amts_extra = { .brt = t, .iter_extra = &iter_extra, .bnc = bnc };
         r = toku_omt_iterate_on_range(bnc->fresh_message_tree, fresh_lbi, fresh_ube, iterate_do_brt_leaf_put_cmd_and_move_to_stale, &iter_amts_extra); assert_zero(r);
+    } else if (fresh_lbi == fresh_ube) {
+        struct iterate_do_brt_leaf_put_cmd_extra iter_extra = { .t = t, .bn = bn, .se = se, .ancestor = ancestor, .childnum = childnum, .snapshot_txnids = snapshot_txnids, .live_list_reverse = live_list_reverse, .max_msn_applied = &max_msn_applied };
+        r = toku_omt_iterate_on_range(bnc->stale_message_tree, stale_lbi, stale_ube, iterate_do_brt_leaf_put_cmd, &iter_extra); assert_zero(r);
+    } else {
+        long *XMALLOC_N(fresh_ube - fresh_lbi, fresh_offsets_to_move);
+        u_int32_t stale_i = stale_lbi, fresh_i = fresh_lbi;
+        OMTVALUE stale_v, fresh_v;
+        r = toku_omt_fetch(bnc->stale_message_tree, stale_i, &stale_v); assert_zero(r);
+        r = toku_omt_fetch(bnc->fresh_message_tree, fresh_i, &fresh_v); assert_zero(r);
+        struct toku_fifo_entry_key_msn_cmp_extra extra = { .cmp_extra = t->db, .cmp = t->compare_fun, .fifo = bnc->buffer };
+        while (stale_i < stale_ube && fresh_i < fresh_ube) {
+            const long stale_offset = (long) stale_v;
+            const long fresh_offset = (long) fresh_v;
+            int c = toku_fifo_entry_key_msn_cmp(&extra, &stale_offset, &fresh_offset);
+            if (c < 0) {
+                const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
+                do_brt_leaf_put_cmd(t, bn, se, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, stale_entry);
+                stale_i++;
+                if (stale_i != stale_ube) {
+                    r = toku_omt_fetch(bnc->stale_message_tree, stale_i, &stale_v); assert_zero(r);
+                }
+            } else if (c > 0) {
+                fresh_offsets_to_move[fresh_i - fresh_lbi] = fresh_offset;
+                const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
+                do_brt_leaf_put_cmd(t, bn, se, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, fresh_entry);
+                fresh_i++;
+                if (fresh_i != fresh_ube) {
+                    r = toku_omt_fetch(bnc->fresh_message_tree, fresh_i, &fresh_v); assert_zero(r);
+                }
+            } else {
+                // there is a message in both trees
+                assert(false);
+            }
+        }
+        while (stale_i < stale_ube) {
+            const long stale_offset = (long) stale_v;
+            const struct fifo_entry *stale_entry = toku_fifo_get_entry(bnc->buffer, stale_offset);
+            do_brt_leaf_put_cmd(t, bn, se, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, stale_entry);
+            stale_i++;
+            if (stale_i != stale_ube) {
+                r = toku_omt_fetch(bnc->stale_message_tree, stale_i, &stale_v); assert_zero(r);
+            }
+        }
+        while (fresh_i < fresh_ube) {
+            const long fresh_offset = (long) fresh_v;
+            fresh_offsets_to_move[fresh_i - fresh_lbi] = fresh_offset;
+            const struct fifo_entry *fresh_entry = toku_fifo_get_entry(bnc->buffer, fresh_offset);
+            do_brt_leaf_put_cmd(t, bn, se, ancestor, childnum, snapshot_txnids, live_list_reverse, &max_msn_applied, fresh_entry);
+            fresh_i++;
+            if (fresh_i != fresh_ube) {
+                r = toku_omt_fetch(bnc->fresh_message_tree, fresh_i, &fresh_v); assert_zero(r);
+            }
+        }
+        for (u_int32_t i = 0; i < fresh_ube - fresh_lbi; ++i) {
+            r = move_to_stale((OMTVALUE) fresh_offsets_to_move[i], i + fresh_lbi, t, bnc); assert_zero(r);
+        }
+        toku_free(fresh_offsets_to_move);
     }
     // we can't delete things inside move_to_stale because that happens
     // inside an iteration, instead we have to delete from fresh after
-    for (unsigned int i = 0; i < fresh_ube - fresh_lbi; ++i) {
+    for (u_int32_t ube = fresh_ube; fresh_lbi < ube; --ube) {
         r = toku_omt_delete_at(bnc->fresh_message_tree, fresh_lbi); assert_zero(r);
     }
     if (max_msn_applied.msn > bn->max_msn_applied.msn) {
