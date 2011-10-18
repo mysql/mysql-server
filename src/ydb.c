@@ -3274,6 +3274,9 @@ locked_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT * key, YDB_CALLBACK_
     toku_ydb_lock();  int r = toku_c_getf_set_range_reverse(c, flag, key, f, extra); toku_ydb_unlock(); return r;
 }
 
+// Get a range lock.
+// Return when the range lock is acquired or the default lock tree timeout has expired.  
+// The ydb mutex must be held when called and may be released when waiting in the lock tree.
 static int
 get_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key, toku_lock_type lock_type) {
     int r;
@@ -3289,8 +3292,9 @@ get_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key, t
     return r;
 }
 
+// Setup and start an asynchronous lock request.
 static int
-get_range_lock_request(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key, toku_lock_type lock_type, toku_lock_request *lock_request) {
+start_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key, toku_lock_type lock_type, toku_lock_request *lock_request) {
     int r;
     DB_TXN *txn_anc = toku_txn_ancestor(txn);
     r = toku_txn_add_lt(txn_anc, db->i->lt);
@@ -3450,7 +3454,7 @@ c_del_callback(DBT const *key, DBT const *val, void *extra) {
 
     //Lock:
     //  left(key,val)==right(key,val) == (key, val);
-    r = get_range_lock_request(context->db, context->txn, key, key, LOCK_REQUEST_WRITE, &context->lock_request);
+    r = start_range_lock(context->db, context->txn, key, key, LOCK_REQUEST_WRITE, &context->lock_request);
 
     //Give brt-layer an error (if any) to return from toku_c_getf_current_binding
     return r;
@@ -3511,8 +3515,8 @@ c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, 
     if (context->do_locking) {
         const DBT *left_key = toku_lt_neg_infinity;
         const DBT *right_key = key != NULL ? &found_key : toku_lt_infinity;
-        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
-                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+        r = start_range_lock(context->db, context->txn, left_key, right_key, 
+                             context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
@@ -3564,8 +3568,8 @@ c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
     if (context->do_locking) {
         const DBT *left_key = key != NULL ? &found_key : toku_lt_neg_infinity;
         const DBT *right_key = toku_lt_infinity;
-        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
-                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+        r = start_range_lock(context->db, context->txn, left_key, right_key, 
+                             context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
@@ -3625,8 +3629,8 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         toku_brt_cursor_peek(context->c, &prevkey, &prevval);
         const DBT *left_key = prevkey;
         const DBT *right_key = key != NULL ? &found_key : toku_lt_infinity;
-        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
-                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+        r = start_range_lock(context->db, context->txn, left_key, right_key, 
+                             context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
@@ -3685,8 +3689,8 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         toku_brt_cursor_peek(context->c, &prevkey, &prevval);
         const DBT *left_key = key != NULL ? &found_key : toku_lt_neg_infinity;
         const DBT *right_key = prevkey;
-        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
-                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+        r = start_range_lock(context->db, context->txn, left_key, right_key, 
+                             context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
@@ -3793,8 +3797,8 @@ c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, vo
     //  left(key,val)  = (input_key, -infinity)
     //  right(key,val) = (input_key, found ? found_val : infinity)
     if (context->do_locking) {
-        r = get_range_lock_request(context->db, context->txn, super_context->input_key, super_context->input_key, 
-                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+        r = start_range_lock(context->db, context->txn, super_context->input_key, super_context->input_key, 
+                             context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
@@ -3851,8 +3855,8 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
     if (context->do_locking) {
         const DBT *left_key = super_context->input_key;
         const DBT *right_key = key != NULL ? &found_key : toku_lt_infinity;
-        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
-                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+        r = start_range_lock(context->db, context->txn, left_key, right_key, 
+                             context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
@@ -3909,8 +3913,8 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
     if (context->do_locking) {
         const DBT *left_key = key != NULL ? &found_key : toku_lt_neg_infinity;
         const DBT *right_key = super_context->input_key;
-        r = get_range_lock_request(context->db, context->txn, left_key, right_key, 
-                                   context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
+        r = start_range_lock(context->db, context->txn, left_key, right_key, 
+                             context->is_write_op ? LOCK_REQUEST_WRITE : LOCK_REQUEST_READ, &context->lock_request);
     } else 
         r = 0;
 
