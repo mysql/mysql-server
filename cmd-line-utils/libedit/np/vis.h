@@ -76,7 +76,6 @@
  * unvis flags
  */
 #define	UNVIS_END	_VIS_END	/* no more characters */
-#include <sys/cdefs.h>
 /* XXXMYSQL */
 #ifndef __RENAME
 #define __RENAME(x)
