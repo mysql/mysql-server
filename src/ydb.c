@@ -2229,7 +2229,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "upgrade_header                   %"PRIu64"\n", engstat.upgrade_header);
 	n += snprintf(buff + n, bufsiz - n, "upgrade_nonleaf                  %"PRIu64"\n", engstat.upgrade_nonleaf);
 	n += snprintf(buff + n, bufsiz - n, "upgrade_leaf                     %"PRIu64"\n", engstat.upgrade_leaf);
-	n += snprintf(buff + n, bufsiz - n, "optimized_for_upgrade_14         %"PRIu64"\n", engstat.optimized_for_upgrade);
+	n += snprintf(buff + n, bufsiz - n, "optimized_for_upgrade            %"PRIu64"\n", engstat.optimized_for_upgrade);
 	n += snprintf(buff + n, bufsiz - n, "original_ver                     %"PRIu64"\n", engstat.original_ver);
 	n += snprintf(buff + n, bufsiz - n, "ver_at_startup                   %"PRIu64"\n", engstat.ver_at_startup);
 	n += snprintf(buff + n, bufsiz - n, "last_lsn_v13                     %"PRIu64"\n", engstat.last_lsn_v13);

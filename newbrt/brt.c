@@ -1199,6 +1199,8 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     n->layout_version_original = layout_version;
     n->layout_version_read_from_disk = layout_version;
     n->height = height;
+    // TODO 3982
+    //    n->optimized_for_upgrade = 0;
     n->dirty = 1;
     n->totalchildkeylens = 0;
     n->childkeys = 0;
@@ -2315,7 +2317,8 @@ brt_leaf_put_cmd (
     }
     case BRT_OPTIMIZE_FOR_UPGRADE:
 	*made_change = 1;
-	bn->optimized_for_upgrade = *((uint32_t*)(cmd->u.id.val->data)); // record version of software that sent the optimize_for_upgrade message
+	// TODO 4053: Record version of software that sent the optimize_for_upgrade message, but that goes in the
+	//       node's optimize_for_upgrade field, not in the basement.
 	// fall through so that optimize_for_upgrade performs rest of the optimize logic
     case BRT_COMMIT_BROADCAST_ALL:
     case BRT_OPTIMIZE:
@@ -4147,7 +4150,8 @@ brt_init_header_partial (BRT t, TOKUTXN txn) {
     t->h->cf = t->cf;
     t->h->nodesize=t->nodesize;
     t->h->basementnodesize=t->basementnodesize;
-    t->h->num_blocks_to_upgrade = 0;
+    t->h->num_blocks_to_upgrade_13 = 0;
+    t->h->num_blocks_to_upgrade_14 = 0;
     t->h->root_xid_that_created = txn ? txn->ancestor_txnid64 : TXNID_NONE;
 
     compute_and_fill_remembered_hash(t);

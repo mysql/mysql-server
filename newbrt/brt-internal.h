@@ -330,6 +330,8 @@ struct brtnode {
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
     u_int32_t fullhash;
+    //    TODO 3982
+    //    uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
     int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
                     // for leaf nodes, represents number of basement nodes
     unsigned int    totalchildkeylens;
@@ -460,7 +462,8 @@ struct brt_header {
     uint64_t time_of_creation;          // time this tree was created
     uint64_t time_of_last_modification; // last time this header was serialized to disk (read from disk, overwritten when written to disk)
     BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
-    int64_t num_blocks_to_upgrade;      // Number of v13 blocks still not newest version. When we release layout 15 we may need to turn this to an array or add more variables.  
+    int64_t num_blocks_to_upgrade_13;   // Number of v13 blocks still not newest version. 
+    int64_t num_blocks_to_upgrade_14;   // Number of v14 blocks still not newest version. 
     unsigned int nodesize;
     unsigned int basementnodesize;
     BLOCKNUM root;            // roots of the dictionary
