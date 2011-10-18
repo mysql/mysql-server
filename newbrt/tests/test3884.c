@@ -62,6 +62,7 @@ test_split_on_boundary(void)
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
+    sn.optimized_for_upgrade = 1324;
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize;
     sn.dirty = 1;
@@ -77,7 +78,6 @@ test_split_on_boundary(void)
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
-        BLB_OPTIMIZEDFORUPGRADE(&sn, bn) = BRT_LAYOUT_VERSION;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;
@@ -144,6 +144,7 @@ test_split_with_everything_on_the_left(void)
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
+    sn.optimized_for_upgrade = 1324;
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize + 1;
     sn.dirty = 1;
@@ -161,7 +162,6 @@ test_split_with_everything_on_the_left(void)
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
-        BLB_OPTIMIZEDFORUPGRADE(&sn, bn) = BRT_LAYOUT_VERSION;
         long k;
         if (bn < sn.n_children - 1) {
             for (int i = 0; i < eltsperbn; ++i) {
@@ -238,6 +238,7 @@ test_split_on_boundary_of_last_node(void)
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
+    sn.optimized_for_upgrade = 1324;
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize + 1;
     sn.dirty = 1;
@@ -255,7 +256,6 @@ test_split_on_boundary_of_last_node(void)
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
-        BLB_OPTIMIZEDFORUPGRADE(&sn, bn) = BRT_LAYOUT_VERSION;
         long k;
         if (bn < sn.n_children - 1) {
             for (int i = 0; i < eltsperbn; ++i) {
@@ -332,6 +332,7 @@ test_split_at_begin(void)
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
+    sn.optimized_for_upgrade = 1324;
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize;
     sn.dirty = 1;
@@ -348,7 +349,6 @@ test_split_at_begin(void)
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
-        BLB_OPTIMIZEDFORUPGRADE(&sn, bn) = BRT_LAYOUT_VERSION;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;
@@ -430,6 +430,7 @@ test_split_at_end(void)
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
+    sn.optimized_for_upgrade = 1324;
     const int nelts = 2 * nodesize / eltsize;
     sn.n_children = nelts * eltsize / bnsize;
     sn.dirty = 1;
@@ -446,7 +447,6 @@ test_split_at_end(void)
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
-        BLB_OPTIMIZEDFORUPGRADE(&sn, bn) = BRT_LAYOUT_VERSION;
         long k;
         for (int i = 0; i < eltsperbn; ++i) {
             k = bn * eltsperbn + i;

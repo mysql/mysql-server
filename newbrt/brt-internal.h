@@ -415,7 +415,6 @@ static inline void set_BSB(BRTNODE node, int i, SUB_BLOCK sb) {
 }
 
 // brtnode leaf basementnode macros, 
-#define BLB_OPTIMIZEDFORUPGRADE(node,i) (BLB(node,i)->optimized_for_upgrade)
 #define BLB_MAX_MSN_APPLIED(node,i) (BLB(node,i)->max_msn_applied)
 #define BLB_MAX_DSN_APPLIED(node,i) (BLB(node,i)->max_dsn_applied)
 #define BLB_BUFFER(node,i) (BLB(node,i)->buffer)
