@@ -57,7 +57,6 @@
 
 #include "config.h"
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 #endif /* LIBC_SCCS and not lint */
 
