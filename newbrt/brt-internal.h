@@ -330,8 +330,7 @@ struct brtnode {
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
     u_int32_t fullhash;
-    //    TODO 3982
-    //    uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
+    uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
     int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
                     // for leaf nodes, represents number of basement nodes
     unsigned int    totalchildkeylens;

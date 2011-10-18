@@ -383,7 +383,7 @@ serialize_brtnode_info_size(BRTNODE node)
     retval += 4; // nodesize
     retval += 4; // flags
     retval += 4; // height;
-    //    retval += 4; // optimized_for_upgrade      TODO 3982
+    retval += 4; // optimized_for_upgrade
     retval += (3*8+1)*node->n_children; // subtree estimates for each child
     retval += node->totalchildkeylens; // total length of pivots
     retval += (node->n_children-1)*4; // encode length of each pivot
@@ -409,7 +409,7 @@ static void serialize_brtnode_info(BRTNODE node,
     wbuf_nocrc_uint(&wb, node->nodesize);
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
-    // TODO 3982   wbuf_nocrc_int (&wb, node->optimized_for_upgrade);    
+    wbuf_nocrc_int (&wb, node->optimized_for_upgrade);    
     // subtree estimates of each child
     for (int i = 0; i < node->n_children; i++) {
         wbuf_nocrc_ulonglong(&wb, BP_SUBTREE_EST(node,i).nkeys);
@@ -1107,7 +1107,7 @@ deserialize_brtnode_info(
     node->nodesize = rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
     node->height = rbuf_int(&rb);
-    //    node->optimized_for_upgrade = rbuf_int(&rb);          TODO 3982
+    node->optimized_for_upgrade = rbuf_int(&rb);
 
     // now create the basement nodes or childinfos, depending on whether this is a
     // leaf node or internal node    

@@ -135,6 +135,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" thisnodename=%" PRId64 "\n", n->thisnodename.b);
     //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
+    printf(" optimized_for_upgrade = %u", n->optimized_for_upgrade);
     printf(" layout_version=%d\n", n->layout_version);
     printf(" layout_version_original=%d\n", n->layout_version_original);
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
