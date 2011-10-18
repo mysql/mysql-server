@@ -1743,11 +1743,10 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
   uint i, j, k;
   uint new_column_count, column_count, not_null;
   enum enum_dyncol_func_result rc;
-  int header_delta, header_delta_sign, data_delta_sign;
+  int header_delta;
   size_t offset_size, entry_size, header_size, data_size;
   size_t new_offset_size, new_entry_size, new_header_size, new_data_size;
   size_t max_offset;
-  my_bool copy;
 
   if (add_column_count == 0)
     return ER_DYNCOL_OK;
@@ -1878,7 +1877,7 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
 
       if (plan[i].val->type == DYN_COL_NULL)
       {
-        plan[i].act= PLAN_NOP;           	/* Mark entry to be skiped */
+        plan[i].act= PLAN_NOP;                  /* Mark entry to be skiped */
       }
       else
       {
@@ -1915,17 +1914,17 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
     goto end;
   }
 
+#ifdef NOT_IMPLEMENTED
   /* if (new_offset_size != offset_size) then we have to rewrite header */
   header_delta_sign= new_offset_size - offset_size;
   data_delta_sign= 0;
-  copy= FALSE;
   for (i= 0; i < add_column_count; i++)
   {
     /* This is the check for increasing/decreasing */
     DELTA_CHECK(header_delta_sign, plan[i].hdelta, copy);
     DELTA_CHECK(data_delta_sign, plan[i].ddelta, copy);
   }
-
+#endif
   calc_param(&new_entry_size, &new_header_size,
              new_offset_size, new_column_count);
 

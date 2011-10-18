@@ -1636,7 +1636,8 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                                          uint *buffer_size, COST_VECT *cost)
 {
   ulong max_buff_entries, elem_size;
-  ha_rows rows_in_full_step, rows_in_last_step;
+  ha_rows rows_in_full_step;
+  ha_rows rows_in_last_step;
   uint n_full_steps;
   double index_read_cost;
 
@@ -1661,7 +1662,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   /* Adjust buffer size if we expect to use only part of the buffer */
   if (n_full_steps)
   {
-    get_sort_and_sweep_cost(table, rows, cost);
+    get_sort_and_sweep_cost(table, rows_in_full_step, cost);
     cost->multiply(n_full_steps);
   }
   else

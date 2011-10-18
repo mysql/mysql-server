@@ -3301,7 +3301,7 @@ static
 void
 btr_record_not_null_field_in_rec(
 /*=============================*/
-	rec_t*		rec,		/*!< in: physical record */
+	rec_t*		rec __attribute__ ((unused)),/*!< in: physical record */
 	ulint		n_unique,	/*!< in: dict_index_get_n_unique(index),
 					number of columns uniquely determine
 					an index entry */
@@ -3321,9 +3321,8 @@ btr_record_not_null_field_in_rec(
 
 	for (i = 0; i < n_unique; i++) {
 		ulint	rec_len;
-		byte*	field;
 
-		field = rec_get_nth_field(rec, offsets, i, &rec_len);
+		rec_get_nth_field_offs(offsets, i, &rec_len);
 
 		if (rec_len != UNIV_SQL_NULL) {
 			n_not_null[i]++;

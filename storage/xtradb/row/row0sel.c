@@ -4396,7 +4396,7 @@ no_gap_lock:
 idx_cond_check:
 	if (prebuilt->idx_cond_func) {
 		int res;
-                ibool ib_res;
+                ibool ib_res __attribute__ ((unused));
 		ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
 		offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 		ib_res= row_sel_store_mysql_rec(buf, prebuilt, rec, FALSE,

@@ -703,7 +703,7 @@ static int sphinx_done_func ( void * )
 		pthread_mutex_destroy ( &sphinx_mutex );
 	}
 
-	SPH_RET(0);
+	SPH_RET(error);
 }
 
 

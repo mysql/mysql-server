@@ -87,7 +87,7 @@ xtPublic void xt_lock_installation(XTThreadPtr self, char *installation_path)
 	char			file_path[PATH_MAX];
 	char			buffer[101];
 	size_t			red_size;
-	llong			pid;
+	llong			pid __attribute__ ((unused));
 	xtBool			cd = pbxt_crash_debug;
 
 	xt_strcpy(PATH_MAX, file_path, installation_path);

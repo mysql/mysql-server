@@ -5810,7 +5810,6 @@ Item* Item_equal::get_first(Item *field_item)
 {
   Item_equal_fields_iterator it(*this);
   Item *item;
-  JOIN_TAB *field_tab;
   if (!field_item)
     return (it++);
   Field *field= ((Item_field *) (field_item->real_item()))->field;
@@ -5834,8 +5833,6 @@ Item* Item_equal::get_first(Item *field_item)
     eliminate_item_equal() also has code that deals with equality substitution
     in presense of SJM nests.
   */
-
-  field_tab= field->table->reginfo.join_tab;
 
   TABLE_LIST *emb_nest= field->table->pos_in_table_list->embedding;
 
