@@ -782,7 +782,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
-    //    TODO: WHY DOES THIS FAIL???  assert(dn->optimized_for_upgrade = 1234);
+    assert(dn->optimized_for_upgrade == 1234);
     assert(dn->n_children>0);
     {
         const u_int32_t npartitions = dn->n_children;
