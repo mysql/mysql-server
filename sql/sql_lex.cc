@@ -3116,9 +3116,9 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    AND/OR trees.
     We also save the chain of ORDER::next in group_list, in case
     the list is modified by remove_const().
-    AND/OR trees.
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
 */
