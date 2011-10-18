@@ -4028,15 +4028,15 @@ and new_count.counter_name <> 'LOCAL_READS_SENT'
        and new_count.counter_name <> 'REMOTE_READS_SENT';
 counter_name	new_count.val - old_count.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	0
-LOCAL_RANGE_SCANS_SENT	2
+LOCAL_RANGE_SCANS_SENT	0
 LOCAL_TABLE_SCANS_SENT	2
 PRUNED_RANGE_SCANS_RECEIVED	0
-RANGE_SCANS_RECEIVED	2
-READS_NOT_FOUND	2
+RANGE_SCANS_RECEIVED	0
+READS_NOT_FOUND	1
 READS_RECEIVED	1
 REMOTE_RANGE_SCANS_SENT	0
-SCAN_BATCHES_RETURNED	4
-SCAN_ROWS_RETURNED	8
+SCAN_BATCHES_RETURNED	2
+SCAN_ROWS_RETURNED	5
 TABLE_SCANS_RECEIVED	2
 select 'READS_SENT', sum(new_count.val - old_count.val) 
 from new_count, old_count 
@@ -4044,7 +4044,7 @@ where new_count.counter_name = old_count.counter_name
 and (new_count.counter_name = 'LOCAL_READS_SENT'
        or new_count.counter_name = 'REMOTE_READS_SENT');
 READS_SENT	sum(new_count.val - old_count.val)
-READS_SENT	7
+READS_SENT	5
 drop table old_count;
 drop table new_count;
 drop table t1;
@@ -4191,7 +4191,7 @@ select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t
 count(*)
 1
 pruned_scan_count
-2
+0
 explain extended select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	PRIMARY,i2	i2	8	NULL	6	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` = 10) and ((`test`.`t1`.`b` < 11) or (`test`.`t1`.`b` > 11)))
@@ -4202,7 +4202,7 @@ select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t
 count(*)
 1
 pruned_scan_count
-2
+1
 drop table t1;
 create table t2(
 d int not null,
@@ -5487,21 +5487,21 @@ counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
 LOCAL_TABLE_SCANS_SENT	250
 PRUNED_RANGE_SCANS_RECEIVED	25
-RANGE_SCANS_RECEIVED	733
-READS_RECEIVED	58
+RANGE_SCANS_RECEIVED	703
+READS_RECEIVED	53
 TABLE_SCANS_RECEIVED	250
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count_derived
 1.0
 pruned_scan_count
-11
+8
 sorted_scan_count
-40
+34
 pushed_queries_defined
 401
 pushed_queries_dropped
-12
+6
 pushed_queries_executed
-552
+529
 set ndb_join_pushdown = @save_ndb_join_pushdown;

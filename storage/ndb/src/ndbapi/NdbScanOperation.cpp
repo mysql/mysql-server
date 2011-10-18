@@ -3445,6 +3445,20 @@ NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
   return 0;
 }
 
+
+int
+NdbIndexScanOperation::getCurrentKeySize()
+{
+  if (unlikely((theStatus != NdbOperation::UseNdbRecord)))
+  {
+    setErrorCodeAbort(4284);
+    /* Cannot mix NdbRecAttr and NdbRecord methods in one operation */
+    return -1;
+  }
+  return theTupKeyLen;
+}
+
+
 /* IndexScan readTuples - part of old scan API
  * This call does the minimum amount of validation and state
  * storage possible.  Most of the scan initialisation is done

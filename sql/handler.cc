@@ -3322,8 +3322,6 @@ err:
 */
 uint handler::get_dup_key(int error)
 {
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type != F_UNLCK);
   DBUG_ENTER("handler::get_dup_key");
 #ifndef MCP_BUG59948
   if (table == NULL || table->file == NULL)
@@ -3338,6 +3336,8 @@ uint handler::get_dup_key(int error)
     DBUG_RETURN(-1);
   }
 #endif
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||

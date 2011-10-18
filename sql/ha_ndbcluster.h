@@ -345,19 +345,28 @@ class ha_ndbcluster: public handler
                               uchar* buf);
   int read_range_next();
 
-#ifndef NDB_WITH_NEW_MRR_INTERFACE
   /**
-   * Multi range stuff
+   * Multi Range Read interface
    */
-  int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                             KEY_MULTI_RANGE*ranges, uint range_count,
-                             bool sorted, HANDLER_BUFFER *buffer);
-  int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
-  bool null_value_index_search(KEY_MULTI_RANGE *ranges,
-			       KEY_MULTI_RANGE *end_range,
-			       HANDLER_BUFFER *buffer);
-#endif
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
+  ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                      void *seq_init_param, 
+                                      uint n_ranges, uint *bufsz,
+                                      uint *flags, COST_VECT *cost);
+  ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                uint *bufsz, uint *flags, COST_VECT *cost);
+private:
+  uint first_running_range;
+  uint first_range_in_batch;
+  uint first_unstarted_range;
+  /* TRUE <=> need range association */
+  bool mrr_need_range_assoc;
 
+  int multi_range_start_retrievals(uint first_range);
+
+public:
   bool get_error_message(int error, String *buf);
   ha_rows records();
   ha_rows estimate_rows_upper_bound()
@@ -806,7 +815,8 @@ private:
   };
   /* For read_multi_range scans, the get_range_no() of current row. */
   int m_current_range_no;
-
+  /* For multi range read, return from last mrr_funcs.next() call. */
+  int m_range_res;
   MY_BITMAP **m_key_fields;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
@@ -860,14 +870,7 @@ private:
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
-  const uchar *m_multi_range_result_ptr;
-  KEY_MULTI_RANGE *m_multi_ranges;
-  /*
-    Points 1 past the end of last multi range operation currently being
-    executed, to support splitting large multi range reands into manageable
-    pieces.
-  */
-  KEY_MULTI_RANGE *m_multi_range_defined_end;
+  uchar *m_multi_range_result_ptr;
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd);
 
