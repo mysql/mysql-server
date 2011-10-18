@@ -393,7 +393,8 @@ void XTTabCache::xt_tc_release_page(XT_ROW_REC_FILE_PTR XT_UNUSED(file), XTTabCa
 	TAB_CAC_WRITE_LOCK(&seg->tcs_lock, thread->t_id);
 
 #ifdef DEBUG
-	XTTabCachePagePtr lpage, ppage;
+	XTTabCachePagePtr lpage;
+        XTTabCachePagePtr ppage __attribute__ ((unused));
 
 	ppage = NULL;
 	lpage = seg->tcs_hash_table[page->tcp_hash_idx];
@@ -1202,7 +1203,7 @@ static void tabc_fr_main(XTThreadPtr self)
 static void *tabc_fr_run_thread(XTThreadPtr self)
 {
 	int		count;
-	void	*mysql_thread;
+	void	*mysql_thread __attribute__ ((unused));
 
 	myxt_wait_pbxt_plugin_slot_assigned(self);
 

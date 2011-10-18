@@ -949,7 +949,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   char llbuff[22],llbuff2[22],llbuff3[22];
   ha_checksum intern_record_checksum;
   ha_checksum key_checksum[HA_MAX_POSSIBLE_KEY];
-  my_bool static_row_size;
   MI_KEYDEF *keyinfo;
   MI_BLOCK_INFO block_info;
   DBUG_ENTER("chk_data_link");
@@ -974,7 +973,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   empty=info->s->pack.header_length;
 
   /* Check how to calculate checksum of rows */
-  static_row_size=1;
   if (info->s->data_file_type == COMPRESSED_RECORD)
   {
     for (field=0 ; field < info->s->base.fields ; field++)
@@ -982,7 +980,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
       if (info->s->rec[field].base_type == FIELD_BLOB ||
 	  info->s->rec[field].base_type == FIELD_VARCHAR)
       {
-	static_row_size=0;
 	break;
       }
     }

@@ -5238,7 +5238,8 @@ void do_connect(struct st_command *command)
   int con_port= opt_port;
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
-  my_bool con_pipe= 0, con_shm= 0;
+  my_bool con_pipe= 0;
+  my_bool con_shm __attribute__ ((unused))= 0;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;

@@ -5692,7 +5692,7 @@ int update_virtual_fields(THD *thd, TABLE *table, bool for_write)
 {
   DBUG_ENTER("update_virtual_fields");
   Field **vfield_ptr, *vfield;
-  int error= 0;
+  int error __attribute__ ((unused))= 0;
   if (!table || !table->vfield)
     DBUG_RETURN(0);
 

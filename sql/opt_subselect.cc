@@ -3385,7 +3385,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   bool using_unique_constraint=FALSE;
   bool use_packed_rows= FALSE;
   Field *field, *key_field;
-  uint blob_count, null_pack_length, null_count;
+  uint null_pack_length, null_count;
   uchar *null_flags;
   uchar *pos;
   DBUG_ENTER("create_duplicate_weedout_tmp_table");
@@ -3465,8 +3465,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
-
-  blob_count= 0;
 
   /* Create the field */
   {

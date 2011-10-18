@@ -2436,7 +2436,6 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   long days, microseconds;
   longlong seconds;
   int l_sign= sign, was_cut= 0;
-  uint dec= decimals;
 
   if (is_date)                        // TIMESTAMP function
   {
@@ -2477,10 +2476,6 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   calc_time_from_sec(ltime, (long)(seconds%86400L), microseconds);
 
   ltime->time_type= is_time ? MYSQL_TIMESTAMP_TIME : MYSQL_TIMESTAMP_DATETIME;
-
-  if (cached_field_type == MYSQL_TYPE_STRING &&
-      (l_time1.second_part || l_time2.second_part))
-    dec= TIME_SECOND_PART_DIGITS;
 
   if (!is_time)
   {
