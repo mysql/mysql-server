@@ -47,6 +47,17 @@ public:
     m_size= size;
   }
 
+  /**
+    Set a new bound on the array. Does not resize the underlying
+    array, so the new size must be smaller than or equal to the
+    current size.
+   */
+  void resize(size_t new_size)
+  {
+    DBUG_ASSERT(new_size <= m_size);
+    m_size= new_size;
+  }
+
   Element_type &operator[](size_t n)
   {
     DBUG_ASSERT(n < m_size);
