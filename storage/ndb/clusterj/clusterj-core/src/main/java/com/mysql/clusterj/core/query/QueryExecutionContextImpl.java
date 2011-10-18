@@ -338,4 +338,13 @@ public class QueryExecutionContextImpl implements QueryExecutionContext {
         return boundParameters.get(index);
     }
 
+    public boolean hasNoNullParameters() {
+        for (Object value: boundParameters.values()) {
+            if (value == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }

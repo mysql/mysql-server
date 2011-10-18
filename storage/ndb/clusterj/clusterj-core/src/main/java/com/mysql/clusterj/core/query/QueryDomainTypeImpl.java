@@ -118,6 +118,12 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         }
         this.where = (PredicateImpl)predicate;
         where.markParameters();
+        // statically analyze the where clause, looking for:
+        // primary keys all specified with equal
+        // unique keys all specified with equal
+        // btree index keys partly specified with ranges
+        // none of the above
+        where.prepare();
         return this;
     }
 
@@ -183,12 +189,13 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @throws ClusterJUserException if not all parameters are bound
      */
     public ResultData getResultData(QueryExecutionContext context) {
-	SessionSPI session = context.getSession();
+        SessionSPI session = context.getSession();
         // execute query based on what kind of scan is needed
         // if no where clause, scan the entire table
         CandidateIndexImpl index = where==null?
-            CandidateIndexImpl.getIndexForNullWhereClause():
-            where.getBestCandidateIndex(context);
+                CandidateIndexImpl.getIndexForNullWhereClause():
+                where.getBestCandidateIndex(context);
+
         ScanType scanType = index.getScanType();
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
