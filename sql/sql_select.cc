@@ -598,14 +598,27 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
                subq_predicate->substype() == Item_subselect::IN_SUBS     ||
                subq_predicate->substype() == Item_subselect::ALL_SUBS    ||
                subq_predicate->substype() == Item_subselect::ANY_SUBS);
+
+  enum change
+  {
+    REMOVE_NONE=0,
+    REMOVE_ORDER= 1 << 0,
+    REMOVE_DISTINCT= 1 << 1,
+    REMOVE_GROUP= 1 << 2
+  };
+
+  uint changelog= 0;
+
   if (subq_select_lex->order_list.elements)
   {
+    changelog|= REMOVE_ORDER;
     subq_select_lex->join->order= NULL;
     subq_select_lex->order_list.empty();
   }
 
   if (subq_select_lex->options & SELECT_DISTINCT)
   {
+    changelog|= REMOVE_DISTINCT;
     subq_select_lex->join->select_distinct= false;
     subq_select_lex->options&= ~SELECT_DISTINCT;
   }
@@ -617,8 +630,25 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
   if (subq_select_lex->group_list.elements &&
       !subq_select_lex->with_sum_func && !subq_select_lex->join->having)
   {
+    changelog|= REMOVE_GROUP;
     subq_select_lex->join->group_list= NULL;
     subq_select_lex->group_list.empty();
+  }
+
+  if (changelog)
+  {
+    Opt_trace_context * trace= &subq_select_lex->join->thd->opt_trace;
+    if (unlikely(trace->is_started()))
+    {
+      Opt_trace_object trace_wrapper(trace);
+      Opt_trace_array trace_changes(trace, "transformations_to_subquery");
+      if (changelog & REMOVE_ORDER)
+        trace_changes.add_alnum("removed_ordering");
+      if (changelog & REMOVE_DISTINCT)
+        trace_changes.add_alnum("removed_distinct");
+      if (changelog & REMOVE_GROUP)
+        trace_changes.add_alnum("removed_grouping");
+    }
   }
 }
 
