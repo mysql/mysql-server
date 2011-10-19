@@ -7220,7 +7220,8 @@ int ha_tokudb::tokudb_add_index(
     else {
         rw_unlock(&share->num_DBs_lock);
         rw_lock_taken = false;
-        
+        prelocked_right_range_size = 0;
+        prelocked_left_range_size = 0;
         struct smart_dbt_bf_info bf_info;
         bf_info.ha = this;
         // you need the val if you have a clustering index and key_read is not 0;
@@ -7271,17 +7272,19 @@ int ha_tokudb::tokudb_add_index(
 
         while (cursor_ret_val != DB_NOTFOUND || ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0)) {
             if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) == 0) {
-                invalidate_bulk_fetch();
+                invalidate_bulk_fetch(); // reset the buffers
                 cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_bf_callback, &bf_info);
                 if (cursor_ret_val != DB_NOTFOUND && cursor_ret_val != 0) {
                     error = cursor_ret_val;
                     goto cleanup;
                 }
             }
+            // do this check in case the the c_getf_next did not put anything into the buffer because
+            // there was no more data
             if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) == 0) {
                 break;
             }
-            // get key info    
+            // at this point, we know the range query buffer has at least one key/val pair
             uchar* curr_pos = range_query_buff+curr_range_query_buff_offset;
             
             u_int32_t key_size = *(u_int32_t *)curr_pos;    
