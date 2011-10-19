@@ -1760,9 +1760,9 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
     disabled or if a full cache flush is in progress, the attempt to
     get the lock is aborted.
 
-    The WAIT parameter indicate that the lock is allowed to timeout.
+    The TIMEOUT parameter indicate that the lock is allowed to timeout.
   */
-  if (try_lock(thd, Query_cache::WAIT))
+  if (try_lock(thd, Query_cache::TIMEOUT))
     goto err;
 
   if (query_cache_size == 0)
