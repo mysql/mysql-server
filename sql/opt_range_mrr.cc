@@ -116,11 +116,19 @@ static void step_down_to(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
       - max_key_part
 
   RETURN
-    0  Ok
-    1  No more ranges in the sequence
+    FALSE  Ok
+    TRUE   No more ranges in the sequence
 */
 
-uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+#if (_MSC_FULL_VER == 160030319)
+/*
+   Workaround Visual Studio 2010 RTM compiler backend bug, the function enters 
+   infinite loop.
+ */
+#pragma optimize("g", off)
+#endif
+
+bool sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   SEL_ARG *key_tree;
   SEL_ARG_RANGE_SEQ *seq= (SEL_ARG_RANGE_SEQ*)rseq;
@@ -217,7 +225,7 @@ walk_up_n_right:
   RANGE_SEQ_ENTRY *cur= &seq->stack[seq->i];
   uint min_key_length= cur->min_key - seq->param->min_key;
   
-  range->ptr= (char*)(int)(key_tree->part);
+  range->ptr= (char*)(intptr)(key_tree->part);
   if (cur->min_key_flag & GEOM_FLAG)
   {
     range->range_flag= cur->min_key_flag;
@@ -273,6 +281,12 @@ walk_up_n_right:
   return 0;
 }
 
+#if (_MSC_FULL_VER == 160030319)
+/* VS2010 compiler bug workaround */
+#pragma optimize("g", on)
+#endif
+
+
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks array<QUICK_RANGE>
  ****************************************************************************/
@@ -314,7 +328,7 @@ range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
     1  No more ranges in the sequence
 */
 
-uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+bool quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   QUICK_RANGE_SEQ_CTX *ctx= (QUICK_RANGE_SEQ_CTX*)rseq;
 

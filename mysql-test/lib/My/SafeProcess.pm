@@ -1,5 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2011 Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -86,6 +87,7 @@ sub is_child {
 my @safe_process_cmd;
 my $safe_kill;
 my $bindir;
+
 if(defined $ENV{MTR_BINDIR})
 {
   # This is an out-of-source build. Build directory
@@ -97,7 +99,6 @@ else
   use Cwd;
   $bindir = getcwd();
 }
-
 
 # Find the safe process binary or script
 sub find_bin {

@@ -39,6 +39,6 @@ bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
                         multi_update **result);
 bool records_are_comparable(const TABLE *table);
-bool compare_records(const TABLE *table);
+bool compare_record(const TABLE *table);
 
 #endif /* SQL_UPDATE_INCLUDED */

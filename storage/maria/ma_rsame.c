@@ -19,7 +19,7 @@
   Find current row with read on position or read on key
 
   @notes
-  If inx >= 0 find record using key
+  If inx >= 0 find record using key else re-read row on last position
 
   @warning
   This function is not row version safe.
@@ -29,6 +29,7 @@
   @retval 0                      Ok
   @retval HA_ERR_KEY_NOT_FOUND   Row is deleted
   @retval HA_ERR_END_OF_FILE     End of file
+  @retval HA_ERR_WRONG_INDEX	 Wrong inx argument
 */
 
 
@@ -36,10 +37,10 @@ int maria_rsame(MARIA_HA *info, uchar *record, int inx)
 {
   DBUG_ENTER("maria_rsame");
 
-  if (inx != -1 && ! maria_is_key_active(info->s->state.key_map, inx))
+  if (inx >= 0 && _ma_check_index(info, inx) < 0)
   {
     DBUG_PRINT("error", ("wrong index usage"));
-    DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
+    DBUG_RETURN(my_errno);
   }
   if (info->cur_row.lastpos == HA_OFFSET_ERROR ||
       info->update & HA_STATE_DELETED)
@@ -55,8 +56,7 @@ int maria_rsame(MARIA_HA *info, uchar *record, int inx)
 
   if (inx >= 0)
   {
-    MARIA_KEYDEF *keyinfo= info->s->keyinfo + inx;
-    info->lastinx= inx;
+    MARIA_KEYDEF *keyinfo= info->last_key.keyinfo;
     (*keyinfo->make_key)(info, &info->last_key, (uint) inx,
                          info->lastkey_buff, record,
                          info->cur_row.lastpos,

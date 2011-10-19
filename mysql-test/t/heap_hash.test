@@ -285,6 +285,23 @@ DROP TABLE t1;
 
 --echo End of 5.0 tests
 
+-- echo # bit index in heap tables
+
+create table t1 (a bit(63) not null) engine=heap;
+insert into t1 values (869751),(736494),(226312),(802616),(728912);
+alter table t1 add unique uniq_id using HASH (a);
+select 0+a from t1 where a > 736494;
+explain select 0+a from t1 where a > 736494;
+select 0+a from t1 where a = 736494;
+explain select 0+a from t1 where a = 736494;
+select 0+a from t1 where a=869751 or a=736494;
+explain select 0+a from t1 where a=869751 or a=736494;
+select 0+a from t1 where a in (869751,736494,226312,802616);
+explain select 0+a from t1 where a in (869751,736494,226312,802616);
+drop table t1;
+
+--echo End of 5.3 tests
+
 --echo #
 --echo # Bug #55472: Assertion failed in heap_rfirst function of hp_rfirst.c
 --echo #             on DELETE statement
@@ -300,4 +317,3 @@ DELETE FROM t1 WHERE col_int_nokey = 5 ORDER BY col_int_key LIMIT 2;
 DROP TABLE t1;
 
 --echo End of 5.5 tests
-

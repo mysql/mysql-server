@@ -34,7 +34,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
   HA_KEYSEG *last_used_keyseg;
   uint32 nextflag;
   MARIA_KEY key;
-  int icp_res= 1;
+  ICP_RESULT icp_res= ICP_MATCH;
   DBUG_ENTER("maria_rkey");
   DBUG_PRINT("enter", ("base: 0x%lx  buf: 0x%lx  inx: %d  search_flag: %d",
                        (long) info, (long) buf, inx, search_flag));
@@ -44,7 +44,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->last_key_func= search_flag;
-  keyinfo= share->keyinfo + inx;
+  keyinfo= info->last_key.keyinfo;
 
   key_buff= info->lastkey_buff+info->s->base.max_key_length;
 
@@ -83,17 +83,17 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
     mysql_rwlock_rdlock(&keyinfo->root_lock);
 
   nextflag= maria_read_vec[search_flag] | key.flag;
-  if (search_flag != HA_READ_KEY_EXACT ||
-      ((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME))
+  if (search_flag != HA_READ_KEY_EXACT)
+  {
+    /* Assume we will get a read next/previous call after this one */
     nextflag|= SEARCH_SAVE_BUFF;
-
+  }
   switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
     if (maria_rtree_find_first(info, &key, nextflag) < 0)
     {
-      maria_print_error(info->s, HA_ERR_CRASHED);
-      my_errno= HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       info->cur_row.lastpos= HA_OFFSET_ERROR;
     }
     break;
@@ -103,8 +103,6 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
     if (!_ma_search(info, &key, nextflag, info->s->state.key_root[inx]))
     {      
       MARIA_KEY lastkey;
-      lastkey.keyinfo= keyinfo;
-      lastkey.data= info->lastkey_buff;
       /*
         Found a key, but it might not be usable. We cannot use rows that
         are inserted by other threads after we got our table lock
@@ -116,7 +114,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
         not satisfied with an out-of-range condition.
       */
       if ((*share->row_is_visible)(info) && 
-          ((icp_res= ma_check_index_cond(info, inx, buf)) != 0))
+          ((icp_res= ma_check_index_cond(info, inx, buf)) != ICP_NO_MATCH))
         break;
 
       /* The key references a concurrently inserted record. */
@@ -129,6 +127,8 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
         break;
       }
       
+      lastkey.keyinfo= keyinfo;
+      lastkey.data= info->lastkey_buff;
       do
       {
         uint not_used[2];
@@ -144,6 +144,18 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
         if  (_ma_search_next(info, &lastkey, maria_readnext_vec[search_flag],
                              info->s->state.key_root[inx]))
           break;                          /* purecov: inspected */
+
+        /*
+          If we are at the last key on the key page, allow writers to
+          access the index.
+        */
+        if (info->int_keypos >= info->int_maxpos &&
+            ma_yield_and_check_if_killed(info, inx))
+        {
+          DBUG_ASSERT(info->cur_row.lastpos == HA_OFFSET_ERROR);
+          break;
+        }
+
         /*
           Check that the found key does still match the search.
           _ma_search_next() delivers the next key regardless of its
@@ -163,15 +175,19 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
       } while (!(*share->row_is_visible)(info) || 
                ((icp_res= ma_check_index_cond(info, inx, buf)) == 0));
     }
+    else
+    {
+      DBUG_ASSERT(info->cur_row.lastpos);
+    }
   }
   if (share->lock_key_trees)
     mysql_rwlock_unlock(&keyinfo->root_lock);
 
-  if (info->cur_row.lastpos == HA_OFFSET_ERROR || (icp_res != 1))
+  if (info->cur_row.lastpos == HA_OFFSET_ERROR)
   {
-    if (icp_res == 2)
+    if (icp_res == ICP_OUT_OF_RANGE)
     {
-      info->cur_row.lastpos= HA_OFFSET_ERROR;
+      /* We don't want HA_ERR_END_OF_FILE in this particular case */
       my_errno= HA_ERR_KEY_NOT_FOUND;
     }
     fast_ma_writeinfo(info);
@@ -213,3 +229,37 @@ err:
     info->update|=HA_STATE_NEXT_FOUND;		/* Previous gives last row */
   DBUG_RETURN(my_errno);
 } /* _ma_rkey */
+
+
+/*
+  Yield to possible other writers during a index scan.
+  Check also if we got killed by the user and if yes, return
+  HA_ERR_LOCK_WAIT_TIMEOUT
+
+  return  0  ok
+  return  1  Query has been requested to be killed
+*/
+
+my_bool ma_yield_and_check_if_killed(MARIA_HA *info, int inx)
+{
+  MARIA_SHARE *share;
+  if (ma_killed(info))
+  {
+    /* purecov: begin tested */
+    /* Mark that we don't have an active row */
+    info->cur_row.lastpos= HA_OFFSET_ERROR;
+    /* Set error that we where aborted by kill from application */
+    my_errno= HA_ERR_ABORTED_BY_USER;
+    return 1;
+    /* purecov: end */
+  }
+
+  if ((share= info->s)->lock_key_trees)
+  {
+    /* Give writers a chance to access index */
+    mysql_rwlock_unlock(&share->keyinfo[inx].root_lock);
+    mysql_rwlock_rdlock(&share->keyinfo[inx].root_lock);
+  }
+  return 0;
+}
+

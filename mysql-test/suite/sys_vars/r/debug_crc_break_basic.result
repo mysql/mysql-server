@@ -33,6 +33,8 @@ select @@global.debug_crc_break;
 @@global.debug_crc_break
 0
 set global debug_crc_break=cast(-1 as unsigned int);
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select @@global.debug_crc_break;
 @@global.debug_crc_break
 18446744073709551615

@@ -1,0 +1,82 @@
+# t/handler_myisam.test
+#
+# test of HANDLER ...
+#
+# Last update:
+# 2006-07-31 ML test refactored (MySQL 5.1)
+#               code of t/handler.test and t/innodb_handler.test united
+#               main testing code put into handler.inc
+#               rename t/handler.test to t/handler_myisam.test
+#
+
+let $engine_type= MyISAM;
+
+--source init.inc
+--source handler.inc
+
+--echo #
+--echo # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
+--echo #
+CREATE TABLE t1 AS SELECT 1 AS f1; 
+HANDLER t1 OPEN;
+TRUNCATE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+DROP TABLE t1;
+
+CREATE TEMPORARY TABLE t1 AS SELECT 1 AS f1; 
+HANDLER t1 OPEN;
+TRUNCATE t1;
+--error ER_UNKNOWN_TABLE
+HANDLER t1 READ FIRST;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #54007: assert in ha_myisam::index_next , HANDLER
+--echo #
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a), KEY b(b), KEY ab(a, b));
+
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ ab NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 CLOSE;
+
+INSERT INTO t1 VALUES (2, 20), (1, 10), (4, 40), (3, 30);
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ `PRIMARY` NEXT;
+HANDLER t1 READ ab NEXT;
+HANDLER t1 READ ab NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ NEXT;
+HANDLER t1 CLOSE;
+
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ `PRIMARY` PREV;
+HANDLER t1 READ `PRIMARY` PREV;
+HANDLER t1 READ b PREV;
+HANDLER t1 READ b PREV;
+HANDLER t1 CLOSE;
+
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ `PRIMARY` PREV LIMIT 3;
+HANDLER t1 READ b NEXT LIMIT 5;
+HANDLER t1 CLOSE;
+
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests

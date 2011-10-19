@@ -21,7 +21,6 @@
 /* class for the the myisam handler */
 
 #include <myisam.h>
-#include <myisamchk.h>
 #include <ft_global.h>
 #include "handler.h"                            /* handler */
 #include "table.h"                              /* TABLE_SHARE */
@@ -33,7 +32,8 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define HA_RECOVER_BACKUP	2	/* Make a backupfile on recover */
 #define HA_RECOVER_FORCE	4	/* Recover even if we loose rows */
 #define HA_RECOVER_QUICK	8	/* Don't check rows in data file */
-#define HA_RECOVER_OFF         16	/* No automatic recover */
+#define HA_RECOVER_FULL_BACKUP 16       /* Make a copy of index file too */
+#define HA_RECOVER_OFF         32	/* No automatic recover */
 
 extern ulong myisam_sort_buffer_size;
 extern TYPELIB myisam_recover_typelib;
@@ -145,7 +145,6 @@ class ha_myisam: public handler
   int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
-  bool check_if_supported_virtual_columns(void) { return TRUE;}
 #ifdef HAVE_QUERY_CACHE
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
@@ -163,14 +162,16 @@ public:
    */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                             uint n_ranges, uint mode, HANDLER_BUFFER *buf);
-  int multi_range_read_next(char **range_info);
+  int multi_range_read_next(range_id_t *range_info);
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,
                                       uint *flags, COST_VECT *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, COST_VECT *cost);
-  
+                                uint key_parts, uint *bufsz, 
+                                uint *flags, COST_VECT *cost);
+  int multi_range_read_explain_info(uint mrr_mode, char *str, size_t size);
+
   /* Index condition pushdown implementation */
   Item *idx_cond_push(uint keyno, Item* idx_cond);
 private:

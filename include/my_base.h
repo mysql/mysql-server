@@ -461,7 +461,9 @@ enum ha_base_keytype {
 #define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177 /*Too many active concurrent transactions */
 #define HA_ERR_INDEX_COL_TOO_LONG 178	/* Index column length exceeds limit */
 #define HA_ERR_ROW_NOT_VISIBLE    179
-#define HA_ERR_LAST               179    /* Copy of last error nr */
+#define HA_ERR_ABORTED_BY_USER    180
+#define HA_ERR_DISK_FULL          181
+#define HA_ERR_LAST               181    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
@@ -535,7 +537,7 @@ enum en_fieldtype {
 };
 
 enum data_file_type {
-  STATIC_RECORD, DYNAMIC_RECORD, COMPRESSED_RECORD, BLOCK_RECORD
+  STATIC_RECORD, DYNAMIC_RECORD, COMPRESSED_RECORD, BLOCK_RECORD, NO_RECORD
 };
 
 /* For key ranges */
@@ -558,11 +560,13 @@ typedef struct st_key_range
   enum ha_rkey_function flag;
 } key_range;
 
+typedef void *range_id_t;
+
 typedef struct st_key_multi_range
 {
   key_range start_key;
   key_range end_key;
-  char  *ptr;                 /* Free to use by caller (ptr to row etc) */
+  range_id_t ptr;                 /* Free to use by caller (ptr to row etc) */
   uint  range_flag;           /* key range flags see above */
 } KEY_MULTI_RANGE;
 

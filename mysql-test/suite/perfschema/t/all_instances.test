@@ -1,6 +1,8 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 --source include/have_maria.inc
+--source include/have_archive.inc
+--source include/have_blackhole.inc
 
 use performance_schema;
 

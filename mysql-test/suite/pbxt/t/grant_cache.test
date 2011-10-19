@@ -5,6 +5,17 @@
 --source include/add_anonymous_users.inc
 
 #
+# some statements have different results in ps-mode
+#
+let $actual1=4;
+let $actual2=5;
+if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0`)
+{
+  let $actual1=3;
+  let $actual2=4;
+}
+
+#
 # Test grants with query cache
 #
 --disable_warnings
@@ -112,6 +123,7 @@ select * from t2;
 select mysqltest.t1.c from test.t1,mysqltest.t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
+--replace_result $actual1 4
 show status like "Qcache_not_cached";
 
 # Connect without a database
@@ -128,6 +140,7 @@ select a from mysqltest.t1;
 select a from mysqltest.t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
+--replace_result $actual2 5
 show status like "Qcache_not_cached";
 
 # Cleanup

@@ -388,6 +388,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     {
       *rc= my_errno ? my_errno : -1;
       mysql_mutex_unlock(&archive_mutex);
+      mysql_mutex_destroy(&share->mutex);
       my_free(share);
       DBUG_RETURN(NULL);
     }
@@ -742,11 +743,11 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     {
       if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
       {
-        frm_ptr= (uchar *)my_malloc(sizeof(uchar) * file_stat.st_size, MYF(0));
+        frm_ptr= (uchar *)my_malloc(sizeof(uchar) * (size_t)file_stat.st_size, MYF(0));
         if (frm_ptr)
         {
-          my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
-          azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
+          my_read(frm_file, frm_ptr, (size_t)file_stat.st_size, MYF(0));
+          azwrite_frm(&create_stream, (char *)frm_ptr, (size_t)file_stat.st_size);
           my_free(frm_ptr);
         }
       }
@@ -893,7 +894,7 @@ int ha_archive::write_row(uchar *buf)
 
   if (!share->archive_write_open)
     if (init_archive_writer())
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+      DBUG_RETURN(errno);
 
 
   if (table->next_number_field && record == table->record[0])
@@ -1083,7 +1084,8 @@ int ha_archive::rnd_init(bool scan)
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  init_archive_reader();
+  if (init_archive_reader())
+      DBUG_RETURN(errno);
 
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
@@ -1389,7 +1391,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   char writer_filename[FN_REFLEN];
   DBUG_ENTER("ha_archive::optimize");
 
-  init_archive_reader();
+  if (init_archive_reader())
+    DBUG_RETURN(errno);
 
   // now we close both our writer and our reader for the rename
   if (share->archive_write_open)
@@ -1514,12 +1517,13 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
     /* 
       Here is where we get into the guts of a row level lock.
       If TL_UNLOCK is set 
-      If we are not doing a LOCK TABLE or DISCARD/IMPORT
+      If we are not doing a LOCK TABLE, DELAYED LOCK or DISCARD/IMPORT
       TABLESPACE, then allow multiple writers 
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
+         lock_type <= TL_WRITE) && delayed_insert == FALSE &&
+        !thd_in_lock_tables(thd)
         && !thd_tablespace_op(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
@@ -1618,7 +1622,9 @@ int ha_archive::info(uint flag)
 
   if (flag & HA_STATUS_AUTO)
   {
-    init_archive_reader();
+    if (init_archive_reader())
+      DBUG_RETURN(errno);
+
     mysql_mutex_lock(&share->mutex);
     azflush(&archive, Z_SYNC_FLUSH);
     mysql_mutex_unlock(&share->mutex);

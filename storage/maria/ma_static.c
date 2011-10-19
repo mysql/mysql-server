@@ -38,12 +38,17 @@ my_bool maria_delay_key_write= 0, maria_page_checksums= 1;
 my_bool maria_inited= FALSE;
 my_bool maria_in_ha_maria= FALSE; /* If used from ha_maria or not */
 my_bool maria_recovery_changed_data= 0, maria_recovery_verbose= 0;
+my_bool maria_assert_if_crashed_table= 0;
+my_bool maria_checkpoint_disabled= 0;
+
 mysql_mutex_t THR_LOCK_maria;
 #ifdef DONT_USE_RW_LOCKS
 ulong maria_concurrent_insert= 0;
 #else
+/* Do concurrent inserts at file end or in old holes */
 ulong maria_concurrent_insert= 2;
 #endif
+
 my_off_t maria_max_temp_length= MAX_FILE_SIZE;
 ulong    maria_bulk_insert_tree_size=8192*1024;
 ulong    maria_data_pointer_size= 4;
@@ -107,6 +112,7 @@ static int always_valid(const char *filename __attribute__((unused)))
 }
 
 int (*maria_test_invalid_symlink)(const char *filename)= always_valid;
+my_bool (*ma_killed)(MARIA_HA *)= ma_killed_standalone;
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -138,7 +144,6 @@ PSI_thread_key key_thread_checkpoint, key_thread_find_all_keys,
                key_thread_soft_sync;
 
 PSI_file_key key_file_translog, key_file_kfile, key_file_dfile,
-             key_file_control;
+             key_file_control, key_file_tmp;
 
 #endif /* HAVE_PSI_INTERFACE */
-

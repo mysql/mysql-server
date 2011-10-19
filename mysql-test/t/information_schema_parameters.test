@@ -32,7 +32,7 @@ USE INFORMATION_SCHEMA;
 SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
 
 # embedded server does not display privileges
---replace_column 18 #
+--replace_column 19 #
 query_vertical SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
   AND table_name   = 'parameters'

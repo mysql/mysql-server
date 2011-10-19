@@ -166,6 +166,7 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   :handler(hton, share)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
+  init_alloc_root(&m_mem_root, 512, 512);
   init_handler_variables();
   DBUG_VOID_RETURN;
 }
@@ -187,6 +188,7 @@ ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
   DBUG_ASSERT(part_info);
+  init_alloc_root(&m_mem_root, 512, 512);
   init_handler_variables();
   m_part_info= part_info;
   m_create_handler= TRUE;
@@ -213,6 +215,7 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
   :handler(hton, share)
 {
   DBUG_ENTER("ha_partition::ha_partition(clone)");
+  init_alloc_root(&m_mem_root, 512, 512);
   init_handler_variables();
   m_part_info= part_info_arg;
   m_create_handler= TRUE;
@@ -240,6 +243,7 @@ void ha_partition::init_handler_variables()
   m_file_buffer= NULL;
   m_name_buffer_ptr= NULL;
   m_engine_array= NULL;
+  m_connect_string= NULL;
   m_file= NULL;
   m_file_tot_parts= 0;
   m_reorged_file= NULL;
@@ -263,7 +267,6 @@ void ha_partition::init_handler_variables()
   m_extra_prepare_for_update= FALSE;
   m_extra_cache_part_id= NO_CURRENT_PART_ID;
   m_handler_status= handler_not_initialized;
-  m_low_byte_first= 1;
   m_part_field_array= NULL;
   m_ordered_rec_buffer= NULL;
   m_top_entry= NO_CURRENT_PART_ID;
@@ -319,8 +322,12 @@ ha_partition::~ha_partition()
       delete m_file[i];
   }
   my_free(m_ordered_rec_buffer);
+  m_ordered_rec_buffer= NULL;
 
   clear_handler_file();
+
+  free_root(&m_mem_root, MYF(0));
+
   DBUG_VOID_RETURN;
 }
 
@@ -365,7 +372,7 @@ ha_partition::~ha_partition()
      The flag HA_READ_ORDER will be reset for the time being to indicate no
      ordered output is available from partition handler indexes. Later a merge
      sort will be performed using the underlying handlers.
-  5) primary_key_is_clustered, has_transactions and low_byte_first is
+  5) primary_key_is_clustered and has_transactions are
      calculated here.
 
 */
@@ -401,24 +408,17 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
     We create all underlying table handlers here. We do it in this special
     method to be able to report allocation errors.
 
-    Set up low_byte_first, primary_key_is_clustered and
+    Set up primary_key_is_clustered and
     has_transactions since they are called often in all kinds of places,
     other parameters are calculated on demand.
     Verify that all partitions have the same table_flags.
   */
   check_table_flags= m_file[0]->ha_table_flags();
-  m_low_byte_first= m_file[0]->low_byte_first();
   m_pkey_is_clustered= TRUE;
   file_array= m_file;
   do
   {
     file= *file_array;
-    if (m_low_byte_first != file->low_byte_first())
-    {
-      // Cannot have handlers with different endian
-      my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-      DBUG_RETURN(1);
-    }
     if (!file->primary_key_is_clustered())
       m_pkey_is_clustered= FALSE;
     if (check_table_flags != file->ha_table_flags())
@@ -587,6 +587,13 @@ int ha_partition::create(const char *name, TABLE *table_arg,
 {
   char t_name[FN_REFLEN];
   DBUG_ENTER("ha_partition::create");
+
+  if (create_info->used_fields & HA_CREATE_USED_CONNECTION)
+  {
+    my_error(ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0),
+             "CONNECTION not valid for partition");
+    DBUG_RETURN(1);
+  }
 
   strmov(t_name, name);
   DBUG_ASSERT(*fn_rext((char*)name) == '\0');
@@ -1172,7 +1179,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                 error != HA_ADMIN_ALREADY_DONE &&
                 error != HA_ADMIN_TRY_ALTER)
             {
-              print_admin_msg(thd, "error", table_share->db.str, table->alias,
+              print_admin_msg(thd, "error", table_share->db.str,
+                              table->alias.c_ptr(),
                               opt_op_name[flag],
                               "Subpartition %s returned error", 
                               sub_elem->partition_name);
@@ -1198,7 +1206,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
               error != HA_ADMIN_ALREADY_DONE &&
               error != HA_ADMIN_TRY_ALTER)
           {
-            print_admin_msg(thd, "error", table_share->db.str, table->alias,
+            print_admin_msg(thd, "error", table_share->db.str,
+                            table->alias.c_ptr(),
                             opt_op_name[flag], "Partition %s returned error", 
                             part_elem->partition_name);
           }
@@ -1307,6 +1316,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
   if ((error= set_up_table_before_create(tbl, part_name, create_info,
                                          0, p_elem)))
     goto error_create;
+  tbl->s->connect_string = p_elem->connect_string;
   if ((error= file->ha_create(part_name, tbl, create_info)))
   {
     /*
@@ -1336,7 +1346,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
 
   DBUG_RETURN(0);
 error_external_lock:
-  (void) file->close();
+  (void) file->ha_close();
 error_open:
   (void) file->ha_delete_table(part_name);
 error_create:
@@ -1382,7 +1392,7 @@ void ha_partition::cleanup_new_partition(uint part_count)
     while ((part_count > 0) && (*file))
     {
       (*file)->ha_external_lock(thd, F_UNLCK);
-      (*file)->close();
+      (*file)->ha_close();
 
       /* Leave the (*file)->ha_delete_table(part_name) to the ddl-log */
 
@@ -1827,6 +1837,8 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
     create_info->auto_increment_value= stats.auto_increment_value;
 
   create_info->data_file_name= create_info->index_file_name = NULL;
+  create_info->connect_string.str= NULL;
+  create_info->connect_string.length= 0;
   return;
 }
 
@@ -2115,6 +2127,10 @@ int ha_partition::set_up_table_before_create(TABLE *tbl,
   }
   info->index_file_name= part_elem->index_file_name;
   info->data_file_name= part_elem->data_file_name;
+  info->connect_string= part_elem->connect_string;
+  if (info->connect_string.length)
+    info->used_fields|= HA_CREATE_USED_CONNECTION;
+  tbl->s->connect_string= part_elem->connect_string;
   DBUG_RETURN(0);
 }
 
@@ -2229,8 +2245,10 @@ bool ha_partition::create_handler_file(const char *name)
   /* 4 static words (tot words, checksum, tot partitions, name length) */
   tot_len_words= 4 + tot_partition_words + tot_name_words;
   tot_len_byte= PAR_WORD_SIZE * tot_len_words;
-  if (!(file_buffer= (uchar *) my_malloc(tot_len_byte, MYF(MY_ZEROFILL))))
+  file_buffer= (uchar *) my_alloca(tot_len_byte);
+  if (!file_buffer)
     DBUG_RETURN(TRUE);
+  bzero(file_buffer, tot_len_byte);
   engine_array= (file_buffer + PAR_ENGINES_OFFSET);
   name_buffer_ptr= (char*) (engine_array + tot_partition_words * PAR_WORD_SIZE
                             + PAR_WORD_SIZE);
@@ -2290,11 +2308,28 @@ bool ha_partition::create_handler_file(const char *name)
   {
     result= mysql_file_write(file, (uchar *) file_buffer, tot_len_byte,
                              MYF(MY_WME | MY_NABP)) != 0;
+
+    /* Write connection information (for federatedx engine) */
+    part_it.rewind();
+    for (i= 0; i < num_parts && !result; i++)
+    {
+      uchar buffer[4];
+      part_elem= part_it++;
+      uint length = part_elem->connect_string.length;
+      int4store(buffer, length);
+      if (my_write(file, buffer, 4, MYF(MY_WME | MY_NABP)) ||
+          my_write(file, (uchar *) part_elem->connect_string.str, length,
+                   MYF(MY_WME | MY_NABP)))
+      {
+        result= TRUE;
+        break;
+      }
+    }
     (void) mysql_file_close(file, MYF(0));
   }
   else
     result= TRUE;
-  my_free(file_buffer);
+  my_afree((char*) file_buffer);
   DBUG_RETURN(result);
 }
 
@@ -2307,10 +2342,10 @@ void ha_partition::clear_handler_file()
 {
   if (m_engine_array)
     plugin_unlock_list(NULL, m_engine_array, m_tot_parts);
-  my_free(m_file_buffer);
-  my_free(m_engine_array);
+  free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
   m_file_buffer= NULL;
   m_engine_array= NULL;
+  m_connect_string= NULL;
 }
 
 
@@ -2467,7 +2502,7 @@ bool ha_partition::read_par_file(const char *name)
   len_bytes= PAR_WORD_SIZE * len_words;
   if (mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
     goto err1;
-  if (!(file_buffer= (char*) my_malloc(len_bytes, MYF(0))))
+  if (!(file_buffer= (char*) alloc_root(&m_mem_root, len_bytes)))
     goto err1;
   if (mysql_file_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
     goto err2;
@@ -2491,14 +2526,37 @@ bool ha_partition::read_par_file(const char *name)
   */
   if (len_words != (tot_partition_words + tot_name_words + 4))
     goto err2;
-  (void) mysql_file_close(file, MYF(0));
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
   m_name_buffer_ptr= tot_name_len_offset + PAR_WORD_SIZE;
 
+  if (!(m_connect_string= (LEX_STRING*)
+        alloc_root(&m_mem_root, m_tot_parts * sizeof(LEX_STRING))))
+    goto err2;
+  bzero(m_connect_string, m_tot_parts * sizeof(LEX_STRING));
+
+  /* Read connection arguments (for federated X engine) */
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    LEX_STRING connect_string;
+    uchar buffer[4];
+    if (my_read(file, buffer, 4, MYF(MY_NABP)))
+    {
+      /* No extra options; Probably not a federatedx engine */
+      break;
+    }
+    connect_string.length= uint4korr(buffer);
+    connect_string.str= (char*) alloc_root(&m_mem_root, connect_string.length+1);
+    if (my_read(file, (uchar*) connect_string.str, connect_string.length,
+                MYF(MY_NABP)))
+      break;
+    connect_string.str[connect_string.length]= 0;
+    m_connect_string[i]= connect_string;
+  }
+
+  (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(false);
 
 err2:
-  my_free(file_buffer);
 err1:
   (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(true);
@@ -2537,13 +2595,13 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
       goto err;
   }
   if (!(m_engine_array= (plugin_ref*)
-                my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
+        alloc_root(&m_mem_root, m_tot_parts * sizeof(plugin_ref))))
     goto err;
 
   for (i= 0; i < m_tot_parts; i++)
     m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
 
-  my_afree((gptr) engine_array);
+  my_afree(engine_array);
     
   if (create_handlers(mem_root))
   {
@@ -2554,7 +2612,7 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
   DBUG_RETURN(false);
 
 err:
-  my_afree((gptr) engine_array);
+  my_afree(engine_array);
   DBUG_RETURN(true);
 }
 
@@ -2732,8 +2790,10 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
    {
       create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                             FALSE);
+      table->s->connect_string = m_connect_string[(uint)(file-m_file)];
       if ((error= (*file)->ha_open(table, name_buff, mode, test_if_locked)))
         goto err_handler;
+      bzero(&table->s->connect_string, sizeof(LEX_STRING));
       m_num_locks+= (*file)->lock_count();
       name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
     } while (*(++file));
@@ -2829,7 +2889,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 err_handler:
   DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
-    (*file)->close();
+    (*file)->ha_close();
 err_alloc:
   bitmap_free(&m_bulk_insert_started);
   if (!m_is_clone_of)
@@ -2915,7 +2975,7 @@ int ha_partition::close(void)
 repeat:
   do
   {
-    (*file)->close();
+    (*file)->ha_close();
   } while (*(++file));
 
   if (first && m_added_file && m_added_file[0])
@@ -4236,6 +4296,7 @@ int ha_partition::index_init(uint inx, bool sorted)
   m_part_spec.start_part= NO_CURRENT_PART_ID;
   m_start_key.length= 0;
   m_ordered= sorted;
+  m_ordered_scan_ongoing= FALSE;
   m_curr_key_info[0]= table->key_info+inx;
   if (m_pkey_is_clustered && table->s->primary_key != MAX_KEY)
   {
@@ -4974,19 +5035,6 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
       break;
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
-      /*
-        MyISAM engine can fail if we call index_first() when indexes disabled
-        that happens if the table is empty.
-        Here we use file->stats.records instead of file->records() because
-        file->records() is supposed to return an EXACT count, and it can be
-        possibly slow. We don't need an exact number, an approximate one- from
-        the last ::info() call - is sufficient.
-      */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->ha_index_first(buf);
       break;
     case partition_index_first_unordered:
@@ -5066,6 +5114,12 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     int error;
     handler *file= m_file[i];
 
+    /*
+      Reset null bits (to avoid valgrind warnings) and to give a default
+      value for not read null fields.
+    */
+    bfill(rec_buf_ptr, table->s->null_bytes, 255);
+
     switch (m_index_scan_type) {
     case partition_index_read:
       error= file->ha_index_read_map(rec_buf_ptr,
@@ -5074,36 +5128,10 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
                                      m_start_key.flag);
       break;
     case partition_index_first:
-      /*
-        MyISAM engine can fail if we call index_first() when indexes disabled
-        that happens if the table is empty.
-        Here we use file->stats.records instead of file->records() because
-        file->records() is supposed to return an EXACT count, and it can be
-        possibly slow. We don't need an exact number, an approximate one- from
-        the last ::info() call - is sufficient.
-      */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->ha_index_first(rec_buf_ptr);
       reverse_order= FALSE;
       break;
     case partition_index_last:
-      /*
-        MyISAM engine can fail if we call index_last() when indexes disabled
-        that happens if the table is empty.
-        Here we use file->stats.records instead of file->records() because
-        file->records() is supposed to return an EXACT count, and it can be
-        possibly slow. We don't need an exact number, an approximate one- from
-        the last ::info() call - is sufficient.
-      */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->ha_index_last(rec_buf_ptr);
       reverse_order= TRUE;
       break;
@@ -5934,6 +5962,7 @@ int ha_partition::extra(enum ha_extra_function operation)
   /* Category 3), used by MyISAM handlers */
   case HA_EXTRA_PREPARE_FOR_RENAME:
     DBUG_RETURN(prepare_for_rename());
+    break;
   case HA_EXTRA_PREPARE_FOR_UPDATE:
     /*
       Needs to be run on the first partition in the range now, and 

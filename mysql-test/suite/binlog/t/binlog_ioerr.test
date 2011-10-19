@@ -1,0 +1,30 @@
+source include/have_debug.inc;
+source include/have_innodb.inc;
+source include/have_log_bin.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
+
+CALL mtr.add_suppression("Error writing file 'master-bin'");
+
+RESET MASTER;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES(0);
+SET SESSION debug='+d,fail_binlog_write_1';
+--error ER_ERROR_ON_WRITE
+INSERT INTO t1 VALUES(1);
+--error ER_ERROR_ON_WRITE
+INSERT INTO t1 VALUES(2);
+SET SESSION debug='';
+INSERT INTO t1 VALUES(3);
+SELECT * FROM t1;
+
+# Actually the output from this currently shows a bug.
+# The injected IO error leaves partially written transactions in the binlog in
+# the form of stray "BEGIN" events.
+# These should disappear from the output if binlog error handling is improved
+# (see MySQL Bug#37148 and WL#1790).
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+--replace_column 1 BINLOG 2 POS 5 ENDPOS
+SHOW BINLOG EVENTS;
+
+DROP TABLE t1;

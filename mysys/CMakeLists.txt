@@ -34,7 +34,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_atomic.c my_getncpus.c my_safehash.c my_chmod.c my_rnd.c
-                                my_uuid.c wqueue.c waiting_threads.c
+                                my_uuid.c wqueue.c waiting_threads.c ma_dyncol.c
 				my_rdtsc.c)
 
 IF (WIN32)

@@ -2,6 +2,10 @@ source include/master-slave.inc;
 let collation=utf8_unicode_ci;
 --source include/have_collation.inc
 
+call mtr.add_suppression("Can't find record in 't.'");
+call mtr.add_suppression("Can't find record in 'user'");
+call mtr.add_suppression("Can't find record in 'tables_priv'");
+
 #
 # BUG#16487
 #  

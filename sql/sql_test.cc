@@ -59,19 +59,20 @@ static const char *lock_descriptions[] =
 void
 print_where(COND *cond,const char *info, enum_query_type query_type)
 {
-  char buff[256];
+  char buff[1024];
   String str(buff,(uint32) sizeof(buff), system_charset_info);
   str.length(0);
+  str.extra_allocation(1024);
   if (cond)
     cond->print(&str, query_type);
-  str.append('\0');
 
   DBUG_LOCK_FILE;
   (void) fprintf(DBUG_FILE,"\nWHERE:(%s) %p ", info, cond);
-  (void) fputs(str.ptr(),DBUG_FILE);
+  (void) fputs(str.c_ptr_safe(),DBUG_FILE);
   (void) fputc('\n',DBUG_FILE);
   DBUG_UNLOCK_FILE;
 }
+
 	/* This is for debugging purposes */
 
 
@@ -168,10 +169,9 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
       out.append(str);
     }
   }
-  out.append('\0');				// Purify doesn't like c_ptr()
   DBUG_LOCK_FILE;
   (void) fputs("\nInfo about FILESORT\n",DBUG_FILE);
-  fprintf(DBUG_FILE,"Sortorder: %s\n",out.ptr());
+  fprintf(DBUG_FILE,"Sortorder: %s\n",out.c_ptr_safe());
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
 }
@@ -180,58 +180,66 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
 void
 TEST_join(JOIN *join)
 {
-  uint i,ref;
+  uint ref;
+  int i;
+  List_iterator<JOIN_TAB_RANGE> it(join->join_tab_ranges);
+  JOIN_TAB_RANGE *jt_range;
   DBUG_ENTER("TEST_join");
-
-  /*
-    Assemble results of all the calls to full_name() first,
-    in order not to garble the tabular output below.
-  */
-  String ref_key_parts[MAX_TABLES];
-  for (i= 0; i < join->tables; i++)
-  {
-    JOIN_TAB *tab= join->join_tab + i;
-    for (ref= 0; ref < tab->ref.key_parts; ref++)
-    {
-      ref_key_parts[i].append(tab->ref.items[ref]->full_name());
-      ref_key_parts[i].append("  ");
-    }
-  }
 
   DBUG_LOCK_FILE;
   (void) fputs("\nInfo about JOIN\n",DBUG_FILE);
-  for (i=0 ; i < join->tables ; i++)
+  while ((jt_range= it++))
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *form=tab->table;
-    char key_map_buff[128];
-    fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
-	    form->alias,
-	    join_type_str[tab->type],
-	    tab->keys.print(key_map_buff),
-	    tab->ref.key_parts,
-	    tab->ref.key,
-	    tab->ref.key_length);
-    if (tab->select)
+    /*
+      Assemble results of all the calls to full_name() first,
+      in order not to garble the tabular output below.
+    */
+    String ref_key_parts[MAX_TABLES];
+    int tables_in_range= jt_range->end - jt_range->start;
+    for (i= 0; i < tables_in_range; i++)
     {
-      char buf[MAX_KEY/8+1];
-      if (tab->use_quick == 2)
-	fprintf(DBUG_FILE,
-		"                  quick select checked for each record (keys: %s)\n",
-		tab->select->quick_keys.print(buf));
-      else if (tab->select->quick)
+      JOIN_TAB *tab= jt_range->start + i;
+      for (ref= 0; ref < tab->ref.key_parts; ref++)
       {
-	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->select->quick->dbug_dump(18, FALSE);
+        ref_key_parts[i].append(tab->ref.items[ref]->full_name());
+        ref_key_parts[i].append("  ");
       }
-      else
-	(void) fputs("                  select used\n",DBUG_FILE);
     }
-    if (tab->ref.key_parts)
+
+    for (i= 0; i < tables_in_range; i++)
     {
-      fprintf(DBUG_FILE,
-              "                  refs:  %s\n", ref_key_parts[i].ptr());
+      JOIN_TAB *tab= jt_range->start + i;
+      TABLE *form=tab->table;
+      char key_map_buff[128];
+      fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
+	    form->alias.c_ptr(),
+              join_type_str[tab->type],
+              tab->keys.print(key_map_buff),
+              tab->ref.key_parts,
+              tab->ref.key,
+              tab->ref.key_length);
+      if (tab->select)
+      {
+        char buf[MAX_KEY/8+1];
+        if (tab->use_quick == 2)
+          fprintf(DBUG_FILE,
+                  "                  quick select checked for each record (keys: %s)\n",
+                  tab->select->quick_keys.print(buf));
+        else if (tab->select->quick)
+        {
+          fprintf(DBUG_FILE, "                  quick select used:\n");
+          tab->select->quick->dbug_dump(18, FALSE);
+        }
+        else
+          (void)fputs("                  select used\n",DBUG_FILE);
+      }
+      if (tab->ref.key_parts)
+      {
+        fprintf(DBUG_FILE,
+              "                  refs:  %s\n", ref_key_parts[i].c_ptr_safe());
+      }
     }
+    (void)fputs("\n",DBUG_FILE);
   }
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
@@ -245,21 +253,25 @@ void print_keyuse(KEYUSE *keyuse)
   char buff[256];
   char buf2[64]; 
   const char *fieldname;
+  JOIN_TAB *join_tab= keyuse->table->reginfo.join_tab;
+  KEY *key_info= join_tab->get_keyinfo_by_key_no(keyuse->key);
   String str(buff,(uint32) sizeof(buff), system_charset_info);
   str.length(0);
   keyuse->val->print(&str, QT_ORDINARY);
   str.append('\0');
-  if (keyuse->keypart == FT_KEYPART)
+  if (keyuse->is_for_hash_join())
+    fieldname= keyuse->table->field[keyuse->keypart]->field_name;
+  else if (keyuse->keypart == FT_KEYPART)
     fieldname= "FT_KEYPART";
   else
-    fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
+    fieldname= key_info->key_part[keyuse->keypart].field->field_name;
   ll2str(keyuse->used_tables, buf2, 16, 0); 
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize= %d used_tables=%s "
-          "ref_table_rows= %lu keypart_map= %0lx\n",
-          keyuse->table->alias, fieldname, str.ptr(),
-          keyuse->optimize, buf2, (ulong)keyuse->ref_table_rows, 
-          keyuse->keypart_map);
+  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize: %u  used_tables: %s "
+          "ref_table_rows: %lu  keypart_map: %0lx\n",
+          keyuse->table->alias.c_ptr(), fieldname, str.ptr(),
+          (uint) keyuse->optimize, buf2, (ulong) keyuse->ref_table_rows, 
+          (ulong) keyuse->keypart_map);
   DBUG_UNLOCK_FILE;
   //key_part_map keypart_map; --?? there can be several? 
 }
@@ -385,7 +397,7 @@ void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
   for (uint i= 0;i < sjm->tables; i++)
   {
     fprintf(DBUG_FILE, "    %s%s\n", 
-            sjm->positions[i].table->table->alias,
+            sjm->positions[i].table->table->alias.c_ptr(),
             (i == sjm->tables -1)? "": ",");
   }
   fprintf(DBUG_FILE, "  }\n");

@@ -3233,7 +3233,8 @@ row_sel_push_cache_row_for_mysql(
 				prebuilt->fetch_cache[
 					  prebuilt->n_fetch_cached],
 				prebuilt,
-				rec, rec_clust,
+				rec,
+                                rec_clust,
 				offsets,
 				start_field_no,
 				prebuilt->n_template))) {
@@ -3352,7 +3353,8 @@ and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
-DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
+DB_LOCK_TABLE_FULL, DB_CORRUPTION, DB_SEARCH_ABORTED_BY_USER or
+DB_TOO_BIG_RECORD */
 UNIV_INTERN
 ulint
 row_search_for_mysql(
@@ -3458,6 +3460,12 @@ row_search_for_mysql(
 
 		ut_error;
 	}
+
+	/* init null bytes with default values as they might be
+	left uninitialized in some cases and these uninited bytes
+	might be copied into mysql record buffer that leads to
+	valgrind warnings */
+	memcpy(buf, prebuilt->default_rec, prebuilt->null_bitmap_len);
 
 #if 0
 	/* August 19, 2005 by Heikki: temporarily disable this error
@@ -3708,7 +3716,8 @@ row_search_for_mysql(
 				ut_ad(!rec_get_deleted_flag(rec, comp));
 
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
-						rec, FALSE, offsets, 0,
+                                                             rec, FALSE,
+                                                             offsets, 0,
 						prebuilt->n_template)) {
 					/* Only fresh inserts may contain
 					incomplete externally stored
@@ -4447,7 +4456,7 @@ idx_cond_check:
 		ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
 		offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 		ib_res= row_sel_store_mysql_rec(buf, prebuilt, rec, FALSE,
-		                        offsets, 0, prebuilt->n_index_fields);
+                                                offsets, 0, prebuilt->n_index_fields);
                 /* 
                   The above call will fail and return FALSE when requested to
                   store an "externally stored column" (afaiu, a blob). Index
@@ -4456,12 +4465,15 @@ idx_cond_check:
                 */
                 ut_ad(ib_res);
 		res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
-		if (res == 0)
+		if (res == XTRADB_ICP_NO_MATCH)
 			goto next_rec;
-		if (res == 2) {
-			err = DB_RECORD_NOT_FOUND;
+		else if (res != XTRADB_ICP_MATCH) {
+                         err= (res == XTRADB_ICP_ABORTED_BY_USER ? 
+                               DB_SEARCH_ABORTED_BY_USER :
+                               DB_RECORD_NOT_FOUND);
 			goto idx_cond_failed;
 		}
+                /* res == XTRADB_ICP_MATCH */
 	}
 
 	/* Get the clustered index record if needed, if we did not do the

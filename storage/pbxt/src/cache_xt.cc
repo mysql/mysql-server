@@ -717,6 +717,11 @@ xtPublic void xt_ind_exit(XTThreadPtr self)
 	ind_handle_exit(self);
 
 	if (ind_cac_globals.cg_blocks) {
+		XTIndBlockPtr	block = ind_cac_globals.cg_blocks;
+		for (u_int i=0; i<ind_cac_globals.cg_block_count; i++) {
+			XT_IPAGE_FREE_LOCK(self, &block->cb_lock);
+			block++;
+		}
 		xt_free(self, ind_cac_globals.cg_blocks);
 		ind_cac_globals.cg_blocks = NULL;
 		xt_free_mutex(&ind_cac_globals.cg_lock);

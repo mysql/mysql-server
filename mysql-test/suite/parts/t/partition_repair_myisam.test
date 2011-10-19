@@ -232,9 +232,12 @@ FLUSH TABLES;
 SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash
 WHERE (b % 7) = 6
 ORDER BY partition, b, a;
+SET @save_optimizer_switch= @@optimizer_switch;
+SET @@optimizer_switch='derived_merge=off';
 SELECT (b % 7) AS partition, b, a FROM (SELECT b,a FROM t1_will_crash) q
 WHERE (b % 7) = 6
 ORDER BY partition, b, a;
+SET @@optimizer_switch=@save_optimizer_switch;
 # NOTE: REBUILD PARTITION without CHECK before, 2 + (1) records will be lost!
 #ALTER TABLE t1_will_crash REBUILD PARTITION p6;
 ALTER TABLE t1_will_crash CHECK PARTITION p6;

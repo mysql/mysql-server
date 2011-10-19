@@ -222,7 +222,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
                                          ALIGN_SIZE(sp->typecnt *
                                                     sizeof(TRAN_TYPE_INFO)) +
 #ifdef ABBR_ARE_USED
-                                         ALIGN_SIZE(sp->charcnt) +
+                                         ALIGN_SIZE(sp->charcnt+1) +
 #endif
                                          sp->leapcnt * sizeof(LS_INFO))))
       return 1;
@@ -235,7 +235,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     tzinfo_buf+= ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO));
 #ifdef ABBR_ARE_USED
     sp->chars= tzinfo_buf;
-    tzinfo_buf+= ALIGN_SIZE(sp->charcnt);
+    tzinfo_buf+= ALIGN_SIZE(sp->charcnt+1);
 #endif
     sp->lsis= (LS_INFO *)tzinfo_buf;
 
@@ -823,9 +823,11 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
     TIME_to_gmt_sec()
       t               - pointer to structure for broken down represenatation
       sp              - pointer to struct with time zone description
-      in_dst_time_gap - pointer to bool which is set to true if datetime
-                        value passed doesn't really exist (i.e. falls into
-                        spring time-gap) and is not touched otherwise.
+      error_code      - 0, if the conversion was successful;
+                        ER_WARN_DATA_OUT_OF_RANGE, if t contains datetime value
+                           which is out of TIMESTAMP range;
+                        ER_WARN_INVALID_TIMESTAMP, if t represents value which
+                           doesn't exists (falls into the spring time-gap).
 
   DESCRIPTION
     This is mktime analog for MySQL. It is essentially different
@@ -887,20 +889,23 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
     Seconds in UTC since Epoch.
     0 in case of error.
 */
+
 static my_time_t
-TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
-                my_bool *in_dst_time_gap)
+TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp, uint *error_code)
 {
   my_time_t local_t;
   uint saved_seconds;
   uint i;
   int shift= 0;
-
   DBUG_ENTER("TIME_to_gmt_sec");
 
   if (!validate_timestamp_range(t))
+  {
+    *error_code= ER_WARN_DATA_OUT_OF_RANGE;
     DBUG_RETURN(0);
+  }
 
+  *error_code= 0;
 
   /* We need this for correct leap seconds handling */
   if (t->second < SECS_PER_MIN)
@@ -944,6 +949,7 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       This means that source time can't be represented as my_time_t due to
       limited my_time_t range.
     */
+    *error_code= ER_WARN_DATA_OUT_OF_RANGE;
     DBUG_RETURN(0);
   }
 
@@ -960,6 +966,7 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
     if (local_t > (my_time_t) (TIMESTAMP_MAX_VALUE - shift * SECS_PER_DAY +
                                sp->revtis[i].rt_offset - saved_seconds))
     {
+      *error_code= ER_WARN_DATA_OUT_OF_RANGE;
       DBUG_RETURN(0);                           /* my_time_t overflow */
     }
     local_t+= shift * SECS_PER_DAY;
@@ -973,7 +980,7 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       Now we are returning my_time_t value corresponding to the
       beginning of the gap.
     */
-    *in_dst_time_gap= 1;
+    *error_code= ER_WARN_INVALID_TIMESTAMP;
     local_t= sp->revts[i] - sp->revtis[i].rt_offset + saved_seconds;
   }
   else
@@ -981,7 +988,10 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
 
   /* check for TIMESTAMP_MAX_VALUE was already done above */
   if (local_t < TIMESTAMP_MIN_VALUE)
+  {
     local_t= 0;
+    *error_code= ER_WARN_DATA_OUT_OF_RANGE;
+  }
 
   DBUG_RETURN(local_t);
 }
@@ -1015,8 +1025,7 @@ class Time_zone_system : public Time_zone
 {
 public:
   Time_zone_system() {}                       /* Remove gcc warning */
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    my_bool *in_dst_time_gap) const;
+  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, uint *error_code) const;
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 };
@@ -1030,9 +1039,11 @@ public:
     TIME_to_gmt_sec()
       t               - pointer to MYSQL_TIME structure with local time in
                         broken-down representation.
-      in_dst_time_gap - pointer to bool which is set to true if datetime
-                        value passed doesn't really exist (i.e. falls into
-                        spring time-gap) and is not touched otherwise.
+      error_code      - 0, if the conversion was successful;
+                        ER_WARN_DATA_OUT_OF_RANGE, if t contains datetime value
+                           which is out of TIMESTAMP range;
+                        ER_WARN_INVALID_TIMESTAMP, if t represents value which
+                           doesn't exists (falls into the spring time-gap).
 
   DESCRIPTION
     This method uses system function (localtime_r()) for conversion
@@ -1048,10 +1059,10 @@ public:
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_system::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_system::TIME_to_gmt_sec(const MYSQL_TIME *t, uint *error_code) const
 {
   long not_used;
-  return my_system_gmt_sec(t, &not_used, in_dst_time_gap);
+  return my_system_gmt_sec(t, &not_used, error_code);
 }
 
 
@@ -1111,7 +1122,7 @@ class Time_zone_utc : public Time_zone
 public:
   Time_zone_utc() {}                          /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    my_bool *in_dst_time_gap) const;
+                                    uint *error_code) const;
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 };
@@ -1119,14 +1130,6 @@ public:
 
 /*
   Convert UTC time from MYSQL_TIME representation to its my_time_t representation.
-
-  SYNOPSIS
-    TIME_to_gmt_sec()
-      t               - pointer to MYSQL_TIME structure with local time
-                        in broken-down representation.
-      in_dst_time_gap - pointer to bool which is set to true if datetime
-                        value passed doesn't really exist (i.e. falls into
-                        spring time-gap) and is not touched otherwise.
 
   DESCRIPTION
     Since Time_zone_utc is used only internally for my_time_t -> TIME
@@ -1137,10 +1140,11 @@ public:
     0
 */
 my_time_t
-Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *t, uint *error_code) const
 {
   /* Should be never called */
   DBUG_ASSERT(0);
+  *error_code= ER_WARN_DATA_OUT_OF_RANGE;
   return 0;
 }
 
@@ -1200,8 +1204,7 @@ class Time_zone_db : public Time_zone
 {
 public:
   Time_zone_db(TIME_ZONE_INFO *tz_info_arg, const String * tz_name_arg);
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    my_bool *in_dst_time_gap) const;
+  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, uint *error_code) const;
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
 private:
@@ -1238,9 +1241,11 @@ Time_zone_db::Time_zone_db(TIME_ZONE_INFO *tz_info_arg,
     TIME_to_gmt_sec()
       t               - pointer to MYSQL_TIME structure with local time
                         in broken-down representation.
-      in_dst_time_gap - pointer to bool which is set to true if datetime
-                        value passed doesn't really exist (i.e. falls into
-                        spring time-gap) and is not touched otherwise.
+      error_code      - 0, if the conversion was successful;
+                        ER_WARN_DATA_OUT_OF_RANGE, if t contains datetime value
+                           which is out of TIMESTAMP range;
+                        ER_WARN_INVALID_TIMESTAMP, if t represents value which
+                           doesn't exists (falls into the spring time-gap).
 
   DESCRIPTION
     Please see ::TIME_to_gmt_sec for function description and
@@ -1250,9 +1255,9 @@ Time_zone_db::Time_zone_db(TIME_ZONE_INFO *tz_info_arg,
     Corresponding my_time_t value or 0 in case of error
 */
 my_time_t
-Time_zone_db::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_db::TIME_to_gmt_sec(const MYSQL_TIME *t, uint *error_code) const
 {
-  return ::TIME_to_gmt_sec(t, tz_info, in_dst_time_gap);
+  return ::TIME_to_gmt_sec(t, tz_info, error_code);
 }
 
 
@@ -1298,7 +1303,7 @@ class Time_zone_offset : public Time_zone
 public:
   Time_zone_offset(long tz_offset_arg);
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    my_bool *in_dst_time_gap) const;
+                                    uint *error_code) const;
   virtual void   gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
   virtual const String * get_name() const;
   /*
@@ -1340,17 +1345,18 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
     TIME_to_gmt_sec()
       t               - pointer to MYSQL_TIME structure with local time
                         in broken-down representation.
-      in_dst_time_gap - pointer to bool which should be set to true if
-                        datetime  value passed doesn't really exist
-                        (i.e. falls into spring time-gap) and is not
-                        touched otherwise.
-                        It is not really used in this class.
+      error_code      - 0, if the conversion was successful;
+                        ER_WARN_DATA_OUT_OF_RANGE, if t contains datetime value
+                           which is out of TIMESTAMP range;
+                        ER_WARN_INVALID_TIMESTAMP, if t represents value which
+                           doesn't exists (falls into the spring time-gap).
 
   RETURN VALUE
-    Corresponding my_time_t value or 0 in case of error
+    Corresponding my_time_t value or 0 in case of error.
 */
+
 my_time_t
-Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, uint *error_code) const
 {
   my_time_t local_t;
   int shift= 0;
@@ -1360,7 +1366,11 @@ Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap)
     us to make all validation checks here.
   */
   if (!validate_timestamp_range(t))
+  {
+    *error_code= ER_WARN_DATA_OUT_OF_RANGE;
     return 0;
+  }
+  *error_code= 0;
 
   /*
     Do a temporary shift of the boundary dates to avoid
@@ -1384,6 +1394,7 @@ Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap)
     return local_t;
 
   /* range error*/
+  *error_code= ER_WARN_DATA_OUT_OF_RANGE;
   return 0;
 }
 
@@ -2781,7 +2792,7 @@ main(int argc, char **argv)
             for (time_tmp.second=0; time_tmp.second<60; time_tmp.second+=25)
             {
               long not_used;
-              my_bool not_used_2;
+              uint not_used_2;
               t= (time_t)my_system_gmt_sec(&time_tmp, &not_used, &not_used_2);
               t1= (time_t)TIME_to_gmt_sec(&time_tmp, &tz_info, &not_used_2);
               if (t != t1)

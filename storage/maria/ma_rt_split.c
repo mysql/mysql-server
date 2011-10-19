@@ -544,8 +544,7 @@ int maria_rtree_split_page(const MARIA_KEY *key, MARIA_PAGE *page,
   }
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
 
-  my_afree(new_page);
-
+  my_afree(new_page_buff);
 split_err:
   my_afree(coord_buf);
   DBUG_RETURN(err_code);

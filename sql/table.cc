@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +37,7 @@
 #include "my_md5.h"
 #include "my_bit.h"
 #include "sql_select.h"
+#include "sql_derived.h"
 #include "mdl.h"                 // MDL_wait_for_graph_visitor
 
 /* INFORMATION_SCHEMA name */
@@ -836,8 +838,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->db_record_offset= 1;
   if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
     share->blob_ptr_size= portable_sizeof_char_ptr;
-  /* Set temporarily a good value for db_low_byte_first */
-  share->db_low_byte_first= test(legacy_db_type != DB_TYPE_ISAM);
   error=4;
   share->max_rows= uint4korr(head+18);
   share->min_rows= uint4korr(head+22);
@@ -1592,7 +1592,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           key_part->null_bit= field->null_bit;
           key_part->store_length+=HA_KEY_NULL_LENGTH;
           keyinfo->flags|=HA_NULL_PART_KEY;
-          keyinfo->extra_length+= HA_KEY_NULL_LENGTH;
           keyinfo->key_length+= HA_KEY_NULL_LENGTH;
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
@@ -1604,7 +1603,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             key_part->key_part_flag|= HA_BLOB_PART;
           else
             key_part->key_part_flag|= HA_VAR_LENGTH_PART;
-          keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
           key_part->store_length+=HA_KEY_BLOB_LENGTH;
           keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
         }
@@ -1682,6 +1680,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
+        if (field->real_maybe_null())
+          key_part->key_part_flag|= HA_NULL_PART;
         /*
           Sometimes we can compare key parts for equality with memcmp.
           But not always.
@@ -1793,7 +1793,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->can_cmp_whole_record= (share->blob_fields == 0 &&
                                 share->varchar_fields == 0);
 
-  share->db_low_byte_first= handler_file->low_byte_first();
   share->column_bitmap_size= bitmap_buffer_size(share->fields);
 
   if (!(bitmaps= (my_bitmap_map*) alloc_root(&share->mem_root,
@@ -2058,7 +2057,12 @@ bool unpack_vcol_info_from_frm(THD *thd,
   vcol_arena= table->expr_arena;
   if (!vcol_arena)
   {
-    Query_arena expr_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
+    /*
+      We need to use CONVENTIONAL_EXECUTION here to ensure that
+      any new items created by fix_fields() are not reverted.
+    */
+    Query_arena expr_arena(&table->mem_root,
+                           Query_arena::STMT_CONVENTIONAL_EXECUTION);
     if (!(vcol_arena= (Query_arena *) alloc_root(&table->mem_root,
                                                  sizeof(Query_arena))))
       goto err;
@@ -2144,7 +2148,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
   Field **field_ptr, **vfield_ptr;
-  uint8 save_view_prepare_mode= thd->lex->context_analysis_only;
+  uint8 save_context_analysis_only= thd->lex->context_analysis_only;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
@@ -2160,7 +2164,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
-  if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
+  if (outparam->alias.copy(alias, strlen(alias), table_alias_charset))
     goto err;
   outparam->quick_keys.init();
   outparam->covering_keys.init();
@@ -2393,12 +2397,11 @@ partititon_err:
 
   /* Check virtual columns against table's storage engine. */
   if (share->vfields && 
-        ((outparam->file && 
-          !outparam->file->check_if_supported_virtual_columns())))
+        !(outparam->file && 
+          (outparam->file->ha_table_flags() & HA_CAN_VIRTUAL_COLUMNS)))
   {
-    my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
-             MYF(0), share->db_plugin ? plugin_name(share->db_plugin)->str :
-             "Specified storage engine");
+    my_error(ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS, MYF(0),
+             plugin_name(share->db_plugin)->str);
     error_reported= TRUE;
     goto err;
   }
@@ -2406,7 +2409,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*4)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*5)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2416,6 +2419,8 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
+  bitmap_init(&outparam->eq_join_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*4), share->fields, FALSE);
   outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
@@ -2479,7 +2484,7 @@ partititon_err:
                                HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
-  thd->lex->context_analysis_only= save_view_prepare_mode;
+  thd->lex->context_analysis_only= save_context_analysis_only;
   DBUG_RETURN (0);
 
  err:
@@ -2492,9 +2497,9 @@ partititon_err:
 #endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
-  thd->lex->context_analysis_only= save_view_prepare_mode;
+  thd->lex->context_analysis_only= save_context_analysis_only;
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
-  my_free((void *) outparam->alias);
+  outparam->alias.free();
   DBUG_RETURN (error);
 }
 
@@ -2518,10 +2523,9 @@ int closefrm(register TABLE *table, bool free_share)
   {
     if (table->s->deleting)
       table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-    error=table->file->close();
+    error=table->file->ha_close();
   }
-  my_free((void *) table->alias);
-  table->alias= 0;
+  table->alias.free();
   if (table->expr_arena)
     table->expr_arena->free_items();
   if (table->field)
@@ -2742,13 +2746,17 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
-  myf errortype= ME_ERROR+ME_WAITTANG;
+  myf errortype= ME_ERROR+ME_WAITTANG;          // Write fatals error to log
   DBUG_ENTER("open_table_error");
 
   switch (error) {
   case 7:
   case 1:
-    if (db_errno == ENOENT)
+    /*
+      Test if file didn't exists. We have to also test for EINVAL as this
+      may happen on windows when opening a file with a not legal file name
+    */
+    if (db_errno == ENOENT || db_errno == EINVAL)
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
     else
     {
@@ -3010,7 +3018,7 @@ File create_frm(THD *thd, const char *name, const char *db,
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
 
-  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
+  /* Fix this when we have new .frm files;  Current limit is 4G rows (TODO) */
   if (create_info->max_rows > UINT_MAX32)
     create_info->max_rows= UINT_MAX32;
   if (create_info->min_rows > UINT_MAX32)
@@ -3383,7 +3391,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
   const TABLE_FIELD_TYPE *field_def= table_def->field;
   DBUG_ENTER("table_check_intact");
   DBUG_PRINT("info",("table: %s  expected_count: %d",
-                     table->alias, table_def->count));
+                     table->alias.c_ptr(), table_def->count));
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
@@ -3398,7 +3406,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
                    ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                   table->alias, table_def->count, table->s->fields,
+                   table->alias.c_ptr(), table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
                    MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
@@ -3406,7 +3414,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED),
+                   table->alias.c_ptr(),
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
     }
@@ -3418,11 +3427,13 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       is backward compatible.
     */
   }
-  char buffer[STRING_BUFFER_USUAL_SIZE];
+  char buffer[1024];
   for (i=0 ; i < table_def->count; i++, field_def++)
   {
     String sql_type(buffer, sizeof(buffer), system_charset_info);
     sql_type.length(0);
+    /* Allocate min 256 characters at once */
+    sql_type.extra_allocation(256);
     if (i < table->s->fields)
     {
       Field *field= table->field[i];
@@ -3437,7 +3448,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
         */
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected column '%s' at position %d, found '%s'.",
-                     table->s->db.str, table->alias, field_def->name.str, i,
+                     table->s->db.str, table->alias.c_ptr(),
+                     field_def->name.str, i,
                      field->field_name);
       }
       field->sql_type(sql_type);
@@ -3463,7 +3475,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       {
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected column '%s' at position %d to have type "
-                     "%s, found type %s.", table->s->db.str, table->alias,
+                     "%s, found type %s.", table->s->db.str,
+                     table->alias.c_ptr(),
                      field_def->name.str, i, field_def->type.str,
                      sql_type.c_ptr_safe());
         error= TRUE;
@@ -3473,7 +3486,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected the type of column '%s' at position %d "
                      "to have character set '%s' but the type has no "
-                     "character set.", table->s->db.str, table->alias,
+                     "character set.", table->s->db.str,
+                     table->alias.c_ptr(),
                      field_def->name.str, i, field_def->cset.str);
         error= TRUE;
       }
@@ -3483,7 +3497,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected the type of column '%s' at position %d "
                      "to have character set '%s' but found "
-                     "character set '%s'.", table->s->db.str, table->alias,
+                     "character set '%s'.", table->s->db.str,
+                     table->alias.c_ptr(),
                      field_def->name.str, i, field_def->cset.str,
                      field->charset()->csname);
         error= TRUE;
@@ -3494,7 +3509,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       report_error(0, "Incorrect definition of table %s.%s: "
                    "expected column '%s' at position %d to have type %s "
                    " but the column is not found.",
-                   table->s->db.str, table->alias,
+                   table->s->db.str, table->alias.c_ptr(),
                    field_def->name.str, i, field_def->type.str);
       error= TRUE;
     }
@@ -3713,12 +3728,8 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
                                    s->table_name.str,
                                    tl->alias);
   /* Fix alias if table name changes. */
-  if (strcmp(alias, tl->alias))
-  {
-    uint length= (uint) strlen(tl->alias)+1;
-    alias= (char*) my_realloc((char*) alias, length, MYF(MY_WME));
-    memcpy((char*) alias, tl->alias, length);
-  }
+  if (strcmp(alias.c_ptr(), tl->alias))
+    alias.copy(tl->alias, strlen(tl->alias), alias.charset());
 
   tablenr= thd->current_tablenr++;
   used_fields= 0;
@@ -3733,6 +3744,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   fulltext_searched= 0;
   file->ha_start_of_new_statement();
   reginfo.impossible_range= 0;
+  created= TRUE;
 
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!auto_increment_field_not_null);
@@ -3749,6 +3761,14 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
 
   /* mark the record[0] uninitialized */
   TRASH(record[0], s->reclength);
+
+  /*
+    Initialize the null marker bits, to ensure that if we are doing a read
+    of only selected columns (like in keyread), all null markers are
+    initialized.
+  */
+  memset(record[0], 255, s->null_bytes); 
+  memset(record[1], 255, s->null_bytes); 
 
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
@@ -3835,129 +3855,112 @@ void  TABLE_LIST::calc_md5(char *buffer)
 
 
 /**
-   @brief Set underlying table for table place holder of view.
+  @brief
+  Create field translation for mergeable derived table/view.
 
-   @details
+  @param thd  Thread handle
 
-   Replace all views that only use one table with the table itself.  This
-   allows us to treat the view as a simple table and even update it (it is a
-   kind of optimization).
+  @details
+  Create field translation for mergeable derived table/view.
 
-   @note 
-
-   This optimization is potentially dangerous as it makes views
-   masquerade as base tables: Views don't have the pointer TABLE_LIST::table
-   set to non-@c NULL.
-
-   We may have the case where a view accesses tables not normally accessible
-   in the current Security_context (only in the definer's
-   Security_context). According to the table's GRANT_INFO (TABLE::grant),
-   access is fulfilled, but this is implicitly meant in the definer's security
-   context. Hence we must never look at only a TABLE's GRANT_INFO without
-   looking at the one of the referring TABLE_LIST.
+  @return FALSE ok.
+  @return TRUE an error occur.
 */
 
-void TABLE_LIST::set_underlying_merge()
+bool TABLE_LIST::create_field_translation(THD *thd)
 {
-  TABLE_LIST *tbl;
+  Item *item;
+  Field_translator *transl;
+  SELECT_LEX *select= get_single_select();
+  List_iterator_fast<Item> it(select->item_list);
+  uint field_count= 0;
+  Query_arena *arena= thd->stmt_arena, backup;
+  bool res= FALSE;
 
-  if ((tbl= merge_underlying_list))
+  used_items.empty();
+
+  if (field_translation)
   {
-    /* This is a view. Process all tables of view */
-    DBUG_ASSERT(view && effective_algorithm == VIEW_ALGORITHM_MERGE);
-    do
+    /*
+      Update items in the field translation aftet view have been prepared.
+      It's needed because some items in the select list, like IN subselects,
+      might be substituted for optimized ones.
+    */
+    if (is_view() && get_unit()->prepared && !field_translation_updated)
     {
-      if (tbl->merge_underlying_list)          // This is a view
+      while ((item= it++))
       {
-        DBUG_ASSERT(tbl->view &&
-                    tbl->effective_algorithm == VIEW_ALGORITHM_MERGE);
-        /*
-          This is the only case where set_ancestor is called on an object
-          that may not be a view (in which case ancestor is 0)
-        */
-        tbl->merge_underlying_list->set_underlying_merge();
+        field_translation[field_count++].item= item;
       }
-    } while ((tbl= tbl->next_local));
-
-    if (!multitable_view)
-    {
-      table= merge_underlying_list->table;
-      schema_table= merge_underlying_list->schema_table;
+      field_translation_updated= TRUE;
     }
+
+    return FALSE;
   }
+
+  if (arena->is_conventional())
+    arena= 0;                                   // For easier test
+  else
+    thd->set_n_backup_active_arena(arena, &backup);
+
+  /* Create view fields translation table */
+
+  if (!(transl=
+        (Field_translator*)(thd->stmt_arena->
+                            alloc(select->item_list.elements *
+                                  sizeof(Field_translator)))))
+  {
+    res= TRUE;
+    goto exit;
+  }
+
+  while ((item= it++))
+  {
+    transl[field_count].name= item->name;
+    transl[field_count++].item= item;
+  }
+  field_translation= transl;
+  field_translation_end= transl + field_count;
+
+exit:
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+
+  return res;
 }
 
 
-/*
-  setup fields of placeholder of merged VIEW
+/**
+  @brief
+  Create field translation for mergeable derived table/view.
 
-  SYNOPSIS
-    TABLE_LIST::setup_underlying()
-    thd		    - thread handler
+  @param thd  Thread handle
 
-  DESCRIPTION
-    It is:
-    - preparing translation table for view columns
-    If there are underlying view(s) procedure first will be called for them.
+  @details
+  Create field translation for mergeable derived table/view.
 
-  RETURN
-    FALSE - OK
-    TRUE  - error
+  @return FALSE ok.
+  @return TRUE an error occur.
 */
 
 bool TABLE_LIST::setup_underlying(THD *thd)
 {
   DBUG_ENTER("TABLE_LIST::setup_underlying");
 
-  if (!field_translation && merge_underlying_list)
+  if (!view || (!field_translation && merge_underlying_list))
   {
-    Field_translator *transl;
-    SELECT_LEX *select= &view->select_lex;
-    Item *item;
-    TABLE_LIST *tbl;
-    List_iterator_fast<Item> it(select->item_list);
-    uint field_count= 0;
-
-    if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*) &field_count))
-    {
+    SELECT_LEX *select= get_single_select();
+    
+    if (create_field_translation(thd))
       DBUG_RETURN(TRUE);
-    }
-
-    for (tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-    {
-      if (tbl->merge_underlying_list &&
-          tbl->setup_underlying(thd))
-      {
-        DBUG_RETURN(TRUE);
-      }
-    }
-
-    /* Create view fields translation table */
-
-    if (!(transl=
-          (Field_translator*)(thd->stmt_arena->
-                              alloc(select->item_list.elements *
-                                    sizeof(Field_translator)))))
-    {
-      DBUG_RETURN(TRUE);
-    }
-
-    while ((item= it++))
-    {
-      transl[field_count].name= item->name;
-      transl[field_count++].item= item;
-    }
-    field_translation= transl;
-    field_translation_end= transl + field_count;
-    /* TODO: use hash for big number of fields */
 
     /* full text function moving to current select */
-    if (view->select_lex.ftfunc_list->elements)
+    if (select->ftfunc_list->elements)
     {
       Item_func_match *ifm;
       SELECT_LEX *current_select= thd->lex->current_select;
       List_iterator_fast<Item_func_match>
-        li(*(view->select_lex.ftfunc_list));
+        li(*(select_lex->ftfunc_list));
       while ((ifm= li++))
         current_select->ftfunc_list->push_front(ifm);
     }
@@ -3967,7 +3970,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
 
 
 /*
-  Prepare where expression of view
+   Prepare where expression of derived table/view
 
   SYNOPSIS
     TABLE_LIST::prep_where()
@@ -3991,7 +3994,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
-    if (tbl->view && tbl->prep_where(thd, conds, no_where_clause))
+    if (tbl->is_view_or_derived() &&
+        tbl->prep_where(thd, conds, no_where_clause))
     {
       DBUG_RETURN(TRUE);
     }
@@ -3999,6 +4003,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
 
   if (where)
   {
+    if (where->fixed)
+      where->update_used_tables();
     if (!where->fixed && where->fix_fields(thd, &where))
     {
       DBUG_RETURN(TRUE);
@@ -4031,7 +4037,13 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
         }
       }
       if (tbl == 0)
+      {
+        if (*conds && !(*conds)->fixed)
+	  (*conds)->fix_fields(thd, conds);
         *conds= and_conds(*conds, where->copy_andor_structure(thd));
+        if (*conds && !(*conds)->fixed)
+          (*conds)->fix_fields(thd, conds);        
+      }
       if (arena)
         thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
@@ -4070,10 +4082,11 @@ merge_on_conds(THD *thd, TABLE_LIST *table, bool is_cascaded)
   DBUG_PRINT("info", ("alias: %s", table->alias));
   if (table->on_expr)
     cond= table->on_expr->copy_andor_structure(thd);
-  if (!table->nested_join)
+  if (!table->view)
     DBUG_RETURN(cond);
-  List_iterator<TABLE_LIST> li(table->nested_join->join_list);
-  while (TABLE_LIST *tbl= li++)
+  for (TABLE_LIST *tbl= (TABLE_LIST*)table->view->select_lex.table_list.first;
+       tbl;
+       tbl= tbl->next_local)
   {
     if (tbl->view && !is_cascaded)
       continue;
@@ -4113,7 +4126,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 {
   DBUG_ENTER("TABLE_LIST::prep_check_option");
   bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
-
+  TABLE_LIST *merge_underlying_list= view->select_lex.get_table_list();
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
     /* see comment of check_opt_type parameter */
@@ -4130,7 +4143,6 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
     if (where)
     {
-      DBUG_ASSERT(where->fixed);
       check_option= where->copy_andor_structure(thd);
     }
     if (is_cascaded)
@@ -4226,10 +4238,14 @@ void TABLE_LIST::hide_view_error(THD *thd)
 TABLE_LIST *TABLE_LIST::find_underlying_table(TABLE *table_to_find)
 {
   /* is this real table and table which we are looking for? */
-  if (table == table_to_find && merge_underlying_list == 0)
+  if (table == table_to_find && view == 0)
     return this;
+  if (!view)
+    return 0;
 
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+  for (TABLE_LIST *tbl= view->select_lex.get_table_list();
+       tbl;
+       tbl= tbl->next_local)
   {
     TABLE_LIST *result;
     if ((result= tbl->find_underlying_table(table_to_find)))
@@ -4311,7 +4327,12 @@ bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
                                        table_map map,
                                        TABLE_LIST *view_arg)
 {
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+  if (!select_lex)
+    return FALSE;
+  DBUG_ASSERT(is_merged_derived());
+  for (TABLE_LIST *tbl= get_single_select()->get_table_list();
+       tbl;
+       tbl= tbl->next_local)
   {
     if (tbl->table)
     {
@@ -4353,8 +4374,10 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
   }
   else
   {
-    DBUG_ASSERT(view && merge_underlying_list);
-    for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+    DBUG_ASSERT(is_view_or_derived() && is_merged_derived());
+    for (TABLE_LIST *tbl= (TABLE_LIST*)view->select_lex.table_list.first;
+         tbl;
+         tbl= tbl->next_local)
       if (tbl->set_insert_values(mem_root))
         return TRUE;
   }
@@ -4380,7 +4403,7 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
 */
 bool TABLE_LIST::is_leaf_for_name_resolution()
 {
-  return (view || is_natural_join || is_join_columns_complete ||
+  return (is_merged_derived() || is_natural_join || is_join_columns_complete ||
           !nested_join);
 }
 
@@ -4518,7 +4541,11 @@ void TABLE_LIST::register_want_access(ulong want_access)
     if (table)
       table->grant.want_privilege= want_access;
   }
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+  if (!view)
+    return;
+  for (TABLE_LIST *tbl= view->select_lex.get_table_list();
+       tbl;
+       tbl= tbl->next_local)
     tbl->register_want_access(want_access);
 }
 
@@ -4754,14 +4781,23 @@ const char *Natural_join_column::db_name()
                       table_ref->table->s->db.str) ||
               (table_ref->schema_table &&
                is_infoschema_db(table_ref->table->s->db.str,
-                                table_ref->table->s->db.length)));
+                                table_ref->table->s->db.length)) ||
+               table_ref->is_materialized_derived());
   return table_ref->db;
 }
 
 
 GRANT_INFO *Natural_join_column::grant()
 {
-  if (view_field)
+/*  if (view_field)
+    return &(table_ref->grant);
+  return &(table_ref->table->grant);*/
+  /*
+    Have to check algorithm because merged derived also has
+    field_translation.
+  */
+//if (table_ref->effective_algorithm == DTYPE_ALGORITHM_MERGE)
+  if (table_ref->is_merged_derived())
     return &(table_ref->grant);
   return &(table_ref->table->grant);
 }
@@ -4842,7 +4878,17 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(view, field_ref, name);
+  Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
+                                       field_ref, view->alias,
+                                       name, view);
+  /*
+    Force creation of nullable item for the result tmp table for outer joined
+    views/derived tables.
+  */
+  if (view->table && view->table->maybe_null)
+    item->maybe_null= TRUE;
+  /* Save item in case we will need to fall back to materialization. */
+  view->used_items.push_back(item);
   DBUG_RETURN(item);
 }
 
@@ -4896,8 +4942,7 @@ void Field_iterator_table_ref::set_field_iterator()
   /* This is a merge view, so use field_translation. */
   else if (table_ref->field_translation)
   {
-    DBUG_ASSERT(table_ref->view &&
-                table_ref->effective_algorithm == VIEW_ALGORITHM_MERGE);
+    DBUG_ASSERT(table_ref->is_merged_derived());
     field_it= &view_field_it;
     DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_view",
                         table_ref->alias));
@@ -5522,43 +5567,93 @@ void TABLE::mark_virtual_columns_for_write(bool insert_fl)
 
 
 /**
+  @brief
   Allocate space for keys
 
-  @param key_count  number of keys to allocate.
+  @param key_count  number of keys to allocate
 
   @details
-  Allocates space enough to fit 'key_count' keys for this table.
+  The function allocates memory  to fit 'key_count' keys for this table.
 
-  @return FALSE space was successfully allocated.
-  @return TRUE an error occur.
+  @return FALSE   space was successfully allocated
+  @return TRUE    an error occur
 */
 
 bool TABLE::alloc_keys(uint key_count)
 {
-  DBUG_ASSERT(!s->keys);
   key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*key_count);
+  s->keys= 0;
   max_keys= key_count;
   return !(key_info);
 }
 
 
+void TABLE::create_key_part_by_field(KEY *keyinfo,
+                                     KEY_PART_INFO *key_part_info,
+                                     Field *field, uint fieldnr)
+{   
+  field->flags|= PART_KEY_FLAG;
+  key_part_info->null_bit= field->null_bit;
+  key_part_info->null_offset= (uint) (field->null_ptr -
+                                      (uchar*) record[0]);
+  key_part_info->field= field;
+  key_part_info->fieldnr= fieldnr;
+  key_part_info->offset= field->offset(record[0]);
+  key_part_info->length=   (uint16) field->pack_length();
+  keyinfo->key_length+= key_part_info->length;
+  key_part_info->key_part_flag= 0;
+  /* TODO:
+    The below method of computing the key format length of the
+    key part is a copy/paste from opt_range.cc, and table.cc.
+    This should be factored out, e.g. as a method of Field.
+    In addition it is not clear if any of the Field::*_length
+    methods is supposed to compute the same length. If so, it
+    might be reused.
+  */
+  key_part_info->store_length= key_part_info->length;
+
+  if (field->real_maybe_null())
+  {
+    key_part_info->store_length+= HA_KEY_NULL_LENGTH;
+    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
+  }
+  if (field->type() == MYSQL_TYPE_BLOB || 
+      field->real_type() == MYSQL_TYPE_VARCHAR)
+  {
+    key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
+    keyinfo->key_length+= HA_KEY_BLOB_LENGTH; // ???
+    key_part_info->key_part_flag|=
+      field->type() == MYSQL_TYPE_BLOB ? HA_BLOB_PART: HA_VAR_LENGTH_PART;
+  }
+
+  key_part_info->type=     (uint8) field->key_type();
+  key_part_info->key_type =
+    ((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
+    (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+    (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
+    0 : FIELDFLAG_BINARY;
+}
+
+
 /**
-  Add a key to a temporary  table
+  @brief
+  Add one key to a temporary table
 
   @param key            the number of the key
   @param key_parts      number of components of the key
   @param next_field_no  the call-back function that returns the number of
                         the field used as the next component of the key
   @param arg            the argument for the above function
-  @param unique         Is it unique index
+  @param unique         TRUE <=> it is a unique index
 
   @details
-  The function adds a new key to the table that is assumed to be
-  temprary table. The call-back function must at each call must return
-  the number of the field that used as next component of this key
+  The function adds a new key to the table that is assumed to be a temporary
+  table. At each its invocation the call-back function must return
+  the number of the field that is used as the next component of this key.
 
   @return FALSE is a success
   @return TRUE if a failure
+
 */
 
 bool TABLE::add_tmp_key(uint key, uint key_parts,
@@ -5592,57 +5687,61 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
   if (!keyinfo->rec_per_key)
     return TRUE;
   bzero(keyinfo->rec_per_key, sizeof(ulong)*key_parts);
+
   for (i= 0; i < key_parts; i++)
   {
-    reg_field= field + next_field_no(arg);
+    uint fld_idx= next_field_no(arg); 
+    reg_field= field + fld_idx;
     if (key_start)
       (*reg_field)->key_start.set_bit(key);
+    (*reg_field)->part_of_key.set_bit(key);
+    create_key_part_by_field(keyinfo, key_part_info, *reg_field, fld_idx+1);
     key_start= FALSE;
-      (*reg_field)->part_of_key.set_bit(key);
-    (*reg_field)->flags|= PART_KEY_FLAG;
-    key_part_info->null_bit= (*reg_field)->null_bit;
-    key_part_info->null_offset= (uint) ((*reg_field)->null_ptr -
-                                          (uchar*) record[0]);
-    key_part_info->field=    *reg_field;
-    key_part_info->offset=   (*reg_field)->offset(record[0]);
-    key_part_info->length=   (uint16) (*reg_field)->pack_length();
-    keyinfo->key_length+= key_part_info->length;
-    key_part_info->key_part_flag= 0;
-    /* TODO:
-      The below method of computing the key format length of the
-      key part is a copy/paste from opt_range.cc, and table.cc.
-      This should be factored out, e.g. as a method of Field.
-      In addition it is not clear if any of the Field::*_length
-      methods is supposed to compute the same length. If so, it
-      might be reused.
-    */
-    key_part_info->store_length= key_part_info->length;
-
-    if ((*reg_field)->real_maybe_null())
-    {
-      key_part_info->store_length+= HA_KEY_NULL_LENGTH;
-      keyinfo->key_length+= HA_KEY_NULL_LENGTH;
-      if (unique)
-        keyinfo->flags|= HA_NULL_ARE_EQUAL;     // def. that NULL == NULL
-    }
-    if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
-        (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
-    {
-      key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
-      keyinfo->key_length+= HA_KEY_BLOB_LENGTH; // ???
-    }
-
-    key_part_info->type=     (uint8) (*reg_field)->key_type();
-    key_part_info->key_type =
-      ((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
-       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
-      0 : FIELDFLAG_BINARY;
     key_part_info++;
   }
+
   set_if_bigger(s->max_key_length, keyinfo->key_length);
   s->keys++;
   return FALSE;
+}
+
+/*
+  @brief
+  Drop all indexes except specified one.
+
+  @param key_to_save the key to save
+
+  @details
+  Drop all indexes on this table except 'key_to_save'. The saved key becomes
+  key #0. Memory occupied by key parts of dropped keys are freed.
+  If the 'key_to_save' is negative then all keys are freed.
+*/
+
+void TABLE::use_index(int key_to_save)
+{
+  uint i= 1;
+  DBUG_ASSERT(!created && key_to_save < (int)s->keys);
+  if (key_to_save >= 0)
+    /* Save the given key. */
+    memmove(key_info, key_info + key_to_save, sizeof(KEY));
+  else
+    /* Drop all keys; */
+    i= 0;
+
+  s->keys= (key_to_save < 0) ? 0 : 1;
+}
+
+/*
+  Return TRUE if the table is filled at execution phase 
+  
+  (and so, the optimizer must not do anything that depends on the contents of
+   the table, like range analysis or constant table detection)
+*/
+
+bool TABLE::is_filled_at_execution()
+{ 
+  return test(pos_in_table_list->jtbm_subselect || 
+              pos_in_table_list->is_active_sjm());
 }
 
 
@@ -5677,6 +5776,7 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 
   mdl_request.ticket= NULL;
 }
+
 
 /*
   Return subselect that contains the FROM list this table is taken from
@@ -6019,6 +6119,297 @@ int update_virtual_fields(THD *thd, TABLE *table, bool for_write)
   thd->reset_arena_for_cached_items(0);
   DBUG_RETURN(0);
 }
+
+/*
+  @brief Reset const_table flag
+
+  @detail
+  Reset const_table flag for this table. If this table is a merged derived
+  table/view the flag is recursively reseted for all tables of the underlying
+  select.
+*/
+
+void TABLE_LIST::reset_const_table()
+{
+  table->const_table= 0;
+  if (is_merged_derived())
+  {
+    SELECT_LEX *select_lex= get_unit()->first_select();
+    TABLE_LIST *tl;
+    List_iterator<TABLE_LIST> ti(select_lex->leaf_tables);
+    while ((tl= ti++))
+      tl->reset_const_table();
+  }
+}
+
+
+/*
+  @brief Run derived tables/view handling phases on underlying select_lex.
+
+  @param lex    LEX for this thread
+  @param phases derived tables/views handling phases to run
+                (set of DT_XXX constants)
+  @details
+  This function runs this derived table through specified 'phases'.
+  Underlying tables of this select are handled prior to this derived.
+  'lex' is passed as an argument to called functions.
+
+  @return TRUE on error
+  @return FALSE ok
+*/
+
+bool TABLE_LIST::handle_derived(LEX *lex, uint phases)
+{
+  SELECT_LEX_UNIT *unit= get_unit();
+  if (unit)
+  {
+    for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+      if (sl->handle_derived(lex, phases))
+        return TRUE;
+    return mysql_handle_single_derived(lex, this, phases);
+  }
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Return unit of this derived table/view
+
+  @return reference to a unit  if it's a derived table/view.
+  @return 0                    when it's not a derived table/view.
+*/
+
+st_select_lex_unit *TABLE_LIST::get_unit()
+{
+  return (view ? &view->unit : derived);
+}
+
+
+/**
+  @brief
+  Return select_lex of this derived table/view
+
+  @return select_lex of this derived table/view.
+  @return 0          when it's not a derived table.
+*/
+
+st_select_lex *TABLE_LIST::get_single_select()
+{
+  SELECT_LEX_UNIT *unit= get_unit();
+  return (unit ? unit->first_select() : 0);
+}
+
+
+/**
+  @brief
+  Attach a join table list as a nested join to this TABLE_LIST.
+
+  @param join_list join table list to attach
+
+  @details
+  This function wraps 'join_list' into a nested_join of this table, thus
+  turning it to a nested join leaf.
+*/
+
+void TABLE_LIST::wrap_into_nested_join(List<TABLE_LIST> &join_list)
+{
+  TABLE_LIST *tl;
+  /*
+    Walk through derived table top list and set 'embedding' to point to
+    the nesting table.
+  */
+  nested_join->join_list.empty();
+  List_iterator_fast<TABLE_LIST> li(join_list);
+  nested_join->join_list= join_list;
+  while ((tl= li++))
+  {
+    tl->embedding= this;
+    tl->join_list= &nested_join->join_list;
+  }
+}
+
+
+/**
+  @brief
+  Initialize this derived table/view
+
+  @param thd  Thread handle
+
+  @details
+  This function makes initial preparations of this derived table/view for
+  further processing:
+    if it's a derived table this function marks it either as mergeable or
+      materializable
+    creates temporary table for name resolution purposes
+    creates field translation for mergeable derived table/view
+
+  @return TRUE  an error occur
+  @return FALSE ok
+*/
+
+bool TABLE_LIST::init_derived(THD *thd, bool init_view)
+{
+  SELECT_LEX *first_select= get_single_select();
+  SELECT_LEX_UNIT *unit= get_unit();
+
+  if (!unit)
+    return FALSE;
+  /*
+    Check whether we can merge this derived table into main select.
+    Depending on the result field translation will or will not
+    be created.
+  */
+  TABLE_LIST *first_table= (TABLE_LIST *) first_select->table_list.first;
+  if (first_select->table_list.elements > 1 ||
+      (first_table && first_table->is_multitable()))
+    set_multitable();
+
+  unit->derived= this;
+  if (init_view && !view)
+  {
+    /* This is all what we can do for a derived table for now. */
+    set_derived();
+  }
+
+  if (!is_view())
+  {
+    /* A subquery might be forced to be materialized due to a side-effect. */
+    if (!is_materialized_derived() && first_select->is_mergeable() &&
+        optimizer_flag(thd, OPTIMIZER_SWITCH_DERIVED_MERGE) &&
+        !(thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+          thd->lex->sql_command == SQLCOM_DELETE_MULTI))
+      set_merged_derived();
+    else
+      set_materialized_derived();
+  }
+  /*
+    Derived tables/view are materialized prior to UPDATE, thus we can skip
+    them from table uniqueness check
+  */
+  if (is_materialized_derived())
+  {
+    unit->master_unit()->set_unique_exclude();
+  }
+  /*
+    Create field translation for mergeable derived tables/views.
+    For derived tables field translation can be created only after
+    unit is prepared so all '*' are get unrolled.
+  */
+  if (is_merged_derived())
+  {
+    if (is_view() || unit->prepared)
+      create_field_translation(thd);
+  }
+
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Retrieve number of rows in the table
+
+  @details
+  Retrieve number of rows in the table referred by this TABLE_LIST and
+  store it in the table's stats.records variable. If this TABLE_LIST refers
+  to a materialized derived table/view then the estimated number of rows of
+  the derived table/view is used instead.
+
+  @return 0          ok
+  @return non zero   error
+*/
+
+int TABLE_LIST::fetch_number_of_rows()
+{
+  int error= 0;
+  if (is_materialized_derived() && !fill_me)
+
+  {
+    table->file->stats.records= ((select_union*)derived->result)->records;
+    set_if_bigger(table->file->stats.records, 2);
+  }
+  else
+    error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+  return error;
+}
+
+/*
+  Procedure of keys generation for result tables of materialized derived
+  tables/views.
+
+  A key is generated for each equi-join pair derived table-another table.
+  Each generated key consists of fields of derived table used in equi-join.
+  Example:
+
+    SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt JOIN
+                  t1 ON tt.f1=t1.f3 and tt.f2.=t1.f4;
+  In this case for the derived table tt one key will be generated. It will
+  consist of two parts f1 and f2.
+  Example:
+
+    SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt JOIN
+                  t1 ON tt.f1=t1.f3 JOIN
+                  t2 ON tt.f2=t2.f4;
+  In this case for the derived table tt two keys will be generated.
+  One key over f1 field, and another key over f2 field.
+  Currently optimizer may choose to use only one such key, thus the second
+  one will be dropped after range optimizer is finished.
+  See also JOIN::drop_unused_derived_keys function.
+  Example:
+
+    SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt JOIN
+                  t1 ON tt.f1=a_function(t1.f3);
+  In this case for the derived table tt one key will be generated. It will
+  consist of one field - f1.
+*/
+
+
+
+/*
+  @brief
+  Change references to underlying items of a merged derived table/view
+  for fields in derived table's result table.
+
+  @return FALSE ok
+  @return TRUE  Out of memory
+*/
+bool TABLE_LIST::change_refs_to_fields()
+{
+  List_iterator<Item> li(used_items);
+  Item_direct_ref *ref;
+  Field_iterator_view field_it;
+  THD *thd= table->in_use;
+  DBUG_ASSERT(is_merged_derived());
+
+  if (!used_items.elements)
+    return FALSE;
+
+  materialized_items= (Item**)thd->calloc(sizeof(void*) * table->s->fields);
+
+  while ((ref= (Item_direct_ref*)li++))
+  {
+    uint idx;
+    Item *orig_item= *ref->ref;
+    field_it.set(this);
+    for (idx= 0; !field_it.end_of_fields(); field_it.next(), idx++)
+    {
+      if (field_it.item() == orig_item)
+        break;
+    }
+    DBUG_ASSERT(!field_it.end_of_fields());
+    if (!materialized_items[idx])
+    {
+      materialized_items[idx]= new Item_field(table->field[idx]);
+      if (!materialized_items[idx])
+        return TRUE;
+    }
+    ref->ref= materialized_items + idx;
+  }
+
+  return FALSE;
+}
+
 
 /*****************************************************************************
 ** Instansiate templates

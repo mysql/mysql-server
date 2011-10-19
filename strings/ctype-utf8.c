@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -18,10 +19,8 @@
 /* UTF8 according RFC 2279 */
 /* Written by Alexander Barkov <bar@udm.net> */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
-#include <errno.h>
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT

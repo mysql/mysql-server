@@ -504,33 +504,75 @@ private:
 extern char *err_conv(char *buff, uint to_length, const char *from,
                       uint from_length, CHARSET_INFO *from_cs);
 
-class ErrConvString
+class ErrConv
 {
-  char err_buffer[MYSQL_ERRMSG_SIZE];
+protected:
+  mutable char err_buffer[MYSQL_ERRMSG_SIZE];
 public:
-
-  ErrConvString(String *str)
-  {
-    (void) err_conv(err_buffer, sizeof(err_buffer), str->ptr(),
-                    str->length(), str->charset());
-  }
-
-  ErrConvString(const char *str, CHARSET_INFO* cs)
-  {
-    (void) err_conv(err_buffer, sizeof(err_buffer),
-                    str, strlen(str), cs);
-  }
-
-  ErrConvString(const char *str, uint length, CHARSET_INFO* cs)
-  {
-    (void) err_conv(err_buffer, sizeof(err_buffer),
-                    str, length, cs);
-  }
-
-  ~ErrConvString() { };
-  char *ptr() { return err_buffer; }
+  ErrConv() {}
+  virtual ~ErrConv() {}
+  virtual const char *ptr() const = 0;
 };
 
+class ErrConvString : public ErrConv
+{
+  const char *str;
+  size_t len;
+  CHARSET_INFO *cs;
+public:
+  ErrConvString(const char *str_arg, size_t len_arg, CHARSET_INFO *cs_arg)
+    : ErrConv(), str(str_arg), len(len_arg), cs(cs_arg) {}
+  ErrConvString(String *s)
+    : ErrConv(), str(s->ptr()), len(s->length()), cs(s->charset()) {}
+  const char *ptr() const
+  { return err_conv(err_buffer, sizeof(err_buffer), str, len, cs); }
+};
+
+class ErrConvInteger : public ErrConv
+{
+  longlong num;
+public:
+  ErrConvInteger(longlong num_arg) : ErrConv(), num(num_arg) {}
+  const char *ptr() const
+  { return llstr(num, err_buffer); }
+};
+
+class ErrConvDouble: public ErrConv
+{
+  double num;
+public:
+  ErrConvDouble(double num_arg) : ErrConv(), num(num_arg) {}
+  const char *ptr() const
+  {
+    my_gcvt(num, MY_GCVT_ARG_DOUBLE, sizeof(err_buffer), err_buffer, 0);
+    return err_buffer;
+  }
+};
+
+class ErrConvTime : public ErrConv
+{
+  const MYSQL_TIME *ltime;
+public:
+  ErrConvTime(const MYSQL_TIME *ltime_arg) : ErrConv(), ltime(ltime_arg) {}
+  const char *ptr() const
+  {
+    my_TIME_to_str(ltime, err_buffer, AUTO_SEC_PART_DIGITS);
+    return err_buffer;
+  }
+};
+
+class ErrConvDecimal : public ErrConv
+{
+  const decimal_t *d;
+public:
+  ErrConvDecimal(const decimal_t *d_arg) : ErrConv(), d(d_arg) {}
+  const char *ptr() const
+  {
+    int len= sizeof(err_buffer);
+    decimal2string(d, err_buffer, &len, 0, 0, ' ');
+    return err_buffer;
+  }
+};
 
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
                   uint code, const char *msg);

@@ -36,6 +36,8 @@ select @@global.aria_pagecache_division_limit;
 1
 set global aria_pagecache_division_limit=cast(-1 as unsigned int);
 Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect aria_pagecache_division_limit value: '18446744073709551615'
 select @@global.aria_pagecache_division_limit;
 @@global.aria_pagecache_division_limit

@@ -1389,7 +1389,7 @@ next:
     subdir=0;
     while (ctlp < end && *ctlp != ',')
       ctlp++;
-    len=ctlp-start;
+    len= (int) (ctlp-start);
     if (start[len-1] == '/')
     {
       len--;
@@ -2113,7 +2113,7 @@ static void DbugFlush(CODE_STATE *cs)
 
 void _db_flush_()
 {
-  CODE_STATE *cs= NULL;
+  CODE_STATE *cs;
   get_code_state_or_return;
   (void) fflush(cs->stack->out_file);
 }

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (C) 2006 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -201,8 +201,8 @@ cp support-files/my-*.ini $DESTDIR/
 cp README                 $DESTDIR/
 
 if [ -f COPYING ] ; then
-  cp COPYING $DESTDIR/
-  cp COPYING $DESTDIR/Docs/
+  cp COPYING EXCEPTIONS-CLIENT $DESTDIR/
+  cp COPYING                   $DESTDIR/Docs/
 fi
 
 # ----------------------------------------------------------------------
@@ -372,6 +372,7 @@ mysql_secure_installation.pl \
 mysqld_multi.pl \
 mysqldumpslow.pl \
 mysqlhotcopy.pl \
+mytop.pl \
 "
 
 mkdir -p $DESTDIR/scripts

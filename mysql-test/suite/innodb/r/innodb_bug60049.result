@@ -1,3 +1,4 @@
+set @@global.innodb_fast_shutdown=0;
 CREATE TABLE t(a INT)ENGINE=InnoDB;
 RENAME TABLE t TO u;
 DROP TABLE u;

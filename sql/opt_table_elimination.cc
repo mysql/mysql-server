@@ -1207,15 +1207,16 @@ void build_eq_mods_for_cond(Dep_analysis_context *ctx,
     if (!(fvl= new List<Dep_value_field>))
       break; /* purecov: inspected */
 
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
+    Item_equal_fields_iterator it(*item_equal);
+    Item *item;
     Item *bound_item= item_equal->get_const();
     while ((item= it++))
     {
+      Field *equal_field= it.get_curr_field();
       if ((item->used_tables() & ctx->usable_tables))
       {
         Dep_value_field *field_val;
-        if ((field_val= ctx->get_field_value(item->field)))
+        if ((field_val= ctx->get_field_value(equal_field)))
           fvl->push_back(field_val);
       }
       else
@@ -1231,7 +1232,7 @@ void build_eq_mods_for_cond(Dep_analysis_context *ctx,
     if (fvl->elements)
     {
       
-      exchange_sort<Dep_value_field>(fvl, compare_field_values, NULL);
+      bubble_sort<Dep_value_field>(fvl, compare_field_values, NULL);
       add_module_expr(ctx, eq_mod, *and_level, NULL, bound_item, fvl);
     }
     break;
@@ -1782,7 +1783,7 @@ static void mark_as_eliminated(JOIN *join, TABLE_LIST *tbl)
     JOIN_TAB *tab= tbl->table->reginfo.join_tab;
     if (!(join->const_table_map & tab->table->map))
     {
-      DBUG_PRINT("info", ("Eliminated table %s", table->alias));
+      DBUG_PRINT("info", ("Eliminated table %s", table->alias.c_ptr()));
       tab->type= JT_CONST;
       join->eliminated_tables |= table->map;
       join->const_table_map|= table->map;
@@ -1817,7 +1818,7 @@ void Dep_analysis_context::dbug_print_deps()
       fprintf(DBUG_FILE, "  equality%ld: %s -> %s.%s\n", 
               (long)(eq_mod - equality_mods),
               str.c_ptr(),
-              eq_mod->field->table->table->alias,
+              eq_mod->field->table->table->alias.c_ptr(),
               eq_mod->field->field->field_name);
     }
     else
@@ -1835,12 +1836,13 @@ void Dep_analysis_context::dbug_print_deps()
     if ((table_dep= table_deps[i]))
     {
       /* Print table */
-      fprintf(DBUG_FILE, "  table %s\n", table_dep->table->alias);
+      fprintf(DBUG_FILE, "  table %s\n", table_dep->table->alias.c_ptr());
       /* Print fields */
       for (Dep_value_field *field_dep= table_dep->fields; field_dep; 
            field_dep= field_dep->next_table_field)
       {
-        fprintf(DBUG_FILE, "    field %s.%s ->", table_dep->table->alias,
+        fprintf(DBUG_FILE, "    field %s.%s ->",
+                table_dep->table->alias.c_ptr(),
                 field_dep->field->field_name);
         uint ofs= field_dep->bitmap_offset;
         for (uint bit= ofs; bit < ofs + n_equality_mods; bit++)

@@ -66,7 +66,7 @@
 let $table= processlist;
 #
 # columns of the information_schema table e.g. to use in a select.
-let $columns= ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO, TIME_MS;
+let $columns= ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO, TIME_MS, STAGE, MAX_STAGE, PROGRESS;
 #
 # Where clause for an update.
 let $update_where= WHERE id=1 ;
@@ -249,7 +249,7 @@ SELECT * FROM information_schema.processlist;
 --echo   connection default (user=root)
 --echo ####################################################################################
 connection default;
-REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost' IDENTIFIED BY 'ddictpass';
+REVOKE PROCESS ON *.* FROM ddicttestuser1@'localhost';
 --real_sleep 0.3
 
 --echo ####################################################################################

@@ -125,7 +125,6 @@ INSERT INTO global_suppressions VALUES
  ("Slave: The incident LOST_EVENTS occured on the master"),
  ("Slave: Unknown error.* 1105"),
  ("Slave: Can't drop database.* database doesn't exist"),
- ("Sort aborted"),
  ("Time-out in NDB"),
  ("Warning:\s+One can only use the --user.*root"),
  ("Warning:\s+Table:.* on (delete|rename)"),
@@ -200,6 +199,17 @@ INSERT INTO global_suppressions VALUES
   */
  ("Found lock of type 6 that is write and read locked"),
 
+ /*
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
+ */
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+ ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
+ ("Slave I/O: Get master BINLOG_CHECKSUM failed with error.*"),
+ ("Slave I/O: Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error.*"),
  ("THE_LAST_SUPPRESSION")||
 
 

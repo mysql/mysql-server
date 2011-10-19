@@ -287,7 +287,7 @@ drop table t1;
 # mode regardless of whether a display width is given.
 #
 set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp);
+create table t1 (a timestamp, b timestamp(5));
 show create table t1;
 # restore default mode
 set sql_mode='';

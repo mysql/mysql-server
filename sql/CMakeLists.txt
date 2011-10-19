@@ -36,7 +36,6 @@ IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-
 SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
@@ -51,10 +50,6 @@ SET (SQL_SOURCE
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
                ../sql-common/client_plugin.c
-               create_options.cc
-               multi_range_read.cc opt_index_cond_pushdown.cc
-               opt_subselect.cc opt_table_elimination.cc
-               sql_expression_cache.cc sql_join_cache.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -66,7 +61,7 @@ SET (SQL_SOURCE
                sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
                debug_sync.cc debug_sync.h
-               sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 
+               sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
                sql_time.cc tztime.cc uniques.cc unireg.cc item_xmlfunc.cc 
@@ -80,6 +75,13 @@ SET (SQL_SOURCE
                sql_signal.cc rpl_handler.cc mdl.cc sql_admin.cc
                transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
                sql_reload.cc
+
+               # added in MariaDB:
+               sql_lifo_buffer.h sql_join_cache.h sql_join_cache.cc
+               create_options.cc multi_range_read.cc
+               opt_index_cond_pushdown.cc opt_subselect.cc
+               opt_table_elimination.cc sql_expression_cache.cc
+
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 

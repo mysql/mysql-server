@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
-
+/* 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -14,6 +13,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
    Copyright (C) 2003  by Sathit Jittanupat
           <jsat66@hotmail.com,jsat66@yahoo.com>
 	* solving bug crash with long text field string
@@ -47,11 +48,10 @@
  * .configure. strxfrm_multiply_tis620=4
  */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 #include "t_ctype.h"
+#include <my_sys.h>
 
 #ifdef HAVE_CHARSET_tis620
 

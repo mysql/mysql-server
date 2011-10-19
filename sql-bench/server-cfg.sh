@@ -179,8 +179,19 @@ sub new
   {
     $limits{'working_blobs'}	= 0; # HEAP tables can't handle BLOB's
   }
+  # HEAP is deprecated in favor of MEMORY
+  if (defined($main::opt_create_options) &&
+      $main::opt_create_options =~ /engine=memory/i)
+  {
+    $limits{'working_blobs'}	= 0; # MEMORY tables can't handle BLOB's
+  }
   if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /engine=innodb/i)
+  {
+    $self->{'transactions'}	= 1;	# Transactions enabled
+  }
+  if (defined($main::opt_create_options) &&
+      $main::opt_create_options =~ /engine=pbxt/i)
   {
     $self->{'transactions'}	= 1;	# Transactions enabled
   }

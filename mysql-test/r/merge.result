@@ -677,7 +677,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using where
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2488,18 +2488,6 @@ f1()
 1
 DROP FUNCTION f1;
 DROP TABLE tm1, t1, t2;
-CREATE TEMPORARY TABLE t1 (c1 INT);
-INSERT INTO t1 (c1) VALUES (1);
-CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1);
-CREATE FUNCTION f1() RETURNS INT
-BEGIN
-CREATE TEMPORARY TABLE t2 (c1 INT);
-ALTER TEMPORARY TABLE tm1 UNION=(t1,t2);
-INSERT INTO t2 (c1) VALUES (2);
-RETURN (SELECT MAX(c1) FROM tm1);
-END|
-ERROR 0A000: ALTER VIEW is not allowed in stored procedures
-DROP TABLE tm1, t1;
 CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
 INSERT INTO tm1 VALUES (1);

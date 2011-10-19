@@ -30,6 +30,8 @@ SET(HEADERS_ABI
   mysql/plugin.h
   mysql/plugin_audit.h
   mysql/plugin_ftparser.h
+  mysql/plugin_auth.h
+  mysql/client_plugin.h
 )
 
 SET(HEADERS 

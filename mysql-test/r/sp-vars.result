@@ -314,7 +314,7 @@ ERROR 22003: Out of range value for column 'sp_vars_check_ret1()' at row 1
 SELECT sp_vars_check_ret2();
 ERROR 22003: Out of range value for column 'sp_vars_check_ret2()' at row 1
 SELECT sp_vars_check_ret3();
-ERROR HY000: Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
+ERROR 22007: Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
 SELECT sp_vars_check_ret4();
 sp_vars_check_ret4()
 154.12
@@ -628,7 +628,7 @@ t1	CREATE TABLE "t1" (
   "x" datetime DEFAULT NULL
 )
 Warnings:
-Warning	1264	Out of range value for column 'x' at row 1
+Warning	1265	Data truncated for column 'x' at row 1
 DROP PROCEDURE p1;
 
 ---------------------------------------------------------------

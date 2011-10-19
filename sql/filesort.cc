@@ -54,10 +54,6 @@ static int write_keys(SORTPARAM *param,uchar * *sort_keys,
 		      uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void make_sortkey(SORTPARAM *param,uchar *to, uchar *ref_pos);
 static void register_used_fields(SORTPARAM *param);
-static int merge_index(SORTPARAM *param,uchar *sort_buffer,
-		       BUFFPEK *buffpek,
-		       uint maxbuffer,IO_CACHE *tempfile,
-		       IO_CACHE *outfile);
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count, 
                        FILESORT_INFO *table_sort);
 static uint suffix_length(ulong string_length);
@@ -152,8 +148,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   /* filesort cannot handle zero-length records. */
   DBUG_ASSERT(param.sort_length);
   param.ref_length= table->file->ref_length;
-  param.addon_field= 0;
-  param.addon_length= 0;
   if (!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
       !table->fulltext_searched && !sort_positions)
   {
@@ -244,7 +238,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     goto err;
   }
   if (open_cached_file(&buffpek_pointers,mysql_tmpdir,TEMP_PREFIX,
-		       DISK_BUFFER_SIZE, MYF(MY_WME)))
+		       DISK_BUFFER_SIZE, MYF(ME_ERROR | MY_WME)))
     goto err;
 
   param.keys--;  			/* TODO: check why we do this */
@@ -279,7 +273,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 	/* Open cached file if it isn't open */
     if (! my_b_inited(outfile) &&
 	open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
-			  MYF(MY_WME)))
+			  MYF(ME_ERROR | MY_WME)))
       goto err;
     if (reinit_io_cache(outfile,WRITE_CACHE,0L,0,0))
       goto err;
@@ -335,7 +329,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     DBUG_ASSERT(thd->is_error() || kill_errno);
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
-                    MYF(ME_ERROR + ME_WAITTANG),
+                    MYF(0),
                     ER_THD(thd, ER_FILSORT_ABORT),
                     kill_errno ? ER(kill_errno) : thd->stmt_da->message());
                     
@@ -560,11 +554,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 		    current_thd->variables.read_buff_size);
   }
 
-  if (quick_select)
-  {
-    if (select->quick->reset())
-      DBUG_RETURN(HA_POS_ERROR);
-  }
 
   /* Remember original bitmaps */
   save_read_set=  sort_form->read_set;
@@ -578,8 +567,18 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (select && select->cond)
     select->cond->walk(&Item::register_field_in_read_map, 1,
                        (uchar*) sort_form);
+  if (select && select->pre_idx_push_select_cond)
+    select->pre_idx_push_select_cond->walk(&Item::register_field_in_read_map,
+                                           1, (uchar*) sort_form);
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set, 
                                 &sort_form->tmp_set);
+
+
+  if (quick_select)
+  {
+    if (select->quick->reset())
+      DBUG_RETURN(HA_POS_ERROR);
+  }
 
   for (;;)
   {
@@ -630,10 +629,34 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       }
       DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
     }
+
+    bool write_record= false;
     if (error == 0)
+    {
       param->examined_rows++;
-   
-    if (error == 0 && (!select || select->skip_record(thd) > 0))
+      if (select && select->cond)
+      {
+        /*
+          If the condition 'select->cond' contains a subquery, restore the
+          original read/write sets of the table 'sort_form' because when
+          SQL_SELECT::skip_record evaluates this condition. it may include a
+          correlated subquery predicate, such that some field in the subquery
+          refers to 'sort_form'.
+        */
+        if (select->cond->with_subselect)
+          sort_form->column_bitmaps_set(save_read_set, save_write_set,
+                                        save_vcol_set);
+        write_record= (select->skip_record(thd) > 0);
+        if (select->cond->with_subselect)
+          sort_form->column_bitmaps_set(&sort_form->tmp_set,
+                                        &sort_form->tmp_set,
+                                        &sort_form->tmp_set);
+      }
+      else
+        write_record= true;
+    }
+
+    if (write_record)
     {
       if (idx == param->keys)
       {
@@ -646,7 +669,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     else
       file->unlock_row();
-      
+
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error())
       break;
@@ -868,25 +891,28 @@ static void make_sortkey(register SORTPARAM *param,
         break;
       }
       case INT_RESULT:
+      case TIME_RESULT:
 	{
-          longlong value= item->val_int_result();
+          longlong UNINIT_VAR(value);
+          if (sort_field->result_type == INT_RESULT)
+            value= item->val_int_result();
+          else
+          {
+            MYSQL_TIME buf;
+            if (item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES))
+              DBUG_ASSERT(maybe_null && item->null_value);
+            else
+              value= pack_time(&buf);
+          }
           if (maybe_null)
           {
-	    *to++=1;				/* purecov: inspected */
             if (item->null_value)
             {
-              if (maybe_null)
-                bzero((char*) to-1,sort_field->length+1);
-              else
-              {
-                DBUG_PRINT("warning",
-                           ("Got null on something that shouldn't be null"));
-                bzero((char*) to,sort_field->length);
-              }
+              bzero((char*) to++, sort_field->length+1);
               break;
             }
+	    *to++=1;				/* purecov: inspected */
           }
-#if SIZEOF_LONG_LONG > 4
 	  to[7]= (uchar) value;
 	  to[6]= (uchar) (value >> 8);
 	  to[5]= (uchar) (value >> 16);
@@ -898,15 +924,6 @@ static void make_sortkey(register SORTPARAM *param,
             to[0]= (uchar) (value >> 56);
           else
             to[0]= (uchar) (value >> 56) ^ 128;	/* Reverse signbit */
-#else
-	  to[3]= (uchar) value;
-	  to[2]= (uchar) (value >> 8);
-	  to[1]= (uchar) (value >> 16);
-          if (item->unsigned_flag)                    /* Fix sign */
-            to[0]= (uchar) (value >> 24);
-          else
-            to[0]= (uchar) (value >> 24) ^ 128;	/* Reverse signbit */
-#endif
 	  break;
 	}
       case DECIMAL_RESULT:
@@ -916,8 +933,7 @@ static void make_sortkey(register SORTPARAM *param,
           {
             if (item->null_value)
             { 
-              bzero((char*)to, sort_field->length+1);
-              to++;
+              bzero((char*) to++, sort_field->length+1);
               break;
             }
             *to++=1;
@@ -1234,8 +1250,11 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   QUEUE queue;
   qsort2_cmp cmp;
   void *first_cmp_arg;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  element_count dupl_count= 0;
+  uchar *src;
   THD::killed_state not_killable;
+  uchar *unique_buff= param->unique_buff;
+  volatile THD::killed_state *killed= &current_thd->killed;
   DBUG_ENTER("merge_buffers");
 
   status_var_increment(current_thd->status_var.filesort_merge_passes);
@@ -1250,7 +1269,13 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   rec_length= param->rec_length;
   res_length= param->res_length;
   sort_length= param->sort_length;
-  offset= rec_length-res_length;
+  uint dupl_count_ofs= rec_length-sizeof(element_count);
+  uint min_dupl_count= param->min_dupl_count;
+  bool check_dupl_count= flag && min_dupl_count;
+  offset= (rec_length-
+           (flag && min_dupl_count ? sizeof(dupl_count) : 0)-res_length);
+  uint wr_len= flag ? res_length : rec_length;
+  uint wr_offset= flag ? offset : 0;
   maxcount= (ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos= my_b_tell(to_file);
   strpos= sort_buffer;
@@ -1259,7 +1284,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   /* The following will fire if there is not enough space in sort_buffer */
   DBUG_ASSERT(maxcount!=0);
   
-  if (param->unique_buff)
+  if (unique_buff)
   {
     cmp= param->compare;
     first_cmp_arg= (void *) &param->cmp_context;
@@ -1284,28 +1309,29 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     queue_insert(&queue, (uchar*) buffpek);
   }
 
-  if (param->unique_buff)
+  if (unique_buff)
   {
     /* 
        Called by Unique::get()
-       Copy the first argument to param->unique_buff for unique removal.
+       Copy the first argument to unique_buff for unique removal.
        Store it also in 'to_file'.
-
-       This is safe as we know that there is always more than one element
-       in each block to merge (This is guaranteed by the Unique:: algorithm
     */
     buffpek= (BUFFPEK*) queue_top(&queue);
-    memcpy(param->unique_buff, buffpek->key, rec_length);
-    if (my_b_write(to_file, (uchar*) buffpek->key, rec_length))
-    {
-      error=1; goto err;                        /* purecov: inspected */
-    }
+    memcpy(unique_buff, buffpek->key, rec_length);
+    if (min_dupl_count)
+      memcpy(&dupl_count, unique_buff+dupl_count_ofs, 
+             sizeof(dupl_count));
     buffpek->key+= rec_length;
-    buffpek->mem_count--;
-    if (!--max_rows)
+    if (! --buffpek->mem_count)
     {
-      error= 0;                                       /* purecov: inspected */
-      goto end;                                       /* purecov: inspected */
+      if (!(error= (int) read_to_buffer(from_file, buffpek,
+                                        rec_length)))
+      {
+        queue_remove(&queue,0);
+        reuse_freed_buff(&queue, buffpek, rec_length);
+      }
+      else if (error == -1)
+        goto err;                        /* purecov: inspected */ 
     }
     queue_replace_top(&queue);            // Top element has been used
   }
@@ -1321,26 +1347,49 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     for (;;)
     {
       buffpek= (BUFFPEK*) queue_top(&queue);
+      src= buffpek->key;
       if (cmp)                                        // Remove duplicates
       {
-        if (!(*cmp)(first_cmp_arg, &(param->unique_buff),
+        if (!(*cmp)(first_cmp_arg, &unique_buff,
                     (uchar**) &buffpek->key))
-              goto skip_duplicate;
-            memcpy(param->unique_buff, (uchar*) buffpek->key, rec_length);
+	{
+          if (min_dupl_count)
+	  {
+            element_count cnt;
+            memcpy(&cnt, (uchar *) buffpek->key+dupl_count_ofs, sizeof(cnt));
+            dupl_count+= cnt;
+          }
+          goto skip_duplicate;
+        }
+        if (min_dupl_count)
+	{
+          memcpy(unique_buff+dupl_count_ofs, &dupl_count,
+                 sizeof(dupl_count));
+        }
+	src= unique_buff;
       }
-      if (flag == 0)
+        
+      /* 
+        Do not write into the output file if this is the final merge called
+        for a Unique object used for intersection and dupl_count is less
+        than min_dupl_count.
+        If the Unique object is used to intersect N sets of unique elements
+        then for any element:
+        dupl_count >= N <=> the element is occurred in each of these N sets.
+      */          
+      if (!check_dupl_count || dupl_count >= min_dupl_count)
       {
-        if (my_b_write(to_file,(uchar*) buffpek->key, rec_length))
+        if (my_b_write(to_file, src+wr_offset, wr_len))
         {
           error=1; goto err;                        /* purecov: inspected */
         }
       }
-      else
-      {
-        if (my_b_write(to_file, (uchar*) buffpek->key+offset, res_length))
-        {
-          error=1; goto err;                        /* purecov: inspected */
-        }
+      if (cmp)
+      {   
+        memcpy(unique_buff, (uchar*) buffpek->key, rec_length);
+        if (min_dupl_count)
+          memcpy(&dupl_count, unique_buff+dupl_count_ofs, 
+                 sizeof(dupl_count));
       }
       if (!--max_rows)
       {
@@ -1352,7 +1401,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       buffpek->key+= rec_length;
       if (! --buffpek->mem_count)
       {
-        if (!(error= (int) read_to_buffer(from_file,buffpek,
+        if (!(error= (int) read_to_buffer(from_file, buffpek,
                                           rec_length)))
         {
           (void) queue_remove_top(&queue);
@@ -1375,11 +1424,35 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   */
   if (cmp)
   {
-    if (!(*cmp)(first_cmp_arg, &(param->unique_buff), (uchar**) &buffpek->key))
+    if (!(*cmp)(first_cmp_arg, &unique_buff, (uchar**) &buffpek->key))
     {
-      buffpek->key+= rec_length;         // Remove duplicate
+      if (min_dupl_count)
+      {
+        element_count cnt;
+        memcpy(&cnt, (uchar *) buffpek->key+dupl_count_ofs, sizeof(cnt));
+        dupl_count+= cnt;
+      }
+      buffpek->key+= rec_length;         
       --buffpek->mem_count;
     }
+
+    if (min_dupl_count)
+      memcpy(unique_buff+dupl_count_ofs, &dupl_count,
+             sizeof(dupl_count));
+
+    if (!check_dupl_count || dupl_count >= min_dupl_count)
+    {
+      src= unique_buff;
+      if (my_b_write(to_file, src+wr_offset, wr_len))
+      {
+        error=1; goto err;                        /* purecov: inspected */
+      }
+      if (!--max_rows)
+      {
+        error= 0;                               
+        goto end;                             
+      }
+    }   
   }
 
   do
@@ -1392,7 +1465,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     max_rows-= buffpek->mem_count;
     if (flag == 0)
     {
-      if (my_b_write(to_file,(uchar*) buffpek->key,
+      if (my_b_write(to_file, (uchar*) buffpek->key,
                      (rec_length*buffpek->mem_count)))
       {
         error= 1; goto err;                        /* purecov: inspected */
@@ -1401,19 +1474,25 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     else
     {
       register uchar *end;
-      strpos= buffpek->key+offset;
-      for (end= strpos+buffpek->mem_count*rec_length ;
-           strpos != end ;
-           strpos+= rec_length)
-      {     
-        if (my_b_write(to_file, strpos, res_length))
+      src= buffpek->key+offset;
+      for (end= src+buffpek->mem_count*rec_length ;
+           src != end ;
+           src+= rec_length)
+      {
+        if (check_dupl_count)
+        {
+          memcpy((uchar *) &dupl_count, src+dupl_count_ofs, sizeof(dupl_count)); 
+          if (dupl_count < min_dupl_count)
+	    continue;
+        }
+        if (my_b_write(to_file, src, wr_len))
         {
           error=1; goto err;                        
         }
       }
     }
   }
-  while ((error=(int) read_to_buffer(from_file,buffpek, rec_length))
+  while ((error=(int) read_to_buffer(from_file, buffpek, rec_length))
          != -1 && error != 0);
 
 end:
@@ -1427,7 +1506,7 @@ err:
 
 	/* Do a merge to output-file (save only positions) */
 
-static int merge_index(SORTPARAM *param, uchar *sort_buffer,
+int merge_index(SORTPARAM *param, uchar *sort_buffer,
 		       BUFFPEK *buffpek, uint maxbuffer,
 		       IO_CACHE *tempfile, IO_CACHE *outfile)
 {
@@ -1499,9 +1578,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
     }
     else
     {
-      sortorder->result_type= sortorder->item->result_type();
-      if (sortorder->item->result_as_longlong())
-        sortorder->result_type= INT_RESULT;
+      sortorder->result_type= sortorder->item->cmp_type();
       switch (sortorder->result_type) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
@@ -1519,12 +1596,9 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
           sortorder->length+= sortorder->suffix_length;
         }
 	break;
+      case TIME_RESULT:
       case INT_RESULT:
-#if SIZEOF_LONG_LONG > 4
 	sortorder->length=8;			// Size of intern longlong
-#else
-	sortorder->length=4;
-#endif
 	break;
       case DECIMAL_RESULT:
         sortorder->length=
@@ -1599,6 +1673,7 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
     Actually we need only the fields referred in the
     result set. And for some of them it makes sense to use 
     the values directly from sorted fields.
+    But beware the case when item->cmp_type() != item->result_type()
   */
   *plength= 0;
 
@@ -1733,3 +1808,4 @@ void change_double_for_sort(double nr,uchar *to)
     }
   }
 }
+

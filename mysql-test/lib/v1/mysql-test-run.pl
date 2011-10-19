@@ -2370,8 +2370,8 @@ sub remove_stale_vardir () {
 
     # Remove the var/ dir in mysql-test dir if any
     # this could be an old symlink that shouldn't be there
-    mtr_verbose("Removing $default_vardir");
-    mtr_rmtree($default_vardir);
+    # mtr_verbose("Removing $default_vardir");
+    # mtr_rmtree($default_vardir);
 
     # Remove the "var" dir
     mtr_verbose("Removing $opt_vardir/");
@@ -5252,6 +5252,7 @@ sub valgrind_arguments {
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
     mtr_add_arg($args, "--leak-check=yes");
+    #mtr_add_arg($args, "--db-attach=yes");
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
       if -f "$glob_mysql_test_dir/valgrind.supp";

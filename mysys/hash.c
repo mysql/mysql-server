@@ -132,7 +132,8 @@ static inline void my_hash_free_elements(HASH *hash)
 void my_hash_free(HASH *hash)
 {
   DBUG_ENTER("my_hash_free");
-  DBUG_PRINT("enter",("hash: 0x%lx", (long) hash));
+  DBUG_PRINT("enter",("hash: 0x%lx  elements: %ld",
+                      (long) hash, hash->records));
 
   my_hash_free_elements(hash);
   hash->free= 0;
@@ -184,8 +185,9 @@ my_hash_key(const HASH *hash, const uchar *record, size_t *length,
 static uint my_hash_mask(my_hash_value_type hashnr, size_t buffmax,
                          size_t maxlength)
 {
-  if ((hashnr & (buffmax-1)) < maxlength) return (hashnr & (buffmax-1));
-  return (hashnr & ((buffmax >> 1) -1));
+  if ((hashnr & (buffmax-1)) < maxlength)
+    return (uint) (hashnr & (buffmax-1));
+  return (uint) (hashnr & ((buffmax >> 1) -1));
 }
 
 static uint my_hash_rec_mask(const HASH *hash, HASH_LINK *pos,
@@ -521,8 +523,9 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
 
 my_bool my_hash_delete(HASH *hash, uchar *record)
 {
-  uint blength,pos2,idx,empty_index;
+  uint pos2,idx,empty_index;
   my_hash_value_type pos_hashnr, lastpos_hashnr;
+  size_t blength;
   HASH_LINK *data,*lastpos,*gpos,*pos,*pos3,*empty;
   DBUG_ENTER("my_hash_delete");
   if (!hash->records)
@@ -611,8 +614,8 @@ exit:
 my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
                        size_t old_key_length)
 {
-  uint new_index,new_pos_index,blength,records;
-  size_t idx,empty;
+  uint new_index,new_pos_index,records;
+  size_t idx, empty, blength;
   HASH_LINK org_link,*data,*previous,*pos;
   DBUG_ENTER("my_hash_update");
   
@@ -694,7 +697,7 @@ my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
   if (new_index != new_pos_index)
   {					/* Other record in wrong position */
     data[empty] = *pos;
-    movelink(data,new_index,new_pos_index,empty);
+    movelink(data,new_index,new_pos_index, (uint) empty);
     org_link.next=NO_RECORD;
     data[new_index]= org_link;
   }
@@ -702,7 +705,7 @@ my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
   {					/* Link in chain at right position */
     org_link.next=data[new_index].next;
     data[empty]=org_link;
-    data[new_index].next=empty;
+    data[new_index].next= (uint) empty;
   }
   DBUG_RETURN(0);
 }
@@ -766,7 +769,8 @@ my_bool my_hash_check(HASH *hash)
 {
   int error;
   uint i,rec_link,found,max_links,seek,links,idx;
-  uint records,blength;
+  uint records;
+  size_t blength;
   HASH_LINK *data,*hash_info;
 
   records=hash->records; blength=hash->blength;

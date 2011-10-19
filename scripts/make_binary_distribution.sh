@@ -311,8 +311,8 @@ fi
 
 # Copy readme and license files
 cp README Docs/INSTALL-BINARY  $DEST/
-if [ -f COPYING ] ; then
-  cp COPYING $DEST/
+if [ -f COPYING -a -f EXCEPTIONS-CLIENT ] ; then
+  cp COPYING EXCEPTIONS-CLIENT $DEST/
 elif [ -f LICENSE.mysql ] ; then
   cp LICENSE.mysql $DEST/
 else
@@ -357,7 +357,7 @@ mv $DEST/share/mysql/*.cnf $DEST/share/mysql/*.server $DEST/share/mysql/mysql-lo
 # but add symbolic links instead to old place for compatibility
 #
 mkdir $DEST/scripts
-for i in mysql_secure_installation mysql_fix_extensions mysql_fix_privilege_tables mysql_install_db
+for i in mysql_secure_installation mysql_fix_extensions mysql_fix_privilege_tables mysql_install_db mytop
 do
   mv $DEST/bin/$i $DEST/scripts
   ln -s "../scripts/$i" $DEST/bin/$i

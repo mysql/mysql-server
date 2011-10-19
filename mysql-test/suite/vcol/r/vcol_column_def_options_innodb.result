@@ -114,7 +114,7 @@ t1	CREATE TABLE `t1` (
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL
+b	int(11)	YES		NULL	PERSISTENT
 insert into t1 (a) values (1);
 select * from t1;
 a	b

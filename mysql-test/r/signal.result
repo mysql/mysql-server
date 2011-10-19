@@ -598,6 +598,8 @@ ERROR 42000: Variable 'MYSQL_ERRNO' can't be set to the value of '0'
 SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = -1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 65535;
+ERROR 42000: Variable 'MYSQL_ERRNO' can't be set to the value of '65535'
+SIGNAL SQLSTATE 'HY000' SET MYSQL_ERRNO = 65534;
 ERROR HY000: Unhandled user-defined exception condition
 #
 # RESIGNAL can also appear in a query
@@ -617,7 +619,7 @@ create procedure test_signal()
 begin
 # max range
 DECLARE foo CONDITION FOR SQLSTATE 'AABBB';
-SIGNAL foo SET MYSQL_ERRNO = 65535;
+SIGNAL foo SET MYSQL_ERRNO = 65534;
 end $$
 call test_signal() $$
 ERROR AABBB: Unhandled user-defined exception condition
@@ -1101,11 +1103,11 @@ TABLE_NAME = hhh,
 COLUMN_NAME = iii,
 CURSOR_NAME = jjj,
 MESSAGE_TEXT = kkk,
-MYSQL_ERRNO = 65535;
+MYSQL_ERRNO = 65534;
 end $$
 call test_signal() $$
 Warnings:
-Warning	65535	KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK
+Warning	65534	KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK
 drop procedure test_signal $$
 create procedure test_signal()
 begin

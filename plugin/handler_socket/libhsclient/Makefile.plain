@@ -1,0 +1,27 @@
+
+CXX = g++ -Wall -g -fno-rtti -fno-exceptions -fPIC -DPIC
+LDFLAGS =
+
+CXXFLAGS += -O3 -DNDEBUG
+
+COMMON_OBJS = config.o fatal.o socket.o string_util.o escape.o
+HSCLIENT_OBJS = $(COMMON_OBJS) hstcpcli.o
+
+all: libhsclient.a
+
+libhsclient.a: $(HSCLIENT_OBJS)
+	$(AR) rc $@ $^
+	$(AR) s $@
+
+clean:
+	rm -f *.a *.so *.o
+
+LIBDIR = $(shell \
+  if [ -e /usr/lib64/mysql ]; then echo /usr/lib64; else echo /usr/lib; fi)
+
+install: libhsclient.a
+	sudo sh -c 'cp libhsclient.a libhsclient.a.cpy && \
+		mv libhsclient.a.cpy $(LIBDIR)/libhsclient.a && \
+		mkdir -p /usr/include/handlersocket && \
+		cp -a *.hpp /usr/include/handlersocket/'
+

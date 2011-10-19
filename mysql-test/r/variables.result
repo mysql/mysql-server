@@ -970,6 +970,7 @@ tmpdir	#
 select * from information_schema.session_variables where variable_name like 'tmpdir';
 VARIABLE_NAME	VARIABLE_VALUE
 TMPDIR	#
+set sort_buffer_size=1024*8;
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 @@ssl_ca	@@ssl_capath	@@ssl_cert	@@ssl_cipher	@@ssl_key
 #	#	#	#	#
@@ -1020,6 +1021,8 @@ ERROR HY000: Variable 'myisam_mmap_size' is a read only variable
 # Bug #52315: utc_date() crashes when system time > year 2037
 #
 SET TIMESTAMP=2*1024*1024*1024;
+Warnings:
+Warning	1292	Truncated incorrect timestamp value: '2147483648'
 #Should not crash
 SELECT UTC_DATE();
 SET TIMESTAMP=DEFAULT;
@@ -1531,19 +1534,51 @@ ERROR HY000: Cannot drop default keycache
 SET @@global.key_cache_block_size=0;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_block_size value: '0'
+SET @@global.max_binlog_cache_size=DEFAULT;
+SET @@global.max_join_size=DEFAULT;
+SET @@global.key_buffer_size=@kbs;
+SET @@global.key_cache_block_size=@kcbs;
 select @@max_long_data_size;
 @@max_long_data_size
 1048576
 #
-# Bug#11766424  59527: DECIMAL_BIN_SIZE: ASSERTION `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
+# Bug#11766424  59527:
+# Assert in DECIMAL_BIN_SIZE: 
+# `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
+# This test also exposed a bug with sql_buffer_result
 #
 CREATE TABLE t1(f1 DECIMAL(1,1) UNSIGNED);
 INSERT INTO t1 VALUES (0.2),(0.1);
-SELECT 1 FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
+set @a=NULL;
+set sql_buffer_result=0;
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= ROUND(f1);
+one
 1
+explain SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+one
+1
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
+one
+1
+set sql_buffer_result=1;
+explain SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+one
+1
+1
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
+one
 1
 1
 DROP TABLE t1;
+set sql_buffer_result=0;
 CREATE TABLE t1 AS SELECT @a:= CAST(1 AS UNSIGNED) AS a;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1551,10 +1586,6 @@ t1	CREATE TABLE `t1` (
   `a` int(1) unsigned NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
-SET @@global.max_binlog_cache_size=DEFAULT;
-SET @@global.max_join_size=DEFAULT;
-SET @@global.key_buffer_size=@kbs;
-SET @@global.key_cache_block_size=@kcbs;
 End of 5.1 tests
 
 #

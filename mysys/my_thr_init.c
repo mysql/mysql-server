@@ -433,6 +433,14 @@ extern void **my_thread_var_dbug()
 }
 #endif /* DBUG_OFF */
 
+/* Return pointer to mutex_in_use */
+
+safe_mutex_t **my_thread_var_mutex_in_use()
+{
+  struct st_my_thread_var *tmp=
+    my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
+  return tmp ? &tmp->mutex_in_use : 0;
+}
 
 static uint get_thread_lib(void)
 {

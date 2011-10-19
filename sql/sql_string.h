@@ -57,23 +57,24 @@ uint convert_to_printable(char *to, size_t to_len,
 class String
 {
   char *Ptr;
-  uint32 str_length,Alloced_length;
+  uint32 str_length,Alloced_length, extra_alloc;
   bool alloced;
   CHARSET_INFO *str_charset;
 public:
   String()
   { 
-    Ptr=0; str_length=Alloced_length=0; alloced=0; 
+    Ptr=0; str_length=Alloced_length=extra_alloc=0; alloced=0; 
     str_charset= &my_charset_bin; 
   }
   String(uint32 length_arg)
   { 
-    alloced=0; Alloced_length=0; (void) real_alloc(length_arg); 
+    alloced=0; Alloced_length= extra_alloc= 0; (void) real_alloc(length_arg); 
     str_charset= &my_charset_bin;
   }
   String(const char *str, CHARSET_INFO *cs)
   { 
-    Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
+    Ptr=(char*) str; str_length= (uint32) strlen(str);
+    Alloced_length= extra_alloc= 0; alloced=0;
     str_charset=cs;
   }
   /*
@@ -83,18 +84,18 @@ public:
   */
   String(const char *str,uint32 len, CHARSET_INFO *cs)
   { 
-    Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;
+    Ptr=(char*) str; str_length=len; Alloced_length= extra_alloc=0; alloced=0;
     str_charset=cs;
   }
   String(char *str,uint32 len, CHARSET_INFO *cs)
   { 
-    Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;
+    Ptr=(char*) str; Alloced_length=str_length=len; extra_alloc= 0; alloced=0;
     str_charset=cs;
   }
   String(const String &str)
   { 
     Ptr=str.Ptr ; str_length=str.str_length ;
-    Alloced_length=str.Alloced_length; alloced=0; 
+    Alloced_length=str.Alloced_length; extra_alloc= 0; alloced=0; 
     str_charset=str.str_charset;
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
@@ -114,8 +115,10 @@ public:
   inline CHARSET_INFO *charset() const { return str_charset; }
   inline uint32 length() const { return str_length;}
   inline uint32 alloced_length() const { return Alloced_length;}
+  inline uint32 extra_allocation() const { return extra_alloc;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
   inline void length(uint32 len) { str_length=len ; }
+  inline void extra_allocation(uint32 len) { extra_alloc= len; }
   inline bool is_empty() const { return (str_length == 0); }
   inline void mark_as_const() { Alloced_length= 0;}
   inline const char *ptr() const { return Ptr; }
@@ -152,11 +155,9 @@ public:
   {
     DBUG_ASSERT(&str != this);
     free();
-    Ptr=(char*) str.ptr()+offset; str_length=arg_length; alloced=0;
+    Ptr=(char*) str.ptr()+offset; str_length=arg_length;
     if (str.Alloced_length)
       Alloced_length=str.Alloced_length-offset;
-    else
-      Alloced_length=0;
     str_charset=str.str_charset;
   }
 
@@ -172,13 +173,13 @@ public:
   inline void set(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     free();
-    Ptr=(char*) str; str_length=Alloced_length=arg_length ; alloced=0;
+    Ptr=(char*) str; str_length=Alloced_length=arg_length;
     str_charset=cs;
   }
   inline void set(const char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     free();
-    Ptr=(char*) str; str_length=arg_length; Alloced_length=0 ; alloced=0;
+    Ptr=(char*) str; str_length=arg_length;
     str_charset=cs;
   }
   bool set_ascii(const char *str, uint32 arg_length);
@@ -196,6 +197,18 @@ public:
   bool set(ulonglong num, CHARSET_INFO *cs)
   { return set_int((longlong)num, true, cs); }
   bool set_real(double num,uint decimals, CHARSET_INFO *cs);
+
+  /* Move handling of buffer from some other object to String */
+  void reassociate(char *ptr, uint32 length, uint32 alloced_length,
+                   CHARSET_INFO *cs)
+  { 
+    free();
+    Ptr= ptr;
+    str_length= length;
+    Alloced_length= alloced_length;
+    str_charset= cs;
+    alloced= ptr != 0;
+  }
 
   /*
     PMG 2004.11.12
@@ -229,11 +242,11 @@ public:
     if (alloced)
     {
       alloced=0;
-      Alloced_length=0;
       my_free(Ptr);
-      Ptr=0;
-      str_length=0;				/* Safety */
     }
+    Alloced_length= extra_alloc= 0;
+    Ptr=0;
+    str_length=0;				/* Safety */
   }
   inline bool alloc(uint32 arg_length)
   {
@@ -243,9 +256,21 @@ public:
   }
   bool real_alloc(uint32 arg_length);			// Empties old string
   bool realloc(uint32 arg_length);
-  inline void shrink(uint32 arg_length)		// Shrink buffer
+  bool realloc_with_extra(uint32 arg_length)
+  {
+    if (extra_alloc < 4096)
+      extra_alloc= extra_alloc*2+128;
+    return realloc(arg_length + extra_alloc);
+  }
+  bool realloc_with_extra_if_needed(uint32 arg_length)
   {
     if (arg_length < Alloced_length)
+      return 0;
+    return realloc_with_extra(arg_length);
+  }
+  inline void shrink(uint32 arg_length)		// Shrink buffer
+  {
+    if (ALIGN_SIZE(arg_length+1) < Alloced_length)
     {
       char *new_ptr;
       if (!(new_ptr=(char*) my_realloc(Ptr,arg_length,MYF(0))))
@@ -272,7 +297,6 @@ public:
       DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       free();
       Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
-      alloced=0;
     }
     return *this;
   }
@@ -288,6 +312,14 @@ public:
   bool set_or_copy_aligned(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom,
 	    CHARSET_INFO *csto, uint *errors);
+  void move(String &s)
+  {
+    free();
+    Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
+    extra_alloc= s.extra_alloc;
+    alloced= s.alloced;
+    s.alloced= 0;
+  }
   bool append(const String &s);
   bool append(const char *s);
   bool append(LEX_STRING *ls)
@@ -312,7 +344,7 @@ public:
     }
     else
     {
-      if (realloc(str_length+1))
+      if (realloc_with_extra(str_length + 1))
 	return 1;
       Ptr[str_length++]=chr;
     }
@@ -323,8 +355,9 @@ public:
   friend int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
+  friend class Field;
   uint32 numchars();
-  int charpos(int i,uint32 offset=0);
+  int charpos(longlong i,uint32 offset=0);
 
   int reserve(uint32 space_needed)
   {
@@ -369,7 +402,7 @@ public:
 
   void qs_append(const char *str)
   {
-    qs_append(str, strlen(str));
+    qs_append(str, (uint32)strlen(str));
   }
   void qs_append(const char *str, uint32 len);
   void qs_append(double d);
@@ -438,8 +471,9 @@ public:
   }
 };
 
-static inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str, 
-                                           char *end)
+static inline bool check_if_only_end_space(CHARSET_INFO *cs,
+                                           const char *str, 
+                                           const char *end)
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }

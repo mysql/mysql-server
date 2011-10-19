@@ -109,9 +109,9 @@ public:
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
-  virtual bool store(MYSQL_TIME *time)=0;
+  virtual bool store(MYSQL_TIME *time, int decimals)=0;
   virtual bool store_date(MYSQL_TIME *time)=0;
-  virtual bool store_time(MYSQL_TIME *time)=0;
+  virtual bool store_time(MYSQL_TIME *time, int decimals)=0;
   virtual bool store(Field *field)=0;
 
   virtual bool send_out_parameters(List<Item_param> *sp_params)=0;
@@ -152,9 +152,9 @@ public:
   virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, int decimals);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, int decimals);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -189,9 +189,9 @@ public:
   virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, int decimals);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, int decimals);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -204,6 +204,7 @@ public:
 void send_warning(THD *thd, uint sql_errno, const char *err=0);
 bool net_send_error(THD *thd, uint sql_errno, const char *err,
                     const char* sqlstate);
+void net_send_progress_packet(THD *thd);
 uchar *net_store_data(uchar *to,const uchar *from, size_t length);
 uchar *net_store_data(uchar *to,int32 from);
 uchar *net_store_data(uchar *to,longlong from);

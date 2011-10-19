@@ -174,7 +174,6 @@ sub fix_secure_file_priv {
 
 sub fix_std_data {
   my ($self, $config, $group_name, $group)= @_;
-  #return "$::opt_vardir/std_data";
   my $testdir= $self->get_testdir($group);
   return "$testdir/std_data";
 }
@@ -230,6 +229,7 @@ my @mysqld_rules=
   (
  { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
  { 'tmpdir' => \&fix_tmpdir },
+ { 'log-basename' => sub { return "mysqld" } },
  { 'character-sets-dir' => \&fix_charset_dir },
  { 'lc-messages-dir' => \&fix_language },
  { 'datadir' => \&fix_datadir },
@@ -237,6 +237,7 @@ my @mysqld_rules=
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
+ { 'log-error' => \&fix_log_error },
  { '#log-error' => \&fix_log_error },
  { 'general-log' => sub { return 1; } },
  { 'general-log-file' => \&fix_log },
@@ -245,6 +246,7 @@ my @mysqld_rules=
  { '#user' => sub { return shift->{ARGS}->{user} || ""; } },
  { '#password' => sub { return shift->{ARGS}->{password} || ""; } },
  { 'server-id' => \&fix_server_id, },
+ { 'sync-sys'  => sub { return 1; } },
  # By default, prevent the started mysqld to access files outside of vardir
  { 'secure-file-priv' => sub { return shift->{ARGS}->{vardir}; } },
  { 'ssl-ca' => \&fix_ssl_ca },
@@ -383,7 +385,7 @@ sub post_check_client_group {
 
     if (! defined $option){
       #print $config;
-      croak "Could not get value for '$name_from'";
+      croak "Could not get value for '$name_from' for test $self->{testname}";
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
@@ -469,9 +471,9 @@ sub resolve_at_variable {
     $after = $';
     chop($group_name);
 
-    my $from_group= $config->group($group_name)
-      or croak "There is no group named '$group_name' that ",
-        "can be used to resolve '$option_name'";
+  my $from_group= $config->group($group_name)
+    or croak "There is no group named '$group_name' that ",
+      "can be used to resolve '$option_name' for test '$self->{testname}'";
 
     my $value= $from_group->value($option_name);
     $res .= $before.$value;
@@ -639,6 +641,7 @@ sub new_config {
 		   ARGS         => $args,
 		   PORT         => $args->{baseport},
 		   SERVER_ID    => 1,
+                   testname     => $args->{testname},
 		  }, $class;
 
   # add auto-options

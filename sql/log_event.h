@@ -77,6 +77,7 @@ class String;
 #define LOG_READ_MEM    -5
 #define LOG_READ_TRUNC  -6
 #define LOG_READ_TOO_LARGE -7
+#define LOG_READ_CHECKSUM_FAILURE -8
 
 #define LOG_EVENT_OFFSET 4
 
@@ -256,6 +257,8 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
+#define ANNOTATE_ROWS_HEADER_LEN  0
+
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -271,6 +274,7 @@ struct sql_ex_info
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
                                    1 + 4          /* type, master_data_written */ + \
+                                   1 + 3          /* type, sec_part of NOW() */ + \
                                    1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -341,6 +345,8 @@ struct sql_ex_info
 #define Q_MASTER_DATA_WRITTEN_CODE 10
 
 #define Q_INVOKER 11
+
+#define Q_HRNOW 128
 
 /* Intvar event post-header */
 
@@ -530,6 +536,22 @@ struct sql_ex_info
 #endif
 #undef EXPECTED_OPTIONS         /* You shouldn't use this one */
 
+enum enum_binlog_checksum_alg {
+  BINLOG_CHECKSUM_ALG_OFF= 0,    // Events are without checksum though its generator
+                                 // is checksum-capable New Master (NM).
+  BINLOG_CHECKSUM_ALG_CRC32= 1,  // CRC32 of zlib algorithm.
+  BINLOG_CHECKSUM_ALG_ENUM_END,  // the cut line: valid alg range is [1, 0x7f].
+  BINLOG_CHECKSUM_ALG_UNDEF= 255 // special value to tag undetermined yet checksum
+                                 // or events from checksum-unaware servers
+};
+
+#define CHECKSUM_CRC32_SIGNATURE_LEN 4
+/**
+   defined statically while there is just one alg implemented
+*/
+#define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
+#define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
+
 /**
   @enum Log_event_type
 
@@ -598,6 +620,15 @@ enum Log_event_type
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
+
+  /* New MySQL/Sun events are to be added right above this comment */
+  MYSQL_EVENTS_END,
+
+  MARIA_EVENTS_BEGIN= 160,
+  /* New Maria event numbers start from here */
+  ANNOTATE_ROWS_EVENT= 160,
+
+  /* Add new MariaDB events here - right above this comment!  */
 
   ENUM_END_EVENT /* end marker */
 };
@@ -945,7 +976,8 @@ public:
     execution time, which guarantees good replication (otherwise, we
     could have a query and its event with different timestamps).
   */
-  time_t when;
+  my_time_t when;
+  ulong     when_sec_part;
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
   /* Number of bytes written by write() function */
@@ -963,11 +995,7 @@ public:
     LOG_EVENT_SUPPRESS_USE_F for notes.
   */
   uint16 flags;
-  
-  /*
-    Defines the type of the cache, if any, where the event will be
-    stored before being flushed to disk.
-  */
+
   uint16 cache_type;
 
   /**
@@ -975,6 +1003,11 @@ public:
     Handling of a separate event will be governed its member.
   */
   ulong slave_exec_mode;
+
+  /**
+    Placeholder for event checksum while writing to binlog.
+   */
+  ha_checksum crc;
 
 #ifdef MYSQL_SERVER
   THD* thd;
@@ -995,9 +1028,10 @@ public:
   static Log_event* read_log_event(IO_CACHE* file,
                                    mysql_mutex_t* log_lock,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event,
+                                   my_bool crc_check);
   static int read_log_event(IO_CACHE* file, String* packet,
-                            mysql_mutex_t* log_lock);
+                            mysql_mutex_t* log_lock, uint8 checksum_alg_arg);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
@@ -1024,7 +1058,7 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event, my_bool crc_check);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t *ts = 0);
@@ -1033,6 +1067,15 @@ public:
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
 #endif
+  /* 
+     The value is set by caller of FD constructor and
+     Log_event::write_header() for the rest.
+     In the FD case it's propagated into the last byte 
+     of post_header_len[] at FD::write().
+     On the slave side the value is assigned from post_header_len[last] 
+     of the last seen FD event.
+  */
+  uint8 checksum_alg;
 
   static void *operator new(size_t size)
   {
@@ -1047,29 +1090,46 @@ public:
   /* Placement version of the above operators */
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
+  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong data_length);
 
 #ifdef MYSQL_SERVER
   bool write_header(IO_CACHE* file, ulong data_length);
+  bool write_footer(IO_CACHE* file);
+  my_bool need_checksum();
+
   virtual bool write(IO_CACHE* file)
   {
-    return (write_header(file, get_data_size()) ||
-            write_data_header(file) ||
-            write_data_body(file));
+    return(write_header(file, get_data_size()) ||
+	   write_data_header(file) ||
+	   write_data_body(file) ||
+	   write_footer(file));
   }
   virtual bool write_data_header(IO_CACHE* file)
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
-  inline time_t get_time()
+  inline my_time_t get_time()
   {
     THD *tmp_thd;
     if (when)
       return when;
     if (thd)
-      return thd->start_time;
+    {
+      when= thd->start_time;
+      when_sec_part= thd->start_time_sec_part;
+      return when;
+    }
+    /* thd will only be 0 here at time of log creation */
     if ((tmp_thd= current_thd))
-      return tmp_thd->start_time;
-    return my_time(0);
+    {
+      when= tmp_thd->start_time;
+      when_sec_part= tmp_thd->start_time_sec_part;
+      return when;
+    }
+    my_hrtime_t hrtime= my_hrtime();
+    when= hrtime_to_my_time(hrtime);
+    when_sec_part= hrtime_sec_part(hrtime);
+    return when;
   }
 #endif
   virtual Log_event_type get_type_code() = 0;
@@ -1115,7 +1175,7 @@ public:
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
-                                   *description_event);
+                                   *description_event, my_bool crc_check);
   /**
     Returns the human readable name of the given event type.
   */
@@ -2305,9 +2365,17 @@ public:
   */
   uint8 common_header_len;
   uint8 number_of_event_types;
-  /* The list of post-headers' lengthes */
+  /* 
+     The list of post-headers' lengths followed 
+     by the checksum alg decription byte
+  */
   uint8 *post_header_len;
-  uchar server_version_split[3];
+  struct master_version_split {
+    enum {KIND_MYSQL, KIND_MARIADB};
+    int kind;
+    uchar ver[3];
+  };
+  master_version_split server_version_split;
   const uint8 *event_type_permutation;
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
@@ -2339,7 +2407,7 @@ public:
   }
 
   void calc_server_version_split();
-
+  static bool is_version_before_checksum(const master_version_split *version_split);
 protected:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2516,7 +2584,12 @@ class Xid_log_event: public Log_event
    my_xid xid;
 
 #ifdef MYSQL_SERVER
-  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg, 0, TRUE), xid(x) {}
+  Xid_log_event(THD* thd_arg, my_xid x, bool direct):
+   Log_event(thd_arg, 0, TRUE), xid(x)
+   {
+     if (direct)
+       cache_type= Log_event::EVENT_NO_CACHE;
+   }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -3068,6 +3141,59 @@ public:
 };
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
+
+/**
+  @class Annotate_rows_log_event
+
+  In row-based mode, if binlog_annotate_rows_events = ON, each group of
+  Table_map_log_events is preceded by an Annotate_rows_log_event which
+  contains the query which caused the subsequent rows operations.
+
+  The Annotate_rows_log_event has no post-header and its body contains
+  the corresponding query (without trailing zero). Note. The query length
+  is to be calculated as a difference between the whole event length and
+  the common header length.
+*/
+class Annotate_rows_log_event: public Log_event
+{
+public:
+#ifndef MYSQL_CLIENT
+  Annotate_rows_log_event(THD*, uint16 cache_type_arg);
+#endif
+  Annotate_rows_log_event(const char *buf, uint event_len,
+                          const Format_description_log_event*);
+  ~Annotate_rows_log_event();
+
+  virtual int get_data_size();
+  virtual Log_event_type get_type_code();
+  virtual bool is_valid() const;
+
+#ifndef MYSQL_CLIENT
+  virtual bool write_data_header(IO_CACHE*);
+  virtual bool write_data_body(IO_CACHE*);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual void pack_info(Protocol*);
+#endif
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE*, PRINT_EVENT_INFO*);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+private:
+  virtual int do_apply_event(Relay_log_info const*);
+  virtual int do_update_pos(Relay_log_info*);
+  virtual enum_skip_reason do_shall_skip(Relay_log_info*);
+#endif
+
+private:
+  char *m_query_txt;
+  uint  m_query_len;
+  char *m_save_thd_query_txt;
+  uint  m_save_thd_query_len;
+};
 
 /**
   @class Table_map_log_event
@@ -3674,7 +3800,10 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
+  KEY      *m_key_info; /* Pointer to KEY info for m_key_nr */
+  uint      m_key_nr;   /* Key number */
 
+  int find_key(); // Find a best key to use in find_row()
   int find_row(const Relay_log_info *const);
   int write_row(const Relay_log_info *const, const bool);
 
@@ -4099,6 +4228,10 @@ int append_query_string(CHARSET_INFO *csinfo,
 bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
                            const char **group_relay_log_name,
                            ulonglong *relay_log_pos);
+
+bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
+uint8 get_checksum_alg(const char* buf, ulong len);
+extern TYPELIB binlog_checksum_typelib;
 
 /**
   @} (end of group Replication)

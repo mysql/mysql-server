@@ -38,6 +38,9 @@ select @@global.aria_repair_threads;
 @@global.aria_repair_threads
 1
 set session aria_repair_threads=cast(-1 as unsigned int);
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select @@session.aria_repair_threads;
 @@session.aria_repair_threads
 18446744073709551615

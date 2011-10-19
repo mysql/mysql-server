@@ -158,7 +158,6 @@ public:
   int assign_to_keycache(THD * thd, HA_CHECK_OPT * check_opt);
   int preload_keys(THD * thd, HA_CHECK_OPT * check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
-  bool check_if_supported_virtual_columns(void) { return TRUE;}
 #ifdef HAVE_REPLICATION
   int dump(THD * thd, int fd);
   int net_read_dump(NET * net);
@@ -180,13 +179,15 @@ public:
    */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                             uint n_ranges, uint mode, HANDLER_BUFFER *buf);
-  int multi_range_read_next(char **range_info);
+  int multi_range_read_next(range_id_t *range_info);
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,
                                       uint *flags, COST_VECT *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, COST_VECT *cost);
+                                uint key_parts, uint *bufsz, 
+                                uint *flags, COST_VECT *cost);
+  int multi_range_read_explain_info(uint mrr_mode, char *str, size_t size);
   
   /* Index condition pushdown implementation */
   Item *idx_cond_push(uint keyno, Item* idx_cond);

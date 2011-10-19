@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,6 +114,7 @@ When one supplies long data for a placeholder:
 #include <mysql_com.h>
 #endif
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
+#include "sql_handler.h"
 
 /**
   A result class used to send cursor rows using the binary protocol.
@@ -124,7 +126,7 @@ class Select_fetch_protocol_binary: public select_send
 public:
   Select_fetch_protocol_binary(THD *thd);
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
-  virtual bool send_data(List<Item> &items);
+  virtual int send_data(List<Item> &items);
   virtual bool send_eof();
 #ifdef EMBEDDED_LIBRARY
   void begin_dataset()
@@ -238,9 +240,9 @@ protected:
   virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
                      CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, int decimals);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, int decimals);
   virtual bool store(float value, uint32 decimals, String *buffer);
   virtual bool store(double value, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -333,6 +335,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int error;
   THD *thd= stmt->thd;
   DBUG_ENTER("send_prep_stmt");
+  DBUG_PRINT("enter",("stmt->id: %lu  columns: %d  param_count: %d",
+                      stmt->id, columns, stmt->param_count));
 
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
@@ -577,8 +581,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
   }
   else
     set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
-  param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+  param->set_time(&tm, MYSQL_TIMESTAMP_TIME, MAX_TIME_FULL_WIDTH);
   *pos+= length;
 }
 
@@ -1256,7 +1259,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
   if (open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+                                     MYSQL_OPEN_FORCE_SHARED_MDL, DT_INIT))
     goto error;
 
   if ((values= its++))
@@ -1340,7 +1343,10 @@ static int mysql_test_update(Prepared_statement *stmt,
       open_tables(thd, &table_list, &table_count, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
-  if (table_list->multitable_view)
+  if (mysql_handle_derived(thd->lex, DT_INIT))
+    goto error;
+
+  if (table_list->is_multitable())
   {
     DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
@@ -1354,8 +1360,16 @@ static int mysql_test_update(Prepared_statement *stmt,
     thd->fill_derived_tables() is false here for sure (because it is
     preparation of PS, so we even do not check it).
   */
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+  if (table_list->handle_derived(thd->lex, DT_MERGE_FOR_INSERT))
     goto error;
+  if (table_list->handle_derived(thd->lex, DT_PREPARE))
+    goto error;
+
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    goto error;
+  }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
@@ -1409,16 +1423,28 @@ error:
 static bool mysql_test_delete(Prepared_statement *stmt,
                               TABLE_LIST *table_list)
 {
+  uint table_count= 0;
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   DBUG_ENTER("mysql_test_delete");
 
   if (delete_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+      open_tables(thd, &table_list, &table_count, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
-  if (!table_list->table)
+  if (mysql_handle_derived(thd->lex, DT_INIT))
+    goto error;
+  if (mysql_handle_derived(thd->lex, DT_MERGE_FOR_INSERT))
+    goto error;
+  if (mysql_handle_derived(thd->lex, DT_PREPARE))
+    goto error;
+
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    goto error;
+  }
+  if (!table_list->table || !table_list->table->created)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              table_list->view_db.str, table_list->view_name.str);
@@ -1473,7 +1499,8 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_normal_and_derived_tables(thd, tables,  MYSQL_OPEN_FORCE_SHARED_MDL,
+                                     DT_PREPARE | DT_CREATE))
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1535,7 +1562,8 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
                                    UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL,
+                                     DT_PREPARE | DT_CREATE))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
 }
@@ -1563,9 +1591,10 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   set_var_base *var;
 
-  if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
-                                    UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if ((tables &&
+       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)) ||
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL,
+                                     DT_PREPARE | DT_CREATE))
     goto error;
 
   while ((var= it++))
@@ -1600,9 +1629,9 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   Item *item;
 
-  if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
-                                    UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if ((tables &&
+       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)) ||
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL, DT_PREPARE))
     goto err;
 
   while ((item= it++))
@@ -1677,6 +1706,7 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
                                 int (*specific_prepare)(THD *thd),
                                 ulong setup_tables_done_option)
 {
+  uint table_count= 0;
   DBUG_ENTER("select_like_stmt_test_with_open");
 
   /*
@@ -1685,8 +1715,8 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
     prepared EXPLAIN yet so derived tables will clean up after
     themself.
   */
-  if (open_normal_and_derived_tables(stmt->thd, tables,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+  THD *thd= stmt->thd;
+  if (open_tables(thd, &tables, &table_count, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1727,7 +1757,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       create_table->open_type= OT_BASE_ONLY;
 
     if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
-                                       MYSQL_OPEN_FORCE_SHARED_MDL))
+                                       MYSQL_OPEN_FORCE_SHARED_MDL,
+                                       DT_PREPARE | DT_CREATE))
       DBUG_RETURN(TRUE);
 
     select_lex->context.resolve_in_select_list= TRUE;
@@ -1747,7 +1778,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       which keeps metadata validation code simple.
     */
     if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
-                                       MYSQL_OPEN_FORCE_SHARED_MDL))
+                                       MYSQL_OPEN_FORCE_SHARED_MDL,
+                                       DT_PREPARE))
       DBUG_RETURN(TRUE);
   }
 
@@ -1780,7 +1812,8 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
     goto err;
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL,
+                                     DT_PREPARE))
     goto err;
 
   lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
@@ -1925,6 +1958,56 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
   return res;
 }
 
+/**
+  Validate SELECT statement.
+
+    In case of success, if this query is not EXPLAIN, send column list info
+    back to the client.
+
+  @param stmt               prepared statement
+  @param tables             list of tables used in the query
+
+  @retval 0 success
+  @retval 1 error, error message is set in THD
+  @retval 2 success, and statement metadata has been sent
+*/
+
+static int mysql_test_handler_read(Prepared_statement *stmt,
+                                   TABLE_LIST *tables)
+{
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  SQL_HANDLER *ha_table;
+  DBUG_ENTER("mysql_test_select");
+
+  lex->select_lex.context.resolve_in_select_list= TRUE;
+
+  /*
+    We don't have to test for permissions as this is already done during
+    HANDLER OPEN
+  */
+  if (!(ha_table= mysql_ha_read_prepare(thd, tables, lex->ha_read_mode,
+                                        lex->ident.str,
+                                        lex->insert_list,
+                                        lex->select_lex.where)))
+    DBUG_RETURN(1);
+
+  if (!stmt->is_sql_prepare())
+  {
+    if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
+    {
+      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(select_send));
+      DBUG_RETURN(1);
+    }
+    if (send_prep_stmt(stmt, ha_table->fields.elements) ||
+        lex->result->send_result_set_metadata(ha_table->fields, Protocol::SEND_EOF) ||
+        thd->protocol->flush())
+      DBUG_RETURN(1);
+    DBUG_RETURN(2);
+  }
+  DBUG_RETURN(0);
+}
+
 
 /**
   Perform semantic analysis of the parsed tree and send a response packet
@@ -2042,6 +2125,11 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_REPLACE_SELECT:
     res= mysql_test_insert_select(stmt, tables);
     break;
+
+  case SQLCOM_HA_READ:
+    res= mysql_test_handler_read(stmt, tables);
+    /* Statement and field info has already been sent */
+    DBUG_RETURN(res == 1 ? TRUE : FALSE);
 
     /*
       Note that we don't need to have cases in this list if they are
@@ -2427,6 +2515,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* Fix ORDER list */
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
+      sl->handle_derived(lex, DT_REINIT);
 
       /* clear the no_error flag for INSERT/UPDATE IGNORE */
       sl->no_error= FALSE;
@@ -2477,9 +2566,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   }
   lex->current_select= &lex->select_lex;
 
-  /* restore original list used in INSERT ... SELECT */
-  if (lex->leaf_tables_insert)
-    lex->select_lex.leaf_tables= lex->leaf_tables_insert;
 
   if (lex->result)
   {
@@ -2912,11 +2998,11 @@ bool Select_fetch_protocol_binary::send_eof()
 }
 
 
-bool
+int
 Select_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
-  bool rc;
+  int rc;
 
   thd->protocol= &protocol;
   rc= select_send::send_data(fields);
@@ -3403,6 +3489,7 @@ Prepared_statement::execute_loop(String *expanded_query,
   Reprepare_observer reprepare_observer;
   bool error;
   int reprepare_attempt= 0;
+  bool need_set_parameters= true;
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)
@@ -3411,10 +3498,18 @@ Prepared_statement::execute_loop(String *expanded_query,
     return TRUE;
   }
 
-  if (set_parameters(expanded_query, packet, packet_end))
+reexecute:
+  if (need_set_parameters &&
+      set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
-reexecute:
+  /*
+    if set_parameters() has generated warnings,
+    we need to repeat it when reexecuting, to recreate these
+    warnings.
+  */
+  need_set_parameters= thd->warning_info->statement_warn_count();
+
   reprepare_observer.reset_reprepare_observer();
 
   /*
@@ -4271,8 +4366,10 @@ bool Protocol_local::store(const char *str, size_t length,
 
 /* Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store(MYSQL_TIME *time)
+bool Protocol_local::store(MYSQL_TIME *time, int decimals)
 {
+  if (decimals != AUTO_SEC_PART_DIGITS)
+    time->second_part= sec_part_truncate(time->second_part, decimals);
   return store_column(time, sizeof(MYSQL_TIME));
 }
 
@@ -4287,8 +4384,10 @@ bool Protocol_local::store_date(MYSQL_TIME *time)
 
 /** Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store_time(MYSQL_TIME *time)
+bool Protocol_local::store_time(MYSQL_TIME *time, int decimals)
 {
+  if (decimals != AUTO_SEC_PART_DIGITS)
+    time->second_part= sec_part_truncate(time->second_part, decimals);
   return store_column(time, sizeof(MYSQL_TIME));
 }
 

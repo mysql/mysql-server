@@ -1,4 +1,6 @@
-/* */
+/*
+  Semi-join subquery optimization code definitions
+*/
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
@@ -199,7 +201,8 @@ public:
         double records= rows2double(s->table->file->stats.records);
 
         /* The cost is entire index scan cost (divided by 2) */
-        double read_time= s->table->file->keyread_time(key, 1, records);
+        double read_time= s->table->file->keyread_time(key, 1,
+                                                       (ha_rows) records);
 
         /*
           Now find out how many different keys we will get (for now we
@@ -282,7 +285,9 @@ void restore_prev_sj_state(const table_map remaining_tables,
                                   const JOIN_TAB *tab, uint idx);
 
 void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
-bool setup_sj_materialization(JOIN_TAB *tab);
+
+bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab);
+bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab);
 
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
@@ -365,4 +370,10 @@ int clear_sj_tmp_tables(JOIN *join);
 int rewrite_to_index_subquery_engine(JOIN *join);
 
 
+void get_delayed_table_estimates(TABLE *table,
+                                 ha_rows *out_rows, 
+                                 double *scan_time,
+                                 double *startup_cost);
+
+enum_nested_loop_state join_tab_execution_startup(JOIN_TAB *tab);
 

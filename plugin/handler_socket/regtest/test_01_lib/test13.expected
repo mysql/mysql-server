@@ -1,0 +1,92 @@
+HSINSERT
+11 v1hs_0
+12 v1hs_1
+13 v1hs_2
+14 v1hs_3
+15 v1hs_4
+16 v1hs_5
+17 v1hs_6
+18 v1hs_7
+19 v1hs_8
+20 v1hs_9
+21 v1hs3_0
+22 v1hs3_0
+23 v1hs3_0
+24 v1hs3_1
+25 v1hs3_1
+26 v1hs3_1
+27 v1hs3_2
+28 v1hs3_2
+29 v1hs3_2
+30 v1hs3_3
+31 v1hs3_3
+32 v1hs3_3
+33 v1hs3_4
+34 v1hs3_4
+35 v1hs3_4
+36 v1hs3_5
+37 v1hs3_5
+38 v1hs3_5
+39 v1hs3_6
+40 v1hs3_6
+41 v1hs3_6
+42 v1hs3_7
+43 v1hs3_7
+44 v1hs3_7
+45 v1hs3_8
+46 v1hs3_8
+47 v1hs3_8
+48 v1hs3_9
+49 v1hs3_9
+50 v1hs3_9
+DUMP_TABLE
+1 v1sql_0 v2sql_0
+2 v1sql_1 v2sql_1
+3 v1sql_2 v2sql_2
+4 v1sql_3 v2sql_3
+5 v1sql_4 v2sql_4
+6 v1sql_5 v2sql_5
+7 v1sql_6 v2sql_6
+8 v1sql_7 v2sql_7
+9 v1sql_8 v2sql_8
+10 v1sql_9 v2sql_9
+11 v1hs_0 v2hs_0
+12 v1hs_1 v2hs_1
+13 v1hs_2 v2hs_2
+14 v1hs_3 v2hs_3
+15 v1hs_4 v2hs_4
+16 v1hs_5 v2hs_5
+17 v1hs_6 v2hs_6
+18 v1hs_7 v2hs_7
+19 v1hs_8 v2hs_8
+20 v1hs_9 v2hs_9
+21 v1hs3_0 v2hs3_0
+22 v1hs3_0 v2hs3_0
+23 v1hs3_0 v2hs3_0
+24 v1hs3_1 v2hs3_1
+25 v1hs3_1 v2hs3_1
+26 v1hs3_1 v2hs3_1
+27 v1hs3_2 v2hs3_2
+28 v1hs3_2 v2hs3_2
+29 v1hs3_2 v2hs3_2
+30 v1hs3_3 v2hs3_3
+31 v1hs3_3 v2hs3_3
+32 v1hs3_3 v2hs3_3
+33 v1hs3_4 v2hs3_4
+34 v1hs3_4 v2hs3_4
+35 v1hs3_4 v2hs3_4
+36 v1hs3_5 v2hs3_5
+37 v1hs3_5 v2hs3_5
+38 v1hs3_5 v2hs3_5
+39 v1hs3_6 v2hs3_6
+40 v1hs3_6 v2hs3_6
+41 v1hs3_6 v2hs3_6
+42 v1hs3_7 v2hs3_7
+43 v1hs3_7 v2hs3_7
+44 v1hs3_7 v2hs3_7
+45 v1hs3_8 v2hs3_8
+46 v1hs3_8 v2hs3_8
+47 v1hs3_8 v2hs3_8
+48 v1hs3_9 v2hs3_9
+49 v1hs3_9 v2hs3_9
+50 v1hs3_9 v2hs3_9

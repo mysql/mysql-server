@@ -673,8 +673,7 @@ fnprint (to_print)
 	      w = wcwidth (wc);
 	      width = (w >= 0) ? w : 1;
 	    }
-	  fwrite (s, 1, tlen, rl_outstream);
-	  s += tlen;
+	  s+= fwrite (s, 1, tlen, rl_outstream);
 	  printed_len += width;
 #else
 	  putc (*s, rl_outstream);

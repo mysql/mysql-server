@@ -156,6 +156,7 @@ struct list_node :public Sql_alloc
   }
 };
 
+typedef bool List_eq(void *a, void *b);
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
 
@@ -239,6 +240,11 @@ public:
   {
     if (!list->is_empty())
     {
+      if (is_empty())
+      {
+        *this= *list;
+        return;
+      }
       *last= list->first;
       last= list->last;
       elements+= list->elements;
@@ -259,11 +265,13 @@ public:
     list_node *node= first;
     list_node *list_first= list->first;
     elements=0;
-    while (node && node != list_first)
+    while (node != &end_of_list && node != list_first)
     {
       prev= &node->next;
       node= node->next;
       elements++;
+      if (node == &end_of_list)
+        return;
     }
     *prev= *last;
     last= prev;
@@ -292,6 +300,16 @@ public:
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
   inline bool is_empty() { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
+  inline bool add_unique(void *info, List_eq *eq)
+  {
+    list_node *node= first;
+    for (;
+         node != &end_of_list && (!(*eq)(node->info, info));
+         node= node->next) ;
+    if (node == &end_of_list)
+      return push_back(info);
+    return 1;
+  }
   friend class base_list_iterator;
   friend class error_list;
   friend class error_list_iterator;
@@ -462,6 +480,8 @@ public:
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }
   inline void prepand(List<T> *list) { base_list::prepand(list); }
+  inline bool add_unique(T *a, bool (*eq)(T *a, T *b))
+  { return base_list::add_unique(a, (List_eq *)eq); }
   void delete_elements(void)
   {
     list_node *element,*next;
@@ -514,36 +534,40 @@ public:
 
 
 /*
-  Exchange sort algorithm for List<T>.
+  Bubble sort algorithm for List<T>.
+  This sort function is supposed to be used only for very short list.
+  Currently it is used for the lists of Item_equal objects and
+  for some lists in the table elimination algorithms. In both
+  cases the sorted lists are very short.
 */
+
 template <class T> 
-inline void exchange_sort(List<T> *list_to_sort,
-                          int (*sort_func)(T *a, T *b, void *arg), void *arg)
+inline void bubble_sort(List<T> *list_to_sort,
+                        int (*sort_func)(T *a, T *b, void *arg), void *arg)
 {
   bool swap;
+  T **ref1= 0;
+  T **ref2= 0;
   List_iterator<T> it(*list_to_sort);
   do
   {
+    T **last_ref= ref1;
     T *item1= it++;
-    T **ref1= it.ref();
+    ref1= it.ref();
     T *item2;
 
     swap= FALSE;
-    while ((item2= it++))
+    while ((item2= it++) && (ref2= it.ref()) != last_ref)
     {
-      T **ref2= it.ref();
       if (sort_func(item1, item2, arg) < 0)
       {
-        T *item= *ref1;
-        *ref1= *ref2;
-        *ref2= item;
+        *ref1= item2;
+        *ref2= item1;
         swap= TRUE;
       }
       else
-      {
         item1= item2;
-        ref1= ref2;
-      }
+      ref1= ref2;
     }
     it.rewind();
   } while (swap);

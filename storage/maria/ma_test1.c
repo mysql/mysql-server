@@ -70,12 +70,13 @@ extern int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
 
 int main(int argc,char *argv[])
 {
+  char buff[FN_REFLEN];
 #ifdef SAFE_MUTEX
   safe_mutex_deadlock_detector= 1;
 #endif
   MY_INIT(argv[0]);
-  get_options(argc,argv);
   maria_data_root= (char *)".";
+  get_options(argc,argv);
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
@@ -95,7 +96,7 @@ int main(int argc,char *argv[])
   if (opt_versioning)
     init_thr_lock();
 
-  exit(run_test("test1"));
+  exit(run_test(fn_format(buff, "test1", maria_data_root, "", MYF(0))));
 }
 
 
@@ -409,6 +410,10 @@ static int run_test(const char *filename)
   if (!silent)
     printf("- Reading rows with key\n");
   record[1]= 0;                                 /* For nicer printf */
+
+  if (record_type == NO_RECORD)
+    maria_extra(file, HA_EXTRA_KEYREAD, 0);
+
   for (i=0 ; i <= 25 ; i++)
   {
     create_key(key,i);
@@ -422,9 +427,15 @@ static int run_test(const char *filename)
 	     (int) key_length,key+offset_to_key,error,my_errno,record+1);
     }
   }
+  if (record_type == NO_RECORD)
+  {
+    maria_extra(file, HA_EXTRA_NO_KEYREAD, 0);
+    goto end;
+  }
 
   if (!silent)
     printf("- Reading rows with position\n");
+
   if (maria_scan_init(file))
   {
     fprintf(stderr, "maria_scan_init failed\n");
@@ -724,6 +735,8 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Undocumented",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"datadir", 'h', "Path to the database root.", &maria_data_root,
+   &maria_data_root, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delete-rows", 'd', "Abort after this many rows has been deleted",
    (uchar**) &remove_count, (uchar**) &remove_count, 0, GET_UINT, REQUIRED_ARG,
    1000, 0, 0, 0, 0, 0},
@@ -756,6 +769,8 @@ static struct my_option my_long_options[] =
   {"row-fixed-size", 'S', "Fixed size records",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"rows-in-block", 'M', "Store rows in block format",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"rows-no-data", 'n', "Don't store any data, only keys",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"row-pointer-size", 'R', "Undocumented", (uchar**) &rec_pointer_size,
    (uchar**) &rec_pointer_size, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -815,6 +830,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'M':
     record_type= BLOCK_RECORD;
+    break;
+  case 'n':
+    record_type= NO_RECORD;
     break;
   case 'S':
     if (key_field == FIELD_VARCHAR)
@@ -887,6 +905,10 @@ static void get_options(int argc, char *argv[])
     exit(ho_error);
   if (transactional)
     record_type= BLOCK_RECORD;
+  if (record_type == NO_RECORD)
+    skip_update= skip_delete= 1;
+
+
   return;
 } /* get options */
 

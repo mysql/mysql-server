@@ -1448,6 +1448,57 @@ public:
   }
 };
 
+
+class Sys_var_session_special_double: public Sys_var_double
+{
+  typedef bool (*session_special_update_function)(THD *thd, set_var *var);
+  typedef double (*session_special_read_function)(THD *thd);
+
+  session_special_read_function read_func;
+  session_special_update_function update_func;
+public:
+  Sys_var_session_special_double(const char *name_arg,
+               const char *comment, int flag_args,
+               CMD_LINE getopt,
+               double min_val, double max_val,
+               PolyLock *lock, enum binlog_status_enum binlog_status_arg,
+               on_check_function on_check_func,
+               session_special_update_function update_func_arg,
+               session_special_read_function read_func_arg,
+               uint deprecated_version=0, const char *substitute=0)
+    : Sys_var_double(name_arg, comment, flag_args, 0,
+              sizeof(double), getopt, min_val,
+              max_val, 0, lock, binlog_status_arg, on_check_func, 0,
+              deprecated_version, substitute),
+      read_func(read_func_arg), update_func(update_func_arg)
+  {
+    DBUG_ASSERT(scope() == ONLY_SESSION);
+    DBUG_ASSERT(getopt.id == -1); // NO_CMD_LINE, because the offset is fake
+  }
+  bool session_update(THD *thd, set_var *var)
+  { return update_func(thd, var); }
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+  void session_save_default(THD *thd, set_var *var)
+  { var->value= 0; }
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    thd->sys_var_tmp.double_value= read_func(thd);
+    return (uchar*) &thd->sys_var_tmp.double_value;
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    DBUG_ASSERT(FALSE);
+    return 0;
+  }
+};
+
+
 /**
   The class for read-only variables that show whether a particular
   feature is supported by the server. Example: have_compression

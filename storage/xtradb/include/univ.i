@@ -57,7 +57,6 @@ Created 1/20/1994 Heikki Tuuri
 #define PERCONA_INNODB_VERSION 20.1
 #endif
 
-
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
 calculated in make_version_string() in sql/sql_show.cc like this:

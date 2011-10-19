@@ -191,9 +191,8 @@ DROP TEMPORARY TABLE t1;
 #
 # INSERT INTO t1 VALUES(1);
 
---echo # The rows event will binlogged before 'DROP TEMPORARY TABLE t1',
---echo # as t1 is non-transactional table
-INSERT INTO t1 SELECT Rand();
+--echo # The rows event will binlogged after 'INSERT INTO t1 VALUES(1)'
+INSERT INTO t1 VALUES(uuid()+0);
 COMMIT;
 
 source include/show_binlog_events.inc;

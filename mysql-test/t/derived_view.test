@@ -1,0 +1,787 @@
+--disable_warnings
+drop table if exists t1,t2;
+drop view if exists v1,v2,v3,v4;
+--enable_warnings
+
+set @exit_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on,derived_with_keys=on';
+# The 'default' value within the scope of this test:
+set @save_optimizer_switch=@@optimizer_switch;
+
+create table t1(f1 int, f11 int);
+create table t2(f2 int, f22 int);
+insert into t1 values(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
+insert into t1 values(17,17),(13,13),(11,11),(15,15),(19,19);
+insert into t2 values(1,1),(3,3),(2,2),(4,4),(8,8),(6,6);
+insert into t2 values(12,12),(14,14),(10,10),(18,18),(16,16);
+
+--echo Tests:
+
+--echo for merged derived tables
+--echo  explain for simple derived
+explain select * from (select * from t1) tt;
+select * from (select * from t1) tt;
+--echo  explain for multitable derived
+explain extended select * from (select * from t1 join t2 on f1=f2) tt;
+select * from (select * from t1 join t2 on f1=f2) tt;
+--echo  explain for derived with where
+explain extended 
+  select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+--echo join of derived
+explain extended 
+  select * from (select * from t1 where f1 in (2,3)) tt join
+  (select * from t1 where f1 in (1,2)) aa on tt.f1=aa.f1;
+select * from (select * from t1 where f1 in (2,3)) tt join
+  (select * from t1 where f1 in (1,2)) aa on tt.f1=aa.f1;
+
+flush status;
+explain extended 
+  select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+show status like 'Handler_read%';
+flush status;
+select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+show status like 'Handler_read%';
+
+--echo for merged views
+create view v1 as select * from t1;
+create view v2 as select * from t1 join t2 on f1=f2;
+create view v3 as select * from t1 where f1 in (2,3);
+create view v4 as select * from t2 where f2 in (2,3);
+--echo  explain for simple views
+explain extended select * from v1;
+select * from v1;
+--echo  explain for multitable views
+explain extended select * from v2;
+select * from v2;
+--echo  explain for views with where
+explain extended select * from v3 where f11 in (1,3);
+select * from v3 where f11 in (1,3);
+--echo explain for joined views
+explain extended
+  select * from v3 join v4 on f1=f2;
+select * from v3 join v4 on f1=f2;
+
+flush status;
+explain extended select * from v4 where f2 in (1,3);
+show status like 'Handler_read%';
+flush status;
+select * from v4 where f2 in (1,3);
+show status like 'Handler_read%';
+
+--echo for materialized derived tables
+--echo  explain for simple derived
+explain extended select * from (select * from t1 group by f1) tt;
+select * from (select * from t1 having f1=f1) tt;
+--echo  explain showing created indexes
+explain extended 
+  select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+--echo  explain showing late materialization
+flush status;
+explain select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+show status like 'Handler_read%';
+flush status;
+select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+show status like 'Handler_read%';
+
+--echo for materialized views
+drop view v1,v2,v3;
+create view v1 as select * from t1 group by f1;
+create view v2 as select * from t2 group by f2;
+create view v3 as select t1.f1,t1.f11 from t1 join t1 as t11 where t1.f1=t11.f1
+                    having t1.f1<100;
+--echo  explain for simple derived
+explain extended select * from v1;
+select * from v1;
+--echo  explain showing created indexes
+explain extended select * from t1 join v2 on f1=f2;
+select * from t1 join v2 on f1=f2;
+explain extended
+  select * from t1,v3 as v31,v3 where t1.f1=v31.f1 and t1.f1=v3.f1;
+flush status;
+select * from t1,v3 as v31,v3 where t1.f1=v31.f1 and t1.f1=v3.f1;
+show status like 'Handler_read%';
+--echo  explain showing late materialization
+flush status;
+explain select * from t1 join v2 on f1=f2;
+show status like 'Handler_read%';
+flush status;
+select * from t1 join v2 on f1=f2;
+show status like 'Handler_read%';
+
+explain extended select * from v1 join v4 on f1=f2;
+select * from v1 join v4 on f1=f2;
+
+--echo merged derived in merged derived
+explain extended select * from (select * from 
+  (select * from t1 where f1 < 7) tt where f1 > 2) zz;
+select * from (select * from 
+  (select * from t1 where f1 < 7) tt where f1 > 2) zz;
+
+--echo materialized derived in merged derived
+explain extended  select * from (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) zz;
+select * from (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) zz;
+
+--echo merged derived in materialized derived
+explain  extended select * from (select * from 
+  (select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
+select * from (select * from 
+  (select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
+
+--echo materialized derived in materialized derived
+explain extended  select * from (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) zz;
+select * from (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) zz;
+
+--echo mat in merged derived join mat in merged derived
+explain extended  select * from 
+ (select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) x
+join 
+ (select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) z
+ on x.f1 = z.f1;
+
+flush status;
+select * from 
+ (select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) x
+join 
+ (select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) z
+ on x.f1 = z.f1;
+show status like 'Handler_read%';
+flush status;
+
+--echo merged in merged derived join merged in merged derived
+explain extended  select * from 
+ (select * from 
+  (select * from t1 where f1 < 7 ) tt where f1 > 2 ) x
+join 
+ (select * from 
+  (select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
+ on x.f1 = z.f1;
+
+select * from 
+ (select * from 
+  (select * from t1 where f1 < 7 ) tt where f1 > 2 ) x
+join 
+ (select * from 
+  (select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
+ on x.f1 = z.f1;
+
+--echo materialized in materialized derived join 
+--echo   materialized in materialized derived
+explain extended  select * from 
+ (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) x
+join 
+ (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) z
+ on x.f1 = z.f1;
+
+select * from 
+ (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) x
+join 
+ (select * from 
+  (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) z
+ on x.f1 = z.f1;
+
+--echo merged view in materialized derived
+explain extended
+select * from (select * from v4 group by 1) tt;
+select * from (select * from v4 group by 1) tt;
+
+--echo materialized view in merged derived
+explain extended 
+select * from ( select * from v1 where f1 < 7) tt;
+select * from ( select * from v1 where f1 < 7) tt;
+
+--echo merged view in a merged view in a merged derived
+create view v6 as select * from v4 where f2 < 7;
+explain extended select * from (select * from v6) tt;
+select * from (select * from v6) tt;
+
+--echo materialized view in a merged view in a materialized derived
+create view v7 as select * from v1;
+explain extended select * from (select * from v7 group by 1) tt;
+select * from (select * from v7 group by 1) tt;
+
+--echo join of above two
+explain extended select * from v6 join v7 on f2=f1;
+select * from v6 join v7 on f2=f1;
+
+--echo test two keys
+explain select * from t1 join (select * from t2 group by f2) tt on t1.f1=tt.f2 join t1 xx on tt.f22=xx.f1;
+select * from t1 join (select * from t2 group by f2) tt on t1.f1=tt.f2 join t1 xx on tt.f22=xx.f1;
+
+
+--echo TODO: Add test with 64 tables mergeable view to test fall back to
+--echo materialization on tables > MAX_TABLES merge
+drop table t1,t2;
+drop view v1,v2,v3,v4,v6,v7;
+
+--echo #
+--echo #  LP bug #794909: crash when defining possible keys for
+--echo #                  a materialized view/derived_table
+--echo #
+
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (149), (150), (224), (29);
+
+CREATE TABLE t2 (f1 int, KEY (f1));
+INSERT INTO t2 VALUES (149), (NULL), (224);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN
+SELECT * FROM v1 JOIN t2 ON v1.f1 = t2.f1;
+SELECT * FROM v1 JOIN t2 ON v1.f1 = t2.f1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo #  LP bug #794890: abort failure on multi-update with view
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (20), (7);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (7), (9), (7);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT a FROM t1;
+
+CREATE VIEW v2 AS SELECT t2.a FROM t2, v1 WHERE t2.a=t2.a;
+UPDATE v2 SET a = 2;
+SELECT * FROM t2;
+
+UPDATE t1,v2 SET t1.a = 3;
+SELECT * FROM t1;
+
+DELETE t1 FROM t1,v2;
+SELECT * FROM t1; 
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+
+--echo #
+--echo #  LP bug #802023: MIN/MAX optimization 
+--echo #                  for mergeable derived tables and views
+--echo #
+
+CREATE TABLE t1 (a int, b int, c varchar(32), INDEX idx(a,b));
+INSERT INTO t1 VALUES 
+  (7, 74, 'yyyyyyy'), (9, 97, 'aaaaaaaaa'), (2, 23, 'tt'),
+  (5, 55, 'ddddd'), (2, 27, 'ss'), (7, 76, 'xxxxxxx'),
+  (7, 79, 'zzzzzzz'), (9, 92, 'bbbbbbbbb'), (2, 25, 'pp'),
+  (5, 53, 'eeeee'), (2, 23, 'qq'), (7, 76,'wwwwwww'),
+  (7, 74, 'uuuuuuu'), (9, 92, 'ccccccccc'), (2, 25, 'oo');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT MIN(a) FROM t1 WHERE a >= 5;
+EXPLAIN
+SELECT MIN(a) FROM t1 WHERE a >= 5;
+
+SELECT MIN(a) FROM (SELECT * FROM t1) t WHERE a >= 5;
+EXPLAIN
+SELECT MIN(a) FROM(SELECT * FROM t1) t WHERE a >= 5;
+
+SELECT MIN(a) FROM v1 WHERE a >= 5;
+EXPLAIN
+SELECT MIN(a) FROM v1 WHERE a >= 5;
+
+SELECT MAX(b) FROM t1 WHERE a=7 AND b<75;
+EXPLAIN
+SELECT MAX(b) FROM t1 WHERE a=7 AND b<75;
+
+SELECT MAX(b) FROM (SELECT * FROM t1) t WHERE a=7 AND b<75;
+EXPLAIN
+SELECT MAX(b) FROM (SELECT * FROM t1) t WHERE a=7 AND b<75;
+
+SELECT MAX(b) FROM v1 WHERE a=7 AND b<75;
+EXPLAIN
+SELECT MAX(b) FROM v1 WHERE a=7 AND b<75;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # LP bug #800535: GROUP BY query with nested left join                       
+--echo #                 and a derived table in the nest
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (1), (2);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (3,3), (4,4);
+
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+                (t2  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+SELECT t.a FROM t1 LEFT JOIN
+                (t2 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+                (( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+SELECT t.a FROM t1 LEFT JOIN
+                (( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+
+CREATE VIEW v1 AS SELECT * FROM t2;
+
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+                (v1  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+SELECT t.a FROM t1 LEFT JOIN
+                (v1 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+  GROUP BY t.a;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #803410: materialized view/dt accessed by two-component key                       
+--echo #                 
+
+CREATE TABLE t1 (a varchar(1));
+INSERT INTO t1 VALUES ('c');
+
+CREATE TABLE t2 (a varchar(1) , KEY (a)) ;
+INSERT INTO t2 VALUES ('c'), (NULL), ('r');
+
+CREATE TABLE t3 (a varchar(1), b varchar(1));
+INSERT INTO t3 VALUES ('e', 'c'), ('c', 'c'), ('c', 'r');
+
+CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t3 GROUP BY a;
+
+EXPLAIN
+SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
+SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # LP bug #802845: select from derived table with limit 0                       
+--echo #                 
+
+SELECT * FROM (SELECT 1 LIMIT 0) t;
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (7), (1), (3);
+
+SELECT * FROM (SELECT * FROM t1 LIMIT 0) t;
+
+DROP TABLE t1;
+
+--echo #
+--echo # LP bug #803851: materialized view + IN->EXISTS                       
+--echo #                 
+
+SET SESSION optimizer_switch='semijoin=off,derived_with_keys=on';
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (2,2), (3,3), (1,1);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (1), (2), (1);
+
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (3), (1), (2), (1);
+
+CREATE VIEW v1 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+
+EXPLAIN EXTENDED
+SELECT * FROM t3
+  WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
+SELECT * FROM t3
+  WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
+
+SET SESSION optimizer_switch=@save_optimizer_switch;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #804515: materialized derived + ORDER BY                      
+--echo #                 
+
+CREATE TABLE t1 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t1 VALUES
+  ('r','x'), ('x','d'), ('x','r'), ('r','f'), ('x','x'); 
+
+CREATE TABLE t2 (f1 varchar(1), f2 varchar(1));
+INSERT INTO t2 VALUES ('s','x');
+
+CREATE TABLE t3 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t3 VALUES
+  (NULL,'x'), (NULL,'f'), ('t','p'), (NULL,'j'), ('g','c');
+
+CREATE TABLE t4 (f1 int, f2 varchar(1), KEY (f2,f1)) ;
+INSERT INTO t4 VALUES (1,'x'), (5,'r');
+
+EXPLAIN
+SELECT t.f1 AS f 
+  FROM (SELECT DISTINCT t1.* FROM t1,t2 WHERE t2.f2 = t1.f2) t,t3,t4
+    WHERE t4.f2 = t3.f2  AND t4.f2 = t.f1 ORDER BY f;
+SELECT t.f1 AS f 
+  FROM (SELECT DISTINCT t1.* FROM t1,t2 WHERE t2.f2 = t1.f2) t,t3,t4
+    WHERE t4.f2 = t3.f2  AND t4.f2 = t.f1 ORDER BY f;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # LP bug #806431: join over materialized derived with key                    
+--echo #             
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0),(3,0),(1,0);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT a,b FROM t1 ;
+
+SET SESSION optimizer_switch='derived_with_keys=off';
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+
+SET SESSION optimizer_switch=@save_optimizer_switch;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # LP bug #806477: left join over merged join with                    
+--echo #                 where condition containing f=f
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL);
+INSERT INTO t1 VALUES (1), (50), (0);
+
+CREATE TABLE t2 (a int);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (76,2), (1,NULL);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT t3.b, v1.a 
+  FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+    WHERE v1.a = v1.a OR t3.b <> 0;
+EXPLAIN EXTENDED
+SELECT t3.b, v1.a 
+  FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+    WHERE v1.a = v1.a OR t3.b <> 0;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #806510: subquery with outer reference
+--echo #                 to a derived_table/view                    
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (4), (NULL);
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8), (0);
+
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (7,8);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT * FROM  t1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+EXPLAIN
+SELECT * FROM  t1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+
+SELECT * FROM (SELECT * FROM t1) t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1) t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+
+SELECT * FROM v1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+EXPLAIN
+SELECT * FROM v1 t
+  WHERE EXISTS (SELECT t3.a FROM t3, t2
+                  WHERE t2.a = t3.b AND t.a != 0);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #806097: left join over a view + DISTINCT           
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (252,6), (232,0), (174,232);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (232), (174);
+
+CREATE TABLE t3 (c int);
+INSERT INTO t3 VALUES (1), (2);
+
+CREATE VIEW v1 AS SELECT t2.a FROM t3,t2;
+
+SELECT v1.a FROM t1 LEFT JOIN v1 ON t1.b = 0;
+
+SELECT DISTINCT t2.a FROM t1 LEFT JOIN (t3,t2) ON t1.b = 0;
+EXPLAIN
+SELECT DISTINCT t2.a FROM t1 LEFT JOIN (t3,t2) ON t1.b = 0;
+
+SELECT DISTINCT v1.a FROM t1 LEFT JOIN v1 ON t1.b = 0;
+EXPLAIN
+SELECT DISTINCT v1.a FROM t1 LEFT JOIN v1 ON t1.b = 0;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #806504: right join over a view/derived table           
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0);
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (0), (0);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+  WHERE t.a IN (SELECT b FROM t1);
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #809206: DISTINCT in derived table / view           
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (0);
+
+CREATE TABLE t2 (a  varchar(32), b int, KEY (a)) ;
+INSERT INTO t2 VALUES
+  ('j',28), ('c',29), ('i',26), ('c',29), ('k',27),
+  ('j',28), ('c',29), ('i',25), ('d',26), ('k',27);
+
+CREATE TABLE t3 (a varchar(32));
+INSERT INTO t3 VALUES ('j'), ('c');
+
+CREATE VIEW v1 AS SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+
+SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+EXPLAIN 
+SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+
+SELECT * FROM (SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a) t;
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a) t;
+
+SELECT * FROM v1;
+EXPLAIN 
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #809179: right join over a derived table / view         
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (6,5);
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (1,0);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (6,5);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT t.a,t.b FROM t3 RIGHT JOIN (t1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN (t1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+
+SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+
+SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
+  WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #794901: insert into a multi-table view           
+--echo #
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+
+CREATE VIEW v1 AS SELECT t1.a FROM t1,t2;
+CREATE VIEW v2 AS SELECT a FROM t2 GROUP BY a;
+CREATE VIEW v3 AS SELECT v1.a FROM v1,v2;
+
+-- error ER_NON_INSERTABLE_TABLE
+INSERT INTO v3(a) VALUES (1);
+
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #793448: materialized view accessed by two-component key           
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (9,3), (2,5);
+
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (9,3), (3,7), (9,1), (2,5), (2,4), (3,8);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,3), (9,7), (9,1), (2,4);
+
+CREATE VIEW v1(a,b) AS SELECT a, MAX(b) FROM t2 GROUP BY a;
+CREATE VIEW v2(a,b) AS SELECT a,b FROM t2 UNION SELECT a,b FROM t3;
+
+SELECT * FROM v1;
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+
+SELECT * FROM v2;
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # LP bug #804686: query over a derived table using a view 
+--echo #                 with a degenerated where condition
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0), (1,0), (0,0), (1,1), (1,0);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+CREATE VIEW v2 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b<>0;
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b<>0;
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+
+DROP VIEW v1,v2;
+DROP TABLE t1;
+
+--echo #
+--echo # LP bug #819716: crash with embedded tableless materialized derived
+--echo #                 with a variable 
+--echo #
+
+set optimizer_switch='derived_merge=off';
+EXPLAIN
+SELECT * FROM (SELECT * FROM (SELECT @b) AS t) AS s;
+SELECT * FROM (SELECT * FROM (SELECT @b) AS t) AS s;
+set optimizer_switch='derived_merge=on';
+
+--echo #
+--echo # LP bug #823826: view over join + IS NULL in WHERE
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (1);
+
+CREATE TABLE t2 (b int) ;
+INSERT INTO t2 VALUES (9), (NULL), (7);
+
+CREATE VIEW v1 AS SELECT * FROM t1,t2;
+
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1,t2) t WHERE b IS NULL;
+SELECT * FROM (SELECT * FROM t1,t2) t WHERE b IS NULL;
+
+EXPLAIN
+SELECT * FROM v1 WHERE b IS NULL;
+SELECT * FROM v1 WHERE b IS NULL;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # LP bug #823835: a duplicate of #823189 with derived table
+--echo #
+
+CREATE TABLE t1 (a varchar(32)) ;
+INSERT INTO t1 VALUES ('r'), ('p');
+
+CREATE TABLE t2 (a int NOT NULL, b varchar(32)) ;
+INSERT INTO t2 VALUES (28,'j');
+
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (0), (0);
+
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT * FROM t1) AS t
+WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
+                WHERE t2.b < t.a);
+SELECT * FROM (SELECT * FROM t1) AS t
+WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
+                WHERE t2.b < t.a);
+
+DROP TABLE t1,t2,t3;
+
+# The following command must be the last one the file 
+set optimizer_switch=@exit_optimizer_switch;

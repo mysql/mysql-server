@@ -113,7 +113,7 @@ insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	B	B	21	const	1	Using index condition
+1	SIMPLE	t2	ref	B	B	21	const	1	Using where
 select * from t2 where b="world";
 a	B
 3	world
@@ -1758,7 +1758,10 @@ t1	CREATE TABLE `t1` (
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext,
-  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000'
+  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000',
+  `STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `MAX_STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `PROGRESS` decimal(7,3) NOT NULL DEFAULT '0.000'
 )  DEFAULT CHARSET=utf8
 drop table t1;
 create temporary table t1 like information_schema.processlist;
@@ -1773,7 +1776,10 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `TIME` int(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext,
-  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000'
+  `TIME_MS` decimal(22,3) NOT NULL DEFAULT '0.000',
+  `STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `MAX_STAGE` tinyint(2) NOT NULL DEFAULT '0',
+  `PROGRESS` decimal(7,3) NOT NULL DEFAULT '0.000'
 )  DEFAULT CHARSET=utf8
 drop table t1;
 create table t1 like information_schema.character_sets;
@@ -1888,6 +1894,25 @@ create table t3 (a int) row_format=page;
 drop table t1,t2,t3;
 
 # -- End of Bug#45829
+# new table creation/renaming blocked if old encoded table present
+create table `t-1` (a int) engine=myisam;
+insert into `t-1` values (1);
+show tables;
+Tables_in_test
+t-1
+flush tables;
+convert table files in mysql 5.0 file name encoding
+show tables;
+Tables_in_test
+#mysql50#t-1
+create table `t-1` (a int);
+ERROR 42S01: Table '#mysql50#t-1' already exists
+create table t1 (a int);
+alter table t1 rename `t-1`;
+ERROR 42S01: Table '#mysql50#t-1' already exists
+rename table t1 to `t-1`;
+ERROR 42S01: Table '#mysql50#t-1' already exists
+drop table `#mysql50#t-1`, t1;
 
 End of 5.1 tests
 
@@ -2036,7 +2061,7 @@ CREATE TABLE t2 (id int);
 INSERT INTO t1 VALUES (1), (1);
 INSERT INTO t2 VALUES (2), (2);
 CREATE VIEW v1 AS SELECT id FROM t2;
-CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
+CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id as di FROM t1;
 Warnings:
 Note	1050	Table 'v1' already exists
 SHOW CREATE TABLE v1;
@@ -2336,8 +2361,8 @@ NULL	1	2
 drop table t1;
 create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
 Warnings:
-Warning	1264	Out of range value for column 'b' at row 1
-Warning	1264	Out of range value for column 'c' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
 select * from t1;
 a	b	c
 NULL	0000-00-00	0000-00-00
@@ -2355,8 +2380,8 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 create table if not exists t1 (a int, b date, c date) 
 ignore select 1 as b, 2 as c;
 Warnings:
-Warning	1264	Out of range value for column 'b' at row 1
-Warning	1264	Out of range value for column 'c' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
 select * from t1;
 a	b	c
 NULL	0000-00-00	0000-00-00

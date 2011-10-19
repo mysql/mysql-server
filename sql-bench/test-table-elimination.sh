@@ -1,3 +1,4 @@
+
 #!@PERL@
 # Test of table elimination feature
 

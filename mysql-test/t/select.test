@@ -3528,6 +3528,7 @@ DROP VIEW v1;
 select str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT';
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6';
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
 
 # We have all we need -- and trailing garbage:
@@ -3577,10 +3578,12 @@ select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('','%Y-%m-%d') = '';
 
-# these three should work!
-select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL;
 
 #
 # Bug #30666: Incorrect order when using range conditions on 2 tables or more
@@ -3908,9 +3911,9 @@ DROP TABLE t1;
 # Field_varstring::store
 #
 
-CREATE TABLE A (date_key date);
+CREATE TABLE t1 (date_key date);
 
-CREATE TABLE C (
+CREATE TABLE t2 (
   pk int,
   int_nokey int,
   int_key int,
@@ -3919,20 +3922,20 @@ CREATE TABLE C (
   varchar_key varchar(1)
 );
 
-INSERT INTO C VALUES 
+INSERT INTO t2 VALUES 
 (1,1,1,'0000-00-00',NULL,NULL),
 (1,1,1,'0000-00-00',NULL,NULL);
 
-SELECT 1 FROM C WHERE pk > ANY (SELECT 1 FROM C);
+SELECT 1 FROM t2 WHERE pk > ANY (SELECT 1 FROM t2);
 
-SELECT COUNT(DISTINCT 1) FROM C 
-  WHERE date_key = (SELECT 1 FROM A WHERE C.date_key IS NULL) GROUP BY pk; 
-SELECT date_nokey FROM C 
-  WHERE int_key IN (SELECT 1 FROM A) 
+SELECT COUNT(DISTINCT 1) FROM t2 
+  WHERE date_key = (SELECT 1 FROM t1 WHERE t2.date_key IS NULL) GROUP BY pk; 
+SELECT date_nokey FROM t2
+  WHERE int_key IN (SELECT 1 FROM t1)
   HAVING date_nokey = '10:41:7' 
   ORDER BY date_key;
 
-DROP TABLE A,C;
+DROP TABLE t1,t2;
 
 #
 # Bug #42957: no results from 
@@ -4135,6 +4138,129 @@ EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #702310: usage of 2 join buffers after ref access to an empty table 
+--echo #
+
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (9);
+
+CREATE TABLE t2 (f1 int);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+
+CREATE TABLE t3 (f1 int);
+INSERT INTO t3 VALUES (17);
+
+CREATE TABLE t4  (f1 int PRIMARY KEY, f2 varchar(1024)) ;
+
+CREATE TABLE t5 (f1 int) ;
+INSERT INTO t5 VALUES (20),(5);
+
+CREATE TABLE t6(f1 int);
+INSERT INTO t6 VALUES (9),(7);
+
+SET SESSION join_buffer_size = 2048;
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5,t6;
+
+--echo #
+--echo # Bug #698882: best equality substitution not applied to ref 
+--echo #
+
+CREATE TABLE t1 (a1 int NOT NULL, b1 char(10), INDEX idx (a1));
+CREATE TABLE t2 (a2 int NOT NULL, b2 char(10), INDEX idx (a2));
+CREATE TABLE t3 (a3 int NOT NULL, b3 char(10), INDEX idx (a3));
+INSERT INTO t1 VALUES (2,'xx'), (1,'xxx'),  (11,'xxxxxxx');
+INSERT INTO t2 VALUES
+  (7,'yyyy'), (2,'y'), (3,'yyy'), (1,'yy'), (1,'yyyyy'),
+  (3,'yy'),  (1,'y'), (4,'yyy'), (7,'y'),  (4,'yyyyy'), (7,'yyy'),
+  (7,'yyyy'), (2,'yy'),  (3,'yyy'), (1,'yyyyyyyy'), (1,'yyyyy'),
+  (3,'yy'), (1,'yyy'), (4,'yyy'), (7,'y'), (4,'yyyyy'), (7,'yyy');
+INSERT INTO t3 VALUES
+  (9,'zzzzzzz'), (2,'zzzzz'), (1,'z'), (9,'zz'), (1,'zz'), (5,'zzzzzzz'),
+  (4,'zz'), (3,'z'), (5,'zzzzzz'), (3,'zz'), (4,'zzzz'), (3,'z'),
+  (9,'zzzzzzzz'), (2,'zz'), (1,'zz'), (9,'zzz'), (1,'zzz'), (5,'zzzzzzzz'),
+  (4,'zzz'), (3,'zz'), (5,'zzzzzzz'), (3,'zzz'), (4,'zzzzz'), (3,'zz'),
+  (9,'zzzzzz'), (2,'zzzz'), (1,'zzz'), (9,'z'), (1,'z'), (5,'zzzzzz'),
+  (4,'z'), (3,'zzz'), (5,'zzzzz'), (3,'z'), (4,'zzz'), (3,'zzzz'),
+  (9,'zzzzz'), (2,'zzz'), (1,'zzzz'), (9,'zzz'), (1,'zzzz'), (5,'zzzzz'),
+  (4,'zzz'), (3,'zzzz'), (5,'zzzz'), (3,'zzz'), (4,'zz'), (3,'zzzzz');
+
+set @tmp= @@optimizer_switch;
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+
+EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t1.a1;
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t2.a2;
+
+--sorted_result
+SELECT * from t1,t2,t3
+  WHERE t3.a3=t1.a1 AND t2.a2=t1.a1 AND
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+--sorted_result
+SELECT * FROM t1,t2,t3
+  WHERE t2.a2=t1.a1 AND t3.a3=t1.a1 AND 
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+--sorted_result
+SELECT * FROM t1,t2,t3
+  WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+
+SET SESSION optimizer_switch=@tmp;
+
+DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # Bug #707555: crash with equality substitution in ref 
+--echo #
+
+CREATE TABLE t1 (f11 int, f12 int, PRIMARY KEY (f11), KEY (f12)) ;
+INSERT INTO t1 VALUES (1,NULL), (8,NULL);
+
+CREATE TABLE t2 (f21 int, f22 int, f23 int, KEY (f22)) ;
+INSERT INTO t2 VALUES (1,NULL,3), (2,7,8);
+
+CREATE TABLE t3 (f31 int, f32 int(11), PRIMARY KEY (f31), KEY (f32)) ;
+INSERT INTO t3 VALUES (1,494862336);
+
+CREATE TABLE t4 (f41 int, f42 int, PRIMARY KEY (f41), KEY (f42)) ;
+INSERT INTO t4 VALUES (1,NULL), (8,NULL);
+
+CREATE TABLE t5 (f51 int, PRIMARY KEY (f51)) ;
+INSERT IGNORE INTO t5 VALUES (100);
+
+CREATE TABLE t6 (f61 int, f62 int, KEY (f61)) ;
+INSERT INTO t6 VALUES (NULL,1), (3,10);
+
+CREATE TABLE t7 (f71 int, f72 int, KEY (f72)) ;
+INSERT INTO t7 VALUES (1,NULL), (2,7);
+
+EXPLAIN
+SELECT t2.f23 FROM
+  (t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+  LEFT JOIN
+  (((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+  ON t3.f31 = t6.f61
+    WHERE t7.f71>0;
+
+SELECT t2.f23 FROM
+  (t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+  LEFT JOIN
+  (((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+  ON t3.f31 = t6.f61
+    WHERE t7.f71>0;
+
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
 
 
 --echo #
@@ -4208,6 +4334,19 @@ DROP TABLE t1,t2,t_empty;
 
 --echo End of 5.1 tests
 
+--echo #                    
+--echo # BUG#776274: substitution of a single row table
+--echo #                    
+
+CREATE TABLE t1 (a int NOT NULL , b int);
+INSERT INTO t1 VALUES (2,2);
+
+SELECT * FROM t1 WHERE a = b;
+EXPLAIN
+SELECT * FROM t1 WHERE a = b;
+
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
 --echo #            SELECT from VIEW with GROUP BY
@@ -4249,3 +4388,4 @@ GROUP BY t2.a ORDER BY t1.a;
 DROP TABLE t1;
 
 --echo # End of test BUG#57203
+

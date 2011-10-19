@@ -72,7 +72,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 {
   int lock_error,kfile,open_mode,save_errno,have_rtree=0, realpath_err;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,keys,
-    key_parts,unique_key_parts,fulltext_keys,uniques;
+    key_parts,unique_key_parts,base_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
   uchar *disk_cache, *disk_pos, *end_pos;
@@ -109,7 +109,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
                                                  dflt_key_cache);
 
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
-                    if (strstr(name, "/crashed"))
+                    if (strstr(name, "crashed"))
                     {
                       my_errno= HA_ERR_CRASHED;
                       goto err;
@@ -197,7 +197,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     keys=    (uint) share->state.header.keys;
     uniques= (uint) share->state.header.uniques;
     fulltext_keys= (uint) share->state.header.fulltext_keys;
-    key_parts= mi_uint2korr(share->state.header.key_parts);
+    base_key_parts= key_parts= mi_uint2korr(share->state.header.key_parts);
     unique_key_parts= mi_uint2korr(share->state.header.unique_key_parts);
     if (len != MI_STATE_INFO_SIZE)
     {
@@ -276,7 +276,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     if (!my_multi_malloc(MY_WME,
 			 &share,sizeof(*share),
-			 &share->state.rec_per_key_part,sizeof(long)*key_parts,
+			 &share->state.rec_per_key_part,
+                         sizeof(long)*base_key_parts,
 			 &share->keyinfo,keys*sizeof(MI_KEYDEF),
 			 &share->uniqueinfo,uniques*sizeof(MI_UNIQUEDEF),
 			 &share->keyparts,
@@ -298,7 +299,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     errpos=4;
     *share=share_buff;
     memcpy((char*) share->state.rec_per_key_part,
-	   (char*) rec_per_key_part, sizeof(long)*key_parts);
+	   (char*) rec_per_key_part, sizeof(long)*base_key_parts);
     memcpy((char*) share->state.key_root,
 	   (char*) key_root, sizeof(my_off_t)*keys);
     memcpy((char*) share->state.key_del,

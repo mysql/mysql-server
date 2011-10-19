@@ -28,7 +28,7 @@ $opt_port=0;
 $exit_status=0;
 
 GetOptions(
-  "e|engine|type=s"       => \$opt_type,
+  "e|engine|type=s"       => \$opt_engine,
   "f|force"               => \$opt_force,
   "help|?"               => \$opt_help,
   "h|host=s"              => \$opt_host,

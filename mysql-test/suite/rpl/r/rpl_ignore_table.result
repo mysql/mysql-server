@@ -1,5 +1,8 @@
 include/master-slave.inc
 [connection master]
+call mtr.add_suppression("Can't find record in 't.'");
+call mtr.add_suppression("Can't find record in 'user'");
+call mtr.add_suppression("Can't find record in 'tables_priv'");
 **** Test case for BUG#16487 ****
 **** Master ****
 CREATE TABLE test.t4 (a int);

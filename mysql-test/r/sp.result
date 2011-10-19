@@ -3087,8 +3087,7 @@ begin
 set @x = @x + 1;
 return @x;
 end|
-set @qcs1 = @@query_cache_size|
-set global query_cache_size = 102400|
+# Set query cache size, if we have query cache
 set @x = 1|
 insert into t1 values ("qc", 42)|
 select bug9902() from t1|
@@ -3100,7 +3099,7 @@ bug9902()
 select @x|
 @x
 3
-set global query_cache_size = @qcs1|
+# Restore the old query cache size
 delete from t1|
 drop function bug9902|
 drop function if exists bug9102|
@@ -6528,16 +6527,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	0	Using where; Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	0	Using where; Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	0	Using where; Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
@@ -6591,7 +6590,7 @@ DROP TABLE t1;
 
 CALL p1('text');
 Warnings:
-Warning	1264	Out of range value for column 'v' at row 1
+Warning	1265	Data truncated for column 'v' at row 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -22,8 +22,6 @@
 #include "ma_key_recover.h"
 #include "ma_blockrec.h"
 
-#define MAX_POINTER_LENGTH 8
-
 	/* Functions declared in this file */
 
 static int w_search(MARIA_HA *info, uint32 comp_flag,
@@ -121,16 +119,27 @@ int maria_write(MARIA_HA *info, uchar *record)
     my_errno=HA_ERR_INDEX_FILE_FULL;
     goto err2;
   }
-  if (_ma_mark_file_changed(info))
+  if (_ma_mark_file_changed(share))
     goto err2;
 
   /* Calculate and check all unique constraints */
-  for (i=0 ; i < share->state.header.uniques ; i++)
+
+  if (share->state.header.uniques)
   {
-    if (_ma_check_unique(info,share->uniqueinfo+i,record,
-                         _ma_unique_hash(share->uniqueinfo+i,record),
-                         HA_OFFSET_ERROR))
-      goto err2;
+    for (i=0 ; i < share->state.header.uniques ; i++)
+    {
+      MARIA_UNIQUEDEF *def= share->uniqueinfo + i;
+      ha_checksum unique_hash= _ma_unique_hash(share->uniqueinfo+i,record);
+      if (maria_is_key_active(share->state.key_map, def->key))
+      {
+        if (_ma_check_unique(info, def, record,
+                             unique_hash, HA_OFFSET_ERROR))
+          goto err2;
+      }
+      else
+        maria_unique_store(record+ share->keyinfo[def->key].seg->start,
+                           unique_hash);
+    }
   }
 
   /* Ensure we don't try to restore auto_increment if it doesn't change */
@@ -798,18 +807,18 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
 #endif
   if (t_length > 0)
   {
-    if (t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
+    if (t_length >= keyinfo->maxlength*2+MARIA_INDEX_OVERHEAD_SIZE)
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(-1);
     }
     bmove_upp(endpos+t_length, endpos, (uint) (endpos-key_pos));
   }
   else
   {
-    if (-t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
+    if (-t_length >= keyinfo->maxlength*2+MARIA_INDEX_OVERHEAD_SIZE)
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(-1);
     }
     bmove(key_pos,key_pos-t_length,(uint) (endpos-key_pos)+t_length);
@@ -1066,7 +1075,6 @@ int _ma_split_page(MARIA_HA *info, MARIA_KEY *key, MARIA_PAGE *split_page,
 
   Returns pointer to start of key.
   key will contain the key.
-  return_key_length will contain the length of key
   after_key will contain the position to where the next key starts
 */
 
@@ -1174,7 +1182,7 @@ static uchar *_ma_find_last_pos(MARIA_KEY *int_key, MARIA_PAGE *ma_page,
 
   if (!(length=(*keyinfo->get_key)(&tmp_key, page_flag, 0, &page)))
   {
-    my_errno=HA_ERR_CRASHED;
+    _ma_set_fatal_error(share, HA_ERR_CRASHED);
     DBUG_RETURN(0);
   }
 
@@ -1187,7 +1195,7 @@ static uchar *_ma_find_last_pos(MARIA_KEY *int_key, MARIA_PAGE *ma_page,
     memcpy(int_key->data, key_buff, length);		/* previous key */
     if (!(length=(*keyinfo->get_key)(&tmp_key, page_flag, 0, &page)))
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(0);
     }
   } while (page < end);

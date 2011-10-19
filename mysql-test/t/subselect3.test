@@ -2,6 +2,9 @@
 drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 --enable_warnings
 
+set @subselect3_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+
 #
 # 1. Subquery with GROUP/HAVING
 #
@@ -536,7 +539,6 @@ SELECT a, MAX(b),
 DROP TABLE t1, t2;
 
 # The next three test cases must be executed with the IN=>EXISTS strategy
-set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 
 #
@@ -681,7 +683,8 @@ SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
 # The x alias is used below to workaround bug #40674.
 # Regression tests for sum function on outer column in subselect from dual:
 SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
---echo # 2nd and 3rd columns should be same for x == 11 only
+--echo # 2nd and 3rd columns should be same
+EXPLAIN SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
 SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
 
 DROP TABLE t1;
@@ -888,7 +891,7 @@ set @@optimizer_switch='firstmatch=off';
 explain 
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1;
 
@@ -903,10 +906,11 @@ set @@optimizer_switch='firstmatch=off,materialization=off';
 insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 select * from t1 where 2 in (select a from t0);
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
 explain select * from t1 where 2 in (select a from t0);
 select * from t1 where 2 in (select a from t0);
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 
 # 
@@ -947,12 +951,12 @@ set @save_max_heap_table_size=@@max_heap_table_size;
 set @@optimizer_switch='firstmatch=off,materialization=off';
 set @@max_heap_table_size= 16384;
 
-explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E where a+1 < 10000 + A.a + B.a +C.a+D.a);
 flush status;
-select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E where a+1 < 10000 + A.a + B.a +C.a+D.a);
 show status like 'Created_tmp_disk_tables';
 set @save_max_heap_table_size=@@max_heap_table_size;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t0, t1;
 
 #
@@ -990,7 +994,7 @@ create table t1 (a decimal);
 insert into t1 values (1),(2);
 explain select * from t1 where a in (select a from t1);
 drop table t1;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # SJ-Materialization-scan for non-first table
@@ -1051,7 +1055,7 @@ set @save_optimizer_search_depth=@@optimizer_search_depth;
 set @@optimizer_search_depth=63;
 explain select * from t1 where (a,b) in (select a,b from t2);
 set @@optimizer_search_depth=@save_optimizer_search_depth;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t0, t1, t2;
 
@@ -1157,7 +1161,7 @@ drop table t1,t2,t3;
 --echo # BUG#47367 Crash in Name_resolution_context::process_error
 --echo #
 
-SET SESSION optimizer_switch = 'default,semijoin=off';
+SET SESSION optimizer_switch = 'semijoin=off';
 CREATE TABLE t1 (f1 INTEGER);
 CREATE TABLE t2 LIKE t1;
 delimiter |;
@@ -1230,3 +1234,6 @@ FROM t2;
 DROP TABLE t1,t2;
 
 --echo End of 5.6 tests
+
+# The following command must be the last one in the file
+set @@optimizer_switch=@subselect3_tmp;

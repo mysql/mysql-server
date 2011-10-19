@@ -69,12 +69,14 @@ public:
   table_map used_tables() const { return used_tables_cache; };
   bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }
+  Item_result cmp_type() const { return ROW_RESULT; }
   void update_used_tables();
   table_map not_null_tables() const { return not_null_tables_cache; }
   virtual void print(String *str, enum_query_type query_type);
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
+  bool eval_not_null_tables(uchar *opt_arg);
 
   uint cols() { return arg_count; }
   Item* element_index(uint i) { return items[i]; }

@@ -221,7 +221,10 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
   }
   if (element == &tree->null_element)
   {
-    uint alloc_size=sizeof(TREE_ELEMENT)+key_size+tree->size_of_element;
+    uint alloc_size;
+    if (tree->flag & TREE_ONLY_DUPS)
+      return((TREE_ELEMENT *) 1);
+    alloc_size=sizeof(TREE_ELEMENT)+key_size+tree->size_of_element;
     tree->allocated+=alloc_size;
 
     if (tree->memory_limit && tree->elements_in_tree
@@ -375,6 +378,7 @@ void *tree_search_key(TREE *tree, const void *key,
       case HA_READ_KEY_EXACT:
       case HA_READ_KEY_OR_NEXT:
       case HA_READ_BEFORE_KEY:
+      case HA_READ_KEY_OR_PREV:
 	last_equal_element= parents;
 	cmp= 1;
 	break;
@@ -417,6 +421,9 @@ void *tree_search_key(TREE *tree, const void *key,
     break;
   case HA_READ_BEFORE_KEY:
     *last_pos= last_right_step_parent;
+    break;
+  case HA_READ_KEY_OR_PREV:
+    *last_pos= last_equal_element ? last_equal_element : last_right_step_parent;
     break;
   default:
     return NULL;

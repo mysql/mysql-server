@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,6 +152,7 @@ enum enum_server_command
 #define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
 #define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
+#define REFRESH_CHECKPOINT	0x100000L /* Don't do checkpoints */
 
 #define REFRESH_TABLE_STATS     (1L << 20) /* Refresh table stats hash table */
 #define REFRESH_INDEX_STATS     (1L << 21) /* Refresh index stats hash table */
@@ -179,6 +180,7 @@ enum enum_server_command
 #define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
 
 #define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
+#define CLIENT_PROGRESS  (1UL << 29)   /* Client support progress indicator */
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
@@ -211,6 +213,7 @@ enum enum_server_command
                            CLIENT_PS_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS | \
+                           CLIENT_PROGRESS | \
                            CLIENT_PLUGIN_AUTH)
 
 /*
@@ -481,7 +484,8 @@ struct my_rnd_struct;
 
 enum Item_result
 {
-  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT
+  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT,
+  TIME_RESULT,IMPOSSIBLE_RESULT
 };
 
 typedef struct st_udf_args

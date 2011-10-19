@@ -2,6 +2,10 @@
 # DuplicateElimination strategy test
 #
 --source include/have_innodb.inc
+
+set @subselect_sj2_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 --disable_warnings
 drop table if exists t0, t1, t2, t3;
 drop view if exists v1;
@@ -232,6 +236,9 @@ INSERT INTO t3 VALUES
 ('BEL','Dutch',59.2),('BLZ','English',50.8);
 --enable_query_log
 
+# Disable materialization to avoid races between query plans
+set @bug35674_save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
 EXPLAIN
 SELECT Name FROM t2 
   WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
@@ -239,6 +246,7 @@ SELECT Name FROM t2
         t2.Code IN (SELECT Country FROM t3 
                            WHERE Language='English' AND Percentage > 10 AND
                                  t2.Population > 100000);
+set optimizer_switch=@bug35674_save_optimizer_switch;
 
 DROP TABLE t1,t2,t3;
   
@@ -493,6 +501,12 @@ drop table t1, t2;
 # Bug#33062: subquery in stored routine cause crash
 #
 
+--disable_warnings
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop procedure if exists p3;
+drop procedure if exists p4;
+--enable_warnings
 CREATE TABLE t1(a INT);
 CREATE TABLE t2(c INT);
 
@@ -905,3 +919,32 @@ explain select 1 from t2 where
   c1 in (select convert(c6,char(1)) from t2);
 drop table t2, t3;
 
+
+--echo #
+--echo # BUG#761598: InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock() in maria-5.3
+--echo #
+
+CREATE TABLE t1 ( f1 int NOT NULL , f10 int) ;
+INSERT IGNORE INTO t1 VALUES (25,0),(29,0);
+
+CREATE TABLE t2 ( f10 int) ENGINE=InnoDB;
+
+CREATE TABLE t3 ( f11 int) ;
+INSERT IGNORE INTO t3 VALUES (0);
+
+SELECT alias1.f10 AS field2
+FROM t2 AS alias1
+JOIN (
+        t3 AS alias2
+        JOIN t1 AS alias3
+        ON alias3.f10
+) ON alias3.f1
+WHERE alias2.f11 IN (
+        SELECT SQ4_alias1.f10
+        FROM t1 AS SQ4_alias1
+        LEFT JOIN t2 AS SQ4_alias3 ON SQ4_alias3.f10
+)
+GROUP BY field2;
+drop table t1, t2, t3;
+
+set optimizer_switch=@subselect_sj2_tmp;

@@ -56,6 +56,7 @@ int heap_write(HP_INFO *info, const uchar *record)
   pos[share->reclength]=1;		/* Mark record as not deleted */
   if (++share->records == share->blength)
     share->blength+= share->blength;
+  info->s->key_version++;
   info->current_ptr=pos;
   info->current_hash_ptr=0;
   info->update|=HA_STATE_AKTIV;

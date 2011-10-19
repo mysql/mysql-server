@@ -349,6 +349,15 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
     }
     else
     {
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits= get_rec_bits(rec + seg->bit_pos,
+                                 seg->bit_start, seg->bit_length);
+	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) bits))+ (nr << 8);
+	nr2+=3;
+        end--;
+      }
+
       for (; pos < end ; pos++)
       {
 	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
@@ -465,6 +474,14 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
     else
     {
       uchar *end= pos+seg->length;
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits= get_rec_bits(rec + seg->bit_pos,
+                                 seg->bit_start, seg->bit_length);
+	nr *=16777619;
+	nr ^=(uint) bits;
+        end--;
+      }
       for ( ; pos < end ; pos++)
       {
 	nr *=16777619; 
@@ -577,7 +594,18 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
     }
     else
     {
-      if (bcmp(rec1+seg->start,rec2+seg->start,seg->length))
+      uint dec= 0;
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits1= get_rec_bits(rec1 + seg->bit_pos,
+                                  seg->bit_start, seg->bit_length);
+        uchar bits2= get_rec_bits(rec2 + seg->bit_pos,
+                                  seg->bit_start, seg->bit_length);
+        if (bits1 != bits2)
+          return 1;
+        dec= 1;
+      }
+      if (bcmp(rec1 + seg->start, rec2 + seg->start, seg->length - dec))
 	return 1;
     }
   }
@@ -660,7 +688,18 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
     }
     else
     {
-      if (bcmp(rec+seg->start,key,seg->length))
+      uint dec= 0;
+      if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+      {
+        uchar bits= get_rec_bits(rec + seg->bit_pos,
+                                 seg->bit_start, seg->bit_length);
+        if (bits != (*key))
+          return 1;
+        dec= 1;
+        key++;
+      }
+
+      if (bcmp(rec + seg->start, key, seg->length - dec))
 	return 1;
     }
   }
@@ -689,6 +728,12 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
     }
     if (seg->type == HA_KEYTYPE_VARTEXT1)
       char_length+= seg->bit_start;             /* Copy also length */
+    else if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+    {
+      *key++= get_rec_bits(rec + seg->bit_pos,
+                           seg->bit_start, seg->bit_length);
+      char_length--;
+    }
     memcpy(key,rec+seg->start,(size_t) char_length);
     key+= char_length;
   }
@@ -720,7 +765,8 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
     {
       uint length= seg->length;
       uchar *pos= (uchar*) rec + seg->start;
-      
+      DBUG_ASSERT(seg->type != HA_KEYTYPE_BIT);
+
 #ifdef HAVE_ISNAN
       if (seg->type == HA_KEYTYPE_FLOAT)
       {
@@ -783,6 +829,12 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       if (char_length < seg->length)
         seg->charset->cset->fill(seg->charset, (char*) key + char_length,
                                  seg->length - char_length, ' ');
+    }
+    if (seg->type == HA_KEYTYPE_BIT && seg->bit_length)
+    {
+      *key++= get_rec_bits(rec + seg->bit_pos,
+                           seg->bit_start, seg->bit_length);
+      char_length--;
     }
     memcpy(key, rec + seg->start, (size_t) char_length);
     key+= seg->length;

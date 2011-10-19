@@ -103,11 +103,7 @@ SELECT @@global.query_cache_type;
 @@global.query_cache_type
 OFF
 '#---------------------FN_DYNVARS_134_09----------------------#'
-SET query_cache_type = 'ON';
-SET session.query_cache_type = 'OFF';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_type = 'OFF'' at line 1
-SET global.query_cache_type = 'DEMAND';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'query_cache_type = 'DEMAND'' at line 1
+SET global query_cache_type = 'ON';
 SET session query_cache_type = 1;
 SELECT @@query_cache_type;
 @@query_cache_type

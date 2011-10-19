@@ -3750,3 +3750,18 @@ FROM (SELECT 1 UNION SELECT 2) t;
 2
 #
 # End of 5.5 tests.
+prepare stmt from "select date('2010-10-10') between '2010-09-09' and ?";
+set @a='2010-11-11';
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+1
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+1
+set @a='2010-08-08';
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+0
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+0

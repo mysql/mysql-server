@@ -226,6 +226,7 @@ SELECT * FROM t2 WHERE c1 IS NOT NULL ORDER BY c1,c2 DESC LIMIT 2;
 ## Full table scan ##
 --sorted_result
 SELECT * FROM t2;
+
 --sorted_result
 SELECT count(*) as total_rows, min(c2) as min_value, max(c2) FROM t2;
 --sorted_result
@@ -300,6 +301,7 @@ SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1,c2 DESC LIMIT 2;
 ## Full table scan ##
 --sorted_result
 SELECT * FROM t2;
+
 --sorted_result
 SELECT count(*) as total_rows, min(c2) as min_value, max(c2) FROM t2;
 --sorted_result

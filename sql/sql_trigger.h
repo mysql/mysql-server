@@ -52,7 +52,7 @@ enum trg_action_time_type
 /**
   This class holds all information about triggers of table.
 
-  QQ: Will it be merged into TABLE in the future ?
+  TODO: Will it be merged into TABLE in the future ?
 */
 
 class Table_triggers_list: public Sql_alloc

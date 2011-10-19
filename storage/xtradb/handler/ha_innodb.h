@@ -233,16 +233,21 @@ public:
    */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                             uint n_ranges, uint mode, HANDLER_BUFFER *buf);
-  int multi_range_read_next(char **range_info);
+  int multi_range_read_next(range_id_t *range_info);
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,
                                       uint *flags, COST_VECT *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, COST_VECT *cost);
+                                uint key_parts, uint *bufsz, 
+                                uint *flags, COST_VECT *cost);
+  int multi_range_read_explain_info(uint mrr_mode, char *str, size_t size);
   DsMrr_impl ds_mrr;
 
   Item *idx_cond_push(uint keyno, Item* idx_cond);
+
+  /* An helper function for index_cond_func_innodb: */
+  bool is_thd_killed();
 };
 
 /* Some accessor functions which the InnoDB plugin needs, but which
@@ -256,16 +261,6 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 extern "C" {
 struct charset_info_st *thd_charset(MYSQL_THD thd);
 LEX_STRING *thd_query_string(MYSQL_THD thd);
-
-/** Get the file name of the MySQL binlog.
- * @return the name of the binlog file
- */
-const char* mysql_bin_log_file_name(void);
-
-/** Get the current position of the MySQL binlog.
- * @return byte offset from the beginning of the binlog
- */
-ulonglong mysql_bin_log_file_pos(void);
 
 /**
   Check if a user thread is a replication slave thread
@@ -312,6 +307,11 @@ bool thd_binlog_filter_ok(const MYSQL_THD thd);
 */
 bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 }
+
+/** Get the file name and position of the MySQL binlog corresponding to the
+ * current commit.
+ */
+extern void mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file);
 
 typedef struct trx_struct trx_t;
 /********************************************************************//**

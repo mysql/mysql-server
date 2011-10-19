@@ -50,8 +50,7 @@ static const char *handler_error_messages[]=
   "There's no partition in table for the given value",
   "Row-based binary logging of row failed",
   "Index needed in foreign key constraint",
-  "Upholding foreign key constraints would lead to a duplicate key error in "
-  "some other table",
+  "Upholding foreign key constraints would lead to a duplicate key error in some other table",
   "Table needs to be upgraded before it can be used",
   "Table is read only",
   "Failed to get next auto increment value",
@@ -67,11 +66,12 @@ static const char *handler_error_messages[]=
   "Read page with wrong checksum",
   "Too many active concurrent transactions",
   "Index column length exceeds limit",
-  "Row is not visible by the current transaction"
+  "Row is not visible by the current transaction",
+  "Operation was interrupted by end user (probably kill command?)",
+  "Disk full"
 };
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);
-
 
 #endif /* MYSYS_MY_HANDLER_ERRORS_INCLUDED */

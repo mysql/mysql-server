@@ -43,7 +43,7 @@ typedef enum _thd_wait_type_e {
   THD_WAIT_BINLOG= 8,
   THD_WAIT_GROUP_COMMIT= 9,
   THD_WAIT_SYNC= 10,
-  THD_WAIT_LAST= 11 
+  THD_WAIT_LAST= 11
 } thd_wait_type;
 extern struct thd_wait_service_st {
   void (*thd_wait_begin_func)(void*, int);
@@ -59,6 +59,27 @@ extern struct my_thread_scheduler_service {
 } *my_thread_scheduler_service;
 int my_thread_scheduler_set(struct scheduler_functions *scheduler);
 int my_thread_scheduler_reset();
+#include <mysql/service_progress_report.h>
+extern struct progress_report_service_st {
+  void (*thd_progress_init_func)(void* thd, unsigned int max_stage);
+  void (*thd_progress_report_func)(void* thd,
+                                   unsigned long long progress,
+                                   unsigned long long max_progress);
+  void (*thd_progress_next_stage_func)(void* thd);
+  void (*thd_progress_end_func)(void* thd);
+  const char *(*set_thd_proc_info_func)(void*, const char *info,
+                                        const char *func,
+                                        const char *file,
+                                        unsigned int line);
+} *progress_report_service;
+void thd_progress_init(void* thd, unsigned int max_stage);
+void thd_progress_report(void* thd,
+                         unsigned long long progress,
+                         unsigned long long max_progress);
+void thd_progress_next_stage(void* thd);
+void thd_progress_end(void* thd);
+const char *set_thd_proc_info(void*, const char * info, const char *func,
+                              const char *file, unsigned int line);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -153,8 +174,6 @@ int thd_tx_isolation(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
-const char *set_thd_proc_info(void*, const char * info, const char *func,
-                              const char *file, const unsigned int line);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 unsigned long thd_get_thread_id(const void* thd);

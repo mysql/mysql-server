@@ -1,5 +1,4 @@
 LIBRARY		LIBMYSQLD
-DESCRIPTION	'MySQL 5.1 Embedded Server Library'
 VERSION		5.1
 EXPORTS
 	mysql_thread_end

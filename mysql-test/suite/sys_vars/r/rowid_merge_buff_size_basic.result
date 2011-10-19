@@ -37,6 +37,7 @@ select @@global.rowid_merge_buff_size;
 0
 set session rowid_merge_buff_size=cast(-1 as unsigned int);
 Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect rowid_merge_buff_size value: '18446744073709551615'
 select @@session.rowid_merge_buff_size;
 @@session.rowid_merge_buff_size

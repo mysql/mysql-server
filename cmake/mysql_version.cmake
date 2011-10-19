@@ -54,7 +54,7 @@ MACRO(GET_MYSQL_VERSION)
   ENDIF()
 
   SET(VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}${EXTRA_VERSION}")
-  MESSAGE("-- MySQL ${VERSION}")
+  MESSAGE("-- MariaDB ${VERSION}")
   SET(MYSQL_BASE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}" CACHE INTERNAL "MySQL Base version")
   SET(MYSQL_NO_DASH_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
   STRING(REPLACE "-" "_" MYSQL_RPM_VERSION "${VERSION}")
@@ -92,15 +92,15 @@ IF(NOT CPACK_PACKAGE_FILE_NAME)
 ENDIF()
 
 IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
-  SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mysql-${VERSION}")
+  SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-${VERSION}")
 ENDIF()
-SET(CPACK_PACKAGE_CONTACT "MySQL Build Team <build@mysql.com>")
-SET(CPACK_PACKAGE_VENDOR "Sun Microsystems, Inc")
+SET(CPACK_PACKAGE_CONTACT "MariaDB team <info@montyprogram.com>")
+SET(CPACK_PACKAGE_VENDOR "Monty Program AB")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
 INCLUDE(cpack_source_ignore_files)
 
 # Defintions for windows version resources
-SET(PRODUCTNAME "MySQL Server")
+SET(PRODUCTNAME "MariaDB Server")
 SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
 
 # Windows 'date' command has unpredictable output, so cannot rely on it to
@@ -117,6 +117,10 @@ ENDIF()
 # Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
 # for more info.
 IF(MSVC)
+    # Tiny version is used to identify the build, it can be set with cmake -DTINY_VERSION=<number>
+    # to bzr revno for example (in the CI builds)
+    SET(TINY_VERSION "0" CACHE INTERNAL "")
+  
     GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 	
     SET(FILETYPE VFT_APP)

@@ -30,7 +30,7 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
   int error;
   uint inx,not_used[2];
   MARIA_KEYDEF *keyinfo;
-  int icp_res= 1;
+  ICP_RESULT icp_res= ICP_MATCH;
   DBUG_ENTER("maria_rnext_same");
 
   if ((int) (inx= info->lastinx) < 0 ||
@@ -80,9 +80,19 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
           info->cur_row.lastpos= HA_OFFSET_ERROR;
           break;
         }
+        /*
+          If we are at the last key on the key page, allow writers to
+          access the index.
+        */
+        if (info->int_keypos >= info->int_maxpos &&
+            ma_yield_and_check_if_killed(info, inx))
+        {
+          error= 1;
+          break;
+        }
         /* Skip rows that are inserted by other threads since we got a lock */
         if ((info->s->row_is_visible)(info) &&
-            ((icp_res= ma_check_index_cond(info, inx, buf)) != 0))
+            ((icp_res= ma_check_index_cond(info, inx, buf)) != ICP_NO_MATCH))
           break;
       }
   }
@@ -92,16 +102,15 @@ int maria_rnext_same(MARIA_HA *info, uchar *buf)
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND | HA_STATE_RNEXT_SAME;
 
-  if (icp_res == 2)
-    my_errno=HA_ERR_END_OF_FILE; /* got beyond the end of scanned range */
-
-  if (error || icp_res != 1)
+  if (error || icp_res != ICP_MATCH)
   {
+    fast_ma_writeinfo(info);
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
-      my_errno=HA_ERR_END_OF_FILE;
+      my_errno= HA_ERR_END_OF_FILE;
   }
   else if (!buf)
   {
+    fast_ma_writeinfo(info);
     DBUG_RETURN(info->cur_row.lastpos == HA_OFFSET_ERROR ? my_errno : 0);
   }
   else if (!(*info->read_record)(info, buf, info->cur_row.lastpos))

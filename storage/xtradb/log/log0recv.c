@@ -2980,9 +2980,10 @@ recv_recovery_from_checkpoint_start_func(
 #endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
 	byte*		log_hdr_buf;
-	byte		log_hdr_buf_base[LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE];
+	byte		*log_hdr_buf_base;
 	ulint		err;
 
+        log_hdr_buf_base= alloca(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 	log_hdr_buf = ut_align(log_hdr_buf_base, OS_FILE_LOG_BLOCK_SIZE);
 
 #ifdef UNIV_LOG_ARCHIVE

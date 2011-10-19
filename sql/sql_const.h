@@ -51,10 +51,13 @@
 #define MAX_BIT_FIELD_LENGTH    64      /* Max length in bits for bit fields */
 
 #define MAX_DATE_WIDTH		10	/* YYYY-MM-DD */
-#define MAX_TIME_WIDTH		23	/* -DDDDDD HH:MM:SS.###### */
+#define MIN_TIME_WIDTH          10      /* -HHH:MM:SS */
+#define MAX_TIME_WIDTH          16      /* -DDDDDD HH:MM:SS */
+#define MAX_TIME_FULL_WIDTH     23      /* -DDDDDD HH:MM:SS.###### */
 #define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
 #define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 #define MAX_DATETIME_COMPRESSED_WIDTH 14  /* YYYYMMDDHHMMSS */
+#define MAX_DATETIME_PRECISION  6
 
 #define MAX_TABLES	(sizeof(table_map)*8-3)	/* Max tables in join */
 #define PARAM_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-3))
@@ -68,7 +71,7 @@
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
 #define MAX_SORT_MEMORY 2048*1024
-#define MIN_SORT_MEMORY 32*1024
+#define MIN_SORT_MEMORY 1024
 
 /* Some portable defines */
 
@@ -167,7 +170,10 @@
   Number of comparisons of table rowids equivalent to reading one row from a 
   table.
 */
-#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*2)
+#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*100)
+
+/* cost1 is better that cost2 only if cost1 + COST_EPS < cost2 */
+#define COST_EPS  0.001
 
 /*
   For sequential disk seeks the cost formula is:
@@ -225,7 +231,6 @@
 #define DELAYED_LIMIT		100		/**< pause after xxx inserts */
 #define DELAYED_QUEUE_SIZE	1000
 #define DELAYED_WAIT_TIMEOUT	5*60		/**< Wait for delayed insert */
-#define FLUSH_TIME		0		/**< Don't flush tables */
 #define MAX_CONNECT_ERRORS	10		///< errors before disabling host
 
 #define LONG_TIMEOUT ((ulong) 3600L*24L*365L)
@@ -237,8 +242,6 @@
 #define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
 #if defined(__WIN__)
-#undef	FLUSH_TIME
-#define FLUSH_TIME	1800			/**< Flush every half hour */
 
 #define INTERRUPT_PRIOR -2
 #define CONNECT_PRIOR	-1

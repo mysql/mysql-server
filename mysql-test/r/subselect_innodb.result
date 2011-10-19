@@ -1,3 +1,5 @@
+set @subselect_innodb_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t1,t2,t3;
 CREATE TABLE t1
 (
@@ -253,4 +255,7 @@ INSERT INTO t1 VALUES ('2011-05-13', 0);
 SELECT * FROM t1 WHERE b < (SELECT CAST(a as date) FROM t1 GROUP BY a);
 a	b
 2011-05-13	0
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
 DROP TABLE t1;
+set optimizer_switch=@subselect_innodb_tmp;

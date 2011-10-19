@@ -2,6 +2,13 @@
 # Basic tests of row-level logging
 #
 
+--disable_query_log
+--disable_result_log
+# Add suppression for expected warning(s) in error log
+call mtr.add_suppression("Can't find record in 't.'");
+--enable_query_log
+--enable_result_log
+
 #
 # First we test tables with only an index.
 #

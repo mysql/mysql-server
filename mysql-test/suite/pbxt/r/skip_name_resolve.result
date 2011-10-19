@@ -9,6 +9,6 @@ select user();
 user()
 #
 show processlist;
-Id	User	Host	db	Command	Time	State	Info
-<id>	root	<host>	test	<command>	<time>	<state>	<info>
-<id>	root	<host>	test	<command>	<time>	<state>	<info>
+Id	User	Host	db	Command	Time	State	Info	Progress
+<id>	root	<host>	test	<command>	<time>	<state>	<info>	0.000
+<id>	root	<host>	test	<command>	<time>	<state>	<info>	0.000

@@ -1,0 +1,2 @@
+perl mysql-test-run.pl --timer --force --comment=1st --experimental=collections/default.experimental 1st
+perl mysql-test-run.pl --timer --force --comment=all_binlog_checksum --experimental=collections/default.experimental --mysqld=--binlog-checksum=CRC32 --vardir=var-all_binlog_checksum --suite=main,binlog,innodb,federated,rpl,sys_vars,perfschema

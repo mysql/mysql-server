@@ -1,7 +1,7 @@
-include/master-slave.inc
-[connection master]
 SET sql_log_bin = 0;
 SET sql_log_bin = 1;
+include/master-slave.inc
+[connection master]
 reset master;
 DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 (a char(1));

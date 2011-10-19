@@ -332,8 +332,9 @@ CREATE algorithm=temptable VIEW v1 AS
 CREATE algorithm=temptable VIEW v2 AS SELECT 1 FROM t2;
 
 # This caused the assert to be triggered.
---error ER_SUBQUERY_NO_1_ROW
 EXPLAIN SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
 
 DROP TABLE t1, t2;
 DROP VIEW v1, v2;

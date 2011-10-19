@@ -1,4 +1,4 @@
-/* Copyright (c) 2000 MySQL AB & 2009 Monty Program Ab
+/* Copyright (c) 2009-2011 Monty Program Ab
    Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
@@ -14,16 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef MY_DBUG_INCLUDED
-#define MY_DBUG_INCLUDED
+#ifndef _my_dbug_h
+#define _my_dbug_h
 
 #ifndef __WIN__
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <signal.h>
 #endif  /* not __WIN__ */
 
@@ -96,7 +90,7 @@ extern  void _db_free_(void *ptr);
 #define DBUG_END()  _db_end_ ()
 #define DBUG_LOCK_FILE _db_lock_file_()
 #define DBUG_UNLOCK_FILE _db_unlock_file_()
-#define DBUG_ASSERT(A) assert(A)
+#define DBUG_ASSERT(A) do { _db_flush_(); assert(A); } while(0)
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
@@ -104,6 +98,7 @@ extern  void _db_free_(void *ptr);
 #define DBUG_MALLOC(SIZE)               _db_malloc_(SIZE)
 #define DBUG_REALLOC(PTR,SIZE)          _db_realloc_(PTR,SIZE)
 #define DBUG_FREE(PTR)                  _db_free_(PTR)
+#define IF_DBUG(A,B)                    A
 
 #ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
@@ -118,15 +113,6 @@ extern  void _db_free_(void *ptr);
                      (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\
                      _exit(3))
 #endif
-#define DBUG_CHECK_CRASH(func, op) \
-  do { char _dbuf_[255]; strxnmov(_dbuf_, sizeof(_dbuf_)-1, (func), (op)); \
-    DBUG_EXECUTE_IF(_dbuf_, DBUG_ABORT()); } while(0)
-#define DBUG_CRASH_ENTER(func) \
-  DBUG_ENTER(func); DBUG_CHECK_CRASH(func, "_crash_enter")
-#define DBUG_CRASH_RETURN(val) \
-  DBUG_CHECK_CRASH(_db_get_func_(), "_crash_return")
-#define DBUG_CRASH_VOID_RETURN \
-  DBUG_CHECK_CRASH (_db_get_func_(), "_crash_return")
 
 /*
   Make the program fail, without creating a core file.
@@ -173,6 +159,7 @@ extern void _db_suicide_();
 #define DBUG_MALLOC(SIZE)               malloc(SIZE)
 #define DBUG_REALLOC(PTR,SIZE)          realloc(PTR,SIZE)
 #define DBUG_FREE(PTR)                  free(PTR)
+#define IF_DBUG(A,B)                    B
 #define DBUG_ABORT()                    do { } while(0)
 #define DBUG_CRASH_ENTER(func)
 #define DBUG_CRASH_RETURN(val)          do { return(val); } while(0)
@@ -200,4 +187,4 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 }
 #endif
 
-#endif /* MY_DBUG_INCLUDED */
+#endif /* _my_dbug_h */

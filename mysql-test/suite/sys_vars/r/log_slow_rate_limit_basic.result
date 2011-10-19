@@ -38,6 +38,8 @@ select @@global.log_slow_rate_limit;
 @@global.log_slow_rate_limit
 1
 set session log_slow_rate_limit=cast(-1 as unsigned int);
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select @@session.log_slow_rate_limit;
 @@session.log_slow_rate_limit
 18446744073709551615

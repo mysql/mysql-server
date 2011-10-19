@@ -43,6 +43,10 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
       hp_free(share);
       share= 0;
     }
+  }  
+  else
+  {
+    DBUG_PRINT("info", ("Creating internal (no named) temporary table"));
   }
   *created_new_share= (share == NULL);
 
@@ -109,6 +113,14 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
             one type
           */
           keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
+          break;
+        case HA_KEYTYPE_BIT:
+          /*
+            The odd bits which stored separately (if they are present
+            (bit_pos, bit_length)) are already present in seg[j].length as
+            additional byte.
+            See field.h, function key_length()
+          */
           break;
 	default:
 	  break;
@@ -256,10 +268,15 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 
 static inline void heap_try_free(HP_SHARE *share)
 {
+  DBUG_ENTER("heap_try_free");
   if (share->open_count == 0)
     hp_free(share);
   else
+  {
+    DBUG_PRINT("info", ("Table is still in use. Will be freed on close"));
     share->delete_on_close= 1;
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -278,6 +295,7 @@ int heap_delete_table(const char *name)
   else
   {
     result= my_errno=ENOENT;
+    DBUG_PRINT("error", ("Could not find table '%s'", name));
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(result);

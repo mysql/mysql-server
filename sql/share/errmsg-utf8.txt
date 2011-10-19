@@ -5313,7 +5313,7 @@ ER_NO_DEFAULT_FOR_FIELD
 ER_DIVISION_BY_ZERO 22012 
         eng "Division by 0"
         ger "Division durch 0"
-ER_TRUNCATED_WRONG_VALUE_FOR_FIELD  
+ER_TRUNCATED_WRONG_VALUE_FOR_FIELD  22007
         eng "Incorrect %-.32s value: '%-.128s' for column '%.192s' at row %lu"
         ger "Falscher %-.32s-Wert: '%-.128s' für Feld '%.192s' in Zeile %lu"
 ER_ILLEGAL_VALUE_FOR_TYPE 22007 
@@ -5505,11 +5505,11 @@ ER_SP_NO_RECURSION
         eng "Recursive stored functions and triggers are not allowed."
         ger "Rekursive gespeicherte Routinen und Triggers sind nicht erlaubt"
 ER_TOO_BIG_SCALE 42000 S1009
-        eng "Too big scale %d specified for column '%-.192s'. Maximum is %lu."
-        ger "Zu großer Skalierungsfaktor %d für Feld '%-.192s' angegeben. Maximum ist %lu"
+        eng "Too big scale %u specified for '%-.192s'. Maximum is %lu."
+        ger "Zu großer Skalierungsfaktor %u für '%-.192s' angegeben. Maximum ist %lu"
 ER_TOO_BIG_PRECISION 42000 S1009
-        eng "Too big precision %d specified for column '%-.192s'. Maximum is %lu."
-        ger "Zu große Genauigkeit %d für Feld '%-.192s' angegeben. Maximum ist %lu"
+        eng "Too big precision %u specified for '%-.192s'. Maximum is %lu."
+        ger "Zu große Genauigkeit %u für '%-.192s' angegeben. Maximum ist %lu"
 ER_M_BIGGER_THAN_D 42000 S1009
         eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.192s')."
         ger "Für FLOAT(M,D), DOUBLE(M,D) oder DECIMAL(M,D) muss M >= D sein (Feld '%-.192s')"
@@ -5547,8 +5547,8 @@ ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
         eng "Cannot drop default keycache"
         ger "Der vorgabemäßige Schlüssel-Cache kann nicht gelöscht werden"
 ER_TOO_BIG_DISPLAYWIDTH 42000 S1009
-        eng "Display width out of range for column '%-.192s' (max = %lu)"
-        ger "Anzeigebreite außerhalb des zulässigen Bereichs für Spalte '%-.192s' (Maximum: %lu)"
+        eng "Display width out of range for '%-.192s' (max = %lu)"
+        ger "Anzeigebreite außerhalb des zulässigen Bereichs für '%-.192s' (Maximum: %lu)"
 ER_XAER_DUPID XAE08
         eng "XAER_DUPID: The XID already exists"
         ger "XAER_DUPID: Die XID existiert bereits"
@@ -6009,7 +6009,7 @@ ER_ONLY_INTEGERS_ALLOWED
         eng "Only integers allowed as number here"
         ger "An dieser Stelle sind nur Ganzzahlen zulässig"
 ER_UNSUPORTED_LOG_ENGINE
-        eng "This storage engine cannot be used for log tables""
+        eng "This storage engine cannot be used for log tables"
         ger "Diese Speicher-Engine kann für Logtabellen nicht verwendet werden"
 ER_BAD_LOG_STATEMENT
         eng "You cannot '%s' a log table if logging is enabled"
@@ -6415,6 +6415,19 @@ ER_ERROR_IN_TRIGGER_BODY
 ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
   eng "Unknown trigger has an error in its body: '%-.256s'"
 
+#
+# MariaDB error messages section starts here
+#
+
+# The following is here to allow us to detect if there was missing
+# error messages in the errmsg.sys file
+
+ER_LAST_MYSQL_ERROR_MESSAGE
+   eng ""
+
+# MariaDB error numbers starts from 1900
+start-error-number 1900
+
 ER_VCOL_BASED_ON_VCOL
   eng "A computed column cannot be based on a computed column"
 ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
@@ -6430,13 +6443,42 @@ ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN
 ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
   eng "The value specified for computed column '%s' in table '%s' ignored"
 ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-  eng "'%s' is not yet supported for computed columns"
+  eng "This is not yet supported for computed columns"
 ER_CONST_EXPR_IN_VCOL
   eng "Constant expression in computed column function is not allowed"
 ER_ROW_EXPR_FOR_VCOL
   eng "Expression for computed column cannot return a row"
-
+ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS
+        eng "%s storage engine does not support computed columns"
 ER_UNKNOWN_OPTION
   eng "Unknown option '%-.64s'"
 ER_BAD_OPTION_VALUE
   eng "Incorrect value '%-.64s' for option '%-.64s'"
+ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from network."
+ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from a log file."
+ER_CANT_DO_ONLINE
+        eng "Can't execute the given '%s' command as online"
+ER_DATA_OVERFLOW 22003
+        eng "Got overflow when converting '%-.128s' to %-.32s. Value truncated."
+ER_DATA_TRUNCATED 22003
+        eng "Truncated value '%-.128s' when converting to %-.32s"
+ER_BAD_DATA 22007
+        eng "Encountered illegal value '%-.128s' when converting to %-.32s"
+ER_DYN_COL_WRONG_FORMAT
+        eng "Encountered illegal format of dynamic column string"
+ER_DYN_COL_IMPLEMENTATION_LIMIT
+        eng "Dynamic column implementation limit reached"
+ER_DYN_COL_DATA 22007
+        eng "Illegal value used as argument of dynamic column function"
+ER_DYN_COL_WRONG_CHARSET
+        eng "Dynamic column contains unknown character set"
+ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES
+        eng "At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'."
+ER_QUERY_CACHE_IS_DISABLED
+        eng "Query cache is disabled (resize or similar command in progress); repeat this command later"
+ER_QUERY_CACHE_IS_GLOBALY_DISABLED
+        eng "Query cache is globally disabled and you can't enable it only for this session"
+ER_VIEW_ORDERBY_IGNORED
+        eng "View '%-.192s'.'%-.192s' ORDER BY clause ignored because there is other ORDER BY clause already."

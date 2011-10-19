@@ -51,14 +51,14 @@ PARTITION BY RANGE (DAYOFWEEK(a))
 (PARTITION a1 VALUES LESS THAN (60));
 INSERT INTO t1 VALUES ('test'),('a'),('5');
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
 DROP TABLE t1;
 CREATE TABLE t1 (a TIME)
 PARTITION BY RANGE (DAYOFWEEK(a))
@@ -703,7 +703,7 @@ PARTITION p1 VALUES LESS THAN (MAXVALUE));
 ERROR HY000: VALUES value for partition 'p0' must have type INT
 CREATE TABLE t1 (c TIMESTAMP)
 PARTITION BY RANGE (UNIX_TIMESTAMP(c))
-(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP('2000-01-01 00:00:00')),
+(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP(20000101000000)),
 PARTITION p1 VALUES LESS THAN (MAXVALUE));
 DROP TABLE t1;
 # Changed error from ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR

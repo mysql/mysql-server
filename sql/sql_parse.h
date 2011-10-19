@@ -126,6 +126,7 @@ bool push_new_name_resolution_context(THD *thd,
 void store_position_for_column(const char *name);
 void init_update_queries(void);
 bool check_simple_select();
+Item *normalize_cond(Item *cond);
 Item *negate_expression(THD *thd, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 

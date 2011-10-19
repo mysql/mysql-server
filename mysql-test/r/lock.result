@@ -470,3 +470,13 @@ DROP TABLE t1, t2;
 #
 # End of 6.0 tests.
 #
+create table t1 (a int) engine=myisam;
+lock tables t1 write concurrent, t1 as t2 read;
+lock tables t1 read local;
+unlock tables;
+unlock tables;
+lock tables t1 read local;
+lock tables t1 write concurrent, t1 as t2 read;
+unlock tables;
+unlock tables;
+drop table t1;

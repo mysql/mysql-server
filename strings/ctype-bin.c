@@ -1,4 +1,6 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
+/* Copyright tommy@valley.ne.jp.
+   Copyright (c) 2002, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -18,9 +20,8 @@
 /* This file is for binary pseudo charset, created by bar@mysql.com */
 
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 static const uchar ctype_bin[]=
 {

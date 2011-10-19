@@ -2,6 +2,7 @@
 # Initialization
 --disable_warnings
 drop table if exists t1,t2,t3;
+drop view if exists v1,v2;
 --enable_warnings
 
 #
@@ -921,4 +922,96 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug LP:798597: Incorrect "Duplicate entry" error with views and
+--echo #                GROUP BY
+--echo #
+
+CREATE TABLE t1 ( f1 int NOT NULL , f2 int NOT NULL ) ;
+INSERT INTO t1 VALUES (214,0),(6,6);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (88),(88);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0) ;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0 or t1.f2 is null) ;
+SELECT f1 , MIN(f2) FROM v1 GROUP BY f1;
+SELECT f1 , MIN(f2) FROM v2 GROUP BY f1;
+drop table t1,t2;
+drop view v1,v2;
+
+
+--echo #
+--echo # BUG#47217 Lost optimization caused slowdown & wrong result.
+--echo #
+CREATE TABLE t1 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix1 ON t1(v);
+CREATE TABLE t2 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
+CREATE INDEX ix2 ON t2(v);
+INSERT INTO t1 VALUES (1,'a'),(2,NULL);
+INSERT INTO t2 VALUES (1,NULL);
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v ORDER BY 1;
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.v = t2.v;
+INSERT INTO t1 VALUES (3,'b'),(4,NULL),(5,'c'),(6,'cc'),(7,'d'),
+  (8,'dd'),(9,'e'),(10,'ee');
+INSERT INTO t2 VALUES (2,NULL);
+FLUSH STATUS;
+SELECT * FROM t1 JOIN t2 ON t1.v = t2.v WHERE t2.v IS NULL ORDER BY 1;
+SHOW STATUS LIKE 'Handler_read_%';
+DROP TABLE t1, t2;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#724275: Crash in JOIN::optimize in maria-5.3
+--echo #
+
+create table t1 (a int);
+insert into t1 values (1),(2);
+insert into t1 select * from t1;
+
+create table t2 (a int, b int, key(a,b));
+insert into t2 values (1,1),(1,2),(1,3),(1,4),(2,5),(2,6),(2,7),(2,8),(2,9);
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+
+create table t3 (a int, b int, key(a));
+insert into t3 values (1,1),(2,2);
+select * from 
+  t3 straight_join t1 straight_join t2 force index(a) 
+where t2.a=1 and t2.b=t1.a and t1.a=t3.b and t3.a=1;
+
+drop table t1,t2,t3;
+
+--echo #
+--echo # BUG#729067/730466: unexpected 'Range checked for each record'
+--echo #                    for queries with OR in WHERE clause 
+--echo #
+
+CREATE TABLE t1 (f1 int, f2 int) ;
+INSERT INTO t1 VALUES (4,0),(5,1);
+
+CREATE TABLE t2 (f1 int, f2 int, KEY (f2)) ;
+INSERT INTO t2 VALUES (5,7), (8,9);
+
+EXPLAIN
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+  WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+  WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t1 VALUES (9,4), (10,9);
+
+CREATE TABLE t2(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t2 VALUES (9,4), (10,9);
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+  WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+  WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+
+DROP TABLE t1,t2;
+

@@ -217,7 +217,6 @@ void end_slave_list()
   }
 }
 
-
 /**
   Execute a SHOW SLAVE HOSTS statement.
 

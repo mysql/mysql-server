@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +29,7 @@
   integer that determines the number of significant digits in a
   particular radix R, where R is either 2 or 10. S is a non-negative
   integer. Every value of an exact numeric type of scale S is of the
-  form n*10^{-S}, where n is an integer such that �-R^P <= n <= R^P.
+  form n*10^{-S}, where n is an integer such that -R^P <= n <= R^P.
 
   [...]
 
@@ -97,11 +98,10 @@
       implementation-defined.
 */
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <my_sys.h> /* for my_alloca */
-#include <m_string.h>
 #include <decimal.h>
 
 /*
@@ -1024,7 +1024,7 @@ int longlong2decimal(longlong from, decimal_t *to)
   return ull2dec(from, to);
 }
 
-int decimal2ulonglong(decimal_t *from, ulonglong *to)
+int decimal2ulonglong(const decimal_t *from, ulonglong *to)
 {
   dec1 *buf=from->buf;
   ulonglong x=0;
@@ -1053,7 +1053,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
   return E_DEC_OK;
 }
 
-int decimal2longlong(decimal_t *from, longlong *to)
+int decimal2longlong(const decimal_t *from, longlong *to)
 {
   dec1 *buf=from->buf;
   longlong x=0;
@@ -1172,7 +1172,7 @@ int decimal2longlong(decimal_t *from, longlong *to)
 
                 7E F2 04 37 2D FB 2D
 */
-int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
+int decimal2bin(const decimal_t *from, uchar *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,

@@ -1,4 +1,5 @@
-set optimizer_use_mrr='disable';
+set @bug41996_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=off';
 --disable_warnings
 DROP DATABASE IF EXISTS d1;
 DROP DATABASE IF EXISTS d2;
@@ -484,4 +485,4 @@ SELECT * FROM d3.t3 ORDER BY c1;
 DROP DATABASE d1;
 DROP DATABASE d2;
 DROP DATABASE d3;
-
+set optimizer_switch=@bug41996_tmp;

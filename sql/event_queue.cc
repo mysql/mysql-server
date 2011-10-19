@@ -531,9 +531,10 @@ Event_queue::empty_queue()
 */
 
 void
-Event_queue::dbug_dump_queue(time_t now)
+Event_queue::dbug_dump_queue(my_time_t when)
 {
 #ifndef DBUG_OFF
+  my_time_t now= when;
   Event_queue_element *et;
   uint i;
   DBUG_ENTER("Event_queue::dbug_dump_queue");
@@ -623,14 +624,12 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
         Not yet time for top event, wait on condition with
         time or until signaled. Release LOCK_queue while waiting.
       */
-      struct timespec top_time;
-      set_timespec(top_time, next_activation_at - thd->query_start());
+      struct timespec top_time= { next_activation_at, 0 };
 
       /* Release any held audit resources before waiting */
       mysql_audit_release(thd);
 
       cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
-
       continue;
     }
 
@@ -773,6 +772,7 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   if (!thd->killed)
   {
+    DBUG_PRINT("info", ("pthread_cond_%swait", abstime ? "timed" : ""));
     if (!abstime)
       mysql_cond_wait(&COND_queue_state, &LOCK_event_queue);
     else

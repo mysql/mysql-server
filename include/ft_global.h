@@ -25,6 +25,8 @@
 extern "C" {
 #endif
 
+#include <my_compare.h>
+
 #define HA_FT_MAXBYTELEN 254
 #define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/3)
 

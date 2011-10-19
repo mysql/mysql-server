@@ -724,6 +724,7 @@ select * from information_schema.session_variables where variable_name like 'tmp
 # Bug #19606: make ssl settings available via SHOW VARIABLES and @@variables
 # 
 # Don't actually output, since it depends on the system
+set sort_buffer_size=1024*8;
 --replace_column 1 # 2 # 3 # 4 # 5 #
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 --replace_column 2 #
@@ -1273,30 +1274,50 @@ SET @@global.max_join_size=0;
 SET @@global.key_buffer_size=0;
 SET @@global.key_cache_block_size=0;
 
+# Restore variables
+SET @@global.max_binlog_cache_size=DEFAULT;
+SET @@global.max_join_size=DEFAULT;
+SET @@global.key_buffer_size=@kbs;
+SET @@global.key_cache_block_size=@kcbs;
+
 #
 # Bug#56976: added new start-up parameter
 #
 select @@max_long_data_size;
 
 --echo #
---echo # Bug#11766424  59527: DECIMAL_BIN_SIZE: ASSERTION `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
+--echo # Bug#11766424  59527:
+--echo # Assert in DECIMAL_BIN_SIZE: 
+--echo # `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
+--echo # This test also exposed a bug with sql_buffer_result
 --echo #
 
 CREATE TABLE t1(f1 DECIMAL(1,1) UNSIGNED);
 INSERT INTO t1 VALUES (0.2),(0.1);
-SELECT 1 FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
+set @a=NULL;
+set sql_buffer_result=0;
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= ROUND(f1);
+
+explain SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
+
+set sql_buffer_result=1;
+explain SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE f1 = 0);
+SELECT 1 as 'one' FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
+
 DROP TABLE t1;
+
+set sql_buffer_result=0;
+
+#
+# Test of CREATE ... CAST
+#
 
 CREATE TABLE t1 AS SELECT @a:= CAST(1 AS UNSIGNED) AS a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-
-# cleanup
-SET @@global.max_binlog_cache_size=DEFAULT;
-SET @@global.max_join_size=DEFAULT;
-SET @@global.key_buffer_size=@kbs;
-SET @@global.key_cache_block_size=@kcbs;
-
 
 --echo End of 5.1 tests
 

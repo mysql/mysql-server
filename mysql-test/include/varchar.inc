@@ -92,7 +92,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 alter table t1 add unique(v);
 alter table t1 add key(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
---replace_column 6 # 9 #
+--replace_column 6 # 9 # 10 #
 explain select * from t1 where v='a';
 
 # GROUP BY
@@ -129,7 +129,7 @@ explain select count(*) from t1 where v like 'a%';
 explain select count(*) from t1 where v between 'a' and 'a ';
 --replace_column 9 #
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
---replace_column 9 #
+--replace_column 9 # 10 #
 explain select * from t1 where v='a';
 
 # GROUP BY
@@ -158,7 +158,7 @@ explain select count(*) from t1 where v like 'a%';
 explain select count(*) from t1 where v between 'a' and 'a ';
 --replace_column 9 #
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
---replace_column 9 #
+--replace_column 9 # 10 #
 explain select * from t1 where v='a';
 
 # GROUP BY

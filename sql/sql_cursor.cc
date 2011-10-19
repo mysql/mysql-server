@@ -329,7 +329,7 @@ void Materialized_cursor::fetch(ulong num_rows)
       If network write failed (i.e. due to a closed socked),
       the error has already been set. Just return.
     */
-    if (result->send_data(item_list))
+    if (result->send_data(item_list) > 0)
       return;
   }
 
@@ -386,7 +386,7 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
                           FALSE,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                          "", FALSE))
+                          "", FALSE, TRUE))
     return TRUE;
 
   materialized_cursor= new (&table->mem_root)

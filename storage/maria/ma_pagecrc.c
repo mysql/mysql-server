@@ -355,9 +355,7 @@ my_bool maria_flush_log_for_page(uchar *page,
                                  uchar *data_ptr __attribute__((unused)))
 {
   LSN lsn;
-#ifndef DBUG_OFF
-  const MARIA_SHARE *share= (MARIA_SHARE*) data_ptr;
-#endif
+  MARIA_SHARE *share= (MARIA_SHARE*) data_ptr;
   DBUG_ENTER("maria_flush_log_for_page");
   /* share is 0 here only in unittest */
   DBUG_ASSERT(!share || (share->page_type == PAGECACHE_LSN_PAGE &&
@@ -365,6 +363,12 @@ my_bool maria_flush_log_for_page(uchar *page,
   lsn= lsn_korr(page);
   if (translog_flush(lsn))
     DBUG_RETURN(1);
+  /*
+    Now when log is written, it's safe to incremented 'open' counter for
+    the table so that we know it was not closed properly.
+  */
+  if (share && !share->global_changed)
+    _ma_mark_file_changed_now(share);
   DBUG_RETURN(0);
 }
 

@@ -30,7 +30,8 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
   uint flag;
   MARIA_SHARE *share= info->s;
   MARIA_KEYDEF *keyinfo;
-  int icp_res= 1;
+  ICP_RESULT icp_res= ICP_MATCH;
+  uint update_mask= HA_STATE_NEXT_FOUND;
   DBUG_ENTER("maria_rnext");
 
   if ((inx = _ma_check_index(info,inx)) < 0)
@@ -62,6 +63,20 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
       error= _ma_search_first(info, keyinfo, share->state.key_root[inx]);
       break;
     }
+    /*
+      "search first" failed. This means we have no pivot for
+      "search next", or in other words MI_INFO::lastkey is
+      likely uninitialized.
+
+      Normally SQL layer would never request "search next" if
+      "search first" failed. But HANDLER may do anything.
+
+      As mi_rnext() without preceeding mi_rkey()/mi_rfirst()
+      equals to mi_rfirst(), we must restore original state
+      as if failing mi_rfirst() was not called.
+    */
+    if (error)
+      update_mask|= HA_STATE_PREV_FOUND;
   }
   else
   {
@@ -92,8 +107,20 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
   if (!error)
   {
     while (!(*share->row_is_visible)(info) ||
-           ((icp_res= ma_check_index_cond(info, inx, buf)) == 0))
+           ((icp_res= ma_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
     {
+      /*
+        If we are at the last key on the key page, allow writers to
+        access the index.
+      */
+      if (info->int_keypos >= info->int_maxpos &&
+          ma_yield_and_check_if_killed(info, inx))
+      {
+        /* my_errno is set by ma_yield_and_check_if_killed() */
+        error= 1;
+        break;
+      }
+
       /* Skip rows inserted by other threads since we got a lock */
       if  ((error= _ma_search_next(info, &info->last_key,
                                    SEARCH_BIGGER,
@@ -106,18 +133,17 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  info->update|= HA_STATE_NEXT_FOUND;
+  info->update|= update_mask;
   
-  if (icp_res == 2)
-    my_errno=HA_ERR_END_OF_FILE; /* got beyond the end of scanned range */
-
-  if (error || icp_res != 1)
+  if (error || icp_res != ICP_MATCH)
   {
+    fast_ma_writeinfo(info);
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
-      my_errno=HA_ERR_END_OF_FILE;
+      my_errno= HA_ERR_END_OF_FILE;
   }
   else if (!buf)
   {
+    fast_ma_writeinfo(info);
     DBUG_RETURN(info->cur_row.lastpos == HA_OFFSET_ERROR ? my_errno : 0);
   }
   else if (!(*info->read_record)(info, buf, info->cur_row.lastpos))

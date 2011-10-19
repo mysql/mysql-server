@@ -88,6 +88,7 @@ typedef struct st_alarm {
 
 extern uint thr_client_alarm;
 extern pthread_t alarm_thread;
+extern my_bool my_disable_thr_alarm;
 
 #define thr_alarm_init(A) (*(A))=0
 #define thr_alarm_in_use(A) (*(A)!= 0)

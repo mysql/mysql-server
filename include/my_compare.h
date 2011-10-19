@@ -1,4 +1,5 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, Oracle and/or its affiliates.
+   Copyright (c) Monty Program Ab; 1991-2011
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,22 +62,22 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 } HA_KEYSEG;
 
 #define get_key_length(length,key) \
-{ if (*(uchar*) (key) != 255) \
-    length= (uint) *(uchar*) ((key)++); \
+{ if (*(const uchar*) (key) != 255) \
+    length= (uint) *(const uchar*) ((key)++); \
   else \
   { length= mi_uint2korr((key)+1); (key)+=3; } \
 }
 
 #define get_key_length_rdonly(length,key) \
-{ if (*(uchar*) (key) != 255) \
-    length= ((uint) *(uchar*) ((key))); \
+{ if (*(const uchar*) (key) != 255) \
+    length= ((uint) *(const uchar*) ((key))); \
   else \
   { length= mi_uint2korr((key)+1); } \
 }
 
 #define get_key_pack_length(length,length_pack,key) \
-{ if (*(uchar*) (key) != 255) \
-  { length= (uint) *(uchar*) ((key)++); length_pack= 1; }\
+{ if (*(const uchar*) (key) != 255) \
+  { length= (uint) *(const uchar*) ((key)++); length_pack= 1; }\
   else \
   { length=mi_uint2korr((key)+1); (key)+= 3; length_pack= 3; } \
 }

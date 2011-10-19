@@ -11,7 +11,6 @@
 # check if START SLAVE, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
 # Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986)
 
--- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
 source include/have_innodb.inc;
 

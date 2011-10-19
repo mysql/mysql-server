@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3562,7 +3563,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
 
-      if (open_normal_and_derived_tables(thd, table_list, 0))
+      if (open_normal_and_derived_tables(thd, table_list, 0, DT_PREPARE))
         DBUG_RETURN(TRUE);
 
       while ((column = column_iter++))
@@ -6088,16 +6089,16 @@ static int handle_grant_struct(uint struct_no, bool drop,
     elements= acl_dbs.elements;
     break;
   case 2:
-    elements= column_priv_hash.records;
     grant_name_hash= &column_priv_hash;
+    elements= grant_name_hash->records;
     break;
   case 3:
-    elements= proc_priv_hash.records;
     grant_name_hash= &proc_priv_hash;
+    elements= grant_name_hash->records;
     break;
   case 4:
-    elements= func_priv_hash.records;
     grant_name_hash= &func_priv_hash;
+    elements= grant_name_hash->records;
     break;
   case 5:
     elements= acl_proxy_users.elements;
@@ -6310,8 +6311,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   else
   {
     /* Handle user array. */
-    if ((handle_grant_struct(0, drop, user_from, user_to) && ! result) ||
-        found)
+    if ((handle_grant_struct(0, drop, user_from, user_to)) || found)
     {
       result= 1; /* At least one record/element found. */
       /* If search is requested, we do not need to search further. */
@@ -7872,7 +7872,6 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
 #undef HAVE_OPENSSL
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define initialized 0
-#define decrease_user_connections(X)        /* nothing */
 #define check_for_max_user_connections(X,Y)   0
 #define get_or_create_user_conn(A,B,C,D) 0
 #endif
@@ -7912,16 +7911,17 @@ struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
 /**
   a helper function to report an access denied error in all the proper places
 */
-static void login_failed_error(THD *thd, int passwd_used)
+static void login_failed_error(THD *thd)
 {
-  my_error(access_denied_error_code(passwd_used), MYF(0),
+  my_error(access_denied_error_code(thd->password), MYF(0),
            thd->main_security_ctx.user,
            thd->main_security_ctx.host_or_ip,
-           passwd_used ? ER(ER_YES) : ER(ER_NO));
-  general_log_print(thd, COM_CONNECT, ER(access_denied_error_code(passwd_used)),
+           thd->password ? ER(ER_YES) : ER(ER_NO));
+  general_log_print(thd, COM_CONNECT,
+                    ER(access_denied_error_code(thd->password)),
                     thd->main_security_ctx.user,
                     thd->main_security_ctx.host_or_ip,
-                    passwd_used ? ER(ER_YES) : ER(ER_NO));
+                    thd->password ? ER(ER_YES) : ER(ER_NO));
   status_var_increment(thd->status_var.access_denied_errors);
   /* 
     Log access denied messages to the error log when log-warnings = 2
@@ -7930,10 +7930,10 @@ static void login_failed_error(THD *thd, int passwd_used)
   */
   if (global_system_variables.log_warnings > 1)
   {
-    sql_print_warning(ER(access_denied_error_code(passwd_used)),
+    sql_print_warning(ER(access_denied_error_code(thd->password)),
                       thd->main_security_ctx.user,
                       thd->main_security_ctx.host_or_ip,
-                      passwd_used ? ER(ER_YES) : ER(ER_NO));      
+                      thd->password ? ER(ER_YES) : ER(ER_NO));      
   }
 }
 
@@ -8198,7 +8198,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
 
   if (!mpvio->acl_user)
   {
-    login_failed_error(mpvio->thd, 0);
+    login_failed_error(mpvio->thd);
     DBUG_RETURN (1);
   }
 
@@ -8381,7 +8381,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   THD *thd= mpvio->thd;
   NET *net= &thd->net;
   char *end;
-
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
   if (pkt_len < MIN_HANDSHAKE_SIZE)
@@ -8393,7 +8392,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   ulong client_capabilities= uint2korr(net->read_pos);
   if (client_capabilities & CLIENT_PROTOCOL_41)
   {
-    client_capabilities|= ((ulong) uint2korr(net->read_pos + 2)) << 16;
+    client_capabilities|= ((ulonglong) uint2korr(net->read_pos + 2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos + 4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
     if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
@@ -8469,20 +8468,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
                    (uchar)(*passwd++) : strlen(passwd);
 
-  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
-  {
-    db= db + passwd_len + 1;
-    /* strlen() can't be easily deleted without changing protocol */
-    db_len= strlen(db);
-  }
-  else
-  {
-    db= 0;
-    db_len= 0;
-  }
+  db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
+    db + passwd_len + 1 : 0;
 
-  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+  if (passwd + passwd_len + test(db) > (char *)net->read_pos + pkt_len)
     return packet_error;
+
+  /* strlen() can't be easily deleted without changing protocol */
+  db_len= db ? strlen(db) : 0;
 
   char *client_plugin= passwd + passwd_len + (db ? db_len + 1 : 0);
 
@@ -8504,6 +8497,19 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   {
     user++;
     user_len-= 2;
+  }
+
+  /*
+    Clip username to allowed length in characters (not bytes).  This is
+    mostly for backward compatibility.
+  */
+  {
+    CHARSET_INFO *cs= system_charset_info;
+    int           err;
+
+    user_len= (uint) cs->cset->well_formed_len(cs, user, user + user_len,
+                                               USERNAME_CHAR_LENGTH, &err);
+    user[user_len]= '\0';
   }
 
   Security_context *sctx= thd->security_ctx;
@@ -8529,13 +8535,13 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     return packet_error;
   }
 
+  thd->password= passwd_len > 0;
   if (find_mpvio_user(mpvio))
     return packet_error;
 
   if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
   {
-    if ((client_plugin + strlen(client_plugin)) > 
-          (char *)net->read_pos + pkt_len)
+    if (client_plugin >= (char *)net->read_pos + pkt_len)
       return packet_error;
     client_plugin= fix_plugin_ptr(client_plugin);
   }
@@ -9020,7 +9026,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
     DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
 
     if (!thd->is_error())
-      login_failed_error(thd, thd->password);
+      login_failed_error(thd);
     DBUG_RETURN(1);
   }
 
@@ -9044,7 +9050,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
       if (!proxy_user)
       {
         if (!thd->is_error())
-          login_failed_error(thd, mpvio.auth_info.password_used);
+          login_failed_error(thd);
         DBUG_RETURN(1);
       }
 
@@ -9060,7 +9066,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
       if (!acl_proxy_user)
       {
         if (!thd->is_error())
-          login_failed_error(thd, mpvio.auth_info.password_used);
+          login_failed_error(thd);
         mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
@@ -9087,7 +9093,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
     */
     if (acl_check_ssl(thd, acl_user))
     {
-      login_failed_error(thd, thd->password);
+      login_failed_error(thd);
       DBUG_RETURN(1);
     }
 
@@ -9111,6 +9117,8 @@ bool acl_authenticate(THD *thd, uint connect_errors,
        global_system_variables.max_user_connections) &&
       check_for_max_user_connections(thd, thd->user_connect))
   {
+    /* Ensure we don't decrement thd->user_connections->connections twice */
+    thd->user_connect= 0;
     status_var_increment(denied_connections);
     DBUG_RETURN(1); // The error is set in check_for_max_user_connections()
   }
@@ -9151,12 +9159,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
     if (mysql_change_db(thd, &mpvio.db, FALSE))
     {
       /* mysql_change_db() has pushed the error message. */
-      if (thd->user_connect)
-      {
-        status_var_increment(thd->status_var.access_denied_errors);
-        decrease_user_connections(thd->user_connect);
-        thd->user_connect= 0;
-      }
+      status_var_increment(thd->status_var.access_denied_errors);
       DBUG_RETURN(1);
     }
   }

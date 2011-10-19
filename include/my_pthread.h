@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc,
+   2010-2011 Oracle and/or its affiliates, 2009-2010 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,37 +86,11 @@ typedef volatile LONG my_pthread_once_t;
 #define MY_PTHREAD_ONCE_INPROGRESS 1
 #define MY_PTHREAD_ONCE_DONE 2
 
-/*
-  Struct and macros to be used in combination with the
-  windows implementation of pthread_cond_timedwait
-*/
-
-/*
-   Declare a union to make sure FILETIME is properly aligned
-   so it can be used directly as a 64 bit value. The value
-   stored is in 100ns units.
- */
-union ft64 {
-  FILETIME ft;
-  __int64 i64;
-};
-
 struct timespec {
-  union ft64 tv;
-  /* The max timeout value in millisecond for pthread_cond_timedwait */
-  long max_timeout_msec;
+  time_t tv_sec;
+  long tv_nsec;
 };
 
-#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {          \
-  (ABSTIME).tv.i64= (TIME)+(__int64)(NSEC)/100;                 \
-  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000);           \
-} while(0)
-
-#define set_timespec_nsec(ABSTIME,NSEC) do {                    \
-  union ft64 tv;                                                \
-  GetSystemTimeAsFileTime(&tv.ft);                              \
-  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC));            \
-} while(0)
 
 /**
    Compare two timespec structs.
@@ -413,7 +388,7 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 
 #ifndef set_timespec_nsec
 #define set_timespec_nsec(ABSTIME,NSEC)                                 \
-  set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
+  set_timespec_time_nsec((ABSTIME), my_hrtime().val*1000 + (NSEC))
 #endif /* !set_timespec_nsec */
 
 /* adapt for two different flavors of struct timespec */
@@ -443,11 +418,10 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif /* !cmp_timespec */
 
 #ifndef set_timespec_time_nsec
-#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
-  ulonglong nsec= (NSEC);                                               \
-  ulonglong now= (TIME) + (nsec/100);                                   \
-  (ABSTIME).MY_tv_sec=  (now / ULL(10000000));                          \
-  (ABSTIME).MY_tv_nsec= (now % ULL(10000000) * 100 + (nsec % 100));     \
+#define set_timespec_time_nsec(ABSTIME,NSEC) do {    \
+  ulonglong now= (NSEC);                             \
+  (ABSTIME).MY_tv_sec=  (now / 1000000000ULL);       \
+  (ABSTIME).MY_tv_nsec= (now % 1000000000ULL);       \
 } while(0)
 #endif /* !set_timespec_time_nsec */
 

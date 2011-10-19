@@ -1,4 +1,5 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2039,6 +2040,9 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
+  if (p_elem->connect_string.length)
+    err+= add_keyword_string(fptr, "CONNECTION", TRUE,
+                             p_elem->connect_string.str);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
@@ -6279,7 +6283,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt, bool close_old)
   DBUG_ENTER("alter_close_tables");
   if (lpt->table->db_stat)
   {
-    lpt->table->file->close();
+    lpt->table->file->ha_close();
     lpt->table->db_stat= 0;                        // Mark file closed
   }
   if (close_old && lpt->old_table)

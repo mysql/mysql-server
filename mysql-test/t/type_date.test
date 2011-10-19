@@ -280,6 +280,13 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+#
+# lp:737496 Field_temporal::store_TIME_with_warning() in 5.1-micro
+#
+create table t1 (f1 date, key (f1));
+insert t1 values ('2010-10-10 15:foobar');
+drop table t1;
+
 --echo #
 --echo # Bug #33629: last_day function can return null, but has 'not null'
 --echo #             flag set for result
@@ -303,5 +310,3 @@ set @a=(select min(makedate('111','1'))) ;
 select @a;
 --echo #
 
-
---echo End of 6.0 tests

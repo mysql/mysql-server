@@ -396,48 +396,7 @@ xtPublic int xt_p_cond_wait(xt_cond_type *cond, xt_mutex_type *mutex)
 
 xtPublic int xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mt, struct timespec *abstime)
 {
-	pthread_mutex_t	*mutex = &mt->mt_cs;
-	int				result;
-	long			timeout; 
-	union ft64		now;
-
-	if (abstime != NULL) {
-		GetSystemTimeAsFileTime(&now.ft);
-
-		timeout = (long)((abstime->tv.i64 - now.i64) / 10000);
-		if (timeout < 0)
-			timeout = 0L;
-		if (timeout > abstime->max_timeout_msec)
-			timeout = abstime->max_timeout_msec;
-	}
-	else
-		timeout= INFINITE;
-
-	WaitForSingleObject(cond->broadcast_block_event, INFINITE);
-
-	EnterCriticalSection(&cond->lock_waiting);
-	cond->waiting++;
-	LeaveCriticalSection(&cond->lock_waiting);
-
-	LeaveCriticalSection(mutex);
-
-	result= WaitForMultipleObjects(2, cond->events, FALSE, timeout);
-
-	EnterCriticalSection(&cond->lock_waiting);
-	cond->waiting--;
-	
-	if (cond->waiting == 0) {
-		/* The last waiter must reset the broadcast
-		 * state (whther there was a broadcast or not)!
-		 */
-		ResetEvent(cond->events[xt_cond_type::BROADCAST]);
-		SetEvent(cond->broadcast_block_event);
-	}
-	LeaveCriticalSection(&cond->lock_waiting);
-	
-	EnterCriticalSection(mutex);
-
-	return result == WAIT_TIMEOUT ? ETIMEDOUT : 0;
+  return pthread_cond_timedwait(cond, &mt->mt_cs, abstime);
 }
 
 xtPublic int xt_p_join(pthread_t thread, void **value)
@@ -547,42 +506,23 @@ xtPublic void xt_p_init_threading(void)
 
 xtPublic int xt_p_set_low_priority(pthread_t thr)
 {
-	if (pth_min_priority == pth_max_priority) {
-		/* Under Linux the priority of normal (non-runtime)
-		 * threads are set using the standard methods
-		 * for setting process priority.
-		 */
-
-		/* We could set who == 0 because it should have the same affect
-		 * as using the PID.
-		 */
-
-		/* -20 = highest, 20 = lowest */
-		if (setpriority(PRIO_PROCESS, getpid(), 20) == -1)
-			return errno;
-		return 0;
-	}
-	return pth_set_priority(thr, pth_min_priority);
+	if (pth_min_priority != pth_max_priority)
+          return pth_set_priority(thr, pth_min_priority);
+        return 0;
 }
 
 xtPublic int xt_p_set_normal_priority(pthread_t thr)
 {
-	if (pth_min_priority == pth_max_priority) {
-		if (setpriority(PRIO_PROCESS, getpid(), 0) == -1)
-			return errno;
-		return 0;
-	}
-	return pth_set_priority(thr, pth_normal_priority);
+	if (pth_min_priority != pth_max_priority)
+ 	  return pth_set_priority(thr, pth_normal_priority);
+        return 0;
 }
 
 xtPublic int xt_p_set_high_priority(pthread_t thr)
 {
-	if (pth_min_priority == pth_max_priority) {
-		if (setpriority(PRIO_PROCESS, getpid(), -20) == -1)
-			return errno;
-		return 0;
-	}
-	return pth_set_priority(thr, pth_max_priority);
+	if (pth_min_priority != pth_max_priority)
+	  return pth_set_priority(thr, pth_max_priority);
+        return 0;
 }
 
 #ifdef DEBUG_LOCKING

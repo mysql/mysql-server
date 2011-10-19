@@ -44,10 +44,10 @@ select @@log_slow_verbosity;
 innodb
 show fields from mysql.slow_log;
 Field	Type	Null	Key	Default	Extra
-start_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+start_time	timestamp(6)	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 user_host	mediumtext	NO		NULL	
-query_time	time	NO		NULL	
-lock_time	time	NO		NULL	
+query_time	time(6)	NO		NULL	
+lock_time	time(6)	NO		NULL	
 rows_sent	int(11)	NO		NULL	
 rows_examined	int(11)	NO		NULL	
 db	varchar(512)	NO		NULL	

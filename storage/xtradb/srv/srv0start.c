@@ -1304,6 +1304,7 @@ innobase_start_or_create_for_mysql(void)
 	case OS_WIN95:
 	case OS_WIN31:
 	case OS_WINNT:
+		srv_use_native_conditions = FALSE;
 		/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
 		and NT use simulated aio. In NT Windows provides async i/o,
 		but when run in conjunction with InnoDB Hot Backup, it seemed
@@ -1314,9 +1315,10 @@ innobase_start_or_create_for_mysql(void)
 
 	case OS_WIN2000:
 	case OS_WINXP:
-		/* On 2000 and XP, async IO is available. */
+		/* On 2000 and XP, async IO is available, but no condition variables. */
 		srv_use_native_aio = TRUE;
-		break;
+		srv_use_native_conditions = FALSE;
+ 		break;
 
 	default:
 		/* Vista and later have both async IO and condition variables */
@@ -1346,7 +1348,6 @@ innobase_start_or_create_for_mysql(void)
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#ifndef __WIN__
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1364,7 +1365,7 @@ innobase_start_or_create_for_mysql(void)
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 		srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
-#else
+#ifdef _WIN32
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 		srv_use_native_aio = FALSE;
@@ -1376,6 +1377,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+		os_aio_use_native_aio = TRUE;
 #endif
 	} else {
 		ut_print_timestamp(stderr);

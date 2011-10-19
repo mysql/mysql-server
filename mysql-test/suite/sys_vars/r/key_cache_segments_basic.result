@@ -34,6 +34,7 @@ select @@global.key_cache_segments;
 0
 set global key_cache_segments=cast(-1 as unsigned int);
 Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect key_cache_segments value: '18446744073709551615'
 select @@global.key_cache_segments;
 @@global.key_cache_segments

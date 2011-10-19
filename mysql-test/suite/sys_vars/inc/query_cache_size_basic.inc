@@ -80,16 +80,12 @@ SELECT @@global.query_cache_size;
 
 SET @@global.query_cache_size = -1;
 SELECT @@global.query_cache_size;
-SET @@global.query_cache_size = 4294967296;
-SELECT @@global.query_cache_size;
 SET @@global.query_cache_size = 511;
 SELECT @@global.query_cache_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_cache_size = 10000.01;
 SELECT @@global.query_cache_size;
 SET @@global.query_cache_size = -1024;
-SELECT @@global.query_cache_size;
-SET @@global.query_cache_size = 42949672950;
 SELECT @@global.query_cache_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_cache_size = ON;

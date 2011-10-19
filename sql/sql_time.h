@@ -34,17 +34,36 @@ typedef struct st_known_date_time_format KNOWN_DATE_TIME_FORMAT;
 ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month, uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error_code);
 bool str_to_time_with_warn(CHARSET_INFO *cs, const char *str, uint length,
-                           MYSQL_TIME *l_time);
+                           MYSQL_TIME *l_time, ulong fuzzydate);
 timestamp_type str_to_datetime_with_warn(CHARSET_INFO *cs, const char *str,
                                          uint length, MYSQL_TIME *l_time,
-                                         uint flags);
-void make_truncated_value_warning(THD *thd,
-                                  MYSQL_ERROR::enum_warning_level level,
-                                  const char *str_val, uint str_length,
+                                         ulong flags);
+bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
+                                  ulong fuzzydate,
+                                  const char *name);
+bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
+                                   ulong fuzzydate,
+                                   const char *name);
+bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
+                               ulong fuzzydate,
+                               const char *name);
+
+void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                                  const ErrConv *str_val,
                                   timestamp_type time_type,
                                   const char *field_name);
+
+static inline void make_truncated_value_warning(THD *thd,
+                MYSQL_ERROR::enum_warning_level level, const char *str_val,
+                uint str_length, timestamp_type time_type,
+                const char *field_name)
+{
+  const ErrConvString str(str_val, str_length, &my_charset_bin);
+  make_truncated_value_warning(thd, level, &str, time_type, field_name);
+}
+
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);
@@ -52,13 +71,6 @@ extern DATE_TIME_FORMAT *date_time_format_copy(THD *thd,
 					       DATE_TIME_FORMAT *format);
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
-void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
-void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-                   String *str);
-
 /* MYSQL_TIME operations */
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        INTERVAL interval);
@@ -74,8 +86,8 @@ bool parse_date_time_format(timestamp_type format_type,
                             const char *format, uint format_length,
                             DATE_TIME_FORMAT *date_time_format);
 /* Character set-aware version of str_to_time() */
-bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
-                 MYSQL_TIME *l_time, int *warning);
+timestamp_type str_to_time(CHARSET_INFO *cs, const char *str,uint length,
+                 MYSQL_TIME *l_time, ulong fuzzydate, int *warning);
 /* Character set-aware version of str_to_datetime() */
 timestamp_type str_to_datetime(CHARSET_INFO *cs,
                                const char *str, uint length,

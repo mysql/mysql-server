@@ -546,7 +546,7 @@ ut_print_namel(
 				       trx ? trx->mysql_thd : NULL,
 				       table_id);
 
-	fwrite(buf, 1, bufend - buf, f);
+	(void) fwrite(buf, 1, bufend - buf, f);
 }
 
 /**********************************************************************//**
@@ -567,7 +567,7 @@ ut_copy_file(
 			? (size_t) len
 			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
-		fwrite(buf, 1, size, dest);
+		(void) fwrite(buf, 1, size, dest);
 		len -= (long) size;
 		if (size < maxs) {
 			break;
@@ -716,6 +716,8 @@ ut_strerr(
 		return("No index on referenced keys in referenced table");
 	case DB_END_OF_INDEX:
 		return("End of index");
+        case DB_SEARCH_ABORTED_BY_USER:
+                return("Operation was interrupted by end user");
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

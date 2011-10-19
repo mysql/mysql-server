@@ -181,3 +181,15 @@ void dynstr_free(DYNAMIC_STRING *str)
   my_free(str->str);
   str->str= NULL;
 }
+
+
+/* Give over the control of the dynamic string to caller */
+
+void dynstr_reassociate(DYNAMIC_STRING *str, char **ptr, size_t *length,
+                        size_t *alloc_length)
+{
+  *ptr=          str->str;
+  *length=       str->length;
+  *alloc_length= str->max_length;
+  str->str=0;
+}

@@ -490,7 +490,7 @@ struct trx_struct{
 				       	transaction has been registered with
 				       	the coordinator using the XA API, and
 				       	is set to 0 after commit or rollback. */
-	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
+	unsigned	active_commit_ordered:1;/* 1 if owns prepare mutex, if
 					this is set to 1 then registered should
 					also be set to 1. This is used in the
 					XA code */
@@ -828,6 +828,10 @@ Multiple flags can be combined with bitwise OR. */
 					session */
 #define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
 					must hold rights to this) */
+
+/* Flag bits for trx_struct.active_flag */
+#define TRX_ACTIVE_IN_MYSQL       (1<<0)
+#define TRX_ACTIVE_COMMIT_ORDERED (1<<1)
 
 /** Commit node states */
 enum commit_node_state {

@@ -207,15 +207,6 @@ bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 
   if (select && my_b_inited(&select->file))
     tempfile= &select->file;
-  else if (select && select->quick && select->quick->clustered_pk_range())
-  {
-    /*
-      In case of QUICK_INDEX_MERGE_SELECT with clustered pk range we have to
-      use its own access method(i.e QUICK_INDEX_MERGE_SELECT::get_next()) as
-      sort file does not contain rowids which satisfy clustered pk range.
-    */
-    tempfile= 0;
-  }
   else
     tempfile= table->sort.io_cache;
   if (tempfile && my_b_inited(tempfile) &&
@@ -312,7 +303,8 @@ void end_read_record(READ_RECORD *info)
   if (info->table)
   {
     filesort_free_buffers(info->table,0);
-    (void) info->file->extra(HA_EXTRA_NO_CACHE);
+    if (info->table->created)
+      (void) info->file->extra(HA_EXTRA_NO_CACHE);
     if (info->read_record != rr_quick) // otherwise quick_range does it
       (void) info->file->ha_index_or_rnd_end();
     info->table=0;

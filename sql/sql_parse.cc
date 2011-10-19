@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
    Copyright (c) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -264,22 +264,22 @@ void init_update_queries(void)
     the code, in particular in the Query_log_event's constructor.
   */
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_AUTO_COMMIT_TRANS | CF_REPORT_PROGRESS |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS | CF_REPORT_PROGRESS ;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_CAN_GENERATE_ROW_EVENTS;
+                                            CF_CAN_GENERATE_ROW_EVENTS | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -389,10 +389,11 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_CHECKSUM]=  CF_REPORT_PROGRESS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
@@ -895,6 +896,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
   
+  DBUG_EXECUTE_IF("crash_dispatch_command_before",
+                  { DBUG_PRINT("crash_dispatch_command_before", ("now"));
+                    DBUG_ABORT(); });
+
   thd->command=command;
   /*
     Commands which always take a long time are logged into
@@ -904,18 +909,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->query_plan_flags= QPLAN_INIT;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!thd->is_valid_time())
-  {
-    /*
-     If the time has got past 2038 we need to shut this server down
-     We do this by making sure every command is a shutdown and we 
-     have enough privileges to shut the server down
-
-     TODO: remove this when we have full 64 bit my_time_t support
-    */
-    thd->security_ctx->master_access|= SHUTDOWN_ACL;
-    command= COM_SHUTDOWN;
-  }
   thd->set_query_id(get_query_id());
   if (!(server_command_flags[command] & CF_SKIP_QUERY_ID))
     next_query_id();
@@ -973,14 +966,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
+    /* Ensure we don't free security_ctx->user in case we have to revert */
+    thd->security_ctx->user= 0;
+    thd->user_connect= 0;
+
     rc= acl_authenticate(thd, 0, packet_length);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
     if (rc)
     {
-      /* authentication can fail before or after allocating new username */
-      if (thd->security_ctx->user != save_security_ctx.user)
-        my_free(thd->security_ctx->user);
+      /* Free user if allocated by acl_authenticate */
+      my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
+      if (thd->user_connect)
+	decrease_user_connections(thd->user_connect);
       thd->user_connect= save_user_connect;
       thd->reset_db(save_db, save_db_length);
       thd->variables.character_set_client= save_character_set_client;
@@ -1289,10 +1287,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       packet[0].
     */
     enum mysql_enum_shutdown_level level;
-    if (!thd->is_valid_time())
-      level= SHUTDOWN_DEFAULT;
-    else
-      level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
+    level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
     else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
@@ -1424,6 +1419,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       thd->stmt_da->is_error() ? thd->stmt_da->sql_errno() : 0,
                       command_name[command].str);
 
+  thd->update_all_stats();
+
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
@@ -1454,8 +1451,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 void log_slow_statement(THD *thd)
 {
   DBUG_ENTER("log_slow_statement");
-
-  thd->update_all_stats();
 
   /*
     The following should never be true with our current code base,
@@ -2059,6 +2054,8 @@ mysql_execute_command(THD *thd)
 #endif
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
+  thd->progress.report_to_client= test(sql_command_flags[lex->sql_command] &
+                                       CF_REPORT_PROGRESS);
 
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
 
@@ -2199,11 +2196,7 @@ case SQLCOM_PREPARE:
       goto error;
     }
     it= new Item_func_unix_timestamp(it);
-    /*
-      it is OK only emulate fix_fieds, because we need only
-      value of constant
-    */
-    it->quick_fix_field();
+    it->fix_fields(thd, &it);
     res = purge_master_logs_before_date(thd, (ulong)it->val_int());
     break;
   }
@@ -2576,7 +2569,7 @@ end_with_restore_list:
 
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
                            &create_info, first_table, &alter_info,
-                           0, (ORDER*) 0, 0);
+                           0, (ORDER*) 0, 0, 0);
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -2863,12 +2856,17 @@ end_with_restore_list:
 
     DBUG_EXECUTE_IF("after_mysql_insert",
                     {
-                      const char act[]=
+                      const char act1[]=
                         "now "
                         "wait_for signal.continue";
+                      const char act2[]=
+                        "now "
+                        "signal signal.continued";
                       DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                         STRING_WITH_LEN(act)));
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act1)));
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act2)));
                     };);
     break;
   }
@@ -2892,6 +2890,10 @@ end_with_restore_list:
     if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
+      /*
+        Only the INSERT table should be merged. Other will be handled by
+        select.
+      */
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= second_table;
@@ -3169,7 +3171,7 @@ end_with_restore_list:
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->variables.query_cache_wlock_invalidate)
-        query_cache.invalidate_locked_for_write(first_table);
+	query_cache.invalidate_locked_for_write(thd, first_table);
 #endif /*HAVE_QUERY_CACHE*/
       my_ok(thd);
     }
@@ -4495,9 +4497,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
           mysqld_show_warnings().
         */
         thd->lex->unit.print(&str, QT_TO_SYSTEM_CHARSET);
-        str.append('\0');
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                     ER_YES, str.ptr());
+                     ER_YES, str.c_ptr_safe());
       }
       if (res)
         result->abort_result_set();
@@ -5326,6 +5327,7 @@ void THD::reset_for_next_command(bool calculate_userstat)
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
 
   thd->query_start_used= 0;
+  thd->query_start_sec_part_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   /*
     Clear the status flag that are expected to be cleared at the
@@ -6348,6 +6350,28 @@ push_new_name_resolution_context(THD *thd,
 
 
 /**
+  Fix condition which contains only field (f turns to  f <> 0 )
+
+  @param cond            The condition to fix
+
+  @return fixed condition
+*/
+
+Item *normalize_cond(Item *cond)
+{
+  if (cond)
+  {
+    Item::Type type= cond->type();
+    if (type == Item::FIELD_ITEM || type == Item::REF_ITEM)
+    {
+      cond= new Item_func_ne(cond, new Item_int(0));
+    }
+  }
+  return cond;
+}
+
+
+/**
   Add an ON condition to the second operand of a JOIN ... ON.
 
     Add an ON condition to the right operand of a JOIN ... ON clause.
@@ -6365,6 +6389,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
+    expr= normalize_cond(expr);
     if (!b->on_expr)
       b->on_expr= expr;
     else

@@ -10,6 +10,9 @@
 
 -- source include/master-slave.inc
 sync_slave_with_master;
+--disable_query_log
+call mtr.add_suppression('Slave I/O: Get master BINLOG_CHECKSUM failed with error');
+--enable_query_log
 let $status_items= Master_User, Master_Host;
 source include/show_slave_status.inc;
 

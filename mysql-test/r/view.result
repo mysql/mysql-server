@@ -117,7 +117,7 @@ c
 12
 explain extended select c from v5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v2`
@@ -237,7 +237,7 @@ a
 3
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 select * from t1;
 a
@@ -302,7 +302,7 @@ a+1
 4
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 drop view v1;
 drop table t1;
@@ -2135,12 +2135,12 @@ INSERT INTO t1 VALUES (2, 'foo2');
 INSERT INTO t1 VALUES (1, 'foo1');
 SELECT * FROM v1;
 id	f
-2	foo2
 1	foo1
+2	foo2
 SELECT * FROM v1;
 id	f
-2	foo2
 1	foo1
+2	foo2
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (pk int PRIMARY KEY, b int);
@@ -2344,16 +2344,16 @@ CREATE VIEW v1 AS SELECT t1.* FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
 CREATE VIEW v2 AS SELECT t3.* FROM t1,t3 WHERE t1.a=t3.a;
 EXPLAIN SELECT t1.* FROM t1 JOIN t2 WHERE t1.a=t2.a AND t1.b=t2.b AND t1.a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	1	Using index
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
 1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	5	const	1	Using index
+1	SIMPLE	t1	ref	a	a	5	const	1	Using where; Using index
 1	SIMPLE	t2	ref	a	a	10	const,test.t1.b	1	Using index
 EXPLAIN SELECT * FROM v2 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	5	const	1	Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 create table t1 (f1 int);
@@ -3136,17 +3136,18 @@ Warnings:
 Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2`
 select * from v1 order by f1;
 f1	f2
-1	1
 1	2
 1	3
+1	1
+2	3
 2	1
 2	2
-2	3
 explain extended select * from v1 order by f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f2`
+Note	1926	View 'test'.'v1' ORDER BY clause ignored because there is other ORDER BY clause already.
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`
 drop view v1;
 drop table t1;
 CREATE TABLE t1 (
@@ -3823,7 +3824,7 @@ CREATE TABLE t1 (c INT);
 CREATE VIEW v1 (view_column) AS SELECT c AS alias FROM t1 HAVING alias;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having `view_column`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c` AS `view_column` from `t1` having (`view_column` <> 0)	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 view_column
 
@@ -4021,9 +4022,453 @@ SELECT * FROM v1;
 a
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# LP BUG#777809 (a retrograded condition for view ON)
+#
+CREATE TABLE t1 ( f1 int NOT NULL , f6 int NOT NULL ) ;
+INSERT IGNORE INTO t1 VALUES (20, 2);
+CREATE TABLE t2 ( f3 int NOT NULL ) ;
+INSERT IGNORE INTO t2 VALUES (7);
+CREATE OR REPLACE VIEW v2 AS SELECT * FROM t2;
+PREPARE prep_stmt FROM 'SELECT t1.f6 FROM t1 RIGHT JOIN v2 ON v2.f3 WHERE t1.f1 != 0';
+EXECUTE prep_stmt;
+f6
+2
+EXECUTE prep_stmt;
+f6
+2
+drop view v2;
+drop table t1,t2;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
+#
+# Bug #59696 Optimizer does not use equalities for conditions over view 
+#
+CREATE TABLE t1 (a int NOT NULL);
+INSERT INTO t1 VALUES 
+(9), (2), (8), (1), (3), (4), (2), (5),
+(9), (2), (8), (1), (3), (4), (2), (5);
+CREATE TABLE t2 (pk int PRIMARY KEY, c int NOT NULL);
+INSERT INTO t2 VALUES
+(9,90), (16, 160), (11,110), (1,10), (18,180), (2,20),
+(14,140), (15, 150), (12,120), (3,30), (17,170), (19,190);
+EXPLAIN EXTENDED
+SELECT t1.a,t2.c  FROM t1,t2 WHERE t2.pk = t1.a AND t2.pk > 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 8))
+FLUSH STATUS;
+SELECT t1.a,t2.c  FROM t1,t2 WHERE t2.pk = t1.a AND t2.pk > 8;
+a	c
+9	90
+9	90
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	17
+CREATE VIEW v AS SELECT * FROM t2;
+EXPLAIN EXTENDED
+SELECT t1.a,v.c  FROM t1,v WHERE v.pk = t1.a AND v.pk > 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 8))
+FLUSH STATUS;
+SELECT t1.a,v.c  FROM t1,v WHERE v.pk = t1.a AND v.pk > 8;
+a	c
+9	90
+9	90
+SHOW STATUS LIKE 'Handler_read_%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	17
+DROP VIEW v;
+DROP TABLE t1, t2;
+#
+# Bug#702403: crash with multiple equalities and a view
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (10);
+CREATE TABLE t2 (pk int PRIMARY KEY, b int, INDEX idx (b));
+INSERT INTO t2 VALUES (1,2), (3,4);
+CREATE TABLE t3 (pk int PRIMARY KEY, b int, INDEX idx (b));
+INSERT INTO t3 VALUES (1,2), (3,4);
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN 
+SELECT * FROM v1, t2, t3 
+WHERE t3.pk = v1.a AND t2.b = 1 AND t2.b = t3.pk AND v1.a BETWEEN 2 AND 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+SELECT * FROM v1, t2, t3 
+WHERE t3.pk = v1.a AND t2.b = 1 AND t2.b = t3.pk AND v1.a BETWEEN 2 AND 5;
+a	pk	b	pk	b
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
+#
+# Bug#717577: substitution for best field in a query over a view and
+#             with OR in the WHERE condition 
+#
+create table t1 (a int, b int);
+insert into t1 values (2,4), (1,3);
+create table t2 (c int);
+insert into t2 values (6), (4), (1), (3), (8), (3), (4), (2);
+select * from t1,t2 where t2.c=t1.a and t2.c < 3 or t2.c=t1.b and t2.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from t1,t2 where t2.c=t1.a and t2.c < 3 or t2.c=t1.b and t2.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+create view v1 as select * from t2;
+select * from t1,v1 where v1.c=t1.a and v1.c < 3 or v1.c=t1.b and v1.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from t1,v1 where v1.c=t1.a and v1.c < 3 or v1.c=t1.b and v1.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+create view v2 as select * from v1;
+select * from t1,v2 where v2.c=t1.a and v2.c < 3 or v2.c=t1.b and v2.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from t1,v2 where v2.c=t1.a and v2.c < 3 or v2.c=t1.b and v2.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+create view v3 as select * from t1;
+select * from v3,v2 where v2.c=v3.a and v2.c < 3 or v2.c=v3.b and v2.c >=4;
+a	b	c
+2	4	4
+1	3	1
+2	4	4
+2	4	2
+explain extended
+select * from v3,v2 where v2.c=v3.a and v2.c < 3 or v2.c=v3.b and v2.c >=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3)) or ((`test`.`t2`.`c` = `test`.`t1`.`b`) and (`test`.`t1`.`b` >= 4)))
+drop view v1,v2,v3;
+drop table t1,t2;
+#
+# Bug#724942: substitution of the constant into a view field
+#              
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (9), (9), (6), (5), (4), (7);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM v1 WHERE a > -1 OR a > 6 AND a = 3;
+a
+2
+9
+9
+6
+5
+4
+7
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > -1 OR a > 6 AND a = 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(-(1)))
+SELECT * FROM v1 WHERE a > -1 OR a AND a = 0;
+a
+2
+9
+9
+6
+5
+4
+7
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > -1 OR a AND a = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(-(1)))
+CREATE VIEW v2 AS SELECT * FROM v1;
+SELECT * FROM v2 WHERE a > -1 OR a AND a = 0;
+a
+2
+9
+9
+6
+5
+4
+7
+EXPLAIN EXTENDED
+SELECT * FROM v2 WHERE a > -1 OR a AND a = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(-(1)))
+DROP VIEW v1,v2;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(10), KEY (a)) ;
+INSERT INTO t1 VALUES
+('DD'), ('ZZ'), ('ZZ'), ('KK'), ('FF'), ('HH'),('MM');
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM v1 WHERE a > 'JJ' OR a <> 0 AND a = 'VV';
+a
+KK
+MM
+ZZ
+ZZ
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > 'JJ' OR a <> 0 AND a = 'VV';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	a	a	13	NULL	4	100.00	Using where; Using index
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 'JJ')
+SELECT * FROM v1 WHERE a > 'JJ' OR a AND a = 'VV';
+a
+KK
+MM
+ZZ
+ZZ
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'VV'
+EXPLAIN EXTENDED
+SELECT * FROM v1 WHERE a > 'JJ' OR a AND a = 'VV';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	a	a	13	NULL	4	100.00	Using where; Using index
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'VV'
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 'JJ')
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#777745: crash  with equality propagation 
+#             over view fields
+#
+CREATE TABLE t1 (a int NOT NULL ) ;
+INSERT INTO t1 VALUES (2), (1);
+CREATE TABLE t2 (a int NOT NULL , b int NOT NULL) ;
+INSERT INTO t2 VALUES (2,20),(2,30);
+CREATE VIEW  v2 AS SELECT * FROM t2;
+EXPLAIN
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a IS NULL AND t1.a != 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a IS NULL AND t1.a != 0;
+a	a	b
+EXPLAIN
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a+1 > 2 AND t1.a != 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t1,v2 
+WHERE v2.a = t1.a AND v2.a = 2 AND v2.a+1 > 2 AND t1.a != 0;
+a	a	b
+2	2	20
+2	2	30
+DROP VIEW v2;
+DROP TABLE t1,t2;
+#
+# Bug#794038: crash  with INSERT/UPDATE/DELETE 
+#             over a non-updatable view
+#
+CREATE TABLE t1 (a int);
+CREATE ALGORITHM = TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE ALGORITHM = MERGE VIEW v2 AS SELECT * FROM v1;
+CREATE ALGORITHM = TEMPTABLE VIEW v3 AS SELECT * FROM v2;
+INSERT INTO v3 VALUES (1);
+ERROR HY000: The target table v3 of the INSERT is not insertable-into
+UPDATE v3 SET a=0;
+ERROR HY000: The target table v3 of the UPDATE is not updatable
+DELETE FROM v3;
+ERROR HY000: The target table v3 of the DELETE is not updatable
+DROP VIEW v1,v2,v3;
+DROP TABLE t1;
+#
+# Bug#798621: crash with a view string field equal  
+#             to a constant
+#
+CREATE TABLE t1 (a varchar(32), b int) ;
+INSERT INTO t1 VALUES ('j', NULL), ('c', 8), ('c', 1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2 (a varchar(32)) ;
+INSERT INTO t2 VALUES ('j'), ('c');
+SELECT * FROM v1 LEFT JOIN t2 ON t2.a = v1.a 
+WHERE v1.b = 1 OR v1.a = 'a' AND LENGTH(v1.a) >= v1.b;
+a	b	a
+c	1	c
+EXPLAIN EXTENDED
+SELECT * FROM v1 LEFT JOIN t2 ON t2.a = v1.a 
+WHERE v1.b = 1 OR v1.a = 'a' AND LENGTH(v1.a) >= v1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where ((`test`.`t1`.`b` = 1) or ((`test`.`t1`.`a` = 'a') and (length(`test`.`t1`.`a`) >= `test`.`t1`.`b`)))
+DROP VIEW v1;
+DROP TABLE t1,t2;
+# Bug#798625: duplicate of the previous one, but without crash  
+CREATE TABLE t1 (f1 int NOT NULL, f2 int, f3 int, f4 varchar(32), f5 int) ;
+INSERT INTO t1 VALUES (20,5,2,'r', 0);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT v1.f4 FROM v1 
+WHERE f1<>0 OR f2<>0 AND f4='v' AND (f2<>0 OR f3<>0 AND f5<>0 OR f4 LIKE '%b%');
+f4
+r
+EXPLAIN EXTENDED
+SELECT v1.f4 FROM v1 
+WHERE f1<>0 OR f2<>0 AND f4='v' AND (f2<>0 OR f3<>0 AND f5<>0 OR f4 LIKE '%b%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select 'r' AS `f4` from dual where ((20 <> 0) or 0)
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#798576: abort on a GROUP BY query over a view with left join 
+#             that can be converted to inner join
+#
+CREATE TABLE t1 (a int NOT NULL , b int NOT NULL) ;
+INSERT INTO t1 VALUES (214,0), (6,6), (6,0), (7,0);
+CREATE TABLE t2 (b int) ;
+INSERT INTO t2 VALUES (88), (78), (6);
+CREATE ALGORITHM=MERGE VIEW v1 AS 
+SELECT t1.a, t2.b FROM (t2 LEFT JOIN t1 ON t2.b > t1.a) WHERE t1.b <= 0;
+SELECT * FROM v1;
+a	b
+6	88
+6	78
+7	88
+7	78
+SELECT a, MIN(b) FROM v1 GROUP BY a;
+a	MIN(b)
+6	78
+7	78
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+# LP bug #793386: unexpected 'Duplicate column name ''' error
+#                 at the second execution of a PS using a view 
+#
+CREATE TABLE t1 (f1 int, f2 int, f3 int, f4 int);
+CREATE VIEW v1 AS
+SELECT t.f1, t.f2, s.f3, s.f4 FROM t1 t, t1 s
+WHERE t.f4 >= s.f2 AND s.f3 < 0;
+PREPARE stmt1 FROM 
+"SELECT s.f1 AS f1, s.f2 AS f2, s.f3 AS f3, t.f4 AS f4
+    FROM v1 AS t LEFT JOIN v1 AS s ON t.f4=s.f4 WHERE t.f2 <> 1225";
+EXECUTE stmt1;
+f1	f2	f3	f4
+EXECUTE stmt1;
+f1	f2	f3	f4
+DEALLOCATE PREPARE stmt1;
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# LP BUG#806071 (2 views with ORDER BY)
+#
+CREATE TABLE t1 (f1 int);
+INSERT INTO t1 VALUES (1),(1);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT f1 FROM t1;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1 FROM v1 ORDER BY f1;
+SELECT * FROM v2 AS a1, v2 AS a2;
+f1	f1
+1	1
+1	1
+1	1
+1	1
+EXPLAIN EXTENDED SELECT * FROM v2 AS a1, v2 AS a2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	<derived5>	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1926	View 'test'.'v2' ORDER BY clause ignored because there is other ORDER BY clause already.
+Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f1` AS `f1` from `test`.`v1` join `test`.`v1` order by `v1`.`f1`
+DROP VIEW v1, v2;
+DROP TABLE t1;
+#
+# LP bug #823189: dependent subquery with RIGHT JOIN
+#                 referencing view in WHERE
+#
+CREATE TABLE t1 (a varchar(32));
+INSERT INTO t1 VALUES ('y'), ('w');
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (10);
+CREATE TABLE t3 (a varchar(32), b int);
+CREATE TABLE t4 (a varchar(32));
+INSERT INTO t4 VALUES ('y'), ('w');
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN EXTENDED
+SELECT * FROM t1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL))))))
+SELECT * FROM t1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= t1.a);
+a	a
+EXPLAIN EXTENDED
+SELECT * FROM v1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= v1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'v1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a`,10 AS `a` from `test`.`t1` where (not(<in_optimizer>(10,<exists>(select NULL from `test`.`t4` where ((`test`.`t4`.`a` >= `test`.`t1`.`a`) and trigcond(((<cache>(10) = NULL) or <cache>(isnull(NULL))))) having trigcond(<is_not_null_test>(NULL))))))
+SELECT * FROM v1, t2
+WHERE t2.a NOT IN (SELECT t3.b FROM t3 RIGHT JOIN t4 ON (t4.a = t3.a)
+WHERE t4.a >= v1.a);
+a	a
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4;
 drop table if exists t_9801;
 drop view if exists v_9801;
 create table t_9801 (s1 int);

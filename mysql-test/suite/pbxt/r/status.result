@@ -100,22 +100,30 @@ Variable_name	Value
 Com_show_status	3
 show status like 'hand%write%';
 Variable_name	Value
-Handler_write	0
+Handler_tmp_write	0
+Handler_write	5
 show status like '%tmp%';
 Variable_name	Value
 Created_tmp_disk_tables	0
 Created_tmp_files	0
 Created_tmp_tables	0
+Handler_tmp_update	0
+Handler_tmp_write	0
+Rows_tmp_read	5
 show status like 'hand%write%';
 Variable_name	Value
-Handler_write	0
+Handler_tmp_write	0
+Handler_write	7
 show status like '%tmp%';
 Variable_name	Value
 Created_tmp_disk_tables	0
 Created_tmp_files	0
 Created_tmp_tables	0
+Handler_tmp_update	0
+Handler_tmp_write	0
+Rows_tmp_read	13
 show status like 'com_show_status';
 Variable_name	Value
 Com_show_status	8
 rnd_diff	tmp_table_diff
-20	8
+28	8

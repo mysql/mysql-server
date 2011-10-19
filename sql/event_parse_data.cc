@@ -112,7 +112,7 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
 void
 Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
 {
-  if (ltime_utc >= (my_time_t) thd->query_start())
+  if (ltime_utc >= thd->query_start())
     return;
 
   /*
@@ -200,7 +200,7 @@ Event_parse_data::check_dates(THD *thd, int previous_on_completion)
 int
 Event_parse_data::init_execute_at(THD *thd)
 {
-  my_bool not_used;
+  uint not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -217,7 +217,7 @@ Event_parse_data::init_execute_at(THD *thd)
                       (starts_null && ends_null)));
   DBUG_ASSERT(starts_null && ends_null);
 
-  if ((not_used= item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  if (item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE))
     goto wrong_value;
 
   ltime_utc= TIME_to_timestamp(thd,&ltime,&not_used);
@@ -255,7 +255,6 @@ wrong_value:
 int
 Event_parse_data::init_interval(THD *thd)
 {
-  String value;
   INTERVAL interval_tmp;
 
   DBUG_ENTER("Event_parse_data::init_interval");
@@ -277,8 +276,7 @@ Event_parse_data::init_interval(THD *thd)
   if (item_expression->fix_fields(thd, &item_expression))
     goto wrong_value;
 
-  value.alloc(MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN);
-  if (get_interval_value(item_expression, interval, &value, &interval_tmp))
+  if (get_interval_value(item_expression, interval, &interval_tmp))
     goto wrong_value;
 
   expression= 0;
@@ -370,7 +368,7 @@ wrong_value:
 int
 Event_parse_data::init_starts(THD *thd)
 {
-  my_bool not_used;
+  uint not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -381,7 +379,7 @@ Event_parse_data::init_starts(THD *thd)
   if (item_starts->fix_fields(thd, &item_starts))
     goto wrong_value;
 
-  if ((not_used= item_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  if (item_starts->get_date(&ltime, TIME_NO_ZERO_DATE))
     goto wrong_value;
 
   ltime_utc= TIME_to_timestamp(thd, &ltime, &not_used);
@@ -424,7 +422,7 @@ wrong_value:
 int
 Event_parse_data::init_ends(THD *thd)
 {
-  my_bool not_used;
+  uint not_used;
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
@@ -436,7 +434,7 @@ Event_parse_data::init_ends(THD *thd)
     goto error_bad_params;
 
   DBUG_PRINT("info", ("convert to TIME"));
-  if ((not_used= item_ends->get_date(&ltime, TIME_NO_ZERO_DATE)))
+  if (item_ends->get_date(&ltime, TIME_NO_ZERO_DATE))
     goto error_bad_params;
 
   ltime_utc= TIME_to_timestamp(thd, &ltime, &not_used);

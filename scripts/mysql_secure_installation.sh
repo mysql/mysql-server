@@ -165,9 +165,9 @@ then
   exit 1
 fi
 
-# Now we can get arguments from the group [client]
+# Now we can get arguments from the group [client] and [client-server]
 # in the my.cfg file, then re-run to merge with command line arguments.
-parse_arguments `$print_defaults $defaults client`
+parse_arguments `$print_defaults $defaults client client-server client-mariadb`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Configure paths to support files

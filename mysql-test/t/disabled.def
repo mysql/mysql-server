@@ -9,8 +9,8 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-main.events_time_zone    : Test is not predictable as it depends on precise timing.
-table_elim               : sergeyp to reapply 2643.26.4 in Item_sum::update_used_tables
+events_time_zone         : Test is not predictable as it depends on precise timing.
+table_elim              : sergeyp to reapply 2643.26.4 in Item_sum::update_used_tables
 lowercase_table3         : Bug#11762269 2010-06-30 alik main.lowercase_table3 on Mac OSX
 read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
 sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
@@ -19,4 +19,10 @@ create-big               : Bug#11748731 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
 mysql_embedded           : Bug#12561297 2011-06-15 New test failing on all platforms
-tablespace               : disabled in MariaDB
+tablespace               : disabled in MariaDB (no TABLESPACE table attribute)
+derived_view            : SergeyP
+subselect4              : SergeyP
+subselect_mat           : SergeyP
+subselect_sj_mat        : SergeyP
+subselect_sj2_mat       : SergeyP
+subselect_sj_nonmerged  : SergeyP

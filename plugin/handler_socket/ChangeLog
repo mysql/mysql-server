@@ -1,0 +1,19 @@
+1.0.6 - For MariaDB
+  * Modifications to Makefiles to be part of plugin directory
+  * Compiled by default in max builds
+  * Some minor changes in database.cpp to use the new MariaDB handler
+    interface
+o  * Fixed compiler warnings
+
+1.0.6 - 2010-10-29
+  * Changed build instruction (autoreconf/configure/make), removed auto-generated files (Contributed by jmhodges)
+  * 
+
+1.0.5 - 2010-10-18
+  * Changed build procedures (using typical configure/make)
+  * Supported 5.5.6
+  * Added status variables
+
+1.0.4 - 2010-08-15 
+  * Initial public release
+

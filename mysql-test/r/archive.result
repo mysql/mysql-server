@@ -1,4 +1,5 @@
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Table 't1' is marked as crashed and should be repaired");
 DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 SET storage_engine=ARCHIVE;
 CREATE TABLE t1 (
@@ -12728,6 +12729,7 @@ id	id	name	name
 1	1	a	b
 2	2	a	b
 DROP TABLE t1,t2;
+flush tables;
 SHOW CREATE TABLE t1;
 ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
 SELECT * FROM t1;

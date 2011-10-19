@@ -1,0 +1,65 @@
+CREATE TABLE t1 (a VARCHAR(10) PRIMARY KEY) ENGINE=innodb;
+SELECT variable_value INTO @commits FROM information_schema.global_status
+WHERE variable_name = 'binlog_commits';
+SELECT variable_value INTO @group_commits FROM information_schema.global_status
+WHERE variable_name = 'binlog_group_commits';
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group1_running WAIT_FOR group2_queued";
+INSERT INTO t1 VALUES ("con1");
+set DEBUG_SYNC= "now WAIT_FOR group1_running";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con2";
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group2_running";
+SET DEBUG_SYNC= "commit_after_release_LOCK_log WAIT_FOR group3_committed";
+SET DEBUG_SYNC= "commit_after_group_run_commit_ordered SIGNAL group2_visible WAIT_FOR group2_checked";
+INSERT INTO t1 VALUES ("con2");
+SET DEBUG_SYNC= "now WAIT_FOR group2_con2";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con3";
+INSERT INTO t1 VALUES ("con3");
+SET DEBUG_SYNC= "now WAIT_FOR group2_con3";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con4";
+INSERT INTO t1 VALUES ("con4");
+SET DEBUG_SYNC= "now WAIT_FOR group2_con4";
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT * FROM t1 ORDER BY a;
+a
+SET DEBUG_SYNC= "now SIGNAL group2_queued";
+SELECT * FROM t1 ORDER BY a;
+a
+con1
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group3_con5";
+SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con5_leader WAIT_FOR con6_queued";
+set DEBUG_SYNC= "now WAIT_FOR group2_running";
+INSERT INTO t1 VALUES ("con5");
+SET DEBUG_SYNC= "now WAIT_FOR con5_leader";
+SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL con6_queued";
+INSERT INTO t1 VALUES ("con6");
+SET DEBUG_SYNC= "now WAIT_FOR group3_con5";
+SELECT * FROM t1 ORDER BY a;
+a
+con1
+SET DEBUG_SYNC= "now SIGNAL group3_committed";
+SET DEBUG_SYNC= "now WAIT_FOR group2_visible";
+SELECT * FROM t1 ORDER BY a;
+a
+con1
+con2
+con3
+con4
+SET DEBUG_SYNC= "now SIGNAL group2_checked";
+SELECT * FROM t1 ORDER BY a;
+a
+con1
+con2
+con3
+con4
+con5
+con6
+SELECT variable_value - @commits FROM information_schema.global_status
+WHERE variable_name = 'binlog_commits';
+variable_value - @commits
+6
+SELECT variable_value - @group_commits FROM information_schema.global_status
+WHERE variable_name = 'binlog_group_commits';
+variable_value - @group_commits
+3
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;

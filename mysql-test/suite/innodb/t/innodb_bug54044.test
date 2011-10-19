@@ -2,9 +2,6 @@
 # during create table, so it will not trigger assertion failure.
 
 
-# This 'create table' operation should fail because of
-# using NULL datatype
---error ER_CANT_CREATE_TABLE
 CREATE TEMPORARY TABLE table_54044 ENGINE = INNODB
  AS SELECT IF(NULL  IS NOT NULL, NULL, NULL); 
 

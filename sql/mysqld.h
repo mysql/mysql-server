@@ -204,7 +204,6 @@ extern int bootstrap_error;
 extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
-extern my_decimal decimal_zero;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
@@ -241,14 +240,15 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 extern PSI_mutex_key key_LOCK_stats,
   key_LOCK_global_user_client_stats, key_LOCK_global_table_stats,
-  key_LOCK_global_index_stats;
+  key_LOCK_global_index_stats, key_LOCK_wakeup_ready;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock;
 
 #ifdef HAVE_MMAP
-extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
+extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool,
+                    key_COND_queue_busy;
 #endif /* HAVE_MMAP */
 
 extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
@@ -261,7 +261,7 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
-extern PSI_cond_key key_RELAYLOG_update_cond;
+extern PSI_cond_key key_RELAYLOG_update_cond, key_COND_wakeup_ready;
 
 extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
   key_thread_handle_manager, key_thread_kill_server, key_thread_main,
@@ -321,7 +321,7 @@ extern MYSQL_PLUGIN_IMPORT key_map key_map_full;          /* Should be threaded 
  */
 extern mysql_mutex_t
        LOCK_user_locks, LOCK_status,
-       LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
+       LOCK_error_log, LOCK_delayed_insert, LOCK_short_uuid_generator,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn,
@@ -358,6 +358,7 @@ enum options_mysqld
   OPT_BINLOG_FORMAT,
   OPT_BINLOG_IGNORE_DB,
   OPT_BIN_LOG,
+  OPT_LOG_BASENAME,
   OPT_BOOTSTRAP,
   OPT_CONSOLE,
   OPT_DEBUG_SYNC_TIMEOUT,
@@ -411,7 +412,9 @@ enum enum_query_type
   /// In utf8.
   QT_TO_SYSTEM_CHARSET= (1 << 0),
   /// Without character set introducers.
-  QT_WITHOUT_INTRODUCERS= (1 << 1)
+  QT_WITHOUT_INTRODUCERS= (1 << 1),
+  /// view internal representation (like QT_ORDINARY except ORDER BY clause)
+  QT_VIEW_INTERNAL= (1 << 2)
 };
 
 /* query_id */
@@ -519,10 +522,20 @@ inline THD *_current_thd(void)
 extern handlerton *maria_hton;
 
 extern uint extra_connection_count;
-extern my_bool opt_userstat_running;
+extern my_bool opt_userstat_running, debug_assert_if_crashed_table;
 extern uint mysqld_extra_port;
+extern ulong opt_progress_report_time;
 extern ulong extra_max_connections;
 extern ulonglong denied_connections;
 extern ulong thread_created;
 extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
+extern char *opt_log_basename;
+extern my_bool opt_master_verify_checksum;
+extern my_bool opt_slave_sql_verify_checksum;
+extern ulong binlog_checksum_options;
+
+extern uint volatile global_disable_checkpoint;
+extern my_bool opt_help, opt_thread_alarm;
+extern my_bool opt_query_cache_strip_comments;
+
 #endif /* MYSQLD_INCLUDED */

@@ -53,6 +53,9 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <mysql/psi/psi.h>
 #include <my_sys.h>
 
+#ifdef _WIN32
+#include <io.h>
+#endif
 /** @file ha_innodb.cc */
 
 /* Include necessary InnoDB headers */
@@ -98,7 +101,6 @@ extern "C" {
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
-static mysql_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
 static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
@@ -216,7 +218,6 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
 static mysql_pfs_key_t	innobase_share_mutex_key;
-static mysql_pfs_key_t	prepare_commit_mutex_key;
 static mysql_pfs_key_t	commit_threads_m_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
@@ -224,8 +225,7 @@ static mysql_pfs_key_t	commit_cond_key;
 static PSI_mutex_info	all_pthread_mutexes[] = {
         {&commit_threads_m_key, "commit_threads_m", 0},
         {&commit_cond_mutex_key, "commit_cond_mutex", 0},
-        {&innobase_share_mutex_key, "innobase_share_mutex", 0},
-        {&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
+        {&innobase_share_mutex_key, "innobase_share_mutex", 0}
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -338,6 +338,7 @@ static PSI_file_info	all_innodb_files[] = {
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
+static void innobase_commit_ordered(handlerton *hton, THD* thd, bool all);
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
@@ -1521,7 +1522,6 @@ innobase_trx_init(
 	trx_t*	trx)	/*!< in/out: InnoDB transaction handle */
 {
 	DBUG_ENTER("innobase_trx_init");
-	DBUG_ASSERT(EQ_CURRENT_THD(thd));
 	DBUG_ASSERT(thd == trx->mysql_thd);
 
 	trx->check_foreigns = !thd_test_options(
@@ -1570,8 +1570,6 @@ check_trx_exists(
 {
 	trx_t*&	trx = thd_to_trx(thd);
 
-	ut_ad(EQ_CURRENT_THD(thd));
-
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
 	} else if (UNIV_UNLIKELY(trx->magic_n != TRX_MAGIC_N)) {
@@ -1597,15 +1595,15 @@ trx_is_registered_for_2pc(
 }
 
 /*********************************************************************//**
-Note that a transaction owns the prepare_commit_mutex. */
+Note that innobase_commit_ordered() was run. */
 static inline
 void
-trx_owns_prepare_commit_mutex_set(
+trx_set_active_commit_ordered(
 /*==============================*/
 	trx_t*	trx)	/* in: transaction */
 {
 	ut_a(trx_is_registered_for_2pc(trx));
-	trx->owns_prepare_mutex = 1;
+	trx->active_commit_ordered = 1;
 }
 
 /*********************************************************************//**
@@ -1617,7 +1615,7 @@ trx_register_for_2pc(
 	trx_t*	trx)	/* in: transaction */
 {
 	trx->is_registered = 1;
-	ut_ad(trx->owns_prepare_mutex == 0);
+	ut_ad(trx->active_commit_ordered == 0);
 }
 
 /*********************************************************************//**
@@ -1629,19 +1627,18 @@ trx_deregister_from_2pc(
 	trx_t*	trx)	/* in: transaction */
 {
 	trx->is_registered = 0;
-	trx->owns_prepare_mutex = 0;
+	trx->active_commit_ordered = 0;
 }
 
 /*********************************************************************//**
-Check whether atransaction owns the prepare_commit_mutex.
-@return true if transaction owns the prepare commit mutex */
+Check whether a transaction has active_commit_ordered set */
 static inline
 bool
-trx_has_prepare_commit_mutex(
+trx_is_active_commit_ordered(
 /*=========================*/
 	const trx_t*	trx)	/* in: transaction */
 {
-	return(trx->owns_prepare_mutex == 1);
+	return(trx->active_commit_ordered == 1);
 }
 
 /*********************************************************************//**
@@ -2196,6 +2193,8 @@ innobase_init(
         innobase_hton->savepoint_set=innobase_savepoint;
         innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
         innobase_hton->savepoint_release=innobase_release_savepoint;
+	innobase_hton->prepare_ordered=NULL;
+        innobase_hton->commit_ordered=innobase_commit_ordered;
         innobase_hton->commit=innobase_commit;
         innobase_hton->rollback=innobase_rollback;
         innobase_hton->prepare=innobase_xa_prepare;
@@ -2537,8 +2536,6 @@ innobase_change_buffering_inited_ok:
 	mysql_mutex_init(innobase_share_mutex_key,
 			 &innobase_share_mutex,
 			 MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(prepare_commit_mutex_key,
-			 &prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_threads_m_key,
 			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
@@ -2589,7 +2586,6 @@ innobase_end(
 		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path);
 		mysql_mutex_destroy(&innobase_share_mutex);
-		mysql_mutex_destroy(&prepare_commit_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
@@ -2693,6 +2689,109 @@ innobase_start_trx_and_assign_read_view(
 	DBUG_RETURN(0);
 }
 
+static
+void
+innobase_commit_ordered_2(
+/*============*/
+	trx_t*	trx, 	/*!< in: Innodb transaction */
+	THD*	thd)	/*!< in: MySQL thread handle */
+{
+	ulonglong tmp_pos;
+	DBUG_ENTER("innobase_commit_ordered");
+
+	/* We need current binlog position for ibbackup to work.
+	Note, the position is current because commit_ordered is guaranteed
+	to be called in same sequenece as writing to binlog. */
+
+retry:
+	if (innobase_commit_concurrency > 0) {
+		mysql_mutex_lock(&commit_cond_m);
+		commit_threads++;
+
+		if (commit_threads > innobase_commit_concurrency) {
+			commit_threads--;
+			mysql_cond_wait(&commit_cond,
+					  &commit_cond_m);
+			mysql_mutex_unlock(&commit_cond_m);
+			goto retry;
+		}
+		else {
+			mysql_mutex_unlock(&commit_cond_m);
+		}
+	}
+
+	mysql_bin_log_commit_pos(thd, &tmp_pos, &(trx->mysql_log_file_name));
+	trx->mysql_log_offset = (ib_int64_t) tmp_pos;
+
+	/* Don't do write + flush right now. For group commit
+	   to work we want to do the flush in the innobase_commit()
+	   method, which runs without holding any locks. */
+	trx->flush_log_later = TRUE;
+	innobase_commit_low(trx);
+	trx->flush_log_later = FALSE;
+
+	if (innobase_commit_concurrency > 0) {
+		mysql_mutex_lock(&commit_cond_m);
+		commit_threads--;
+		mysql_cond_signal(&commit_cond);
+		mysql_mutex_unlock(&commit_cond_m);
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/*****************************************************************//**
+Perform the first, fast part of InnoDB commit.
+
+Doing it in this call ensures that we get the same commit order here
+as in binlog and any other participating transactional storage engines.
+
+Note that we want to do as little as really needed here, as we run
+under a global mutex. The expensive fsync() is done later, in
+innobase_commit(), without a lock so group commit can take place.
+
+Note also that this method can be called from a different thread than
+the one handling the rest of the transaction. */
+static
+void
+innobase_commit_ordered(
+/*============*/
+	handlerton *hton, /*!< in: Innodb handlerton */
+	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+	bool	all)	/*!< in:	TRUE - commit transaction
+				FALSE - the current SQL statement ended */
+{
+	trx_t*		trx;
+	DBUG_ENTER("innobase_commit_ordered");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+
+	/* Since we will reserve the kernel mutex, we must not be holding the
+	search system latch, or we will disobey the latching order. But we
+	already released it in innobase_xa_prepare() (if not before), so just
+	have an assert here.*/
+	ut_ad(!trx->has_search_latch);
+
+	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
+		/* We cannot throw error here; instead we will catch this error
+		again in innobase_commit() and report it from there. */
+		DBUG_VOID_RETURN;
+	}
+
+	/* commit_ordered is only called when committing the whole transaction
+	(or an SQL statement when autocommit is on). */
+	DBUG_ASSERT(all ||
+		(!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
+
+	innobase_commit_ordered_2(trx, thd);
+
+        trx_set_active_commit_ordered(trx);
+
+	DBUG_VOID_RETURN;
+}
+
 /*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
@@ -2718,7 +2817,7 @@ innobase_commit(
 	/* Since we will reserve the kernel mutex, we have to release
 	the search system latch first to obey the latching order. */
 
-	if (trx->has_search_latch) {
+	if (trx->has_search_latch && !trx_is_active_commit_ordered(trx)) {
 		trx_search_latch_release_if_reserved(trx);
 	}
 
@@ -2736,68 +2835,19 @@ innobase_commit(
 	if (all
 	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
+		/* Run the fast part of commit if we did not already. */
+		if (!trx_is_active_commit_ordered(trx)) {
+			innobase_commit_ordered_2(trx, thd);
+		}
+
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work.
-		Note, the position is current because of
-		prepare_commit_mutex */
-retry:
-		if (innobase_commit_concurrency > 0) {
-			mysql_mutex_lock(&commit_cond_m);
-			commit_threads++;
-
-			if (commit_threads > innobase_commit_concurrency) {
-				commit_threads--;
-				mysql_cond_wait(&commit_cond,
-					&commit_cond_m);
-				mysql_mutex_unlock(&commit_cond_m);
-				goto retry;
-			}
-			else {
-				mysql_mutex_unlock(&commit_cond_m);
-			}
-		}
-
-		/* The following calls to read the MySQL binary log
-		file name and the position return consistent results:
-		1) Other InnoDB transactions cannot intervene between
-		these calls as we are holding prepare_commit_mutex.
-		2) Binary logging of other engines is not relevant
-		to InnoDB as all InnoDB requires is that committing
-		InnoDB transactions appear in the same order in the
-		MySQL binary log as they appear in InnoDB logs.
-		3) A MySQL log file rotation cannot happen because
-		MySQL protects against this by having a counter of
-		transactions in prepared state and it only allows
-		a rotation when the counter drops to zero. See
-		LOCK_prep_xids and COND_prep_xids in log.cc. */
-		trx->mysql_log_file_name = mysql_bin_log_file_name();
-		trx->mysql_log_offset = (ib_int64_t) mysql_bin_log_file_pos();
-
-		/* Don't do write + flush right now. For group commit
-		to work we want to do the flush after releasing the
-		prepare_commit_mutex. */
-		trx->flush_log_later = TRUE;
-		innobase_commit_low(trx);
-		trx->flush_log_later = FALSE;
-
-		if (innobase_commit_concurrency > 0) {
-			mysql_mutex_lock(&commit_cond_m);
-			commit_threads--;
-			mysql_cond_signal(&commit_cond);
-			mysql_mutex_unlock(&commit_cond_m);
-		}
-
-		if (trx_has_prepare_commit_mutex(trx)) {
-  
-			mysql_mutex_unlock(&prepare_commit_mutex);
-  		}
-  
-		trx_deregister_from_2pc(trx);
-
-		/* Now do a write + flush of logs. */
+		/* We did the first part already in innobase_commit_ordered(),
+		Now finish by doing a write + flush of logs. */
 		trx_commit_complete_for_mysql(trx);
+                trx_deregister_from_2pc(trx);
+
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -3173,12 +3223,15 @@ UNIV_INTERN
 ulong
 ha_innobase::index_flags(
 /*=====================*/
-	uint,
+	uint index,
 	uint,
 	bool)
 const
 {
-	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+       ulong extra_flag= 0;
+       if (table && index == table->s->primary_key)
+             extra_flag= HA_CLUSTERED_INDEX;
+	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | extra_flag
 	       | HA_READ_RANGE | HA_KEYREAD_ONLY);
 }
 
@@ -4158,90 +4211,64 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
 	the type */
 
-	DBUG_ASSERT((ulint)MYSQL_TYPE_STRING < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_VAR_STRING < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_DOUBLE < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_FLOAT < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_STRING < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_VAR_STRING < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_DOUBLE < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_FLOAT < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_DECIMAL < 256);
 
-	if (field->flags & UNSIGNED_FLAG) {
+	*unsigned_flag = 0;
 
+	switch (field->key_type()) {
+	case HA_KEYTYPE_USHORT_INT:
+	case HA_KEYTYPE_ULONG_INT:
+	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_ULONGLONG:
 		*unsigned_flag = DATA_UNSIGNED;
-	} else {
-		*unsigned_flag = 0;
-	}
-
-	if (field->real_type() == MYSQL_TYPE_ENUM
-		|| field->real_type() == MYSQL_TYPE_SET) {
-
-		/* MySQL has field->type() a string type for these, but the
-		data is actually internally stored as an unsigned integer
-		code! */
-
-		*unsigned_flag = DATA_UNSIGNED; /* MySQL has its own unsigned
-						flag set to zero, even though
-						internally this is an unsigned
-						integer type */
+		/* fall through */
+	case HA_KEYTYPE_SHORT_INT:
+	case HA_KEYTYPE_LONG_INT:
+	case HA_KEYTYPE_INT24:
+	case HA_KEYTYPE_INT8:
+	case HA_KEYTYPE_LONGLONG:
 		return(DATA_INT);
-	}
-
-	switch (field->type()) {
-		/* NOTE that we only allow string types in DATA_MYSQL and
-		DATA_VARMYSQL */
-	case MYSQL_TYPE_VAR_STRING: /* old <= 4.1 VARCHAR */
-	case MYSQL_TYPE_VARCHAR:    /* new >= 5.0.3 true VARCHAR */
-		if (field->binary()) {
-			return(DATA_BINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+	case HA_KEYTYPE_FLOAT:
+		return(DATA_FLOAT);
+	case HA_KEYTYPE_DOUBLE:
+		return(DATA_DOUBLE);
+	case HA_KEYTYPE_BINARY:
+                if (field->type() == MYSQL_TYPE_TINY)
+                { // compatibility workaround
+                	*unsigned_flag= DATA_UNSIGNED;
+                	return DATA_INT;
+                }
+		return(DATA_FIXBINARY);
+	case HA_KEYTYPE_VARBINARY2:
+		if (field->type() != MYSQL_TYPE_VARCHAR)
+			return(DATA_BLOB);
+		/* fall through */
+	case HA_KEYTYPE_VARBINARY1:
+		return(DATA_BINARY);
+	case HA_KEYTYPE_VARTEXT2:
+		if (field->type() != MYSQL_TYPE_VARCHAR)
+			return(DATA_BLOB);
+		/* fall through */
+	case HA_KEYTYPE_VARTEXT1:
+		if (field->charset() == &my_charset_latin1) {
 			return(DATA_VARCHAR);
 		} else {
 			return(DATA_VARMYSQL);
 		}
-	case MYSQL_TYPE_BIT:
-	case MYSQL_TYPE_STRING: if (field->binary()) {
-
-			return(DATA_FIXBINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+	case HA_KEYTYPE_TEXT:
+		if (field->charset() == &my_charset_latin1) {
 			return(DATA_CHAR);
 		} else {
 			return(DATA_MYSQL);
 		}
-	case MYSQL_TYPE_NEWDECIMAL:
-		return(DATA_FIXBINARY);
-	case MYSQL_TYPE_LONG:
-	case MYSQL_TYPE_LONGLONG:
-	case MYSQL_TYPE_TINY:
-	case MYSQL_TYPE_SHORT:
-	case MYSQL_TYPE_INT24:
-	case MYSQL_TYPE_DATE:
-	case MYSQL_TYPE_DATETIME:
-	case MYSQL_TYPE_YEAR:
-	case MYSQL_TYPE_NEWDATE:
-	case MYSQL_TYPE_TIME:
-	case MYSQL_TYPE_TIMESTAMP:
-		return(DATA_INT);
-	case MYSQL_TYPE_FLOAT:
-		return(DATA_FLOAT);
-	case MYSQL_TYPE_DOUBLE:
-		return(DATA_DOUBLE);
-	case MYSQL_TYPE_DECIMAL:
+	case HA_KEYTYPE_NUM:
 		return(DATA_DECIMAL);
-	case MYSQL_TYPE_GEOMETRY:
-	case MYSQL_TYPE_TINY_BLOB:
-	case MYSQL_TYPE_MEDIUM_BLOB:
-	case MYSQL_TYPE_BLOB:
-	case MYSQL_TYPE_LONG_BLOB:
-		return(DATA_BLOB);
-	case MYSQL_TYPE_NULL:
-		/* MySQL currently accepts "NULL" datatype, but will
-		reject such datatype in the next release. We will cope
-		with it and not trigger assertion failure in 5.1 */
-		break;
-	default:
+	case HA_KEYTYPE_BIT:
+	case HA_KEYTYPE_END:
 		ut_error;
 	}
 
@@ -7998,6 +8025,8 @@ ha_innobase::info_low(
 		}
 
 		stats.check_time = 0;
+                stats.mrr_length_per_rec= ref_length +  8; // 8 = max(sizeof(void *));
+
 
 		if (stats.records == 0) {
 			stats.mean_rec_length = 0;
@@ -10210,33 +10239,6 @@ innobase_xa_prepare(
 	threads: */
 
 	srv_active_wake_master_thread();
-
-	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
-	    && (all
-		|| !thd_test_options(
-			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-
-		/* For ibbackup to work the order of transactions in binlog
-		and InnoDB must be the same. Consider the situation
-
-		  thread1> prepare; write to binlog; ...
-			  <context switch>
-		  thread2> prepare; write to binlog; commit
-		  thread1>			     ... commit
-
-		To ensure this will not happen we're taking the mutex on
-		prepare, and releasing it on commit.
-
-		Note: only do it for normal commits, done via ha_commit_trans.
-		If 2pc protocol is executed by external transaction
-		coordinator, it will be just a regular MySQL client
-		executing XA PREPARE and XA COMMIT commands.
-		In this case we cannot know how many minutes or hours
-		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time. */
-		mysql_mutex_lock(&prepare_commit_mutex);
-		trx_owns_prepare_commit_mutex_set(trx);
-	}
 
 	return(error);
 }

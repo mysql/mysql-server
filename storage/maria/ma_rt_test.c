@@ -93,9 +93,10 @@ static enum data_file_type record_type= DYNAMIC_RECORD;
 
 int main(int argc, char *argv[])
 {
+  char buff[FN_REFLEN];  
   MY_INIT(argv[0]);
-  get_options(argc, argv);
   maria_data_root= (char *)".";
+  get_options(argc, argv);
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
@@ -113,7 +114,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  exit(run_test("rt_test"));
+  exit(run_test(fn_format(buff, "test1", maria_data_root, "", MYF(0))));
 }
 
 
@@ -614,6 +615,8 @@ static struct my_option my_long_options[] =
 #endif
   {"help", '?', "Display help and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"datadir", 'h', "Path to the database root.", &maria_data_root,
+   &maria_data_root, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"row-fixed-size", 'S', "Fixed size records",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"rows-in-block", 'M', "Store rows in block format",

@@ -43,9 +43,9 @@ RESET MASTER;
 -- source include/wait_until_disconnected.inc
 
 # 2. Prepare log and index file
--- copy_file $MYSQLD_DATADIR/master-bin.index $MYSQLD_DATADIR/master-bin.index.orig
+-- copy_file $MYSQLD_DATADIR/mysqld-bin.index $MYSQLD_DATADIR/mysqld-bin.index.orig
 -- copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.2147483646
--- append_file $MYSQLD_DATADIR/master-bin.index
+-- append_file $MYSQLD_DATADIR/mysqld-bin.index
 master-bin.2147483646
 EOF
 
@@ -72,9 +72,9 @@ FLUSH LOGS;
 -- source include/wait_until_disconnected.inc
 
 # 2. Undo changes to index and log files
--- remove_file $MYSQLD_DATADIR/master-bin.index
--- copy_file $MYSQLD_DATADIR/master-bin.index.orig $MYSQLD_DATADIR/master-bin.index
--- remove_file $MYSQLD_DATADIR/master-bin.index.orig
+-- remove_file $MYSQLD_DATADIR/mysqld-bin.index
+-- copy_file $MYSQLD_DATADIR/mysqld-bin.index.orig $MYSQLD_DATADIR/mysqld-bin.index
+-- remove_file $MYSQLD_DATADIR/mysqld-bin.index.orig
 
 -- remove_file $MYSQLD_DATADIR/master-bin.2147483646
 -- remove_file $MYSQLD_DATADIR/master-bin.2147483647

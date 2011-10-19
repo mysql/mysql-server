@@ -414,14 +414,29 @@ void _ma_init_block_record_data(void)
 
 my_bool _ma_once_init_block_record(MARIA_SHARE *share, File data_file)
 {
+  my_bool res;
+  pgcache_page_no_t last_page; 
 
-  share->base.max_data_file_length=
-    (((ulonglong) 1 << ((share->base.rec_reflength-1)*8))-1) *
-    share->block_size;
+  /*
+    First calculate the max file length with can have with a pointer of size
+    rec_reflength.
+
+    The 'rec_reflength - 1' is because one byte is used for row
+    position withing the page.
+    The /2 comes from _ma_transaction_recpos_to_keypos() where we use
+    the lowest bit to mark if there is a transid following the rownr.
+  */
+  last_page= ((ulonglong) 1 << ((share->base.rec_reflength-1)*8))/2;
+  if (!last_page)                                  /* Overflow; set max size */
+    last_page= ~(pgcache_page_no_t) 0;
+
+  res= _ma_bitmap_init(share, data_file, &last_page);
+  share->base.max_data_file_length= _ma_safe_mul(last_page + 1,
+                                                 share->block_size);
 #if SIZEOF_OFF_T == 4
-    set_if_smaller(share->base.max_data_file_length, INT_MAX32);
+  set_if_smaller(share->base.max_data_file_length, INT_MAX32);
 #endif
-  return _ma_bitmap_init(share, data_file);
+  return res;
 }
 
 
@@ -891,8 +906,7 @@ static my_bool extend_area_on_page(MARIA_HA *info,
           DBUG_PRINT("error", ("Not enough space: "
                                "length: %u  request_length: %u",
                                length, request_length));
-          my_errno= HA_ERR_WRONG_IN_RECORD;     /* File crashed */
-          DBUG_ASSERT(0);                       /* For debugging */
+          _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
           DBUG_RETURN(1);                       /* Error in block */
         }
         *empty_space= length;                   /* All space is here */
@@ -1020,7 +1034,7 @@ make_space_for_directory(MARIA_HA *info,
           UNDO of DELETE (in which case we know the row was on the
           page before) or if the bitmap told us there was space on page
         */
-        DBUG_ASSERT(0);
+        DBUG_ASSERT(!maria_assert_if_crashed_table);
         return(1);
       }
     }
@@ -1707,7 +1721,7 @@ struct st_row_pos_info
 
 
 static my_bool get_head_or_tail_page(MARIA_HA *info,
-                                     MARIA_BITMAP_BLOCK *block,
+                                     const MARIA_BITMAP_BLOCK *block,
                                      uchar *buff, uint length, uint page_type,
                                      enum pagecache_page_lock lock,
                                      struct st_row_pos_info *res)
@@ -1777,7 +1791,8 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
   DBUG_RETURN(0);
 
 crashed:
-  my_errno= HA_ERR_WRONG_IN_RECORD;             /* File crashed */
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);  /* File crashed */
   DBUG_RETURN(1);
 }
 
@@ -1806,7 +1821,7 @@ crashed:
 */
 
 static my_bool get_rowpos_in_head_or_tail_page(MARIA_HA *info,
-                                               MARIA_BITMAP_BLOCK *block,
+                                               const MARIA_BITMAP_BLOCK *block,
                                                uchar *buff, uint length,
                                                uint page_type,
                                                enum pagecache_page_lock lock,
@@ -1870,7 +1885,8 @@ static my_bool get_rowpos_in_head_or_tail_page(MARIA_HA *info,
   DBUG_RETURN(0);
 
 err:
-  my_errno= HA_ERR_WRONG_IN_RECORD;             /* File crashed */
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);  /* File crashed */
   DBUG_RETURN(1);
 }
 
@@ -2018,6 +2034,7 @@ static my_bool write_tail(MARIA_HA *info,
                                PAGECACHE_WRITE_DELAY, &page_link.link,
                                LSN_IMPOSSIBLE)))
     {
+      DBUG_ASSERT(page_link.link);
       page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
       page_link.changed= 1;
       push_dynamic(&info->pinned_pages, (void*) &page_link);
@@ -2094,8 +2111,7 @@ static my_bool write_full_pages(MARIA_HA *info,
     {
       if (!--sub_blocks)
       {
-        DBUG_ASSERT(0);                         /* Wrong in bitmap or UNDO */
-        my_errno= HA_ERR_WRONG_IN_RECORD;       /* File crashed */
+        _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
         DBUG_RETURN(1);
       }
 
@@ -2241,7 +2257,7 @@ static void store_extent_info(uchar *to,
   for (block= first_block, end_block= first_block+count ;
        block < end_block; block++)
   {
-    /* The following is only false for marker blocks */
+    /* The following is only false for marker (unused) blocks */
     if (likely(block->used & BLOCKUSED_USED))
     {
       uint page_count= block->page_count;
@@ -2506,7 +2522,7 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
   }
   if (delete_count &&
       pagecache_delete_pages(share->pagecache, &info->dfile,
-                             page, delete_count, PAGECACHE_LOCK_WRITE, 0))
+                             page, delete_count, PAGECACHE_LOCK_WRITE, 1))
     res= 1;
 
   if (share->now_transactional)
@@ -2756,7 +2772,7 @@ static my_bool write_block_record(MARIA_HA *info,
       DBUG_ASSERT(length <= column->length);
       break;
     default:                                    /* Wrong data */
-      DBUG_ASSERT(0);
+      DBUG_ASSERT(!maria_assert_if_crashed_table);
       length=0;
       break;
     }
@@ -2815,7 +2831,6 @@ static my_bool write_block_record(MARIA_HA *info,
   DBUG_PRINT("info", ("Used head length on page: %u  header_length: %u",
                       head_length,
                       (uint) (flag & ROW_FLAG_TRANSID ? TRANSID_SIZE : 0)));
-  DBUG_ASSERT(data <= end_of_data);
   if (head_length < share->base.min_block_length)
   {
     /* Extend row to be of size min_block_length */
@@ -2824,6 +2839,7 @@ static my_bool write_block_record(MARIA_HA *info,
     data+= diff_length;
     head_length= share->base.min_block_length;
   }
+  DBUG_ASSERT(data <= end_of_data);
   /*
     If this is a redo entry (ie, undo_lsn != LSN_ERROR) then we should have
     written exactly head_length bytes (same as original record).
@@ -3070,9 +3086,10 @@ static my_bool write_block_record(MARIA_HA *info,
           extent_data= row_extents_second_part +
             ((last_head_block - head_block) - 2) * ROW_EXTENT_SIZE;
         }
-        DBUG_ASSERT(uint2korr(extent_data+5) & TAIL_BIT);
+        /* Write information for tail block in the reserved space */
         page_store(extent_data, head_tail_block->page);
-        int2store(extent_data + PAGE_STORE_SIZE, head_tail_block->page_count);
+        pagerange_store(extent_data + PAGE_STORE_SIZE,
+                        head_tail_block->page_count);
       }
     }
     else
@@ -3146,6 +3163,7 @@ static my_bool write_block_record(MARIA_HA *info,
                         PAGECACHE_WRITE_DELAY, &page_link.link,
                         LSN_IMPOSSIBLE))
       goto disk_err;
+    DBUG_ASSERT(page_link.link);
     page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
     page_link.changed= 1;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
@@ -3414,8 +3432,9 @@ static my_bool write_block_record(MARIA_HA *info,
   DBUG_RETURN(0);
 
 crashed:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   /* Something was wrong with data on page */
-  my_errno= HA_ERR_WRONG_IN_RECORD;
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
 
 disk_err:
   /**
@@ -3488,7 +3507,9 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
 
   /* page will be pinned & locked by get_head_or_tail_page */
   if (get_head_or_tail_page(info, blocks->block, info->buff,
-                            row->space_on_head_page, HEAD_PAGE,
+                            max(row->space_on_head_page,
+                                info->s->base.min_block_length),
+                            HEAD_PAGE,
                             PAGECACHE_LOCK_WRITE, &row_pos))
     goto err;
   row->lastpos= ma_recordpos(blocks->block->page, row_pos.rownr);
@@ -3619,6 +3640,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
       }
     }
   }
+  _ma_bitmap_unlock(share);
   if (share->now_transactional)
   {
     if (_ma_write_clr(info, info->cur_row.orig_undo_lsn,
@@ -3628,7 +3650,6 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                       &lsn, (void*) 0))
       res= 1;
   }
-  _ma_bitmap_unlock(share);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -3806,6 +3827,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_PRINT("error", ("errpos: %d", errpos));
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
@@ -3885,7 +3907,7 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
                ("org_empty_size: %u  head_length: %u  length_on_page: %u",
                 org_empty_size, (uint) cur_row->head_length,
                 length_on_head_page));
-    my_errno= HA_ERR_WRONG_IN_RECORD;
+    _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
     goto err;
   }
 
@@ -3918,8 +3940,11 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
     goto err;
   block= blocks->block;
   block->empty_space= row_pos.empty_space;
-  block->org_bitmap_value= _ma_free_size_to_head_pattern(&share->bitmap,
-                                                         org_empty_size);
+  block->org_bitmap_value=
+    _ma_free_size_to_head_pattern(&share->bitmap,
+                                  (enough_free_entries_on_page(share, buff) ?
+                                   org_empty_size : 0));
+                            
   DBUG_ASSERT(block->org_bitmap_value ==
               _ma_bitmap_get_page_bits(info, &info->s->bitmap, page));
   block->used|= BLOCKUSED_USE_ORG_BITMAP;
@@ -3943,6 +3968,7 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_mark_file_crashed(share);
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
@@ -4100,11 +4126,11 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
 {
   MARIA_SHARE *share= info->s;
   uint empty_space;
-  uint block_size= share->block_size;
+  int res;
+  my_bool page_is_empty;
   uchar *buff;
   LSN lsn;
   MARIA_PINNED_PAGE page_link;
-  int res;
   enum pagecache_page_lock lock_at_write, lock_at_unpin;
   DBUG_ENTER("delete_head_or_tail");
   DBUG_PRINT("enter", ("id: %lu (%lu:%u)",
@@ -4134,13 +4160,14 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     lock_at_unpin= PAGECACHE_LOCK_READ_UNLOCK;
   }
 
-  res= delete_dir_entry(buff, block_size, record_number, &empty_space);
+  res= delete_dir_entry(buff, share->block_size, record_number, &empty_space);
   if (res < 0)
     DBUG_RETURN(1);
   if (res == 0) /* after our deletion, page is still not empty */
   {
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    page_is_empty= 0;
     if (share->now_transactional)
     {
       /* Log REDO data */
@@ -4161,6 +4188,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   }
   else /* page is now empty */
   {
+    page_is_empty= 1;
     if (share->now_transactional)
     {
       uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE];
@@ -4175,6 +4203,13 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                                 log_data, NULL))
         DBUG_RETURN(1);
     }
+    /*
+      Mark that this page must be written to disk by page cache, even
+      if we could call pagecache_delete() on it.
+      This is needed to ensure that repair finds the empty page on disk
+      and not old data.
+    */
+    pagecache_set_write_on_delete_by_link(page_link.link);
     DBUG_ASSERT(empty_space >= share->bitmap.sizes[0]);
   }
 
@@ -4192,8 +4227,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     If there is not enough space for all possible tails, mark the
     page full
   */
-  if (!head && !enough_free_entries(buff, share->block_size,
-                                    1 + share->base.blobs))
+  if (!head && !page_is_empty && !enough_free_entries(buff, share->block_size,
+                                                      1 + share->base.blobs))
     empty_space= 0;
 
   DBUG_RETURN(_ma_bitmap_set(info, page, head, empty_space));
@@ -4315,6 +4350,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
   DBUG_RETURN(1);
@@ -4515,7 +4551,8 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
 
 
 crashed:
-  my_errno= HA_ERR_WRONG_IN_RECORD;             /* File crashed */
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
   DBUG_PRINT("error", ("wrong extent information"));
   DBUG_RETURN(0);
 }
@@ -4660,7 +4697,12 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
   {
     cur_row->trid= transid_korr(data+1);
     if (!info->trn)
-      DBUG_RETURN(my_errno= HA_ERR_WRONG_IN_RECORD);     /* File crashed */
+    {
+      /* File crashed */
+      DBUG_ASSERT(!maria_assert_if_crashed_table);
+      _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
+      DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
+    }
     if (!trnman_can_read_from(info->trn, cur_row->trid))
       DBUG_RETURN(my_errno= HA_ERR_ROW_NOT_VISIBLE);
   }
@@ -4928,7 +4970,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
       goto err;
   }
 #ifdef EXTRA_DEBUG
-  if (share->calc_checksum)
+  if (share->calc_checksum && !info->in_check_table)
   {
     /* Esnure that row checksum is correct */
     DBUG_ASSERT(((share->calc_checksum)(info, record) & 255) ==
@@ -4939,9 +4981,11 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   /* Something was wrong with data on record */
   DBUG_PRINT("error", ("Found record with wrong data"));
-  DBUG_RETURN((my_errno= HA_ERR_WRONG_IN_RECORD));
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
+  DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 }
 
 
@@ -5077,6 +5121,7 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
   DBUG_ASSERT((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == HEAD_PAGE);
   if (!(data= get_record_position(buff, block_size, offset, &end_of_data)))
   {
+    DBUG_ASSERT(!maria_assert_if_crashed_table);
     DBUG_PRINT("error", ("Wrong directory entry in data block"));
     my_errno= HA_ERR_RECORD_DELETED;           /* File crashed */
     DBUG_RETURN(HA_ERR_RECORD_DELETED);
@@ -5154,7 +5199,7 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
           (uchar *) my_malloc(share->block_size * 2, MYF(MY_WME))))))
     DBUG_RETURN(1);
   info->scan.page_buff= info->scan.bitmap_buff + share->block_size;
-  info->scan.bitmap_end= info->scan.bitmap_buff + share->bitmap.total_size;
+  info->scan.bitmap_end= info->scan.bitmap_buff + share->bitmap.max_total_size;
 
   /* Set scan variables to get _ma_scan_block() to start with reading bitmap */
   info->scan.number_of_rows= 0;
@@ -5307,7 +5352,7 @@ restart_record_read:
 #ifdef SANITY_CHECKS
       if (info->scan.dir < info->scan.dir_end)
       {
-        DBUG_ASSERT(0);
+        DBUG_ASSERT(!maria_assert_if_crashed_table);
         goto err;
       }
 #endif
@@ -5391,7 +5436,8 @@ restart_bitmap_scan:
                (uint) (uchar) info->scan.page_buff[DIR_COUNT_OFFSET]) == 0)
           {
             DBUG_PRINT("error", ("Wrong page header"));
-            DBUG_RETURN((my_errno= HA_ERR_WRONG_IN_RECORD));
+            _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
+            DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
           }
           DBUG_PRINT("info", ("Page %lu has %u rows",
                               (ulong) page, info->scan.number_of_rows));
@@ -5418,7 +5464,7 @@ restart_bitmap_scan:
   /* Read next bitmap */
   info->scan.bitmap_page+= share->bitmap.pages_covered;
   filepos= (my_off_t) info->scan.bitmap_page * block_size;
-  if (unlikely(filepos >= share->state.state.data_file_length))
+  if (unlikely(info->scan.bitmap_page >= info->scan.max_page))
   {
     DBUG_PRINT("info", ("Found end of file"));
     DBUG_RETURN((my_errno= HA_ERR_END_OF_FILE));
@@ -5436,8 +5482,10 @@ restart_bitmap_scan:
   goto restart_bitmap_scan;
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_PRINT("error", ("Wrong data on page"));
-  DBUG_RETURN((my_errno= HA_ERR_WRONG_IN_RECORD));
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
+  DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 }
 
 
@@ -6319,6 +6367,12 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   empty_space-= (uint) data_length;
   int2store(buff + EMPTY_SPACE_OFFSET, empty_space);
 
+  /* Fix bitmap */
+  if (!enough_free_entries_on_page(share, buff))
+    empty_space= 0;                         /* Page is full */
+  if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
+    goto err;
+
   /*
     If page was not read before, write it but keep it pinned.
     We don't update its LSN When we have processed all REDOs for this page
@@ -6336,12 +6390,6 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                       LSN_IMPOSSIBLE))
     result= my_errno;
 
-  /* Fix bitmap */
-  if (!enough_free_entries_on_page(share, buff))
-    empty_space= 0;                         /* Page is full */
-  if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
-    goto err;
-
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
   page_link.changed= 1;
   push_dynamic(&info->pinned_pages, (void*) &page_link);
@@ -6355,7 +6403,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   DBUG_RETURN(result);
 
 crashed_file:
-  my_errno= HA_ERR_WRONG_IN_RECORD;
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
 err:
   error= my_errno;
   if (unlock_method == PAGECACHE_LOCK_LEFT_WRITELOCKED)
@@ -6364,7 +6412,7 @@ err:
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                              LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0); /* catch recovery errors early */
+  DBUG_ASSERT(!maria_assert_if_crashed_table); /* catch recovery error early */
   DBUG_RETURN((my_errno= error));
 }
 
@@ -6443,7 +6491,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
 
   if (delete_dir_entry(buff, block_size, rownr, &empty_space) < 0)
   {
-    my_errno= HA_ERR_WRONG_IN_RECORD;
+    _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
     goto err;
   }
 
@@ -6467,7 +6515,7 @@ err:
                            PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                            LSN_IMPOSSIBLE, 0, FALSE);
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0);
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_RETURN((my_errno= error));
 
 }
@@ -6479,7 +6527,13 @@ err:
    @param  info            Maria handler
    @param  header          Header (without FILEID)
 
-   @note It marks the pages free in the bitmap
+   Mark the pages free in the bitmap.
+
+   We have to check against _ma_redo_not_needed_for_page()
+   to guard against the case where we first clear a block and after
+   that insert new data into the blocks.  If we would unconditionally
+   clear the bitmap here, future changes would be ignored for the page
+   if it's not in the dirty list (ie, it would be flushed).
 
    @return Operation status
      @retval 0      OK
@@ -6488,19 +6542,25 @@ err:
 
 uint _ma_apply_redo_free_blocks(MARIA_HA *info,
                                 LSN lsn __attribute__((unused)),
+                                LSN redo_lsn,
                                 const uchar *header)
 {
   MARIA_SHARE *share= info->s;
   uint ranges;
+  uint16 sid;
   DBUG_ENTER("_ma_apply_redo_free_blocks");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
                           STATE_NOT_MOVABLE);
 
+  sid= fileid_korr(header);
+  header+= FILEID_STORE_SIZE;
   ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
   DBUG_ASSERT(ranges > 0);
 
+  /** @todo leave bitmap lock to the bitmap code... */
+  mysql_mutex_lock(&share->bitmap.bitmap_lock);
   while (ranges--)
   {
     my_bool res;
@@ -6517,18 +6577,22 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
 
     DBUG_PRINT("info", ("page: %lu  pages: %u", (long) page, page_range));
 
-    /** @todo leave bitmap lock to the bitmap code... */
-    mysql_mutex_lock(&share->bitmap.bitmap_lock);
-    res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, start_page,
-                                         page_range);
-    mysql_mutex_unlock(&share->bitmap.bitmap_lock);
-    if (res)
+    for ( ; page_range-- ; start_page++)
     {
-      _ma_mark_file_crashed(share);
-      DBUG_ASSERT(0);
-      DBUG_RETURN(res);
+      if (_ma_redo_not_needed_for_page(sid, redo_lsn, start_page, FALSE))
+        continue;
+      res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, start_page,
+                                           1);
+      if (res)
+      {
+        mysql_mutex_unlock(&share->bitmap.bitmap_lock);
+        _ma_mark_file_crashed(share);
+        DBUG_ASSERT(!maria_assert_if_crashed_table);
+        DBUG_RETURN(res);
+      }
     }
   }
+  mysql_mutex_unlock(&share->bitmap.bitmap_lock);
   DBUG_RETURN(0);
 }
 
@@ -6609,7 +6673,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
 
 err:
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0);
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_RETURN(1);
 }
 
@@ -6681,21 +6745,23 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
       uint      page_range;
       pgcache_page_no_t page, start_page;
       uchar     *buff;
+      uint	data_on_page= data_size;
 
       start_page= page= page_korr(header);
       header+= PAGE_STORE_SIZE;
       page_range= pagerange_korr(header);
       header+= PAGERANGE_STORE_SIZE;
 
-      for (i= page_range; i-- > 0 ; page++)
+      for (i= page_range; i-- > 0 ; page++, data+= data_on_page)
       {
         MARIA_PINNED_PAGE page_link;
         enum pagecache_page_lock unlock_method;
         enum pagecache_page_pin unpin_method;
-        uint length;
 
         set_if_smaller(first_page2, page);
         set_if_bigger(last_page2, page);
+        if (i == 0 && sub_ranges == 0)
+          data_on_page= data_size - empty_space; /* data on last page */
         if (_ma_redo_not_needed_for_page(sid, redo_lsn, page, FALSE))
           continue;
 
@@ -6758,7 +6824,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                                        LSN_IMPOSSIBLE, 0, FALSE);
-              continue;
+              goto fix_bitmap;
             }
             DBUG_ASSERT((found_page_type == (uchar) BLOB_PAGE) ||
                         (found_page_type == (uchar) UNALLOCATED_PAGE));
@@ -6774,33 +6840,32 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         lsn_store(buff, lsn);
         buff[PAGE_TYPE_OFFSET]= BLOB_PAGE;
 
-        length= data_size;
-        if (i == 0 && sub_ranges == 0)
+        if (data_on_page != data_size)
         {
           /*
             Last page may be only partly filled. We zero the rest, like
             write_full_pages() does.
           */
-          length-= empty_space;
           bzero(buff + share->block_size - PAGE_SUFFIX_SIZE - empty_space,
                 empty_space);
         }
-        memcpy(buff+ PAGE_TYPE_OFFSET + 1, data, length);
-        data+= length;
+        memcpy(buff+ PAGE_TYPE_OFFSET + 1, data, data_on_page);
         if (pagecache_write(share->pagecache,
                             &info->dfile, page, 0,
                             buff, PAGECACHE_PLAIN_PAGE,
                             unlock_method, unpin_method,
                             PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE))
           goto err;
-      }
+
+    fix_bitmap:
       /** @todo leave bitmap lock to the bitmap code... */
-      mysql_mutex_lock(&share->bitmap.bitmap_lock);
-      res= _ma_bitmap_set_full_page_bits(info, &share->bitmap, start_page,
-                                         page_range);
-      mysql_mutex_unlock(&share->bitmap.bitmap_lock);
-      if (res)
-        goto err;
+        mysql_mutex_lock(&share->bitmap.bitmap_lock);
+        res= _ma_bitmap_set_full_page_bits(info, &share->bitmap, page,
+                                           1);
+        mysql_mutex_unlock(&share->bitmap.bitmap_lock);
+        if (res)
+          goto err;
+      }
     }
   }
   *first_page= first_page2;
@@ -6809,7 +6874,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
 
 err:
   _ma_mark_file_crashed(share);
-  DBUG_ASSERT(0);
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   DBUG_RETURN(1);
 }
 
@@ -6879,6 +6944,7 @@ end:
   DBUG_RETURN(res);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   res= 1;
   _ma_mark_file_crashed(share);
   goto end;
@@ -7117,6 +7183,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
   DBUG_RETURN(0);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   _ma_mark_file_crashed(share);
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
@@ -7292,6 +7359,7 @@ end:
   DBUG_RETURN(error);
 
 err:
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
   error= 1;
   _ma_mark_file_crashed(share);
   goto end;

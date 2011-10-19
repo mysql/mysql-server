@@ -712,7 +712,7 @@ execute stmt;
 call p_verify_reprepare_count(0);
 
 drop view t1;
-# Since the IS table has been substituted in, the statement still works
+--error 1146
 execute stmt;
 call p_verify_reprepare_count(0);
 

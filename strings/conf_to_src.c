@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <m_string.h>
+#include "strings_def.h"
 #include <m_ctype.h>
 #include <fcntl.h>
 #include <my_xml.h>
@@ -251,7 +251,9 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.\n"
+"/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems Inc.\n"
+"   Copyright 2010-2011 Monty Program Ab\n"
+"   Copyright (c) 2003, 2011, Oracle and/or its affiliates\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"
@@ -272,7 +274,7 @@ fprint_copyright(FILE *file)
 int
 main(int argc, char **argv  __attribute__((unused)))
 {
-  CHARSET_INFO  ncs;
+  struct charset_info_st ncs;
   CHARSET_INFO  *cs;
   char filename[256];
   FILE *f= stdout;

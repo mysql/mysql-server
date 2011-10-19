@@ -52,7 +52,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   last_event_start_time(0), m_flags(0)
+   last_event_start_time(0), m_flags(0),
+   m_annotate_event(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -95,6 +96,7 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&stop_cond);
   mysql_cond_destroy(&log_space_cond);
   relay_log.cleanup();
+  free_annotate_event();
   DBUG_VOID_RETURN;
 }
 
@@ -193,9 +195,13 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         " so replication "
                         "may break when this MySQL server acts as a "
                         "slave and has his hostname changed!! Please "
-                        "use '--relay-log=%s' to avoid this problem.", ln);
+                        "use '--log-basename=#' or '--relay-log=%s' to avoid "
+                        "this problem.", ln);
       name_warning_sent= 1;
     }
+
+    rli->relay_log.is_relay_log= TRUE;
+
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
@@ -209,7 +215,6 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
       DBUG_RETURN(1);
     }
-    rli->relay_log.is_relay_log= TRUE;
   }
 
   /* if file does not exist */
@@ -564,8 +569,9 @@ int init_relay_log_pos(Relay_log_info* rli,const char* log,
         Because of we have rli->data_lock and log_lock, we can safely read an
         event
       */
-      if (!(ev=Log_event::read_log_event(rli->cur_log,0,
-                                         rli->relay_log.description_event_for_exec)))
+      if (!(ev= Log_event::read_log_event(rli->cur_log, 0,
+                                          rli->relay_log.description_event_for_exec,
+                                          opt_slave_sql_verify_checksum)))
       {
         DBUG_PRINT("info",("could not read event, rli->cur_log->error=%d",
                            rli->cur_log->error));
@@ -1203,11 +1209,8 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
       is that value may take some time to display in
       Seconds_Behind_Master - not critical).
     */
-#ifndef DBUG_OFF
-    if (!(event_creation_time == 0 && debug_not_change_ts_if_art_event > 0))
-#else
-      if (event_creation_time != 0)
-#endif
+    if (!(event_creation_time == 0 &&
+          IF_DBUG(debug_not_change_ts_if_art_event > 0, 1)))
         last_master_timestamp= event_creation_time;
   }
 }

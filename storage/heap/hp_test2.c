@@ -1,5 +1,5 @@
-/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights
-   reserved
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,7 +310,8 @@ int main(int argc, char *argv[])
     if (!silent)
       printf("- Read last key - delete - prev - prev - opt_delete - prev -> first\n");
 
-    if (heap_rlast(file,record3,0)) goto err;
+    if (heap_rprev(file,record))
+      goto err;
     if (heap_delete(file,record3)) goto err;
     key_check-=atoi((char*) record3);
     key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
@@ -517,7 +518,7 @@ int main(int argc, char *argv[])
   }
 
   ant=0;
-  for (error=heap_rlast(file,record,0) ;
+  for (error=heap_rprev(file,record) ;
       ! error ;
       error=heap_rprev(file,record))
   {

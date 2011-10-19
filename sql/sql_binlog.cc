@@ -184,7 +184,7 @@ void mysql_client_binlog_statement(THD* thd)
       */
       if (!have_fd_event)
       {
-        int type = bufptr[EVENT_TYPE_OFFSET];
+        int type = (uchar)bufptr[EVENT_TYPE_OFFSET];
         if (type == FORMAT_DESCRIPTION_EVENT || type == START_EVENT_V3)
           have_fd_event= TRUE;
         else
@@ -196,7 +196,8 @@ void mysql_client_binlog_statement(THD* thd)
       }
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    rli->relay_log.description_event_for_exec);
+                                    rli->relay_log.description_event_for_exec,
+                                    0);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)

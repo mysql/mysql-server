@@ -16,3 +16,6 @@ Table	Checksum
 test.t1	2948697075
 test.t2	2948697075
 drop table t1,t2;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+<Id>	root	<Host>	test	Query	<Time>	NULL	SHOW PROCESSLIST

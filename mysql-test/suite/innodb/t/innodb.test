@@ -23,8 +23,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 let collation=utf8_unicode_ci;
 --source include/have_collation.inc
 
-set optimizer_switch='index_condition_pushdown=off';
-set @@optimizer_use_mrr=disable;
+set optimizer_switch = 'mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
@@ -963,10 +962,10 @@ insert into t1 (a) select b from t2;
 insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
 select count(*) from t1;
---replace_column 9 #
+--replace_column 9 # 10 #
 explain select * from t1 where c between 1 and 2500;
 update t1 set c=a;
---replace_column 9 #
+--replace_column 9 # 10 #
 explain select * from t1 where c between 1 and 2500;
 drop table t1,t2;
 

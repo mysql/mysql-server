@@ -75,8 +75,10 @@ bufferevent_add(struct event *ev, int timeout)
  */
 
 void
-bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old __attribute__((unused)), size_t now,
-    void *arg) {
+bufferevent_read_pressure_cb(struct evbuffer *buf,
+                             size_t old __attribute__((unused)), size_t now,
+                             void *arg)
+{
 	struct bufferevent *bufev = arg;
 	/* 
 	 * If we are below the watermark then reschedule reading if it's

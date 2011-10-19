@@ -75,7 +75,7 @@ pthread_handler_t test_trnman(void *arg)
 void run_test(const char *test, pthread_handler handler, int n, int m)
 {
   pthread_t *threads;
-  ulonglong now= my_getsystime();
+  ulonglong now= microsecond_interval_timer();
   int i;
 
   litmus= 0;
@@ -97,8 +97,8 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
     }
   for (i= 0 ; i < n ; i++)
     pthread_join(threads[i], 0);
-  now= my_getsystime()-now;
-  ok(litmus == 0, "Tested %s in %g secs (%d)", test, ((double)now)/1e7, litmus);
+  now= microsecond_interval_timer() - now;
+  ok(litmus == 0, "Tested %s in %g secs (%d)", test, ((double)now)/1e6, litmus);
   my_free(threads);
 }
 
@@ -162,10 +162,10 @@ int main(int argc __attribute__((unused)), char **argv)
 
   diag("mallocs: %d", trnman_allocated_transactions);
   {
-    ulonglong now= my_getsystime();
+    ulonglong now= microsecond_interval_timer();
     trnman_destroy();
-    now= my_getsystime()-now;
-    diag("trnman_destroy: %g", ((double)now)/1e7);
+    now= microsecond_interval_timer() - now;
+    diag("trnman_destroy: %g", ((double)now)/1e6);
   }
 
   pthread_mutex_destroy(&rt_mutex);

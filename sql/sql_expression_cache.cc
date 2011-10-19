@@ -1,7 +1,37 @@
+/* Copyright (C) 2010-2011 Monty Program Ab & Oleksandr Byelkin
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "sql_base.h"
 #include "sql_select.h"
 #include "sql_expression_cache.h"
+
+/**
+  Minimum hit ration to proceed on disk if in memory table overflowed.
+  hit_rate = hit / (miss + hit);
+*/
+#define EXPCACHE_MIN_HIT_RATE_FOR_DISK_TABLE 0.7
+/**
+  Minimum hit ratio to keep in memory table (do not switch cache off)
+  hit_rate = hit / (miss + hit);
+*/
+#define EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE  0.2
+/**
+  Number of cache miss to check hit ratio (maximum cache performance
+  impact in the case when the cache is not applicable)
+*/
+#define EXPCACHE_CHECK_HIT_RATIO_AFTER 200
 
 /*
   Expression cache is used only for caching subqueries now, so its statistic
@@ -10,14 +40,26 @@
 ulong subquery_cache_miss, subquery_cache_hit;
 
 Expression_cache_tmptable::Expression_cache_tmptable(THD *thd,
-                                                 List<Item*> &dependants,
-                                                 Item *value)
-  :cache_table(NULL), table_thd(thd), list(&dependants), val(value),
-   inited (0)
+                                                     List<Item> &dependants,
+                                                     Item *value)
+  :cache_table(NULL), table_thd(thd), items(dependants), val(value),
+   hit(0), miss(0), inited (0)
 {
   DBUG_ENTER("Expression_cache_tmptable::Expression_cache_tmptable");
   DBUG_VOID_RETURN;
 };
+
+
+/**
+  Disable cache
+*/
+
+void Expression_cache_tmptable::disable_cache()
+{
+  cache_table->file->ha_index_end();
+  free_tmp_table(table_thd, cache_table);
+  cache_table= NULL;
+}
 
 
 /**
@@ -47,56 +89,38 @@ static uint field_enumerator(uchar *arg)
 
 void Expression_cache_tmptable::init()
 {
-  List_iterator<Item*> li(*list);
-  Item_iterator_ref_list it(li);
-  Item **item;
+  List_iterator<Item> li(items);
+  Item_iterator_list it(li);
   uint field_counter;
   DBUG_ENTER("Expression_cache_tmptable::init");
   DBUG_ASSERT(!inited);
   inited= TRUE;
   cache_table= NULL;
 
-  while ((item= li++))
-  {
-    DBUG_ASSERT(item);
-    if (*item)
-    {
-      DBUG_ASSERT((*item)->fixed);
-      items.push_back((*item));
-    }
-    else
-    {
-      /*
-        This is possible when optimizer already executed this subquery and
-        optimized out the condition predicate.
-      */
-      li.remove();
-    }
-  }
-
-  if (list->elements == 0)
+  if (items.elements == 0)
   {
     DBUG_PRINT("info", ("All parameters were removed by optimizer."));
     DBUG_VOID_RETURN;
   }
 
+  /* add result field */
+  items.push_front(val);
+
   cache_table_param.init();
   /* dependent items and result */
-  cache_table_param.field_count= list->elements + 1;
+  cache_table_param.field_count= items.elements;
   /* postpone table creation to index description */
   cache_table_param.skip_create_table= 1;
-  cache_table= NULL;
-
-  items.push_front(val);
 
   if (!(cache_table= create_tmp_table(table_thd, &cache_table_param,
                                       items, (ORDER*) NULL,
-                                      FALSE, FALSE,
+                                      FALSE, TRUE,
                                       ((table_thd->variables.option_bits |
                                         TMP_TABLE_ALL_COLUMNS) &
                                         ~TMP_TABLE_FORCE_MYISAM),
                                       HA_POS_ERROR,
-                                      (char *)"subquery-cache-table")))
+                                      (char *)"subquery-cache-table",
+                                      TRUE)))
   {
     DBUG_PRINT("error", ("create_tmp_table failed, caching switched off"));
     DBUG_VOID_RETURN;
@@ -108,22 +132,18 @@ void Expression_cache_tmptable::init()
     goto error;
   }
 
-  /* This list do not contain result field */
-  it.open();
-
-  field_counter=1;
+  field_counter= 1;
 
   if (cache_table->alloc_keys(1) ||
       cache_table->add_tmp_key(0, items.elements - 1, &field_enumerator,
                                 (uchar*)&field_counter, TRUE) ||
       ref.tmp_table_index_lookup_init(table_thd, cache_table->key_info, it,
-                                      TRUE))
+                                      TRUE, 1 /* skip result field*/))
   {
     DBUG_PRINT("error", ("creating index failed"));
     goto error;
   }
   cache_table->s->keys= 1;
-  cache_table->s->uniques= 1;
   ref.null_rejecting= 1;
   ref.disable_cache= FALSE;
   ref.has_record= 0;
@@ -145,20 +165,19 @@ void Expression_cache_tmptable::init()
   DBUG_VOID_RETURN;
 
 error:
-  /* switch off cache */
-  free_tmp_table(table_thd, cache_table);
-  cache_table= NULL;
+  disable_cache();
   DBUG_VOID_RETURN;
 }
 
 
 Expression_cache_tmptable::~Expression_cache_tmptable()
 {
+  /* Add accumulated statistics */
+  statistic_add(subquery_cache_miss, miss, &LOCK_status);
+  statistic_add(subquery_cache_hit, hit, &LOCK_status);
+
   if (cache_table)
-  {
-    cache_table->file->ha_index_end();
-    free_tmp_table(table_thd, cache_table);
-  }
+    disable_cache();
 }
 
 
@@ -182,26 +201,28 @@ Expression_cache::result Expression_cache_tmptable::check_value(Item **value)
   int res;
   DBUG_ENTER("Expression_cache_tmptable::check_value");
 
-  /*
-    We defer cache initialization to get item references that are
-    used at the execution phase.
-  */
-  if (!inited)
-    init();
-
   if (cache_table)
   {
     DBUG_PRINT("info", ("status: %u  has_record %u",
                         (uint)cache_table->status, (uint)ref.has_record));
     if ((res= join_read_key2(table_thd, NULL, cache_table, &ref)) == 1)
       DBUG_RETURN(ERROR);
+
     if (res)
     {
-      subquery_cache_miss++;
+      if (((++miss) == EXPCACHE_CHECK_HIT_RATIO_AFTER) &&
+          ((double)hit / ((double)hit + miss)) <
+          EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE)
+      {
+        DBUG_PRINT("info",
+                   ("Early check: hit rate is not so good to keep the cache"));
+        disable_cache();
+      }
+
       DBUG_RETURN(MISS);
     }
 
-    subquery_cache_hit++;
+    hit++;
     *value= cached_result;
     DBUG_RETURN(Expression_cache::HIT);
   }
@@ -239,15 +260,37 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
   if (table_thd->is_error())
     goto err;;
 
-  if ((error= cache_table->file->ha_write_row(cache_table->record[0])))
+  if ((error= cache_table->file->ha_write_tmp_row(cache_table->record[0])))
   {
     /* create_myisam_from_heap will generate error if needed */
-    if (cache_table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_internal_tmp_table_from_heap(table_thd, cache_table,
-                                            cache_table_param.start_recinfo,
-                                            &cache_table_param.recinfo,
-                                            error, 1))
+    if (cache_table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
+    else
+    {
+      double hit_rate= ((double)hit / ((double)hit + miss));
+      DBUG_ASSERT(miss > 0);
+      if (hit_rate < EXPCACHE_MIN_HIT_RATE_FOR_MEM_TABLE)
+      {
+        DBUG_PRINT("info", ("hit rate is not so good to keep the cache"));
+        disable_cache();
+        DBUG_RETURN(FALSE);
+      }
+      else if (hit_rate < EXPCACHE_MIN_HIT_RATE_FOR_DISK_TABLE)
+      {
+        DBUG_PRINT("info", ("hit rate is not so good to go to disk"));
+        if (cache_table->file->ha_delete_all_rows() ||
+            cache_table->file->ha_write_tmp_row(cache_table->record[0]))
+          goto err;
+      }
+      else
+      {
+        if (create_internal_tmp_table_from_heap(table_thd, cache_table,
+                                                cache_table_param.start_recinfo,
+                                                &cache_table_param.recinfo,
+                                                error, 1))
+          goto err;
+      }
+    }
   }
   cache_table->status= 0; /* cache_table->record contains an existed record */
   ref.has_record= TRUE; /* the same as above */
@@ -256,25 +299,24 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
   DBUG_RETURN(FALSE);
 
 err:
-  cache_table->file->ha_index_end();
-  free_tmp_table(table_thd, cache_table);
-  cache_table= NULL;
+  disable_cache();
   DBUG_RETURN(TRUE);
 }
 
 
 void Expression_cache_tmptable::print(String *str, enum_query_type query_type)
 {
-  List_iterator<Item*> li(*list);
-  Item **item;
+  List_iterator<Item> li(items);
+  Item *item;
   bool is_first= TRUE;
 
   str->append('<');
+  li++;  // skip result field
   while ((item= li++))
   {
     if (!is_first)
       str->append(',');
-    (*item)->print(str, query_type);
+    item->print(str, query_type);
     is_first= FALSE;
   }
   str->append('>');

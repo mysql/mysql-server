@@ -17,7 +17,7 @@ perl;
   # Variables which we don't want to display in the result file since
   # their paths may vary:
   @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
-               log-slow-queries pid-file slow-query-log-file
+               log-slow-queries pid-file slow-query-log-file log-basename
                datadir slave-load-tmpdir tmpdir socket/;
 
   # Plugins which may or may not be there:

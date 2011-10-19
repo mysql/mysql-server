@@ -1,22 +1,5 @@
 #!/usr/bin/perl
 
-# Copyright (C) 2000, 2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Library General Public
-# License as published by the Free Software Foundation; version 2
-# of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# Library General Public License for more details.
-#
-# You should have received a copy of the GNU Library General Public
-# License along with this library; if not, write to the Free
-# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-# MA 02111-1307, USA
-
 use Getopt::Long;
 use POSIX qw(strftime getcwd);
 
@@ -198,7 +181,7 @@ sub defaults_for_group
 
 sub init_log
 {
-  foreach my $opt (defaults_for_group('mysqld'))
+  foreach my $opt (defaults_for_group('mysqld mariadb'))
   {
     if ($opt =~ m/^--datadir=(.*)/ && -d "$1" && -w "$1")
     {

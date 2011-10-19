@@ -26,6 +26,7 @@
 #include "sql_repl.h"    // reset_master, reset_slave
 #include "debug_sync.h"
 
+static void disable_checkpoints(THD *thd);
 
 /**
   Reload/resets privileges and the different caches.
@@ -157,7 +158,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
-    query_cache.pack();				// FLUSH QUERY CACHE
+    query_cache.pack(thd);              // FLUSH QUERY CACHE
     options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
@@ -208,6 +209,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         thd->global_read_lock.unlock_global_read_lock(thd);
         return 1;
       }
+      if (options & REFRESH_CHECKPOINT)
+        disable_checkpoints(thd);
     }
     else
     {
@@ -480,4 +483,18 @@ error:
 }
 
 
+/**
+   Disable checkpoints for all handlers
+   This is released in unlock_global_read_lock()
+*/
+
+static void disable_checkpoints(THD *thd)
+{
+  if (!thd->global_disable_checkpoint)
+  {
+    thd->global_disable_checkpoint= 1;
+    if (!global_disable_checkpoint++)
+      ha_checkpoint_state(1);                   // Disable checkpoints
+  }
+}
 

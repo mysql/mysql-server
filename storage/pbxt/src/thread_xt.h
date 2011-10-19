@@ -299,6 +299,9 @@ typedef struct XTThread {
 	xtBool					st_stat_ended;					/* TRUE if the statement was ended. */
 	xtBool					st_stat_trans;					/* TRUE if a statement transaction is running (started on UPDATE). */
 	xtBool					st_stat_modify;					/* TRUE if the statement is an INSERT/UPDATE/DELETE */
+	xtBool					st_commit_ordered;				/* TRUE if we have run commit_ordered() */
+	xtBool					st_delayed_error;				/* TRUE if we got an error in commit_ordered() */
+	xtBool					st_writer;						/* Copy of thread->st_xact_writer (which is clobbered by xlog_append()) */
 #ifdef XT_IMPLEMENT_NO_ACTION
 	XTBasicListRec			st_restrict_list;				/* These records have been deleted and should have no reference. */
 #endif

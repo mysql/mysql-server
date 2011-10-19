@@ -41,11 +41,9 @@ create table `txu#p#p1` (s1 int);
 insert into `txu#p#p1` values (1);
 --error 1146
 select * from `txu@0023p@0023p1`;
+--error ER_TABLE_EXISTS_ERROR
 create table `txu@0023p@0023p1` (s1 int);
-insert into `txu@0023p@0023p1` values (2);
-select * from `txu@0023p@0023p1`;
 select * from `txu#p#p1`;
-drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
 
 --echo #

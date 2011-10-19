@@ -116,7 +116,7 @@ sub parse_arguments
              "basedir=s",
              "builddir=s",      # FIXME not documented
              "srcdir=s",
-             "ldata|datadir=s",
+             "ldata|datadir|data=s",
 
              # Note that the user will be passed to mysqld so that it runs
              # as 'user' (crucial e.g. if log-bin=/some_other_path/
@@ -274,7 +274,7 @@ else
 
 my @default_options;
 my $cmd = quote_options($print_defaults,$opt->{'defaults-file'},
-                        "mysqld","mysql_install_db");
+                        "mysqld","mariadb","mysql_install_db","server","client-server");
 open(PIPE, "$cmd |") or error($opt,"can't run $cmd: $!");
 while ( <PIPE> )
 {
@@ -360,7 +360,7 @@ my $hostname = hostname();
 my $resolved;
 if ( !$opt->{'cross-bootstrap'} and !$opt->{rpm} and !$opt->{force} )
 {
-  my $resolveip;
+  my $resolveip =  $bindir/resolveip;
 
   $resolved = `$resolveip $hostname 2>&1`;
   if ( $? != 0 )
@@ -418,9 +418,7 @@ my $mysqld_install_cmd_line = quote_options($mysqld_bootstrap,
                                             "--bootstrap",
                                             "--basedir=$opt->{basedir}",
                                             "--datadir=$opt->{ldata}",
-                                            "--skip-innodb",
-                                            "--skip-bdb",
-                                            "--skip-ndbcluster",
+                                            "--loose-skip-innodb",
                                             "--max_allowed_packet=8M",
                                             "--net_buffer_length=16K",
                                             @args,

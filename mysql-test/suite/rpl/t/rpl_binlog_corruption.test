@@ -18,7 +18,7 @@
 --source include/master-slave.inc
 
 # BUG#40482 only manifested itself in debug-compiled binaries.
-source include/have_debug.inc;
+-- source include/have_debug.inc
 
 --connection slave
 call mtr.add_suppression('Found invalid event in binary log');

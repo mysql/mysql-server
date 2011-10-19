@@ -1,0 +1,1 @@
+--log-bin=master-bin --log-bin-index=master-bin

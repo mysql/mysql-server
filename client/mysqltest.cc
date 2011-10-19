@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +71,7 @@
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
 #define MAX_DELIMITER_LENGTH 16
-#define DEFAULT_MAX_CONN       128
+#define DEFAULT_MAX_CONN        64
 
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
@@ -117,14 +118,15 @@ static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_connect_log= 1;
-static my_bool disable_warnings= 0;
+static my_bool disable_warnings= 0, disable_column_names= 0;
 static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
 static my_bool server_initialized= 0;
 static my_bool is_windows= 0;
 static char **default_argv;
-static const char *load_default_groups[]= { "mysqltest", "client", 0 };
+static const char *load_default_groups[]=
+{ "mysqltest", "client", "client-server", "client-mariadb", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 
 static uint start_lineno= 0; /* Start line of current command */
@@ -142,6 +144,7 @@ static char TMPDIR[FN_REFLEN];
 static char global_subst_from[200];
 static char global_subst_to[200];
 static char *global_subst= NULL;
+static MEM_ROOT require_file_root;
 
 /* Block stack */
 enum block_cmd {
@@ -254,7 +257,7 @@ HASH var_hash;
 
 struct st_connection
 {
-  MYSQL mysql;
+  MYSQL *mysql;
   /* Used when creating views and sp, to avoid implicit commit */
   MYSQL* util_mysql;
   char *name;
@@ -308,6 +311,7 @@ enum enum_commands {
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
   Q_ENABLE_METADATA, Q_DISABLE_METADATA,
+  Q_ENABLE_COLUMN_NAMES, Q_DISABLE_COLUMN_NAMES,
   Q_EXEC, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
@@ -379,6 +383,8 @@ const char *command_names[]=
   "disable_info",
   "enable_metadata",
   "disable_metadata",
+  "enable_column_names",
+  "disable_column_names",
   "exec",
   "delimiter",
   "disable_abort_on_error",
@@ -472,7 +478,7 @@ struct st_command
   int first_word_len, query_len;
   my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
-  char require_file[FN_REFLEN];
+  char *require_file;
   enum enum_commands type;
 };
 
@@ -610,6 +616,10 @@ public:
     if (ds->length == 0)
       DBUG_VOID_RETURN;
     DBUG_ASSERT(ds->str);
+
+#ifdef EXTRA_DEBUG
+    DBUG_PRINT("QQ", ("str: %*s", (int) ds->length, ds->str));
+#endif
 
     if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
       die("Failed to write %lu bytes to '%s', errno: %d",
@@ -772,10 +782,10 @@ pthread_handler_t connection_thread(void *arg)
       case EMB_END_CONNECTION:
         goto end_thread;
       case EMB_SEND_QUERY:
-        cn->result= mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len);
+        cn->result= mysql_send_query(cn->mysql, cn->cur_query, cn->cur_query_len);
         break;
       case EMB_READ_QUERY_RESULT:
-        cn->result= mysql_read_query_result(&cn->mysql);
+        cn->result= mysql_read_query_result(cn->mysql);
         break;
       default:
         DBUG_ASSERT(0);
@@ -828,7 +838,7 @@ static void signal_connection_thd(struct st_connection *cn, int command)
 static int do_send_query(struct st_connection *cn, const char *q, int q_len)
 {
   if (!cn->has_thread)
-    return mysql_send_query(&cn->mysql, q, q_len);
+    return mysql_send_query(cn->mysql, q, q_len);
   cn->cur_query= q;
   cn->cur_query_len= q_len;
   signal_connection_thd(cn, EMB_SEND_QUERY);
@@ -876,8 +886,8 @@ static void init_connection_thd(struct st_connection *cn)
 
 #else /*EMBEDDED_LIBRARY*/
 
-#define do_send_query(cn,q,q_len) mysql_send_query(&cn->mysql, q, q_len)
-#define do_read_query_result(cn) mysql_read_query_result(&cn->mysql)
+#define do_send_query(cn,q,q_len) mysql_send_query(cn->mysql, q, q_len)
+#define do_read_query_result(cn) mysql_read_query_result(cn->mysql)
 
 #endif /*EMBEDDED_LIBRARY*/
 
@@ -1189,8 +1199,9 @@ void handle_command_error(struct st_command *command, uint error,
     int i;
 
     if (command->abort_on_error)
-      die("command \"%.*s\" failed with error %d. my_errno=%d",
-      command->first_word_len, command->query, error, my_errno);
+      die("command \"%.*s\" failed with error: %u  my_errno: %d  errno: %d",
+          command->first_word_len, command->query, error, my_errno,
+          sys_errno);
 
     i= match_expected_error(command, error, NULL);
 
@@ -1202,8 +1213,8 @@ void handle_command_error(struct st_command *command, uint error,
       DBUG_VOID_RETURN;
     }
     if (command->expected_errors.count > 0)
-      die("command \"%.*s\" failed with wrong error: %u, errno: %d",
-          command->first_word_len, command->query, error, sys_errno);
+      die("command \"%.*s\" failed with wrong error: %u  my_errno: %d  errno: %d",
+          command->first_word_len, command->query, error, my_errno, sys_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1228,7 +1239,8 @@ void close_connections()
     if (next_con->stmt)
       mysql_stmt_close(next_con->stmt);
     next_con->stmt= 0;
-    mysql_close(&next_con->mysql);
+    mysql_close(next_con->mysql);
+    next_con->mysql= 0;
     if (next_con->util_mysql)
       mysql_close(next_con->util_mysql);
     my_free(next_con->name);
@@ -1301,24 +1313,24 @@ void free_used_memory()
   free_all_replace();
   my_free(opt_pass);
   free_defaults(default_argv);
+  free_root(&require_file_root, MYF(0));
   free_re();
 #ifdef __WIN__
   free_tmp_sh_file();
   free_win_path_patterns();
 #endif
-
-  /* Only call mysql_server_end if mysql_server_init has been called */
-  if (server_initialized)
-    mysql_server_end();
-
-  /* Don't use DBUG after mysql_server_end() */
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
 static void cleanup_and_exit(int exit_code)
 {
   free_used_memory();
+
+  /* Only call mysql_server_end if mysql_server_init has been called */
+  if (server_initialized)
+    mysql_server_end();
+
   /*
     mysqltest is fundamentally written in a way that makes impossible
     to free all memory before exit (consider memory allocated
@@ -1328,6 +1340,7 @@ static void cleanup_and_exit(int exit_code)
     from polluting the output.
   */
   fclose(stderr);
+
   my_end(my_end_arg);
 
   if (!silent) {
@@ -1352,12 +1365,17 @@ static void cleanup_and_exit(int exit_code)
 
 void print_file_stack()
 {
-  for (struct st_test_file* err_file= cur_file;
-       err_file != file_stack;
-       err_file--)
+  struct st_test_file* err_file= cur_file;
+  if (err_file == file_stack)
+    return;
+
+  for (;;)
   {
+    err_file--;
     fprintf(stderr, "included from %s at line %d:\n",
             err_file->file_name, err_file->lineno);
+    if (err_file == file_stack)
+      break;
   }
 }
 
@@ -1368,6 +1386,7 @@ void die(const char *fmt, ...)
   DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
+  fflush(stdout);
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
@@ -1406,7 +1425,7 @@ void die(const char *fmt, ...)
     been produced prior to the error
   */
   if (cur_con && !cur_con->pending)
-    show_warnings_before_error(&cur_con->mysql);
+    show_warnings_before_error(cur_con->mysql);
 
   cleanup_and_exit(1);
 }
@@ -1450,9 +1469,12 @@ void verbose_msg(const char *fmt, ...)
 {
   va_list args;
   DBUG_ENTER("verbose_msg");
+  DBUG_PRINT("enter", ("format: %s", fmt));
+
   if (!verbose)
     DBUG_VOID_RETURN;
 
+  fflush(stdout);
   va_start(args, fmt);
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
@@ -1463,6 +1485,7 @@ void verbose_msg(const char *fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  fflush(stderr);
 
   DBUG_VOID_RETURN;
 }
@@ -1547,6 +1570,8 @@ static int run_command(char* cmd,
   char buf[512]= {0};
   FILE *res_file;
   int error;
+  DBUG_ENTER("run_command");
+  DBUG_PRINT("enter", ("cmd: %s", cmd));
 
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
@@ -1567,7 +1592,7 @@ static int run_command(char* cmd,
   }
 
   error= pclose(res_file);
-  return WEXITSTATUS(error);
+  DBUG_RETURN(WEXITSTATUS(error));
 }
 
 
@@ -2351,7 +2376,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 		      *query_end : query + strlen(query));
   MYSQL_RES *res;
   MYSQL_ROW row;
-  MYSQL* mysql = &cur_con->mysql;
+  MYSQL* mysql = cur_con->mysql;
   DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
@@ -2493,7 +2518,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   long row_no;
   int col_no= -1;
   MYSQL_RES* res;
-  MYSQL* mysql= &cur_con->mysql;
+  MYSQL* mysql= cur_con->mysql;
 
   static DYNAMIC_STRING ds_query;
   static DYNAMIC_STRING ds_col;
@@ -3206,6 +3231,7 @@ void do_remove_files_wildcard(struct st_command *command)
 {
   int error= 0, sys_errno= 0;
   uint i;
+  size_t directory_length;
   MY_DIR *dir_info;
   FILEINFO *file;
   char dir_separator[2];
@@ -3236,8 +3262,8 @@ void do_remove_files_wildcard(struct st_command *command)
   }
   init_dynamic_string(&ds_file_to_remove, dirname, 1024, 1024);
   dir_separator[0]= FN_LIBCHAR;
-  dir_separator[1]= 0;
-  dynstr_append(&ds_file_to_remove, dir_separator);
+  dynstr_append_mem(&ds_file_to_remove, dir_separator, 1);
+  directory_length= ds_file_to_remove.length;
   
   /* Set default wild chars for wild_compare, is changed in embedded mode */
   set_wild_chars(1);
@@ -3253,8 +3279,7 @@ void do_remove_files_wildcard(struct st_command *command)
     if (ds_wild.length &&
         wild_compare(file->name, ds_wild.str, 0))
       continue;
-    ds_file_to_remove.length= ds_directory.length + 1;
-    ds_file_to_remove.str[ds_directory.length + 1]= 0;
+    ds_file_to_remove.length= directory_length;
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
     if ((error= (my_delete(ds_file_to_remove.str, MYF(MY_WME)) != 0)))
@@ -3932,7 +3957,7 @@ void do_send_quit(struct st_command *command)
   if (!(con= find_connection_by_name(name)))
     die("connection '%s' not found in connection pool", name);
 
-  simple_command(&con->mysql,COM_QUIT,0,0,1);
+  simple_command(con->mysql,COM_QUIT,0,0,1);
 
   DBUG_VOID_RETURN;
 }
@@ -3956,7 +3981,8 @@ void do_send_quit(struct st_command *command)
 
 void do_change_user(struct st_command *command)
 {
-  MYSQL *mysql = &cur_con->mysql;
+  MYSQL *mysql = cur_con->mysql;
+  /* static keyword to make the NetWare compiler happy. */
   static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
   const struct command_arg change_user_args[] = {
     { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
@@ -4152,7 +4178,7 @@ int do_echo(struct st_command *command)
 void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
 {
   static int SLAVE_POLL_INTERVAL= 300000;
-  MYSQL* mysql = &cur_con->mysql;
+  MYSQL* mysql = cur_con->mysql;
   for (;;)
   {
     MYSQL_RES *UNINIT_VAR(res);
@@ -4182,7 +4208,7 @@ void do_sync_with_master2(struct st_command *command, long offset)
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  MYSQL *mysql= &cur_con->mysql;
+  MYSQL *mysql= cur_con->mysql;
   char query_buf[FN_REFLEN+128];
   int timeout= 300; /* seconds */
 
@@ -4272,7 +4298,7 @@ int do_save_master_pos()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  MYSQL *mysql = &cur_con->mysql;
+  MYSQL *mysql = cur_con->mysql;
   const char *query;
   DBUG_ENTER("do_save_master_pos");
 
@@ -4659,7 +4685,7 @@ void do_shutdown_server(struct st_command *command)
   long timeout=60;
   int pid;
   DYNAMIC_STRING ds_pidfile_name;
-  MYSQL* mysql = &cur_con->mysql;
+  MYSQL* mysql = cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
     {"timeout", ARG_STRING, FALSE, &ds_timeout, "Timeout before killing server"}
@@ -5002,7 +5028,7 @@ void set_current_connection(struct st_connection *con)
   cur_con= con;
   /* Update $mysql_get_server_version to that of current connection */
   var_set_int("$mysql_get_server_version",
-              mysql_get_server_version(&con->mysql));
+              mysql_get_server_version(con->mysql));
   /* Update $CURRENT_CONNECTION to the name of the current connection */
   var_set_string("$CURRENT_CONNECTION", con->name);
 }
@@ -5075,10 +5101,10 @@ void do_close_connection(struct st_command *command)
 #ifndef EMBEDDED_LIBRARY
   if (command->type == Q_DIRTY_CLOSE)
   {
-    if (con->mysql.net.vio)
+    if (con->mysql->net.vio)
     {
-      vio_delete(con->mysql.net.vio);
-      con->mysql.net.vio = 0;
+      vio_delete(con->mysql->net.vio);
+      con->mysql->net.vio = 0;
     }
   }
 #else
@@ -5093,7 +5119,8 @@ void do_close_connection(struct st_command *command)
     mysql_stmt_close(con->stmt);
   con->stmt= 0;
 
-  mysql_close(&con->mysql);
+  mysql_close(con->mysql);
+  con->mysql= 0;
 
   if (con->util_mysql)
     mysql_close(con->util_mysql);
@@ -5456,28 +5483,29 @@ void do_connect(struct st_command *command)
     if (!(con_slot= find_connection_by_name("-closed_connection-")))
       die("Connection limit exhausted, you can have max %d connections",
           opt_max_connections);
+    my_free(con_slot->name);
+    con_slot->name= 0;
   }
 
 #ifdef EMBEDDED_LIBRARY
   init_connection_thd(con_slot);
 #endif /*EMBEDDED_LIBRARY*/
 
-  if (!mysql_init(&con_slot->mysql))
+  if (!(con_slot->mysql= mysql_init(0)))
     die("Failed on mysql_init()");
 
   if (opt_connect_timeout)
-    mysql_options(&con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+    mysql_options(con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                   (void *) &opt_connect_timeout);
 
   if (opt_compress || con_compress)
-    mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
-  mysql_options(&con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME,
+    mysql_options(con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
+  mysql_options(con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(con_slot->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
-    mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR,
+    mysql_options(con_slot->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
-
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
     con_ssl= 1;
@@ -5486,12 +5514,12 @@ void do_connect(struct st_command *command)
   if (con_ssl)
   {
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+    mysql_options(con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
 #endif
@@ -5505,7 +5533,7 @@ void do_connect(struct st_command *command)
   }
 
   if (opt_protocol)
-    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+    mysql_options(con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
 #ifdef HAVE_SMEM
   if (con_shm)
@@ -5513,12 +5541,12 @@ void do_connect(struct st_command *command)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
-    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
-    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+    mysql_options(con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
+    mysql_options(con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
   }
   else if (shared_memory_base_name)
   {
-    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+    mysql_options(con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
   }
 #endif
@@ -5528,16 +5556,16 @@ void do_connect(struct st_command *command)
     dynstr_set(&ds_database, opt_db);
 
   if (opt_plugin_dir && *opt_plugin_dir)
-    mysql_options(&con_slot->mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+    mysql_options(con_slot->mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
   if (ds_default_auth.length)
-    mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
+    mysql_options(con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
-  if (connect_n_handle_errors(command, &con_slot->mysql,
+  if (connect_n_handle_errors(command, con_slot->mysql,
                               ds_host.str,ds_user.str,
                               ds_password.str, ds_database.str,
                               con_port, ds_sock.str))
@@ -6403,7 +6431,7 @@ static struct my_option my_long_options[] =
   {"max-connections", OPT_MAX_CONNECTIONS,
    "Max number of open connections to server",
    &opt_max_connections, &opt_max_connections, 0,
-   GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
+   GET_INT, REQUIRED_ARG, DEFAULT_MAX_CONN, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
@@ -6553,6 +6581,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
 #ifndef DBUG_OFF
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
     debug_check_flag= 1;
+    debug_info_flag= 1;
 #endif
     break;
   case 'r':
@@ -6668,7 +6697,7 @@ int parse_args(int argc, char **argv)
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
-    my_end_arg= MY_CHECK_ERROR;
+    my_end_arg|= MY_CHECK_ERROR;
 
   if (global_subst != NULL)
   {
@@ -6973,6 +7002,7 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   my_bool *is_null;
   ulong *length;
   uint i;
+  int error;
 
   /* Allocate array with bind structs, lengths and NULL flags */
   my_bind= (MYSQL_BIND*) my_malloc(num_fields * sizeof(MYSQL_BIND),
@@ -7000,7 +7030,7 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
     die("mysql_stmt_bind_result failed: %d: %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
-  while (mysql_stmt_fetch(stmt) == 0)
+  while ((error=mysql_stmt_fetch(stmt)) == 0)
   {
     for (i= 0; i < num_fields; i++)
       append_field(ds, i, &fields[i], (char*)my_bind[i].buffer,
@@ -7009,8 +7039,11 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
       dynstr_append_mem(ds, "\n", 1);
   }
 
+  if (error != MYSQL_NO_DATA)
+    die("mysql_fetch didn't end with MYSQL_NO_DATA from statement: error: %d",
+        error);
   if (mysql_stmt_fetch(stmt) != MYSQL_NO_DATA)
-    die("fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
+    die("mysql_fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
   for (i= 0; i < num_fields; i++)
@@ -7105,6 +7138,8 @@ void append_table_headings(DYNAMIC_STRING *ds,
                            uint num_fields)
 {
   uint col_idx;
+  if (disable_column_names)
+    return;
   for (col_idx= 0; col_idx < num_fields; col_idx++)
   {
     if (col_idx)
@@ -7171,11 +7206,21 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
                       DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
   MYSQL_RES *res= 0;
-  MYSQL *mysql= &cn->mysql;
+  MYSQL *mysql= cn->mysql;
   int err= 0, counter= 0;
   DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
   DBUG_PRINT("enter", ("query: '%-.60s'", query));
+
+  if (!mysql)
+  {
+    /* Emulate old behaviour of sending something on a closed connection */
+    handle_error(command, 2006, "MySQL server has gone away",
+                 "000000", ds);
+    cn->pending= FALSE;
+    var_set_errno(2006);
+    DBUG_VOID_RETURN;
+  }
 
   if (flags & QUERY_SEND_FLAG)
   {
@@ -7363,7 +7408,7 @@ void handle_error(struct st_command *command,
 
   DBUG_ENTER("handle_error");
 
-  if (command->require_file[0])
+  if (command->require_file)
   {
     /*
       The query after a "--require" failed. This is fine as long the server
@@ -7726,7 +7771,8 @@ int util_query(MYSQL* org_mysql, const char* query){
     cur_con->util_mysql= mysql;
   }
 
- DBUG_RETURN(mysql_query(mysql, query));
+  int ret= mysql_query(mysql, query);
+  DBUG_RETURN(ret);
 }
 
 
@@ -7746,7 +7792,7 @@ int util_query(MYSQL* org_mysql, const char* query){
 
 void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
-  MYSQL *mysql= &cn->mysql;
+  MYSQL *mysql= cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING *save_ds= NULL;
   DYNAMIC_STRING ds_result;
@@ -7791,7 +7837,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     Create a temporary dynamic string to contain the output from
     this query.
   */
-  if (command->require_file[0])
+  if (command->require_file)
   {
     init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
@@ -7808,6 +7854,15 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
+
+  /*
+    Write the command to the result file before we execute the query
+    This is needed to be able to analyse the log if something goes
+    wrong
+  */
+  log_file.write(&ds_res);
+  log_file.flush();
+  dynstr_set(&ds_res, 0);
 
   if (view_protocol_enabled &&
       complete_query &&
@@ -7950,7 +8005,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 	  mysql_errno(mysql), mysql_error(mysql));
   }
 
-  if (command->require_file[0])
+  if (command->require_file)
   {
     /* A result file was specified for _this_ query
        and the output should be checked against an already
@@ -8295,6 +8350,7 @@ int main(int argc, char **argv)
   char save_file[FN_REFLEN];
   bool empty_result= FALSE;
   MY_INIT(argv[0]);
+  DBUG_ENTER("main");
 
   save_file[0]= 0;
   TMPDIR[0]= 0;
@@ -8326,8 +8382,8 @@ int main(int argc, char **argv)
 
   my_init_dynamic_array(&q_lines, sizeof(struct st_command*), 1024, 1024);
 
-  if (my_hash_init(&var_hash, charset_info,
-                   1024, 0, 0, get_var_key, var_free, MYF(0)))
+  if (my_hash_init2(&var_hash, 64, charset_info,
+                 128, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
 
   var_set_string("MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
@@ -8354,6 +8410,7 @@ int main(int argc, char **argv)
 #endif
 
   init_dynamic_string(&ds_res, "", 2048, 2048);
+  init_alloc_root(&require_file_root, 1024, 1024);
 
   parse_args(argc, argv);
 
@@ -8416,33 +8473,33 @@ int main(int argc, char **argv)
 #ifdef EMBEDDED_LIBRARY
   init_connection_thd(con);
 #endif /*EMBEDDED_LIBRARY*/
-  if (!( mysql_init(&con->mysql)))
+  if (! (con->mysql= mysql_init(0)))
     die("Failed in mysql_init()");
   if (opt_connect_timeout)
-    mysql_options(&con->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+    mysql_options(con->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                   (void *) &opt_connect_timeout);
   if (opt_compress)
-    mysql_options(&con->mysql,MYSQL_OPT_COMPRESS,NullS);
-  mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&con->mysql, MYSQL_SET_CHARSET_NAME,
+    mysql_options(con->mysql,MYSQL_OPT_COMPRESS,NullS);
+  mysql_options(con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(con->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
-    mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
+    mysql_options(con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
   if (opt_protocol)
-    mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+    mysql_options(con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
   if (opt_use_ssl)
   {
-    mysql_ssl_set(&con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+    mysql_options(con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
   }
@@ -8450,13 +8507,13 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
-    mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+    mysql_options(con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
 
   if (!(con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
-  safe_connect(&con->mysql, con->name, opt_host, opt_user, opt_pass,
+  safe_connect(con->mysql, con->name, opt_host, opt_user, opt_pass,
                opt_db, opt_port, unix_sock);
 
   /* Use all time until exit if no explicit 'start_timer' */
@@ -8592,6 +8649,14 @@ int main(int argc, char **argv)
         display_metadata= 0;
         var_set_int("$ENABLED_METADATA", 0);
         break;
+      case Q_ENABLE_COLUMN_NAMES:
+        disable_column_names= 0;
+        var_set_int("$ENABLED_COLUMN_NAMES", 0);
+        break;
+      case Q_DISABLE_COLUMN_NAMES:
+        disable_column_names= 1;
+        var_set_int("$ENABLED_COLUMN_NAMES", 1);
+        break;
       case Q_SOURCE: do_source(command); break;
       case Q_SLEEP: do_sleep(command, 0); break;
       case Q_REAL_SLEEP: do_sleep(command, 1); break;
@@ -8682,7 +8747,9 @@ int main(int argc, char **argv)
 
 	if (save_file[0])
 	{
-	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
+          if (!(command->require_file= strdup_root(&require_file_root,
+                                                   save_file)))
+            die("out of memory for require_file");
 	  save_file[0]= 0;
 	}
 	run_query(cur_con, command, flags);
@@ -8780,11 +8847,11 @@ int main(int argc, char **argv)
         dynstr_append(&ds_res, "\n");
         break;
       case Q_PING:
-        handle_command_error(command, mysql_ping(&cur_con->mysql), -1);
+        handle_command_error(command, mysql_ping(cur_con->mysql), -1);
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
-                             mysql_shutdown(&cur_con->mysql,
+                             mysql_shutdown(cur_con->mysql,
                                             SHUTDOWN_DEFAULT), -1);
         break;
       case Q_SHUTDOWN_SERVER:
@@ -8814,10 +8881,10 @@ int main(int argc, char **argv)
         ps_protocol_enabled= ps_protocol;
         break;
       case Q_DISABLE_RECONNECT:
-        set_reconnect(&cur_con->mysql, 0);
+        set_reconnect(cur_con->mysql, 0);
         break;
       case Q_ENABLE_RECONNECT:
-        set_reconnect(&cur_con->mysql, 1);
+        set_reconnect(cur_con->mysql, 1);
         /* Close any open statements - no reconnect, need new prepare */
         close_statements();
         break;
@@ -9007,7 +9074,7 @@ void timer_output(void)
 
 ulonglong timer_now(void)
 {
-  return my_micro_time() / 1000;
+  return my_interval_timer() / 1000000;
 }
 
 

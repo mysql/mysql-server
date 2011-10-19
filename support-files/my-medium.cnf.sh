@@ -1,20 +1,22 @@
-# Example MySQL config file for medium systems.
+# Example MariaDB config file for medium systems.
 #
-# This is for a system with little memory (32M - 64M) where MySQL plays
-# an important part, or systems up to 128M where MySQL is used together with
+# This is for a system with little memory (32M - 64M) where MariaDB plays
+# an important part, or systems up to 128M where MariaDB is used together with
 # other programs (such as a web server)
 #
-# MySQL programs look for option files in a set of
+# MariaDB programs look for option files in a set of
 # locations which depend on the deployment platform.
 # You can copy this option file to one of those
-# locations. For information about these locations, see:
-# http://dev.mysql.com/doc/mysql/en/option-files.html
+# locations. For information about these locations, do:
+# 'my_print_defaults --help' and see what is printed under
+# Default options are read from the following files in the given order:
+# More information at: http://dev.mysql.com/doc/mysql/en/option-files.html
 #
 # In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
 # with the "--help" option.
 
-# The following options will be passed to all MySQL clients
+# The following options will be passed to all MariaDB clients
 [client]
 #password	= your_password
 port		= @MYSQL_TCP_PORT@
@@ -22,7 +24,7 @@ socket		= @MYSQL_UNIX_ADDR@
 
 # Here follows entries for some specific programs
 
-# The MySQL server
+# The MariaDB server
 [mysqld]
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
@@ -35,6 +37,9 @@ net_buffer_length = 8K
 read_buffer_size = 256K
 read_rnd_buffer_size = 512K
 myisam_sort_buffer_size = 8M
+
+# Point the following paths to different dedicated disks
+#tmpdir		= /tmp/
 
 # Don't listen on a TCP/IP port at all. This can be a security enhancement,
 # if all processes that need to connect to mysqld run on the same host.

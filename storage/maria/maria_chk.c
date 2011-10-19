@@ -28,20 +28,17 @@
 #include <sys/mman.h>
 #endif
 
-#ifndef USE_RAID
-#define my_raid_create(A,B,C,D,E,F,G) my_create(A,B,C,G)
-#define my_raid_delete(A,B,C) my_delete(A,B)
-#endif
-
 static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "aria_chk", 0 };
 static const char *set_collation_name, *opt_tmpdir, *opt_log_dir;
+static const char *default_log_dir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
-static my_bool opt_transaction_logging, opt_debug, opt_require_control_file;
-static my_bool opt_warning_for_wrong_transid;
+static my_bool opt_transaction_logging, opt_debug;
+static my_bool opt_ignore_control_file, opt_require_control_file;
+static my_bool opt_warning_for_wrong_transid, opt_update_state;
 
 static const char *type_names[]=
 {
@@ -67,7 +64,7 @@ static const char *field_pack[]=
 
 static const char *record_formats[]=
 {
-  "Fixed length", "Packed", "Compressed", "Block", "?"
+  "Fixed length", "Packed", "Compressed", "Block", "No data", "?", "?"
 };
 
 static const char *bitmap_description[]=
@@ -104,7 +101,7 @@ int main(int argc, char **argv)
   int error;
   MY_INIT(argv[0]);
 
-  opt_log_dir= maria_data_root= (char *)".";
+  default_log_dir= opt_log_dir= maria_data_root= (char *)".";
   maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
@@ -114,10 +111,11 @@ int main(int argc, char **argv)
   maria_init();
 
   maria_block_size= 0;                 /* Use block size from control file */
-  if (ma_control_file_open(FALSE, opt_require_control_file ||
-                           !(check_param.testflag & T_SILENT)) &&
-      (opt_require_control_file ||
-       (opt_transaction_logging && (check_param.testflag & T_REP_ANY))))
+  if (!opt_ignore_control_file &&
+      (ma_control_file_open(FALSE, opt_require_control_file ||
+                            !(check_param.testflag & T_SILENT)) &&
+       (opt_require_control_file ||
+        (opt_transaction_logging && (check_param.testflag & T_REP_ANY)))))
   {
     error= 1;
     goto end;
@@ -202,8 +200,9 @@ enum options_mc {
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
-  OPT_ZEROFILL_KEEP_LSN, OPT_REQUIRE_CONTROL_FILE,
-  OPT_LOG_DIR, OPT_DATADIR, OPT_WARNING_FOR_WRONG_TRANSID
+  OPT_ZEROFILL_KEEP_LSN,
+  OPT_REQUIRE_CONTROL_FILE, OPT_IGNORE_CONTROL_FILE,
+  OPT_LOG_DIR, OPT_WARNING_FOR_WRONG_TRANSID
 };
 
 static struct my_option my_long_options[] =
@@ -264,12 +263,16 @@ static struct my_option my_long_options[] =
   {"information", 'i',
    "Print statistics information about table that is checked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "ignore-control-file", OPT_IGNORE_CONTROL_FILE,
+    "Ignore the control file",
+    (uchar**)&opt_ignore_control_file, 0, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"keys-used", 'k',
    "Tell Aria to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts.",
    &check_param.keys_in_use,
    &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
-  {"datadir", OPT_DATADIR,
+  {"datadir", 'h',
    "Path for control file (and logs if --logdir not used).",
    &maria_data_root, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -337,10 +340,13 @@ static struct my_option my_long_options[] =
    &opt_transaction_logging, &opt_transaction_logging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
-   "Mark tables as crashed if any errors were found and clean if check didn't "
-   "find any errors. This allows one to get rid of warnings like 'table not "
-   "properly closed'",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Mark tables as crashed if any errors were found and clean if check "
+   "didn't find any errors but table was marked as 'not clean' before. This "
+   "allows one to get rid of warnings like 'table not properly closed'. "
+   "If table was updated, update also the timestamp for when check was made. "
+   "This option is on by default!",
+   &opt_update_state, &opt_update_state, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {"unpack", 'u',
    "Unpack file packed with aria_pack.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -415,7 +421,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.0 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 1.1 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -438,6 +444,9 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   --datadir=path      Path for control file (and logs if --logdir not used)\n\
   --logdir=path       Path for log files\n\
+  --ignore-control-file  Don't open the control file. Only use this if you\n\
+                         are sure the tables are not in use by another\n\
+                         program!\n\
   --require-control-file  Abort if we can't find/read the maria_log_control\n\
                           file\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
@@ -472,8 +481,18 @@ static void usage(void)
   -i, --information   Print statistics information about table that is checked.\n\
   -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases.\n\
-  -U, --update-state  Mark tables as crashed if you find any errors.\n\
-  -T, --read-only     Don't mark table as checked.\n");
+  -T, --read-only     Don't mark table as checked.\n\
+  -U, --update-state  Mark tables as crashed if any errors were found and\n\
+                      clean if check didn't find any errors but table was\n\
+	              marked as 'not clean' before. This allows one to get\n\
+ 		      rid of warnings like 'table not properly closed'. If\n\
+		      table was updated, update also the timestamp for when\n\
+ 		      the check was made. This option is on by default!\n\
+		      Use --skip-update-state to disable.\n\
+  --warning-for-wrong-transaction-id\n\
+   Give a warning if we find a transaction id in the table that is bigger\n\
+   than what exists in the control file. Use --skip-... to disable warning\n\
+  ");
 
   puts("\
 Recover (repair)/ options (When using '--recover' or '--safe-recover'):\n\
@@ -836,6 +855,7 @@ static void get_options(register int *argc,register char ***argv)
 
   load_defaults("my", load_default_groups, argc, argv);
   default_argv= *argv;
+  check_param.testflag= T_UPDATE_STATE;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
 
@@ -884,15 +904,27 @@ static void get_options(register int *argc,register char ***argv)
                                              MYF(MY_WME))))
       exit(1);
 
+  if (maria_data_root != default_log_dir && opt_log_dir == default_log_dir)
+  {
+    /* --datadir was used and --log-dir was not. Set log-dir to datadir */
+    opt_log_dir= maria_data_root;
+  }
   return;
 } /* get options */
 
 
-	/* Check table */
+/**
+  Check/repair table
+
+  @return 0  table is ok
+  @return 1  Got warning during check
+  @return 2  Got error during check/repair.
+*/
 
 static int maria_chk(HA_CHECK *param, char *filename)
 {
   int error,lock_type,recreate;
+  uint warning_printed_by_chk_status;
   my_bool rep_quick= test(param->testflag & (T_QUICK | T_FORCE_UNIQUENESS));
   MARIA_HA *info;
   File datafile;
@@ -905,6 +937,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
     recreate=0;
   datafile=0;
   param->isam_file_name=filename;		/* For error messages */
+  warning_printed_by_chk_status= 0;
   if (!(info=maria_open(filename,
                         (param->testflag & (T_DESCRIPT | T_READONLY)) ?
                         O_RDONLY : O_RDWR,
@@ -992,8 +1025,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
                             share->state.open_count != 0);
 
     if ((param->testflag & (T_REP_ANY | T_SORT_RECORDS)) &&
-	((share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				  STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR) ||
+	((share->state.changed & (STATE_CHANGED | STATE_CRASHED_FLAGS |
+				  STATE_IN_REPAIR) ||
 	  !(param->testflag & T_CHECK_ONLY_CHANGED))))
       need_to_check=1;
 
@@ -1010,8 +1043,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
         need_to_check=1;
     }
     if ((param->testflag & T_CHECK_ONLY_CHANGED) &&
-	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR)))
+	(share->state.changed & (STATE_CHANGED | STATE_CRASHED_FLAGS |
+				 STATE_IN_REPAIR)))
       need_to_check=1;
     if (!need_to_check)
     {
@@ -1188,9 +1221,9 @@ static int maria_chk(HA_CHECK *param, char *filename)
 #ifndef TO_BE_REMOVED
       if (param->out_flag & O_NEW_DATA)
       {			/* Change temp file to org file */
-        my_close(info->dfile.file, MYF(MY_WME)); /* Close new file */
+        mysql_file_close(info->dfile.file, MYF(MY_WME)); /* Close new file */
         error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
-                                       MYF(0));
+                                       0, MYF(0));
         if (_ma_open_datafile(info,info->s, NullS, -1))
           error=1;
         param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
@@ -1229,8 +1262,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (!error)
     {
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
     }
     else
       maria_mark_crashed(info);
@@ -1246,7 +1279,12 @@ static int maria_chk(HA_CHECK *param, char *filename)
     maria_chk_init_for_check(param, info);
     if (opt_warning_for_wrong_transid == 0)
       param->max_trid= ~ (ulonglong) 0;
+
     error= maria_chk_status(param,info);
+    /* Forget warning printed by maria_chk_status if no problems found */
+    warning_printed_by_chk_status= param->warning_printed;
+    param->warning_printed= 0;
+   
     maria_intersect_keys_active(share->state.key_map, param->keys_in_use);
     error|= maria_chk_size(param,info);
     if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
@@ -1283,14 +1321,13 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (!error)
     {
       if (((share->state.changed &
-            (STATE_CHANGED | STATE_CRASHED | STATE_CRASHED_ON_REPAIR |
-             STATE_IN_REPAIR)) ||
+            (STATE_CHANGED | STATE_CRASHED_FLAGS | STATE_IN_REPAIR)) ||
            share->state.open_count != 0)
           && (param->testflag & T_UPDATE_STATE))
         info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
     }
     else if (!maria_is_crashed(info) &&
              (param->testflag & T_UPDATE_STATE))
@@ -1306,33 +1343,40 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                   (my_bool) !test(param->testflag & T_AUTO_INC));
 
   if (info->update & HA_STATE_CHANGED && ! (param->testflag & T_READONLY))
+  {
     error|=maria_update_state_info(param, info,
                                    UPDATE_OPEN_COUNT |
-                                   (((param->testflag & T_REP_ANY) ?
+                                   (((param->testflag &
+                                      (T_REP_ANY | T_UPDATE_STATE)) ?
                                      UPDATE_TIME : 0) |
                                     (state_updated ? UPDATE_STAT : 0) |
                                     ((param->testflag & T_SORT_RECORDS) ?
                                      UPDATE_SORT : 0)));
+    if (warning_printed_by_chk_status)
+      _ma_check_print_info(param, "Aria table '%s' was ok. Status updated",
+                          filename);
+    else if (!(param->testflag & T_SILENT))
+      printf("State updated\n");
+    warning_printed_by_chk_status= 0;
+  }
   info->update&= ~HA_STATE_CHANGED;
   _ma_reenable_logging_for_table(info, FALSE);
   maria_lock_database(info, F_UNLCK);
 
 end2:
-  end_pagecache(maria_pagecache, 1);
   if (maria_close(info))
   {
     _ma_check_print_error(param, default_close_errmsg, my_errno, filename);
     DBUG_RETURN(1);
   }
+  end_pagecache(maria_pagecache, 1);
   if (error == 0)
   {
     if (param->out_flag & O_NEW_DATA)
       error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
+                                     param->backup_time,
                                      ((param->testflag & T_BACKUP_DATA) ?
                                       MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
-    if (param->out_flag & O_NEW_INDEX)
-      error|=maria_change_to_newfile(filename,MARIA_NAME_IEXT,INDEX_TMP_EXT,
-                                     MYF(0));
   }
   if (opt_transaction_logging &&
       share->base.born_transactional && !error &&
@@ -1352,6 +1396,7 @@ end2:
 
   if (param->error_printed)
   {
+    error= 2;
     if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
     {
       fprintf(stderr, "Aria table '%s' is not fixed because of errors\n",
@@ -1366,12 +1411,17 @@ end2:
       fprintf(stderr, "Aria table '%s' is corrupted\nFix it using switch "
               "\"-r\" or \"-o\"\n", filename);
   }
-  else if (param->warning_printed &&
+  else if ((param->warning_printed || warning_printed_by_chk_status) &&
 	   ! (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
 			  T_FORCE_CREATE)))
-    fprintf(stderr, "Aria table '%s' is usable but should be fixed\n",
-            filename);
-  fflush(stderr);
+  {
+    if (!error)
+      error= 1;
+    (void) fprintf(stderr, "Aria table '%s' is usable but should be fixed\n",
+                   filename);
+  }
+
+  (void) fflush(stderr);
   DBUG_RETURN(error);
 } /* maria_chk */
 
@@ -1400,7 +1450,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     DBUG_VOID_RETURN;
   }
 
-  printf("Aria file:          %s\n",name);
+  printf("Aria file:           %s\n",name);
   printf("Record format:       %s\n", record_formats[share->data_file_type]);
   printf("Crashsafe:           %s\n",
          share->base.born_transactional ? "yes" : "no");
@@ -1420,7 +1470,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     if (share->state.check_time)
     {
       get_date(buff,1,share->state.check_time);
-      printf("Recover time:        %s\n",buff);
+      printf("Check/recover time:  %s\n",buff);
     }
     if (share->base.born_transactional)
     {
@@ -1436,7 +1486,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     printf("UUID:                %s\n", buff);
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
-      strmov(buff,"crashed");
+      strmov(buff, share->state.changed & STATE_CRASHED_ON_REPAIR ?
+             "crashed on repair" : "crashed");
     else
     {
       if (share->state.open_count)
@@ -1499,8 +1550,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       if (share->base.max_data_file_length != HA_OFFSET_ERROR ||
 	  share->base.max_key_file_length != HA_OFFSET_ERROR)
 	printf("Max datafile length: %16s  Max keyfile length: %18s\n",
-	       llstr(share->base.max_data_file_length-1,llbuff),
-	       llstr(share->base.max_key_file_length-1,llbuff2));
+	       ullstr(share->base.max_data_file_length,llbuff),
+	       ullstr(share->base.max_key_file_length,llbuff2));
     }
   }
   printf("Block_size:          %16d\n",(int) share->block_size);
@@ -1700,14 +1751,14 @@ static int maria_sort_records(HA_CHECK *param,
   {
     _ma_check_print_warning(param,
 			   "Can't sort table '%s' on key %d;  No such key",
-		name,sort_key+1);
+                            name,sort_key+1);
     param->error_printed=0;
     DBUG_RETURN(0);				/* Nothing to do */
   }
   if (keyinfo->flag & HA_FULLTEXT)
   {
     _ma_check_print_warning(param,"Can't sort table '%s' on FULLTEXT key %d",
-			   name,sort_key+1);
+                            name,sort_key+1);
     param->error_printed=0;
     DBUG_RETURN(0);				/* Nothing to do */
   }
@@ -1759,12 +1810,12 @@ static int maria_sort_records(HA_CHECK *param,
   }
 
   fn_format(param->temp_filename,name,"", MARIA_NAME_DEXT,2+4+32);
-  new_file= my_create(fn_format(param->temp_filename,
-                                param->temp_filename,"",
-                                DATA_TMP_EXT,
-                                MY_REPLACE_EXT | MY_UNPACK_FILENAME),
-                      0, param->tmpfile_createflag,
-                      MYF(0));
+  new_file= mysql_file_create(key_file_tmp,
+                              fn_format(param->temp_filename,
+                                        param->temp_filename, "",
+                                        DATA_TMP_EXT,
+                                        MY_REPLACE_EXT | MY_UNPACK_FILENAME),
+                              0, param->tmpfile_createflag, MYF(0));
   if (new_file < 0)
   {
     _ma_check_print_error(param,"Can't create new tempfile: '%s'",
@@ -1782,10 +1833,10 @@ static int maria_sort_records(HA_CHECK *param,
   for (key=0 ; key < share->base.keys ; key++)
     share->keyinfo[key].flag|= HA_SORT_ALLOWS_SAME;
 
-  if (my_pread(share->kfile.file, temp_buff,
-	       (uint) keyinfo->block_length,
-	       share->state.key_root[sort_key],
-	       MYF(MY_NABP+MY_WME)))
+  if (mysql_file_pread(share->kfile.file, temp_buff,
+                       (uint) keyinfo->block_length,
+                       share->state.key_root[sort_key],
+                       MYF(MY_NABP+MY_WME)))
   {
     _ma_check_print_error(param, "Can't read indexpage from filepos: %s",
                           llstr(share->state.key_root[sort_key], llbuff));
@@ -1818,7 +1869,7 @@ static int maria_sort_records(HA_CHECK *param,
     goto err;
   }
 
-  my_close(info->dfile.file, MYF(MY_WME));
+  mysql_file_close(info->dfile.file, MYF(MY_WME));
   param->out_flag|=O_NEW_DATA;			/* Data in new file */
   info->dfile.file= new_file;                   /* Use new datafile */
   _ma_set_data_pagecache_callbacks(&info->dfile, info->s);
@@ -1843,8 +1894,8 @@ err:
   if (got_error && new_file >= 0)
   {
     end_io_cache(&info->rec_cache);
-    (void) my_close(new_file,MYF(MY_WME));
-    (void) my_delete(param->temp_filename, MYF(MY_WME));
+    (void) mysql_file_close(new_file,MYF(MY_WME));
+    (void) mysql_file_delete(key_file_tmp, param->temp_filename, MYF(MY_WME));
   }
   if (temp_buff)
   {
@@ -1902,9 +1953,9 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag, keypos);
-      if (my_pread(share->kfile.file, temp_buff,
-		  (uint) tmp_key.keyinfo->block_length, next_page,
-		   MYF(MY_NABP+MY_WME)))
+      if (mysql_file_pread(share->kfile.file, temp_buff,
+                           (uint) tmp_key.keyinfo->block_length, next_page,
+                           MYF(MY_NABP+MY_WME)))
       {
 	_ma_check_print_error(param,"Can't read keys from filepos: %s",
 		    llstr(next_page,llbuff));

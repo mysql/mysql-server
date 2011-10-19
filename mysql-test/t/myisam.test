@@ -1696,7 +1696,6 @@ SET myisam_repair_threads=@@global.myisam_repair_threads;
 
 --echo End of 5.1 tests
 
-
 --echo #
 --echo # Bug#51327 MyISAM table is automatically repaired on ALTER
 --echo #           even if myisam-recover is OFF
@@ -1727,3 +1726,9 @@ ALTER TABLE t1 ENGINE = MyISAM;
 CHECK TABLE t1;
 
 DROP TABLE t1;
+
+#
+# Check some variables
+#
+show variables like 'myisam_block_size';
+select @@global.myisam_block_size;

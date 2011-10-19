@@ -149,9 +149,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
   DBUG_RETURN(result);
 #else
 #ifdef _WIN32
-  int ret= GetFullPathName(filename,FN_REFLEN,
-                           to,
-                           NULL);
+  int ret= GetFullPathName(filename,FN_REFLEN, to, NULL);
   if (ret == 0 || ret > FN_REFLEN)
   {
     if (ret > FN_REFLEN)
@@ -160,7 +158,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags)
       my_errno= EACCES;
     if (MyFlags & MY_WME)
       my_error(EE_REALPATH, MYF(0), filename, my_errno);
-	  return -1;
+    return -1;
   }
 #else
   my_load_path(to, filename, NullS);

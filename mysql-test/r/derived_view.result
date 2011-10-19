@@ -1,0 +1,1273 @@
+drop table if exists t1,t2;
+drop view if exists v1,v2,v3,v4;
+set @exit_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_merge=on,derived_with_keys=on';
+set @save_optimizer_switch=@@optimizer_switch;
+create table t1(f1 int, f11 int);
+create table t2(f2 int, f22 int);
+insert into t1 values(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
+insert into t1 values(17,17),(13,13),(11,11),(15,15),(19,19);
+insert into t2 values(1,1),(3,3),(2,2),(4,4),(8,8),(6,6);
+insert into t2 values(12,12),(14,14),(10,10),(18,18),(16,16);
+Tests:
+for merged derived tables
+explain for simple derived
+explain select * from (select * from t1) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	
+select * from (select * from t1) tt;
+f1	f11
+1	1
+2	2
+3	3
+5	5
+9	9
+7	7
+17	17
+13	13
+11	11
+15	15
+19	19
+explain for multitable derived
+explain extended select * from (select * from t1 join t2 on f1=f2) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
+select * from (select * from t1 join t2 on f1=f2) tt;
+f1	f11	f2	f22
+1	1	1	1
+3	3	3	3
+2	2	2	2
+explain for derived with where
+explain extended 
+select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f11` = 2) and (`test`.`t1`.`f1` in (2,3)))
+select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+f1	f11
+2	2
+join of derived
+explain extended 
+select * from (select * from t1 where f1 in (2,3)) tt join
+(select * from t1 where f1 in (1,2)) aa on tt.f1=aa.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`f1` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` in (1,2)) and (`test`.`t1`.`f1` in (2,3)))
+select * from (select * from t1 where f1 in (2,3)) tt join
+(select * from t1 where f1 in (1,2)) aa on tt.f1=aa.f1;
+f1	f11	f1	f11
+2	2	2	2
+flush status;
+explain extended 
+select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f11` = 2) and (`test`.`t1`.`f1` in (2,3)))
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+select * from (select * from t1 where f1 in (2,3)) tt where f11=2;
+f1	f11
+2	2
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	12
+for merged views
+create view v1 as select * from t1;
+create view v2 as select * from t1 join t2 on f1=f2;
+create view v3 as select * from t1 where f1 in (2,3);
+create view v4 as select * from t2 where f2 in (2,3);
+explain for simple views
+explain extended select * from v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1`
+select * from v1;
+f1	f11
+1	1
+2	2
+3	3
+5	5
+9	9
+7	7
+17	17
+13	13
+11	11
+15	15
+19	19
+explain for multitable views
+explain extended select * from v2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
+select * from v2;
+f1	f11	f2	f22
+1	1	1	1
+3	3	3	3
+2	2	2	2
+explain for views with where
+explain extended select * from v3 where f11 in (1,3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f11` in (1,3)) and (`test`.`t1`.`f1` in (2,3)))
+select * from v3 where f11 in (1,3);
+f1	f11
+3	3
+explain for joined views
+explain extended
+select * from v3 join v4 on f1=f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` in (2,3)) and (`test`.`t1`.`f1` in (2,3)))
+select * from v3 join v4 on f1=f2;
+f1	f11	f2	f22
+3	3	3	3
+2	2	2	2
+flush status;
+explain extended select * from v4 where f2 in (1,3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` in (1,3)) and (`test`.`t2`.`f2` in (2,3)))
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+select * from v4 where f2 in (1,3);
+f2	f22
+3	3
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	12
+for materialized derived tables
+explain for simple derived
+explain extended select * from (select * from t1 group by f1) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` group by `test`.`t1`.`f1`) `tt`
+select * from (select * from t1 having f1=f1) tt;
+f1	f11
+1	1
+2	2
+3	3
+5	5
+9	9
+7	7
+17	17
+13	13
+11	11
+15	15
+19	19
+explain showing created indexes
+explain extended 
+select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.f1	2	100.00	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from `test`.`t1` join (select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` group by `test`.`t2`.`f2`) `tt` where (`tt`.`f2` = `test`.`t1`.`f1`)
+select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+f1	f11	f2	f22
+1	1	1	1
+2	2	2	2
+3	3	3	3
+explain showing late materialization
+flush status;
+explain select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.f1	2	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	11	Using temporary; Using filesort
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+select * from t1 join (select * from t2 group by f2) tt on f1=f2;
+f1	f11	f2	f22
+1	1	1	1
+2	2	2	2
+3	3	3	3
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	11
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	11
+Handler_read_rnd_next	36
+for materialized views
+drop view v1,v2,v3;
+create view v1 as select * from t1 group by f1;
+create view v2 as select * from t2 group by f2;
+create view v3 as select t1.f1,t1.f11 from t1 join t1 as t11 where t1.f1=t11.f1
+having t1.f1<100;
+explain for simple derived
+explain extended select * from v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1`
+select * from v1;
+f1	f11
+1	1
+2	2
+3	3
+5	5
+7	7
+9	9
+11	11
+13	13
+15	15
+17	17
+19	19
+explain showing created indexes
+explain extended select * from t1 join v2 on f1=f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.f1	2	100.00	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v2`.`f2` AS `f2`,`v2`.`f22` AS `f22` from `test`.`t1` join `test`.`v2` where (`v2`.`f2` = `test`.`t1`.`f1`)
+select * from t1 join v2 on f1=f2;
+f1	f11	f2	f22
+1	1	1	1
+2	2	2	2
+3	3	3	3
+explain extended
+select * from t1,v3 as v31,v3 where t1.f1=v31.f1 and t1.f1=v3.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.f1	10	100.00	
+1	PRIMARY	<derived3>	ref	key0	key0	5	test.t1.f1	10	100.00	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	
+3	DERIVED	t11	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	
+2	DERIVED	t11	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`v31`.`f1` AS `f1`,`v31`.`f11` AS `f11`,`v3`.`f1` AS `f1`,`v3`.`f11` AS `f11` from `test`.`t1` join `test`.`v3` `v31` join `test`.`v3` where ((`v31`.`f1` = `test`.`t1`.`f1`) and (`v3`.`f1` = `test`.`t1`.`f1`))
+flush status;
+select * from t1,v3 as v31,v3 where t1.f1=v31.f1 and t1.f1=v3.f1;
+f1	f11	f1	f11	f1	f11
+1	1	1	1	1	1
+2	2	2	2	2	2
+3	3	3	3	3	3
+5	5	5	5	5	5
+9	9	9	9	9	9
+7	7	7	7	7	7
+17	17	17	17	17	17
+13	13	13	13	13	13
+11	11	11	11	11	11
+15	15	15	15	15	15
+19	19	19	19	19	19
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	22
+Handler_read_next	22
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	60
+explain showing late materialization
+flush status;
+explain select * from t1 join v2 on f1=f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.f1	2	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	11	Using temporary; Using filesort
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+flush status;
+select * from t1 join v2 on f1=f2;
+f1	f11	f2	f22
+1	1	1	1
+2	2	2	2
+3	3	3	3
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	11
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	11
+Handler_read_rnd_next	36
+explain extended select * from v1 join v4 on f1=f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t2.f2	2	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`v1` join `test`.`t2` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)))
+select * from v1 join v4 on f1=f2;
+f1	f11	f2	f22
+3	3	3	3
+2	2	2	2
+merged derived in merged derived
+explain extended select * from (select * from 
+(select * from t1 where f1 < 7) tt where f1 > 2) zz;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
+select * from (select * from 
+(select * from t1 where f1 < 7) tt where f1 > 2) zz;
+f1	f11
+3	3
+5	5
+materialized derived in merged derived
+explain extended  select * from (select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2) zz;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2)
+select * from (select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2) zz;
+f1	f11
+3	3
+5	5
+merged derived in materialized derived
+explain  extended select * from (select * from 
+(select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7)) group by `test`.`t1`.`f1`) `zz`
+select * from (select * from 
+(select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
+f1	f11
+3	3
+5	5
+materialized derived in materialized derived
+explain extended  select * from (select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) zz;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	100.00	
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `zz`
+select * from (select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) zz;
+f1	f11
+3	3
+5	5
+mat in merged derived join mat in merged derived
+explain extended  select * from 
+(select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) x
+join 
+(select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) z
+on x.f1 = z.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<derived3>	ALL	key0	NULL	NULL	NULL	11	100.00	Using where
+1	SIMPLE	<derived5>	ref	key0	key0	5	tt.f1	2	100.00	
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11`,`tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` join (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where ((`tt`.`f1` = `tt`.`f1`) and (`tt`.`f1` > 2) and (`tt`.`f1` > 2))
+flush status;
+select * from 
+(select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) x
+join 
+(select * from (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) z
+on x.f1 = z.f1;
+f1	f11	f1	f11
+3	3	3	3
+5	5	5	5
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	2
+Handler_read_next	2
+Handler_read_prev	0
+Handler_read_rnd	8
+Handler_read_rnd_next	39
+flush status;
+merged in merged derived join merged in merged derived
+explain extended  select * from 
+(select * from 
+(select * from t1 where f1 < 7 ) tt where f1 > 2 ) x
+join 
+(select * from 
+(select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
+on x.f1 = z.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`f1` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
+select * from 
+(select * from 
+(select * from t1 where f1 < 7 ) tt where f1 > 2 ) x
+join 
+(select * from 
+(select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
+on x.f1 = z.f1;
+f1	f11	f1	f11
+3	3	3	3
+5	5	5	5
+materialized in materialized derived join 
+materialized in materialized derived
+explain extended  select * from 
+(select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) x
+join 
+(select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) z
+on x.f1 = z.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	key0	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	<derived4>	ref	key0	key0	5	x.f1	2	100.00	
+4	DERIVED	<derived5>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `x`.`f1` AS `f1`,`x`.`f11` AS `f11`,`z`.`f1` AS `f1`,`z`.`f11` AS `f11` from (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `x` join (select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where (`test`.`t1`.`f1` < 7) group by `test`.`t1`.`f1`) `tt` where (`tt`.`f1` > 2) group by `tt`.`f1`) `z` where (`z`.`f1` = `x`.`f1`)
+select * from 
+(select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) x
+join 
+(select * from 
+(select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) z
+on x.f1 = z.f1;
+f1	f11	f1	f11
+3	3	3	3
+5	5	5	5
+merged view in materialized derived
+explain extended
+select * from (select * from v4 group by 1) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	100.00	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where (`test`.`t2`.`f2` in (2,3)) group by 1) `tt`
+select * from (select * from v4 group by 1) tt;
+f2	f22
+2	2
+3	3
+materialized view in merged derived
+explain extended 
+select * from ( select * from v1 where f1 < 7) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` where (`v1`.`f1` < 7)
+select * from ( select * from v1 where f1 < 7) tt;
+f1	f11
+1	1
+2	2
+3	3
+5	5
+merged view in a merged view in a merged derived
+create view v6 as select * from v4 where f2 < 7;
+explain extended select * from (select * from v6) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` < 7) and (`test`.`t2`.`f2` in (2,3)))
+select * from (select * from v6) tt;
+f2	f22
+3	3
+2	2
+materialized view in a merged view in a materialized derived
+create view v7 as select * from v1;
+explain extended select * from (select * from v7 group by 1) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	100.00	
+2	DERIVED	<derived4>	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` group by 1) `tt`
+select * from (select * from v7 group by 1) tt;
+f1	f11
+1	1
+2	2
+3	3
+5	5
+7	7
+9	9
+11	11
+13	13
+15	15
+17	17
+19	19
+join of above two
+explain extended select * from v6 join v7 on f2=f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	SIMPLE	<derived5>	ref	key0	key0	5	test.t2.f2	2	100.00	
+5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` < 7) and (`test`.`t2`.`f2` in (2,3)))
+select * from v6 join v7 on f2=f1;
+f2	f22	f1	f11
+3	3	3	3
+2	2	2	2
+test two keys
+explain select * from t1 join (select * from t2 group by f2) tt on t1.f1=tt.f2 join t1 xx on tt.f22=xx.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t1.f1	2	
+1	PRIMARY	xx	ALL	NULL	NULL	NULL	NULL	11	Using where; Using join buffer (flat, BNL join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	11	Using temporary; Using filesort
+select * from t1 join (select * from t2 group by f2) tt on t1.f1=tt.f2 join t1 xx on tt.f22=xx.f1;
+f1	f11	f2	f22	f1	f11
+1	1	1	1	1	1
+2	2	2	2	2	2
+3	3	3	3	3	3
+TODO: Add test with 64 tables mergeable view to test fall back to
+materialization on tables > MAX_TABLES merge
+drop table t1,t2;
+drop view v1,v2,v3,v4,v6,v7;
+#
+#  LP bug #794909: crash when defining possible keys for
+#                  a materialized view/derived_table
+#
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (149), (150), (224), (29);
+CREATE TABLE t2 (f1 int, KEY (f1));
+INSERT INTO t2 VALUES (149), (NULL), (224);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN
+SELECT * FROM v1 JOIN t2 ON v1.f1 = t2.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	f1	f1	5	NULL	3	Using where; Using index
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t2.f1	2	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+SELECT * FROM v1 JOIN t2 ON v1.f1 = t2.f1;
+f1	f1
+149	149
+224	224
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+#  LP bug #794890: abort failure on multi-update with view
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (20), (7);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (7), (9), (7);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT a FROM t1;
+CREATE VIEW v2 AS SELECT t2.a FROM t2, v1 WHERE t2.a=t2.a;
+UPDATE v2 SET a = 2;
+SELECT * FROM t2;
+a
+2
+2
+2
+UPDATE t1,v2 SET t1.a = 3;
+SELECT * FROM t1;
+a
+3
+3
+DELETE t1 FROM t1,v2;
+SELECT * FROM t1;
+a
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+#
+#  LP bug #802023: MIN/MAX optimization 
+#                  for mergeable derived tables and views
+#
+CREATE TABLE t1 (a int, b int, c varchar(32), INDEX idx(a,b));
+INSERT INTO t1 VALUES 
+(7, 74, 'yyyyyyy'), (9, 97, 'aaaaaaaaa'), (2, 23, 'tt'),
+(5, 55, 'ddddd'), (2, 27, 'ss'), (7, 76, 'xxxxxxx'),
+(7, 79, 'zzzzzzz'), (9, 92, 'bbbbbbbbb'), (2, 25, 'pp'),
+(5, 53, 'eeeee'), (2, 23, 'qq'), (7, 76,'wwwwwww'),
+(7, 74, 'uuuuuuu'), (9, 92, 'ccccccccc'), (2, 25, 'oo');
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT MIN(a) FROM t1 WHERE a >= 5;
+MIN(a)
+5
+EXPLAIN
+SELECT MIN(a) FROM t1 WHERE a >= 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(a) FROM (SELECT * FROM t1) t WHERE a >= 5;
+MIN(a)
+5
+EXPLAIN
+SELECT MIN(a) FROM(SELECT * FROM t1) t WHERE a >= 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MIN(a) FROM v1 WHERE a >= 5;
+MIN(a)
+5
+EXPLAIN
+SELECT MIN(a) FROM v1 WHERE a >= 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MAX(b) FROM t1 WHERE a=7 AND b<75;
+MAX(b)
+74
+EXPLAIN
+SELECT MAX(b) FROM t1 WHERE a=7 AND b<75;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MAX(b) FROM (SELECT * FROM t1) t WHERE a=7 AND b<75;
+MAX(b)
+74
+EXPLAIN
+SELECT MAX(b) FROM (SELECT * FROM t1) t WHERE a=7 AND b<75;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT MAX(b) FROM v1 WHERE a=7 AND b<75;
+MAX(b)
+74
+EXPLAIN
+SELECT MAX(b) FROM v1 WHERE a=7 AND b<75;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# LP bug #800535: GROUP BY query with nested left join                       
+#                 and a derived table in the nest
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (1), (2);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (3,3), (4,4);
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+(t2  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` `t` join `test`.`t3`) on(((`test`.`t`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t`.`a`
+SELECT t.a FROM t1 LEFT JOIN
+(t2 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+a
+NULL
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+(( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t2`.`a`
+SELECT t.a FROM t1 LEFT JOIN
+(( SELECT * FROM t2 ) t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+a
+NULL
+CREATE VIEW v1 AS SELECT * FROM t2;
+EXPLAIN EXTENDED
+SELECT t.a FROM t1 LEFT JOIN
+(v1  t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`a` >= 1) and (`test`.`t3`.`b` > 5))) where 1 group by `test`.`t2`.`a`
+SELECT t.a FROM t1 LEFT JOIN
+(v1 t  JOIN t3 ON t3.b > 5)  ON t.a >= 1 
+GROUP BY t.a;
+a
+NULL
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #803410: materialized view/dt accessed by two-component key                       
+#                 
+CREATE TABLE t1 (a varchar(1));
+INSERT INTO t1 VALUES ('c');
+CREATE TABLE t2 (a varchar(1) , KEY (a)) ;
+INSERT INTO t2 VALUES ('c'), (NULL), ('r');
+CREATE TABLE t3 (a varchar(1), b varchar(1));
+INSERT INTO t3 VALUES ('e', 'c'), ('c', 'c'), ('c', 'r');
+CREATE VIEW v1 AS SELECT a, MIN(b) AS b FROM t3 GROUP BY a;
+EXPLAIN
+SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ref	a	a	4	const	1	Using index
+1	PRIMARY	<derived2>	ref	key1	key1	10	test.t1.a,test.t1.a	2	
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
+a	a	a	b
+c	c	c	c
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #802845: select from derived table with limit 0                       
+#                 
+SELECT * FROM (SELECT 1 LIMIT 0) t;
+1
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (7), (1), (3);
+SELECT * FROM (SELECT * FROM t1 LIMIT 0) t;
+a
+DROP TABLE t1;
+#
+# LP bug #803851: materialized view + IN->EXISTS                       
+#                 
+SET SESSION optimizer_switch='semijoin=off,derived_with_keys=on';
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (2,2), (3,3), (1,1);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (1), (2), (1);
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (3), (1), (2), (1);
+CREATE VIEW v1 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+EXPLAIN EXTENDED
+SELECT * FROM t3
+WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	ref	key0	key0	5	func	2	100.00	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`a`,<exists>(select `v1`.`a` from `test`.`v1` join `test`.`t2` where ((`test`.`t2`.`a` = `v1`.`b`) and (<cache>(`test`.`t3`.`a`) = `v1`.`a`))))
+SELECT * FROM t3
+WHERE t3.a IN (SELECT v1.a FROM v1, t2 WHERE t2.a = v1.b);
+a
+1
+2
+1
+SET SESSION optimizer_switch=@save_optimizer_switch;
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #804515: materialized derived + ORDER BY                      
+#                 
+CREATE TABLE t1 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t1 VALUES
+('r','x'), ('x','d'), ('x','r'), ('r','f'), ('x','x');
+CREATE TABLE t2 (f1 varchar(1), f2 varchar(1));
+INSERT INTO t2 VALUES ('s','x');
+CREATE TABLE t3 (f1 varchar(1), f2 varchar(1), KEY (f2));
+INSERT INTO t3 VALUES
+(NULL,'x'), (NULL,'f'), ('t','p'), (NULL,'j'), ('g','c');
+CREATE TABLE t4 (f1 int, f2 varchar(1), KEY (f2,f1)) ;
+INSERT INTO t4 VALUES (1,'x'), (5,'r');
+EXPLAIN
+SELECT t.f1 AS f 
+FROM (SELECT DISTINCT t1.* FROM t1,t2 WHERE t2.f2 = t1.f2) t,t3,t4
+WHERE t4.f2 = t3.f2  AND t4.f2 = t.f1 ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where; Using filesort
+1	PRIMARY	t4	ref	f2	f2	4	t.f1	1	Using index
+1	PRIMARY	t3	ref	f2	f2	4	t.f1	2	Using index
+2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	Using temporary
+2	DERIVED	t1	ref	f2	f2	4	const	2	Using where
+SELECT t.f1 AS f 
+FROM (SELECT DISTINCT t1.* FROM t1,t2 WHERE t2.f2 = t1.f2) t,t3,t4
+WHERE t4.f2 = t3.f2  AND t4.f2 = t.f1 ORDER BY f;
+f
+x
+DROP TABLE t1,t2,t3,t4;
+#
+# LP bug #806431: join over materialized derived with key                    
+#             
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0),(3,0),(1,0);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT a,b FROM t1 ;
+SET SESSION optimizer_switch='derived_with_keys=off';
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+a	b	a	b
+0	0	0	0
+0	0	3	0
+0	0	1	0
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t.a	2	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
+SELECT * FROM t1 AS t JOIN v1 AS v WHERE t.a = v.b AND t.b = v.b;
+a	b	a	b
+0	0	1	0
+0	0	3	0
+0	0	0	0
+SET SESSION optimizer_switch=@save_optimizer_switch;
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# LP bug #806477: left join over merged join with                    
+#                 where condition containing f=f
+#
+CREATE TABLE t1 (a int NOT NULL);
+INSERT INTO t1 VALUES (1), (50), (0);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (76,2), (1,NULL);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT t3.b, v1.a 
+FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+WHERE v1.a = v1.a OR t3.b <> 0;
+b	a
+2	NULL
+EXPLAIN EXTENDED
+SELECT t3.b, v1.a 
+FROM t3 LEFT JOIN (t2, v1) ON t3.a <> 0
+WHERE v1.a = v1.a OR t3.b <> 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t3`.`b` AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t3` left join (`test`.`t2` join `test`.`t1`) on((`test`.`t3`.`a` <> 0)) where ((`test`.`t1`.`a` = `test`.`t1`.`a`) or (`test`.`t3`.`b` <> 0))
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #806510: subquery with outer reference
+#                 to a derived_table/view                    
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (4), (NULL);
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8), (0);
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (7,8);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM  t1 t
+WHERE EXISTS (SELECT t3.a FROM t3, t2
+WHERE t2.a = t3.b AND t.a != 0);
+a
+4
+EXPLAIN
+SELECT * FROM  t1 t
+WHERE EXISTS (SELECT t3.a FROM t3, t2
+WHERE t2.a = t3.b AND t.a != 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM (SELECT * FROM t1) t
+WHERE EXISTS (SELECT t3.a FROM t3, t2
+WHERE t2.a = t3.b AND t.a != 0);
+a
+4
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1) t
+WHERE EXISTS (SELECT t3.a FROM t3, t2
+WHERE t2.a = t3.b AND t.a != 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM v1 t
+WHERE EXISTS (SELECT t3.a FROM t3, t2
+WHERE t2.a = t3.b AND t.a != 0);
+a
+4
+EXPLAIN
+SELECT * FROM v1 t
+WHERE EXISTS (SELECT t3.a FROM t3, t2
+WHERE t2.a = t3.b AND t.a != 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #806097: left join over a view + DISTINCT           
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (252,6), (232,0), (174,232);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (232), (174);
+CREATE TABLE t3 (c int);
+INSERT INTO t3 VALUES (1), (2);
+CREATE VIEW v1 AS SELECT t2.a FROM t3,t2;
+SELECT v1.a FROM t1 LEFT JOIN v1 ON t1.b = 0;
+a
+NULL
+232
+174
+232
+174
+NULL
+SELECT DISTINCT t2.a FROM t1 LEFT JOIN (t3,t2) ON t1.b = 0;
+a
+NULL
+232
+174
+EXPLAIN
+SELECT DISTINCT t2.a FROM t1 LEFT JOIN (t3,t2) ON t1.b = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT DISTINCT v1.a FROM t1 LEFT JOIN v1 ON t1.b = 0;
+a
+NULL
+232
+174
+EXPLAIN
+SELECT DISTINCT v1.a FROM t1 LEFT JOIN v1 ON t1.b = 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #806504: right join over a view/derived table           
+#
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0);
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (0), (0);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+a	a	b
+NULL	0	0
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN (SELECT * FROM t1) AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t1` left join `test`.`t2` on((0 <> 0)) where <in_optimizer>(0,<exists>(select 0 from `test`.`t1` where (<cache>(0) = 0)))
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+a	a	b
+NULL	0	0
+EXPLAIN EXTENDED
+SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
+WHERE t.a IN (SELECT b FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t1` left join `test`.`t2` on((0 <> 0)) where <in_optimizer>(0,<exists>(select 0 from `test`.`t1` where (<cache>(0) = 0)))
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+# LP bug #809206: DISTINCT in derived table / view           
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (0);
+CREATE TABLE t2 (a  varchar(32), b int, KEY (a)) ;
+INSERT INTO t2 VALUES
+('j',28), ('c',29), ('i',26), ('c',29), ('k',27),
+('j',28), ('c',29), ('i',25), ('d',26), ('k',27);
+CREATE TABLE t3 (a varchar(32));
+INSERT INTO t3 VALUES ('j'), ('c');
+CREATE VIEW v1 AS SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+b
+28
+29
+EXPLAIN 
+SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	Using temporary
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ref	a	a	35	test.t3.a	2	
+SELECT * FROM (SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a) t;
+b
+28
+29
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT t2.b FROM t1,t2,t3 WHERE t3.a = t2.a) t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
+2	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	Using temporary
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DERIVED	t2	ref	a	a	35	test.t3.a	2	
+SELECT * FROM v1;
+b
+28
+29
+EXPLAIN 
+SELECT * FROM v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
+2	DERIVED	t1	system	NULL	NULL	NULL	NULL	1	Using temporary
+2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DERIVED	t2	ref	a	a	35	test.t3.a	2	
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #809179: right join over a derived table / view         
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (6,5);
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (1,0);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (6,5);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT t.a,t.b FROM t3 RIGHT JOIN (t1 AS t, t2) ON t2.b != 0 
+WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+a	b
+6	5
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN (t1 AS t, t2) ON t2.b != 0 
+WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select 6 AS `a`,5 AS `b` from `test`.`t1` `t` join `test`.`t2` left join `test`.`t3` on((0 <> 0)) where (not(<in_optimizer>((6,5),<exists>(select 7,5 having (trigcond(((<cache>(6) = 7) or isnull(7))) and trigcond(((<cache>(5) = 5) or isnull(5))) and trigcond(<is_not_null_test>(7)) and trigcond(<is_not_null_test>(5)))))))
+SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
+WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+a	b
+6	5
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN ((SELECT * FROM t1) AS t, t2) ON t2.b != 0 
+WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select 6 AS `a`,5 AS `b` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((0 <> 0)) where (not(<in_optimizer>((6,5),<exists>(select 7,5 having (trigcond(((<cache>(6) = 7) or isnull(7))) and trigcond(((<cache>(5) = 5) or isnull(5))) and trigcond(<is_not_null_test>(7)) and trigcond(<is_not_null_test>(5)))))))
+SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
+WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+a	b
+6	5
+EXPLAIN EXTENDED
+SELECT t.a,t.b FROM t3 RIGHT JOIN (v1 AS t, t2) ON t2.b != 0 
+WHERE (t.a,t.b) NOT IN (SELECT 7, 5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select 6 AS `a`,5 AS `b` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((0 <> 0)) where (not(<in_optimizer>((6,5),<exists>(select 7,5 having (trigcond(((<cache>(6) = 7) or isnull(7))) and trigcond(((<cache>(5) = 5) or isnull(5))) and trigcond(<is_not_null_test>(7)) and trigcond(<is_not_null_test>(5)))))))
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #794901: insert into a multi-table view           
+#
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE VIEW v1 AS SELECT t1.a FROM t1,t2;
+CREATE VIEW v2 AS SELECT a FROM t2 GROUP BY a;
+CREATE VIEW v3 AS SELECT v1.a FROM v1,v2;
+INSERT INTO v3(a) VALUES (1);
+ERROR HY000: The target table v3 of the INSERT is not insertable-into
+DROP VIEW v1,v2,v3;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #793448: materialized view accessed by two-component key           
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (9,3), (2,5);
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t2 VALUES (9,3), (3,7), (9,1), (2,5), (2,4), (3,8);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (10,3), (9,7), (9,1), (2,4);
+CREATE VIEW v1(a,b) AS SELECT a, MAX(b) FROM t2 GROUP BY a;
+CREATE VIEW v2(a,b) AS SELECT a,b FROM t2 UNION SELECT a,b FROM t3;
+SELECT * FROM v1;
+a	b
+2	5
+3	8
+9	3
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+a
+9
+2
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	key0	key0	10	func,func	2	Using where
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
+SELECT * FROM v2;
+a	b
+9	3
+3	7
+9	1
+2	5
+2	4
+3	8
+10	3
+9	7
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+a
+9
+2
+EXPLAIN 
+SELECT a FROM t1 WHERE (a,b) IN (SELECT * FROM v2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	key0	key0	10	func,func	2	Using where
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	6	
+4	UNION	t3	ALL	NULL	NULL	NULL	NULL	4	
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3;
+#
+# LP bug #804686: query over a derived table using a view 
+#                 with a degenerated where condition
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (0,0), (1,0), (0,0), (1,1), (1,0);
+CREATE VIEW v1 AS SELECT a,b FROM t1;
+CREATE VIEW v2 AS SELECT a, MAX(b) AS b FROM t1 GROUP BY a;
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b<>0;
+b
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b<>0;
+b
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+b
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+b
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v1 WHERE b = 0) t WHERE b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	select `test`.`t1`.`b` AS `b` from `test`.`t1` where 0
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT b FROM v2 WHERE b = 0) t WHERE b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `v2`.`b` AS `b` from `test`.`v2` where 0
+DROP VIEW v1,v2;
+DROP TABLE t1;
+#
+# LP bug #819716: crash with embedded tableless materialized derived
+#                 with a variable 
+#
+set optimizer_switch='derived_merge=off';
+EXPLAIN
+SELECT * FROM (SELECT * FROM (SELECT @b) AS t) AS s;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	<derived3>	system	NULL	NULL	NULL	NULL	1	
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+SELECT * FROM (SELECT * FROM (SELECT @b) AS t) AS s;
+@b
+NULL
+set optimizer_switch='derived_merge=on';
+#
+# LP bug #823826: view over join + IS NULL in WHERE
+#
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (1);
+CREATE TABLE t2 (b int) ;
+INSERT INTO t2 VALUES (9), (NULL), (7);
+CREATE VIEW v1 AS SELECT * FROM t1,t2;
+EXPLAIN
+SELECT * FROM (SELECT * FROM t1,t2) t WHERE b IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM (SELECT * FROM t1,t2) t WHERE b IS NULL;
+a	b
+1	NULL
+1	NULL
+EXPLAIN
+SELECT * FROM v1 WHERE b IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM v1 WHERE b IS NULL;
+a	b
+1	NULL
+1	NULL
+DROP VIEW v1;
+DROP TABLE t1,t2;
+#
+# LP bug #823835: a duplicate of #823189 with derived table
+#
+CREATE TABLE t1 (a varchar(32)) ;
+INSERT INTO t1 VALUES ('r'), ('p');
+CREATE TABLE t2 (a int NOT NULL, b varchar(32)) ;
+INSERT INTO t2 VALUES (28,'j');
+CREATE TABLE t3 (a int);
+INSERT INTO t3 VALUES (0), (0);
+EXPLAIN EXTENDED
+SELECT * FROM (SELECT * FROM t1) AS t
+WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
+WHERE t2.b < t.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+3	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 't.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where exists(select 28 from `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`a` = 28)) where ('j' < `test`.`t1`.`a`))
+SELECT * FROM (SELECT * FROM t1) AS t
+WHERE EXISTS (SELECT t2.a FROM t3 RIGHT JOIN t2 ON (t3.a = t2.a)
+WHERE t2.b < t.a);
+a
+r
+p
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@exit_optimizer_switch;

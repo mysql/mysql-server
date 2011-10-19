@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2011 Monty Program Ab
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,9 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
+
+static int commit_one_phase_2(THD *thd, bool all, THD_TRANS *trans,
+                              bool is_real_trans);
 
 static plugin_ref ha_default_plugin(THD *thd)
 {
@@ -359,6 +362,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER_DEFAULT(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER_DEFAULT(ER_TOO_MANY_CONCURRENT_TRXS));
   SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
+  SETMSG(HA_ERR_DISK_FULL,              ER_DEFAULT(ER_DISK_FULL));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -624,6 +628,23 @@ void ha_drop_database(char* path)
 {
   plugin_foreach(NULL, dropdb_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, path);
 }
+
+
+static my_bool checkpoint_state_handlerton(THD *unused1, plugin_ref plugin,
+                                           void *disable)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+  if (hton->state == SHOW_OPTION_YES && hton->checkpoint_state)
+    hton->checkpoint_state(hton, (int) *(bool*) disable);
+  return FALSE;
+}
+
+
+void ha_checkpoint_state(bool disable)
+{
+  plugin_foreach(NULL, checkpoint_state_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &disable);
+}
+
 
 
 static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
@@ -1107,7 +1128,7 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 */
 int ha_commit_trans(THD *thd, bool all)
 {
-  int error= 0, cookie= 0;
+  int error= 0, cookie;
   /*
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
@@ -1122,7 +1143,8 @@ int ha_commit_trans(THD *thd, bool all)
   */
   bool is_real_trans= all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list;
-  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+  bool need_prepare_ordered, need_commit_ordered;
+  my_xid xid;
   DBUG_ENTER("ha_commit_trans");
 
   /* Just a random warning to test warnings pushed during autocommit. */
@@ -1165,115 +1187,138 @@ int ha_commit_trans(THD *thd, bool all)
     ha_maria::implicit_commit(thd, FALSE);
 #endif
 
-  if (ha_info)
+  if (!ha_info)
   {
-    uint rw_ha_count;
-    bool rw_trans;
-    MDL_request mdl_request;
-
-    DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
-
-    /* Close all cursors that can not survive COMMIT */
-    if (is_real_trans)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
-
-    rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
-    /* rw_trans is TRUE when we in a transaction changing data */
-    rw_trans= is_real_trans && (rw_ha_count > 0);
-
-    if (rw_trans)
-    {
-      /*
-        Acquire a metadata lock which will ensure that COMMIT is blocked
-        by an active FLUSH TABLES WITH READ LOCK (and vice versa:
-        COMMIT in progress blocks FTWRL).
-
-        We allow the owner of FTWRL to COMMIT; we assume that it knows
-        what it does.
-      */
-      mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
-                       MDL_EXPLICIT);
-
-      if (thd->mdl_context.acquire_lock(&mdl_request,
-                                        thd->variables.lock_wait_timeout))
-      {
-        ha_rollback_trans(thd, all);
-        DBUG_RETURN(1);
-      }
-
-      DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
-    }
-
-    if (rw_trans &&
-        opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
-        !thd->slave_thread)
-    {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-      ha_rollback_trans(thd, all);
-      error= 1;
-      goto end;
-    }
-
-    if (!trans->no_2pc && (rw_ha_count > 1))
-    {
-      for (; ha_info && !error; ha_info= ha_info->next())
-      {
-        int err;
-        handlerton *ht= ha_info->ht();
-        /*
-          Do not call two-phase commit if this particular
-          transaction is read-only. This allows for simpler
-          implementation in engines that are always read-only.
-        */
-        if (! ha_info->is_trx_read_write())
-          continue;
-        /*
-          Sic: we know that prepare() is not NULL since otherwise
-          trans->no_2pc would have been set.
-        */
-        if ((err= ht->prepare(ht, thd, all)))
-        {
-          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
-          error= 1;
-        }
-        status_var_increment(thd->status_var.ha_prepare_count);
-      }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
-      if (error || (is_real_trans && xid &&
-                    (error= !(cookie= tc_log->log_xid(thd, xid)))))
-      {
-        ha_rollback_trans(thd, all);
-        error= 1;
-        goto end;
-      }
-      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
-    }
-    error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
-    if (cookie)
-      if(tc_log->unlog(cookie, xid))
-      {
-        error= 2;
-        goto end;
-      }
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
-    RUN_HOOK(transaction, after_commit, (thd, FALSE));
-end:
-    if (rw_trans && mdl_request.ticket)
-    {
-      /*
-        We do not always immediately release transactional locks
-        after ha_commit_trans() (see uses of ha_enable_transaction()),
-        thus we release the commit blocker lock as soon as it's
-        not needed.
-      */
-      thd->mdl_context.release_lock(mdl_request.ticket);
-    }
+    /* Free resources and perform other cleanup even for 'empty' transactions. */
+    if (is_real_trans)
+      thd->transaction.cleanup();
+    DBUG_RETURN(0);
   }
-  /* Free resources and perform other cleanup even for 'empty' transactions. */
-  else if (is_real_trans)
-    thd->transaction.cleanup();
+
+  DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
+
+  /* Close all cursors that can not survive COMMIT */
+  if (is_real_trans)                          /* not a statement commit */
+    thd->stmt_map.close_transient_cursors();
+
+  uint rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
+  /* rw_trans is TRUE when we in a transaction changing data */
+  bool rw_trans= is_real_trans && (rw_ha_count > 0);
+  MDL_request mdl_request;
+
+  if (rw_trans)
+  {
+    /*
+      Acquire a metadata lock which will ensure that COMMIT is blocked
+      by an active FLUSH TABLES WITH READ LOCK (and vice versa:
+      COMMIT in progress blocks FTWRL).
+
+      We allow the owner of FTWRL to COMMIT; we assume that it knows
+      what it does.
+    */
+    mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_EXPLICIT);
+
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
+    {
+      ha_rollback_trans(thd, all);
+      DBUG_RETURN(1);
+    }
+
+    DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
+  }
+
+  if (rw_trans &&
+      opt_readonly &&
+      !(thd->security_ctx->master_access & SUPER_ACL) &&
+      !thd->slave_thread)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+    goto err;
+  }
+
+  if (trans->no_2pc || (rw_ha_count <= 1))
+  {
+    error= ha_commit_one_phase(thd, all);
+    goto done;
+  }
+
+  need_prepare_ordered= FALSE;
+  need_commit_ordered= FALSE;
+  xid= thd->transaction.xid_state.xid.get_my_xid();
+
+  for (Ha_trx_info *hi= ha_info; hi; hi= hi->next())
+  {
+    int err;
+    handlerton *ht= hi->ht();
+    /*
+      Do not call two-phase commit if this particular
+      transaction is read-only. This allows for simpler
+      implementation in engines that are always read-only.
+    */
+    if (! hi->is_trx_read_write())
+      continue;
+    /*
+      Sic: we know that prepare() is not NULL since otherwise
+      trans->no_2pc would have been set.
+    */
+    err= ht->prepare(ht, thd, all);
+    status_var_increment(thd->status_var.ha_prepare_count);
+    if (err)
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+
+    if (err)
+      goto err;
+
+    need_prepare_ordered|= (ht->prepare_ordered != NULL);
+    need_commit_ordered|= (ht->commit_ordered != NULL);
+  }
+  DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
+
+  if (!is_real_trans)
+  {
+    error= commit_one_phase_2(thd, all, trans, is_real_trans);
+    goto done;
+  }
+
+  cookie= tc_log->log_and_order(thd, xid, all, need_prepare_ordered,
+                                need_commit_ordered);
+  if (!cookie)
+    goto err;
+
+  DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
+
+  error= commit_one_phase_2(thd, all, trans, is_real_trans) ? 2 : 0;
+
+  DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
+  if (tc_log->unlog(cookie, xid))
+  {
+    error= 2;                                /* Error during commit */
+    goto end;
+  }
+
+done:
+  DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
+  RUN_HOOK(transaction, after_commit, (thd, FALSE));
+  goto end;
+
+  /* Come here if error and we need to rollback. */
+err:
+  error= 1;                                  /* Transaction was rolled back */
+  ha_rollback_trans(thd, all);
+
+end:
+  if (rw_trans && mdl_request.ticket)
+  {
+    /*
+      We do not always immediately release transactional locks
+      after ha_commit_trans() (see uses of ha_enable_transaction()),
+      thus we release the commit blocker lock as soon as it's
+      not needed.
+    */
+    thd->mdl_context.release_lock(mdl_request.ticket);
+  }
   DBUG_RETURN(error);
 }
 
@@ -1290,7 +1335,6 @@ end:
 
 int ha_commit_one_phase(THD *thd, bool all)
 {
-  int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   /*
     "real" is a nick name for a transaction for which a commit will
@@ -1306,9 +1350,18 @@ int ha_commit_one_phase(THD *thd, bool all)
     transaction.all.ha_list, see why in trans_register_ha()).
   */
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
-  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   DBUG_ENTER("ha_commit_one_phase");
+  int res= commit_one_phase_2(thd, all, trans, is_real_trans);
+  DBUG_RETURN(res);
+}
 
+
+static int
+commit_one_phase_2(THD *thd, bool all, THD_TRANS *trans, bool is_real_trans)
+{
+  int error= 0;
+  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  DBUG_ENTER("commit_one_phase_2");
   if (ha_info)
   {
     for (; ha_info; ha_info= ha_info_next)
@@ -1331,7 +1384,7 @@ int ha_commit_one_phase(THD *thd, bool all)
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->transaction.changed_tables)
-        query_cache.invalidate(thd->transaction.changed_tables);
+        query_cache.invalidate(thd, thd->transaction.changed_tables);
 #endif
     }
   }
@@ -1893,7 +1946,16 @@ int ha_start_consistent_snapshot(THD *thd)
 {
   bool warn= true;
 
+  /*
+    Holding the LOCK_commit_ordered mutex ensures that we get the same
+    snapshot for all engines (including the binary log).  This allows us
+    among other things to do backups with
+    START TRANSACTION WITH CONSISTENT SNAPSHOT and
+    have a consistent binlog position.
+  */
+  mysql_mutex_lock(&LOCK_commit_ordered);
   plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+  mysql_mutex_unlock(&LOCK_commit_ordered);
 
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not
@@ -2060,7 +2122,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     dummy_share.db.length= strlen(db);
     dummy_share.table_name.str= (char*) alias;
     dummy_share.table_name.length= strlen(alias);
-    dummy_table.alias= alias;
+    dummy_table.alias.set(alias, dummy_share.table_name.length,
+                          table_alias_charset);
 
     file->change_table_ptr(&dummy_table, &dummy_share);
 
@@ -2086,27 +2149,33 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, ht);
+  if (! new_handler)
+    return NULL;
+
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (new_handler &&
-     !(new_handler->ref= (uchar*) alloc_root(mem_root,
-                                             ALIGN_SIZE(ref_length)*2)))
-    new_handler= NULL;
+
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
+    return NULL;
+
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
+
+    This is not critical as the engines already have the table open
+    and should be able to use the original instance of the table.
   */
-  if (new_handler && new_handler->ha_open(table,
-                                          name,
-                                          table->db_stat,
-                                          HA_OPEN_IGNORE_IF_LOCKED))
-    new_handler= NULL;
+  if (new_handler->ha_open(table, name, table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED))
+    return NULL;
 
   return new_handler;
 }
+
 
 double handler::keyread_time(uint index, uint ranges, ha_rows rows)
 {
@@ -2148,7 +2217,7 @@ PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
     Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set
 */
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
-                     int test_if_locked)
+                     uint test_if_locked)
 {
   int error;
   DBUG_ENTER("handler::ha_open");
@@ -2192,11 +2261,22 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
-  rows_read= rows_changed= 0;
-  memset(index_rows_read, 0, sizeof(index_rows_read));
+  reset_statistics();
+  internal_tmp_table= test(test_if_locked & HA_OPEN_INTERNAL_TABLE);
   DBUG_RETURN(error);
 }
 
+int handler::ha_close()
+{
+  DBUG_ENTER("ha_close");
+  /*
+    Increment global statistics for temporary tables.
+    In_use is 0 for tables that was closed from the table cache.
+  */
+  if (table->in_use)
+    status_var_add(table->in_use->status_var.rows_tmp_read, rows_tmp_read);
+  DBUG_RETURN(close());
+}
 
 /* Initialize handler for random reading, with error handling */
 
@@ -2589,8 +2669,9 @@ int handler::update_auto_increment()
 void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
-  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
-                      (long) table->write_set));
+  if (table)
+    DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx",
+                        (long) table->read_set, (long) table->write_set));
   DBUG_VOID_RETURN;
 }
 
@@ -2667,6 +2748,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
 
 void handler::ha_release_auto_increment()
 {
+  DBUG_ENTER("ha_release_auto_increment");
   release_auto_increment();
   insert_id_for_cur_row= 0;
   auto_inc_interval_for_cur_row.replace(0, 0, 0);
@@ -2680,6 +2762,7 @@ void handler::ha_release_auto_increment()
     */
     table->in_use->auto_inc_intervals_forced.empty();
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2721,17 +2804,11 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
     - table->alias
 */
 
-#ifndef DBUG_OFF
 #define SET_FATAL_ERROR fatal_error=1
-#else
-#define SET_FATAL_ERROR
-#endif
 
 void handler::print_error(int error, myf errflag)
 {
-#ifndef DBUG_OFF
   bool fatal_error= 0;
-#endif
   DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
@@ -2746,6 +2823,11 @@ void handler::print_error(int error, myf errflag)
   case ENOENT:
     textno=ER_FILE_NOT_FOUND;
     break;
+  case ENOSPC:
+  case HA_ERR_DISK_FULL:
+    textno= ER_DISK_FULL;
+    SET_FATAL_ERROR;                            // Ensure error is logged
+    break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
   case HA_ERR_RECORD_DELETED:
@@ -2759,6 +2841,12 @@ void handler::print_error(int error, myf errflag)
     SET_FATAL_ERROR;
     textno=ER_KEY_NOT_FOUND;
     break;
+  case HA_ERR_ABORTED_BY_USER:
+  {
+    DBUG_ASSERT(table->in_use->killed);
+    table->in_use->send_kill_message();
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_WRONG_MRG_TABLE_DEF:
     textno=ER_WRONG_MRG_TABLE;
     break;
@@ -2808,7 +2896,10 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_UNIQUE;
     break;
   case HA_ERR_RECORD_CHANGED:
-    SET_FATAL_ERROR;
+    /*
+      This is not fatal error when using HANDLER interface
+      SET_FATAL_ERROR;
+    */
     textno=ER_CHECKREAD;
     break;
   case HA_ERR_CRASHED:
@@ -2930,11 +3021,12 @@ void handler::print_error(int error, myf errflag)
       {
 	const char* engine= table_type();
 	if (temporary)
-	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.c_ptr(),
+                   engine);
 	else
         {
           SET_FATAL_ERROR;
-	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_ERRMSG, MYF(0), error, str.c_ptr(), engine);
         }
       }
       else
@@ -2942,6 +3034,15 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
+  if (fatal_error && (debug_assert_if_crashed_table ||
+                      global_system_variables.log_warnings > 1))
+  {
+    /*
+      Log error to log before we crash or if extended warnings are requested
+    */
+    errflag|= ME_NOREFRESH;
+  }
+    
   my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_VOID_RETURN;
 }
@@ -3197,7 +3298,7 @@ int handler::rename_table(const char * from, const char * to)
 
 void handler::drop_table(const char *name)
 {
-  close();
+  ha_close();
   delete_table(name);
 }
 
@@ -3498,6 +3599,9 @@ handler::ha_delete_table(const char *name)
   Drop table in the engine: public interface.
 
   @sa handler::drop_table()
+
+  The difference between this and delete_table() is that the table is open in
+  drop_table().
 */
 
 void
@@ -3702,6 +3806,7 @@ void handler::update_global_table_stats()
   TABLE_STATS * table_stats;
 
   status_var_add(table->in_use->status_var.rows_read, rows_read);
+  DBUG_ASSERT(rows_tmp_read == 0);
 
   if (!table->in_use->userstat_running)
   {
@@ -3952,6 +4057,7 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
 void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;
+  start_time= my_time(0);
 }
 
 
@@ -4487,11 +4593,11 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
   int error, error1;
   LINT_INIT(error1);
 
-  error= index_init(index, 0);
+  error= ha_index_init(index, 0);
   if (!error)
   {
     error= index_read_map(buf, key, keypart_map, find_flag);
-    error1= index_end();
+    error1= ha_index_end();
   }
   return error ?  error : error1;
 }
@@ -4666,7 +4772,8 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
 /** @brief
    Write table maps for all (manually or automatically) locked tables
-   to the binary log.
+   to the binary log. Also, if binlog_annotate_rows_events is ON,
+   write Annotate_rows event before the first table map.
 
    SYNOPSIS
      write_locked_table_maps()
@@ -4698,6 +4805,9 @@ static int write_locked_table_maps(THD *thd)
     MYSQL_LOCK *locks[2];
     locks[0]= thd->extra_lock;
     locks[1]= thd->lock;
+    my_bool with_annotate= thd->variables.binlog_annotate_rows_events &&
+                           thd->query() && thd->query_length();
+
     for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
     {
       MYSQL_LOCK const *const lock= locks[i];
@@ -4729,7 +4839,8 @@ static int write_locked_table_maps(THD *thd)
           */
           bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
                                 table->file->has_transactions();
-          int const error= thd->binlog_write_table_map(table, has_trans);
+          int const error= thd->binlog_write_table_map(table, has_trans,
+                                                       &with_annotate);
           /*
             If an error occurs, it is the responsibility of the caller to
             roll back the transaction.

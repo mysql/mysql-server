@@ -204,7 +204,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 	pack_reclength++;
         not_block_record_extra_length++;
         max_field_lengths++;
-        packed++;
+        if (datafile_type != DYNAMIC_RECORD)
+          packed++;
         column->fill_length= 1;
         options|= HA_OPTION_NULL_FIELDS;        /* Use ma_checksum() */
 
@@ -250,10 +251,16 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     datafile_type= BLOCK_RECORD;
   }
 
+  if (datafile_type == NO_RECORD && uniques)
+  {
+    /* Can't do unique without data, revert to block records */
+    datafile_type= BLOCK_RECORD;
+  }
+
   if (datafile_type == DYNAMIC_RECORD)
     options|= HA_OPTION_PACK_RECORD;	/* Must use packed records */
 
-  if (datafile_type == STATIC_RECORD)
+  if (datafile_type == STATIC_RECORD || datafile_type == NO_RECORD)
   {
     /* We can't use checksum with static length rows */
     flags&= ~HA_CREATE_CHECKSUM;
@@ -319,7 +326,15 @@ int maria_create(const char *name, enum data_file_type datafile_type,
              (~(ulonglong) 0)/ci->max_rows < (ulonglong) pack_reclength)
       ci->data_file_length= ~(ulonglong) 0;
     else
-      ci->data_file_length=(ulonglong) ci->max_rows*pack_reclength;
+    {
+      ci->data_file_length= _ma_safe_mul(ci->max_rows, pack_reclength);
+      if (datafile_type == BLOCK_RECORD)
+      {
+        /* Assume that blocks are only half full (very pessimistic!) */
+        ci->data_file_length= _ma_safe_mul(ci->data_file_length, 2);
+        set_if_bigger(ci->data_file_length, maria_block_size*2);
+      }
+    }
   }
   else if (!ci->max_rows)
   {
@@ -331,7 +346,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       ulonglong data_file_length= ci->data_file_length;
       if (!data_file_length)
         data_file_length= ((((ulonglong) 1 << ((BLOCK_RECORD_POINTER_SIZE-1) *
-                                               8)) -1) * maria_block_size);
+                                               8))/2 -1) * maria_block_size);
       if (rows_per_page > 0)
       {
         set_if_smaller(rows_per_page, MAX_ROWS_PER_PAGE);
@@ -353,11 +368,11 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   {
     /*
       The + 1 is for record position withing page
-      The / 2 is because we need one bit for knowing if there is transid's
+      The * 2 is because we need one bit for knowing if there is transid's
       after the row pointer
     */
     pointer= maria_get_pointer_length((ci->data_file_length /
-                                       (maria_block_size * 2)), 3) + 1;
+                                       maria_block_size) * 2, 3) + 1;
     set_if_smaller(pointer, BLOCK_RECORD_POINTER_SIZE);
 
     if (!max_rows)
@@ -366,7 +381,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                                       }
   else
   {
-    if (datafile_type != STATIC_RECORD)
+    if (datafile_type == NO_RECORD)
+      pointer= 0;
+    else if (datafile_type != STATIC_RECORD)
       pointer= maria_get_pointer_length(ci->data_file_length,
                                         maria_data_pointer_size);
     else
@@ -676,7 +693,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
   share.state.dellink = HA_OFFSET_ERROR;
   share.state.first_bitmap_with_space= 0;
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   share.state.process=	(ulong) getpid();
 #endif
   share.state.version=	(ulong) time((time_t*) 0);
@@ -1392,7 +1409,13 @@ int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, TrID create_trid,
   share->state.skip_redo_lsn= share->state.is_of_horizon= lsn;
   share->state.create_trid= create_trid;
   mi_int8store(trid_buff, create_trid);
-  if (update_create_rename_lsn)
+
+  /*
+    Update create_rename_lsn if update was requested or if the old one had an
+    impossible value.
+  */
+  if (update_create_rename_lsn ||
+      (share->state.create_rename_lsn > lsn && lsn != LSN_IMPOSSIBLE))
   {
     share->state.create_rename_lsn= lsn;
     if (share->id != 0)

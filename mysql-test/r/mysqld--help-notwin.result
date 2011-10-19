@@ -32,11 +32,21 @@ The following options may be given as the first argument:
  --big-tables        Allow big result sets by saving all temporary sets on
  file (Solves most 'table full' errors)
  --bind-address=name IP address to bind to.
+ --binlog-annotate-rows-events 
+ Tells the master to annotate RBR events with the
+ statement that caused these events
  --binlog-cache-size=# 
  The size of the transactional cache for updates to
  transactional engines for the binary log. If you often
  use transactions containing many statements, you can
  increase this to get more performance
+ --binlog-checksum=name 
+ Type of BINLOG_CHECKSUM_ALG. Include checksum for log
+ events in the binary log. Possible values are NONE and
+ CRC32; default is NONE.
+ --binlog-dbug-fsync-sleep=# 
+ Extra sleep (in microseconds) to add to binlog fsync(),
+ for debugging
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -63,6 +73,15 @@ The following options may be given as the first argument:
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.
+ --binlog-optimize-thread-scheduling 
+ Run fast part of group commit in a single thread, to
+ optimize kernel thread scheduling. On by default. Disable
+ to run each transaction in group commit in its own
+ thread, which can be slower at very high concurrency.
+ This option is mostly for testing one algorithm versus
+ the other, and it should not normally be necessary to
+ change it.
+ (Defaults to on; use --skip-binlog-optimize-thread-scheduling to disable.)
  --binlog-row-event-max-size=# 
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
@@ -192,6 +211,7 @@ The following options may be given as the first argument:
  --ignore-builtin-innodb 
  Disable initialization of builtin InnoDB plugin
  --init-connect=name Command(s) that are executed for each new connection
+ (unless the user has SUPER privilege)
  --init-file=name    Read SQL commands from this file at startup
  --init-rpl-role=name 
  Set the replication role.
@@ -201,7 +221,10 @@ The following options may be given as the first argument:
  The number of seconds the server waits for activity on an
  interactive connection before closing it
  --join-buffer-size=# 
- The size of the buffer that is used for full joins
+ The size of the buffer that is used for joins
+ --join-buffer-space-limit=# 
+ The limit of the space for all join buffers used by a
+ query
  --join-cache-level=# 
  Controls what join operations can be executed with join
  buffers. Odd numbers are used for plain join buffers
@@ -241,10 +264,23 @@ The following options may be given as the first argument:
  error.
  -l, --log[=name]    Log connections and queries to file (deprecated option,
  use --general-log/--general-log-file instead).
- --log-bin[=name]    Log update queries in binary format. Optional (but
- strongly recommended to avoid replication problems if
- server's hostname changes) argument should be the chosen
- location for the binary log files.
+ --log-basename=name Basename for all log files and the .pid file. This sets
+ all log file names at once (in 'datadir') and is normally
+ the only option you need for specifying log files. This
+ is especially recommend to be set if you are using
+ replication as it ensures that your log file names are
+ not depending on your host name. Sets names for
+ --log-bin, --log-bin-index, --relay-log,
+ --relay-log-index, --general-log-file,
+ --log-slow-query-log-file, --log-error-file and
+ --pid-file
+ --log-bin[=name]    Log update queries in binary format. Optional argument
+ should be name for binary log. If not given
+ datadir/'log-basename'-bin or 'datadir'/mysql-bin will be
+ used (the later if --log-basename is not specified). We
+ strongly recommend to use either --log-basename or
+ specify a filename to ensure that replication doesn't
+ stop if the real hostname of the computer changes'.
  --log-bin-index=name 
  File that holds the names for last binary log files.
  --log-bin-trust-function-creators 
@@ -256,7 +292,9 @@ The following options may be given as the first argument:
  ALWAYS use row-based binary logging, the security issues
  do not exist and the binary logging cannot break, so you
  can safely set this to TRUE
- --log-error[=name]  Error log file
+ --log-error[=name]  Log errors to file (instead of stdout).  If file name is
+ not specified then 'datadir'/'log-basename'.err or the
+ pid-file path with extension .err is used
  --log-isam[=name]   Log all MyISAM changes to file.
  --log-output=name   Syntax: log-output=value[,value...], where "value" could
  be TABLE, FILE or NONE
@@ -278,10 +316,12 @@ The following options may be given as the first argument:
  query_cache, query_cache_miss, tmp_table,
  tmp_table_on_disk
  --log-slow-queries[=name] 
- Log slow queries to a table or log file. Defaults logging
- to table mysql.slow_log or hostname-slow.log if
- --log-output=file is used. Must be enabled to activate
- other slow log options. Deprecated option, use
+ Enable logging of slow queries (longer than
+ --long-query-time) to log file or table. Optional
+ argument is a file name for the slow log. If not given,
+ 'log-basename'-slow.log will be used. Use
+ --log-output=TABLE if you want to have the log in the
+ table 'mysql.slow_log'. Deprecated option, use
  --slow-query-log/--slow-query-log-file instead.
  --log-slow-rate-limit=# 
  Write to slow log every #th slow query. Set to 1 to log
@@ -298,7 +338,7 @@ The following options may be given as the first argument:
  when binary log is disabled).
  --log-tc-size=#     Size of transaction coordinator log.
  -W, --log-warnings[=#] 
- Log some not critical warnings to the log file
+ Log some not critical warnings to the general log file
  --long-query-time=# Log all queries that have taken more than long_query_time
  seconds to execute to file. The argument will be treated
  as a decimal value with microsecond precision
@@ -311,10 +351,14 @@ The following options may be given as the first argument:
  --master-info-file=name 
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
- master's binlogs.
+ master's binlogs. Defaults to master.info
  --master-retry-count=# 
  The number of tries the slave will make to connect to the
  master before giving up.
+ --master-verify-checksum 
+ Force checksum verification of logged events in the
+ binary log before sending them to slaves or printing them
+ in the output of SHOW BINLOG EVENTS
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 
@@ -388,7 +432,8 @@ The following options may be given as the first argument:
  MySQL tables
  --myisam-recover-options[=name] 
  Syntax: myisam-recover-options[=option[,option...]],
- where option can be DEFAULT, BACKUP, FORCE, QUICK, or OFF
+ where option can be DEFAULT, BACKUP, BACKUP_ALL, FORCE,
+ QUICK, or OFF
  --myisam-repair-threads=# 
  If larger than 1, when repairing a MyISAM table all
  indexes will be created in parallel, with one thread per
@@ -413,7 +458,6 @@ The following options may be given as the first argument:
  --net-write-timeout=# 
  Number of seconds to wait for a block to be written to a
  connection before aborting the write
- -n, --new           Use very new possible "unsafe" functions
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
  --old-passwords     Use old password encryption method (needed for 4.0 and
@@ -449,17 +493,18 @@ The following options may be given as the first argument:
  deprecated
  --optimizer-switch=name 
  optimizer_switch=option=val[,option=val...], where option
- is one of {index_merge, index_merge_union,
- index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown, index_condition_pushdown,
- firstmatch, loosescan, materialization, semijoin,
- partial_match_rowid_merge, partial_match_table_scan,
- subquery_cache}  and val is one of {on, off, default}
- --optimizer-use-mrr=name 
- Whether the server should use multi-read-range
- optimization when resolving queries, one of AUTO (as
- appropriate), FORCE (always where applicable), DISABLE
- (never)
+ is one of {derived_merge, derived_with_keys, firstmatch,
+ in_to_exists, engine_condition_pushdown,
+ index_condition_pushdown, index_merge,
+ index_merge_intersection, index_merge_sort_intersection,
+ index_merge_sort_union, index_merge_union,
+ join_cache_bka, join_cache_hashed,
+ join_cache_incremental, loosescan, materialization, mrr,
+ mrr_cost_based, mrr_sort_keys, optimize_join_buffer_size,
+ outer_join_with_cache, partial_match_rowid_merge,
+ partial_match_table_scan, semijoin, semijoin_with_cache,
+ subquery_cache, table_elimination } and val is one of
+ {on, off, default}
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 
@@ -499,8 +544,9 @@ The following options may be given as the first argument:
  name is the plugin name and library is the plugin library
  in plugin_dir.
  --plugin-maturity=name 
- The lowest desirable plugin maturity. Plugins less mature
- than that will not be installed or loaded.
+ The lowest desirable plugin maturity (unknown,
+ experimental, alpha, beta, gamma, or stable). Plugins
+ less mature than that will not be installed or loaded.
  -P, --port=#        Port number to use for connection or 0 to default to,
  my.cnf, $MYSQL_TCP_PORT, /etc/services, built-in default
  (3306), whatever comes first
@@ -512,6 +558,10 @@ The following options may be given as the first argument:
  indexes
  --profiling-history-size=# 
  Limit of query profiling memory
+ --progress-report-time=# 
+ Seconds between sending progress reports to the client
+ for time-consuming statements. Set to 0 to disable
+ progress reporting.
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
  --query-cache-limit=# 
@@ -520,6 +570,9 @@ The following options may be given as the first argument:
  The minimum size for blocks allocated by the query cache
  --query-cache-size=# 
  The memory allocated to store results from old queries
+ --query-cache-strip-comments 
+ Strip all comments from a query before storing it in the
+ query cache
  --query-cache-type=name 
  OFF = Don't cache or retrieve results. ON = Cache all
  results except SELECT SQL_NO_CACHE ... queries. DEMAND =
@@ -559,6 +612,10 @@ The following options may be given as the first argument:
  transaction processed
  --relay-log-space-limit=# 
  Maximum space to use for all relay logs
+ --replicate-annotate-rows-events 
+ Tells the slave to write annotate rows events recieved
+ from the master to its own binary log. Ignored if
+ log_slave_updates is not set
  --replicate-do-db=name 
  Tells the slave thread to restrict replication to the
  specified database. To specify more than one database,
@@ -664,7 +721,6 @@ The following options may be given as the first argument:
  --skip-show-database 
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
- --skip-stack-trace  Don't print a stack trace on failure.
  --skip-thread-priority 
  Don't give threads different priorities. This option is
  deprecated because it has no effect; the implied behavior
@@ -687,6 +743,12 @@ The following options may be given as the first argument:
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
+ --slave-sql-verify-checksum 
+ Force checksum verification of replication events after
+ reading them from relay log. Note: Events are always
+ checksum-verified by slave on receiving them from the
+ network before writing them to the relay log
+ (Defaults to on; use --skip-slave-sql-verify-checksum to disable.)
  --slave-transaction-retries=# 
  Number of times the slave SQL thread will retry a
  transaction in case it failed with a deadlock or elapsed
@@ -718,6 +780,8 @@ The following options may be given as the first argument:
  replication.
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
+ --stack-trace       Print a symbolic stack trace on failure
+ (Defaults to on; use --skip-stack-trace to disable.)
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
@@ -748,6 +812,9 @@ The following options may be given as the first argument:
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are COMMIT or ROLLBACK.
+ --thread-alarm      Enable system thread alarm calls. Disabling it may be
+ useful in debugging or testing, never do it in production
+ (Defaults to on; use --skip-thread-alarm to disable.)
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -797,9 +864,13 @@ automatic-sp-privileges TRUE
 back-log 50
 big-tables FALSE
 bind-address (No default value)
+binlog-annotate-rows-events FALSE
 binlog-cache-size 32768
+binlog-checksum NONE
+binlog-dbug-fsync-sleep 0
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
+binlog-optimize-thread-scheduling TRUE
 binlog-row-event-max-size 1024
 binlog-stmt-cache-size 32768
 bulk-insert-buffer-size 8388608
@@ -828,7 +899,7 @@ delayed-insert-timeout 300
 delayed-queue-size 1000
 disconnect-slave-event-count 0
 div-precision-increment 4
-engine-condition-pushdown TRUE
+engine-condition-pushdown FALSE
 event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE
@@ -852,6 +923,7 @@ init-rpl-role MASTER
 init-slave 
 interactive-timeout 28800
 join-buffer-size 131072
+join-buffer-space-limit 2097152
 join-cache-level 1
 keep-files-on-create FALSE
 key-buffer-size 134217728
@@ -888,6 +960,7 @@ low-priority-updates FALSE
 lower-case-table-names 1
 master-info-file master.info
 master-retry-count 86400
+master-verify-checksum FALSE
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
@@ -926,15 +999,13 @@ net-buffer-length 16384
 net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60
-new FALSE
 old FALSE
 old-alter-table FALSE
 old-passwords FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,table_elimination=on
-optimizer-use-mrr force
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_merge_sort_intersection=off,engine_condition_pushdown=off,index_condition_pushdown=off,derived_merge=off,derived_with_keys=off,firstmatch=off,loosescan=off,materialization=off,in_to_exists=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=off,mrr=off,mrr_cost_based=off,mrr_sort_keys=off,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on,optimize_join_buffer_size=off,table_elimination=on
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
@@ -957,10 +1028,12 @@ port 3306
 port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
+progress-report-time 56
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096
 query-cache-size 0
+query-cache-strip-comments FALSE
 query-cache-type ON
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
@@ -974,6 +1047,7 @@ relay-log-info-file relay-log.info
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
+replicate-annotate-rows-events FALSE
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)
@@ -995,6 +1069,7 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
 slave-skip-errors (No default value)
+slave-sql-verify-checksum TRUE
 slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
@@ -1002,6 +1077,7 @@ slow-query-log FALSE
 sort-buffer-size 2097152
 sporadic-binlog-dump-fail FALSE
 sql-mode 
+stack-trace TRUE
 symbolic-links FALSE
 sync-binlog 0
 sync-frm FALSE
@@ -1014,6 +1090,7 @@ table-cache 400
 table-definition-cache 400
 table-open-cache 400
 tc-heuristic-recover COMMIT
+thread-alarm TRUE
 thread-cache-size 0
 thread-handling one-thread-per-connection
 thread-stack 294912

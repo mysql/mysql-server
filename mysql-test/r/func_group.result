@@ -614,7 +614,7 @@ explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
-1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer
+1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer (flat, BNL join)
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -651,7 +651,7 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	k2	k2	4	NULL	6	Using where; Using index
-1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer (flat, BNL join)
 drop table t1, t2;
 create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');
@@ -1530,7 +1530,8 @@ insert into t1 values
 (02,2002,20020101,"2002-01-01 23:59:59"),
 (60,2060,20600101,"2060-01-01 11:11:11"),
 (70,1970,19700101,"1970-11-11 22:22:22"),
-(NULL,NULL,NULL,NULL);
+(NULL,NULL,NULL,NULL),
+(71,1971,19710101,"1971-11-11 22:22:22");
 select min(f1),max(f1) from t1;
 min(f1)	max(f1)
 70	60
@@ -1553,36 +1554,49 @@ a	b	gt	lt	eq
 60	98	1	0	0
 70	98	0	1	0
 NULL	98	NULL	NULL	0
+71	98	0	1	0
 98	00	0	1	0
 00	00	0	0	1
 02	00	1	0	0
 60	00	1	0	0
 70	00	0	1	0
 NULL	00	NULL	NULL	0
+71	00	0	1	0
 98	02	0	1	0
 00	02	0	1	0
 02	02	0	0	1
 60	02	1	0	0
 70	02	0	1	0
 NULL	02	NULL	NULL	0
+71	02	0	1	0
 98	60	0	1	0
 00	60	0	1	0
 02	60	0	1	0
 60	60	0	0	1
 70	60	0	1	0
 NULL	60	NULL	NULL	0
+71	60	0	1	0
 98	70	1	0	0
 00	70	1	0	0
 02	70	1	0	0
 60	70	1	0	0
 70	70	0	0	1
 NULL	70	NULL	NULL	0
+71	70	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	71	1	0	0
+00	71	1	0	0
+02	71	1	0	0
+60	71	1	0	0
+70	71	0	1	0
+NULL	71	NULL	NULL	0
+71	71	0	0	1
 select a.f1 as a, b.f2 as b, a.f1 > b.f2 as gt,
 a.f1 < b.f2 as lt, a.f1<=>b.f2 as eq
 from t1 a, t1 b;
@@ -1593,36 +1607,49 @@ a	b	gt	lt	eq
 60	1998	1	0	0
 70	1998	0	1	0
 NULL	1998	NULL	NULL	0
+71	1998	0	1	0
 98	2000	0	1	0
 00	2000	0	0	1
 02	2000	1	0	0
 60	2000	1	0	0
 70	2000	0	1	0
 NULL	2000	NULL	NULL	0
+71	2000	0	1	0
 98	2002	0	1	0
 00	2002	0	1	0
 02	2002	0	0	1
 60	2002	1	0	0
 70	2002	0	1	0
 NULL	2002	NULL	NULL	0
+71	2002	0	1	0
 98	2060	0	1	0
 00	2060	0	1	0
 02	2060	0	1	0
 60	2060	0	0	1
 70	2060	0	1	0
 NULL	2060	NULL	NULL	0
+71	2060	0	1	0
 98	1970	1	0	0
 00	1970	1	0	0
 02	1970	1	0	0
 60	1970	1	0	0
 70	1970	0	0	1
 NULL	1970	NULL	NULL	0
+71	1970	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	1971	1	0	0
+00	1971	1	0	0
+02	1971	1	0	0
+60	1971	1	0	0
+70	1971	0	1	0
+NULL	1971	NULL	NULL	0
+71	1971	0	0	1
 select a.f1 as a, b.f3 as b, a.f1 > b.f3 as gt,
 a.f1 < b.f3 as lt, a.f1<=>b.f3 as eq
 from t1 a, t1 b;
@@ -1633,36 +1660,49 @@ a	b	gt	lt	eq
 60	1998-01-01	1	0	0
 70	1998-01-01	0	1	0
 NULL	1998-01-01	NULL	NULL	0
+71	1998-01-01	0	1	0
 98	2000-01-01	0	1	0
 00	2000-01-01	0	1	0
 02	2000-01-01	1	0	0
 60	2000-01-01	1	0	0
 70	2000-01-01	0	1	0
 NULL	2000-01-01	NULL	NULL	0
+71	2000-01-01	0	1	0
 98	2002-01-01	0	1	0
 00	2002-01-01	0	1	0
 02	2002-01-01	0	1	0
 60	2002-01-01	1	0	0
 70	2002-01-01	0	1	0
 NULL	2002-01-01	NULL	NULL	0
+71	2002-01-01	0	1	0
 98	2060-01-01	0	1	0
 00	2060-01-01	0	1	0
 02	2060-01-01	0	1	0
 60	2060-01-01	0	1	0
 70	2060-01-01	0	1	0
 NULL	2060-01-01	NULL	NULL	0
+71	2060-01-01	0	1	0
 98	1970-01-01	1	0	0
 00	1970-01-01	1	0	0
 02	1970-01-01	1	0	0
 60	1970-01-01	1	0	0
 70	1970-01-01	0	1	0
 NULL	1970-01-01	NULL	NULL	0
+71	1970-01-01	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	1971-01-01	1	0	0
+00	1971-01-01	1	0	0
+02	1971-01-01	1	0	0
+60	1971-01-01	1	0	0
+70	1971-01-01	0	1	0
+NULL	1971-01-01	NULL	NULL	0
+71	1971-01-01	0	1	0
 select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
 a.f1 < b.f4 as lt, a.f1<=>b.f4 as eq
 from t1 a, t1 b;
@@ -1673,36 +1713,49 @@ a	b	gt	lt	eq
 60	1998-01-01 00:00:00	1	0	0
 70	1998-01-01 00:00:00	0	1	0
 NULL	1998-01-01 00:00:00	NULL	NULL	0
+71	1998-01-01 00:00:00	0	1	0
 98	2000-01-01 00:00:01	0	1	0
 00	2000-01-01 00:00:01	0	1	0
 02	2000-01-01 00:00:01	1	0	0
 60	2000-01-01 00:00:01	1	0	0
 70	2000-01-01 00:00:01	0	1	0
 NULL	2000-01-01 00:00:01	NULL	NULL	0
+71	2000-01-01 00:00:01	0	1	0
 98	2002-01-01 23:59:59	0	1	0
 00	2002-01-01 23:59:59	0	1	0
 02	2002-01-01 23:59:59	0	1	0
 60	2002-01-01 23:59:59	1	0	0
 70	2002-01-01 23:59:59	0	1	0
 NULL	2002-01-01 23:59:59	NULL	NULL	0
+71	2002-01-01 23:59:59	0	1	0
 98	2060-01-01 11:11:11	0	1	0
 00	2060-01-01 11:11:11	0	1	0
 02	2060-01-01 11:11:11	0	1	0
 60	2060-01-01 11:11:11	0	1	0
 70	2060-01-01 11:11:11	0	1	0
 NULL	2060-01-01 11:11:11	NULL	NULL	0
+71	2060-01-01 11:11:11	0	1	0
 98	1970-11-11 22:22:22	1	0	0
 00	1970-11-11 22:22:22	1	0	0
 02	1970-11-11 22:22:22	1	0	0
 60	1970-11-11 22:22:22	1	0	0
 70	1970-11-11 22:22:22	0	1	0
 NULL	1970-11-11 22:22:22	NULL	NULL	0
+71	1970-11-11 22:22:22	1	0	0
 98	NULL	NULL	NULL	0
 00	NULL	NULL	NULL	0
 02	NULL	NULL	NULL	0
 60	NULL	NULL	NULL	0
 70	NULL	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
+71	NULL	NULL	NULL	0
+98	1971-11-11 22:22:22	1	0	0
+00	1971-11-11 22:22:22	1	0	0
+02	1971-11-11 22:22:22	1	0	0
+60	1971-11-11 22:22:22	1	0	0
+70	1971-11-11 22:22:22	0	1	0
+NULL	1971-11-11 22:22:22	NULL	NULL	0
+71	1971-11-11 22:22:22	0	1	0
 select *, f1 = f2 from t1;
 f1	f2	f3	f4	f1 = f2
 98	1998	1998-01-01	1998-01-01 00:00:00	1
@@ -1711,6 +1764,7 @@ f1	f2	f3	f4	f1 = f2
 60	2060	2060-01-01	2060-01-01 11:11:11	1
 70	1970	1970-01-01	1970-11-11 22:22:22	1
 NULL	NULL	NULL	NULL	NULL
+71	1971	1971-01-01	1971-11-11 22:22:22	1
 drop table t1;
 #
 # Bug #54465: assert: field_types == 0 || field_types[field_pos] ==
@@ -1758,6 +1812,156 @@ MAX(f1)
 DROP TABLE t1;
 #
 End of 5.1 tests
+#
+# BUG#46680 - Assertion failed in file item_subselect.cc, 
+#             line 305 crashing on HAVING subquery
+#
+# Create tables
+#
+CREATE TABLE t1 (
+pk INT,
+v VARCHAR(1) DEFAULT NULL,
+PRIMARY KEY(pk)
+);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TABLE empty1 (a int);
+INSERT INTO t1 VALUES (1,'c'),(2,NULL);
+INSERT INTO t2 VALUES (3,'m'),(4,NULL);
+INSERT INTO t3 VALUES (1,'n');
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+#
+# 1) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Impossible WHERE"
+#
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(t2.pk)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+
+#
+# 2) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "No matching min/max row"
+#
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(t2.pk)
+NULL
+
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+
+#
+# 3) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Select tables optimized away"
+#
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(pk)
+NULL
+
+EXPLAIN
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+
+#
+# 4) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "No matching row in const table"
+#
+
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(a)
+NULL
+
+EXPLAIN 
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+
+#
+# 5) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Impossible WHERE noticed 
+#    after reading const tables"
+#
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+min(t1.pk)
+NULL
+
+EXPLAIN
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+set @@optimizer_switch=@save_optimizer_switch;
+#
+# Cleanup for BUG#46680
+#
+DROP TABLE IF EXISTS t1,t2,t3,empty1;
 #
 # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
 #           file .\item_sum.cc, line 587

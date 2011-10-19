@@ -19,6 +19,13 @@ The default is to the builds and create 32 bit packages.
 EOF
 }
 
+
+if test -f win/build_maria_release.bat
+then
+  cmd /c win\\build_maria_release.bat "$@"
+  exit $?
+fi
+
 # The default settings
 CMAKE_GENERATOR="Visual Studio 9 2008"
 ARCH="win32"

@@ -131,16 +131,16 @@ date	format	datetime
 0003-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	0003-01-02 08:11:02
 03-01-02 8:11:2.123456	%Y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
 2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
-2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12.123450
-2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
-2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 00:11:12.123450
+2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12
+2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12
+2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 00:11:12
 2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	2003-01-02 23:11:12
 10:20:10	%H:%i:%s	0000-00-00 10:20:10
 10:20:10	%h:%i:%s.%f	0000-00-00 10:20:10
 10:20:10	%T	0000-00-00 10:20:10
 10:20:10AM	%h:%i:%s%p	0000-00-00 10:20:10
 10:20:10AM	%r	0000-00-00 10:20:10
-10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.440000
+10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
 15 September 2001	%d %M %Y	2001-09-15 00:00:00
 15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
@@ -356,14 +356,14 @@ date	format	str_to_date
 2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
 03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
 Warnings:
-Warning	1292	Incorrect datetime value: '10:20:10AM'
+Warning	1292	Truncated incorrect datetime value: '10:20:10AM'
 select date,format,concat(str_to_date(date, format),'') as con from t1;
 date	format	con
 10:20:10AM	%h:%i:%s	0000-00-00 10:20:10
 2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
 03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
 Warnings:
-Warning	1292	Incorrect datetime value: '10:20:10AM'
+Warning	1292	Truncated incorrect datetime value: '10:20:10AM'
 drop table t1;
 select get_format(DATE, 'USA') as a;
 a
@@ -406,14 +406,14 @@ str_to_date("2003-01-02", "%Y-%m-%d") as f3,
 str_to_date("02", "%d") as f4, str_to_date("02 10", "%d %H") as f5;
 describe t1;
 Field	Type	Null	Key	Default	Extra
-f1	datetime	YES		NULL	
-f2	time	YES		NULL	
+f1	datetime(6)	YES		NULL	
+f2	time(6)	YES		NULL	
 f3	date	YES		NULL	
 f4	date	YES		NULL	
 f5	time	YES		NULL	
 select * from t1;
 f1	f2	f3	f4	f5
-2003-01-02 10:11:12	10:11:12	2003-01-02	0000-00-02	58:00:00
+2003-01-02 10:11:12.001200	10:11:12.001200	2003-01-02	0000-00-02	58:00:00
 drop table t1;
 create table t1 select "02 10" as a, "%d %H" as b;
 select str_to_date(a,b) from t1;
@@ -422,7 +422,7 @@ str_to_date(a,b)
 create table t2 select str_to_date(a,b) from t1;
 describe t2;
 Field	Type	Null	Key	Default	Extra
-str_to_date(a,b)	datetime	YES		NULL	
+str_to_date(a,b)	datetime(6)	YES		NULL	
 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
 str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S") as f2,
 str_to_date("2003-01-02", "%Y-%m-%d") as f3,
@@ -430,7 +430,7 @@ str_to_date("02 10:11:12", "%d %H:%i:%S.%f") as f4,
 str_to_date("02 10:11:12", "%d %H:%i:%S") as f5,
 str_to_date("02 10", "%d %f") as f6;
 f1	f2	f3	f4	f5	f6
-2003-01-02 10:11:12.001200	2003-01-02 10:11:12	2003-01-02	58:11:12	58:11:12	48:00:00.100000
+2003-01-02 10:11:12.001200	2003-01-02 10:11:12	2003-01-02	58:11:12.000000	58:11:12	48:00:00.100000
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2003-01-02 10:11:12.0012'
 drop table t1, t2;

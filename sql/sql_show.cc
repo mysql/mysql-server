@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +44,7 @@
 #include "sp_pcontext.h"
 #include "set_var.h"
 #include "sql_trigger.h"
+#include "sql_derived.h"
 #include "sql_connect.h"
 #include "authors.h"
 #include "contributors.h"
@@ -719,7 +721,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     bool open_error=
       open_tables(thd, &table_list, &counter,
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL) ||
-                  mysql_handle_derived(thd->lex, &mysql_derived_prepare);
+                  mysql_handle_derived(thd->lex, DT_PREPARE);
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error()))
       goto exit;
@@ -775,7 +777,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       protocol->store(table_list->schema_table->table_name,
                       system_charset_info);
     else
-      protocol->store(table_list->table->alias, system_charset_info);
+      protocol->store(table_list->table->alias.c_ptr(), system_charset_info);
   }
 
   if (table_list->view)
@@ -901,7 +903,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
   if (open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
+                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL,
+                                     DT_PREPARE | DT_CREATE))
     DBUG_VOID_RETURN;
   table= table_list->table;
 
@@ -1243,7 +1246,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   else
   {
     if (lower_case_table_names == 2)
-      alias= table->alias;
+      alias= table->alias.c_ptr();
     else
     {
       alias= share->table_name.str;
@@ -1684,7 +1687,7 @@ view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 static void append_algorithm(TABLE_LIST *table, String *buff)
 {
   buff->append(STRING_WITH_LEN("ALGORITHM="));
-  switch ((int8)table->algorithm) {
+  switch ((int16)table->algorithm) {
   case VIEW_ALGORITHM_UNDEFINED:
     buff->append(STRING_WITH_LEN("UNDEFINED "));
     break;
@@ -1808,6 +1811,7 @@ public:
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
   CSET_STRING query_string;
+  double progress;
 };
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
@@ -1860,6 +1864,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
+  if (!thd->variables.old_mode)
+  {
+    field_list.push_back(field= new Item_float("Progress", 0.0, 3, 7));
+    field->maybe_null= 0;
+  }
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
@@ -1913,8 +1922,24 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           thd_info->query_string=
             CSET_STRING(q, q ? length : 0, tmp->query_charset());
         }
-        mysql_mutex_unlock(&tmp->LOCK_thd_data);
+
+        /*
+          Progress report. We need to do this under a lock to ensure that all
+          is from the same stage.
+        */
+        if (tmp->progress.max_counter)
+        {
+          uint max_stage= max(tmp->progress.max_stage, 1);
+          thd_info->progress= (((tmp->progress.stage / (double) max_stage) +
+                                ((tmp->progress.counter /
+                                  (double) tmp->progress.max_counter) /
+                                 (double) max_stage)) *
+                               100.0);
+        }
+        else
+          thd_info->progress= 0.0;
         thd_info->start_time= tmp->start_time;
+        mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
       }
     }
@@ -1923,6 +1948,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   thread_info *thd_info;
   time_t now= my_time(0);
+  char buff[20];                                // For progress
+  String store_buffer(buff, sizeof(buff), system_charset_info);
+
   while ((thd_info=thread_infos.get()))
   {
     protocol->prepare_for_resend();
@@ -1941,6 +1969,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     protocol->store(thd_info->state_info, system_charset_info);
     protocol->store(thd_info->query_string.str(),
                     thd_info->query_string.charset());
+    if (!thd->variables.old_mode)
+      protocol->store(thd_info->progress, 3, &store_buffer);
     if (protocol->write())
       break; /* purecov: inspected */
   }
@@ -1953,7 +1983,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  ulonglong unow= my_micro_time();
+  my_hrtime_t unow= my_hrtime();
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
@@ -1971,6 +2001,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       const char *val;
+      ulonglong max_counter;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
           (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
@@ -2012,8 +2043,10 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
       /* MYSQL_TIME */
-      const ulonglong utime= tmp->start_utime ? unow - tmp->start_utime : 0;
-      table->field[5]->store(utime / 1000000, TRUE);
+      const ulonglong utime= (tmp->start_time ?
+                              (unow.val - tmp->start_time * HRTIME_RESOLUTION -
+                               tmp->start_time_sec_part) : 0);
+      table->field[5]->store(utime / HRTIME_RESOLUTION, TRUE);
       /* STATE */
       if ((val= thread_state_info(tmp)))
       {
@@ -2025,6 +2058,9 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         mysql_mutex_unlock(&mysys_var->mutex);
       mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
+      /* TIME_MS */
+      table->field[8]->store((double)(utime / (HRTIME_RESOLUTION / 1000.0)));
+
       /* INFO */
       /* Lock THD mutex that protects its data when looking at it. */
       mysql_mutex_lock(&tmp->LOCK_thd_data);
@@ -2035,10 +2071,19 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                    tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
-      /* TIME_MS */
-      table->field[8]->store((double)(utime / 1000.0));
+      /*
+        Progress report. We need to do this under a lock to ensure that all
+        is from the same stage.
+      */
+      if ((max_counter= tmp->progress.max_counter))
+      {
+        table->field[9]->store((longlong) tmp->progress.stage + 1, 1);
+        table->field[10]->store((longlong) tmp->progress.max_stage, 1);
+        table->field[11]->store((double) tmp->progress.counter /
+                                (double) max_counter*100.0);
+      }
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       if (schema_table_store_record(thd, table))
       {
@@ -2765,7 +2810,7 @@ typedef struct st_lookup_field_values
 bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
-  if ((error= table->file->ha_write_row(table->record[0])))
+  if ((error= table->file->ha_write_tmp_row(table->record[0])))
   {
     TMP_TABLE_PARAM *param= table->pos_in_table_list->schema_table_param;
     if (create_internal_tmp_table_from_heap(thd, table, param->start_recinfo, 
@@ -2957,7 +3002,7 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
   else if (item->type() == Item::REF_ITEM)
     return uses_only_table_name_fields(item->real_item(), table);
 
-  if (item->type() == Item::SUBSELECT_ITEM && !item->const_item())
+  if (item->real_type() == Item::SUBSELECT_ITEM && !item->const_item())
     return 0;
 
   return 1;
@@ -3472,7 +3517,8 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
                                          (MYSQL_OPEN_IGNORE_FLUSH |
                                           MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                                           (can_deadlock ?
-                                           MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
+                                           MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)),
+                                         DT_PREPARE | DT_CREATE);
   /*
     Restore old value of sql_command back as it is being looked at in
     process_table() function.
@@ -3863,7 +3909,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     res= schema_table->process_table(thd, &table_list, table,
                                      res, db_name, table_name);
     free_root(&tbl.mem_root, MYF(0));
-    my_free((void *) tbl.alias);
   }
 
 end_share:
@@ -4462,21 +4507,21 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.create_time);
-        table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[14]->store_time(&time);
         table->field[14]->set_notnull();
       }
       if (file->stats.update_time)
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.update_time);
-        table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[15]->store_time(&time);
         table->field[15]->set_notnull();
       }
       if (file->stats.check_time)
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.check_time);
-        table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[16]->store_time(&time);
         table->field[16]->set_notnull();
       }
       if (file->ha_table_flags() & (HA_HAS_OLD_CHECKSUM | HA_HAS_NEW_CHECKSUM))
@@ -4522,8 +4567,8 @@ err:
   @return         void
 */
 
-void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
-                       uint offset)
+static void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
+                              uint offset)
 {
   bool is_blob;
   int decimals, field_length;
@@ -4533,8 +4578,8 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
 
   field->sql_type(column_type);
   /* DTD_IDENTIFIER column */
-  table->field[offset + 7]->store(column_type.ptr(), column_type.length(), cs);
-  table->field[offset + 7]->set_notnull();
+  table->field[offset + 8]->store(column_type.ptr(), column_type.length(), cs);
+  table->field[offset + 8]->set_notnull();
   /*
     DATA_TYPE column:
     MySQL column type has the following format:
@@ -4547,7 +4592,7 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
       if there is no dimention part then check the presence of
       [unsigned] [zerofill] attributes and cut them of if exist.
     */
-    tmp_buff= strchr(column_type.ptr(), ' ');
+    tmp_buff= strchr(column_type.c_ptr_safe(), ' ');
   table->field[offset]->store(column_type.ptr(),
                               (tmp_buff ? tmp_buff - column_type.ptr() :
                                column_type.length()), cs);
@@ -4576,6 +4621,7 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
     They are set to -1 if they should not be set (we should return NULL)
   */
 
+  field_length= -1;
   decimals= field->decimals();
   switch (field->type()) {
   case MYSQL_TYPE_NEWDECIMAL:
@@ -4604,8 +4650,14 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
     if (decimals == NOT_FIXED_DEC)
       decimals= -1;                           // return NULL
     break;
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    /* DATETIME_PRECISION column */
+    table->field[offset + 5]->store((longlong) field->decimals(), TRUE);
+    table->field[offset + 5]->set_notnull();
+    break;
   default:
-    field_length= decimals= -1;
     break;
   }
 
@@ -4614,23 +4666,24 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
   {
     table->field[offset + 3]->store((longlong) field_length, TRUE);
     table->field[offset + 3]->set_notnull();
-  }
-  /* NUMERIC_SCALE column */
-  if (decimals >= 0)
-  {
-    table->field[offset + 4]->store((longlong) decimals, TRUE);
-    table->field[offset + 4]->set_notnull();
+
+    /* NUMERIC_SCALE column */
+    if (decimals >= 0)
+    {
+      table->field[offset + 4]->store((longlong) decimals, TRUE);
+      table->field[offset + 4]->set_notnull();
+    }
   }
   if (field->has_charset())
   {
     /* CHARACTER_SET_NAME column*/
     tmp_buff= field->charset()->csname;
-    table->field[offset + 5]->store(tmp_buff, strlen(tmp_buff), cs);
-    table->field[offset + 5]->set_notnull();
-    /* COLLATION_NAME column */
-    tmp_buff= field->charset()->name;
     table->field[offset + 6]->store(tmp_buff, strlen(tmp_buff), cs);
     table->field[offset + 6]->set_notnull();
+    /* COLLATION_NAME column */
+    tmp_buff= field->charset()->name;
+    table->field[offset + 7]->store(tmp_buff, strlen(tmp_buff), cs);
+    table->field[offset + 7]->set_notnull();
   }
 }
 
@@ -4706,7 +4759,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         end=strmov(end,grant_types.type_names[bitnr]);
       }
     }
-    table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+    table->field[18]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
 
 #endif
     table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -4715,8 +4768,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     table->field[3]->store(field->field_name, strlen(field->field_name),
                            cs);
     table->field[4]->store((longlong) count, TRUE);
-    field->sql_type(type);
-    table->field[14]->store(type.ptr(), type.length(), cs);
 
     if (get_field_default_value(thd, timestamp_field, field, &type, 0))
     {
@@ -4730,19 +4781,23 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     pos=(uchar*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                  (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
                  (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-    table->field[15]->store((const char*) pos,
+    table->field[16]->store((const char*) pos,
                             strlen((const char*) pos), cs);
 
     if (field->unireg_check == Field::NEXT_NUMBER)
-      table->field[16]->store(STRING_WITH_LEN("auto_increment"), cs);
+      table->field[17]->store(STRING_WITH_LEN("auto_increment"), cs);
     if (timestamp_field == field &&
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
-      table->field[16]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
+      table->field[17]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
                               cs);
     if (field->vcol_info)
-      table->field[16]->store(STRING_WITH_LEN("VIRTUAL"), cs);
-
-    table->field[18]->store(field->comment.str, field->comment.length, cs);
+    {
+      if (field->stored_in_db)
+        table->field[17]->store(STRING_WITH_LEN("PERSISTENT"), cs);
+      else
+        table->field[17]->store(STRING_WITH_LEN("VIRTUAL"), cs);
+    }
+    table->field[19]->store(field->comment.str, field->comment.length, cs);
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
   }
@@ -5030,7 +5085,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
       table->field[3]->store((longlong) 0, TRUE);
       get_field(thd->mem_root, proc_table->field[MYSQL_PROC_MYSQL_TYPE],
                 &tmp_string);
-      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[15]->store(tmp_string.ptr(), tmp_string.length(), cs);
       field_def= &sp->m_return_field_def;
       field= make_field(&share, (uchar*) 0, field_def->length,
                         (uchar*) "", 0, field_def->pack_flag,
@@ -5083,7 +5138,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
       table->field[5]->set_notnull();
       get_field(thd->mem_root, proc_table->field[MYSQL_PROC_MYSQL_TYPE],
                 &tmp_string);
-      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[15]->store(tmp_string.ptr(), tmp_string.length(), cs);
 
       field= make_field(&share, (uchar*) 0, field_def->length,
                         (uchar*) "", 0, field_def->pack_flag,
@@ -5200,40 +5255,40 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 
       if (full_access)
       {
-        copy_field_as_string(table->field[14],
+        copy_field_as_string(table->field[15],
                              proc_table->field[MYSQL_PROC_FIELD_BODY_UTF8]);
-        table->field[14]->set_notnull();
+        table->field[15]->set_notnull();
       }
-      table->field[13]->store(STRING_WITH_LEN("SQL"), cs);
-      table->field[17]->store(STRING_WITH_LEN("SQL"), cs);
-      copy_field_as_string(table->field[18],
+      table->field[14]->store(STRING_WITH_LEN("SQL"), cs);
+      table->field[18]->store(STRING_WITH_LEN("SQL"), cs);
+      copy_field_as_string(table->field[19],
                            proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC]);
-      table->field[19]->store(sp_data_access_name[enum_idx].str, 
+      table->field[20]->store(sp_data_access_name[enum_idx].str, 
                               sp_data_access_name[enum_idx].length , cs);
-      copy_field_as_string(table->field[21],
+      copy_field_as_string(table->field[22],
                            proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]);
 
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_CREATED])->
         get_time(&time);
-      table->field[22]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[23]->store_time(&time);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_MODIFIED])->
         get_time(&time);
-      table->field[23]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      copy_field_as_string(table->field[24],
-                           proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]);
+      table->field[24]->store_time(&time);
       copy_field_as_string(table->field[25],
+                           proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]);
+      copy_field_as_string(table->field[26],
                            proc_table->field[MYSQL_PROC_FIELD_COMMENT]);
 
-      table->field[26]->store(definer.ptr(), definer.length(), cs);
-      copy_field_as_string(table->field[27],
-                           proc_table->
-                           field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]);
+      table->field[27]->store(definer.ptr(), definer.length(), cs);
       copy_field_as_string(table->field[28],
                            proc_table->
-                           field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]);
+                           field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]);
       copy_field_as_string(table->field[29],
+                           proc_table->
+                           field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]);
+      copy_field_as_string(table->field[30],
 			   proc_table->field[MYSQL_PROC_FIELD_DB_COLLATION]);
 
       return schema_table_store_record(thd, table);
@@ -5935,21 +5990,21 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.create_time);
-    table->field[18]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[18]->store_time(&time);
     table->field[18]->set_notnull();
   }
   if (stat_info.update_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.update_time);
-    table->field[19]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[19]->store_time(&time);
     table->field[19]->set_notnull();
   }
   if (stat_info.check_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.check_time);
-    table->field[20]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[20]->store_time(&time);
     table->field[20]->set_notnull();
   }
   if (file->ha_table_flags() & (HA_HAS_OLD_CHECKSUM | HA_HAS_NEW_CHECKSUM))
@@ -6302,7 +6357,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   if (et.load_from_row(thd, event_table))
   {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias);
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias.c_ptr());
     DBUG_RETURN(1);
   }
 
@@ -6364,15 +6419,13 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     /* starts & ends . STARTS is always set - see sql_yacc.yy */
     et.time_zone->gmt_sec_to_TIME(&time, et.starts);
     sch_table->field[ISE_STARTS]->set_notnull();
-    sch_table->field[ISE_STARTS]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_STARTS]->store_time(&time);
 
     if (!et.ends_null)
     {
       et.time_zone->gmt_sec_to_TIME(&time, et.ends);
       sch_table->field[ISE_ENDS]->set_notnull();
-      sch_table->field[ISE_ENDS]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      sch_table->field[ISE_ENDS]->store_time(&time);
     }
   }
   else
@@ -6382,8 +6435,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
     et.time_zone->gmt_sec_to_TIME(&time, et.execute_at);
     sch_table->field[ISE_EXECUTE_AT]->set_notnull();
-    sch_table->field[ISE_EXECUTE_AT]->
-                          store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_EXECUTE_AT]->store_time(&time);
   }
 
   /* status */
@@ -6413,21 +6465,19 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("PRESERVE"), scs);
 
-  number_to_datetime(et.created, &time, 0, &not_used);
+  number_to_datetime(et.created, 0, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[ISE_CREATED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_CREATED]->store_time(&time);
 
-  number_to_datetime(et.modified, &time, 0, &not_used);
+  number_to_datetime(et.modified, 0, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[ISE_LAST_ALTERED]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_LAST_ALTERED]->store_time(&time);
 
   if (et.last_executed)
   {
     et.time_zone->gmt_sec_to_TIME(&time, et.last_executed);
     sch_table->field[ISE_LAST_EXECUTED]->set_notnull();
-    sch_table->field[ISE_LAST_EXECUTED]->
-                       store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_LAST_EXECUTED]->store_time(&time);
   }
 
   sch_table->field[ISE_EVENT_COMMENT]->
@@ -6834,14 +6884,23 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       item->unsigned_flag= (fields_info->field_flags & MY_I_S_UNSIGNED);
       break;
     case MYSQL_TYPE_DATE:
+      if (!(item=new Item_return_date_time(fields_info->field_name,
+                                           MAX_DATE_WIDTH,
+                                           fields_info->field_type)))
+        DBUG_RETURN(0);
+      break;
     case MYSQL_TYPE_TIME:
+      if (!(item=new Item_return_date_time(fields_info->field_name,
+                                           MAX_TIME_FULL_WIDTH,
+                                           fields_info->field_type)))
+        DBUG_RETURN(0);
+      break;
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME:
       if (!(item=new Item_return_date_time(fields_info->field_name,
+                                           MAX_DATETIME_WIDTH,
                                            fields_info->field_type)))
-      {
         DBUG_RETURN(0);
-      }
       break;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
@@ -7027,7 +7086,7 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 
 int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  int fields_arr[]= {3, 14, 13, 6, 15, 5, 16, 17, 18, -1};
+  int fields_arr[]= {3, 15, 14, 6, 16, 5, 17, 18, 19, -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
   Name_resolution_context *context= &thd->lex->select_lex.context;
@@ -7035,9 +7094,9 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   for (; *field_num >= 0; field_num++)
   {
     field_info= &schema_table->fields_info[*field_num];
-    if (!thd->lex->verbose && (*field_num == 13 ||
-                               *field_num == 17 ||
-                               *field_num == 18))
+    if (!thd->lex->verbose && (*field_num == 14 ||
+                               *field_num == 18 ||
+                               *field_num == 19))
       continue;
     Item_field *field= new Item_field(context,
                                       NullS, NullS, field_info->field_name);
@@ -7081,7 +7140,7 @@ int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 
 int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  int fields_arr[]= {2, 3, 4, 26, 23, 22, 21, 25, 27, 28, 29, -1};
+  int fields_arr[]= {2, 3, 4, 27, 24, 23, 22, 26, 28, 29, 30, -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
   Name_resolution_context *context= &thd->lex->select_lex.context;
@@ -7328,13 +7387,14 @@ static bool do_fill_table(THD *thd,
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place)
 {
-  JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
   DBUG_ENTER("get_schema_tables_result");
 
-  for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
+  for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
+       tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
@@ -7592,6 +7652,8 @@ ST_FIELD_INFO columns_fields_info[]=
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
   {"NUMERIC_SCALE", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONGLONG,
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
+  {"DATETIME_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
   {"CHARACTER_SET_NAME", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 1, 0,
    OPEN_FRM_ONLY},
   {"COLLATION_NAME", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 1, "Collation",
@@ -7708,6 +7770,8 @@ ST_FIELD_INFO proc_fields_info[]=
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
+  {"DATETIME_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"DTD_IDENTIFIER", 65535, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
@@ -7995,6 +8059,10 @@ ST_FIELD_INFO processlist_fields_info[]=
    SKIP_OPEN_TABLE},
   {"TIME_MS", 100 * (MY_INT64_NUM_DECIMAL_DIGITS + 1) + 3, MYSQL_TYPE_DECIMAL,
    0, 0, "Time_ms", SKIP_OPEN_TABLE},
+  {"STAGE", 2, MYSQL_TYPE_TINY,  0, 0, "Stage", SKIP_OPEN_TABLE},
+  {"MAX_STAGE", 2, MYSQL_TYPE_TINY,  0, 0, "Max_stage", SKIP_OPEN_TABLE},
+  {"PROGRESS", 703, MYSQL_TYPE_DECIMAL,  0, 0, "Progress",
+   SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -8122,6 +8190,8 @@ ST_FIELD_INFO parameters_fields_info[]=
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
+  {"DATETIME_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"DTD_IDENTIFIER", 65535, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},

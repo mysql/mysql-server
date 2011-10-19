@@ -1,4 +1,5 @@
-# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2010, Oracle and/or its affiliates.
+# Copyright (c) 2009-2011, Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -524,6 +525,47 @@
 }
 
 {
+   dlclose memory loss from plugin variant 10
+   Memcheck:Leak
+   fun:calloc
+   obj:/lib*/libdl-*.so
+   fun:dlclose
+   fun:*free_plugin_mem*
+   fun:*plugin_dl_del*
+}
+
+{
+   dlsym memory loss from plugin on SuSE 11.1 x64
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/libdl-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libdl-*.so
+   fun:dlsym
+   fun:*plugin_dl_add*
+}
+
+{
+   dlsym memory loss from plugin on SuSE 11.3 x64 when using oqgraph
+   Memcheck:Leak
+   fun:*calloc
+   fun:do_lookup_x
+   fun:_dl_lookup_symbol_x
+   fun:_dl_relocate_object
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+}
+
+{
    dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 1
    Memcheck:Leak
    fun:*alloc
@@ -579,6 +621,33 @@
    Memcheck:Leak
    fun:malloc
    fun:_dl_signal_error
+}
+
+{
+   dlsym memory loss from plugin version 2
+   Memcheck:Leak
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/libdl-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libdl-*.so
+   fun:dlsym
+}
+
+{
+   dlsym memory loss from plugin version 3
+   Memcheck:Leak
+   fun:malloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so)
+   obj:/lib*/libdl-*.so)
+   obj:/lib*/ld-*.so)
+   obj:/lib*/libdl-*.so)
+   fun:dlsym
 }
 
 #

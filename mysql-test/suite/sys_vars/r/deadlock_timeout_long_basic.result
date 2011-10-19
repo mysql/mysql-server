@@ -36,6 +36,8 @@ select @@global.deadlock_timeout_long;
 @@global.deadlock_timeout_long
 0
 set session deadlock_timeout_long=cast(-1 as unsigned int);
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select @@session.deadlock_timeout_long;
 @@session.deadlock_timeout_long
 18446744073709551615

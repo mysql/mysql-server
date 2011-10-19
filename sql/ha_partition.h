@@ -63,12 +63,14 @@ private:
   uint m_open_test_lock;                // Open test_if_locked
   char *m_file_buffer;                  // Content of the .par file 
   char *m_name_buffer_ptr;		// Pointer to first partition name
+  MEM_ROOT m_mem_root;
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
   handler **m_new_file;                 // Array of references to new handlers
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
+  LEX_STRING *m_connect_string;
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
@@ -89,7 +91,6 @@ private:
     for this since the MySQL Server sometimes allocating the handler object
     without freeing them.
   */
-  ulong m_low_byte_first;
   enum enum_handler_status
   {
     handler_not_initialized= 0,
@@ -247,7 +248,6 @@ public:
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
-  bool check_if_supported_virtual_columns(void) { return TRUE;}
   virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes);
 private:
@@ -864,6 +864,10 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
+    /*
+      The following code is not safe if you are using different
+      storage engines or different index types per partition.
+    */
     return m_file[0]->index_flags(inx, part, all_parts);
   }
 
@@ -888,12 +892,6 @@ public:
   virtual uint max_supported_key_parts() const;
   virtual uint max_supported_key_length() const;
   virtual uint max_supported_key_part_length() const;
-
-  /*
-    All handlers in a partitioned table must have the same low_byte_first
-  */
-  virtual bool low_byte_first() const
-  { return m_low_byte_first; }
 
   /*
     The extra record buffer length is the maximum needed by all handlers.

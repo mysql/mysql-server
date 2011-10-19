@@ -34,6 +34,8 @@ select @@global.aria_group_commit_interval;
 0
 set global aria_group_commit_interval=cast(-1 as unsigned int);
 Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect aria_group_commit_interval value: '18446744073709551615'
 select @@global.aria_group_commit_interval;
 @@global.aria_group_commit_interval

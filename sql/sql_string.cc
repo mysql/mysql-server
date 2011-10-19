@@ -386,7 +386,7 @@ bool String::append(const String &s)
 {
   if (s.length())
   {
-    if (realloc(str_length+s.length()))
+    if (realloc_with_extra_if_needed(str_length+s.length()))
       return TRUE;
     memcpy(Ptr+str_length,s.ptr(),s.length());
     str_length+=s.length();
@@ -411,7 +411,7 @@ bool String::append(const char *s,uint32 arg_length)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
     uint dummy_errors;
-    if (realloc(str_length+ add_length))
+    if (realloc_with_extra_if_needed(str_length+ add_length))
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, &my_charset_latin1,
@@ -422,7 +422,7 @@ bool String::append(const char *s,uint32 arg_length)
   /*
     For an ASCII compatinble string we can just append.
   */
-  if (realloc(str_length+arg_length))
+  if (realloc_with_extra_if_needed(str_length+arg_length))
     return TRUE;
   memcpy(Ptr+str_length,s,arg_length);
   str_length+=arg_length;
@@ -477,14 +477,14 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 
     add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
     uint dummy_errors;
-    if (realloc(str_length + add_length)) 
+    if (realloc_with_extra_if_needed(str_length + add_length)) 
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
 				  s, arg_length, cs, &dummy_errors);
   }
   else
   {
-    if (realloc(str_length + arg_length)) 
+    if (realloc_with_extra_if_needed(str_length + arg_length)) 
       return TRUE;
     memcpy(Ptr + str_length, s, arg_length);
     str_length+= arg_length;
@@ -494,7 +494,7 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 
 bool String::append(IO_CACHE* file, uint32 arg_length)
 {
-  if (realloc(str_length+arg_length))
+  if (realloc_with_extra_if_needed(str_length+arg_length))
     return TRUE;
   if (my_b_read(file, (uchar*) Ptr + str_length, arg_length))
   {
@@ -510,7 +510,7 @@ bool String::append_with_prefill(const char *s,uint32 arg_length,
 {
   int t_length= arg_length > full_length ? arg_length : full_length;
 
-  if (realloc(str_length + t_length))
+  if (realloc_with_extra_if_needed(str_length + t_length))
     return TRUE;
   t_length= full_length - arg_length;
   if (t_length > 0)
@@ -527,11 +527,11 @@ uint32 String::numchars()
   return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);
 }
 
-int String::charpos(int i,uint32 offset)
+int String::charpos(longlong i,uint32 offset)
 {
   if (i <= 0)
-    return i;
-  return str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
+    return (int)i;
+  return (int)str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,(size_t)i);
 }
 
 int String::strstr(const String &s,uint32 offset)
@@ -619,7 +619,7 @@ bool String::replace(uint32 offset,uint32 arg_length,
     {
       if (diff)
       {
-	if (realloc(str_length+(uint32) diff))
+	if (realloc_with_extra_if_needed(str_length+(uint32) diff))
 	  return TRUE;
 	bmove_upp((uchar*) Ptr+str_length+diff, (uchar*) Ptr+str_length,
 		  str_length-offset-arg_length);

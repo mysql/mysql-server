@@ -164,7 +164,7 @@ field_store_time_t(
 	my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
 #endif
 
-	return(field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME));
+	return(field->store_time(&my_time));
 }
 
 /*******************************************************************//**

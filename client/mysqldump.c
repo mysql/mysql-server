@@ -36,7 +36,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.13"
+#define DUMP_VERSION "10.14"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -77,6 +77,9 @@
 #define IGNORE_NONE 0x00 /* no ignore */
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
 #define IGNORE_INSERT_DELAYED 0x02 /* table doesn't support INSERT DELAYED */
+
+/* Chars needed to store LONGLONG, excluding trailing '\0'. */
+#define LONGLONG_LEN 20
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
@@ -368,9 +371,9 @@ static struct my_option my_long_options[] =
    "This causes the binary log position and filename to be appended to the "
    "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"
    " to 2, that command will be prefixed with a comment symbol. "
-   "This option will turn --lock-all-tables on, unless "
-   "--single-transaction is specified too (in which case a "
-   "global read lock is only taken a short time at the beginning of the dump; "
+   "This option will turn --lock-all-tables on, unless --single-transaction "
+   "is specified too (on servers before MariaDB 5.3 this will still take a "
+   "global read lock for a short time at the beginning of the dump; "
    "don't forget to read about --single-transaction below). In all cases, "
    "any action on logs will happen at the exact moment of the dump. "
    "Option automatically turns --lock-tables off.",
@@ -510,7 +513,8 @@ static struct my_option my_long_options[] =
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-static const char *load_default_groups[]= { "mysqldump","client",0 };
+static const char *load_default_groups[]=
+{ "mysqldump", "client", "client-server", "client-mariadb", 0 };
 
 static void maybe_exit(int error);
 static void die(int error, const char* reason, ...);
@@ -655,8 +659,13 @@ static void write_header(FILE *sql_file, char *db_name)
 
     if (!path)
     {
+      if (!opt_no_create_info)
+      {
+        /* We don't need unique checks as the table is created just before */
+        fprintf(md_result_file,"\
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n");
+      }
       fprintf(md_result_file,"\
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n\
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n\
 ");
     }
@@ -686,8 +695,12 @@ static void write_footer(FILE *sql_file)
     if (!path)
     {
       fprintf(md_result_file,"\
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n");
+      if (!opt_no_create_info)
+      {
+        fprintf(md_result_file,"\
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n");
+      }
     }
     if (opt_set_charset)
       fprintf(sql_file,
@@ -1127,6 +1140,44 @@ static int fetch_db_collation(const char *db_name,
   return err_status ? 1 : 0;
 }
 
+
+/*
+  Check if server supports non-blocking binlog position using the
+  binlog_snapshot_file and binlog_snapshot_position status variables. If it
+  does, also return the position obtained if output pointers are non-NULL.
+  Returns 1 if position available, 0 if not.
+*/
+static int
+check_consistent_binlog_pos(char *binlog_pos_file, char *binlog_pos_offset)
+{
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  int found;
+
+  if (mysql_query_with_error_report(mysql, &res,
+                                    "SHOW STATUS LIKE 'binlog_snapshot_%'"))
+    return 1;
+
+  found= 0;
+  while ((row= mysql_fetch_row(res)))
+  {
+    if (0 == strcmp(row[0], "binlog_snapshot_file"))
+    {
+      if (binlog_pos_file)
+        strmake(binlog_pos_file, row[1], FN_REFLEN-1);
+      found++;
+    }
+    else if (0 == strcmp(row[0], "binlog_snapshot_position"))
+    {
+      if (binlog_pos_offset)
+        strmake(binlog_pos_offset, row[1], LONGLONG_LEN);
+      found++;
+    }
+  }
+  mysql_free_result(res);
+
+  return (found == 2);
+}
 
 static char *my_case_str(const char *str,
                          uint str_len,
@@ -4369,42 +4420,65 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
 } /* dump_selected_tables */
 
 
-static int do_show_master_status(MYSQL *mysql_con)
+static int do_show_master_status(MYSQL *mysql_con, int consistent_binlog_pos)
 {
   MYSQL_ROW row;
   MYSQL_RES *master;
+  char binlog_pos_file[FN_REFLEN];
+  char binlog_pos_offset[LONGLONG_LEN+1];
+  char *file, *offset;
   const char *comment_prefix=
     (opt_master_data == MYSQL_OPT_MASTER_DATA_COMMENTED_SQL) ? "-- " : "";
-  if (mysql_query_with_error_report(mysql_con, &master, "SHOW MASTER STATUS"))
+
+  if (consistent_binlog_pos)
   {
-    return 1;
+    if(!check_consistent_binlog_pos(binlog_pos_file, binlog_pos_offset))
+      return 1;
+    file= binlog_pos_file;
+    offset= binlog_pos_offset;
   }
   else
   {
+    if (mysql_query_with_error_report(mysql_con, &master, "SHOW MASTER STATUS"))
+      return 1;
+
     row= mysql_fetch_row(master);
     if (row && row[0] && row[1])
     {
-      /* SHOW MASTER STATUS reports file and position */
-      if (opt_comments)
-        fprintf(md_result_file,
-                "\n--\n-- Position to start replication or point-in-time "
-                "recovery from\n--\n\n");
-      fprintf(md_result_file,
-              "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
-              comment_prefix, row[0], row[1]);
-      check_io(md_result_file);
+      file= row[0];
+      offset= row[1];
     }
-    else if (!ignore_errors)
+    else
     {
-      /* SHOW MASTER STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Binlogging on server not active",
-                      MYF(0));
       mysql_free_result(master);
-      maybe_exit(EX_MYSQLERR);
-      return 1;
+      if (!ignore_errors)
+      {
+        /* SHOW MASTER STATUS reports nothing and --force is not enabled */
+        my_printf_error(0, "Error: Binlogging on server not active",
+                        MYF(0));
+        maybe_exit(EX_MYSQLERR);
+        return 1;
+      }
+      else
+      {
+        return 0;
+      }
     }
-    mysql_free_result(master);
   }
+
+  /* SHOW MASTER STATUS reports file and position */
+  if (opt_comments)
+    fprintf(md_result_file,
+            "\n--\n-- Position to start replication or point-in-time "
+            "recovery from\n--\n\n");
+  fprintf(md_result_file,
+          "%sCHANGE MASTER TO MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n",
+          comment_prefix, file, offset);
+  check_io(md_result_file);
+
+  if (!consistent_binlog_pos)
+    mysql_free_result(master);
+
   return 0;
 }
 
@@ -5167,6 +5241,7 @@ int main(int argc, char **argv)
 {
   char bin_log_name[FN_REFLEN];
   int exit_code;
+  int consistent_binlog_pos= 0;
   MY_INIT("mysqldump");
 
   compatible_mode_normal_str[0]= 0;
@@ -5200,7 +5275,13 @@ int main(int argc, char **argv)
   if (opt_slave_data && do_stop_slave_sql(mysql))
     goto err;
 
-  if ((opt_lock_all_tables || opt_master_data) &&
+  if (opt_single_transaction && opt_master_data)
+  {
+    /* See if we can avoid FLUSH TABLES WITH READ LOCK (MariaDB 5.3+). */
+    consistent_binlog_pos= check_consistent_binlog_pos(NULL, NULL);
+  }
+
+  if ((opt_lock_all_tables || (opt_master_data && !consistent_binlog_pos)) &&
       do_flush_tables_read_lock(mysql))
     goto err;
   if (opt_single_transaction && start_transaction(mysql))
@@ -5218,10 +5299,11 @@ int main(int argc, char **argv)
       goto err;
     flush_logs= 0; /* not anymore; that would not be sensible */
   }
+
   /* Add 'STOP SLAVE to beginning of dump */
   if (opt_slave_apply && add_stop_slave())
     goto err;
-  if (opt_master_data && do_show_master_status(mysql))
+  if (opt_master_data && do_show_master_status(mysql, consistent_binlog_pos))
     goto err;
   if (opt_slave_data && do_show_slave_status(mysql))
     goto err;

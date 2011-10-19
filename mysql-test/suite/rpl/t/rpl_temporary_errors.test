@@ -1,7 +1,9 @@
 source include/have_binlog_format_row.inc;
 source include/master-slave.inc;
+source include/have_innodb.inc;
 
 call mtr.add_suppression("Deadlock found");
+call mtr.add_suppression("Can't find record in 't.'");
 
 --echo **** On Master ****
 connection master;
@@ -33,5 +35,13 @@ call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on tabl
 --echo **** On Master ****
 connection master;
 DROP TABLE t1;
+--sync_slave_with_master
+--connection master
+
+# We must wait for the slave to stop.
+# Otherwise the warnings in the error log about deadlock may be written to
+# the error log only during shutdown, and currently the suppression of
+# "Deadlock found" set in this test case is not effective during server
+# shutdown.
 
 --source include/rpl_end.inc

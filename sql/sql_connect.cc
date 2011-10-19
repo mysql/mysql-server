@@ -60,6 +60,7 @@ int get_or_create_user_conn(THD *thd, const char *user,
 
   DBUG_ASSERT(user != 0);
   DBUG_ASSERT(host != 0);
+  DBUG_ASSERT(thd->user_connect == 0);
 
   user_len= strlen(user);
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
@@ -119,7 +120,7 @@ end:
 
 int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 {
-  int error=0;
+  int error= 1;
   DBUG_ENTER("check_for_max_user_connections");
 
   mysql_mutex_lock(&LOCK_user_conn);
@@ -128,7 +129,6 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
       global_system_variables.max_user_connections < (uint) uc->connections)
   {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
-    error=1;
     goto end;
   }
   time_out_user_resource_limits(thd, uc);
@@ -138,7 +138,6 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user,
              "max_user_connections",
              (long) uc->user_resources.user_conn);
-    error= 1;
     goto end;
   }
   if (uc->user_resources.conn_per_hour &&
@@ -147,10 +146,10 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user,
              "max_connections_per_hour",
              (long) uc->user_resources.conn_per_hour);
-    error=1;
     goto end;
   }
   uc->conn_per_hour++;
+  error= 0;
 
 end:
   if (error)
@@ -709,6 +708,7 @@ static void update_global_user_stats_with_user(THD *thd,
   user_stats->binlog_bytes_written+=
     (thd->status_var.binlog_bytes_written -
      thd->org_status_var.binlog_bytes_written);
+  /* We are not counting rows in internal temporary tables here ! */
   user_stats->rows_read+=      (thd->status_var.rows_read -
                                 thd->org_status_var.rows_read);
   user_stats->rows_sent+=      (thd->status_var.rows_sent -
@@ -1044,8 +1044,14 @@ void end_connection(THD *thd)
 {
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
+
   if (thd->user_connect)
   {
+    /*
+      We decrease this variable early to make it easy to log again quickly.
+      This code is not critical as we will in any case do this test
+      again in thd->cleanup()
+    */
     decrease_user_connections(thd->user_connect);
     /*
       The thread may returned back to the pool and assigned to a user
@@ -1175,7 +1181,7 @@ void do_handle_one_connection(THD *thd_arg)
 {
   THD *thd= thd_arg;
 
-  thd->thr_create_utime= my_micro_time();
+  thd->thr_create_utime= microsecond_interval_timer();
 
   if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {

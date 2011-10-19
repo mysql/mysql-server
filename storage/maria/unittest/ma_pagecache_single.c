@@ -35,8 +35,9 @@ static const char* default_dbug_option;
 #define SKIP_BIG_TESTS(X) /* no-op */
 #endif
 
-static char *file1_name= (char*)"page_cache_test_file_1";
-static char *file2_name= (char*)"page_cache_test_file_2";
+static const char *base_file1_name= "page_cache_test_file_1";
+static const char *base_file2_name= "page_cache_test_file_2";
+static char file1_name[FN_REFLEN], file2_name[FN_REFLEN];
 static PAGECACHE_FILE file1;
 static pthread_cond_t COND_thread_count;
 static pthread_mutex_t LOCK_thread_count;
@@ -720,6 +721,28 @@ static void *test_thread(void *arg)
 }
 
 
+static char *create_tmpdir(const char *progname)
+{
+  static char test_dirname[FN_REFLEN];
+  char tmp_name[FN_REFLEN];
+  uint length;
+
+  /* Create a temporary directory of name TMP-'executable', but without the -t extension */
+  fn_format(tmp_name, progname, "", "", MY_REPLACE_DIR | MY_REPLACE_EXT);
+  length= strlen(tmp_name);
+  if (length > 2 && tmp_name[length-2] == '-' && tmp_name[length-1] == 't')
+    tmp_name[length-2]= 0;
+  strxmov(test_dirname, "TMP-", tmp_name, NullS);
+
+  /*
+    Don't give an error if we can't create dir, as it may already exist from a previously aborted
+    run
+  */
+  (void) my_mkdir(test_dirname, 0777, MYF(0));
+  return test_dirname;
+}
+
+
 int main(int argc __attribute__((unused)),
          char **argv __attribute__((unused)))
 {
@@ -748,6 +771,9 @@ int main(int argc __attribute__((unused)),
   plan(18);
   SKIP_BIG_TESTS(18)
   {
+  char *test_dirname= create_tmpdir(argv[0]);
+  fn_format(file1_name, base_file1_name, test_dirname, "", MYF(0));
+  fn_format(file2_name, base_file2_name, test_dirname, "", MYF(0));
 
   if ((tmp_file= my_open(file2_name, O_CREAT | O_TRUNC | O_RDWR,
                          MYF(MY_WME))) < 0)
@@ -841,13 +867,13 @@ int main(int argc __attribute__((unused)),
     exit(1);
 
   my_delete(file1_name, MYF(0));
+  rmdir(test_dirname);
 
   } /* SKIP_BIG_TESTS */
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));
   DBUG_PRINT("info", ("Program end"));
 
   my_end(0);
-
   }
   return exit_status();
 }

@@ -61,7 +61,7 @@ select @@global.example_ulong_var;
 500
 set session sql_mode=@old_sql_mode;
 set session old=bla;
-ERROR HY000: Variable 'old' is a read only variable
+ERROR 42000: Variable 'old' can't be set to the value of 'bla'
 #legal values
 CREATE TABLE t1 ( a int complex='c,f,f,f' ) ENGINE=example ULL=10000 STR='dskj' one_or_two='one' YESNO=0;
 show create table t1;
@@ -75,9 +75,9 @@ SET SQL_MODE='IGNORE_BAD_TABLE_OPTIONS';
 #illegal value fixed
 CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
 Warnings:
-Warning	1723	Incorrect value '10000000000000000000' for option 'ULL'
-Warning	1723	Incorrect value 'ttt' for option 'one_or_two'
-Warning	1723	Incorrect value 'SSS' for option 'YESNO'
+Warning	1912	Incorrect value '10000000000000000000' for option 'ULL'
+Warning	1912	Incorrect value 'ttt' for option 'one_or_two'
+Warning	1912	Incorrect value 'SSS' for option 'YESNO'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -1,5 +1,5 @@
 /* Copyright (C) 2006, 2007 MySQL AB
-   Copyright (C) 2010 Monty Program Ab
+   Copyright (C) 2010-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "trnman.h"
 #include "ma_key_recover.h"
 #include "ma_recovery_util.h"
+#include "hash.h"
 
 struct st_trn_for_recovery /* used only in the REDO phase */
 {
@@ -58,6 +59,8 @@ static ulonglong now; /**< for tracking execution time of phases */
 static void (*save_error_handler_hook)(uint, const char *,myf);
 static uint recovery_warnings; /**< count of warnings */
 static uint recovery_found_crashed_tables;
+HASH tables_to_redo;                          /* For maria_read_log */
+ulong maria_recovery_force_crash_counter;
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -184,6 +187,21 @@ static void print_preamble()
 }
 
 
+static my_bool table_is_part_of_recovery_set(LEX_STRING *file_name)
+{
+  uint offset =0;
+  if (!tables_to_redo.records)
+    return 1;                                   /* Default, recover table */
+
+  /* Skip base directory */
+  if (file_name->str[0] == '.' &&
+      (file_name->str[1] == '/' || file_name->str[1] == '\\'))
+    offset= 2;
+  /* Only recover if table is in hash */
+  return my_hash_search(&tables_to_redo, (uchar*) file_name->str + offset,
+                        file_name->length - offset) != 0;
+}
+
 /**
    @brief Recovers from the last checkpoint.
 
@@ -302,25 +320,32 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   skip_DDLs= skip_DDLs_arg;
   skipped_undo_phase= 0;
 
+  trnman_init(max_trid_in_control_file);
+
   if (from_lsn == LSN_IMPOSSIBLE)
   {
     if (last_checkpoint_lsn == LSN_IMPOSSIBLE)
     {
       from_lsn= translog_first_lsn_in_log();
       if (unlikely(from_lsn == LSN_ERROR))
+      {
+        trnman_destroy();
         goto err;
+      }
     }
     else
     {
       from_lsn= parse_checkpoint_record(last_checkpoint_lsn);
       if (from_lsn == LSN_ERROR)
+      {
+        trnman_destroy();
         goto err;
+      }
     }
   }
 
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   in_redo_phase= TRUE;
-  trnman_init(max_trid_in_control_file);
   if (run_redo_phase(from_lsn, end_lsn, apply))
   {
     ma_message_no_user(0, "Redo phase failed");
@@ -349,10 +374,10 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   in_redo_phase= FALSE;
 
   old_now= now;
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   if (recovery_message_printed == REC_MSG_REDO)
   {
-    double phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/1000000.0;
     /*
       Detailed progress info goes to stderr, because ma_message_no_user()
       cannot put several messages on one line.
@@ -418,10 +443,10 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   }
 
   old_now= now;
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   if (recovery_message_printed == REC_MSG_UNDO)
   {
-    double phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/1000000.0;
     procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
     fflush(stderr);
@@ -438,10 +463,10 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   }
 
   old_now= now;
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   if (recovery_message_printed == REC_MSG_FLUSH)
   {
-    double phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/1000000.0;
     procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
     fflush(stderr);
@@ -625,6 +650,7 @@ static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
 prototype_redo_exec_hook_dummy(CHECKPOINT)
 {
   /* the only checkpoint we care about was found via control file, ignore */
+  tprint(tracef, "CHECKPOINT found\n");
   return 0;
 }
 
@@ -1276,6 +1302,22 @@ prototype_redo_exec_hook(FILE_ID)
   {
     tprint(tracef, "   Closing table '%s'\n", info->s->open_file_name.str);
     prepare_table_for_close(info, rec->lsn);
+
+    /*
+      Ensure that open count is 1 on close.  This is needed as the
+      table may initially had an open_count > 0 when we initially
+      opened it as the server may have crashed without closing it
+      properly.  As we now have applied all redo's for the table up to
+      now, we know the table is ok, so it's safe to reset the open
+      count to 0.
+    */
+    if (info->s->state.open_count != 0 && info->s->reopen == 1)
+    {
+      /* let ma_close() mark the table properly closed */
+      info->s->state.open_count= 1;
+      info->s->global_changed= 1;
+      info->s->changed= 1;
+    }
     if (maria_close(info))
     {
       eprint(tracef, "Failed to close table");
@@ -1645,8 +1687,8 @@ prototype_redo_exec_hook(REDO_FREE_BLOCKS)
   }
 
   buff= log_record_buffer.str;
-  if (_ma_apply_redo_free_blocks(info, current_group_end_lsn,
-                                 buff + FILEID_STORE_SIZE))
+  if (_ma_apply_redo_free_blocks(info, current_group_end_lsn, rec->lsn,
+                                 buff))
     goto end;
   error= 0;
 end:
@@ -2907,6 +2949,12 @@ static int run_undo_phase(uint uncommitted)
         translog_free_record_header(&rec);
       }
 
+      /* Force a crash to test recovery of recovery */
+      if (maria_recovery_force_crash_counter)
+      {
+        DBUG_ASSERT(--maria_recovery_force_crash_counter > 0);
+      }
+
       if (trnman_rollback_trn(trn))
         DBUG_RETURN(1);
       /* We could want to span a few threads (4?) instead of 1 */
@@ -3017,10 +3065,11 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     page= page_korr(rec->header + FILEID_STORE_SIZE);
     llstr(page, llbuf);
     break;
+  case LOGREC_REDO_FREE_BLOCKS:
     /*
-      For REDO_FREE_BLOCKS, no need to look at dirty pages list: it does not
-      read data pages, only reads/modifies bitmap page(s) which is cheap.
+      We are checking against the dirty pages in _ma_apply_redo_free_blocks()
     */
+    break;
   default:
     break;
   }
@@ -3038,6 +3087,12 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   share= info->s;
   tprint(tracef, ", '%s'", share->open_file_name.str);
   DBUG_ASSERT(in_redo_phase);
+  if (!table_is_part_of_recovery_set(&share->open_file_name))
+  {
+    tprint(tracef, ", skipped by user\n");
+    return NULL;
+  }
+
   if (cmp_translog_addr(rec->lsn, share->lsn_of_file_id) <= 0)
   {
     /*
@@ -3071,7 +3126,6 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
       REDO_INSERT_ROW_BLOBS will consult list by itself, as it covers several
       pages.
     */
-    tprint(tracef, " page %s", llbuf);
     if (_ma_redo_not_needed_for_page(sid, rec->lsn, page,
                                      index_page_redo_entry))
       return NULL;
@@ -3108,6 +3162,13 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   }
   share= info->s;
   tprint(tracef, ", '%s'", share->open_file_name.str);
+
+  if (!table_is_part_of_recovery_set(&share->open_file_name))
+  {
+    tprint(tracef, ", skipped by user\n");
+    return NULL;
+  }
+
   if (cmp_translog_addr(rec->lsn, share->lsn_of_file_id) <= 0)
   {
     tprint(tracef, ", table's LOGREC_FILE_ID has LSN (%lu,0x%lx) more recent"
@@ -3383,13 +3444,20 @@ static int close_all_tables(void)
     */
     if (info->s->state.open_count != 0)
     {
-      /* let ma_close() mark the table properly closed */
+      /* let maria_close() mark the table properly closed */
       info->s->state.open_count= 1;
       info->s->global_changed= 1;
+      info->s->changed= 1;
     }
     prepare_table_for_close(info, addr);
     error|= maria_close(info);
     mysql_mutex_lock(&THR_LOCK_maria);
+    
+    /* Force a crash to test recovery of recovery */
+    if (maria_recovery_force_crash_counter)
+    {
+      DBUG_ASSERT(--maria_recovery_force_crash_counter > 0);
+    }
   }
 end:
   mysql_mutex_unlock(&THR_LOCK_maria);
@@ -3464,7 +3532,7 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
 
   /*
     Reset state pointers. This is needed as in ALTER table we may do
-    commit fllowed by _ma_renable_logging_for_table and then
+    commit followed by _ma_renable_logging_for_table and then
     info->state may point to a state that was deleted by
     _ma_trnman_end_trans_hook()
    */

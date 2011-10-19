@@ -406,9 +406,59 @@ explain select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c = t1.c )
 group by a1,a2,b;
 
+select a1,a2,b,min(c),max(c) from t1
+where exists ( select * from t2 where t2.c = t1.c )
+group by a1,a2,b;
+
 # the sub-select is unrelated to MIN/MAX
 explain select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,min(c),max(c) from t1
+where exists ( select * from t2 where t2.c > 'b1' )
+group by a1,a2,b;
+
+# correlated subselect that doesn't reference the min/max argument
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.b) and
+               t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.b) and
+               t2.c > 'b1' )
+group by a1,a2,b;
+
+# correlated subselect that references the min/max argument
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.c) and
+               t2.c > 'b1' )
+group by a1,a2,b;
+
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+               where t2.c in (select c from t3 where t3.c > t1.c) and
+               t2.c > 'b1' )
 group by a1,a2,b;
 
 

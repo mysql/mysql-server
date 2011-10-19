@@ -1063,7 +1063,8 @@ insert into t1 values
   (02,2002,20020101,"2002-01-01 23:59:59"),
   (60,2060,20600101,"2060-01-01 11:11:11"),
   (70,1970,19700101,"1970-11-11 22:22:22"),
-  (NULL,NULL,NULL,NULL);
+  (NULL,NULL,NULL,NULL),
+  (71,1971,19710101,"1971-11-11 22:22:22");
 select min(f1),max(f1) from t1;
 select min(f2),max(f2) from t1;
 select min(f3),max(f3) from t1;
@@ -1141,6 +1142,142 @@ DROP TABLE t1;
 
 --echo #
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#46680 - Assertion failed in file item_subselect.cc, 
+--echo #             line 305 crashing on HAVING subquery
+--echo #
+
+--echo # Create tables
+--echo #
+
+CREATE TABLE t1 (
+  pk INT,
+  v VARCHAR(1) DEFAULT NULL,
+  PRIMARY KEY(pk)
+);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TABLE empty1 (a int);
+
+INSERT INTO t1 VALUES (1,'c'),(2,NULL);
+INSERT INTO t2 VALUES (3,'m'),(4,NULL);
+INSERT INTO t3 VALUES (1,'n');
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+--echo
+--echo #
+--echo # 1) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Impossible WHERE"
+--echo #
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 2) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "No matching min/max row"
+--echo #
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+--echo #
+--echo # 3) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Select tables optimized away"
+--echo #
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 4) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "No matching row in const table"
+--echo #
+--echo
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN 
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 5) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Impossible WHERE noticed 
+--echo #    after reading const tables"
+--echo #
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # Cleanup for BUG#46680
+--echo #
+DROP TABLE IF EXISTS t1,t2,t3,empty1;
 
 ###
 --echo #

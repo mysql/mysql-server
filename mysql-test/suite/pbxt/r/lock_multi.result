@@ -138,6 +138,17 @@ unlock tables;
 unlock tables;
 drop table t1,t2;
 End of 5.0 tests
+create table t1 (i int);
+lock table t1 read;
+update t1 set i= 10;
+select * from t1;
+Timeout in wait_condition.inc for select count(*) = 1 from information_schema.processlist
+where state = "Table Lock" and info = "select * from t1"
+kill query ID;
+i
+ERROR 70100: Query execution was interrupted
+unlock tables;
+drop table t1;
 drop table if exists t1;
 create table t1 (i int);
 connection: default

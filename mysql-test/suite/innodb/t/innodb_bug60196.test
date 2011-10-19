@@ -7,7 +7,6 @@
 --source include/not_embedded.inc
 --source include/have_lowercase2.inc
 --source include/have_case_insensitive_file_system.inc
---source include/have_innodb.inc
 
 #
 # Create test data.

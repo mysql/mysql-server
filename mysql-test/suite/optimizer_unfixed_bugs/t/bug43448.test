@@ -26,6 +26,7 @@ CREATE TABLE t3(
 
 disable_query_log;
 
+begin;
 let $1 = 100;
 while ($1)
 {
@@ -44,6 +45,7 @@ while ($1)
   }
   dec $1;
 }
+commit;
 
 enable_query_log;
 

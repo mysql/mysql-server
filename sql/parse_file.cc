@@ -386,7 +386,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
-  if (!(parser->buff= (char*) alloc_root(mem_root, stat_info.st_size+1)))
+  if (!(parser->buff= (char*) alloc_root(mem_root, (size_t)(stat_info.st_size+1))))
   {
     DBUG_RETURN(0);
   }

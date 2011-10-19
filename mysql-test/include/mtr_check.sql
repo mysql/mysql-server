@@ -13,7 +13,9 @@ BEGIN
   -- that are supposed to change
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
    WHERE variable_name != 'timestamp'
-     AND variable_name != 'INNODB_IBUF_MAX_SIZE'
+     AND variable_name not like "Last_IO_Err*"
+     AND variable_name != 'INNODB_IBUF_MAX_SIZE' AND
+         variable_name != 'INNODB_FILE_FORMAT_CHECK'
    ORDER BY variable_name;
 
   -- Dump all databases, there should be none

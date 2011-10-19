@@ -94,11 +94,6 @@ const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
 void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-#ifdef __WIN__
-/* from my_getsystime.c */
-ulonglong query_performance_frequency, query_performance_offset;
-#endif
-
 	/* How to disable options */
 my_bool my_disable_locking=0;
 my_bool my_disable_sync=0;

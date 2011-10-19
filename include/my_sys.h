@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ typedef struct my_aio_result {
 #ifdef _WIN32
 #include <malloc.h> /*for alloca*/
 #endif
+#include <mysql/plugin.h>
 
 #define MY_INIT(name)   { my_progname= name; my_init(); }
 
@@ -142,6 +143,9 @@ typedef struct my_aio_result {
 #define GETDATE_GMT		8
 #define GETDATE_FIXEDLENGTH	16
 
+/* Extra length needed for filename if one calls my_create_backup_name */
+#define MY_BACKUP_NAME_EXTRA_LENGTH 17
+
 	/* defines when allocating data */
 extern void *my_malloc(size_t Size,myf MyFlags);
 extern void *my_multi_malloc(myf MyFlags, ...);
@@ -171,7 +175,7 @@ extern void my_large_free(uchar *ptr);
 #define my_large_free(A) my_free_lock((A))
 #endif /* HAVE_LARGE_PAGES */
 
-#ifdef HAVE_ALLOCA
+#if defined(HAVE_ALLOCA) && !defined(HAVE_valgrind)
 #if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
 #endif /* _AIX */
@@ -209,7 +213,7 @@ extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
 
-extern const char *(*proc_info_hook)(void *, const char *, const char *,
+extern const char *(*proc_info_hook)(MYSQL_THD, const char *, const char *,
                                      const char *, const unsigned int);
 
 #ifdef HAVE_LARGE_PAGES
@@ -314,9 +318,6 @@ struct st_my_file_info
   int    oflag;     /* open flags, e.g O_APPEND */
 #endif
   enum   file_type	type;
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-  mysql_mutex_t mutex;
-#endif
 };
 
 extern struct st_my_file_info *my_file_info;
@@ -528,6 +529,8 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 #define my_b_tell(info) ((info)->pos_in_file + \
 			 (size_t) (*(info)->current_pos - (info)->request_pos))
+#define my_b_write_tell(info) ((info)->pos_in_file + \
+			 ((info)->write_pos - (info)->write_buffer))
 
 #define my_b_get_buffer_start(info) (info)->request_pos 
 #define my_b_get_bytes_in_buffer(info) (char*) (info)->read_end -   \
@@ -651,7 +654,10 @@ extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
-extern int my_redel(const char *from, const char *to, int MyFlags);
+extern int my_redel(const char *from, const char *to, time_t backup_time_stamp,
+                    myf MyFlags);
+void my_create_backup_name(char *to, const char *from,
+                           time_t backup_time_stamp);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
 
@@ -796,6 +802,8 @@ extern my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern my_bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
+extern void dynstr_reassociate(DYNAMIC_STRING *str, char **res, size_t *length,
+                               size_t *alloc_length);
 #ifdef HAVE_MLOCK
 extern void *my_malloc_lock(size_t length,myf flags);
 extern void my_free_lock(void *ptr);
@@ -861,14 +869,22 @@ extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
-extern time_t my_time(myf flags);
-extern ulonglong my_getsystime(void);
-extern ulonglong my_getcputime(void);
-extern ulonglong my_micro_time();
-extern ulonglong my_micro_time_and_time(time_t *time_arg);
-time_t my_time_possible_from_micro(ulonglong microtime);
 extern my_bool my_gethwaddr(uchar *to);
 extern int my_getncpus();
+
+#define HRTIME_RESOLUTION               1000000ULL  /* microseconds */
+typedef struct {ulonglong val;} my_hrtime_t;
+void my_time_init();
+extern my_hrtime_t my_hrtime();
+extern ulonglong my_interval_timer(void);
+extern ulonglong my_getcputime(void);
+
+#define microsecond_interval_timer()    (my_interval_timer()/1000)
+#define hrtime_to_time(X)               ((X).val/HRTIME_RESOLUTION)
+#define hrtime_from_time(X)             ((ulonglong)((X)*HRTIME_RESOLUTION))
+#define hrtime_to_double(X)             ((X).val/(double)HRTIME_RESOLUTION)
+#define hrtime_sec_part(X)              ((ulong)((X).val % HRTIME_RESOLUTION))
+#define my_time(X)                      hrtime_to_time(my_hrtime())
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>

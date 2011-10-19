@@ -41,13 +41,7 @@ SET @@session.storage_engine = 'CSV';
 # Execute the tests to be applied to all storage engines
 
 #------------------------------------------------------------------------------#
-# Execute storage engine specific tests
---error ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-create table t1 (a int, b int as (a+1));
-create table t1 (a int not null);
---error ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-alter table t1 add column b int as (a+1);
-drop table t1;
+--source suite/vcol/inc/vcol_unsupported_storage_engines.inc
 
 #------------------------------------------------------------------------------#
 # Cleanup

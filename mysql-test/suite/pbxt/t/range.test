@@ -322,6 +322,7 @@ create table t2 (
   primary key (id),
   index uid_index (uid));
   
+begin;
 insert into t1(id, uid, name) values(1, 0, ' ');
 insert into t1(uid, name) values(0, ' ');
 
@@ -374,6 +375,8 @@ insert into t1(uid, name) select uid, name from t2 order by uid;
 
 delete from t2;
 insert into t2(id, uid, name) select id, uid, name from t1;
+
+commit;
 
 select count(*) from t1;  
 select count(*) from t2;

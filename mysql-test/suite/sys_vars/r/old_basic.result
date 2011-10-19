@@ -2,7 +2,8 @@ select @@global.old;
 @@global.old
 0
 select @@session.old;
-ERROR HY000: Variable 'old' is a GLOBAL variable
+@@session.old
+0
 show global variables like 'old';
 Variable_name	Value
 old	OFF
@@ -16,6 +17,11 @@ select * from information_schema.session_variables where variable_name='old';
 VARIABLE_NAME	VARIABLE_VALUE
 OLD	OFF
 set global old=1;
-ERROR HY000: Variable 'old' is a read only variable
 set session old=1;
-ERROR HY000: Variable 'old' is a read only variable
+select @@global.old;
+@@global.old
+1
+select @@session.old;
+@@session.old
+1
+set @@global.old=DEFAULT;

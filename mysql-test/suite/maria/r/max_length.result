@@ -1,0 +1,56 @@
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table t1 (id int(10) unsigned not null auto_increment primary key, v varchar(1000), b blob) row_format=page max_rows=2 engine=aria;
+create table t2 (id int(10) unsigned not null auto_increment primary key, v varchar(1000), b blob) row_format=page max_rows=20000000 engine=aria;
+lock tables t1 write,t2 write;
+show table status like "t_";
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	Aria	10	Page	0	0	8192	268320768	8192	0	1	#	#	#	latin1_swedish_ci	NULL	max_rows=2 row_format=PAGE	
+t2	Aria	10	Page	0	0	8192	17592186011648	8192	0	1	#	#	#	latin1_swedish_ci	NULL	max_rows=20000000 row_format=PAGE	
+insert into t1 values(null, repeat("ab",100),repeat("def",1000));
+insert into t1 values(null, repeat("de",200),repeat("ghi",2000));
+insert into t1 values(null, repeat("fe",300),repeat("ghi",3000));
+insert into t1 values(null, repeat("gh",400),repeat("jkl",10000));
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+insert into t1 (v,b) select v,b from t2;
+insert into t2 (v,b) select v,b from t1;
+unlock tables;
+insert into t1 (v,b) select v,b from t2;
+ERROR HY000: The table 't1' is full
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Datafile is almost full, 268230656 of 268320768 used
+test.t1	check	status	OK
+insert into t1 values(null, repeat("gh",400),repeat("jkl",10000));
+ERROR HY000: The table 't1' is full
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Datafile is almost full, 268230656 of 268320768 used
+test.t1	check	status	OK
+truncate table t1;
+insert into t1 (v,b) select v,b from t2;
+ERROR HY000: The table 't1' is full
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Datafile is almost full, 268230656 of 268320768 used
+test.t1	check	status	OK
+drop table t1,t2;

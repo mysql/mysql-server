@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2010-2011 Monty Program Ab
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -170,8 +170,9 @@
 
 /* Has automatic checksums and uses the new checksum format */
 #define HA_HAS_NEW_CHECKSUM    (LL(1) << 38)
-
-#define HA_MRR_CANT_SORT       (LL(1) << 39)
+#define HA_CAN_VIRTUAL_COLUMNS (LL(1) << 39)
+#define HA_MRR_CANT_SORT       (LL(1) << 40)
+#define HA_RECORD_MUST_BE_CLEAN_ON_WRITE (LL(1) << 41)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -193,8 +194,11 @@
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
-
-
+/*
+  Data is clustered on this key. This means that when you read the key
+  you also get the row data without any additional disk reads.
+*/
+#define HA_CLUSTERED_INDEX      512
 
 /*
   bits in alter_table_flags:
@@ -687,6 +691,11 @@ struct handler_log_file_data {
 
   See ha_example.cc for an example.
 */
+
+struct ha_table_option_struct;
+struct ha_field_option_struct;
+struct ha_index_option_struct;
+
 enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
                       HA_OPTION_TYPE_STRING, /* char * */
                       HA_OPTION_TYPE_ENUM,   /* uint */
@@ -859,12 +868,113 @@ struct handlerton
      NOTE 'all' is also false in auto-commit mode where 'end of statement'
      and 'real commit' mean the same event.
    */
-   int  (*commit)(handlerton *hton, THD *thd, bool all);
+   int (*commit)(handlerton *hton, THD *thd, bool all);
+   /*
+     The commit_ordered() method is called prior to the commit() method, after
+     the transaction manager has decided to commit (not rollback) the
+     transaction. Unlike commit(), commit_ordered() is called only when the
+     full transaction is committed, not for each commit of statement
+     transaction in a multi-statement transaction.
+
+     Not that like prepare(), commit_ordered() is only called when 2-phase
+     commit takes place. Ie. when no binary log and only a single engine
+     participates in a transaction, one commit() is called, no
+     commit_ordered(). So engines must be prepared for this.
+
+     The calls to commit_ordered() in multiple parallel transactions is
+     guaranteed to happen in the same order in every participating
+     handler. This can be used to ensure the same commit order among multiple
+     handlers (eg. in table handler and binlog). So if transaction T1 calls
+     into commit_ordered() of handler A before T2, then T1 will also call
+     commit_ordered() of handler B before T2.
+
+     Engines that implement this method should during this call make the
+     transaction visible to other transactions, thereby making the order of
+     transaction commits be defined by the order of commit_ordered() calls.
+
+     The intention is that commit_ordered() should do the minimal amount of
+     work that needs to happen in consistent commit order among handlers. To
+     preserve ordering, calls need to be serialised on a global mutex, so
+     doing any time-consuming or blocking operations in commit_ordered() will
+     limit scalability.
+
+     Handlers can rely on commit_ordered() calls to be serialised (no two
+     calls can run in parallel, so no extra locking on the handler part is
+     required to ensure this).
+
+     Note that commit_ordered() can be called from a different thread than the
+     one handling the transaction! So it can not do anything that depends on
+     thread local storage, in particular it can not call my_error() and
+     friends (instead it can store the error code and delay the call of
+     my_error() to the commit() method).
+
+     Similarly, since commit_ordered() returns void, any return error code
+     must be saved and returned from the commit() method instead.
+
+     The commit_ordered method is optional, and can be left unset if not
+     needed in a particular handler (then there will be no ordering guarantees
+     wrt. other engines and binary log).
+   */
+   void (*commit_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*rollback)(handlerton *hton, THD *thd, bool all);
    int  (*prepare)(handlerton *hton, THD *thd, bool all);
+   /*
+     The prepare_ordered method is optional. If set, it will be called after
+     successful prepare() in all handlers participating in 2-phase
+     commit. Like commit_ordered(), it is called only when the full
+     transaction is committed, not for each commit of statement transaction.
+
+     The calls to prepare_ordered() among multiple parallel transactions are
+     ordered consistently with calls to commit_ordered(). This means that
+     calls to prepare_ordered() effectively define the commit order, and that
+     each handler will see the same sequence of transactions calling into
+     prepare_ordered() and commit_ordered().
+
+     Thus, prepare_ordered() can be used to define commit order for handlers
+     that need to do this in the prepare step (like binlog). It can also be
+     used to release transaction's locks early in an order consistent with the
+     order transactions will be eventually committed.
+
+     Like commit_ordered(), prepare_ordered() calls are serialised to maintain
+     ordering, so the intention is that they should execute fast, with only
+     the minimal amount of work needed to define commit order. Handlers can
+     rely on this serialisation, and do not need to do any extra locking to
+     avoid two prepare_ordered() calls running in parallel.
+
+     Like commit_ordered(), prepare_ordered() is not guaranteed to be called
+     in the context of the thread handling the rest of the transaction. So it
+     cannot invoke code that relies on thread local storage, in particular it
+     cannot call my_error().
+
+     prepare_ordered() cannot cause a rollback by returning an error, all
+     possible errors must be handled in prepare() (the prepare_ordered()
+     method returns void). In case of some fatal error, a record of the error
+     must be made internally by the engine and returned from commit() later.
+
+     Note that for user-level XA SQL commands, no consistent ordering among
+     prepare_ordered() and commit_ordered() is guaranteed (as that would
+     require blocking all other commits for an indefinite time).
+
+     When 2-phase commit is not used (eg. only one engine (and no binlog) in
+     transaction), neither prepare() nor prepare_ordered() is called.
+   */
+   void (*prepare_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
    int  (*commit_by_xid)(handlerton *hton, XID *xid);
    int  (*rollback_by_xid)(handlerton *hton, XID *xid);
+  /*
+    "Disable or enable checkpointing internal to the storage engine. This is
+    used for FLUSH TABLES WITH READ LOCK AND DISABLE CHECKPOINT to ensure that
+    the engine will never start any recovery from a time between
+    FLUSH TABLES ... ; UNLOCK TABLES.
+
+    While checkpointing is disabled, the engine should pause any background
+    write activity (such as tablespace checkpointing) that require consistency
+    between different files (such as transaction log and tablespace files) for
+    crash recovery to succeed. The idea is to use this to make safe
+    multi-volume LVM snapshot backups.
+  */
+   int  (*checkpoint_state)(handlerton *hton, bool disabled);
    void *(*create_cursor_read_view)(handlerton *hton, THD *thd);
    void (*set_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
    void (*close_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
@@ -1151,9 +1261,9 @@ typedef struct st_ha_create_information
   enum ha_choice page_checksum;         ///< If we have page_checksums
   engine_option_value *option_list;     ///< list of table create options
   /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
-  void *option_struct;           ///< structure with parsed table options
-  void **fileds_option_struct;   ///< array of field option structures
-  void **indexes_option_struct;  ///< array of index option structures
+  ha_table_option_struct *option_struct;           ///< structure with parsed table options
+  ha_field_option_struct **fields_option_struct;   ///< array of field option structures
+  ha_index_option_struct **indexes_option_struct;  ///< array of index option structures
 } HA_CREATE_INFO;
 
 
@@ -1228,6 +1338,7 @@ typedef struct st_ha_check_opt
   st_ha_check_opt() {}                        /* Remove gcc warning */
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
+  time_t start_time;   /* When check/repair starts */
   KEY_CACHE *key_cache; /* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
@@ -1241,6 +1352,23 @@ typedef void *range_seq_t;
 
 typedef struct st_range_seq_if
 {
+  /*
+    Get key information
+ 
+    SYNOPSIS
+      get_key_info()
+        init_params  The seq_init_param parameter 
+        length       OUT length of the keys in this range sequence
+        map          OUT key_part_map of the keys in this range sequence
+
+    DESCRIPTION
+      This function is set only when using HA_MRR_FIXED_KEY mode. In that mode, 
+      all ranges are single-point equality ranges that use the same set of key
+      parts. This function allows the MRR implementation to get the length of
+      a key, and which keyparts it uses.
+  */
+  void (*get_key_info)(void *init_params, uint *length, key_part_map *map);
+
   /*
     Initialize the traversal of range sequence
     
@@ -1265,10 +1393,10 @@ typedef struct st_range_seq_if
         range  OUT Information about the next range
     
     RETURN
-      0 - Ok, the range structure filled with info about the next range
-      1 - No more ranges
+      FALSE - Ok, the range structure filled with info about the next range
+      TRUE  - No more ranges
   */
-  uint (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
+  bool (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
 
   /*
     Check whether range_info orders to skip the next record
@@ -1285,7 +1413,7 @@ typedef struct st_range_seq_if
           out from the stream of records returned by multi_range_read_next()
       0 - The record shall be left in the stream
   */ 
-  bool (*skip_record) (range_seq_t seq, char *range_info, uchar *rowid);
+  bool (*skip_record) (range_seq_t seq, range_id_t range_info, uchar *rowid);
 
   /*
     Check if the record combination matches the index condition
@@ -1298,8 +1426,10 @@ typedef struct st_range_seq_if
       0 - The record combination satisfies the index condition
       1 - Otherwise
   */ 
-  bool (*skip_index_tuple) (range_seq_t seq, char *range_info);
+  bool (*skip_index_tuple) (range_seq_t seq, range_id_t range_info);
 } RANGE_SEQ_IF;
+
+typedef bool (*SKIP_INDEX_TUPLE_FUNC) (range_seq_t seq, range_id_t range_info);
 
 class COST_VECT
 { 
@@ -1346,10 +1476,14 @@ public:
   }
   void add_io(double add_io_cnt, double add_avg_cost)
   {
-    double io_count_sum= io_count + add_io_cnt;
-    avg_io_cost= (io_count * avg_io_cost + 
-                  add_io_cnt * add_avg_cost) / io_count_sum;
-    io_count= io_count_sum;
+    /* In edge cases add_io_cnt may be zero */
+    if (add_io_cnt > 0)
+    {
+      double io_count_sum= io_count + add_io_cnt;
+      avg_io_cost= (io_count * avg_io_cost + 
+                    add_io_cnt * add_avg_cost) / io_count_sum;
+      io_count= io_count_sum;
+    }
   }
 
   /*
@@ -1368,9 +1502,9 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
                          COST_VECT *cost);
 
 /*
-  The below two are not used (and not handled) in this milestone of this WL
-  entry because there seems to be no use for them at this stage of
-  implementation.
+  Indicates that all scanned ranges will be singlepoint (aka equality) ranges.
+  The ranges may not use the full key but all of them will use the same number
+  of key parts.
 */
 #define HA_MRR_SINGLE_POINT 1
 #define HA_MRR_FIXED_KEY  2
@@ -1412,7 +1546,42 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 #define HA_MRR_NO_NULL_ENDPOINTS 128
 
+/*
+  The MRR user has materialized range keys somewhere in the user's buffer.
+  This can be used for optimization of the procedure that sorts these keys
+  since in this case key values don't have to be copied into the MRR buffer.
 
+  In other words, it is guaranteed that after RANGE_SEQ_IF::next() call the 
+  pointer in range->start_key.key will point to a key value that will remain 
+  there until the end of the MRR scan.
+*/
+#define HA_MRR_MATERIALIZED_KEYS 256
+
+/*
+  The following bits are reserved for use by MRR implementation. The intended
+  use scenario:
+
+  * sql layer calls handler->multi_range_read_info[_const]() 
+    - MRR implementation figures out what kind of scan it will perform, saves
+      the result in *mrr_mode parameter.
+  * sql layer remembers what was returned in *mrr_mode
+
+  * the optimizer picks the query plan (which may or may not include the MRR 
+    scan that was estimated by the multi_range_read_info[_const] call)
+
+  * if the query is an EXPLAIN statement, sql layer will call 
+    handler->multi_range_read_explain_info(mrr_mode) to get a text description
+    of the picked MRR scan; the description will be a part of EXPLAIN output.
+*/
+#define HA_MRR_IMPLEMENTATION_FLAG1 512
+#define HA_MRR_IMPLEMENTATION_FLAG2 1024
+#define HA_MRR_IMPLEMENTATION_FLAG3 2048
+#define HA_MRR_IMPLEMENTATION_FLAG4 4096
+#define HA_MRR_IMPLEMENTATION_FLAG5 8192
+#define HA_MRR_IMPLEMENTATION_FLAG6 16384
+
+#define HA_MRR_IMPLEMENTATION_FLAGS \
+  (512 | 1024 | 2048 | 4096 | 8192 | 16384)
 
 /*
   This is a buffer area that the handler can use to store rows.
@@ -1542,6 +1711,7 @@ public:
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
+  bool internal_tmp_table;                      /* If internal tmp table */
 
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
@@ -1583,6 +1753,7 @@ public:
   */
   /* Statistics  variables */
   ulonglong rows_read;
+  ulonglong rows_tmp_read;
   ulonglong rows_changed;
   /* One bigger than needed to avoid to test if key == MAX_KEY */
   ulonglong index_rows_read[MAX_KEY+1];
@@ -1642,23 +1813,27 @@ public:
   }
   /* ha_ methods: pubilc wrappers for private virtual API */
 
-  int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
+  int ha_open(TABLE *table, const char *name, int mode, uint test_if_locked);
   int ha_index_init(uint idx, bool sorted)
   {
     int result;
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
     if (!(result= index_init(idx, sorted)))
-      inited=INDEX;
-    end_range= NULL;
+    {
+      inited=       INDEX;
+      active_index= idx;
+      end_range= NULL;
+    }
     DBUG_RETURN(result);
   }
   int ha_index_end()
   {
     DBUG_ENTER("ha_index_end");
     DBUG_ASSERT(inited==INDEX);
-    inited=NONE;
-    end_range= NULL;
+    inited=       NONE;
+    active_index= MAX_KEY;
+    end_range=    NULL;
     DBUG_RETURN(index_end());
   }
   /* This is called after index_init() if we need to do a index scan */
@@ -1765,7 +1940,7 @@ public:
   uint get_dup_key(int error);
   void reset_statistics()
   {
-    rows_read= rows_changed= 0;
+    rows_read= rows_changed= rows_tmp_read= 0;
     bzero(index_rows_read, sizeof(index_rows_read));
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
@@ -1844,8 +2019,13 @@ public:
     as there may be several calls to this routine.
   */
   virtual void column_bitmaps_signal();
-  uint get_index(void) const { return active_index; }
-  virtual int close(void)=0;
+  /*
+    We have to check for inited as some engines, like innodb, sets
+    active_index during table scan.
+  */
+  uint get_index(void) const
+  { return inited == INDEX ? active_index : MAX_KEY; }
+  int ha_close(void);
 
   /**
     @retval  0   Bulk update used by handler
@@ -1921,10 +2101,18 @@ protected:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
+  virtual int close(void)=0;
+  inline void update_rows_read()
+  {
+    if (likely(!internal_tmp_table))
+      rows_read++;
+    else
+      rows_tmp_read++;
+  }
   inline void update_index_statistics()
   {
     index_rows_read[active_index]++;
-    rows_read++;
+    update_rows_read();
   }
 public:
 
@@ -1940,16 +2128,47 @@ public:
   inline int ha_index_first(uchar * buf);
   inline int ha_index_last(uchar * buf);
   inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  /*
+    TODO: should we make for those functions non-virtual ha_func_name wrappers,
+    too?
+  */
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
-                                              uint *flags, COST_VECT *cost);
+                                              uint *mrr_mode, COST_VECT *cost);
   virtual ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                        uint *bufsz, uint *flags, COST_VECT *cost);
+                                        uint key_parts, uint *bufsz, 
+                                        uint *mrr_mode, COST_VECT *cost);
   virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                                    uint n_ranges, uint mode,
+                                    uint n_ranges, uint mrr_mode, 
                                     HANDLER_BUFFER *buf);
-  virtual int multi_range_read_next(char **range_info);
+  virtual int multi_range_read_next(range_id_t *range_info);
+  /*
+    Return string representation of the MRR plan.
+
+    This is intended to be used for EXPLAIN, via the following scenario:
+    1. SQL layer calls handler->multi_range_read_info().
+    1.1. Storage engine figures out whether it will use some non-default
+         MRR strategy, sets appropritate bits in *mrr_mode, and returns 
+         control to SQL layer
+    2. SQL layer remembers the returned mrr_mode
+    3. SQL layer compares various options and choses the final query plan. As
+       a part of that, it makes a choice of whether to use the MRR strategy
+       picked in 1.1
+    4. EXPLAIN code converts the query plan to its text representation. If MRR
+       strategy is part of the plan, it calls
+       multi_range_read_explain_info(mrr_mode) to get a text representation of
+       the picked MRR strategy.
+
+    @param mrr_mode   Mode which was returned by multi_range_read_info[_const]
+    @param str        INOUT string to be printed for EXPLAIN
+    @param str_end    End of the string buffer. The function is free to put the 
+                      string into [str..str_end] memory range.
+  */
+  virtual int multi_range_read_explain_info(uint mrr_mode, char *str, 
+                                            size_t size)
+  { return 0; }
+
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
@@ -2090,6 +2309,7 @@ public:
   { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
+  virtual int can_continue_handler_scan() { return 0; }
   /**
     Get the list of foreign keys in this table.
 
@@ -2204,7 +2424,6 @@ public:
   virtual uint max_supported_key_part_length() const { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
 
-  virtual bool low_byte_first() const { return 1; }
   virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
@@ -2284,9 +2503,28 @@ public:
 
 
  /*
-   @retval TRUE   Primary key (if there is one) is clustered
-                  key covering all fields
-   @retval FALSE  otherwise
+   Check if the primary key (if there is one) is a clustered and a
+   reference key. This means:
+
+   - Data is stored together with the primary key (no secondary lookup
+     needed to find the row data). The optimizer uses this to find out
+     the cost of fetching data.
+   - The primary key is part of each secondary key and is used
+     to find the row data in the primary index when reading trough
+     secondary indexes.
+   - When doing a HA_KEYREAD_ONLY we get also all the primary key parts
+     into the row. This is critical property used by index_merge.
+
+   All the above is usually true for engines that store the row
+   data in the primary key index (e.g. in a b-tree), and use the primary
+   key value as a position().  InnoDB is an example of such an engine.
+
+   For such a clustered primary key, the following should also hold:
+   index_flags() should contain HA_CLUSTERED_INDEX
+   table_flags() should contain HA_TABLE_SCAN_ON_INDEX
+
+   @retval TRUE   yes
+   @retval FALSE  No.
  */
  virtual bool primary_key_is_clustered() { return FALSE; }
  virtual int cmp_ref(const uchar *ref1, const uchar *ref2)
@@ -2358,7 +2596,8 @@ public:
   */
 
   virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
-
+  
+  TABLE* get_table() { return table; }
 protected:
   /* deprecated, don't use in new engines */
   inline void ha_statistic_increment(ulong SSV::*offset) const { }
@@ -2432,8 +2671,9 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
-  virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }
-  virtual int index_end() { active_index= MAX_KEY; return 0; }
+  /* Note: ha_index_read_idx_map() may buypass index_init() */
+  virtual int index_init(uint idx, bool sorted) { return 0; }
+  virtual int index_end() { return 0; }
   /**
     rnd_init() can be called two times without rnd_end() in between
     (it only makes sense if scan=1).
@@ -2599,11 +2839,12 @@ private:
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   friend class ha_partition;
-  friend class DsMrr_impl;
 public:
   /* XXX to be removed, see ha_partition::partition_ht() */
   virtual handlerton *partition_ht() const
   { return ht; }
+  inline int ha_write_tmp_row(uchar *buf);
+  inline int ha_update_tmp_row(const uchar * old_data, uchar * new_data);
 };
 
 #include "multi_range_read.h"
@@ -2663,6 +2904,7 @@ int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
+void ha_checkpoint_state(bool disable);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,

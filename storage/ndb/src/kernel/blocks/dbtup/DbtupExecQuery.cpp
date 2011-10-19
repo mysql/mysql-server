@@ -2253,7 +2253,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	if(AttributeOffset::getCharsetFlag(TattrDesc2))
 	{
 	  Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
-	  cs = tabptr.p->charsetArray[pos];
+	  cs = (void*) tabptr.p->charsetArray[pos];
 	}
 	const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(typeId);
 

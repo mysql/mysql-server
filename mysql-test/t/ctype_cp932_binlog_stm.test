@@ -35,8 +35,13 @@ delimiter ;|
 
 #
 # #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
+# Note: 364 is a magic position (found experimentally, depends on 
+# the log's contents) that caused the server crash.
+
+call mtr.add_suppression("Error in Log_event::read_log_event\\\(\\\): 'Found invalid");
+
 --error 1220
-SHOW BINLOG EVENTS FROM 490;
+SHOW BINLOG EVENTS FROM 504;
 
 --echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;

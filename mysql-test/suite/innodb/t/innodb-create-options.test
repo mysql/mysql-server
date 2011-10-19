@@ -55,7 +55,6 @@
 #
 # See InnoDB documentation page "SQL Compression Syntax Warnings and Errors"
 
--- source include/have_innodb.inc
 SET storage_engine=InnoDB;
 
 --disable_query_log

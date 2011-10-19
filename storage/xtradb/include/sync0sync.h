@@ -45,7 +45,7 @@ Created 9/5/1995 Heikki Tuuri
 extern my_bool	timed_mutexes;
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
-#ifdef HAVE_WINDOWS_ATOMICS
+#ifdef _WIN32
 typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
 				on LONG variable */
 #else

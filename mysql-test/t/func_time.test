@@ -15,7 +15,12 @@ select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_times
 select from_unixtime(unix_timestamp("1994-03-02 10:11:12")),from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s"),from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0;
 select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
   sec_to_time(time_to_sec("0:30:47")/6.21);
+select sec_to_time(9001.1), time_to_sec('15:12:22.123456'), time_to_sec(15.5566778899);
 select sec_to_time(time_to_sec('-838:59:59'));
+select sec_to_time('9001.1'), sec_to_time('1234567890123.123');
+--replace_result e+042 e+42
+select sec_to_time(90011e-1), sec_to_time(1234567890123e30);
+select sec_to_time(1234567890123), sec_to_time('99999999999999999999999999999');
 select now()-curdate()*1000000-curtime();
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 select strcmp(localtime(),concat(current_date()," ",current_time()));
@@ -27,6 +32,7 @@ select month("1997-01-02"),year("98-02-03"),dayofyear("1997-12-31");
 select month("2001-02-00"),year("2001-00-00");
 select DAYOFYEAR("1997-03-03"), WEEK("1998-03-03"), QUARTER(980303);
 select HOUR("1997-03-03 23:03:22"), MINUTE("23:03:22"), SECOND(230322);
+select TIME(230322), TIME(230322.33), TIME("230322.33");
 
 # Test of week and yearweek
 select week(19980101),week(19970101),week(19980101,1),week(19970101,1);
@@ -66,10 +72,10 @@ select date_format('1999-12-31','%x-%v'),date_format('2000-01-01','%x-%v');
 
 select dayname("1962-03-03"),dayname("1962-03-03")+0;
 select monthname("1972-03-04"),monthname("1972-03-04")+0;
-select time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
-select time_format(19980131010203,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
-select time_format(19980131131415,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
-select time_format(19980131010015,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(010203,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131010203,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(131415,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131131415,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(010015,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131010015,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
 select date_format(concat('19980131',131415),'%H|%I|%k|%l|%i|%p|%r|%S|%T| %M|%W|%D|%Y|%y|%a|%b|%j|%m|%d|%h|%s|%w');
 select date_format(19980021000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T| %M|%W|%D|%Y|%y|%a|%b|%j|%m|%d|%h|%s|%w');
 select date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
@@ -531,6 +537,7 @@ DROP TABLE t1;
 # Bug #20927: sec_to_time treats big unsigned as signed
 #
 # check if SEC_TO_TIME() handles BIGINT UNSIGNED values correctly
+--replace_regex /'1.8446.*e.*19'/'1.84467440737096e+19'/
 SELECT SEC_TO_TIME(CAST(-1 AS UNSIGNED));
 
 #
@@ -712,6 +719,7 @@ set time_zone= @@global.time_zone;
 #
 
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
+select str_to_date("1997-00-04 22:23:00","%Y-%m-%D") + interval 10 minute;
 
 #
 # Bug #21103: DATE column not compared as DATE
@@ -809,7 +817,7 @@ select date_add('1000-01-01 00:00:00', interval '1.02' day_microsecond);
 
 --disable_result_log
 SET TIMESTAMP=-147490000; SELECT UTC_TIMESTAMP();
---error ER_WRONG_VALUE_FOR_VAR
+--error 0,ER_WRONG_VALUE_FOR_VAR
 SET TIMESTAMP=2147483648; SELECT UTC_TIMESTAMP();
 SET TIMESTAMP=2147483646; SELECT UTC_TIMESTAMP();
 SET TIMESTAMP=2147483647; SELECT UTC_TIMESTAMP();
@@ -886,7 +894,9 @@ SELECT FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1);
 --echo # Bug#11766126  59166: ANOTHER DATETIME VALGRIND UNINITIALIZED WARNING
 --echo #
 
+--disable_result_log
 SELECT CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025));
+--enable_result_log
 
 --echo #
 --echo # Bug#11766124  59164: VALGRIND: UNINITIALIZED VALUE IN NUMBER_TO_DATETIME
@@ -944,3 +954,137 @@ create table t1(a time);
 insert into t1 values ('00:00:00'),('00:01:00');
 select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
 drop table t1;
+
+select time('10:10:10') > 10;
+select time('10:10:10') > 1010;
+select time('10:10:09') > 101010;
+select time('10:10:10') > 101010;
+select time('10:10:11') > 101010;
+
+select time(' 1 02:03:04') + interval 9 microsecond;
+select time(' 1 02:03:04') - interval 9 microsecond;
+select time('-1 02:03:04') + interval 9 microsecond;
+select time('-1 02:03:04') - interval 9 microsecond;
+select time(' 1 02:03:04') + interval '4:4:4' hour_second;
+select time(' 1 02:03:04') - interval '4:4:4' hour_second;
+select time('-1 02:03:04') + interval '4:4:4' hour_second;
+select time('-1 02:03:04') - interval '4:4:4' hour_second;
+select time(' 1 02:03:04') + interval 2 day;
+select time(' 1 02:03:04') - interval 2 day;
+select time('-1 02:03:04') + interval 2 day;
+select time('-1 02:03:04') - interval 2 day;
+
+select time('10 02:03:04') + interval 30 day;
+select time('10 02:03:04') + interval 1 year;
+
+# specially constructed queries to reach obscure places in the code
+# not touched by the more "normal" queries (and to increase the coverage)
+select cast('131415.123e0' as time);
+select cast('2010-01-02 03:04:05' as datetime) between null and '2010-01-02 03:04:04';
+select least(time('1:2:3'), '01:02:04', null) div 1;
+select truncate(least(time('1:2:3'), '01:02:04', null), 6);
+select cast(least(time('1:2:3'), '01:02:04', null) as decimal(3,1));
+select unix_timestamp(null);
+select truncate(date('2010-40-10'), 6);
+select extract(month from '2010-40-50');
+select subtime('0000-00-10 10:10:10', '30 10:00:00');
+
+#
+# lp:730637 Valgrind warnings in 5.1-micro 
+#
+select cast(str_to_date(NULL, '%H:%i:%s') as time);
+
+create table t1 (f1 datetime, key (f1));
+insert into t1 values ('2000-09-12 00:00:00'), ('2007-04-25 05:08:49');
+select * from t1 where f1 > time('-23:00:06');
+drop table t1;
+
+#
+# lp:730627 TIME_to_ulonglong: Assertion `0' failed in 5.1-micro on wrong argument to MAKETIME
+#
+select maketime(20,61,10)+0;
+
+#
+# lp:731103 Assertion `maybe_null && item->null_value' failed with ORDER BY LAST_DAY()
+#
+create table t1 (f2 int not null) ;
+insert into t1 values (0),(0);
+select last_day(f2) from t1;
+select last_day(f2) from t1 where last_day(f2) is null;
+select * from t1 order by last_day (f2);
+drop table t1;
+
+#
+# lp:731815 Crash/valgrind warning Item::send with 5.1-micro
+#
+select convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime)), 'UTC', 'Europe/Moscow');
+
+#
+# lp:736370 Datetime functions in subquery context cause wrong result and bogus warnings in mysql-5.1-micr
+#
+create table t1 (f1 integer, f2 date);
+insert into t1 values (1,'2011-05-05'),(2,'2011-05-05'),(3,'2011-05-05'),(4,'2011-05-05'),(5,'2011-05-05'),(6, '2011-05-06');
+select * from t1 where 1 and concat(f2)=MAKEDATE(2011, 125);
+drop table t1;
+
+#
+# lp:736791 Crash in make_truncated_value_warning with LEAST()/GREATEST/COALESCE
+#
+create table t1 (f1 timestamp);
+insert into t1 values ('0000-00-00 00:00:00');
+select least(1, f1) from t1;
+drop table t1;
+
+#
+# lp:737092 Assertion `item->null_value' failed in get_datetime_value in 5.1-micro
+#
+select now() > coalesce(time('21:43:24'), date('2010-05-03'));
+
+#
+# lp:737104 Crash in DTCollation::set in 5.1-micro
+#
+create table t1 (f1 timestamp);
+select * from t1 where f1 > f1 and f1 <=> timestampadd(hour, 9 , '2010-01-01 16:55:35');
+drop table t1;
+
+#
+# lp:737111 Different behavior for TIMESTAMPADD with 0000-00-00 argument in 5.1-micro
+#
+create table t1 (f1 date);
+insert into t1 values ('0000-00-00');
+select timestampadd(week, 1, f1) from t1;
+select timestampadd(week, 1, date("0000-00-00"));
+drop table t1;
+
+#
+# lp:737450 Second Assertion `item->null_value' failed in 5.1-micro
+#
+create table t1 (f2 time not null, f3 datetime, f4 int not null, f5 timestamp);
+insert ignore t1 values ('04:38:11','0000-00-00 00:00:00',0,'0000-00-00 00:00:00');
+select least(greatest(f3, f2, f4), f5) from t1;
+drop table t1;
+
+#
+# lp:737474 Wrong result with DAY(COALESCE(NULL)) in 5.1-micro
+#
+select day(coalesce(null));
+
+#
+# lp:738067 Crash in get_datetime_value() in 5.1-micro
+#
+select timestamp(greatest('2002-08-20', '0000-00-00 00:00:00'));
+
+#
+# lp:738091  cast(timestamp() AS time returns NULL for 0000-00-00 00:00:00 in 5.1-micro
+#
+create table t1 (f1 datetime);
+insert into t1 values ('0000-00-00 00:00:00');
+select cast(f1 AS time) from t1;
+drop table t1;
+
+select greatest(cast("0-0-0" as date), cast("10:20:05" as time));
+select greatest(cast("0-0-0" as date), cast("10:20:05" as time)) = '0000-00-00';
+select cast(greatest(cast("0-0-0" as date), cast("10:20:05" as time)) as datetime(6));
+
+select microsecond('12:00:00.123456'), microsecond('2009-12-31 23:59:59.000010');
+

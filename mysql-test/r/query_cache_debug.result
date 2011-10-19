@@ -153,9 +153,7 @@ SET DEBUG_SYNC="now WAIT_FOR parked1_2";
 ** until a broadcast signal reaches them causing both threads to 
 ** come alive and check the condition.
 SET DEBUG_SYNC="now SIGNAL go2";
-** Wait for thd2 to receive the signal
 SET DEBUG_SYNC="now SIGNAL go3";
-** Wait for thd3 to receive the signal
 **
 ** Finally signal the DELETE statement on THD1 one last time.
 ** The stmt will complete the query cache invalidation and return 

@@ -191,6 +191,9 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                                   &tempfile,&tempfile_for_exceptions))
       == HA_POS_ERROR)
     goto err; /* purecov: tested */
+
+  info->sort_info->param->stage++;                         /* Merge stage */
+
   if (maxbuffer == 0)
   {
     if (!no_messages)
@@ -275,12 +278,13 @@ static ha_rows find_all_keys(MARIA_SORT_PARAM *info, uint keys,
   idx=error=0;
   sort_keys[0]= (uchar*) (sort_keys+keys);
 
+  info->sort_info->info->in_check_table= 1;
   while (!(error=(*info->key_read)(info,sort_keys[idx])))
   {
     if (info->real_key_length > info->key_length)
     {
       if (write_key(info,sort_keys[idx],tempfile_for_exceptions))
-        DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+        goto err;                             /* purecov: inspected */
       continue;
     }
 
@@ -289,7 +293,7 @@ static ha_rows find_all_keys(MARIA_SORT_PARAM *info, uint keys,
       if (info->write_keys(info,sort_keys,idx-1,
                            (BUFFPEK *)alloc_dynamic(buffpek),
                            tempfile))
-      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+        goto err;                             /* purecov: inspected */
 
       sort_keys[0]=(uchar*) (sort_keys+keys);
       memcpy(sort_keys[0],sort_keys[idx-1],(size_t) info->key_length);
@@ -298,18 +302,23 @@ static ha_rows find_all_keys(MARIA_SORT_PARAM *info, uint keys,
     sort_keys[idx]=sort_keys[idx-1]+info->key_length;
   }
   if (error > 0)
-    DBUG_RETURN(HA_POS_ERROR);		/* Aborted by get_key */ /* purecov: inspected */
+    goto err;                             /* purecov: inspected */
   if (buffpek->elements)
   {
     if (info->write_keys(info,sort_keys,idx,(BUFFPEK *)alloc_dynamic(buffpek),
                          tempfile))
-      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+      goto err;                         /* purecov: inspected */      
     *maxbuffer=buffpek->elements-1;
   }
   else
     *maxbuffer=0;
 
+  info->sort_info->info->in_check_table= 0;
   DBUG_RETURN((*maxbuffer)*(keys-1)+idx);
+
+err:
+  info->sort_info->info->in_check_table= 0;   /* purecov: inspected */
+  DBUG_RETURN(HA_POS_ERROR);                  /* purecov: inspected */
 } /* find_all_keys */
 
 
@@ -761,6 +770,8 @@ static int write_index(MARIA_SORT_PARAM *info,
     if ((*info->key_write)(info, *sort_keys++))
       DBUG_RETURN(-1); /* purecov: inspected */
   }
+  if (info->sort_info->param->max_stage != 1)          /* If not parallel */
+    _ma_report_progress(info->sort_info->param, 1, 1);
   DBUG_RETURN(0);
 } /* write_index */
 
@@ -771,7 +782,7 @@ static int merge_many_buff(MARIA_SORT_PARAM *info, uint keys,
                                   uchar **sort_keys, BUFFPEK *buffpek,
                                   int *maxbuffer, IO_CACHE *t_file)
 {
-  register int i;
+  int tmp, merges, max_merges;
   IO_CACHE t_file2, *from_file, *to_file, *temp;
   BUFFPEK *lastbuff;
   DBUG_ENTER("merge_many_buff");
@@ -783,9 +794,21 @@ static int merge_many_buff(MARIA_SORT_PARAM *info, uint keys,
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     DBUG_RETURN(1);                             /* purecov: inspected */
 
+  /* Calculate how many merges are needed */
+  max_merges= 1;                                /* Count merge_index */
+  tmp= *maxbuffer;
+  while (tmp >= MERGEBUFF2)
+  {
+    merges= (tmp-MERGEBUFF*3/2 + 1) / MERGEBUFF + 1;
+    max_merges+= merges;
+    tmp= merges;
+  }
+  merges= 0;
+
   from_file= t_file ; to_file= &t_file2;
   while (*maxbuffer >= MERGEBUFF2)
   {
+    int i;
     reinit_io_cache(from_file,READ_CACHE,0L,0,0);
     reinit_io_cache(to_file,WRITE_CACHE,0L,0,0);
     lastbuff=buffpek;
@@ -794,6 +817,8 @@ static int merge_many_buff(MARIA_SORT_PARAM *info, uint keys,
       if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
                         buffpek+i,buffpek+i+MERGEBUFF-1))
         goto cleanup;
+      if (info->sort_info->param->max_stage != 1) /* If not parallel */
+        _ma_report_progress(info->sort_info->param, merges++, max_merges);
     }
     if (merge_buffers(info,keys,from_file,to_file,sort_keys,lastbuff++,
                       buffpek+i,buffpek+ *maxbuffer))
@@ -802,6 +827,8 @@ static int merge_many_buff(MARIA_SORT_PARAM *info, uint keys,
       break;                                    /* purecov: inspected */
     temp=from_file; from_file=to_file; to_file=temp;
     *maxbuffer= (int) (lastbuff-buffpek)-1;
+    if (info->sort_info->param->max_stage != 1) /* If not parallel */
+      _ma_report_progress(info->sort_info->param, merges++, max_merges);
   }
 cleanup:
   close_cached_file(to_file);                   /* This holds old result */
@@ -1058,6 +1085,8 @@ merge_index(MARIA_SORT_PARAM *info, uint keys, uchar **sort_keys,
   if (merge_buffers(info,keys,tempfile,(IO_CACHE*) 0,sort_keys,buffpek,buffpek,
                     buffpek+maxbuffer))
     DBUG_RETURN(1); /* purecov: inspected */
+  if (info->sort_info->param->max_stage != 1)          /* If not parallel */
+    _ma_report_progress(info->sort_info->param, 1, 1);
   DBUG_RETURN(0);
 } /* merge_index */
 

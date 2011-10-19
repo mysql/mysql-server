@@ -1,4 +1,5 @@
 /* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
+   Copyright (C) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +76,7 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0102
 
 /* MariaDB plugin interface version */
-#define MARIA_PLUGIN_INTERFACE_VERSION 0x0100
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0101
 
 /*
   The allowable types of plugins
@@ -589,10 +590,6 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 /* Increments the row counter, see THD::row_count */
 void thd_inc_row_count(MYSQL_THD thd);
-
-#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
-const char *set_thd_proc_info(void *, const char * info, const char *func,
-                              const char *file, const unsigned int line);
 
 /**
   Create a temporary file.

@@ -367,6 +367,8 @@ INSERT INTO t1 (col1) VALUES(CONVERT('0000-10-31' , DATE));
 INSERT INTO t1 (col1) VALUES(CONVERT('2004-10-0' , DATE));
 --error 1292
 INSERT INTO t1 (col1) VALUES(CONVERT('2004-0-10' , DATE));
+--error 1292
+INSERT INTO t1 (col1) VALUES('2004-0-10');
 
 # deactivated because of Bug#8294
 # Bug#8294 Traditional: Misleading error message for invalid CAST to DATE

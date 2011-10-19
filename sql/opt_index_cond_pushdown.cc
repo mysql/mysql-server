@@ -26,7 +26,7 @@
     FALSE  No
 */
 
-bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
+bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
                             bool other_tbls_ok)
 {
   if (item->const_item())
@@ -155,7 +155,11 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
 	  new_cond->argument_list()->push_back(fix);
           used_tables|= fix->used_tables();
         }
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        if (test(item->marker == ICP_COND_USES_INDEX_ONLY))
+        {
+          n_marked++;
+          item->marker= 0;
+        } 
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -184,7 +188,11 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
 	if (!fix)
 	  return (COND*) 0;
 	new_cond->argument_list()->push_back(fix);
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        if (test(item->marker == ICP_COND_USES_INDEX_ONLY))
+        {
+          n_marked++;
+          item->marker= 0;
+        } 
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -271,13 +279,12 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
       tab            A join tab that has tab->table->file and its condition
                      in tab->select_cond
       keyno          Index for which extract and push the condition
-      other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
 
   DESCRIPTION
     Try to extract and push the index condition down to table handler
 */
 
-void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
+void push_index_cond(JOIN_TAB *tab, uint keyno)
 {
   DBUG_ENTER("push_index_cond");
   Item *idx_cond;
@@ -310,7 +317,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
                  print_where(tab->select_cond, "full cond", QT_ORDINARY););
 
     idx_cond= make_cond_for_index(tab->select_cond, tab->table, keyno,
-                                  other_tbls_ok);
+                                  tab->icp_other_tables_ok);
 
     DBUG_EXECUTE("where",
                  print_where(idx_cond, "idx cond", QT_ORDINARY););
@@ -329,10 +336,8 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
           /*
             if cache is used then the value is TRUE only 
             for BKA[_UNIQUE] cache (see check_join_cache_usage func).
-            In this case other_tbls_ok is an equivalent of
-            cache->is_key_access().
           */
-          other_tbls_ok &&
+          tab->icp_other_tables_ok &&
           (idx_cond->used_tables() &
            ~(tab->table->map | tab->join->const_table_map)))
         tab->cache_idx_cond= idx_cond;
@@ -350,7 +355,9 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       if (idx_remainder_cond != idx_cond)
         tab->ref.disable_cache= TRUE;
 
-      Item *row_cond= make_cond_remainder(tab->select_cond, TRUE);
+      Item *row_cond= tab->idx_cond_fact_out ? 
+                        make_cond_remainder(tab->select_cond, TRUE) :
+	                tab->pre_idx_push_select_cond;
 
       DBUG_EXECUTE("where",
                    print_where(row_cond, "remainder cond", QT_ORDINARY););
@@ -378,6 +385,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
                                  QT_ORDINARY););
 
         tab->select->cond= tab->select_cond;
+        tab->select->pre_idx_push_select_cond= tab->pre_idx_push_select_cond;
       }
     }
   }

@@ -19,7 +19,8 @@
 #include <tap.h>
 #include "../trnman.h"
 
-extern my_bool maria_log_remove();
+extern my_bool maria_log_remove(const char *testdir);
+extern char *create_tmpdir(const char *progname);
 extern void translog_example_table_init();
 
 #ifndef DBUG_OFF
@@ -31,7 +32,6 @@ static const char *default_dbug_option;
 #define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 #define LOG_FLAGS 0
 
-static char *first_translog_file= (char*)"maria_log.00000001";
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
@@ -40,18 +40,18 @@ int main(int argc __attribute__((unused)), char *argv[])
   PAGECACHE pagecache;
   LSN lsn, first_lsn, theor_lsn;
   LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 1];
-
   MY_INIT(argv[0]);
 
   plan(2);
 
   bzero(&pagecache, sizeof(pagecache));
-  maria_data_root= (char *)".";
-  if (maria_log_remove())
+  /*
+    Don't give an error if we can't create dir, as it may already exist from a previously aborted
+    run
+  */
+  maria_data_root= create_tmpdir(argv[0]);
+  if (maria_log_remove(0))
     exit(1);
-  /* be sure that we have no logs in the directory*/
-  my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
-  my_delete(first_translog_file, MYF(0));
 
   bzero(long_tr_id, 6);
 #ifndef DBUG_OFF
@@ -78,9 +78,8 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
-                               LOG_FLAGS, 0, &translog_example_table_init,
-                               0))
+  if (translog_init_with_table(maria_data_root, LOG_FILE_SIZE, 50112, 0, &pagecache,
+                               LOG_FLAGS, 0, &translog_example_table_init, 0))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
     exit(1);
@@ -154,7 +153,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
-  if (maria_log_remove())
+  if (maria_log_remove(maria_data_root))
     exit(1);
   exit(0);
 }

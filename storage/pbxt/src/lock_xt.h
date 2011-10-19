@@ -658,6 +658,7 @@ typedef struct XTLockGroup {
 struct XTLockWait;
 
 typedef struct XTRowLocks {
+	int valid;
 	XTLockGroupRec			rl_groups[XT_ROW_LOCK_GROUP_COUNT];
 
 	void	xt_cancel_temp_lock(XTLockWaitPtr lw);

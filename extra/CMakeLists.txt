@@ -31,24 +31,28 @@ IF(NOT CMAKE_CROSSCOMPILING)
  TARGET_LINK_LIBRARIES(comp_err mysys)
 ENDIF()
 
-ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
-                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys
-                   COMMAND comp_err
-                    --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-                    --out-dir=${PROJECT_BINARY_DIR}/sql/share/
-                    --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
-                    --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
-                    --state_file=${PROJECT_BINARY_DIR}/include/sql_state.h
-                    --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
-                   DEPENDS ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
-                   ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.c)
+# Generate mysqld_error.h
+# Try not to change its timestamp if not necessary(as touching
+# mysqld_error.h results in rebuild of the almost whole server)
+# To preserve timestamp, first generate a temp header file, then copy it
+# to mysqld_error.h using cmake -E copy_if_different
+ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp
+   COMMAND comp_err
+	--charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
+	--out-dir=${CMAKE_BINARY_DIR}/sql/share/
+	--header_file=${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp 
+	--name_file=${CMAKE_BINARY_DIR}/include/mysqld_ername.h.tmp
+	--state_file=${CMAKE_BINARY_DIR}/include/sql_state.h.tmp
+	--in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp ${CMAKE_BINARY_DIR}/include/mysqld_error.h
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/include/mysqld_ername.h.tmp ${CMAKE_BINARY_DIR}/include/mysqld_ername.h
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/include/sql_state.h.tmp ${CMAKE_BINARY_DIR}/include/sql_state.h
+   DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL
                   DEPENDS 
-                  ${PROJECT_BINARY_DIR}/include/mysqld_error.h
-                  ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
-                  ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
+                  ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp)
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys)
@@ -77,4 +81,3 @@ IF(UNIX)
   MYSQL_ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
 ENDIF()
-

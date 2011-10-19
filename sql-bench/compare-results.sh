@@ -512,7 +512,7 @@ sub print_value
     else
     {
       $first=1 if ($first == 0); # Assume that it took one second instead of 0
-      $tmp= sprintf("%.2f",$value/$first);
+      $tmp= sprintf("%.3f",$value/$first);
     }
     if (defined($flags))
     {

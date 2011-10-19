@@ -68,7 +68,8 @@ static FILE *result_file;
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
-static const char *load_groups[]= { "mysqlbinlog","client",0 };
+static const char *load_groups[]=
+{ "mysqlbinlog", "client", "client-server", "client-mariadb", 0 };
 
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
@@ -86,6 +87,7 @@ static char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1;
+static my_bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
 static char* host = 0;
 static int port= 0;
@@ -111,7 +113,8 @@ static my_time_t start_datetime= 0, stop_datetime= MY_TIME_T_MAX;
 static ulonglong rec_count= 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
-static char* dirname_for_local_load= 0;
+static const char* dirname_for_local_load= 0;
+static bool opt_skip_annotate_rows_events= 0;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -132,6 +135,71 @@ enum Exit_status {
   /** No error occurred but execution should stop. */
   OK_STOP
 };
+
+/**
+  Pointer to the last read Annotate_rows_log_event. Having read an
+  Annotate_rows event, we should not print it immediatedly because all
+  subsequent rbr events can be filtered away, and have to keep it for a while.
+  Also because of that when reading a remote Annotate event we have to keep
+  its binary log representation in a separately allocated buffer.
+*/
+static Annotate_rows_log_event *annotate_event= NULL;
+
+void free_annotate_event()
+{
+  if (annotate_event)
+  {
+    delete annotate_event;
+    annotate_event= 0;
+  }
+}
+
+Log_event* read_remote_annotate_event(uchar* net_buf, ulong event_len,
+                                      const char **error_msg)
+{
+  uchar *event_buf;
+  Log_event* event;
+
+  if (!(event_buf= (uchar*) my_malloc(event_len + 1, MYF(MY_WME))))
+  {
+    error("Out of memory");
+    return 0;
+  }
+
+  memcpy(event_buf, net_buf, event_len);
+  event_buf[event_len]= 0;
+
+  if (!(event= Log_event::read_log_event((const char*) event_buf, event_len,
+                                         error_msg, glob_description_event,
+                                         opt_verify_binlog_checksum)))
+  {
+    my_free(event_buf);
+    return 0;
+  }
+  /*
+    Ensure the event->temp_buf is pointing to the allocated buffer.
+    (TRUE = free temp_buf on the event deletion)
+  */
+  event->register_temp_buf((char*)event_buf, TRUE);
+
+  return event;
+}
+
+void keep_annotate_event(Annotate_rows_log_event* event)
+{
+  free_annotate_event();
+  annotate_event= event;
+}
+
+void print_annotate_event(PRINT_EVENT_INFO *print_event_info)
+{
+  if (annotate_event)
+  {
+    annotate_event->print(result_file, print_event_info);
+    delete annotate_event;  // the event should not be printed more than once
+    annotate_event= 0;
+  }
+}
 
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname);
@@ -648,11 +716,16 @@ static bool shall_skip_database(const char *log_dbname)
   producing USE statements by corresponding log event print-functions.
 */
 
-void print_use_stmt(PRINT_EVENT_INFO* pinfo, const char* db, size_t db_len)
+static void
+print_use_stmt(PRINT_EVENT_INFO* pinfo, const Query_log_event *ev)
 {
+  const char* db= ev->db;
+  const size_t db_len= ev->db_len;
+
   // pinfo->db is the current db.
   // If current db is the same as required db, do nothing.
-  if (!db || !memcmp(pinfo->db, db, db_len + 1))
+  if ((ev->flags & LOG_EVENT_SUPPRESS_USE_F) || !db ||
+      !memcmp(pinfo->db, db, db_len + 1))
     return;
 
   // Current db and required db are different.
@@ -750,7 +823,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     read them to be able to process the wanted events.
   */
   if (((rec_count >= offset) &&
-       ((my_time_t)(ev->when) >= start_datetime)) ||
+       (ev->when >= start_datetime)) ||
       (ev_type == FORMAT_DESCRIPTION_EVENT))
   {
     if (ev_type != FORMAT_DESCRIPTION_EVENT)
@@ -774,7 +847,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           server_id && (server_id != ev->server_id))
         goto end;
     }
-    if (((my_time_t)(ev->when) >= stop_datetime)
+    if ((ev->when >= stop_datetime)
         || (pos >= stop_position_mot))
     {
       /* end the program */
@@ -797,9 +870,20 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case QUERY_EVENT:
     {
       Query_log_event *qe= (Query_log_event*)ev;
-      if (!qe->is_trans_keyword() && shall_skip_database(qe->db))
-        goto end;
-      print_use_stmt(print_event_info, qe->db, qe->db_len);
+      if (!qe->is_trans_keyword())
+      {
+        if (shall_skip_database(qe->db))
+          goto end;
+      }
+      else
+      {
+        /*
+          In case the event for one of these statements is obtained
+          from binary log 5.0, make it compatible with 5.1
+        */
+        qe->flags|= LOG_EVENT_SUPPRESS_USE_F;
+      }
+      print_use_stmt(print_event_info, qe);
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
       {
         if ((retval= write_event_header_and_base64(ev, result_file,
@@ -938,7 +1022,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       if (!shall_skip_database(exlq->db))
       {
-        print_use_stmt(print_event_info, exlq->db, exlq->db_len);
+        print_use_stmt(print_event_info, exlq);
         if (fname)
         {
           convert_path_to_forward_slashes(fname);
@@ -953,6 +1037,19 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	my_free(fname);
       break;
     }
+    case ANNOTATE_ROWS_EVENT:
+      if (!opt_skip_annotate_rows_events)
+      {
+        /*
+          We don't print Annotate event just now because all subsequent
+          rbr-events can be filtered away. Instead we'll keep the event
+          till it will be printed together with the first not filtered
+          away Table map or the last rbr will be processed.
+        */
+        keep_annotate_event((Annotate_rows_log_event*) ev);
+        destroy_evt= FALSE;
+      }
+      break;
     case TABLE_MAP_EVENT:
     {
       Table_map_log_event *map= ((Table_map_log_event *)ev);
@@ -962,6 +1059,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         destroy_evt= FALSE;
         goto end;
       }
+      /*
+        The Table map is to be printed, so it's just the time when we may
+        print the kept Annotate event (if there is any).
+        print_annotate_event() also deletes the kept Annotate event.
+      */
+      print_annotate_event(print_event_info);
+
       size_t len_to= 0;
       const char* db_to= binlog_filter->get_rewrite_db(map->get_db_name(), &len_to);
       if (len_to && map->rewrite_db(db_to, len_to, glob_description_event))
@@ -997,6 +1101,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           */
           if (print_event_info->m_table_map_ignored.count() > 0)
             print_event_info->m_table_map_ignored.clear_tables();
+
+          /*
+            If there is a kept Annotate event and all corresponding
+            rbr-events were filtered away, the Annotate event was not
+            freed and it is just the time to do it.
+          */
+          free_annotate_event();
 
           /* 
              One needs to take into account an event that gets
@@ -1228,10 +1339,18 @@ that may lead to an endless loop.",
    "Used to reserve file descriptors for use by this program.",
    &open_files_limit, &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"verify-binlog-checksum", 'c', "Verify checksum binlog events.",
+   (uchar**) &opt_verify_binlog_checksum, (uchar**) &opt_verify_binlog_checksum,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"rewrite-db", OPT_REWRITE_DB,
    "Updates to a database with a different name than the original. \
 Example: rewrite-db='from->to'.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-annotate-rows-events", OPT_SKIP_ANNOTATE_ROWS_EVENTS,
+   "Don't print Annotate_rows events stored in the binary log.",
+   (uchar**) &opt_skip_annotate_rows_events,
+   (uchar**) &opt_skip_annotate_rows_events,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1307,7 +1426,7 @@ static void cleanup()
   my_free(database);
   my_free(host);
   my_free(user);
-  my_free(dirname_for_local_load);
+  my_free(const_cast<char*>(dirname_for_local_load));
 
   delete glob_description_event;
   if (mysql)
@@ -1339,7 +1458,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   int was_cut;
   MYSQL_TIME l_time;
   long dummy_my_timezone;
-  my_bool dummy_in_dst_time_gap;
+  uint dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
   if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &was_cut) !=
       MYSQL_TIMESTAMP_DATETIME || was_cut)
@@ -1503,7 +1622,7 @@ static int parse_args(int *argc, char*** argv)
 */
 static Exit_status safe_connect()
 {
-  /* Close and old connections to MySQL */
+  /* Close any old connections to MySQL */
   if (mysql)
     mysql_close(mysql);
 
@@ -1613,7 +1732,18 @@ static Exit_status check_master_version()
           "Master reported NULL for the version.");
     goto err;
   }
-
+  /* 
+     Make a notice to the server that this client
+     is checksum-aware. It does not need the first fake Rotate
+     necessary checksummed. 
+     That preference is specified below.
+  */
+  if (mysql_query(mysql, "SET @master_binlog_checksum='NONE'"))
+  {
+    error("Could not notify master about checksum awareness."
+          "Master returned '%s'", mysql_error(mysql));
+    goto err;
+  }
   delete glob_description_event;
   switch (*version) {
   case '3':
@@ -1695,6 +1825,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     cast to uint32.
   */
   int4store(buf, (uint32)start_position);
+  if (!opt_skip_annotate_rows_events)
+    binlog_flags|= BINLOG_SEND_ANNOTATE_ROWS_EVENT;
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
 
   size_t tlen = strlen(logname);
@@ -1727,18 +1859,31 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       break; // end of data
     DBUG_PRINT("info",( "len: %lu  net->read_pos[5]: %d\n",
 			len, net->read_pos[5]));
-    if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                        len - 1, &error_msg,
-                                        glob_description_event)))
+    if (net->read_pos[5] == ANNOTATE_ROWS_EVENT)
     {
-      error("Could not construct log event object: %s", error_msg);
-      DBUG_RETURN(ERROR_STOP);
-    }   
-    /*
-      If reading from a remote host, ensure the temp_buf for the
-      Log_event class is pointing to the incoming stream.
-    */
-    ev->register_temp_buf((char *) net->read_pos + 1, FALSE);
+      if (!(ev= read_remote_annotate_event(net->read_pos + 1, len - 1,
+                                           &error_msg)))
+      {
+        error("Could not construct annotate event object: %s", error_msg);
+        DBUG_RETURN(ERROR_STOP);
+      }   
+    }
+    else
+    {
+      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
+                                          len - 1, &error_msg,
+                                          glob_description_event,
+                                          opt_verify_binlog_checksum)))
+      {
+        error("Could not construct log event object: %s", error_msg);
+        DBUG_RETURN(ERROR_STOP);
+      }   
+      /*
+        If reading from a remote host, ensure the temp_buf for the
+        Log_event class is pointing to the incoming stream.
+      */
+      ev->register_temp_buf((char *) net->read_pos + 1, FALSE);
+    }
 
     Log_event_type type= ev->get_type_code();
     if (glob_description_event->binlog_version >= 3 ||
@@ -1956,7 +2101,8 @@ static Exit_status check_header(IO_CACHE* file,
         Format_description_log_event *new_description_event;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
         if (!(new_description_event= (Format_description_log_event*) 
-              Log_event::read_log_event(file, glob_description_event)))
+              Log_event::read_log_event(file, glob_description_event,
+                                        opt_verify_binlog_checksum)))
           /* EOF can't be hit here normally, so it's a real error */
         {
           error("Could not read a Format_description_log_event event at "
@@ -1989,7 +2135,8 @@ static Exit_status check_header(IO_CACHE* file,
       {
         Log_event *ev;
         my_b_seek(file, tmp_pos); /* seek back to event's start */
-        if (!(ev= Log_event::read_log_event(file, glob_description_event)))
+        if (!(ev= Log_event::read_log_event(file, glob_description_event,
+                                            opt_verify_binlog_checksum)))
         {
           /* EOF can't be hit here normally, so it's a real error */
           error("Could not read a Rotate_log_event event at offset %llu;"
@@ -2102,7 +2249,8 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-    Log_event* ev = Log_event::read_log_event(file, glob_description_event);
+    Log_event* ev = Log_event::read_log_event(file, glob_description_event,
+                                              opt_verify_binlog_checksum);
     if (!ev)
     {
       /*
@@ -2256,6 +2404,7 @@ int main(int argc, char** argv)
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   cleanup();
+  free_annotate_event();
   delete binlog_filter;
   free_root(&s_mem_root, MYF(0));
   free_defaults(defaults_argv);

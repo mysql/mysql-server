@@ -84,6 +84,12 @@ class Master_info : public Slave_reporting_capability
   uint32 file_id;				/* for 3.23 load data infile */
   Relay_log_info rli;
   uint port;
+  /*
+    to hold checksum alg in use until IO thread has received FD.
+    Initialized to novalue, then set to the queried from master
+    @@global.binlog_checksum and deactivated once FD has been received.
+  */
+  uint8 checksum_alg_before_fd;
   uint connect_retry;
 #ifndef DBUG_OFF
   int events_till_disconnect;

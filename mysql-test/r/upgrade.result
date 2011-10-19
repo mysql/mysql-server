@@ -48,14 +48,10 @@ insert into `txu#p#p1` values (1);
 select * from `txu@0023p@0023p1`;
 ERROR 42S02: Table 'test.txu@0023p@0023p1' doesn't exist
 create table `txu@0023p@0023p1` (s1 int);
-insert into `txu@0023p@0023p1` values (2);
-select * from `txu@0023p@0023p1`;
-s1
-2
+ERROR 42S01: Table '#mysql50#txu@0023p@0023p1' already exists
 select * from `txu#p#p1`;
 s1
 1
-drop table `txu@0023p@0023p1`;
 drop table `txu#p#p1`;
 #
 # Bug#37631 Incorrect key file for table after upgrading from 5.0 to 5.1

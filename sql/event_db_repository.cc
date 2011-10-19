@@ -221,7 +221,7 @@ mysql_event_fill_row(THD *thd,
       Safety: this can only happen if someone started the server
       and then altered mysql.event.
     */
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias,
+    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias.c_ptr(),
              (int) ET_FIELD_COUNT, table->s->fields);
     DBUG_RETURN(TRUE);
   }
@@ -247,6 +247,9 @@ mysql_event_fill_row(THD *thd,
   if (!is_update || et->status_changed)
     rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
   rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
+
+  if (!is_update)
+    rs|= fields[ET_FIELD_CREATED]->set_time();
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -294,7 +297,7 @@ mysql_event_fill_row(THD *thd,
       my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->starts);
 
       fields[ET_FIELD_STARTS]->set_notnull();
-      fields[ET_FIELD_STARTS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_STARTS]->store_time(&time);
     }
 
     if (!et->ends_null)
@@ -303,7 +306,7 @@ mysql_event_fill_row(THD *thd,
       my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->ends);
 
       fields[ET_FIELD_ENDS]->set_notnull();
-      fields[ET_FIELD_ENDS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_ENDS]->store_time(&time);
     }
   }
   else if (et->execute_at)
@@ -322,8 +325,7 @@ mysql_event_fill_row(THD *thd,
     my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->execute_at);
 
     fields[ET_FIELD_EXECUTE_AT]->set_notnull();
-    fields[ET_FIELD_EXECUTE_AT]->
-                        store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    fields[ET_FIELD_EXECUTE_AT]->store_time(&time);
   }
   else
   {
@@ -334,7 +336,7 @@ mysql_event_fill_row(THD *thd,
     */
   }
 
-  ((Field_timestamp *)fields[ET_FIELD_MODIFIED])->set_time();
+  rs|= fields[ET_FIELD_MODIFIED]->set_time();
 
   if (et->comment.str)
   {
@@ -717,8 +719,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto end;
   }
 
-  ((Field_timestamp *)table->field[ET_FIELD_CREATED])->set_time();
-
   /*
     mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
@@ -951,7 +951,11 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
     same fields.
   */
   if (db.length > table->field[ET_FIELD_DB]->field_length ||
-      name.length > table->field[ET_FIELD_NAME]->field_length)
+      name.length > table->field[ET_FIELD_NAME]->field_length ||
+      table->s->keys == 0 ||
+      table->key_info[0].key_parts != 2 ||
+      table->key_info[0].key_part[0].fieldnr != ET_FIELD_DB+1 ||
+      table->key_info[0].key_part[1].fieldnr != ET_FIELD_NAME+1)
     DBUG_RETURN(TRUE);
 
   table->field[ET_FIELD_DB]->store(db.str, db.length, &my_charset_bin);
@@ -1135,7 +1139,7 @@ update_timing_fields_for_event(THD *thd,
 
   my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
   fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-  fields[ET_FIELD_LAST_EXECUTED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  fields[ET_FIELD_LAST_EXECUTED]->store_time(&time);
 
   fields[ET_FIELD_STATUS]->set_notnull();
   fields[ET_FIELD_STATUS]->store(status, TRUE);

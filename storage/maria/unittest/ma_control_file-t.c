@@ -117,6 +117,26 @@ static CONTROL_FILE_ERROR local_ma_control_file_open(void)
   return error;
 }
 
+static char *create_tmpdir(const char *progname)
+{
+  static char test_dirname[FN_REFLEN];
+  char tmp_name[FN_REFLEN];
+  uint length;
+
+  /* Create a temporary directory of name TMP-'executable', but without the -t extension */
+  fn_format(tmp_name, progname, "", "", MY_REPLACE_DIR | MY_REPLACE_EXT);
+  length= strlen(tmp_name);
+  if (length > 2 && tmp_name[length-2] == '-' && tmp_name[length-1] == 't')
+    tmp_name[length-2]= 0;
+  strxmov(test_dirname, "TMP-", tmp_name, NullS);
+
+  /*
+    Don't give an error if we can't create dir, as it may already exist from a previously aborted
+    run
+  */
+  (void) my_mkdir(test_dirname, 0777, MYF(0));
+  return test_dirname;
+}
 
 
 int main(int argc,char *argv[])
@@ -124,10 +144,11 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   my_init();
 
-  maria_data_root= (char *)".";
   default_error_handler_hook= error_handler_hook;
 
   plan(12);
+
+  maria_data_root= create_tmpdir(argv[0]);
 
   diag("Unit tests for control file");
 
@@ -154,6 +175,9 @@ int main(int argc,char *argv[])
   ok(0 == test_future_size(), "test of ability to handlr future versions");
   ok(0 == test_bad_blocksize(), "test of bad blocksize");
   ok(0 == test_bad_size(), "test of too small/big file");
+
+  delete_file(0);
+  rmdir(maria_data_root);
 
   return exit_status();
 }

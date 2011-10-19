@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,10 +75,12 @@ static int maxmin_in_range(bool max_fl, Field* field, COND *cond);
     #			Multiplication of number of rows in all tables
 */
 
-static ulonglong get_exact_record_count(TABLE_LIST *tables)
+static ulonglong get_exact_record_count(List<TABLE_LIST> &tables)
 {
   ulonglong count= 1;
-  for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(tables);
+  while ((tl= ti++))
   {
     ha_rows tmp= tl->table->file->records();
     if ((tmp == HA_POS_ERROR))
@@ -235,9 +237,11 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
 */
 
 int opt_sum_query(THD *thd,
-                  TABLE_LIST *tables, List<Item> &all_fields, COND *conds)
+                  List<TABLE_LIST> &tables, List<Item> &all_fields, COND *conds)
 {
   List_iterator_fast<Item> it(all_fields);
+  List_iterator<TABLE_LIST> ti(tables);
+  TABLE_LIST *tl;
   int const_result= 1;
   bool recalc_const_item= 0;
   ulonglong count= 1;
@@ -245,8 +249,7 @@ int opt_sum_query(THD *thd,
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
   table_map where_tables= 0;
   Item *item;
-  int error;
-
+  int error= 0;
   DBUG_ENTER("opt_sum_query");
 
   if (conds)
@@ -256,7 +259,7 @@ int opt_sum_query(THD *thd,
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
   */
-  for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
+  while ((tl= ti++))
   {
     TABLE_LIST *embedded;
     for (embedded= tl ; embedded; embedded= embedded->embedding)
@@ -296,6 +299,14 @@ int opt_sum_query(THD *thd,
                                 HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
+    }
+    else if (tl->is_materialized_derived())
+    {
+      /*
+        Can't remove a derived table as it's number of rows is just an
+        estimate.
+      */
+      DBUG_RETURN(0);
     }
     else
     {
@@ -488,28 +499,30 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     /* MULT_EQUAL_FUNC */
     {
       Item_equal *item_equal= (Item_equal *) func_item;
-      Item_equal_iterator it(*item_equal);
-      args[0]= it++;
-      if (it++)
-        return 0;
       if (!(args[1]= item_equal->get_const()))
+        return 0;
+      Item_equal_fields_iterator it(*item_equal);
+      if (!(item= it++))
+        return 0;
+      args[0]= item->real_item();
+      if (it++)
         return 0;
     }
     break;
   case 1:
     /* field IS NULL */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() != Item::FIELD_ITEM)
       return 0;
     args[0]= item;
     break;
   case 2:
     /* 'field op const' or 'const op field' */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() == Item::FIELD_ITEM)
     {
       args[0]= item;
-      item= func_item->arguments()[1];
+      item= func_item->arguments()[1]->real_item();
       if (!item->const_item())
         return 0;
       args[1]= item;
@@ -517,7 +530,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     else if (item->const_item())
     {
       args[1]= item;
-      item= func_item->arguments()[1];
+      item= func_item->arguments()[1]->real_item();
       if (item->type() != Item::FIELD_ITEM)
         return 0;
       args[0]= item;
@@ -528,13 +541,13 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     break;
   case 3:
     /* field BETWEEN const AND const */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() == Item::FIELD_ITEM)
     {
       args[0]= item;
       for (int i= 1 ; i <= 2; i++)
       {
-        item= func_item->arguments()[i];
+        item= func_item->arguments()[i]->real_item();
         if (!item->const_item())
           return 0;
         args[i]= item;
@@ -615,7 +628,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   if (!(cond->used_tables() & field->table->map))
   {
     /* Condition doesn't restrict the used table */
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(!cond->const_item());
   }
   if (cond->type() == Item::COND_ITEM)
   {
@@ -751,7 +764,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
         since set_null will be ignored, and we will compare uninitialized data.
       */
       if (!part->field->real_maybe_null())
-        DBUG_RETURN(false);
+        DBUG_RETURN(FALSE);
       part->field->set_null();
       *key_ptr= (uchar) 1;
     }
@@ -839,7 +852,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 uint *range_fl, uint *prefix_len)
 {
   if (!(field->flags & PART_KEY_FLAG))
-    return false;                               // Not key field
+    return FALSE;                               // Not key field
 
   DBUG_ENTER("find_key_for_maxmin");
 
@@ -866,7 +879,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
          part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {
       if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
-        DBUG_RETURN(false);
+        DBUG_RETURN(FALSE);
 
       /* Check whether the index component is partial */
       Field *part_field= table->field[part->fieldnr-1];
@@ -915,12 +928,12 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
           */
           if (field->part_of_key.is_set(idx))
             table->enable_keyread();
-          DBUG_RETURN(true);
+          DBUG_RETURN(TRUE);
         }
       }
     }
   }
-  DBUG_RETURN(false);
+  DBUG_RETURN(FALSE);
 }
 
 

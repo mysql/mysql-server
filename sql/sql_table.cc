@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,17 +61,16 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(TABLE *from,TABLE *to,
-                                    List<Create_field> &create, bool ignore,
-				    uint order_num, ORDER *order,
-				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff,
-                                    bool error_if_not_empty);
+static int copy_data_between_tables(THD *thd, TABLE *,TABLE *,
+                                    List<Create_field> &, bool,
+				    uint, ORDER *, ha_rows *,ha_rows *,
+                                    enum enum_enable_or_disable, bool);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
 static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
-                              bool, uint *, handler *, KEY **, uint *, int);
+                                      bool, uint *, handler *, KEY **, uint *,
+                                      int);
 
 /**
   @brief Helper function for explain_filename
@@ -2271,7 +2271,7 @@ err:
   {
     if (!foreign_key_error)
       my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
-                      wrong_tables.c_ptr());
+                      wrong_tables.c_ptr_safe());
     else
       my_message(ER_ROW_IS_REFERENCED, ER(ER_ROW_IS_REFERENCED), MYF(0));
     error= 1;
@@ -3915,6 +3915,68 @@ static bool check_if_created_table_can_be_opened(THD *thd,
 }
 
 
+/**
+  Check that there is no frm file for given table
+
+  @param old_path        path to the old frm file
+  @param path            path to the frm file in new encoding
+  @param db              database name
+  @param table_name      table name
+  @param alias           table name for error message (for new encoding)
+  @param issue_error     should we issue error messages
+
+  @retval FALSE there is no frm file
+  @retval TRUE  there is frm file
+*/
+
+bool check_table_file_presence(char *old_path,
+                               char *path,
+                               const char *db,
+                               const char *table_name,
+                               const char *alias,
+                               bool issue_error)
+{
+  if (!access(path,F_OK))
+  {
+    if (issue_error)
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),alias);
+    return TRUE;
+  }
+  {
+    /*
+      Check if file of the table in 5.0 file name encoding exists.
+
+      Except case when it is the same table.
+    */
+    char tbl50[FN_REFLEN];
+#ifdef _WIN32
+    if (check_if_legal_tablename(table_name) != 0)
+    {
+      /*
+       Check for reserved device names for which access() returns 0
+       (CON, AUX etc).
+      */
+      return FALSE;
+    }
+#endif
+    strxmov(tbl50, mysql_data_home, "/", db, "/", table_name, NullS);
+    fn_format(tbl50, tbl50, "", reg_ext, MY_UNPACK_FILENAME);
+    if (!access(tbl50, F_OK) &&
+        (old_path == NULL ||
+         strcmp(old_path, tbl50) != 0))
+    {
+      if (issue_error)
+      {
+        strxmov(tbl50, MYSQL50_TABLE_NAME_PREFIX, table_name, NullS);
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tbl50);
+      }
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   Create a table
 
@@ -4179,33 +4241,31 @@ bool mysql_create_table_no_lock(THD *thd,
       find_temporary_table(thd, db, table_name))
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
-    {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                          alias);
-      error= 0;
-      goto err;
-    }
+      goto warn;
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
     goto err;
   }
 
   /* Give warnings for not supported table options */
-  if (create_info->transactional && !file->ht->commit)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                        file->engine_name()->str,
-                        "TRANSACTIONAL=1");
-
+#if defined(WITH_ARIA_STORAGE_ENGINE)
+  extern handlerton *maria_hton;
+  if (file->ht != maria_hton)
+#endif
+    if (create_info->transactional)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          file->engine_name()->str,
+                          "TRANSACTIONAL=1");
 
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    if (!access(path,F_OK))
+    if (check_table_file_presence(NULL, path, db, table_name, table_name,
+                                  !(create_info->options &
+                                    HA_LEX_CREATE_IF_NOT_EXISTS)))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto err;
     }
     /*
@@ -4882,8 +4942,8 @@ is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
     that need to be dropped and/or (re-)created.
 
   RETURN VALUES
-    TRUE   error
-    FALSE  success
+    TRUE   The tables are not compatible; We have to do a full alter table
+    FALSE  The tables are compatible; We only have to modify the .frm
 */
 
 bool
@@ -4996,10 +5056,10 @@ mysql_compare_tables(TABLE *table,
     DBUG_RETURN(0);
   }
 
-  if ((create_info->fileds_option_struct=
-       (void**)thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
-      (create_info->indexes_option_struct=
-       (void**)thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
+  if ((create_info->fields_option_struct= (ha_field_option_struct**)
+         thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
+      (create_info->indexes_option_struct= (ha_index_option_struct**)
+         thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
     DBUG_RETURN(1);
 
   /*
@@ -5020,7 +5080,10 @@ mysql_compare_tables(TABLE *table,
        tmp_new_field= tmp_new_field_it++)
   {
     DBUG_ASSERT(i < table->s->fields);
-    create_info->fileds_option_struct[i]= tmp_new_field->option_struct;
+    create_info->fields_option_struct[i]= tmp_new_field->option_struct;
+
+    /* reset common markers of how field changed */
+    field->flags&= ~(FIELD_IS_RENAMED | FIELD_IN_ADD_INDEX);
 
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)
@@ -5056,7 +5119,6 @@ mysql_compare_tables(TABLE *table,
         create_info->table_options|= HA_OPTION_PACK_RECORD;
 
     /* Check if field was renamed */
-    field->flags&= ~FIELD_IS_RENAMED;
     if (my_strcasecmp(system_charset_info,
 		      field->field_name,
 		      tmp_new_field->field_name))
@@ -5069,8 +5131,6 @@ mysql_compare_tables(TABLE *table,
                           new_field->field_name));
       DBUG_RETURN(0);
     }
-    // Clear indexed marker
-    field->flags&= ~FIELD_IN_ADD_INDEX;
     changes|= tmp;
   }
 
@@ -5401,7 +5461,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
     Alter_drop *drop;
-    if (field->type() == MYSQL_TYPE_STRING)
+    if (field->type() == MYSQL_TYPE_VARCHAR)
       create_info->varchar= TRUE;
     /* Check if field should be dropped */
     drop_it.rewind();
@@ -5438,9 +5498,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       def->field=field;
       if (field->stored_in_db != def->stored_in_db)
       {
-        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
-                 MYF(0),
-                 "Changing the STORED status");
+        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN, MYF(0));
         goto err;
       }
       if (!def->after)
@@ -5743,6 +5801,7 @@ err:
       order_num        How many ORDER BY fields has been specified.
       order            List of fields to ORDER BY.
       ignore           Whether we have ALTER IGNORE TABLE
+      require_online   Give an error if we can't do operation online
 
   DESCRIPTION
     This is a veery long function and is everything but the kitchen sink :)
@@ -5773,13 +5832,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
-                       uint order_num, ORDER *order, bool ignore)
+                       uint order_num, ORDER *order, bool ignore,
+                       bool require_online)
 {
   TABLE *table, *new_table= 0;
   MDL_ticket *mdl_ticket;
   MDL_request target_mdl_request;
   int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
+  char old_name_buff[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
   char path[FN_REFLEN + 1];
@@ -5969,10 +6030,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         */
         build_table_filename(new_name_buff, sizeof(new_name_buff) - 1,
                              new_db, new_name_buff, reg_ext, 0);
-        if (!access(new_name_buff, F_OK))
+        build_table_filename(old_name_buff, sizeof(old_name_buff) - 1,
+                             db, table_name, reg_ext, 0);
+        if (check_table_file_presence(old_name_buff, new_name_buff, new_db,
+                                      new_name, new_alias, TRUE))
 	{
 	  /* Table will be closed in do_command() */
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
           goto err;
 	}
       }
@@ -6073,8 +6136,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                          table->alias);
+			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+			  table->alias.c_ptr());
     }
 
     if (!error && (new_name != table_name || new_db != db))
@@ -6124,8 +6187,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                          ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                          table->alias);
+			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+			  table->alias.c_ptr());
     }
 
     if (!error)
@@ -6345,6 +6408,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           /* Non-primary unique key. */
           needed_inplace_with_read_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
           needed_inplace_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
+          if (ignore)
+          {
+            /*
+              If ignore is used, we have to remove all duplicate rows,
+              which require a full table copy.
+            */
+            need_copy_table= ALTER_TABLE_DATA_CHANGED;
+            pk_changed= 2;                      // Don't change need_copy_table
+            break;
+          }
         }
       }
       else
@@ -6515,10 +6588,23 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     */
   }
 
+  /* Check if we can do the ALTER TABLE as online */
+  if (require_online)
+  {
+    if (index_add_count || index_drop_count ||
+        (new_table &&
+         !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER)))
+    {
+      my_error(ER_CANT_DO_ONLINE, MYF(0), "ALTER");
+      goto err_new_table_cleanup;
+    }
+  }
+
   /* Copy the data if necessary. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   copied=deleted=0;
+
   /*
     We do not copy data for MERGE tables. Only the children have data.
     MERGE tables have HA_NO_COPY_ON_ALTER set.
@@ -6528,12 +6614,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
-    thd_proc_info(thd, "copy to tmp table");
     DBUG_EXECUTE_IF("abort_copy_table", {
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
       });
-    error= copy_data_between_tables(table, new_table,
+    error= copy_data_between_tables(thd, table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
                                     alter_info->keys_onoff,
@@ -6672,6 +6757,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err_new_table_cleanup;
   }
   /*end of if (! new_table) for add/drop index*/
+
+  DBUG_ASSERT(error == 0);
 
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
@@ -7028,7 +7115,7 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 
 
 static int
-copy_data_between_tables(TABLE *from,TABLE *to,
+copy_data_between_tables(THD *thd, TABLE *from,TABLE *to,
 			 List<Create_field> &create,
                          bool ignore,
 			 uint order_num, ORDER *order,
@@ -7040,7 +7127,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   int error= 1, errpos= 0;
   Copy_field *copy= NULL, *copy_end;
   ha_rows found_count= 0, delete_count= 0;
-  THD *thd= current_thd;
   uint length= 0;
   SORT_FIELD *sortorder;
   READ_RECORD info;
@@ -7050,10 +7136,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
   ulong save_sql_mode= thd->variables.sql_mode;
-  ulonglong prev_insert_id;
+  ulonglong prev_insert_id, time_to_report_progress;
   List_iterator<Create_field> it(create);
   Create_field *def;
   DBUG_ENTER("copy_data_between_tables");
+
+  /* Two or 3 stages; Sorting, copying data and update indexes */
+  thd_progress_init(thd, 2 + test(order));
 
   if (mysql_trans_prepare_alter_copy_data(thd))
     goto err;
@@ -7103,7 +7192,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (order)
   {
-    if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
+    if (to->s->primary_key != MAX_KEY &&
+        to->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(warn_buff, sizeof(warn_buff), 
@@ -7121,6 +7211,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
 
+      thd_proc_info(thd, "Sorting");
       if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
           setup_order(thd, thd->lex->select_lex.ref_pointer_array,
                       &tables, fields, all_fields, order) ||
@@ -7131,8 +7222,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
           HA_POS_ERROR)
         goto err;
     }
-  };
+    thd_progress_next_stage(thd);
+  }
 
+  thd_proc_info(thd, "copy to tmp table");
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
   to->mark_virtual_columns_for_write(TRUE);
@@ -7143,6 +7236,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->warning_info->reset_current_row_for_warning();
   restore_record(to, s->default_values);        // Create empty record
+
+  thd->progress.max_counter= from->file->records();
+  time_to_report_progress= MY_HOW_OFTEN_TO_WRITE/10;
+
   while (!(error=info.read_record(&info)))
   {
     if (thd->killed)
@@ -7152,6 +7249,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     update_virtual_fields(thd, from);
+    if (++thd->progress.counter >= time_to_report_progress)
+    {
+      time_to_report_progress+= MY_HOW_OFTEN_TO_WRITE/10;
+      thd_progress_report(thd, thd->progress.counter,
+                          thd->progress.max_counter);
+    }
+
     /* Return error if source table isn't empty. */
     if (error_if_not_empty)
     {
@@ -7216,6 +7320,9 @@ err:
   free_io_cache(from);
   delete [] copy;
 
+  thd_proc_info(thd, "Enabling keys");
+  thd_progress_next_stage(thd);
+
   if (error > 0)
     to->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
   if (errpos >= 3 && to->file->ha_end_bulk_insert() && error <= 0)
@@ -7278,7 +7385,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, &alter_info, 0,
-                                (ORDER *) 0, 0));
+                                (ORDER *) 0, 0, 0));
 }
 
 
@@ -7324,8 +7431,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     {
       /* Call ->checksum() if the table checksum matches 'old_mode' settings */
       if (!(check_opt->flags & T_EXTEND) &&
-          (((t->file->ha_table_flags() & HA_HAS_OLD_CHECKSUM) && old_mode) ||
-           ((t->file->ha_table_flags() & HA_HAS_NEW_CHECKSUM) && !old_mode)))
+          (((t->file->ha_table_flags() & HA_HAS_OLD_CHECKSUM) && thd->variables.old_mode) ||
+           ((t->file->ha_table_flags() & HA_HAS_NEW_CHECKSUM) && !thd->variables.old_mode)))
 	protocol->store((ulonglong)t->file->checksum());
       else if (check_opt->flags & T_QUICK)
 	protocol->store_null();
@@ -7375,7 +7482,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    {
 	      Field *f= t->field[i];
 
-              if (! old_mode && f->is_real_null(0))
+              if (! thd->variables.old_mode && f->is_real_null(0))
                 continue;
              /*
                BLOB and VARCHAR have pointers in their field, we must convert

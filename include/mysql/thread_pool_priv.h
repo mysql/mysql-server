@@ -51,7 +51,6 @@ void thd_lock_thread_count(THD *thd);
 void thd_unlock_thread_count(THD *thd);
 void thd_close_connection(THD *thd);
 THD *thd_get_current_thd();
-void thd_new_connection_setup(THD *thd, char *stack_start);
 void thd_lock_data(THD *thd);
 void thd_unlock_data(THD *thd);
 bool thd_is_transaction_active(THD *thd);

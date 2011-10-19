@@ -97,6 +97,9 @@ static my_bool init_state_maps(struct charset_info_st *cs)
   state_map[(uchar)'@']= (uchar) MY_LEX_USER_END;
   state_map[(uchar) '`']= (uchar) MY_LEX_USER_VARIABLE_DELIMITER;
   state_map[(uchar)'"']= (uchar) MY_LEX_STRING_OR_DELIMITER;
+  state_map[(uchar)'-']= (uchar) MY_LEX_MINUS_OR_COMMENT;
+  state_map[(uchar)',']= (uchar) MY_LEX_COMMA;
+  state_map[(uchar)'?']= (uchar) MY_LEX_PLACEHOLDER;
 
   /*
     Create a second map to make it faster to find identifiers
@@ -199,6 +202,7 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 }
 
 
+#if defined(HAVE_UCA_COLLATIONS) && (defined(HAVE_CHARSET_ucs2) || defined(HAVE_CHARSET_utf8))
 static void
 copy_uca_collation(struct charset_info_st *to, CHARSET_INFO *from)
 {
@@ -212,6 +216,7 @@ copy_uca_collation(struct charset_info_st *to, CHARSET_INFO *from)
   to->state|= MY_CS_AVAILABLE | MY_CS_LOADED |
               MY_CS_STRNXFRM  | MY_CS_UNICODE;
 }
+#endif
 
 
 static int add_collation(struct charset_info_st *cs)

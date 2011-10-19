@@ -1,5 +1,8 @@
 source include/master-slave.inc;
 
+--replace_column 1 # 8 # 9 # 16 # 23 # 33 #
+show slave status;
+
 #
 # Load table should not succeed on the master as this is not a slave
 #

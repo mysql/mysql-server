@@ -127,8 +127,7 @@ my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
   {
     DBUG_PRINT("error",("Got errno: %d from pagecache_read",my_errno));
     info->last_keypage=HA_OFFSET_ERROR;
-    maria_print_error(share, HA_ERR_CRASHED);
-    my_errno=HA_ERR_CRASHED;
+    _ma_set_fatal_error(share, HA_ERR_CRASHED);
     DBUG_RETURN(1);
   }
   info->last_keypage= pos;
@@ -159,8 +158,7 @@ my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
                           _ma_get_keynr(share, tmp)));
       DBUG_DUMP("page", tmp, page_size);
       info->last_keypage = HA_OFFSET_ERROR;
-      maria_print_error(share, HA_ERR_CRASHED);
-      my_errno= HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(1);
     }
   }
@@ -195,6 +193,7 @@ my_bool _ma_write_keypage(MARIA_PAGE *page, enum pagecache_page_lock lock,
     nod_flag=    _ma_test_if_nod(share, buff);
 
     DBUG_ASSERT(page->size == page_length);
+    DBUG_ASSERT(page->size <= share->max_index_block_size);
     DBUG_ASSERT(page->flag == _ma_get_keypage_flag(share, buff));
 
     if (page->pos < share->base.keystart ||
@@ -552,8 +551,7 @@ my_bool _ma_compact_keypage(MARIA_PAGE *ma_page, TrID min_read_from)
     {
       DBUG_PRINT("error",("Couldn't find last key:  page_pos: 0x%lx",
                           (long) page));
-      maria_print_error(share, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(1);
     }
     if (key_has_transid(page-1))

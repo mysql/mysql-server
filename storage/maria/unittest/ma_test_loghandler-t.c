@@ -19,7 +19,8 @@
 #include <tap.h>
 #include "../trnman.h"
 
-extern my_bool maria_log_remove();
+extern my_bool maria_log_remove(const char *testdir);
+extern char *create_tmpdir(const char *progname);
 extern void example_loghandler_init();
 
 #ifndef DBUG_OFF
@@ -161,7 +162,6 @@ int main(int argc __attribute__((unused)), char *argv[])
   LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 3];
   struct st_translog_scanner_data scanner;
   int rc;
-
   MY_INIT(argv[0]);
 
   if (my_set_max_open_files(100) < 100)
@@ -170,9 +170,13 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   bzero(&pagecache, sizeof(pagecache));
-  maria_data_root= (char *)".";
-  if (maria_log_remove())
+
+  maria_data_root= create_tmpdir(argv[0]);
+  if (maria_log_remove(0))
     exit(1);
+
+  /* We don't need to do physical syncs in this test */
+  my_disable_sync= 1;
 
   for (i= 0; i < (LONG_BUFFER_SIZE + LSN_STORE_SIZE * 2 + 2); i+= 2)
   {
@@ -205,7 +209,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+  if (translog_init_with_table(maria_data_root, LOG_FILE_SIZE, 50112, 0, &pagecache,
                                LOG_FLAGS, 0, &translog_example_table_init,
                                0))
   {
@@ -654,7 +658,7 @@ err:
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
 
-  if (maria_log_remove())
+  if (maria_log_remove(maria_data_root))
     exit(1);
 
   return(test(exit_status()));

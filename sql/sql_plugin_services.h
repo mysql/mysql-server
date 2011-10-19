@@ -46,13 +46,20 @@ static struct my_thread_scheduler_service my_thread_scheduler_handler= {
   my_thread_scheduler_reset,
 };
 
+static struct progress_report_service_st progress_report_handler= {
+  thd_progress_init,
+  thd_progress_report,
+  thd_progress_next_stage,
+  thd_progress_end,
+  set_thd_proc_info
+};
 
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
   { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler },
   { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
-  { "my_thread_scheduler_service",
-    VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
+  { "my_thread_scheduler_service", VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
+  { "progress_report_service", VERSION_progress_report, &progress_report_handler }
 };
 

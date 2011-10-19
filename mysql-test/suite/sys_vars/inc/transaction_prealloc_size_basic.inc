@@ -75,10 +75,6 @@ SELECT @@global.transaction_prealloc_size;
 SET @@global.transaction_prealloc_size = 60020;
 SELECT @@global.transaction_prealloc_size;
 
-SET @@global.transaction_prealloc_size = 4294966272;
-SELECT @@global.transaction_prealloc_size;
-
-
 --echo '#--------------------FN_DYNVARS_005_04-------------------------#'
 ###################################################################
 # Change the value of variable to a valid value for SESSION Scope #
@@ -87,11 +83,8 @@ SELECT @@global.transaction_prealloc_size;
 SET @@session.transaction_prealloc_size = 1024;
 SELECT @@session.transaction_prealloc_size;
 
-SET @@session.transaction_prealloc_size =4294966272;
-SELECT @@session.transaction_prealloc_size;
 SET @@session.transaction_prealloc_size = 65535;
 SELECT @@session.transaction_prealloc_size;
-
 
 --echo '#------------------FN_DYNVARS_005_05-----------------------#'
 #####################################################################
@@ -144,10 +137,6 @@ SELECT @@session.transaction_prealloc_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.transaction_prealloc_size = "Test";
 
-SET @@session.transaction_prealloc_size = 123456789031;
-SELECT @@session.transaction_prealloc_size;
-
-
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
 #   Check if the value in GLOBAL Table matches value in variable   #
@@ -167,9 +156,6 @@ SELECT @@session.transaction_prealloc_size = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='transaction_prealloc_size';
 
-
-
-
 --echo '#---------------------FN_DYNVARS_001_09----------------------#'
 ###########################################################################
 #  Check if global and session variable are independent of each other     #
@@ -180,7 +166,6 @@ SET @@global.transaction_prealloc_size = 10;
 
 SELECT @@transaction_prealloc_size = @@global.transaction_prealloc_size;
  
-
 --echo '#---------------------FN_DYNVARS_001_10----------------------#'
 ########################################################################
 #    Check if accessing variable with SESSION,LOCAL and without SCOPE  #

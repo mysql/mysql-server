@@ -1,0 +1,28 @@
+# t/handler_innodb.test
+#
+# test of HANDLER ...
+#
+# Last update:
+# 2006-07-31 ML test refactored (MySQL 5.1)
+#               code of t/handler.test and t/innodb_handler.test united
+#               main testing code put into handler.inc
+#               rename t/innodb_handler.test to t/handler_innodb.test
+#
+
+--source include/have_innodb.inc
+
+let $engine_type= InnoDB;
+
+--source init.inc
+--source handler.inc
+
+#
+# LP#697610 ha_index_prev(uchar*): Assertion `inited==INDEX'
+#
+
+CREATE TABLE t1 (f1 integer, f2 integer, primary key (f1), key (f2)) engine=innodb;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST WHERE f2 <= 1;
+HANDLER t1 READ `PRIMARY` PREV;
+DROP TABLE t1;

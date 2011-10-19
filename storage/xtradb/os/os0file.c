@@ -62,6 +62,10 @@ Created 10/21/1995 Heikki Tuuri
 #include <libaio.h>
 #endif
 
+#ifdef _WIN32
+#define IOCP_SHUTDOWN_KEY (ULONG_PTR)-1
+#endif
+
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
@@ -161,6 +165,12 @@ typedef struct os_aio_slot_struct	os_aio_slot_t;
 
 /** The asynchronous i/o array slot structure */
 struct os_aio_slot_struct{
+#ifdef WIN_ASYNC_IO
+	OVERLAPPED	control;	/*!< Windows control block for the
+					aio request, MUST be first element in the structure*/
+	void *arr;				/*!< Array this slot belongs to*/
+#endif
+
 	ibool		is_read;	/*!< TRUE if a read operation */
 	ulint		pos;		/*!< index of the slot in the aio
 					array */
@@ -186,12 +196,7 @@ struct os_aio_slot_struct{
 					and which can be used to identify
 					which pending aio operation was
 					completed */
-#ifdef WIN_ASYNC_IO
-	HANDLE		handle;		/*!< handle object we need in the
-					OVERLAPPED struct */
-	OVERLAPPED	control;	/*!< Windows control block for the
-					aio request */
-#elif defined(LINUX_NATIVE_AIO)
+#ifdef LINUX_NATIVE_AIO
 	struct iocb	control;	/* Linux control block for aio */
 	int		n_bytes;	/* bytes written/read. */
 	int		ret;		/* AIO return code */
@@ -228,15 +233,6 @@ struct os_aio_array_struct{
 				/*!< Number of reserved slots in the
 				aio array outside the ibuf segment */
 	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
-#ifdef __WIN__
-	HANDLE*		handles;
-				/*!< Pointer to an array of OS native
-				event handles where we copied the
-				handles from slots, in the same
-				order. This can be used in
-				WaitForMultipleObjects; used only in
-				Windows */
-#endif
 
 #if defined(LINUX_NATIVE_AIO)
 	io_context_t*		aio_ctx;
@@ -335,6 +331,13 @@ os_aio_validate_skip(void)
 }
 #endif /* UNIV_DEBUG */
 
+#ifdef _WIN32
+/** IO completion port used by background io threads */
+static HANDLE completion_port;
+/** Thread local storage index for the per-thread event used for synchronous IO */
+static DWORD tls_sync_io = TLS_OUT_OF_INDEXES;
+#endif
+
 #ifdef __WIN__
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
@@ -375,6 +378,86 @@ os_get_os_version(void)
 	}
 }
 #endif /* __WIN__ */
+
+
+#ifdef _WIN32
+/*
+Windows : Handling synchronous IO on files opened asynchronously.
+
+If file is opened for asynchronous IO (FILE_FLAG_OVERLAPPED) and also bound to 
+a completion port, then every IO on this file would normally be enqueued to the
+completion port. Sometimes however we would like to do a synchronous IO. This is
+possible if we initialitze have overlapped.hEvent with a valid event and set its
+lowest order bit to 1 (see MSDN ReadFile and WriteFile description for more info)
+
+We'll create this special event once for each thread and store in thread local 
+storage.
+*/
+
+
+/***********************************************************************//**
+Initialize tls index.for event handle used for synchronized IO on files that 
+might be opened with FILE_FLAG_OVERLAPPED.
+*/
+static void win_init_syncio_event()
+{
+	tls_sync_io = TlsAlloc();
+	ut_a(tls_sync_io != TLS_OUT_OF_INDEXES);
+}
+
+/***********************************************************************//**
+Retrieve per-thread event for doing synchronous io on asyncronously opened files
+*/
+static HANDLE win_get_syncio_event()
+{
+	HANDLE h;
+	if(tls_sync_io == TLS_OUT_OF_INDEXES){
+		win_init_syncio_event();
+	}
+
+	h = (HANDLE)TlsGetValue(tls_sync_io);
+	if (h)
+		return h;
+	h = CreateEventA(NULL, FALSE, FALSE, NULL);
+	ut_a(h);
+	h = (HANDLE)((uintptr_t)h | 1);
+	TlsSetValue(tls_sync_io, h);
+	return h;
+}
+
+/*
+  TLS destructor, inspired by Chromium code
+  http://src.chromium.org/svn/trunk/src/base/threading/thread_local_storage_win.cc
+*/
+
+static void win_free_syncio_event()
+{
+	HANDLE h = win_get_syncio_event();
+	if (h) {
+		CloseHandle(h);
+	}
+}
+
+static void NTAPI win_tls_thread_exit(PVOID module, DWORD reason, PVOID reserved) {
+	if (DLL_THREAD_DETACH == reason || DLL_PROCESS_DETACH == reason)
+		win_free_syncio_event();
+}
+
+#ifdef _WIN64
+#pragma comment(linker, "/INCLUDE:_tls_used")
+#pragma comment(linker, "/INCLUDE:p_thread_callback_base")
+#pragma const_seg(".CRT$XLB")
+extern const PIMAGE_TLS_CALLBACK p_thread_callback_base;
+const PIMAGE_TLS_CALLBACK p_thread_callback_base = win_tls_thread_exit;
+#pragma data_seg()
+#else
+#pragma comment(linker, "/INCLUDE:__tls_used")
+#pragma comment(linker, "/INCLUDE:_p_thread_callback_base")
+#pragma data_seg(".CRT$XLB")
+PIMAGE_TLS_CALLBACK p_thread_callback_base = win_tls_thread_exit;
+#pragma data_seg()
+#endif 
+#endif /*_WIN32 */
 
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
@@ -716,6 +799,9 @@ os_io_init_simple(void)
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = os_mutex_create();
 	}
+#ifdef _WIN32
+	win_init_syncio_event();
+#endif
 }
 
 /***********************************************************************//**
@@ -1461,6 +1547,16 @@ try_again:
 		ut_error;
 	}
 
+	if (type == OS_LOG_FILE) {
+		if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+			/* Map O_DSYNC to WRITE_THROUGH */
+			attributes |= FILE_FLAG_WRITE_THROUGH;
+		} else if (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
+			/* Open log file without buffering */
+			attributes |= FILE_FLAG_NO_BUFFERING;
+		}
+	}
+
 	file = CreateFile((LPCTSTR) name,
 			  GENERIC_READ | GENERIC_WRITE, /* read and write
 							access */
@@ -1505,6 +1601,9 @@ try_again:
 		}
 	} else {
 		*success = TRUE;
+		if (os_aio_use_native_aio && ((attributes & FILE_FLAG_OVERLAPPED) != 0)) {
+			ut_a(CreateIoCompletionPort(file, completion_port, 0, 0));
+		}
 	}
 
 	return(file);
@@ -2514,13 +2613,9 @@ os_file_read_func(
 #ifdef __WIN__
 	BOOL		ret;
 	DWORD		len;
-	DWORD		ret2;
-	DWORD		low;
-	DWORD		high;
 	ibool		retry;
-#ifndef UNIV_HOTBACKUP
-	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
+	OVERLAPPED overlapped;
+
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2535,41 +2630,21 @@ try_again:
 	ut_ad(buf);
 	ut_ad(n > 0);
 
-	low = (DWORD) offset;
-	high = (DWORD) offset_high;
-
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
-#ifndef UNIV_HOTBACKUP
-	/* Protect the seek / read operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-	os_mutex_enter(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
-
-	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-
-#ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-		os_mutex_enter(os_file_count_mutex);
-		os_n_pending_reads--;
-		os_mutex_exit(os_file_count_mutex);
-
-		goto error_handling;
+	memset (&overlapped, 0, sizeof (overlapped));
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
+	overlapped.hEvent = win_get_syncio_event();
+	ret = ReadFile(file, buf, n, NULL, &overlapped);
+	if (ret) {
+		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, FALSE);
 	}
-
-	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
-
-#ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
+	else if(GetLastError() == ERROR_IO_PENDING) {
+		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, TRUE);
+  }
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	os_mutex_exit(os_file_count_mutex);
@@ -2597,9 +2672,6 @@ try_again:
 		(ulong)n, (ulong)offset_high,
 		(ulong)offset, (long)ret);
 #endif /* __WIN__ */
-#ifdef __WIN__
-error_handling:
-#endif
 	retry = os_file_handle_error(NULL, "read");
 
 	if (retry) {
@@ -2643,13 +2715,11 @@ os_file_read_no_error_handling_func(
 #ifdef __WIN__
 	BOOL		ret;
 	DWORD		len;
-	DWORD		ret2;
-	DWORD		low;
-	DWORD		high;
 	ibool		retry;
-#ifndef UNIV_HOTBACKUP
-	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
+	OVERLAPPED overlapped;
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
+
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2664,41 +2734,21 @@ try_again:
 	ut_ad(buf);
 	ut_ad(n > 0);
 
-	low = (DWORD) offset;
-	high = (DWORD) offset_high;
-
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
-#ifndef UNIV_HOTBACKUP
-	/* Protect the seek / read operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-	os_mutex_enter(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
-
-	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-
-#ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-		os_mutex_enter(os_file_count_mutex);
-		os_n_pending_reads--;
-		os_mutex_exit(os_file_count_mutex);
-
-		goto error_handling;
+	memset (&overlapped, 0, sizeof (overlapped));
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
+	overlapped.hEvent = win_get_syncio_event();
+	ret = ReadFile(file, buf, n, NULL, &overlapped);
+	if (ret) {
+		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, FALSE);
 	}
-
-	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
-
-#ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
+	else if(GetLastError() == ERROR_IO_PENDING) {
+		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, TRUE);
+  }
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	os_mutex_exit(os_file_count_mutex);
@@ -2720,9 +2770,6 @@ try_again:
 		return(TRUE);
 	}
 #endif /* __WIN__ */
-#ifdef __WIN__
-error_handling:
-#endif
 	retry = os_file_handle_error_no_exit(NULL, "read");
 
 	if (retry) {
@@ -2777,14 +2824,9 @@ os_file_write_func(
 #ifdef __WIN__
 	BOOL		ret;
 	DWORD		len;
-	DWORD		ret2;
-	DWORD		low;
-	DWORD		high;
 	ulint		n_retries	= 0;
 	ulint		err;
-#ifndef UNIV_HOTBACKUP
-	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
+	OVERLAPPED overlapped;
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2797,63 +2839,29 @@ os_file_write_func(
 	ut_ad(buf);
 	ut_ad(n > 0);
 retry:
-	low = (DWORD) offset;
-	high = (DWORD) offset_high;
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes++;
 	os_mutex_exit(os_file_count_mutex);
 
-#ifndef UNIV_HOTBACKUP
-	/* Protect the seek / write operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
+	memset (&overlapped, 0, sizeof (overlapped));
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
 
-	os_mutex_enter(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
-
-	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-
-#ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-		os_mutex_enter(os_file_count_mutex);
-		os_n_pending_writes--;
-		os_mutex_exit(os_file_count_mutex);
-
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  InnoDB: Error: File pointer positioning to"
-			" file %s failed at\n"
-			"InnoDB: offset %lu %lu. Operating system"
-			" error number %lu.\n"
-			"InnoDB: Some operating system error numbers"
-			" are described at\n"
-			"InnoDB: "
-			REFMAN "operating-system-error-codes.html\n",
-			name, (ulong) offset_high, (ulong) offset,
-			(ulong) GetLastError());
-
-		return(FALSE);
+	overlapped.hEvent = win_get_syncio_event();
+	ret = WriteFile(file, buf, n, NULL, &overlapped);
+	if (ret) {
+		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, FALSE);
 	}
-
-	ret = WriteFile(file, buf, (DWORD) n, &len, NULL);
-
-	/* Always do fsync to reduce the probability that when the OS crashes,
-	a database page is only partially physically written to disk. */
+	else if(GetLastError() == ERROR_IO_PENDING) {
+		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, TRUE);
+	}
 
 # ifdef UNIV_DO_FLUSH
 	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file, TRUE));
+		ut_a(TRUE == os_file_flush(file));
 	}
 # endif /* UNIV_DO_FLUSH */
-
-#ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
@@ -3330,9 +3338,7 @@ os_aio_array_create(
 	os_aio_array_t*	array;
 	ulint		i;
 	os_aio_slot_t*	slot;
-#ifdef WIN_ASYNC_IO
-	OVERLAPPED*	over;
-#elif defined(LINUX_NATIVE_AIO)
+#ifdef LINUX_NATIVE_AIO
 	struct io_event*	io_event = NULL;
 #endif
 	ut_a(n > 0);
@@ -3351,9 +3357,6 @@ os_aio_array_create(
 	array->n_reserved	= 0;
 	array->cur_seg		= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
-#ifdef __WIN__
-	array->handles		= ut_malloc(n * sizeof(HANDLE));
-#endif
 
 #if defined(LINUX_NATIVE_AIO)
 	array->aio_ctx = NULL;
@@ -3392,19 +3395,9 @@ skip_native_aio:
 #endif /* LINUX_NATIVE_AIO */
 	for (i = 0; i < n; i++) {
 		slot = os_aio_array_get_nth_slot(array, i);
-
 		slot->pos = i;
 		slot->reserved = FALSE;
-#ifdef WIN_ASYNC_IO
-		slot->handle = CreateEvent(NULL,TRUE, FALSE, NULL);
-
-		over = &(slot->control);
-
-		over->hEvent = slot->handle;
-
-		*((array->handles) + i) = over->hEvent;
-
-#elif defined(LINUX_NATIVE_AIO)
+#ifdef LINUX_NATIVE_AIO
 
 		memset(&slot->control, 0x0, sizeof(slot->control));
 		slot->n_bytes = 0;
@@ -3423,18 +3416,6 @@ os_aio_array_free(
 /*==============*/
 	os_aio_array_t*	array)	/*!< in, own: array to free */
 {
-#ifdef WIN_ASYNC_IO
-	ulint	i;
-
-	for (i = 0; i < array->n_slots; i++) {
-		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
-		CloseHandle(slot->handle);
-	}
-#endif /* WIN_ASYNC_IO */
-
-#ifdef __WIN__
-	ut_free(array->handles);
-#endif /* __WIN__ */
 	os_mutex_free(array->mutex);
 	os_event_free(array->not_full);
 	os_event_free(array->is_empty);
@@ -3536,11 +3517,16 @@ os_aio_init(
 
 	os_last_printout = time(NULL);
 
+#ifdef _WIN32
+	ut_a(completion_port == 0);
+	completion_port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+	ut_a(completion_port);
+#endif
+
 	return(TRUE);
 
 err_exit:
 	return(FALSE);
-
 }
 
 /***********************************************************************
@@ -3582,11 +3568,9 @@ os_aio_array_wake_win_aio_at_shutdown(
 /*==================================*/
 	os_aio_array_t*	array)	/*!< in: aio array */
 {
-	ulint	i;
-
-	for (i = 0; i < array->n_slots; i++) {
-
-		SetEvent((array->slots + i)->handle);
+	if(completion_port)
+	{
+		PostQueuedCompletionStatus(completion_port, 0, IOCP_SHUTDOWN_KEY, NULL);
 	}
 }
 #endif
@@ -3831,7 +3815,8 @@ found:
 	control = &(slot->control);
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
-	ResetEvent(slot->handle);
+	control->hEvent = 0;
+	slot->arr = array;
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3901,11 +3886,7 @@ os_aio_array_free_slot(
 		os_event_set(array->is_empty);
 	}
 
-#ifdef WIN_ASYNC_IO
-
-	ResetEvent(slot->handle);
-
-#elif defined(LINUX_NATIVE_AIO)
+#ifdef LINUX_NATIVE_AIO
 
 	if (srv_use_native_aio) {
 		memset(&slot->control, 0x0, sizeof(slot->control));
@@ -4119,13 +4100,9 @@ os_aio_func(
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
 #ifdef WIN_ASYNC_IO
-	ibool		retval;
-	BOOL		ret		= TRUE;
 	DWORD		len		= (DWORD) n;
-	struct fil_node_struct * dummy_mess1;
-	void*		dummy_mess2;
-	ulint		dummy_type;
-#endif /* WIN_ASYNC_IO */
+	BOOL	ret;
+#endif
 	ibool		retry;
 	ulint		wake_later;
 
@@ -4142,33 +4119,23 @@ os_aio_func(
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & (~OS_AIO_SIMULATED_WAKE_LATER);
 
-	if (mode == OS_AIO_SYNC
-#ifdef WIN_ASYNC_IO
-	    && !srv_use_native_aio
-#endif /* WIN_ASYNC_IO */
-	    ) {
+	if (mode == OS_AIO_SYNC) 
+	{
+		ibool ret;
 		/* This is actually an ordinary synchronous read or write:
-		no need to use an i/o-handler thread. NOTE that if we use
-		Windows async i/o, Windows does not allow us to use
-		ordinary synchronous os_file_read etc. on the same file,
-		therefore we have built a special mechanism for synchronous
-		wait in the Windows case.
-		Also note that the Performance Schema instrumentation has
-		been performed by current os_aio_func()'s wrapper function
-		pfs_os_aio_func(). So we would no longer need to call
-		Performance Schema instrumented os_file_read() and
-		os_file_write(). Instead, we should use os_file_read_func()
-		and os_file_write_func() */
+		no need to use an i/o-handler thread */
 
 		if (type == OS_FILE_READ) {
-			return(os_file_read_trx(file, buf, offset,
-					    offset_high, n, trx));
+			ret = os_file_read_func(file, buf, offset,
+							offset_high, n, trx);
 		}
+		else {
+			ut_a(type == OS_FILE_WRITE);
 
-		ut_a(type == OS_FILE_WRITE);
-
-		return(os_file_write_func(name, file, buf, offset,
-					  offset_high, n));
+			ret = os_file_write(name, file, buf, offset, offset_high, n);
+		}
+		ut_a(ret);
+		return ret;
 	}
 
 try_again:
@@ -4217,6 +4184,8 @@ try_again:
 #ifdef WIN_ASYNC_IO
 			ret = ReadFile(file, buf, (DWORD)n, &len,
 				       &(slot->control));
+			if(!ret && GetLastError() != ERROR_IO_PENDING)
+				goto err_exit;
 
 #elif defined(LINUX_NATIVE_AIO)
 			if (!os_aio_linux_dispatch(array, slot)) {
@@ -4237,6 +4206,8 @@ try_again:
 			ret = WriteFile(file, buf, (DWORD)n, &len,
 					&(slot->control));
 
+			if(!ret && GetLastError() != ERROR_IO_PENDING)
+				goto err_exit;
 #elif defined(LINUX_NATIVE_AIO)
 			if (!os_aio_linux_dispatch(array, slot)) {
 				goto err_exit;
@@ -4253,33 +4224,6 @@ try_again:
 		ut_error;
 	}
 
-#ifdef WIN_ASYNC_IO
-	if (srv_use_native_aio) {
-		if ((ret && len == n)
-		    || (!ret && GetLastError() == ERROR_IO_PENDING)) {
-			/* aio was queued successfully! */
-
-			if (mode == OS_AIO_SYNC) {
-				/* We want a synchronous i/o operation on a
-				file where we also use async i/o: in Windows
-				we must use the same wait mechanism as for
-				async i/o */
-
-				retval = os_aio_windows_handle(ULINT_UNDEFINED,
-							       slot->pos,
-							       &dummy_mess1,
-							       &dummy_mess2,
-							       &dummy_type);
-
-				return(retval);
-			}
-
-			return(TRUE);
-		}
-
-		goto err_exit;
-	}
-#endif /* WIN_ASYNC_IO */
 	/* aio was queued successfully! */
 	return(TRUE);
 
@@ -4332,42 +4276,15 @@ os_aio_windows_handle(
 	ulint*	space_id)
 {
 	ulint		orig_seg	= segment;
-	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
-	ulint		n;
-	ulint		i;
 	ibool		ret_val;
 	BOOL		ret;
 	DWORD		len;
 	BOOL		retry		= FALSE;
+	ULONG_PTR key;
 
-	if (segment == ULINT_UNDEFINED) {
-		array = os_aio_sync_array;
-		segment = 0;
-	} else {
-		segment = os_aio_get_array_and_local_segment(&array, segment);
-	}
-
-	/* NOTE! We only access constant fields in os_aio_array. Therefore
-	we do not have to acquire the protecting mutex yet */
-
-	ut_ad(os_aio_validate_skip());
-	ut_ad(segment < array->n_segments);
-
-	n = array->n_slots / array->n_segments;
-
-	if (array == os_aio_sync_array) {
-		WaitForSingleObject(
-			os_aio_array_get_nth_slot(array, pos)->handle,
-			INFINITE);
-		i = pos;
-	} else {
-		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
-		i = WaitForMultipleObjects((DWORD) n,
-					   array->handles + segment * n,
-					   FALSE,
-					   INFINITE);
-	}
+	ret = GetQueuedCompletionStatus(completion_port, &len, &key, 
+		(OVERLAPPED **)&slot, INFINITE);
 
 	if (srv_recovery_stats && recv_recovery_is_on() && n_consecutive) {
 		mutex_enter(&(recv_sys->mutex));
@@ -4381,28 +4298,15 @@ os_aio_windows_handle(
 		mutex_exit(&(recv_sys->mutex));
 	}
 
-	os_mutex_enter(array->mutex);
-
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
-	    && array->n_reserved == 0) {
-		*message1 = NULL;
-		*message2 = NULL;
-		os_mutex_exit(array->mutex);
-		return(TRUE);
+	/* If shutdown key was received, repost the shutdown message and exit */
+	if (ret && (key == IOCP_SHUTDOWN_KEY)) {
+		PostQueuedCompletionStatus(completion_port, 0, key, NULL);
+		os_thread_exit(NULL);
 	}
 
-	ut_a(i >= WAIT_OBJECT_0 && i <= WAIT_OBJECT_0 + n);
-
-	slot = os_aio_array_get_nth_slot(array, i + segment * n);
-
-	ut_a(slot->reserved);
-
-	if (orig_seg != ULINT_UNDEFINED) {
-		srv_set_io_thread_op_info(orig_seg,
-					  "get windows aio return value");
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		os_thread_exit(NULL);
 	}
-
-	ret = GetOverlappedResult(slot->file, &(slot->control), &len, TRUE);
 
 	*message1 = slot->message1;
 	*message2 = slot->message2;
@@ -4429,8 +4333,6 @@ os_aio_windows_handle(
 		ret_val = FALSE;
 	}
 
-	os_mutex_exit(array->mutex);
-
 	if (retry) {
 		/* retry failed read/write operation synchronously.
 		No need to hold array->mutex. */
@@ -4451,16 +4353,12 @@ os_aio_windows_handle(
 
 		switch (slot->type) {
 		case OS_FILE_WRITE:
-			ret = WriteFile(slot->file, slot->buf,
-					(DWORD) slot->len, &len,
-					&(slot->control));
-
+			ret_val = os_file_write(slot->name, slot->file, slot->buf, 
+				slot->control.Offset, slot->control.OffsetHigh, slot->len);
 			break;
 		case OS_FILE_READ:
-			ret = ReadFile(slot->file, slot->buf,
-				       (DWORD) slot->len, &len,
-				       &(slot->control));
-
+			ret_val = os_file_read(slot->file, slot->buf, 
+				 slot->control.Offset, slot->control.OffsetHigh, slot->len);
 			break;
 		default:
 			ut_error;
@@ -4485,7 +4383,7 @@ os_aio_windows_handle(
 		ret_val = ret && len == slot->len;
 	}
 
-	os_aio_array_free_slot(array, slot);
+	os_aio_array_free_slot((os_aio_array_t *)slot->arr, slot);
 
 	return(ret_val);
 }

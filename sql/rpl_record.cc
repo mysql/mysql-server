@@ -1,4 +1,4 @@
-/* Copyright 2007 MySQL AB. All rights reserved.
+/* Copyright 2007 MySQL AB.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,7 +102,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
         const uchar *old_pack_ptr= pack_ptr;
 #endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
-                              field->max_data_length(), TRUE);
+                              field->max_data_length());
         DBUG_PRINT("debug", ("field: %s; real_type: %d, pack_ptr: 0x%lx;"
                              " pack_ptr':0x%lx; bytes: %d",
                              field->field_name, field->real_type(),
@@ -303,7 +303,7 @@ unpack_row(Relay_log_info const *rli,
 #ifndef DBUG_OFF
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
-        pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
+        pack_ptr= f->unpack(f->ptr, pack_ptr, metadata);
 	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
                              f->field_name, metadata,

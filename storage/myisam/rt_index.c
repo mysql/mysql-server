@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2002-2006 MySQL AB & Ramil Kalimullin
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

@@ -47,9 +47,10 @@ static my_bool my_uuid_inited= 0;
 static struct my_rnd_struct uuid_rand;
 static uint nanoseq;
 static ulonglong uuid_time= 0;
+static longlong interval_timer_offset;
 static uchar uuid_suffix[2+6]; /* clock_seq and node */
 
-mysql_mutex_t LOCK_uuid_generator;
+static mysql_mutex_t LOCK_uuid_generator;
 
 /*
   Number of 100-nanosecond intervals between
@@ -68,6 +69,8 @@ static void set_clock_seq()
 {
   uint16 clock_seq= ((uint)(my_rnd(&uuid_rand)*16383)) | UUID_VARIANT;
   mi_int2store(uuid_suffix, clock_seq);
+  interval_timer_offset= (my_hrtime().val * 10 - my_interval_timer()/100 + 
+                          UUID_TIME_OFFSET);
 }
 
 
@@ -91,7 +94,7 @@ void my_uuid_init(ulong seed1, ulong seed2)
   if (my_uuid_inited)
     return;
   my_uuid_inited= 1;
-  now= my_getsystime();
+  now= my_interval_timer()/100 + interval_timer_offset;
   nanoseq= 0;
 
   if (my_gethwaddr(mac))
@@ -132,7 +135,7 @@ void my_uuid(uchar *to)
   DBUG_ASSERT(my_uuid_inited);
 
   mysql_mutex_lock(&LOCK_uuid_generator);
-  tv= my_getsystime() + UUID_TIME_OFFSET + nanoseq;
+  tv= my_interval_timer()/100 + interval_timer_offset + nanoseq;
 
   if (likely(tv > uuid_time))
   {
@@ -185,7 +188,7 @@ void my_uuid(uchar *to)
         irrelevant in the new numberspace.
       */
       set_clock_seq();
-      tv= my_getsystime() + UUID_TIME_OFFSET;
+      tv= my_interval_timer()/100 + interval_timer_offset;
       nanoseq= 0;
       DBUG_PRINT("uuid",("making new numberspace"));
     }
@@ -226,7 +229,8 @@ void my_uuid2str(const uchar *guid, char *s)
   {
     *s++= _dig_vec_lower[guid[i] >>4];
     *s++= _dig_vec_lower[guid[i] & 15];
-    if(i == 3 || i == 5 || i == 7 || i == 9)
+    /* Set '-' at intervals 3, 5, 7 and 9 */
+    if ((1 << i) & ((1 << 3) | (1 << 5) | (1 << 7) | (1 << 9)))
       *s++= '-';
   }
 }

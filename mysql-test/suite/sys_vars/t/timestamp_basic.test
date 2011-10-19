@@ -43,7 +43,7 @@ SET @session_start_value = @@session.timestamp;
 
 
 SET @@timestamp = DEFAULT;
-SELECT @@timestamp = UNIX_TIMESTAMP();
+SELECT floor(@@timestamp) = UNIX_TIMESTAMP(), @@timestamp = UNIX_TIMESTAMP(NOW(6));
 
 --echo '#---------------------FN_DYNVARS_001_02-------------------------#'
 ##############################################################
@@ -59,15 +59,21 @@ SET @@global.timestamp = "1000";
 ######################################################################## 
 
 SET @@timestamp = 0;
-SELECT @@timestamp = UNIX_TIMESTAMP();
+SELECT floor(@@timestamp) = UNIX_TIMESTAMP(), @@timestamp = UNIX_TIMESTAMP(NOW(6));
 
 --echo 'Setting 0 resets timestamp to session default timestamp'
 
 SET @@timestamp = -1000000000;
-SELECT @@timestamp = UNIX_TIMESTAMP();
+SELECT floor(@@timestamp) = UNIX_TIMESTAMP(), @@timestamp = UNIX_TIMESTAMP(NOW(6));
 
 SET @temp_ts = @@timestamp - @@timestamp;
 SELECT @temp_ts;
+
+SET @@timestamp = 1.1;
+SELECT @@timestamp;
+
+SET @@timestamp = 9999999999999999999999;
+SELECT @@timestamp;
 
 --echo '#--------------------FN_DYNVARS_001_04-------------------------#'
 ########################################################################### 
@@ -80,14 +86,6 @@ SET @@timestamp = "100";
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@timestamp = " ";
-
---Error ER_WRONG_TYPE_FOR_VAR
-SET @@timestamp = 1.1;
-
---Error ER_WRONG_TYPE_FOR_VAR
-SET @@timestamp = 9999999999999999999999;
-
-
 
 --echo '#----------------------FN_DYNVARS_001_06------------------------#'
 ######################################################################### 

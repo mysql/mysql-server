@@ -36,7 +36,7 @@ select 0 + b'1000000000000001';
 32769
 drop table if exists t1;
 create table t1 (a bit(65)) engine=innodb;
-ERROR 42000: Display width out of range for column 'a' (max = 64)
+ERROR 42000: Display width out of range for 'a' (max = 64)
 create table t1 (a bit(0)) engine=innodb;
 show create table t1;
 Table	Create Table

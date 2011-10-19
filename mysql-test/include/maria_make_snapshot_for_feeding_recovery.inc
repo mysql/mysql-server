@@ -11,6 +11,7 @@
 
 
 connection admin;
+--source include/wait_until_connected_again.inc
 
 let $mms_table_to_use=$mms_tables;
 let $mms_purpose=feeding_recovery;

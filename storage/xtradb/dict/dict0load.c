@@ -43,7 +43,6 @@ Created 4/24/1996 Heikki Tuuri
 #include "ha_prototypes.h" /* innobase_casedn_str() */
 #include "trx0sys.h"
 
-
 /** Following are six InnoDB system tables */
 static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_TABLES",
@@ -54,6 +53,7 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_FOREIGN_COLS",
 	"SYS_STATS"
 };
+
 /****************************************************************//**
 Compare the name of an index column.
 @return	TRUE if the i'th column of index is 'name'. */

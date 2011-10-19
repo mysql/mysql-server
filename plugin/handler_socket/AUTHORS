@@ -1,0 +1,22 @@
+Akira Higuchi (https://github.com/ahiguti)
+  - developed HanderSocket plugin, libhsclient, and perl-Net-HandlerSocket
+
+Yoshinori Matsunobu (https://github.com/yoshinorim)
+  - introduced autotools, added support for MySQL 5.5.6, added statistics
+    variables
+
+Jeff Hodges (https://github.com/jmhodges)
+  - fixed some autotools scripts
+
+Toru Yamaguchi (https://github.com/zigorou)
+  - ported to MacOS X
+
+Moriyoshi Koizumi (https://github.com/moriyoshi)
+  - fixed some autotools scripts
+
+takeda-at (https://github.com/takada-at)
+  - added simple authorization function
+
+WheresWardy (https://github.com/WheresWardy)
+  - added authentication functions to libhsclient
+

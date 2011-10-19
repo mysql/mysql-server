@@ -3,7 +3,11 @@
 # This was a suspected bug (not a bug).
 
 -- source include/not_embedded.inc
--- source include/have_innodb.inc
+
+#
+# This test will not work if we don't do full shutdown of innodb
+#
+set @@global.innodb_fast_shutdown=0;
 
 CREATE TABLE t(a INT)ENGINE=InnoDB;
 RENAME TABLE t TO u;

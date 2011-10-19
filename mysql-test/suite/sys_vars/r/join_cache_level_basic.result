@@ -37,6 +37,7 @@ select @@global.join_cache_level;
 0
 set session join_cache_level=cast(-1 as unsigned int);
 Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect join_cache_level value: '18446744073709551615'
 select @@session.join_cache_level;
 @@session.join_cache_level

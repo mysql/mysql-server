@@ -74,6 +74,7 @@
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "sql_audit.h"
+#include "sql_derived.h"                        // mysql_handle_derived
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
@@ -128,7 +129,7 @@ bool check_view_single_update(List<Item> &fields, List<Item> *values,
   {
     it.init(*values);
     while ((item= it++))
-      tables|= item->used_tables();
+      tables|= item->view_used_tables(view);
   }
 
   /* Convert to real table bits */
@@ -145,6 +146,11 @@ bool check_view_single_update(List<Item> &fields, List<Item> *values,
   if (view->check_single_table(&tbl, tables, view) || tbl == 0)
     goto error;
 
+  /*
+    A buffer for the insert values was allocated for the merged view.
+    Use it.
+  */
+  tbl->table->insert_values= view->table->insert_values;
   view->table= tbl->table;
   *map= tables;
 
@@ -248,6 +254,10 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     */
     table_list->next_local= 0;
     context->resolve_in_table_list_only(table_list);
+    /* 'Unfix' fields to allow correct marking by the setup_fields function. */
+    if (table_list->is_view())
+      unfix_fields(fields);
+
     res= setup_fields(thd, 0, fields, MARK_COLUMNS_WRITE, 0, 0);
 
     /* Restore the current context. */
@@ -257,7 +267,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     if (res)
       return -1;
 
-    if (table_list->effective_algorithm == VIEW_ALGORITHM_MERGE)
+    if (table_list->is_view() && table_list->is_merged_derived())
     {
       if (check_view_single_update(fields,
                                    fields_and_values_from_different_maps ?
@@ -346,7 +356,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   if (setup_fields(thd, 0, update_fields, MARK_COLUMNS_WRITE, 0, 0))
     return -1;
 
-  if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
+  if (insert_table_list->is_view() &&
+      insert_table_list->is_merged_derived() &&
       check_view_single_update(update_fields, &update_values,
                                insert_table_list, map))
     return -1;
@@ -688,8 +699,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     We can't write-delayed into a table locked with LOCK TABLES:
     this will lead to a deadlock, since the delayed thread will
-    never be able to get a lock on the table. QQQ: why not
-    upgrade the lock here instead?
+    never be able to get a lock on the table.
   */
   if (table_list->lock_type == TL_WRITE_DELAYED &&
       thd->locked_tables_mode &&
@@ -700,6 +710,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
              table_list->table_name);
     DBUG_RETURN(TRUE);
   }
+  /*
+    mark the table_list as a target for insert, to skip the DT/view prepare phase 
+    for correct access rights checks
+    TODO: remove this hack
+  */
+  table_list->skip_prepare_derived= TRUE;
 
   if (table_list->lock_type == TL_WRITE_DELAYED)
   {
@@ -711,6 +727,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (open_and_lock_tables(thd, table_list, TRUE, 0))
       DBUG_RETURN(TRUE);
   }
+
   lock_type= table_list->lock_type;
 
   thd_proc_info(thd, "init");
@@ -884,7 +901,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           be overwritten by fill_record() anyway (and fill_record() does not
           use default values in this case).
         */
-        table->record[0][0]= share->default_values[0];
+#ifdef HAVE_valgrind
+        if (table->file->ha_table_flags() && HA_RECORD_MUST_BE_CLEAN_ON_WRITE)
+          restore_record(table,s->default_values);	// Get empty record
+        else
+#endif
+          table->record[0][0]= share->default_values[0];
 
         /* Fix undefined null_bits. */
         if (share->null_bytes > 1 && share->last_null_bit_pos)
@@ -1095,6 +1117,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     ::my_ok(thd, info.copied + info.deleted + updated, id, buff);
   }
   thd->abort_on_warning= 0;
+  if (thd->lex->current_select->first_cond_optimization)
+  {
+    thd->lex->current_select->save_leaf_tables(thd);
+    thd->lex->current_select->first_cond_optimization= 0;
+  }
+  
   DBUG_RETURN(FALSE);
 
 abort:
@@ -1223,6 +1251,11 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    DBUG_RETURN(TRUE);
+  }
   /*
      first table in list is the one we'll INSERT into, requires INSERT_ACL.
      all others require SELECT_ACL only. the ACL requirement below is for
@@ -1233,14 +1266,16 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list,
-                                    &thd->lex->select_lex.leaf_tables,
-                                    select_insert, INSERT_ACL, SELECT_ACL))
+                                    thd->lex->select_lex.leaf_tables,
+                                    select_insert, INSERT_ACL, SELECT_ACL,
+                                    TRUE))
     DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
   {
     thd->lex->empty_field_list_on_rset= 1;
-    if (!table_list->table)
+    if (!thd->lex->select_lex.leaf_tables.head()->table ||
+        table_list->is_multitable())
     {
       my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
                table_list->view_db.str, table_list->view_name.str);
@@ -1331,6 +1366,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   /* INSERT should have a SELECT or VALUES clause */
   DBUG_ASSERT (!select_insert || !values);
 
+  if (mysql_handle_derived(thd->lex, DT_INIT))
+    DBUG_RETURN(TRUE); 
+  if (table_list->handle_derived(thd->lex, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(TRUE); 
+  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
+    DBUG_RETURN(TRUE); 
   /*
     For subqueries in VALUES() we should not see the table in which we are
     inserting (for INSERT ... SELECT this is done by changing table_list,
@@ -1626,7 +1667,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
         info->touched++;
-        if (!records_are_comparable(table) || compare_records(table))
+        if (!records_are_comparable(table) || compare_record(table))
         {
           if ((error=table->file->ha_update_row(table->record[1],
                                                 table->record[0])) &&
@@ -1837,10 +1878,11 @@ class delayed_row :public ilink {
 public:
   char *record;
   enum_duplicates dup;
-  time_t start_time;
+  my_time_t start_time;
+  ulong start_time_sec_part;
   ulong sql_mode;
   bool auto_increment_field_not_null;
-  bool query_start_used, ignore, log_query;
+  bool query_start_used, ignore, log_query, query_start_sec_part_used;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_prev_stmt;
   ulonglong forced_insert_id;
@@ -2094,6 +2136,11 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
       mysql_mutex_lock(&LOCK_thread_count);
       thread_count++;
       mysql_mutex_unlock(&LOCK_thread_count);
+      /*
+        Annotating delayed inserts is not supported.
+      */
+      di->thd.variables.binlog_annotate_rows_events= 0;
+
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name,
                                   MYF(MY_WME | ME_FATALERROR)),
@@ -2218,6 +2265,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   TABLE *copy;
   TABLE_SHARE *share;
   uchar *bitmap;
+  char *copy_tmp;
   DBUG_ENTER("Delayed_insert::get_local_table");
 
   /* First request insert thread to get a lock */
@@ -2266,14 +2314,15 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
     the other record buffers and alignment are unnecessary.
   */
   thd_proc_info(client_thd, "allocating local table");
-  copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
-				   (share->fields+1)*sizeof(Field**)+
-				   share->reclength +
-                                   share->column_bitmap_size*3);
-  if (!copy)
+  copy_tmp= (char*) client_thd->alloc(sizeof(*copy)+
+                                      (share->fields+1)*sizeof(Field**)+
+                                      share->reclength +
+                                      share->column_bitmap_size*3);
+  if (!copy_tmp)
     goto error;
 
   /* Copy the TABLE object. */
+  copy= new (copy_tmp) TABLE;
   *copy= *table;
   /* We don't need to change the file handler here */
   /* Assign the pointers for the field pointers array and the record. */
@@ -2385,8 +2434,10 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   if (!(row->record= (char*) my_malloc(table->s->reclength, MYF(MY_WME))))
     goto err;
   memcpy(row->record, table->record[0], table->s->reclength);
-  row->start_time=		thd->start_time;
-  row->query_start_used=	thd->query_start_used;
+  row->start_time=                thd->start_time;
+  row->query_start_used=          thd->query_start_used;
+  row->start_time_sec_part=       thd->start_time_sec_part;
+  row->query_start_sec_part_used= thd->query_start_sec_part_used;
   /*
     those are for the binlog: LAST_INSERT_ID() has been evaluated at this
     time, so record does not need it, but statement-based binlogging of the
@@ -2802,12 +2853,13 @@ pthread_handler_t handle_delayed_insert(void *arg)
     DBUG_LEAVE;
   }
 
-  close_thread_tables(thd);			// Free the table
-  thd->mdl_context.release_transactional_locks();
   di->table=0;
   thd->killed= THD::KILL_CONNECTION;	        // If error
-  mysql_cond_broadcast(&di->cond_client);       // Safety
   mysql_mutex_unlock(&di->mutex);
+
+  close_thread_tables(thd);			// Free the table
+  thd->mdl_context.release_transactional_locks();
+  mysql_cond_broadcast(&di->cond_client);       // Safety
 
   mysql_mutex_lock(&LOCK_delayed_create);       // Because of delayed_get_table
   mysql_mutex_lock(&LOCK_delayed_insert);
@@ -2909,6 +2961,8 @@ bool Delayed_insert::handle_inserts(void)
 
     thd.start_time=row->start_time;
     thd.query_start_used=row->query_start_used;
+    thd.start_time_sec_part=row->start_time_sec_part;
+    thd.query_start_sec_part_used=row->query_start_sec_part_used;
     /*
       To get the exact auto_inc interval to store in the binlog we must not
       use values from the previous interval (of the previous rows).
@@ -3128,8 +3182,8 @@ bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
-  TABLE_LIST *first_select_leaf_table;
   DBUG_ENTER("mysql_insert_select_prepare");
+
 
   /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
@@ -3143,21 +3197,38 @@ bool mysql_insert_select_prepare(THD *thd)
                            &select_lex->where, TRUE, FALSE, FALSE))
     DBUG_RETURN(TRUE);
 
+  DBUG_ASSERT(select_lex->leaf_tables.elements != 0);
+  List_iterator<TABLE_LIST> ti(select_lex->leaf_tables);
+  TABLE_LIST *table;
+  uint insert_tables;
+
+  if (select_lex->first_cond_optimization)
+  {
+    /* Back up leaf_tables list. */
+    Query_arena *arena= thd->stmt_arena, backup;
+    arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+
+    insert_tables= select_lex->insert_tables;
+    while ((table= ti++) && insert_tables--)
+    {
+      select_lex->leaf_tables_exec.push_back(table);
+      table->tablenr_exec= table->table->tablenr;
+      table->map_exec= table->table->map;
+      table->maybe_null_exec= table->table->maybe_null;
+    }
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+  }
+  ti.rewind();
   /*
     exclude first table from leaf tables list, because it belong to
     INSERT
   */
-  DBUG_ASSERT(select_lex->leaf_tables != 0);
-  lex->leaf_tables_insert= select_lex->leaf_tables;
   /* skip all leaf tables belonged to view where we are insert */
-  for (first_select_leaf_table= select_lex->leaf_tables->next_leaf;
-       first_select_leaf_table &&
-       first_select_leaf_table->belong_to_view &&
-       first_select_leaf_table->belong_to_view ==
-       lex->leaf_tables_insert->belong_to_view;
-       first_select_leaf_table= first_select_leaf_table->next_leaf)
-  {}
-  select_lex->leaf_tables= first_select_leaf_table;
+  insert_tables= select_lex->insert_tables;
+  while ((table= ti++) && insert_tables--)
+    ti.remove();
+
   DBUG_RETURN(FALSE);
 }
 
@@ -3375,7 +3446,7 @@ void select_insert::cleanup()
 select_insert::~select_insert()
 {
   DBUG_ENTER("~select_insert");
-  if (table)
+  if (table && table->created)
   {
     table->next_number_field=0;
     table->auto_increment_field_not_null= FALSE;
@@ -3387,7 +3458,7 @@ select_insert::~select_insert()
 }
 
 
-bool select_insert::send_data(List<Item> &values)
+int select_insert::send_data(List<Item> &values)
 {
   DBUG_ENTER("select_insert::send_data");
   bool error=0;
@@ -3687,9 +3758,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
-  tmp_table.s->db_low_byte_first= 
-        test(create_info->db_type == myisam_hton ||
-             create_info->db_type == heap_hton);
   tmp_table.null_row= 0;
   tmp_table.maybe_null= 0;
 
@@ -3777,7 +3845,11 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
     }
     if (!table)                                   // open failed
+    {
+      if (!thd->is_error())                     // CREATE ... IF NOT EXISTS
+        my_ok(thd);                             //   succeed, but did nothing
       DBUG_RETURN(0);
+    }
   }
 
   DBUG_EXECUTE_IF("sleep_create_select_before_lock", my_sleep(6000000););

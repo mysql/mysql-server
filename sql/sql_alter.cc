@@ -103,7 +103,7 @@ bool Alter_table_statement::execute(THD *thd)
                             &alter_info,
                             select_lex->order_list.elements,
                             select_lex->order_list.first,
-                            lex->ignore);
+                            lex->ignore, lex->online);
 
   DBUG_RETURN(result);
 }

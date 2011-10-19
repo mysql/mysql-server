@@ -1,6 +1,0 @@
-drop table if exists t1;
-create table t1 (s1 int) engine=federated
-connection='mysql://root@localhost/federated/t1' partition by list (s1)
-(partition p1 values in (1), partition p2 values in (2));
-ERROR HY000: Engine cannot be used in partitioned tables
-End of 5.1 tests

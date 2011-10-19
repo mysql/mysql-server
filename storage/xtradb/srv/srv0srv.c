@@ -136,6 +136,20 @@ UNIV_INTERN ulint	srv_max_file_format_at_startup = DICT_TF_FORMAT_MAX;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;
+#ifdef __WIN__
+/* Windows native condition variables. We use runtime loading / function
+pointers, because they are not available on Windows Server 2003 and
+Windows XP/2000.
+
+We use condition for events on Windows if possible, even if os_event
+resembles Windows kernel event object well API-wise. The reason is
+performance, kernel objects are heavyweights and WaitForSingleObject() is a
+performance killer causing calling thread to context switch. Besides, Innodb
+is preallocating large number (often millions) of os_events. With kernel event
+objects it takes a big chunk out of non-paged pool, which is better suited
+for tasks like IO than for storing idle event objects. */
+UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
+#endif /* __WIN__ */
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
@@ -433,7 +447,7 @@ UNIV_INTERN ulong	srv_ibuf_accel_rate = 100;
 UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
 UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
 
-UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulint	srv_deprecated_enable_unsafe_group_commit = 0;
 UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
 UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
 
@@ -751,7 +765,7 @@ UNIV_INTERN os_event_t	srv_error_event;
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
-UNIV_INTERN os_event_t	srv_purge_thread_event;
+UNIV_INTERN os_event_t	srv_shutdown_event;
 
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
@@ -1090,7 +1104,7 @@ srv_init(void)
 	srv_monitor_event = os_event_create(NULL);
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
-	srv_purge_thread_event = os_event_create(NULL);
+	srv_shutdown_event = os_event_create(NULL);
 
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
@@ -1208,7 +1222,7 @@ retry:
 			enter_innodb_with_tickets(trx);
 			return;
 		}
-		os_atomic_increment_lint(&srv_conc_n_threads, -1);
+		(void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	}
 	if (!has_yielded)
 	{
@@ -1238,7 +1252,7 @@ retry:
 static void
 srv_conc_exit_innodb_timer_based(trx_t* trx)
 {
-	os_atomic_increment_lint(&srv_conc_n_threads, -1);
+        (void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 	return;
@@ -1460,7 +1474,7 @@ srv_conc_force_enter_innodb(
 	ut_ad(srv_conc_n_threads >= 0);
 #ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
-		os_atomic_increment_lint(&srv_conc_n_threads, 1);
+                (void) os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = 1;
 		return;
@@ -3110,6 +3124,7 @@ srv_master_thread(
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
+        memset(&prev_flush_info, 0, sizeof(prev_flush_info));
 	mutex_enter(&kernel_mutex);
 
 	slot = srv_table_reserve_slot(SRV_MASTER);
@@ -3131,6 +3146,8 @@ loop:
 	buf_get_total_stat(&buf_stat);
 	n_ios_very_old = log_sys->n_log_ios + buf_stat.n_pages_read
 		+ buf_stat.n_pages_written;
+        n_pages_flushed= 0;
+
 	mutex_enter(&kernel_mutex);
 
 	/* Store the user activity counter at the start of this loop */
@@ -3441,8 +3458,8 @@ retry_flush_batch:
 					blocks_sum += blocks_num;
 				}
 
-				n_flush = blocks_sum * (lsn - lsn_old) / log_sys->max_modified_age_async;
-				if (flushed_blocks_sum > n_pages_flushed_prev) {
+				n_flush = (lint) (blocks_sum * (lsn - lsn_old) / log_sys->max_modified_age_async);
+				if ((ulint) flushed_blocks_sum > n_pages_flushed_prev) {
 					n_flush -= (flushed_blocks_sum - n_pages_flushed_prev);
 				}
 
@@ -3575,7 +3592,7 @@ retry_flush_batch:
 
 	/* Make a new checkpoint about once in 10 seconds */
 
-	log_checkpoint(TRUE, FALSE);
+	log_checkpoint(TRUE, FALSE, TRUE);
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -3684,7 +3701,7 @@ flush_loop:
 
 	srv_main_thread_op_info = "making checkpoint";
 
-	log_checkpoint(TRUE, FALSE);
+	log_checkpoint(TRUE, FALSE, TRUE);
 
 	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
 
@@ -3857,9 +3874,9 @@ srv_purge_thread(
 		srv_sync_log_buffer_in_background();
 
 		cur_time = ut_time_ms();
-		os_event_reset(srv_purge_thread_event);
+		os_event_reset(srv_shutdown_event);
 		if (next_itr_time > cur_time) {
-			os_event_wait_time(srv_purge_thread_event,
+			os_event_wait_time(srv_shutdown_event,
 					ut_min(1000000,
 					(next_itr_time - cur_time)
 					 * 1000));

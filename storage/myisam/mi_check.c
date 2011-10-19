@@ -80,6 +80,8 @@ static SORT_KEY_BLOCKS	*alloc_key_blocks(HA_CHECK *param, uint blocks,
 					  uint buffer_length);
 static ha_checksum mi_byte_checksum(const uchar *buf, uint length);
 static void set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share);
+static int replace_data_file(HA_CHECK *param, MI_INFO *info,
+                             const char *name, File new_file);
 
 void myisamchk_init(HA_CHECK *param)
 {
@@ -989,9 +991,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
     if (killed_ptr(param))
       goto err2;
     switch (info->s->data_file_type) {
-    case BLOCK_RECORD:
-      DBUG_ASSERT(0);                           /* Impossible */
-      break;
     case STATIC_RECORD:
       if (my_b_read(&param->read_cache,(uchar*) record,
 		    info->s->base.pack_reclength))
@@ -1208,6 +1207,9 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
       param->glob_crc+= (*info->s->calc_check_checksum)(info,record);
       link_used+= (block_info.filepos - start_recpos);
       used+= (pos-start_recpos);
+      break;
+    default:
+      DBUG_ASSERT(0);                           /* Impossible */
       break;
     } /* switch */
     if (! got_error)
@@ -1727,29 +1729,8 @@ err:
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
     {
-      mysql_file_close(new_file, MYF(0));
-      info->dfile=new_file= -1;
-      /*
-        On Windows, the old data file cannot be deleted if it is either
-        open, or memory mapped. Closing the file won't remove the memory
-        map implicilty on Windows. We closed the data file, but we keep
-        the MyISAM table open. A memory map will be closed on the final
-        mi_close() only. So we need to unmap explicitly here. After
-        renaming the new file under the hook, we couldn't use the map of
-        the old file any more anyway.
-      */
-      if (info->s->file_map)
-      {
-        (void) my_munmap((char*) info->s->file_map,
-                         (size_t) info->s->mmaped_length);
-        info->s->file_map= NULL;
-      }
-      if (change_to_newfile(share->data_file_name, MI_NAME_DEXT, DATA_TMP_EXT,
-			    (param->testflag & T_BACKUP_DATA ?
-			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,name,-1))
-	got_error=1;
-
+      got_error= replace_data_file(param, info, name, new_file);
+      new_file= -1;
       param->retry_repair= 0;
     }
   }
@@ -2007,8 +1988,8 @@ int mi_sort_index(HA_CHECK *param, register MI_INFO *info, char * name)
   (void) mysql_file_close(share->kfile, MYF(MY_WME));
   share->kfile = -1;
   (void) mysql_file_close(new_file, MYF(MY_WME));
-  if (change_to_newfile(share->index_file_name, MI_NAME_IEXT, INDEX_TMP_EXT,
-			MYF(0)) ||
+  if (change_to_newfile(share->index_file_name,MI_NAME_IEXT,INDEX_TMP_EXT,
+                        0, MYF(0)) ||
       mi_open_keyfile(share))
     goto err2;
   info->lock_type= F_UNLCK;			/* Force mi_readinfo to lock */
@@ -2137,14 +2118,16 @@ err:
 	*/
 
 int change_to_newfile(const char * filename, const char * old_ext,
-                      const char * new_ext, myf MyFlags)
+		      const char * new_ext,
+                      time_t backup_time,
+		      myf MyFlags)
 {
   char old_filename[FN_REFLEN],new_filename[FN_REFLEN];
   /* Get real path to filename */
   (void) fn_format(old_filename,filename,"",old_ext,2+4+32);
   return my_redel(old_filename,
 		  fn_format(new_filename,old_filename,"",new_ext,2+4),
-		  MYF(MY_WME | MY_LINK_WARNING | MyFlags));
+                  backup_time, MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 } /* change_to_newfile */
 
 
@@ -2548,13 +2531,8 @@ err:
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
     {
-      mysql_file_close(new_file, MYF(0));
-      info->dfile=new_file= -1;
-      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT, DATA_TMP_EXT,
-			    (param->testflag & T_BACKUP_DATA ?
-			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,name,-1))
-	got_error=1;
+      got_error= replace_data_file(param, info, name, new_file);
+      new_file= -1;
     }
   }
   if (got_error)
@@ -3080,13 +3058,8 @@ err:
     /* Replace the actual file with the temporary file */
     if (new_file >= 0)
     {
-      mysql_file_close(new_file, MYF(0));
-      info->dfile=new_file= -1;
-      if (change_to_newfile(share->data_file_name, MI_NAME_DEXT, DATA_TMP_EXT,
-			    (param->testflag & T_BACKUP_DATA ?
-			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
-	  mi_open_datafile(info,share,name,-1))
-	got_error=1;
+      got_error= replace_data_file(param, info, name, new_file);
+      new_file= -1;
     }
   }
   if (got_error)
@@ -3257,9 +3230,6 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
     DBUG_RETURN(1);
 
   switch (share->data_file_type) {
-  case BLOCK_RECORD:
-    DBUG_ASSERT(0);                           /* Impossible */
-    break;
   case STATIC_RECORD:
     for (;;)
     {
@@ -3653,6 +3623,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
                                                            record));
       DBUG_RETURN(0);
     }
+    default:
+      DBUG_ASSERT(0);                           /* Impossible */
+      break;
   }
   DBUG_RETURN(1);                               /* Impossible */
 }
@@ -3689,9 +3662,6 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
   if (sort_param->fix_datafile)
   {
     switch (sort_info->new_data_file_type) {
-    case BLOCK_RECORD:
-      DBUG_ASSERT(0);                           /* Impossible */
-      break;
     case STATIC_RECORD:
       if (my_b_write(&info->rec_cache,sort_param->record,
 		     share->base.pack_reclength))
@@ -3764,6 +3734,9 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       /* sort_info->param->glob_crc+=info->checksum; */
       sort_param->filepos+=reclength+length;
       info->s->state.split++;
+      break;
+    default:
+      DBUG_ASSERT(0);                           /* Impossible */
       break;
     }
   }
@@ -4747,3 +4720,52 @@ set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share)
   }
 }
 
+
+int mi_make_backup_of_index(MI_INFO *info, time_t backup_time, myf flags)
+{
+  char backup_name[FN_REFLEN + MY_BACKUP_NAME_EXTRA_LENGTH];
+  my_create_backup_name(backup_name, info->s->index_file_name, backup_time);
+  return my_copy(info->s->index_file_name, backup_name, flags);
+}
+
+
+static int replace_data_file(HA_CHECK *param, MI_INFO *info,
+                             const char *name, File new_file)
+{
+  MYISAM_SHARE *share=info->s;
+
+  mysql_file_close(new_file,MYF(0));
+  info->dfile= -1;
+  if (param->testflag & T_BACKUP_DATA)
+  {
+    char buff[MY_BACKUP_NAME_EXTRA_LENGTH+1];
+    my_create_backup_name(buff, "", param->backup_time);
+    my_printf_error(0,                          /* No error, just info */
+                    "Making backup of data file with extension '%s'",
+                    MYF(ME_JUST_INFO | ME_NOREFRESH), buff);
+  }
+
+  /*
+    On Windows, the old data file cannot be deleted if it is either
+    open, or memory mapped. Closing the file won't remove the memory
+    map implicilty on Windows. We closed the data file, but we keep
+    the MyISAM table open. A memory map will be closed on the final
+    mi_close() only. So we need to unmap explicitly here. After
+    renaming the new file under the hook, we couldn't use the map of
+    the old file any more anyway.
+  */
+  if (info->s->file_map)
+  {
+    (void) my_munmap((char*) info->s->file_map,
+                     (size_t) info->s->mmaped_length);
+    info->s->file_map= NULL;
+  }
+
+  if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
+                        DATA_TMP_EXT, param->backup_time,
+                        (param->testflag & T_BACKUP_DATA ?
+                         MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
+      mi_open_datafile(info, share, name, -1))
+    return 1;
+  return 0;
+}

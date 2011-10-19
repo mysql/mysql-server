@@ -15,19 +15,21 @@
 --source include/have_innodb.inc
 
 let $engine_type= InnoDB;
-# According to Oracle: "InnoDB's estimate for the index cardinality
-# depends on a pseudo random number generator (it picks up random
-# pages to sample). After an optimization that was made in r2625 two
-# EXPLAINs started returning a different number of rows (3 instead of
-# 4)", so:
-let $index_merge_random_rows_in_EXPLAIN = 1;
 # InnoDB does not support Merge tables (affects include/index_merge1.inc)
 let $merge_table_support= 0;
 
-# -- [DISABLED Bug#45727]
+set @optimizer_switch_save= @@optimizer_switch;
+set optimizer_switch='index_merge_sort_intersection=off';
+
+# The first two tests are disabled because of non deterministic explain output.
+# If include/index_merge1.inc can be enabled for InnoDB and all other
+# storage engines, please remove the subtest for Bug#21277 from
+# include/index_merge2.inc.
+# This test exists already in include/index_merge1.inc.
 # --source include/index_merge1.inc
 # --source include/index_merge_ror.inc
-# --source include/index_merge2.inc
+#the next one is disabled in MySQL too: Bug#45727
+--source include/index_merge2.inc
 
 --source include/index_merge_2sweeps.inc
 --source include/index_merge_ror_cpk.inc
@@ -66,12 +68,14 @@ INSERT INTO t1 VALUES (1000000, 0, 0);
 
 SET SESSION sort_buffer_size = 1024*36;
 
+# We have to use FORCE INDEX here as Innodb gives inconsistent estimates
+# which causes different query plans.
 EXPLAIN
 SELECT COUNT(*) FROM 
-  (SELECT * FROM t1 
+  (SELECT * FROM t1 FORCE INDEX(primary,idx)
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 SELECT COUNT(*) FROM 
-  (SELECT * FROM t1 
+  (SELECT * FROM t1 FORCE INDEX(primary,idx)
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 
 --replace_column 9 #
@@ -84,3 +88,38 @@ SELECT COUNT(*) FROM
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Testcase Backport: BUG#48093: 6.0 Server not processing equivalent IN clauses properly
+--echo #            with Innodb tables
+--echo #
+
+CREATE TABLE t1 (
+  i int(11) DEFAULT NULL,
+  v1 varchar(1) DEFAULT NULL,
+  v2 varchar(20) DEFAULT NULL,
+  KEY i (i),
+  KEY v (v1,i)
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES (1,'f','no');
+INSERT INTO t1 VALUES (2,'u','yes-u');
+INSERT INTO t1 VALUES (2,'h','yes-h');
+INSERT INTO t1 VALUES (3,'d','no');
+
+--echo
+SELECT v2
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+--echo
+--echo # Should not use index_merge
+EXPLAIN
+SELECT v2
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+DROP TABLE t1;
+
+set optimizer_switch= @optimizer_switch_save;
+

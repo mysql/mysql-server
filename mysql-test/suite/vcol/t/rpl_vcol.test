@@ -27,7 +27,7 @@
 
 ##### Storage engine to be tested
 # Set the session storage engine
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 SET @@session.storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------------#
@@ -68,4 +68,3 @@ sync_with_master;
 # Cleanup
 --source suite/vcol/inc/vcol_cleanup.inc
 --source include/rpl_end.inc
-

@@ -28,6 +28,7 @@
 ##### Options, for debugging support #####
 let $debug= 0;
 
+--source include/big_test.inc
 # The server must support partitioning.
 --source include/have_partition.inc
 

@@ -142,7 +142,7 @@ BEGIN
 SET @v1 = f1;
 SELECT @v1;
 END//
-ERROR 42000: Too big precision 256 specified for column ''. Maximum is 65.
+ERROR 42000: Too big precision 256 specified for ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist
@@ -152,7 +152,7 @@ BEGIN
 SET @v1 = f1;
 SELECT @v1;
 END//
-ERROR 42000: Too big precision 66 specified for column ''. Maximum is 65.
+ERROR 42000: Too big precision 66 specified for ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist
@@ -1548,7 +1548,7 @@ BEGIN
 SET f1 = 1000000 + f1;
 RETURN f1;
 END//
-ERROR 42000: Too big scale 31 specified for column ''. Maximum is 30.
+ERROR 42000: Too big scale 31 specified for ''. Maximum is 30.
 SELECT fn1( 1.3326e+8 );
 ERROR 42000: FUNCTION db_storedproc.fn1 does not exist
 CREATE FUNCTION fn1( f1 DECIMAL(63, 30) ) RETURNS DECIMAL(63, 30)
@@ -3939,7 +3939,9 @@ CREATE PROCEDURE sp1()
 alter:BEGIN
 SELECT @x;
 END//
-ERROR 0A000: ALTER VIEW is not allowed in stored procedures
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':BEGIN
+SELECT @x;
+END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 analyze:BEGIN
@@ -5835,7 +5837,7 @@ fetch cur1 into e;
 SELECT x, y, z, a, b, c, d, e;
 close cur1;
 END//
-ERROR 42000: Too big scale 255 specified for column ''. Maximum is 30.
+ERROR 42000: Too big scale 255 specified for ''. Maximum is 30.
 CALL sp6();
 ERROR 42000: PROCEDURE db_storedproc.sp6 does not exist
 DROP PROCEDURE IF EXISTS sp6;
@@ -13905,7 +13907,7 @@ CALL sp1();
 xx
 0000-00-00 00:00:00
 Warnings:
-Warning	1264	Out of range value for column 'xx' at row 1
+Warning	1265	Data truncated for column 'xx' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN

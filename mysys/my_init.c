@@ -110,6 +110,7 @@ my_bool my_init(void)
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
+    my_time_init();
     my_win_init();
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
 #ifdef __WIN__
@@ -250,6 +251,7 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 {
   DBUG_PRINT("my",("Expression: %s  function: %s  file: %s, line: %d",
 		   expression, function, file, line));
+  __debugbreak();
 }
 
 
@@ -274,40 +276,12 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   fprintf(stderr, " At %s:%d\n", file, line);
   va_end(args);
   (void) fflush(stderr);
+  __debugbreak();
 
   return 0; /* Error is handled */
 }
 #pragma runtime_checks("", restore)
 #endif
-
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
-#define MS 10000000
-
-static void win_init_time(void)
-{
-  /* The following is used by time functions */
-  FILETIME ft;
-  LARGE_INTEGER li, t_cnt;
-
-  DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
-
-  if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
-    query_performance_frequency= 0;
-  else
-  {
-    GetSystemTimeAsFileTime(&ft);
-    li.LowPart=  ft.dwLowDateTime;
-    li.HighPart= ft.dwHighDateTime;
-    query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-    QueryPerformanceCounter(&t_cnt);
-    query_performance_offset-= (t_cnt.QuadPart /
-                                query_performance_frequency * MS +
-                                t_cnt.QuadPart %
-                                query_performance_frequency * MS /
-                                query_performance_frequency);
-  }
-}
-
 
 /*
   Open HKEY_LOCAL_MACHINE\SOFTWARE\MySQL and set any strings found
@@ -392,7 +366,6 @@ static void my_win_init(void)
 
   _tzset();
 
-  win_init_time();
   win_init_registry();
 
   DBUG_VOID_RETURN;

@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
-
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "sql_list.h"                           /* Sql_alloc */
 #include "mdl.h"
 #include "datadict.h"
+#include "sql_string.h"                         /* String */
 
 #ifndef MYSQL_CLIENT
 
@@ -203,7 +204,8 @@ typedef struct st_order {
   bool   counter_used;                  /* parameter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
-  table_map used, depend_map;
+  table_map used; /* NOTE: the below is only set to 0 but is still used by eq_ref_table */
+  table_map depend_map;
 } ORDER;
 
 /**
@@ -565,7 +567,7 @@ struct TABLE_SHARE
   I_P_List <TABLE, TABLE_share> free_tables;
 
   engine_option_value *option_list;     /* text options for table */
-  void *option_struct;                  /* structure with parsed options */
+  ha_table_option_struct *option_struct; /* structure with parsed options */
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -659,7 +661,6 @@ struct TABLE_SHARE
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
-  bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
   bool deleting;                        /* going to delete this table */
@@ -937,7 +938,7 @@ public:
     needed by the query without reading the row.
   */
   key_map covering_keys;
-  key_map quick_keys, merge_keys;
+  key_map quick_keys, merge_keys,intersect_keys;
   /*
     A set of keys that can be used in the query that references this
     table.
@@ -967,10 +968,11 @@ public:
   /* Position in thd->locked_table_list under LOCK TABLES */
   TABLE_LIST *pos_in_locked_tables;
   ORDER		*group;
-  const char	*alias;            	  /* alias or table name */
+  String	alias;            	  /* alias or table name */
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, def_vcol_set, tmp_set; 
+  MY_BITMAP     eq_join_set;         /* used to mark equi-joined fields */
   MY_BITMAP     *read_set, *write_set, *vcol_set; /* Active column sets */
   /*
    The ID of the query that opened and is using this table. Has different
@@ -1036,7 +1038,6 @@ public:
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		status;                 /* What's in record[0] */
   uint		db_stat;		/* mode of file as in handler.h */
-  uint          max_keys;               /* Size of allocated key_info array. */
   /* number of select if it is derived table */
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
@@ -1072,7 +1073,7 @@ public:
     See TABLE_LIST::process_index_hints().
   */
   bool force_index_group;
-  bool distinct,const_table,no_rows;
+  bool distinct,const_table,no_rows, used_for_duplicate_elimination;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
@@ -1094,9 +1095,10 @@ public:
   */
   bool auto_increment_field_not_null;
   bool insert_or_update;             /* Can be used by the handler */
-  bool alias_name_used;		/* true if table_name is alias */
+  bool alias_name_used;              /* true if table_name is alias */
   bool get_fields_in_item_tree;      /* Signal to fix_field */
   bool m_needs_reopen;
+  bool created;    /* For tmp tables. TRUE <=> tmp table was actually created.*/
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
@@ -1114,6 +1116,7 @@ public:
   partition_info *part_info;            /* Partition related information */
   bool no_partitions_used; /* If true, all partitions have been pruned away */
 #endif
+  uint max_keys; /* Size of allocated key_info array. */
   MDL_ticket *mdl_ticket;
 
   void init(THD *thd, TABLE_LIST *tl);
@@ -1181,6 +1184,14 @@ public:
   bool add_tmp_key(uint key, uint key_parts,
                    uint (*next_field_no) (uchar *), uchar *arg,
                    bool unique);
+  void create_key_part_by_field(KEY *keyinfo, KEY_PART_INFO *key_part_info,
+                                Field *field, uint fieldnr);
+  void use_index(int key_to_save);
+  void set_table_map(table_map map_arg, uint tablenr_arg)
+  {
+    map= map_arg;
+    tablenr= tablenr_arg;
+  }
   inline void enable_keyread()
   {
     DBUG_ENTER("enable_keyread");
@@ -1189,6 +1200,12 @@ public:
     file->extra(HA_EXTRA_KEYREAD);
     DBUG_VOID_RETURN;
   }
+  /*
+    Returns TRUE if the table is filled at execution phase (and so, the
+    optimizer must not do anything that depends on the contents of the table,
+    like range analysis or constant table detection)
+  */
+  bool is_filled_at_execution();
   inline void disable_keyread()
   {
     DBUG_ENTER("disable_keyread");
@@ -1308,12 +1325,51 @@ typedef struct st_schema_table
 } ST_SCHEMA_TABLE;
 
 
+/*
+  Types of derived tables. The ending part is a bitmap of phases that are
+  applicable to a derived table of the type.
+ * /
+#define VIEW_ALGORITHM_UNDEFINED        0
+#define VIEW_ALGORITHM_MERGE            1 + DT_COMMON + DT_MERGE
+#define DERIVED_ALGORITHM_MERGE         2 + DT_COMMON + DT_MERGE
+#define VIEW_ALGORITHM_TMPTABLE         3 + DT_COMMON + DT_MATERIALIZE
+#define DERIVED_ALGORITHM_MATERIALIZE   4 + DT_COMMON + DT_MATERIALIZE
+*/
+#define DTYPE_ALGORITHM_UNDEFINED    0
+#define DTYPE_VIEW                   1
+#define DTYPE_TABLE                  2
+#define DTYPE_MERGE                  4
+#define DTYPE_MATERIALIZE            8
+#define DTYPE_MULTITABLE             16
+#define DTYPE_MASK                   19
+
+/*
+  Phases of derived tables/views handling, see sql_derived.cc
+  Values are used as parts of a bitmap attached to derived table types.
+*/
+#define DT_INIT             1
+#define DT_PREPARE          2
+#define DT_OPTIMIZE         4
+#define DT_MERGE            8
+#define DT_MERGE_FOR_INSERT 16
+#define DT_CREATE           32
+#define DT_FILL             64
+#define DT_REINIT           128
+#define DT_PHASES           8
+/* Phases that are applicable to all derived tables. */
+#define DT_COMMON       (DT_INIT + DT_PREPARE + DT_REINIT + DT_OPTIMIZE)
+/* Phases that are applicable only to materialized derived tables. */
+#define DT_MATERIALIZE  (DT_CREATE + DT_FILL)
+
+#define DT_PHASES_MERGE (DT_COMMON | DT_MERGE | DT_MERGE_FOR_INSERT)
+#define DT_PHASES_MATERIALIZE (DT_COMMON | DT_MATERIALIZE)
+
+#define VIEW_ALGORITHM_UNDEFINED 0
+#define VIEW_ALGORITHM_MERGE    (DTYPE_VIEW | DTYPE_MERGE)
+#define VIEW_ALGORITHM_TMPTABLE (DTYPE_VIEW + DTYPE_MATERIALIZE )
+
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
-
-#define VIEW_ALGORITHM_UNDEFINED        0
-#define VIEW_ALGORITHM_TMPTABLE         1
-#define VIEW_ALGORITHM_MERGE            2
 
 #define VIEW_SUID_INVOKER               0
 #define VIEW_SUID_DEFINER               1
@@ -1403,7 +1459,7 @@ class Item_in_subselect;
   1) table (TABLE_LIST::view == NULL)
      - base table
        (TABLE_LIST::derived == NULL)
-     - subquery - TABLE_LIST::table is a temp table
+     - FROM-clause subquery - TABLE_LIST::table is a temp table
        (TABLE_LIST::derived != NULL)
      - information schema table
        (TABLE_LIST::schema_table != NULL)
@@ -1413,6 +1469,7 @@ class Item_in_subselect;
            also (TABLE_LIST::field_translation != NULL)
      - tmptable (TABLE_LIST::effective_algorithm == VIEW_ALGORITHM_TMPTABLE)
            also (TABLE_LIST::field_translation == NULL)
+  2.5) TODO: Add derived tables description here
   3) nested table reference (TABLE_LIST::nested_join != NULL)
      - table sequence - e.g. (t1, t2, t3)
        TODO: how to distinguish from a JOIN?
@@ -1422,6 +1479,8 @@ class Item_in_subselect;
        (TABLE_LIST::natural_join != NULL)
        - JOIN ... USING
          (TABLE_LIST::join_using_fields != NULL)
+     - semi-join nest (sj_on_expr!= NULL && sj_subq_pred!=NULL)
+  4) jtbm semi-join (jtbm_subselect != NULL)
 */
 
 struct LEX;
@@ -1475,8 +1534,16 @@ struct TABLE_LIST
   */
   table_map     sj_inner_tables;
   /* Number of IN-compared expressions */
-  uint          sj_in_exprs; 
+  uint          sj_in_exprs;
+  
+  /* If this is a non-jtbm semi-join nest: corresponding subselect predicate */
   Item_in_subselect  *sj_subq_pred;
+
+  /* If this is a jtbm semi-join object: corresponding subselect predicate */
+  Item_in_subselect  *jtbm_subselect;
+  /* TODO: check if this can be joined with tablenr_exec */
+  uint jtbm_table_no;
+
   SJ_MATERIALIZATION_INFO *sj_mat_info;
 
   /*
@@ -1529,6 +1596,8 @@ struct TABLE_LIST
     filling procedure
   */
   select_union  *derived_result;
+  /* Stub used for materialized derived tables. */
+  table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:
@@ -1573,6 +1642,7 @@ struct TABLE_LIST
   Field_translator *field_translation;	/* array of VIEW fields */
   /* pointer to element after last one in translation table above */
   Field_translator *field_translation_end;
+  bool field_translation_updated;
   /*
     List (based on next_local) of underlying tables of this view. I.e. it
     does not include the tables of subqueries used in the view. Is set only
@@ -1587,11 +1657,20 @@ struct TABLE_LIST
   List<TABLE_LIST> *view_tables;
   /* most upper view this table belongs to */
   TABLE_LIST	*belong_to_view;
+  /* A derived table this table belongs to */
+  TABLE_LIST    *belong_to_derived;
   /*
     The view directly referencing this table
     (non-zero only for merged underlying tables of a view).
   */
   TABLE_LIST	*referencing_view;
+
+  table_map view_used_tables;
+  table_map     map_exec;
+  /* TODO: check if this can be joined with jtbm_table_no */
+  uint          tablenr_exec;
+  uint          maybe_null_exec;
+
   /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
   TABLE_LIST    *parent_l;
   /*
@@ -1604,13 +1683,7 @@ struct TABLE_LIST
     SQL SECURITY DEFINER)
   */
   Security_context *view_sctx;
-  /*
-    List of all base tables local to a subquery including all view
-    tables. Unlike 'next_local', this in this list views are *not*
-    leaves. Created in setup_tables() -> make_leaves_list().
-  */
   bool allowed_show;
-  TABLE_LIST	*next_leaf;
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	select_stmt;		/* text of (CREATE/SELECT) statement */
@@ -1646,7 +1719,7 @@ struct TABLE_LIST
       - VIEW_ALGORITHM_MERGE
       @to do Replace with an enum 
   */
-  uint8         effective_algorithm;
+  uint8         derived_type;
   GRANT_INFO	grant;
   /* data need by some engines in query cache*/
   ulonglong     engine_data;
@@ -1677,7 +1750,6 @@ struct TABLE_LIST
   enum enum_open_type open_type;
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
-  bool          multitable_view;        /* TRUE iff this is multitable view */
   bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
@@ -1717,6 +1789,17 @@ struct TABLE_LIST
   bool          is_fqtn;
 
   bool          deleting;               /* going to delete this table */
+
+  /* TRUE <=> derived table should be filled right after optimization. */
+  bool          fill_me;
+  /* TRUE <=> view/DT is merged. */
+  bool          merged;
+  bool          merged_for_insert;
+  /* TRUE <=> don't prepare this derived table/view as it should be merged.*/
+  bool          skip_prepare_derived;
+
+  List<Item>    used_items;
+  Item          **materialized_items;
 
   /* View creation context. */
 
@@ -1761,8 +1844,8 @@ struct TABLE_LIST
   MDL_request mdl_request;
 
   void calc_md5(char *buffer);
-  void set_underlying_merge();
   int view_check_option(THD *thd, bool ignore_failure);
+  bool create_field_translation(THD *thd);
   bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder()
@@ -1791,7 +1874,7 @@ struct TABLE_LIST
   inline bool prepare_where(THD *thd, Item **conds,
                             bool no_where_clause)
   {
-    if (effective_algorithm == VIEW_ALGORITHM_MERGE)
+    if (!view || is_merged_derived())
       return prep_where(thd, conds, no_where_clause);
     return FALSE;
   }
@@ -1848,6 +1931,60 @@ struct TABLE_LIST
     m_table_ref_version= table_ref_version_arg;
   }
 
+  /* Set of functions returning/setting state of a derived table/view. */
+  inline bool is_non_derived()
+  {
+    return (!derived_type);
+  }
+  inline bool is_view_or_derived()
+  {
+    return (derived_type);
+  }
+  inline bool is_view()
+  {
+    return (derived_type & DTYPE_VIEW);
+  }
+  inline bool is_derived()
+  {
+    return (derived_type & DTYPE_TABLE);
+  }
+  inline void set_view()
+  {
+    derived_type= DTYPE_VIEW;
+  }
+  inline void set_derived()
+  {
+    derived_type= DTYPE_TABLE;
+  }
+  inline bool is_merged_derived()
+  {
+    return (derived_type & DTYPE_MERGE);
+  }
+  inline void set_merged_derived()
+  {
+    derived_type= ((derived_type & DTYPE_MASK) |
+                    DTYPE_TABLE | DTYPE_MERGE);
+  }
+  inline bool is_materialized_derived()
+  {
+    return (derived_type & DTYPE_MATERIALIZE);
+  }
+  inline void set_materialized_derived()
+  {
+    derived_type= ((derived_type & DTYPE_MASK) |
+                    DTYPE_TABLE | DTYPE_MATERIALIZE);
+  }
+  inline bool is_multitable()
+  {
+    return (derived_type & DTYPE_MULTITABLE);
+  }
+  inline void set_multitable()
+  {
+    derived_type|= DTYPE_MULTITABLE;
+  }
+  void reset_const_table();
+  bool handle_derived(LEX *lex, uint phases);
+
   /**
      @brief True if this TABLE_LIST represents an anonymous derived table,
      i.e.  the result of a subquery.
@@ -1867,6 +2004,14 @@ struct TABLE_LIST
      respectively.
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  bool is_active_sjm();
+  bool is_jtbm() { return test(jtbm_subselect!=NULL); }
+  st_select_lex_unit *get_unit();
+  st_select_lex *get_single_select();
+  void wrap_into_nested_join(List<TABLE_LIST> &join_list);
+  bool init_derived(THD *thd, bool init_view);
+  int fetch_number_of_rows();
+  bool change_refs_to_fields();
 
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
@@ -2044,7 +2189,7 @@ typedef struct st_nested_join
 
      2. All child join nest nodes are fully covered.
    */
-  bool is_fully_covered() const { return join_list.elements == counter; }
+  bool is_fully_covered() const { return n_tables == counter; }
 } NESTED_JOIN;
 
 

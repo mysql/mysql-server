@@ -155,8 +155,8 @@ epoll_init(struct event_base *base)
 }
 
 static int
-epoll_recalc(struct event_base *base __attribute__((unused)),
-             void *arg, int max)
+epoll_recalc(struct event_base *base __attribute__((unused)), void *arg,
+             int max)
 {
 	struct epollop *epollop = arg;
 

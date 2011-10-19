@@ -1,4 +1,6 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001 Jan Pazdziora.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,9 +41,8 @@
 #define REAL_MYSQL
 #ifdef REAL_MYSQL
 
-#include "my_global.h"
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #else
 

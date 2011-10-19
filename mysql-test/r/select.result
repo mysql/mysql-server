@@ -1431,7 +1431,7 @@ companynr	companynr
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using index; Using temporary
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (flat, BNL join)
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
 fld1	companynr	fld3	period
 038008	37	reporters	1008
@@ -2115,8 +2115,8 @@ INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 Warnings:
-Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
-Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
+Warning	1292	Incorrect datetime value: 'wrong-date-value'
+Warning	1292	Incorrect datetime value: 'wrong-date-value'
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= NULL AND b.sampletime < NULL AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 DROP TABLE t1,t2;
@@ -2363,7 +2363,7 @@ insert into t2 values (1,3), (2,3), (3,4), (4,4);
 explain select * from t1 left join t2 on a=c where d in (4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	c,d	d	5	const	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
 select * from t1 left join t2 on a=c where d in (4);
 a	b	c	d
 3	2	3	4
@@ -2371,7 +2371,7 @@ a	b	c	d
 explain select * from t1 left join t2 on a=c where d = 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	c,d	d	5	const	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where; Using join buffer (flat, BNL join)
 select * from t1 left join t2 on a=c where d = 4;
 a	b	c	d
 3	2	3	4
@@ -2718,7 +2718,7 @@ where (t1.c=t2.a or (t1.c=t3.a and t2.a=t3.b)) and t1.b=556476786 and
 t2.b like '%%' order by t2.b limit 0,1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	b,c	b	5	const	1	Using temporary; Using filesort
-1	SIMPLE	t3	index	PRIMARY,a,b	PRIMARY	8	NULL	2	Using index; Using join buffer
+1	SIMPLE	t3	index	PRIMARY,a,b	PRIMARY	8	NULL	2	Using index; Using join buffer (flat, BNL join)
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	2	Range checked for each record (index map: 0x1)
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int, INDEX idx(a));
@@ -2739,7 +2739,7 @@ ALTER TABLE t1 ENABLE KEYS;
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2749,7 +2749,7 @@ a	b	a	b
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2911,11 +2911,11 @@ a
 EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
 DROP TABLE t1,t2;
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
 x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
@@ -3266,7 +3266,7 @@ f1	f2
 4	2005-10-01
 5	2005-12-30
 Warnings:
-Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+Warning	1292	Truncated incorrect date value: '2005-09-3a'
 select * from t1 where f2 <= '2005-09-31' order by f2;
 f1	f2
 1	2005-01-01
@@ -3277,7 +3277,7 @@ f1	f2
 1	2005-01-01
 2	2005-09-01
 Warnings:
-Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
+Warning	1292	Truncated incorrect date value: '2005-09-3a'
 drop table t1;
 create table t1 (f1 int, f2 int);
 insert into t1 values (1, 30), (2, 20), (3, 10);
@@ -3418,7 +3418,7 @@ SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
 FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where
 DROP TABLE t1,t2;
 SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
@@ -3456,7 +3456,7 @@ In next EXPLAIN, B.rows must be exactly 10:
 explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
 and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	4	Using index condition; Using where; Using MRR
+1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	4	Using where
 1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	10	
 drop table t1, t2;
 CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX(b));
@@ -3470,12 +3470,12 @@ INSERT INTO t2 VALUES
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
 DROP TABLE t1, t2;
 create table t1 (
@@ -3565,19 +3565,19 @@ EXPLAIN SELECT t2.*
 FROM t1 JOIN t2 ON t2.fk=t1.pk
 WHERE t2.fk < 'c' AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	3	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	3	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk BETWEEN 'a' AND 'b' AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a));
@@ -3611,7 +3611,7 @@ WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
 t3.a=t2.a AND t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si	si	5	NULL	4	Using index condition; Using MRR
+1	SIMPLE	t2	range	si	si	5	NULL	4	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN
 SELECT t3.a FROM t1,t2,t3
@@ -3619,7 +3619,7 @@ WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
 t3.a=t2.a AND t3.c IN ('bb','ee') ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si,ai	si	5	NULL	4	Using index condition; Using MRR
+1	SIMPLE	t2	range	si,ai	si	5	NULL	4	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
 SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
@@ -3627,7 +3627,7 @@ WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si	si	5	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t2	range	si	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
 SELECT t3.a FROM t1,t2,t3
@@ -3635,7 +3635,7 @@ WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 ( f1 int primary key, f2 int, f3 int, f4 int, f5 int, f6 int, checked_out int);
@@ -3755,16 +3755,12 @@ AND t1.ts BETWEEN t2.dt1 AND t2.dt2
 AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using index condition; Using where; Using MRR
-Warnings:
-Warning	1292	Incorrect datetime value: '2999-12-31 00:00:00' for column 'ts' at row 1
+1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using where
 SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
 AND t1.ts BETWEEN t2.dt1 AND t2.dt2
 AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 a	ts	a	dt1	dt2
 30	2006-01-03 23:00:00	30	2006-01-01 00:00:00	2999-12-31 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '2999-12-31 00:00:00' for column 'ts' at row 1
 DROP TABLE t1,t2;
 create table t1 (a bigint unsigned);
 insert into t1 values
@@ -4101,17 +4097,22 @@ select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
 str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6'
 1
 Warnings:
-Warning	1292	Truncated incorrect date value: '2007/10/01 00:00:00 GMT-6'
-select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
-str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6'
+Warning	1292	Truncated incorrect datetime value: '2007/10/01 00:00:00 GMT-6'
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6';
+str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6'
 1
 Warnings:
-Warning	1292	Truncated incorrect date value: '2007/10/2000:00:00 GMT-6'
+Warning	1292	Truncated incorrect datetime value: '2007/10/20 00:00:00 GMT-6'
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
+str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6'
+0
+Warnings:
+Warning	1292	Incorrect datetime value: '2007/10/2000:00:00 GMT-6'
 select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6'
 1
 Warnings:
-Warning	1292	Truncated incorrect date value: '2007-10-1 00:00:00 GMT-6'
+Warning	1292	Truncated incorrect datetime value: '2007-10-1 00:00:00 GMT-6'
 select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 x00:00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 x00:00:00 GMT-6'
 1
@@ -4131,7 +4132,7 @@ select str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 x12:34:56 GMT
 str_to_date('2007-10-01','%Y-%m-%d %H:%i:%s') = '2007-10-01 x12:34:56 GMT-6'
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-01 x12:34:56 GMT-6'
+Warning	1292	Truncated incorrect date value: '2007-10-01 x12:34:56 GMT-6'
 select str_to_date('2007-10-01 12:34:00','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34x:56 GMT-6';
 str_to_date('2007-10-01 12:34:00','%Y-%m-%d %H:%i:%s') = '2007-10-01 12:34x:56 GMT-6'
 1
@@ -4170,33 +4171,24 @@ str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
 set SQL_MODE=TRADITIONAL;
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+1
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
 0
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+0
 select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
                                                 and '2007/10/20';
 str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01'
                                                 and '2007/10/20'
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
+1
 set SQL_MODE=DEFAULT;
 select str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20';
 str_to_date('2007-10-00','%Y-%m-%d') between '' and '2007/10/20'
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: ''
 select str_to_date('','%Y-%m-%d') between '2007/10/01' and '2007/10/20';
 str_to_date('','%Y-%m-%d') between '2007/10/01' and '2007/10/20'
 0
@@ -4210,31 +4202,40 @@ select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = ''
 0
 Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
+Warning	1292	Incorrect datetime value: ''
 select str_to_date('1','%Y-%m-%d') = '1';
 str_to_date('1','%Y-%m-%d') = '1'
 0
 Warnings:
-Warning	1292	Truncated incorrect date value: '1'
+Warning	1292	Incorrect datetime value: '1'
 select str_to_date('1','%Y-%m-%d') = '1';
 str_to_date('1','%Y-%m-%d') = '1'
 0
 Warnings:
-Warning	1292	Truncated incorrect date value: '1'
+Warning	1292	Incorrect datetime value: '1'
 select str_to_date('','%Y-%m-%d') = '';
 str_to_date('','%Y-%m-%d') = ''
-0
+1
 Warnings:
-Warning	1292	Truncated incorrect date value: ''
-select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
-str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
+Warning	1292	Incorrect datetime value: ''
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01';
+str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01'
+1
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL;
+str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL
+NULL
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01';
+str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01'
+NULL
+select str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL;
+str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL
 0
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
-str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00'
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01';
+str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01'
 0
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
-str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL
-0
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL;
+str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL
+NULL
 CREATE TABLE t1 (c11 INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY);
 CREATE TABLE t2 (c21 INT UNSIGNED NOT NULL, 
 c22 INT DEFAULT NULL, 
@@ -4380,14 +4381,14 @@ CREATE TABLE t1 (a INT KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` > 1)) limit 2
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
 DROP TABLE t1;
 #
 # Bug#47019: Assertion failed: 0, file .\rt_mbr.c, line 138 when 
@@ -4610,8 +4611,8 @@ a
 4
 5
 DROP TABLE t1;
-CREATE TABLE A (date_key date);
-CREATE TABLE C (
+CREATE TABLE t1 (date_key date);
+CREATE TABLE t2 (
 pk int,
 int_nokey int,
 int_key int,
@@ -4619,29 +4620,27 @@ date_key date NOT NULL,
 date_nokey date,
 varchar_key varchar(1)
 );
-INSERT INTO C VALUES 
+INSERT INTO t2 VALUES 
 (1,1,1,'0000-00-00',NULL,NULL),
 (1,1,1,'0000-00-00',NULL,NULL);
-SELECT 1 FROM C WHERE pk > ANY (SELECT 1 FROM C);
+SELECT 1 FROM t2 WHERE pk > ANY (SELECT 1 FROM t2);
 1
-SELECT COUNT(DISTINCT 1) FROM C 
-WHERE date_key = (SELECT 1 FROM A WHERE C.date_key IS NULL) GROUP BY pk;
+SELECT COUNT(DISTINCT 1) FROM t2 
+WHERE date_key = (SELECT 1 FROM t1 WHERE t2.date_key IS NULL) GROUP BY pk;
 COUNT(DISTINCT 1)
-SELECT date_nokey FROM C 
-WHERE int_key IN (SELECT 1 FROM A) 
+SELECT date_nokey FROM t2
+WHERE int_key IN (SELECT 1 FROM t1)
 HAVING date_nokey = '10:41:7' 
 ORDER BY date_key;
 date_nokey
-Warnings:
-Warning	1292	Incorrect date value: '10:41:7' for column 'date_nokey' at row 1
-DROP TABLE A,C;
+DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT NOT NULL, b INT);
 INSERT INTO t1 VALUES (1, 1);
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `a`,'1' AS `b` from dual where 1
+Note	1003	select 1 AS `a`,1 AS `b` from dual where 1
 SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 a	b
 1	1
@@ -4773,7 +4772,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,'2' AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(('2' + (1 + 1))))
+Note	1003	select `test`.`t1`.`a` AS `a`,2 AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>((2 + (1 + 1))))
 SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
 b	a
 2	3
@@ -4782,12 +4781,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select '2' AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where 1
+Note	1003	select 2 AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(unix_timestamp('2009-03-10 00:00:00')))
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1236639600)
 CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
 BEGIN
 SET @cnt := @cnt + 1;
@@ -4867,6 +4866,228 @@ SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 1
 DROP TABLE t1;
 #
+# Bug #702310: usage of 2 join buffers after ref access to an empty table 
+#
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (9);
+CREATE TABLE t2 (f1 int);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+CREATE TABLE t3 (f1 int);
+INSERT INTO t3 VALUES (17);
+CREATE TABLE t4  (f1 int PRIMARY KEY, f2 varchar(1024)) ;
+CREATE TABLE t5 (f1 int) ;
+INSERT INTO t5 VALUES (20),(5);
+CREATE TABLE t6(f1 int);
+INSERT INTO t6 VALUES (9),(7);
+SET SESSION join_buffer_size = 2048;
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+f1	f1	f1	f1	f2	f1	f1
+3	9	NULL	NULL	NULL	20	9
+7	9	NULL	NULL	NULL	20	9
+3	9	NULL	NULL	NULL	20	7
+7	9	NULL	NULL	NULL	20	7
+3	9	NULL	NULL	NULL	5	9
+7	9	NULL	NULL	NULL	5	9
+3	9	NULL	NULL	NULL	5	7
+7	9	NULL	NULL	NULL	5	7
+18	9	NULL	NULL	NULL	20	9
+3	9	NULL	NULL	NULL	20	9
+18	9	NULL	NULL	NULL	20	7
+3	9	NULL	NULL	NULL	20	7
+18	9	NULL	NULL	NULL	5	9
+3	9	NULL	NULL	NULL	5	9
+18	9	NULL	NULL	NULL	5	7
+3	9	NULL	NULL	NULL	5	7
+7	9	NULL	NULL	NULL	20	9
+18	9	NULL	NULL	NULL	20	9
+7	9	NULL	NULL	NULL	20	7
+18	9	NULL	NULL	NULL	20	7
+7	9	NULL	NULL	NULL	5	9
+18	9	NULL	NULL	NULL	5	9
+7	9	NULL	NULL	NULL	5	7
+18	9	NULL	NULL	NULL	5	7
+3	9	NULL	NULL	NULL	20	9
+7	9	NULL	NULL	NULL	20	9
+3	9	NULL	NULL	NULL	20	7
+7	9	NULL	NULL	NULL	20	7
+3	9	NULL	NULL	NULL	5	9
+7	9	NULL	NULL	NULL	5	9
+3	9	NULL	NULL	NULL	5	7
+7	9	NULL	NULL	NULL	5	7
+18	9	NULL	NULL	NULL	20	9
+3	9	NULL	NULL	NULL	20	9
+18	9	NULL	NULL	NULL	20	7
+3	9	NULL	NULL	NULL	20	7
+18	9	NULL	NULL	NULL	5	9
+3	9	NULL	NULL	NULL	5	9
+18	9	NULL	NULL	NULL	5	7
+3	9	NULL	NULL	NULL	5	7
+7	9	NULL	NULL	NULL	20	9
+18	9	NULL	NULL	NULL	20	9
+7	9	NULL	NULL	NULL	20	7
+18	9	NULL	NULL	NULL	20	7
+7	9	NULL	NULL	NULL	5	9
+18	9	NULL	NULL	NULL	5	9
+7	9	NULL	NULL	NULL	5	7
+18	9	NULL	NULL	NULL	5	7
+SET SESSION join_buffer_size = DEFAULT;
+DROP TABLE t1,t2,t3,t4,t5,t6;
+#
+# Bug #698882: best equality substitution not applied to ref 
+#
+CREATE TABLE t1 (a1 int NOT NULL, b1 char(10), INDEX idx (a1));
+CREATE TABLE t2 (a2 int NOT NULL, b2 char(10), INDEX idx (a2));
+CREATE TABLE t3 (a3 int NOT NULL, b3 char(10), INDEX idx (a3));
+INSERT INTO t1 VALUES (2,'xx'), (1,'xxx'),  (11,'xxxxxxx');
+INSERT INTO t2 VALUES
+(7,'yyyy'), (2,'y'), (3,'yyy'), (1,'yy'), (1,'yyyyy'),
+(3,'yy'),  (1,'y'), (4,'yyy'), (7,'y'),  (4,'yyyyy'), (7,'yyy'),
+(7,'yyyy'), (2,'yy'),  (3,'yyy'), (1,'yyyyyyyy'), (1,'yyyyy'),
+(3,'yy'), (1,'yyy'), (4,'yyy'), (7,'y'), (4,'yyyyy'), (7,'yyy');
+INSERT INTO t3 VALUES
+(9,'zzzzzzz'), (2,'zzzzz'), (1,'z'), (9,'zz'), (1,'zz'), (5,'zzzzzzz'),
+(4,'zz'), (3,'z'), (5,'zzzzzz'), (3,'zz'), (4,'zzzz'), (3,'z'),
+(9,'zzzzzzzz'), (2,'zz'), (1,'zz'), (9,'zzz'), (1,'zzz'), (5,'zzzzzzzz'),
+(4,'zzz'), (3,'zz'), (5,'zzzzzzz'), (3,'zzz'), (4,'zzzzz'), (3,'zz'),
+(9,'zzzzzz'), (2,'zzzz'), (1,'zzz'), (9,'z'), (1,'z'), (5,'zzzzzz'),
+(4,'z'), (3,'zzz'), (5,'zzzzz'), (3,'z'), (4,'zzz'), (3,'zzzz'),
+(9,'zzzzz'), (2,'zzz'), (1,'zzzz'), (9,'zzz'), (1,'zzzz'), (5,'zzzzz'),
+(4,'zzz'), (3,'zzzz'), (5,'zzzz'), (3,'zzz'), (4,'zz'), (3,'zzzzz');
+set @tmp= @@optimizer_switch;
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.a1	2	
+1	SIMPLE	t3	ref	idx	idx	4	test.t1.a1	5	
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t1.a1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.a1	2	
+1	SIMPLE	t3	ref	idx	idx	4	test.t1.a1	5	
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t2.a2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.a1	2	
+1	SIMPLE	t3	ref	idx	idx	4	test.t1.a1	5	
+SELECT * from t1,t2,t3
+WHERE t3.a3=t1.a1 AND t2.a2=t1.a1 AND
+LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+a1	b1	a2	b2	a3	b3
+1	xxx	1	y	1	z
+1	xxx	1	y	1	z
+1	xxx	1	y	1	zz
+1	xxx	1	y	1	zz
+1	xxx	1	y	1	zzz
+1	xxx	1	y	1	zzz
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	zz
+1	xxx	1	yy	1	zz
+1	xxx	1	yyy	1	z
+1	xxx	1	yyy	1	z
+2	xx	2	y	2	zz
+2	xx	2	y	2	zzz
+2	xx	2	y	2	zzzz
+2	xx	2	yy	2	zz
+2	xx	2	yy	2	zzz
+SELECT * FROM t1,t2,t3
+WHERE t2.a2=t1.a1 AND t3.a3=t1.a1 AND 
+LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+a1	b1	a2	b2	a3	b3
+1	xxx	1	y	1	z
+1	xxx	1	y	1	z
+1	xxx	1	y	1	zz
+1	xxx	1	y	1	zz
+1	xxx	1	y	1	zzz
+1	xxx	1	y	1	zzz
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	zz
+1	xxx	1	yy	1	zz
+1	xxx	1	yyy	1	z
+1	xxx	1	yyy	1	z
+2	xx	2	y	2	zz
+2	xx	2	y	2	zzz
+2	xx	2	y	2	zzzz
+2	xx	2	yy	2	zz
+2	xx	2	yy	2	zzz
+SELECT * FROM t1,t2,t3
+WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
+LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+a1	b1	a2	b2	a3	b3
+1	xxx	1	y	1	z
+1	xxx	1	y	1	z
+1	xxx	1	y	1	zz
+1	xxx	1	y	1	zz
+1	xxx	1	y	1	zzz
+1	xxx	1	y	1	zzz
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	zz
+1	xxx	1	yy	1	zz
+1	xxx	1	yyy	1	z
+1	xxx	1	yyy	1	z
+2	xx	2	y	2	zz
+2	xx	2	y	2	zzz
+2	xx	2	y	2	zzzz
+2	xx	2	yy	2	zz
+2	xx	2	yy	2	zzz
+SET SESSION optimizer_switch=@tmp;
+DROP TABLE t1,t2,t3;
+#
+# Bug #707555: crash with equality substitution in ref 
+#
+CREATE TABLE t1 (f11 int, f12 int, PRIMARY KEY (f11), KEY (f12)) ;
+INSERT INTO t1 VALUES (1,NULL), (8,NULL);
+CREATE TABLE t2 (f21 int, f22 int, f23 int, KEY (f22)) ;
+INSERT INTO t2 VALUES (1,NULL,3), (2,7,8);
+CREATE TABLE t3 (f31 int, f32 int(11), PRIMARY KEY (f31), KEY (f32)) ;
+INSERT INTO t3 VALUES (1,494862336);
+CREATE TABLE t4 (f41 int, f42 int, PRIMARY KEY (f41), KEY (f42)) ;
+INSERT INTO t4 VALUES (1,NULL), (8,NULL);
+CREATE TABLE t5 (f51 int, PRIMARY KEY (f51)) ;
+INSERT IGNORE INTO t5 VALUES (100);
+CREATE TABLE t6 (f61 int, f62 int, KEY (f61)) ;
+INSERT INTO t6 VALUES (NULL,1), (3,10);
+CREATE TABLE t7 (f71 int, f72 int, KEY (f72)) ;
+INSERT INTO t7 VALUES (1,NULL), (2,7);
+EXPLAIN
+SELECT t2.f23 FROM
+(t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+LEFT JOIN
+(((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+ON t3.f31 = t6.f61
+WHERE t7.f71>0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	system	PRIMARY,f32	NULL	NULL	NULL	1	
+1	SIMPLE	t5	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	SIMPLE	t2	ref	f22	f22	5	const	1	
+1	SIMPLE	t6	ref	f61	f61	5	const	1	Using where
+1	SIMPLE	t4	ref	f42	f42	5	const	1	Using index
+1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+SELECT t2.f23 FROM
+(t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+LEFT JOIN
+(((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+ON t3.f31 = t6.f61
+WHERE t7.f71>0;
+f23
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+#
 # Bug #58422: Incorrect result when OUTER JOIN'ing 
 # with an empty table
 #
@@ -4931,6 +5152,19 @@ WHERE t2.pk <> 2;
 pk	i	pk	i	pk	i
 DROP TABLE t1,t2,t_empty;
 End of 5.1 tests
+#                    
+# BUG#776274: substitution of a single row table
+#                    
+CREATE TABLE t1 (a int NOT NULL , b int);
+INSERT INTO t1 VALUES (2,2);
+SELECT * FROM t1 WHERE a = b;
+a	b
+2	2
+EXPLAIN
+SELECT * FROM t1 WHERE a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1;
 #
 # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
 #            SELECT from VIEW with GROUP BY

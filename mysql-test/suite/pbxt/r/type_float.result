@@ -133,7 +133,7 @@ min(a)
 -0.010
 drop table t1;
 create table t1 (a float(200,100), b double(200,100));
-ERROR 42000: Too big scale 100 specified for column 'a'. Maximum is 30.
+ERROR 42000: Too big scale 100 specified for 'a'. Maximum is 30.
 create table t1 (c20 char);
 insert into t1 values (5000.0);
 Warnings:

@@ -328,7 +328,14 @@ void mi_update_status(void* param)
 			    (long) info->s->state.state.data_file_length));
 #endif
     info->s->state.state= *info->state;
+#ifdef HAVE_QUERY_CACHE
+    DBUG_PRINT("info", ("invalidator... '%s' (status update)",
+                        info->filename));
+    DBUG_ASSERT(info->s->chst_invalidator != NULL);
+    (*info->s->chst_invalidator)((const char *)info->filename);
+#endif
   }
+
   info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
 
@@ -641,4 +648,12 @@ int _mi_decrement_open_count(MI_INFO *info)
       lock_error=mi_lock_database(info,old_lock);
   }
   return test(lock_error || write_error);
+}
+
+
+void _mi_report_crashed_ignore(MI_INFO *file __attribute__((unused)),
+                               const char *message __attribute__((unused)),
+                               const char *sfile __attribute__((unused)),
+                               uint sline __attribute__((unused)))
+{
 }

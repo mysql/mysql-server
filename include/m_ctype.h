@@ -163,7 +163,8 @@ enum my_lex_states
   MY_LEX_USER_VARIABLE_DELIMITER, MY_LEX_SYSTEM_VAR,
   MY_LEX_IDENT_OR_KEYWORD,
   MY_LEX_IDENT_OR_HEX, MY_LEX_IDENT_OR_BIN, MY_LEX_IDENT_OR_NCHAR,
-  MY_LEX_STRING_OR_DELIMITER
+  MY_LEX_STRING_OR_DELIMITER, MY_LEX_MINUS_OR_COMMENT, MY_LEX_PLACEHOLDER,
+  MY_LEX_COMMA
 };
 
 struct charset_info_st;
@@ -389,6 +390,9 @@ extern int  my_strnncollsp_simple(CHARSET_INFO *, const uchar *, size_t,
 extern void my_hash_sort_simple(CHARSET_INFO *cs,
 				const uchar *key, size_t len,
 				ulong *nr1, ulong *nr2); 
+extern void my_hash_sort_bin(CHARSET_INFO *cs,
+                             const uchar *key, size_t len, ulong *nr1,
+                             ulong *nr2);
 
 extern size_t my_lengthsp_8bit(CHARSET_INFO *cs, const char *ptr, size_t length);
 

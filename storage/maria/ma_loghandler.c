@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB & Sanja Belkin
+/* Copyright (C) 2007 MySQL AB & Sanja Belkin. 2010 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -458,7 +458,9 @@ void translog_lock_handler_assert_owner()
   @param num             how many records should be filled
 */
 
-static void check_translog_description_table(int num)
+static uint max_allowed_translog_type= 0;
+
+void check_translog_description_table(int num)
 {
   int i;
   DBUG_ENTER("check_translog_description_table");
@@ -467,6 +469,7 @@ static void check_translog_description_table(int num)
   /* last is reserved for extending the table */
   DBUG_ASSERT(num < LOGREC_NUMBER_OF_TYPES - 1);
   DBUG_ASSERT(log_record_type_descriptor[0].rclass == LOGRECTYPE_NOT_ALLOWED);
+  max_allowed_translog_type= num;
 
   for (i= 0; i <= num; i++)
   {
@@ -973,7 +976,7 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
   DBUG_ENTER("open_logfile_by_number_no_cache");
 
   /* TODO: add O_DIRECT to open flags (when buffer is aligned) */
-  /* TODO: use my_create() */
+  /* TODO: use mysql_file_create() */
   if ((file= mysql_file_open(key_file_translog,
                              translog_filename_by_fileno(file_no, path),
                              log_descriptor.open_flags,
@@ -1080,7 +1083,7 @@ static my_bool translog_write_file_header()
   memcpy(page, maria_trans_file_magic, sizeof(maria_trans_file_magic));
   page+= sizeof(maria_trans_file_magic);
   /* timestamp */
-  timestamp= my_getsystime();
+  timestamp= my_hrtime().val;
   int8store(page, timestamp);
   page+= 8;
   /* maria version */
@@ -1151,34 +1154,14 @@ static my_bool translog_max_lsn_to_header(File file, LSN lsn)
 
 
 /*
-  Information from transaction log file header
-*/
-
-typedef struct st_loghandler_file_info
-{
-  /*
-    LSN_IMPOSSIBLE for current file (not finished file).
-    Maximum LSN of the record which parts stored in the
-    file.
-  */
-  LSN max_lsn;
-  ulonglong timestamp;   /* Time stamp */
-  ulong maria_version;   /* Version of maria loghandler */
-  ulong mysql_version;   /* Version of mysql server */
-  ulong server_id;       /* Server ID */
-  ulong page_size;       /* Loghandler page size */
-  ulong file_number;     /* Number of the file (from the file header) */
-} LOGHANDLER_FILE_INFO;
-
-/*
   @brief Extract hander file information from loghandler file page
 
   @param desc header information descriptor to be filled with information
   @param page_buff buffer with the page content
 */
 
-static void translog_interpret_file_header(LOGHANDLER_FILE_INFO *desc,
-                                           uchar *page_buff)
+void translog_interpret_file_header(LOGHANDLER_FILE_INFO *desc,
+                                    uchar *page_buff)
 {
   uchar *ptr;
 
@@ -2560,24 +2543,13 @@ my_bool translog_prev_buffer_flush_wait(struct st_translog_buffer *buffer)
                        LSN_IN_PARTS(buffer->prev_sent_to_disk),
                        LSN_IN_PARTS(buffer->prev_buffer_offset)));
   translog_buffer_lock_assert_owner(buffer);
-  /*
-    if prev_sent_to_disk == LSN_IMPOSSIBLE then
-    prev_buffer_offset should be LSN_IMPOSSIBLE
-    because it means that this buffer was never used
-  */
-  DBUG_ASSERT((buffer->prev_sent_to_disk == LSN_IMPOSSIBLE &&
-               buffer->prev_buffer_offset == LSN_IMPOSSIBLE) ||
-              buffer->prev_sent_to_disk != LSN_IMPOSSIBLE);
   if (buffer->prev_buffer_offset != buffer->prev_sent_to_disk)
   {
     do {
       mysql_cond_wait(&buffer->prev_sent_to_disk_cond, &buffer->mutex);
       if (buffer->file != file || buffer->offset != offset ||
           buffer->ver != ver)
-      {
-        translog_buffer_unlock(buffer);
         DBUG_RETURN(1); /* some the thread flushed the buffer already */
-      }
     } while(buffer->prev_buffer_offset != buffer->prev_sent_to_disk);
   }
   DBUG_RETURN(0);
@@ -2624,10 +2596,9 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   {
     /* some other flush in progress */
     translog_wait_for_closing(buffer);
+    if (buffer->file != file || buffer->offset != offset || buffer->ver != ver)
+      DBUG_RETURN(0); /* some the thread flushed the buffer already */
   }
-
-  if (buffer->file != file || buffer->offset != offset || buffer->ver != ver)
-    DBUG_RETURN(0); /* some the thread flushed the buffer already */
 
   if (buffer->overlay && translog_prev_buffer_flush_wait(buffer))
     DBUG_RETURN(0); /* some the thread flushed the buffer already */
@@ -3525,7 +3496,7 @@ my_bool translog_walk_filenames(const char *directory,
   @brief Fills table of dependence length of page header from page flags
 */
 
-static void translog_fill_overhead_table()
+void translog_fill_overhead_table()
 {
   uint i;
   for (i= 0; i < TRANSLOG_FLAGS_NUM; i++)
@@ -3620,6 +3591,7 @@ my_bool translog_init_with_table(const char *directory,
   log_descriptor.flush_no= 0;
   log_descriptor.next_pass_max_lsn= LSN_IMPOSSIBLE;
 
+  /* Normally in Aria this this calls translog_table_init() */
   (*init_table_func)();
   compile_time_assert(sizeof(log_descriptor.dirty_buffer_mask) * 8 >=
                       TRANSLOG_BUFFERS_NO);
@@ -6262,13 +6234,15 @@ my_bool translog_write_record(LSN *lsn,
                        (uint) short_trid, (ulong) rec_len));
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
+  DBUG_ASSERT(type != 0);
+  DBUG_ASSERT((uint)type <= max_allowed_translog_type);
   if (unlikely(translog_status != TRANSLOG_OK))
   {
     DBUG_PRINT("error", ("Transaction log is write protected"));
     DBUG_RETURN(1);
   }
 
-  if (tbl_info)
+  if (tbl_info && type != LOGREC_FILE_ID)
   {
     MARIA_SHARE *share= tbl_info->s;
     DBUG_ASSERT(share->now_transactional);
@@ -6360,9 +6334,9 @@ my_bool translog_write_record(LSN *lsn,
 
   /* process this parts */
   if (!(rc= (log_record_type_descriptor[type].prewrite_hook &&
-             (*log_record_type_descriptor[type].prewrite_hook) (type, trn,
-                                                                tbl_info,
-                                                                hook_arg))))
+             (*log_record_type_descriptor[type].prewrite_hook)(type, trn,
+                                                               tbl_info,
+                                                               hook_arg))))
   {
     switch (log_record_type_descriptor[type].rclass) {
     case LOGRECTYPE_VARIABLE_LENGTH:
@@ -6375,6 +6349,7 @@ my_bool translog_write_record(LSN *lsn,
                                       short_trid, &parts, trn, hook_arg);
       break;
     case LOGRECTYPE_NOT_ALLOWED:
+      DBUG_ASSERT(0);
     default:
       DBUG_ASSERT(0);
       rc= 1;
@@ -7748,7 +7723,7 @@ static my_bool translog_sync_files(uint32 min, uint32 max,
 
   flush_interval= group_commit_wait;
   if (flush_interval)
-    flush_start= my_micro_time();
+    flush_start= microsecond_interval_timer();
   for (fn= min; fn <= max; fn++)
   {
     TRANSLOG_FILE *file= get_logfile_by_number(fn);
@@ -7796,6 +7771,7 @@ void translog_flush_buffers(TRANSLOG_ADDRESS *lsn,
   uint i;
   uint8 last_buffer_no, start_buffer_no;
   DBUG_ENTER("translog_flush_buffers");
+  LINT_INIT(last_buffer_no);
 
   /*
     We will recheck information when will lock buffers one by
@@ -7816,7 +7792,6 @@ void translog_flush_buffers(TRANSLOG_ADDRESS *lsn,
               (uint) start_buffer_no, (uint) log_descriptor.bc.buffer_no,
               LSN_IN_PARTS(log_descriptor.bc.buffer->prev_last_lsn)));
 
-
   /*
     if LSN up to which we have to flush bigger then maximum LSN of previous
     buffer and at least one LSN was saved in the current buffer (last_lsn !=
@@ -7828,17 +7803,27 @@ void translog_flush_buffers(TRANSLOG_ADDRESS *lsn,
     struct st_translog_buffer *buffer= log_descriptor.bc.buffer;
     *lsn= log_descriptor.bc.buffer->last_lsn; /* fix lsn if it was horizon */
     DBUG_PRINT("info", ("LSN to flush fixed to last lsn: (%lu,0x%lx)",
-                        LSN_IN_PARTS(log_descriptor.bc.buffer->last_lsn)));
+                        LSN_IN_PARTS(*lsn)));
     last_buffer_no= log_descriptor.bc.buffer_no;
     log_descriptor.is_everything_flushed= 1;
     translog_force_current_buffer_to_finish();
     translog_buffer_unlock(buffer);
   }
-  else
+  else if (log_descriptor.bc.buffer->prev_last_lsn != LSN_IMPOSSIBLE)
   {
+    /* fix lsn if it was horizon */
+    *lsn= log_descriptor.bc.buffer->prev_last_lsn;
+    DBUG_PRINT("info", ("LSN to flush fixed to prev last lsn: (%lu,0x%lx)",
+               LSN_IN_PARTS(*lsn)));
     last_buffer_no= ((log_descriptor.bc.buffer_no + TRANSLOG_BUFFERS_NO -1) %
                      TRANSLOG_BUFFERS_NO);
     translog_unlock();
+  }
+  else if (log_descriptor.bc.buffer->last_lsn == LSN_IMPOSSIBLE)
+  {
+    DBUG_PRINT("info", ("There is no LSNs yet generated => do nothing"));
+    translog_unlock();
+    DBUG_VOID_RETURN;
   }
 
   /* flush buffers */
@@ -8005,7 +7990,8 @@ retest:
     /*
       We do not check time here because mysql_mutex_lock rarely takes
       a lot of time so we can sacrifice a bit precision to performance
-      (taking into account that my_micro_time() might be expensive call).
+      (taking into account that microsecond_interval_timer() might be
+      expensive call).
     */
     if (flush_interval == 0)
       break;  /* flush pass is ended */
@@ -8014,7 +8000,8 @@ retest:
     if (log_descriptor.next_pass_max_lsn == LSN_IMPOSSIBLE)
     {
       if (flush_interval == 0 ||
-          (time_spent= (my_micro_time() - flush_start)) >= flush_interval)
+          (time_spent= (microsecond_interval_timer() - flush_start)) >=
+          flush_interval)
       {
         mysql_mutex_unlock(&log_descriptor.log_flush_lock);
         break;
@@ -8116,6 +8103,7 @@ out:
 
 int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
 {
+  uint16 id;
   MARIA_SHARE *share= tbl_info->s;
   /*
     If you give an id to a non-BLOCK_RECORD table, you also need to release
@@ -8131,6 +8119,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
     uchar log_data[FILEID_STORE_SIZE];
     /* Inspired by set_short_trid() of trnman.c */
     uint i= share->kfile.file % SHARE_ID_MAX + 1;
+    id= 0;
     do
     {
       my_atomic_rwlock_wrlock(&LOCK_id_to_share);
@@ -8140,14 +8129,15 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
         if (id_to_share[i] == NULL &&
             my_atomic_casptr((void **)&id_to_share[i], &tmp, share))
         {
-          share->id= (uint16)i;
+          id= (uint16) i;
           break;
         }
       }
       my_atomic_rwlock_wrunlock(&LOCK_id_to_share);
       i= 1; /* scan the whole array */
-    } while (share->id == 0);
-    DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, share->id));
+    } while (id == 0);
+    DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, id));
+    fileid_store(log_data, id);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     /*
@@ -8169,11 +8159,18 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
                                         log_array[TRANSLOG_INTERNAL_PARTS +
                                                   1].length),
                                        sizeof(log_array)/sizeof(log_array[0]),
-                                       log_array, log_data, NULL)))
+                                       log_array, NULL, NULL)))
     {
       mysql_mutex_unlock(&share->intern_lock);
       return 1;
     }
+    /*
+      Now when translog record is done, we can set share->id.
+      If we set it before, then translog_write_record may pick up the id
+      before it's written to the log.
+    */
+    share->id= id;
+    share->state.logrec_file_id= lsn;
   }
   mysql_mutex_unlock(&share->intern_lock);
   return 0;
@@ -8799,7 +8796,7 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
     DBUG_ENTER("ma_soft_sync_background");
     for(;;)
     {
-      ulonglong prev_loop= my_micro_time();
+      ulonglong prev_loop= microsecond_interval_timer();
       ulonglong time, sleep;
       uint32 min, max, sync_request;
       min= soft_sync_min;
@@ -8811,7 +8808,7 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
       sleep= group_commit_wait;
       if (sync_request)
         translog_sync_files(min, max, FALSE);
-      time= my_micro_time() - prev_loop;
+      time= microsecond_interval_timer() - prev_loop;
       if (time > sleep)
         sleep= 0;
       else
@@ -8869,116 +8866,6 @@ void  translog_soft_sync_end(void)
 }
 
 
-#ifdef MARIA_DUMP_LOG
-#include <my_getopt.h>
-extern void translog_example_table_init();
-static const char *load_default_groups[]= { "aria_dump_log",0 };
-static void get_options(int *argc,char * * *argv);
-#ifndef DBUG_OFF
-#if defined(__WIN__)
-const char *default_dbug_option= "d:t:i:O,\\aria_dump_log.trace";
-#else
-const char *default_dbug_option= "d:t:i:o,/tmp/aria_dump_log.trace";
-#endif
-#endif
-static ulonglong opt_offset;
-static ulong opt_pages;
-static const char *opt_file= NULL;
-static File handler= -1;
-static my_bool opt_unit= 0;
-static struct my_option my_long_options[] =
-{
-#ifdef IMPLTMENTED
-  {"body", 'b',
-   "Print chunk body dump",
-   (uchar **) &opt_body, (uchar **) &opt_body, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-#ifndef DBUG_OFF
-  {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-  {"file", 'f', "Path to file which will be read",
-    (uchar**) &opt_file, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"help", '?', "Display this help and exit.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "offset", 'o', "Start reading log from this offset",
-    (uchar**) &opt_offset, (uchar**) &opt_offset,
-    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
-  { "pages", 'n', "Number of pages to read",
-    (uchar**) &opt_pages, (uchar**) &opt_pages, 0,
-    GET_ULONG, REQUIRED_ARG, (long) ~(ulong) 0,
-    (long) 1, (long) ~(ulong) 0, (long) 0,
-    (long) 1, 0},
-  {"unit-test", 'U',
-   "Use unit test record table (for logs created by unittests",
-   (uchar **) &opt_unit, (uchar **) &opt_unit, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V', "Print version and exit.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
-
-
-static void print_version(void)
-{
-  printf("%s Ver 1.0 for %s on %s\n",
-              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE);
-}
-
-
-static void usage(void)
-{
-  print_version();
-  puts("Copyright (C) 2008 MySQL AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
-  puts("and you are welcome to modify and redistribute it under the GPL license\n");
-
-  puts("Dump content of aria log pages.");
-  printf("\nUsage: %s -f file OPTIONS\n", my_progname_short);
-  my_print_help(my_long_options);
-  print_defaults("my", load_default_groups);
-  my_print_variables(my_long_options);
-}
-
-
-static my_bool
-get_one_option(int optid __attribute__((unused)),
-               const struct my_option *opt __attribute__((unused)),
-               char *argument __attribute__((unused)))
-{
-  switch (optid) {
-  case '?':
-    usage();
-    exit(0);
-  case 'V':
-    print_version();
-    exit(0);
-#ifndef DBUG_OFF
-  case '#':
-    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
-    break;
-#endif
-  }
-  return 0;
-}
-
-
-static void get_options(int *argc,char ***argv)
-{
-  int ho_error;
-
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-    exit(ho_error);
-
-  if (opt_file == NULL)
-  {
-    usage();
-    exit(1);
-  }
-}
-
-
 /**
   @brief Dump information about file header page.
 */
@@ -8987,7 +8874,6 @@ static void dump_header_page(uchar *buff)
 {
   LOGHANDLER_FILE_INFO desc;
   char strbuff[21];
-
   translog_interpret_file_header(&desc, buff);
   printf("  This can be header page:\n"
          "    Timestamp: %s\n"
@@ -9164,7 +9050,7 @@ static uchar *dump_chunk(uchar *buffer, uchar *ptr)
   @brief Dump information about page with data.
 */
 
-static void dump_datapage(uchar *buffer)
+static void dump_datapage(uchar *buffer, File handler)
 {
   uchar *ptr;
   ulong offset;
@@ -9245,82 +9131,12 @@ static void dump_datapage(uchar *buffer)
   @brief Dump information about page.
 */
 
-static void dump_page(uchar *buffer)
+void dump_page(uchar *buffer, File handler)
 {
-  printf("Page by offset %llu (0x%llx)\n", opt_offset, opt_offset);
   if (strncmp((char*)maria_trans_file_magic, (char*)buffer,
               sizeof(maria_trans_file_magic)) == 0)
   {
     dump_header_page(buffer);
   }
-  dump_datapage(buffer);
+  dump_datapage(buffer, handler);
 }
-
-
-/**
-  @brief maria_dump_log main function.
-*/
-
-int main(int argc, char **argv)
-{
-  char **default_argv;
-  uchar buffer[TRANSLOG_PAGE_SIZE];
-  MY_INIT(argv[0]);
-
-  load_defaults("my", load_default_groups, &argc, &argv);
-  default_argv= argv;
-  get_options(&argc, &argv);
-
-  if (opt_unit)
-    translog_example_table_init();
-  else
-    translog_table_init();
-  translog_fill_overhead_table();
-
-  maria_data_root= (char *)".";
-
-  if ((handler= my_open(opt_file, O_RDONLY, MYF(MY_WME))) < 0)
-  {
-    fprintf(stderr, "Can't open file: '%s'  errno: %d\n",
-            opt_file, my_errno);
-    goto err;
-  }
-  if (mysql_file_seek(handler, opt_offset, SEEK_SET, MYF(MY_WME)) !=
-      opt_offset)
-  {
-     fprintf(stderr, "Can't set position %lld  file: '%s'  errno: %d\n",
-             opt_offset, opt_file, my_errno);
-     goto err;
-  }
-  for (;
-       opt_pages;
-       opt_offset+= TRANSLOG_PAGE_SIZE, opt_pages--)
-  {
-    if (mysql_file_pread(handler, buffer, TRANSLOG_PAGE_SIZE, opt_offset,
-                 MYF(MY_NABP)))
-    {
-      if (my_errno == HA_ERR_FILE_TOO_SHORT)
-        goto end;
-      fprintf(stderr, "Can't read page at position %lld  file: '%s'  "
-              "errno: %d\n", opt_offset, opt_file, my_errno);
-      goto err;
-    }
-    dump_page(buffer);
-  }
-
-end:
-  my_close(handler, MYF(0));
-  free_defaults(default_argv);
-  exit(0);
-  return 0;				/* No compiler warning */
-
-err:
-  my_close(handler, MYF(0));
-  fprintf(stderr, "%s: FAILED\n", my_progname_short);
-  free_defaults(default_argv);
-  exit(1);
-}
-
-#include "ma_check_standalone.h"
-#endif
-

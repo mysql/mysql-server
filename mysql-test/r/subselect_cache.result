@@ -469,8 +469,8 @@ Handler_read_key	7
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	31
+Handler_read_rnd	10
+Handler_read_rnd_next	42
 set optimizer_switch='subquery_cache=off';
 flush status;
 select a from t1 ORDER BY (select d from t2 where b=c);
@@ -496,8 +496,8 @@ Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	0
-Handler_read_rnd_next	61
+Handler_read_rnd	10
+Handler_read_rnd_next	72
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (distinct ORDER BY)
 flush status;
@@ -1354,12 +1354,12 @@ Subquery_cache_miss	0
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	11
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	145
+Handler_read_rnd_next	188
 set optimizer_switch='subquery_cache=on';
 flush status;
 select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
@@ -1383,12 +1383,12 @@ Subquery_cache_miss	18
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	32
+Handler_read_key	27
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	84
+Handler_read_rnd_next	102
 #several subqueries (several levels)
 set optimizer_switch='subquery_cache=off';
 flush status;
@@ -2552,70 +2552,70 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	w
 1	NULL	y
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
 SET @@optimizer_switch='subquery_cache=on';
 /* cache is on */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
 SELECT SUBQUERY2_t1 .`col_int_key`
@@ -2643,70 +2643,32 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	w
 1	NULL	y
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'c'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'o'
-Warning	1292	Truncated incorrect INTEGER value: 'd'
-Warning	1292	Truncated incorrect INTEGER value: 'd'
-Warning	1292	Truncated incorrect INTEGER value: 'd'
-Warning	1292	Truncated incorrect INTEGER value: 'd'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'n'
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
+Warning	1292	Truncated incorrect DOUBLE value: 'h'
+Warning	1292	Truncated incorrect DOUBLE value: 'q'
+Warning	1292	Truncated incorrect DOUBLE value: 'w'
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'e'
+Warning	1292	Truncated incorrect DOUBLE value: 'u'
+Warning	1292	Truncated incorrect DOUBLE value: 's'
+Warning	1292	Truncated incorrect DOUBLE value: 'g'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
+Warning	1292	Truncated incorrect DOUBLE value: 'y'
+Warning	1292	Truncated incorrect DOUBLE value: 'p'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DOUBLE value: 'l'
+Warning	1292	Truncated incorrect DOUBLE value: 'k'
+Warning	1292	Truncated incorrect DOUBLE value: 'i'
 drop table t1,t2,t3,t4;
 set @@optimizer_switch= default;
 #launchpad BUG#609045
@@ -3131,7 +3093,7 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	d
 1	NULL	f
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
 SET @@optimizer_switch = 'subquery_cache=on';
 /* cache is on */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
 SELECT SUBQUERY2_t1 .`col_int_key`
@@ -3146,7 +3108,7 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	d
 1	NULL	f
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
 drop table t1,t2,t3,t4;
 set @@optimizer_switch= default;
 #launchpad BUG#611625
@@ -3359,7 +3321,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where <expr_cache><`test`.`t1`.`a`>(<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where <expr_cache><`test`.`t1`.`a`>(<in_optimizer>(`test`.`t1`.`a`,<exists>(select `test`.`t2`.`b` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 drop table t1,t2;
 set @@optimizer_switch= default;
 # LP BUG#615760 (part 2: incorrect heap table index flags)
@@ -3501,6 +3463,7 @@ Warning	1292	Truncated incorrect DOUBLE value: 'r'
 Warning	1292	Truncated incorrect DOUBLE value: 't'
 drop table t1,t2;
 set @@optimizer_switch= default;
+set optimizer_switch='subquery_cache=on';
 # LP BUG#615378 (incorrect NULL result returning in Item_cache)
 CREATE TABLE `t1` (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
@@ -3538,7 +3501,49 @@ WHERE ( table1 . `pk` < 5 ) OR ( table1 . `col_varchar_key` IS NOT NULL)
 GROUP BY field3
 HAVING (field3 <= 'h' AND field2 != 4) ;
 field2	field3
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'v'
-Warning	1292	Truncated incorrect INTEGER value: 'r'
 drop tables t1, t2, t3;
+#
+# Test aggregate functions as parameters to subquery cache
+#
+CREATE TABLE t1 ( a INT, b INT, c INT, KEY (a, b));
+INSERT INTO t1 VALUES
+( 1, 1,  1 ),
+( 1, 2,  2 ),
+( 1, 3,  3 ),
+( 1, 4,  6 ),
+( 1, 5,  5 ),
+( 1, 9, 13 ),
+( 2, 1,  6 ),
+( 2, 2,  7 ),
+( 2, 3,  8 );
+SELECT a, AVG(t1.b),
+(SELECT t11.c FROM t1 t11 WHERE t11.a = t1.a AND t11.b = AVG(t1.b)) AS t11c
+FROM t1 GROUP BY a;
+a	AVG(t1.b)	t11c
+1	4.0000	6
+2	2.0000	7
+DROP TABLE t1;
+#
+# Test of LP BUG#800696 (deleting list of Items (OR arguments) 
+# in optimization)
+#
+set optimizer_switch='subquery_cache=on,in_to_exists=on';
+CREATE TABLE t1 ( f3 int) ;
+INSERT INTO t1 VALUES (0),(0);
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (0),(0);
+CREATE TABLE t2 ( f1 int, f2 int, f3 int) ;
+INSERT INTO t2 VALUES (7,0,0);
+SELECT *
+FROM t2, t3
+WHERE t2.f2 OR t3.f3 IN
+(
+SELECT t2.f2
+FROM t1
+WHERE t2.f1 OR t2.f3 );
+f1	f2	f3	f3
+7	0	0	0
+7	0	0	0
+drop tables t1, t2, t3;
+# restore default
+set @@optimizer_switch= default;

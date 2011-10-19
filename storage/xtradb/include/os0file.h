@@ -147,8 +147,8 @@ log. */
 #define OS_FILE_LOG	256	/* This can be ORed to type */
 /* @} */
 
-#define OS_AIO_N_PENDING_IOS_PER_THREAD 32	/*!< Win NT does not allow more
-						than 64 */
+#define OS_AIO_N_PENDING_IOS_PER_THREAD 256	/*!< Windows might be able to handle
+more */
 
 /** Modes for aio operations @{ */
 #define OS_AIO_NORMAL	21	/*!< Normal asynchronous i/o not for ibuf

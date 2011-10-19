@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->vio = vio;
   my_net_local_init(net);			/* Set some limits */
   if (!(net->buff=(uchar*) my_malloc((size_t) net->max_packet+
-				     NET_HEADER_SIZE + COMP_HEADER_SIZE,
+				     NET_HEADER_SIZE + COMP_HEADER_SIZE +1,
 				     MYF(MY_WME))))
     DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
@@ -602,7 +602,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
     uchar *b;
     uint header_length=NET_HEADER_SIZE+COMP_HEADER_SIZE;
     if (!(b= (uchar*) my_malloc(len + NET_HEADER_SIZE +
-                                COMP_HEADER_SIZE, MYF(MY_WME))))
+                                COMP_HEADER_SIZE + 1, MYF(MY_WME))))
     {
       net->error= 2;
       net->last_errno= ER_OUT_OF_RESOURCES;
@@ -701,7 +701,8 @@ net_real_write(NET *net,const uchar *packet, size_t len)
   {
     my_bool old_mode;
     thr_end_alarm(&alarmed);
-    vio_blocking(net->vio, net_blocking, &old_mode);
+    if (!net_blocking)
+      vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
   DBUG_RETURN(((int) (pos != end)));
@@ -982,7 +983,8 @@ end:
   {
     my_bool old_mode;
     thr_end_alarm(&alarmed);
-    vio_blocking(net->vio, net_blocking, &old_mode);
+    if (!net_blocking)
+      vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
 #ifdef DEBUG_DATA_PACKETS

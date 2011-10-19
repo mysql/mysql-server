@@ -1,7 +1,10 @@
 # test the auto-recover (--myisam-recover) of partitioned myisam tables
 
+--disable_query_log
 call mtr.add_suppression("..test.t1_will_crash");
 call mtr.add_suppression("Got an error from unknown thread");
+call mtr.add_suppression("Table 't1_will_crash' is marked as crashed and should be repaired");
+--enable_query_log
 
 --source include/have_partition.inc
 --disable_warnings
@@ -22,8 +25,8 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1_will_crash.MYI
 --enable_prepare_warnings
 # Embedded server doesn't chdir to data directory
---replace_result \\ /
---replace_regex /Table '.*data/Table './
+--replace_regex /Table '.*t1_will_crash/Table 't1_will_crash/
+--enable_prepare_warnings
 SELECT * FROM t1_will_crash;
 --disable_prepare_warnings
 DROP TABLE t1_will_crash;
@@ -40,8 +43,8 @@ FLUSH TABLES;
 --copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 --enable_prepare_warnings
 # Embedded server doesn't chdir to data directory
---replace_result \\ /
---replace_regex /Table '.*data/Table './
+--replace_regex /Table '.*t1_will_crash/Table 't1_will_crash/
+--enable_prepare_warnings
 SELECT * FROM t1_will_crash;
 --disable_prepare_warnings
 DROP TABLE t1_will_crash;

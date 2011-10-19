@@ -123,6 +123,8 @@ typedef struct st_maria_state_info
      increased.
   */
   LSN skip_redo_lsn;
+  /* LSN when we wrote file id to the log */
+  LSN logrec_file_id;
 
   /* the following isn't saved on disk */
   uint state_diff_length;		/* Should be 0 */
@@ -149,11 +151,13 @@ typedef struct st_maria_state_info
 #define MARIA_COLUMNDEF_SIZE	(2*7+1+1+4)
 #define MARIA_BASE_INFO_SIZE	(MY_UUID_SIZE + 5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
+#define MARIA_MAX_POINTER_LENGTH 7	/* Node pointer */
 /* Internal management bytes needed to store 2 transid/key on an index page */
 #define MARIA_MAX_PACK_TRANSID_SIZE   (TRANSID_SIZE+1)
 #define MARIA_TRANSID_PACK_OFFSET     (256- TRANSID_SIZE - 1)
 #define MARIA_MIN_TRANSID_PACK_OFFSET (MARIA_TRANSID_PACK_OFFSET-TRANSID_SIZE)
-#define MARIA_INDEX_OVERHEAD_SIZE     (MARIA_MAX_PACK_TRANSID_SIZE * 2)
+#define MARIA_INDEX_OVERHEAD_SIZE     (MARIA_MAX_PACK_TRANSID_SIZE * 2 + \
+                                       MARIA_MAX_POINTER_LENGTH)
 #define MARIA_DELETE_KEY_NR  255	/* keynr for deleted blocks */
 
 /*
@@ -240,11 +244,14 @@ typedef struct st_maria_file_bitmap
 {
   uchar *map;
   pgcache_page_no_t page;              /* Page number for current bitmap */
-  uint used_size;                      /* Size of bitmap head that is not 0 */
+  pgcache_page_no_t last_bitmap_page; /* Last possible bitmap page */
   my_bool changed;                     /* 1 if page needs to be written */
   my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
+  uint used_size;                      /* Size of bitmap head that is not 0 */
   uint flush_all_requested;            /**< If _ma_bitmap_flush_all waiting */
+  uint waiting_for_flush_all_requested; /* If someone is waiting for above */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
+  uint waiting_for_non_flushable;      /* If someone is waiting for above */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
   mysql_mutex_t bitmap_lock;
@@ -252,6 +259,8 @@ typedef struct st_maria_file_bitmap
   /* Constants, allocated when initiating bitmaps */
   uint sizes[8];                      /* Size per bit combination */
   uint total_size;		      /* Total usable size of bitmap page */
+  uint max_total_size;                /* Max value for total_size */
+  uint last_total_size;               /* Size of bitmap on last_bitmap_page */
   uint block_size;                    /* Block size of file */
   ulong pages_covered;                /* Pages covered by bitmap + 1 */
   DYNAMIC_ARRAY pinned_pages;         /**< not-yet-flushable bitmap pages */
@@ -264,6 +273,7 @@ typedef struct st_maria_file_bitmap
 typedef struct st_maria_share
 {					/* Shared between opens */
   MARIA_STATE_INFO state;
+  MARIA_STATE_INFO checkpoint_state;   /* Copy of saved state by checkpoint */
   MARIA_BASE_INFO base;
   MARIA_STATE_HISTORY *state_history;
   MARIA_KEYDEF ft2_keyinfo;		/* Second-level ft-key definition */
@@ -371,6 +381,13 @@ typedef struct st_maria_share
   my_bool temporary;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
+  my_bool has_null_fields;
+  my_bool has_varchar_fields;           /* If table has varchar fields */
+  /*
+    Set to 1 if open_count was wrong at open. Set to avoid asserts for
+    wrong open count on close.
+  */
+  my_bool open_count_not_zero_on_open;
 
   my_bool changed,			/* If changed since lock */
     global_changed,			/* If changed since open */
@@ -475,11 +492,12 @@ typedef struct st_maria_block_scan
   MARIA_RECORD_POS row_base_page;
 } MARIA_BLOCK_SCAN;
 
+//typedef ICP_RESULT (*index_cond_func_t)(void *param);
+
 struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
   struct st_ma_transaction *trn;        /* Pointer to active transaction */
-  void *external_ptr;           	/* Pointer to THD in mysql */
   MARIA_STATUS_INFO *state, state_save;
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
@@ -496,6 +514,7 @@ struct st_maria_handler
   DYNAMIC_ARRAY *ft1_to_ft2;		/* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
+  void *external_ref;			/* For MariaDB TABLE */
   uchar *buff;				/* page buffer */
   uchar *keyread_buff;                   /* Buffer for last key read */
   uchar *lastkey_buff;			/* Last used search key */
@@ -537,6 +556,7 @@ struct st_maria_handler
   ulong row_base_length;                /* Length of row header */
   uint row_flag;                        /* Flag to store in row header */
   uint opt_flag;			/* Optim. for space/speed */
+  uint open_flags;                      /* Flags used in open() */
   uint update;				/* If file changed since open */
   int lastinx;				/* Last used index */
   uint last_rkey_length;		/* Last length in maria_rkey() */
@@ -560,6 +580,7 @@ struct st_maria_handler
   my_bool was_locked;			/* Was locked in panic */
   my_bool append_insert_at_end;		/* Set if concurrent insert */
   my_bool quick_mode;
+  my_bool in_check_table;                /* We are running check tables */
   /* Marker if key_del_changed */
   /* If info->keyread_buff can't be used for rnext */
   my_bool page_changed;
@@ -609,6 +630,9 @@ struct st_maria_handler
 #define STATE_NOT_MOVABLE        256
 #define STATE_MOVED              512 /* set if base->uuid != maria_uuid */
 #define STATE_IN_REPAIR  	 1024 /* We are running repair on table */
+#define STATE_CRASHED_PRINTED	 2048
+
+#define STATE_CRASHED_FLAGS (STATE_CRASHED | STATE_CRASHED_ON_REPAIR | STATE_CRASHED_PRINTED)
 
 /* options to maria_read_cache */
 
@@ -691,7 +715,6 @@ struct st_maria_handler
 #endif
 #define DBUG_DUMP_KEY(name, key) DBUG_DUMP(name, (key)->data, (key)->data_length + (key)->ref_length)
 
-
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 
 #define store_key_length(key,length) \
@@ -715,7 +738,7 @@ struct st_maria_handler
   { length=mi_uint2korr((key)+1)+3; } \
 }
 
-#define maria_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/2 - MARIA_INDEX_OVERHEAD_SIZE)
+#define maria_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/3 - MARIA_INDEX_OVERHEAD_SIZE)
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 #define _ma_have_versioning(info) ((info)->row_flag & ROW_FLAG_TRANSID)
 
@@ -767,9 +790,9 @@ struct st_maria_handler
 
 extern mysql_mutex_t THR_LOCK_maria;
 #ifdef DONT_USE_RW_LOCKS
-#define rw_wrlock(A) {}
-#define rw_rdlock(A) {}
-#define rw_unlock(A) {}
+#define mysql_rwlock_wrlock(A) {}
+#define mysql_rwlock_rdlock(A) {}
+#define mysql_rwlock_unlock(A) {}
 #endif
 
 /* Some tuning parameters */
@@ -792,9 +815,11 @@ extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
-extern my_bool maria_recovery_verbose;
+extern my_bool maria_recovery_verbose, maria_checkpoint_disabled;
+extern my_bool maria_assert_if_crashed_table;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);
+extern my_bool (*ma_killed)(MARIA_HA *);
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_SHARE_BITMAP_lock, key_SORT_INFO_mutex,
@@ -825,7 +850,7 @@ extern PSI_thread_key key_thread_checkpoint, key_thread_find_all_keys,
                       key_thread_soft_sync;
 
 extern PSI_file_key key_file_translog, key_file_kfile, key_file_dfile,
-                    key_file_control;
+                    key_file_control, key_file_tmp;
 
 #endif
 
@@ -887,6 +912,18 @@ extern my_bool _ma_update_static_record(MARIA_HA *, MARIA_RECORD_POS,
                                         const uchar *, const uchar *);
 extern my_bool _ma_delete_static_record(MARIA_HA *info, const uchar *record);
 extern my_bool _ma_cmp_static_record(MARIA_HA *info, const uchar *record);
+
+extern my_bool _ma_write_no_record(MARIA_HA *info, const uchar *record);
+extern my_bool _ma_update_no_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                                    const uchar *oldrec, const uchar *record);
+extern my_bool _ma_delete_no_record(MARIA_HA *info, const uchar *record);
+extern int _ma_read_no_record(MARIA_HA *info, uchar *record,
+                              MARIA_RECORD_POS pos);
+extern int _ma_read_rnd_no_record(MARIA_HA *info, uchar *buf,
+                                  MARIA_RECORD_POS filepos,
+                                  my_bool skip_deleted_blocks);
+my_off_t _ma_no_keypos_to_recpos(MARIA_SHARE *share, my_off_t pos);
+
 extern my_bool _ma_ck_write(MARIA_HA *info, MARIA_KEY *key);
 extern my_bool _ma_enlarge_root(MARIA_HA *info, MARIA_KEY *key,
                                 MARIA_RECORD_POS *root);
@@ -937,11 +974,13 @@ extern my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
 extern int _ma_readinfo(MARIA_HA *info, int lock_flag, int check_keybuffer);
 extern int _ma_writeinfo(MARIA_HA *info, uint options);
 extern int _ma_test_if_changed(MARIA_HA *info);
-extern int _ma_mark_file_changed(MARIA_HA *info);
+extern int _ma_mark_file_changed(MARIA_SHARE *info);
+extern int _ma_mark_file_changed_now(MARIA_SHARE *info);
 extern void _ma_mark_file_crashed(MARIA_SHARE *share);
-extern my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid);
+void _ma_set_fatal_error(MARIA_SHARE *share, int error);
+extern my_bool _ma_set_uuid(MARIA_SHARE *info, my_bool reset_uuid);
 extern my_bool _ma_check_if_zero(uchar *pos, size_t size);
-extern int _ma_decrement_open_count(MARIA_HA *info);
+extern int _ma_decrement_open_count(MARIA_HA *info, my_bool lock_table);
 extern int _ma_check_index(MARIA_HA *info, int inx);
 extern int _ma_search(MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
                       my_off_t pos);
@@ -1035,7 +1074,7 @@ extern MARIA_KEY *_ma_pack_key(MARIA_HA *info, MARIA_KEY *int_key,
                                HA_KEYSEG ** last_used_keyseg);
 extern void _ma_copy_key(MARIA_KEY *to, const MARIA_KEY *from);
 extern int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS);
-extern my_bool _ma_read_cache(IO_CACHE *info, uchar *buff,
+extern my_bool _ma_read_cache(MARIA_HA *, IO_CACHE *info, uchar *buff,
                               MARIA_RECORD_POS pos, size_t length,
                               uint re_read_if_possibly);
 extern ulonglong ma_retrieve_auto_increment(const uchar *key, uint8 key_type);
@@ -1117,7 +1156,7 @@ typedef struct st_maria_block_info
 #define fast_ma_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _ma_writeinfo((INFO),0)
 #define fast_ma_readinfo(INFO) ((INFO)->lock_type == F_UNLCK) && _ma_readinfo((INFO),F_RDLCK,1)
 
-extern uint _ma_get_block_info(MARIA_BLOCK_INFO *, File, my_off_t);
+extern uint _ma_get_block_info(MARIA_HA *, MARIA_BLOCK_INFO *, File, my_off_t);
 extern uint _ma_rec_pack(MARIA_HA *info, uchar *to, const uchar *from);
 extern uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
                                     MARIA_BLOCK_INFO *info, uchar **rec_buff_p,
@@ -1196,6 +1235,7 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size);
 
 MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info, const uchar *record);
 my_bool _ma_write_abort_default(MARIA_HA *info);
+int maria_delete_table_files(const char *name, myf sync_dir);
 
 C_MODE_START
 #define MARIA_FLUSH_DATA  1
@@ -1208,6 +1248,8 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   See ma_check_standalone.h .
 */
 int _ma_killed_ptr(HA_CHECK *param);
+void _ma_report_progress(HA_CHECK *param, ulonglong progress,
+                         ulonglong max_progress);
 void _ma_check_print_error(HA_CHECK *param, const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 2, 3);
 void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
@@ -1282,5 +1324,9 @@ extern my_bool maria_flush_log_for_page_none(uchar *page,
 extern PAGECACHE *maria_log_pagecache;
 extern void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
                                    void *func_arg);
-int ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record);
+ICP_RESULT ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record);
 
+extern my_bool ma_yield_and_check_if_killed(MARIA_HA *info, int inx);
+extern my_bool ma_killed_standalone(MARIA_HA *);
+
+extern uint _ma_file_callback_to_id(void *callback_data);

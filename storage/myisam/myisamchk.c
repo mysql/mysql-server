@@ -670,7 +670,8 @@ get_one_option(int optid,
   case OPT_STATS_METHOD:
   {
     int method;
-    enum_handler_stats_method UNINIT_VAR(method_conv);
+    enum_handler_stats_method method_conv;
+    LINT_INIT(method_conv);
     myisam_stats_method_str= argument;
     if ((method= find_type(argument, &myisam_stats_method_typelib,
                            FIND_TYPE_BASIC)) <= 0)
@@ -1003,8 +1004,10 @@ static int myisamchk(HA_CHECK *param, char * filename)
 #ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
-	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
-	  error|=change_to_newfile(filename, MI_NAME_DEXT, DATA_TMP_EXT, MYF(0));
+	  (void) mysql_file_close(info->dfile,
+                                  MYF(MY_WME)); /* Close new file */
+	  error|=change_to_newfile(filename, MI_NAME_DEXT, DATA_TMP_EXT, 
+                                   0, MYF(0));
 	  if (mi_open_datafile(info,info->s, NULL, -1))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
@@ -1136,10 +1139,9 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
+			       param->backup_time,
 			       ((param->testflag & T_BACKUP_DATA) ?
 				MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
-    if (param->out_flag & O_NEW_INDEX)
-      error|=change_to_newfile(filename, MI_NAME_IEXT, INDEX_TMP_EXT, MYF(0));
   }
   (void) fflush(stdout); (void) fflush(stderr);
   if (param->error_printed)
@@ -1211,7 +1213,8 @@ static void descript(HA_CHECK *param, register MI_INFO *info, char * name)
     }
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
-      strmov(buff,"crashed");
+      strmov(buff, share->state.changed & STATE_CRASHED_ON_REPAIR ?
+             "crashed on repair" : "crashed");
     else
     {
       if (share->state.open_count)
@@ -1508,11 +1511,12 @@ static int mi_sort_records(HA_CHECK *param,
     goto err;
   }
   fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
-  new_file= my_create(fn_format(param->temp_filename,
-                                param->temp_filename, "",
-                                DATA_TMP_EXT, 2+4),
-                      0, param->tmpfile_createflag,
-                      MYF(0));
+  new_file= mysql_file_create(mi_key_file_datatmp,
+                              fn_format(param->temp_filename,
+                                        param->temp_filename, "",
+                                        DATA_TMP_EXT, 2+4),
+                              0, param->tmpfile_createflag,
+                              MYF(0));
   if (new_file < 0)
   {
     mi_check_print_error(param,"Can't create new tempfile: '%s'",
@@ -1529,10 +1533,10 @@ static int mi_sort_records(HA_CHECK *param,
   for (key=0 ; key < share->base.keys ; key++)
     share->keyinfo[key].flag|= HA_SORT_ALLOWS_SAME;
 
-  if (my_pread(share->kfile,(uchar*) temp_buff,
-	       (uint) keyinfo->block_length,
-	       share->state.key_root[sort_key],
-	       MYF(MY_NABP+MY_WME)))
+  if (mysql_file_pread(share->kfile,(uchar*) temp_buff,
+                       (uint) keyinfo->block_length,
+                       share->state.key_root[sort_key],
+                       MYF(MY_NABP+MY_WME)))
   {
     mi_check_print_error(param,"Can't read indexpage from filepos: %s",
 		(ulong) share->state.key_root[sort_key]);
@@ -1564,7 +1568,7 @@ static int mi_sort_records(HA_CHECK *param,
     goto err;
   }
 
-  (void) my_close(info->dfile,MYF(MY_WME));
+  (void) mysql_file_close(info->dfile,MYF(MY_WME));
   param->out_flag|=O_NEW_DATA;			/* Data in new file */
   info->dfile=new_file;				/* Use new datafile */
   info->state->del=0;
@@ -1586,8 +1590,9 @@ err:
   if (got_error && new_file >= 0)
   {
     (void) end_io_cache(&info->rec_cache);
-    (void) my_close(new_file,MYF(MY_WME));
-    (void) my_delete(param->temp_filename, MYF(MY_WME));
+    (void) mysql_file_close(new_file,MYF(MY_WME));
+    (void) mysql_file_delete(mi_key_file_dfile, param->temp_filename,
+                             MYF(MY_WME));
   }
   if (temp_buff)
   {
@@ -1639,9 +1644,9 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
     if (nod_flag)
     {
       next_page=_mi_kpos(nod_flag,keypos);
-      if (my_pread(info->s->kfile,(uchar*) temp_buff,
-		  (uint) keyinfo->block_length, next_page,
-		   MYF(MY_NABP+MY_WME)))
+      if (mysql_file_pread(info->s->kfile,(uchar*) temp_buff,
+                           (uint) keyinfo->block_length, next_page,
+                           MYF(MY_NABP+MY_WME)))
       {
 	mi_check_print_error(param,"Can't read keys from filepos: %s",
 		    llstr(next_page,llbuff));

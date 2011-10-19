@@ -110,6 +110,8 @@ archive */
 UNIV_INTERN byte	log_archive_io;
 #endif /* UNIV_LOG_ARCHIVE */
 
+UNIV_INTERN ulint       log_disable_checkpoint_active= 0;
+
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
 
@@ -187,7 +189,7 @@ log_fsp_current_free_limit_set_and_checkpoint(
 	success = FALSE;
 
 	while (!success) {
-		success = log_checkpoint(TRUE, TRUE);
+          success = log_checkpoint(TRUE, TRUE, FALSE);
 	}
 }
 
@@ -2007,12 +2009,14 @@ log_checkpoint(
 /*===========*/
 	ibool	sync,		/*!< in: TRUE if synchronous operation is
 				desired */
-	ibool	write_always)	/*!< in: the function normally checks if the
+	ibool	write_always,	/*!< in: the function normally checks if the
 				the new checkpoint would have a greater
 				lsn than the previous one: if not, then no
 				physical write is done; by setting this
 				parameter TRUE, a physical write will always be
 				made to log files */
+        ibool   safe_to_ignore) /*!< in: TRUE if checkpoint can be ignored in
+                                  the case checkpoint's are disabled */
 {
 	ib_uint64_t	oldest_lsn;
 
@@ -2043,13 +2047,26 @@ log_checkpoint(
 
 	mutex_enter(&(log_sys->mutex));
 
+        /* Return if this is not a forced checkpoint and either there is no
+           need for a checkpoint or if checkpoints are disabled */
 	if (!write_always
-	    && log_sys->last_checkpoint_lsn >= oldest_lsn) {
+	    && (log_sys->last_checkpoint_lsn >= oldest_lsn ||
+                (safe_to_ignore && log_disable_checkpoint_active)))
+        {
 
 		mutex_exit(&(log_sys->mutex));
 
 		return(TRUE);
 	}
+
+        if (log_disable_checkpoint_active)
+        {
+          	/* Wait until we are allowed to do a checkpoint */
+		mutex_exit(&(log_sys->mutex));
+		rw_lock_s_lock(&(log_sys->checkpoint_lock));
+		rw_lock_s_unlock(&(log_sys->checkpoint_lock));
+                mutex_enter(&(log_sys->mutex));
+        }
 
 	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
@@ -2111,7 +2128,73 @@ log_make_checkpoint_at(
 
 	while (!log_preflush_pool_modified_pages(lsn, TRUE));
 
-	while (!log_checkpoint(TRUE, write_always));
+	while (!log_checkpoint(TRUE, write_always, FALSE));
+}
+
+/****************************************************************//**
+Disable checkpoints. This is used when doing a volumne snapshot
+to ensure that we don't get checkpoint between snapshoting two
+different volumes */
+
+UNIV_INTERN
+ibool log_disable_checkpoint()
+{
+  mutex_enter(&(log_sys->mutex));
+
+  /*
+    Wait if a checkpoint write is running.
+    This is the same code that is used in log_checkpoint() to ensure
+    that two checkpoints are not happening at the same time.
+  */
+  while (log_sys->n_pending_checkpoint_writes > 0)
+  {
+    mutex_exit(&(log_sys->mutex));
+    rw_lock_s_lock(&(log_sys->checkpoint_lock));
+    rw_lock_s_unlock(&(log_sys->checkpoint_lock));
+    mutex_enter(&(log_sys->mutex));
+  }
+  /*
+    The following should never be true; It's is here just in case of
+    wrong usage of this function. (Better safe than sorry).
+  */
+
+  if (log_disable_checkpoint_active)
+  {
+    mutex_exit(&(log_sys->mutex));
+    return 1;                                   /* Already disabled */
+  }
+  /*
+    Take the checkpoint lock to ensure we will not get any checkpoints
+    running
+  */
+  rw_lock_x_lock_gen(&(log_sys->checkpoint_lock), LOG_CHECKPOINT);
+  log_disable_checkpoint_active= 1;
+  mutex_exit(&(log_sys->mutex));
+  return 0;
+}
+
+
+/****************************************************************//**
+Enable checkpoints that was disabled with log_disable_checkpoint()
+This lock is called by MariaDB and only when we have done call earlier
+to log_disable_checkpoint().
+
+Note: We can't take a log->mutex lock here running log_checkpoint()
+which is waiting (log_sys->checkpoint_lock may already have it.
+This is however safe to do without a mutex as log_disable_checkpoint
+is protected by log_sys->checkpoint_lock.
+*/
+
+UNIV_INTERN
+void log_enable_checkpoint()
+{
+  ut_ad(log_disable_checkpoint_active);
+  /* Test variable, mostly to protect against wrong usage */
+  if (log_disable_checkpoint_active)
+  {
+    log_disable_checkpoint_active= 0;
+    rw_lock_x_unlock_gen(&(log_sys->checkpoint_lock), LOG_CHECKPOINT);
+  }
 }
 
 /****************************************************************//**
@@ -2208,7 +2291,7 @@ loop:
 	}
 
 	if (do_checkpoint) {
-		log_checkpoint(checkpoint_sync, FALSE);
+                log_checkpoint(checkpoint_sync, FALSE, FALSE);
 
 		if (checkpoint_sync) {
 
@@ -3121,11 +3204,16 @@ logs_empty_and_mark_files_at_shutdown(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Starting shutdown...\n");
 	}
+
+        /* Enable checkpoints if someone had turned them off */
+	if (log_disable_checkpoint_active)
+		log_enable_checkpoint();
+
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
-	os_event_set(srv_purge_thread_event);
+	os_event_set(srv_shutdown_event);
 loop:
 	os_thread_sleep(100000);
 

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates.
+   Copyright (c) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -577,6 +578,56 @@ bool Protocol::send_error(uint sql_errno, const char *err_msg,
 }
 
 
+/**
+   Send a progress report to the client
+
+   What we send is:
+   header (255,255,255,1)
+   stage, max_stage as on byte integers
+   percentage withing the stage as percentage*1000
+   (that is, ratio*100000) as a 3 byte integer
+   proc_info as a string
+*/
+
+const uchar progress_header[2]= {(uchar) 255, (uchar) 255 };
+
+void net_send_progress_packet(THD *thd)
+{
+  uchar buff[200], *pos;
+  const char *proc_info= thd->proc_info ? thd->proc_info : "";
+  uint length= strlen(proc_info);
+  ulonglong progress;
+  DBUG_ENTER("net_send_progress_packet");
+
+  if (unlikely(!thd->net.vio))
+    DBUG_VOID_RETURN;                           // Socket is closed
+
+  pos= buff;
+  /*
+    Store number of strings first. This allows us to later expand the
+    progress indicator if needed.
+  */
+  *pos++= (uchar) 1;                            // Number of strings
+  *pos++= (uchar) thd->progress.stage + 1;
+  /*
+    We have the max() here to avoid problems if max_stage is not set,
+    which may happen during automatic repair of table
+  */
+  *pos++= (uchar) max(thd->progress.max_stage, thd->progress.stage + 1);
+  progress= 0;
+  if (thd->progress.max_counter)
+    progress= 100000ULL * thd->progress.counter / thd->progress.max_counter;
+  int3store(pos, progress);                          // Between 0 & 100000
+  pos+= 3;
+  pos= net_store_data(pos, (const uchar*) proc_info,
+                      min(length, sizeof(buff)-7));
+  net_write_command(&thd->net, (uchar) 255, progress_header,
+                    sizeof(progress_header), (uchar*) buff,
+                    (uint) (pos - buff));
+  DBUG_VOID_RETURN;
+}
+
+  
 /****************************************************************************
   Functions used by the protocol functions (like net_send_ok) to store
   strings and numbers in the header result packet.
@@ -679,7 +730,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
   CHARSET_INFO *thd_charset= thd->variables.character_set_results;
-  DBUG_ENTER("send_result_set_metadata");
+  DBUG_ENTER("Protocol::send_result_set_metadata");
 
   if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements
@@ -693,6 +744,9 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 					      list->elements);
   uint count= 0;
 #endif
+
+  /* We have to reallocate it here as a stored procedure may have reset it */
+  (void) local_packet->alloc(thd->variables.net_buffer_length);
 
   while ((item=it++))
   {
@@ -1121,13 +1175,7 @@ bool Protocol_text::store(Field *field)
 }
 
 
-/**
-  @todo
-    Second_part format ("%06") needs to change when 
-    we support 0-6 decimals for time.
-*/
-
-bool Protocol_text::store(MYSQL_TIME *tm)
+bool Protocol_text::store(MYSQL_TIME *tm, int decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -1135,18 +1183,8 @@ bool Protocol_text::store(MYSQL_TIME *tm)
 	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  length= sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-		  (int) tm->year,
-		  (int) tm->month,
-		  (int) tm->day,
-		  (int) tm->hour,
-		  (int) tm->minute,
-		  (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d",
-                     (int)tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_datetime_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1164,29 +1202,15 @@ bool Protocol_text::store_date(MYSQL_TIME *tm)
 }
 
 
-/**
-  @todo 
-    Second_part format ("%06") needs to change when 
-    we support 0-6 decimals for time.
-*/
-
-bool Protocol_text::store_time(MYSQL_TIME *tm)
+bool Protocol_text::store_time(MYSQL_TIME *tm, int decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= sprintf(buff, "%s%02ld:%02d:%02d",
-                  tm->neg ? "-" : "",
-                  (long) day*24L+(long) tm->hour,
-                  (int) tm->minute,
-                  (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int)tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_time_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1389,7 +1413,7 @@ bool Protocol_binary::store(Field *field)
 }
 
 
-bool Protocol_binary::store(MYSQL_TIME *tm)
+bool Protocol_binary::store(MYSQL_TIME *tm, int decimals)
 {
   char buff[12],*pos;
   uint length;
@@ -1402,6 +1426,10 @@ bool Protocol_binary::store(MYSQL_TIME *tm)
   pos[4]= (uchar) tm->hour;
   pos[5]= (uchar) tm->minute;
   pos[6]= (uchar) tm->second;
+  DBUG_ASSERT(decimals == AUTO_SEC_PART_DIGITS ||
+              (decimals >= 0 && decimals <= TIME_SECOND_PART_DIGITS));
+  if (decimals != AUTO_SEC_PART_DIGITS)
+    tm->second_part= sec_part_truncate(tm->second_part, decimals);
   int4store(pos+7, tm->second_part);
   if (tm->second_part)
     length=11;
@@ -1419,11 +1447,11 @@ bool Protocol_binary::store_date(MYSQL_TIME *tm)
 {
   tm->hour= tm->minute= tm->second=0;
   tm->second_part= 0;
-  return Protocol_binary::store(tm);
+  return Protocol_binary::store(tm, 0);
 }
 
 
-bool Protocol_binary::store_time(MYSQL_TIME *tm)
+bool Protocol_binary::store_time(MYSQL_TIME *tm, int decimals)
 {
   char buff[13], *pos;
   uint length;
@@ -1432,7 +1460,6 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm)
   pos[0]= tm->neg ? 1 : 0;
   if (tm->hour >= 24)
   {
-    /* Fix if we come from Item::send */
     uint days= tm->hour/24;
     tm->hour-= days*24;
     tm->day+= days;
@@ -1441,6 +1468,10 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm)
   pos[5]= (uchar) tm->hour;
   pos[6]= (uchar) tm->minute;
   pos[7]= (uchar) tm->second;
+  DBUG_ASSERT(decimals == AUTO_SEC_PART_DIGITS ||
+              (decimals >= 0 && decimals <= TIME_SECOND_PART_DIGITS));
+  if (decimals != AUTO_SEC_PART_DIGITS)
+    tm->second_part= sec_part_truncate(tm->second_part, decimals);
   int4store(pos+8, tm->second_part);
   if (tm->second_part)
     length=12;

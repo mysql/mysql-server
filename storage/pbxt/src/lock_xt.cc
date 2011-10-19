@@ -726,11 +726,15 @@ xtBool xt_init_row_locks(XTRowLocksPtr rl)
 		rl->rl_groups[i].lg_list_in_use = 0;
 		rl->rl_groups[i].lg_list = NULL;
 	}
+	rl->valid = 1;
 	return OK;
 }
 
 void xt_exit_row_locks(XTRowLocksPtr rl)
 {
+	if (!rl->valid)
+		return;
+
 	for (int i=0; i<XT_ROW_LOCK_GROUP_COUNT; i++) {
 		xt_spinlock_free(NULL, &rl->rl_groups[i].lg_lock);
 		rl->rl_groups[i].lg_wait_queue = NULL;
@@ -741,6 +745,7 @@ void xt_exit_row_locks(XTRowLocksPtr rl)
 			rl->rl_groups[i].lg_list = NULL;
 		}
 	}
+	rl->valid = 0;
 }
 
 /*
@@ -1424,6 +1429,7 @@ xtPublic void xt_spinxslock_init(struct XTThread *XT_UNUSED(self), XTSpinXSLockP
 #endif
 {
 	sxs->sxs_xlocked = 0;
+	sxs->sxs_xwaiter = 0;
 	sxs->sxs_rlock_count = 0;
 	sxs->sxs_wait_count = 0;
 #ifdef DEBUG
@@ -2058,11 +2064,12 @@ static void lck_free_thread_data(XTThreadPtr XT_UNUSED(self), void *XT_UNUSED(da
 
 static void lck_do_job(XTThreadPtr self, int job, XSLockTestPtr data, xtBool reader)
 {
-	char b1[2048], b2[2048];
+	char b1[1024], b2[1024];
 
 	switch (job) {
 		case JOB_MEMCPY:
-			memcpy(b1, b2, 2048);
+                        memset(b1, 0, sizeof(b1));
+                        memset(b2, 1, sizeof(b2));
 			data->xs_inc++;
 			break;
 		case JOB_SLEEP:

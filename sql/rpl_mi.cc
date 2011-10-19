@@ -26,8 +26,9 @@
 
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
-   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), 
+   ssl(0), ssl_verify_server_cert(1), fd(-1), io_thd(0), 
    rli(is_slave_recovery), port(MYSQL_PORT),
+   checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
    connect_retry(DEFAULT_CONNECT_RETRY), inited(0), abort_slave(0),
    slave_running(0), slave_run_id(0), sync_counter(0),
    heartbeat_period(0), received_heartbeats(0), master_id(0)

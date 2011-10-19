@@ -19,7 +19,8 @@
 #include <tap.h>
 #include "../trnman.h"
 
-extern my_bool maria_log_remove();
+extern my_bool maria_log_remove(const char *testdir);
+extern char *create_tmpdir(const char *progname);
 extern void translog_example_table_init();
 
 #ifndef DBUG_OFF
@@ -30,8 +31,6 @@ static const char *default_dbug_option;
 #define PCACHE_PAGE TRANSLOG_PAGE_SIZE
 #define LOG_FILE_SIZE (1024L*1024L*1024L + 1024L*1024L*512)
 #define LOG_FLAGS 0
-
-static char *first_translog_file= (char*)"maria_log.00000001";
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
@@ -49,12 +48,9 @@ int main(int argc __attribute__((unused)), char *argv[])
   plan(1);
 
   bzero(&pagecache, sizeof(pagecache));
-  maria_data_root= (char *)".";
-  if (maria_log_remove())
+  maria_data_root= create_tmpdir(argv[0]);
+  if (maria_log_remove(0))
     exit(1);
-  /* be sure that we have no logs in the directory*/
-  my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
-  my_delete(first_translog_file, MYF(0));
 
   bzero(long_tr_id, 6);
 #ifndef DBUG_OFF
@@ -81,7 +77,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+  if (translog_init_with_table(maria_data_root, LOG_FILE_SIZE, 50112, 0, &pagecache,
                                LOG_FLAGS, 0, &translog_example_table_init,
                                0))
   {
@@ -139,7 +135,7 @@ err:
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
-  if (maria_log_remove())
+  if (maria_log_remove(maria_data_root))
     exit(1);
 
   exit(rc);

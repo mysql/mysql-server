@@ -36,7 +36,6 @@ ENDIF(UNIX)
 MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
 TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 
-
 IF(CMAKE_GENERATOR MATCHES "Xcode")
 # It does not seem possible to tell Xcode the resulting target might need
 # to be linked with C++ runtime. The project needs to have at least one C++

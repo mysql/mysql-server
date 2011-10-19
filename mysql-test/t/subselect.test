@@ -12,8 +12,10 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 drop view if exists v2;
 --enable_warnings
 
-set @save_optimizer_switch=@@optimizer_switch;
-set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+set @subselect_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
+                              "semijoin=on,firstmatch=on,loosescan=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 select (select 2);
 explain extended select (select 2);
@@ -260,6 +262,7 @@ INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 -- error ER_SUBQUERY_NO_1_ROW
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
+show warnings;
 drop table t1;
 
 create table t1 (a int);
@@ -322,7 +325,7 @@ insert into t2 values (1, 21),(2, 12),(3, 23);
 select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 -- error ER_UPDATE_TABLE_USED
-delete from t1 where b = (select b from t1);
+delete from t1 where b in (select b from t1);
 -- error ER_SUBQUERY_NO_1_ROW
 delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
@@ -2078,7 +2081,7 @@ SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2086,7 +2089,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2094,7 +2097,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2102,7 +2105,7 @@ SELECT a FROM t1
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -4289,7 +4292,7 @@ SELECT 1 FROM t1 GROUP BY
   (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
 DROP TABLE t1;
 
-set @@optimizer_switch=@save_optimizer_switch;
+#Seems to be not needed here: set @@optimizer_switch=@subselect_tmp;
 --echo #
 --echo # Bug #49512 : subquery with aggregate function crash 
 --echo #   subselect_single_select_engine::exec()
@@ -4479,6 +4482,45 @@ SELECT * FROM t1
 
 DROP TABLE t1,t1s,t2s;
 
+--echo # LP BUG#675248 - select->prep_where references on freed memory 
+
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(0,0);
+
+CREATE TABLE t2 (c int);
+insert into t2 values (1),(2);
+
+prepare stmt1 from "select sum(a),(select sum(c) from t2 where table1.b) as sub
+from t1 as table1 group by sub";
+
+execute stmt1;
+
+deallocate prepare stmt1;
+
+prepare stmt1 from "select sum(a),(select sum(c) from t2 having table1.b) as sub
+from t1 as table1";
+
+execute stmt1;
+
+deallocate prepare stmt1;
+
+drop table t1,t2;
+
+--echo #
+--echo # Bug LP#693935/#58727: Assertion failure with 
+--echo # a single row subquery returning more than one row
+--echo #
+
+create table t1 (a char(1) charset utf8);
+insert into t1 values ('a'), ('b');
+create table t2 (a binary(1));
+insert into t2 values ('x'), ('y');
+
+-- error ER_SUBQUERY_NO_1_ROW
+select * from t2 where a=(select a from t1) and a='x';
+
+drop table t1,t2;
+
 --echo End of 5.1 tests
 
 --echo #
@@ -4538,3 +4580,251 @@ select * from t3 where k in (select j from v2);
 
 drop table t1,t2,t3;
 drop view v2;
+
+--echo #
+--echo # Bug#52068: Optimizer generates invalid semijoin materialization plan
+--echo #
+--disable_warnings
+drop table if exists ot1, ot2, it1, it2;
+--enable_warnings
+CREATE TABLE ot1(a INTEGER);
+INSERT INTO ot1 VALUES(5), (8);
+CREATE TABLE it2(a INTEGER);
+INSERT INTO it2 VALUES(9), (5), (1), (8);
+CREATE TABLE it3(a INTEGER);
+INSERT INTO it3 VALUES(7), (1), (0), (5), (1), (4);
+CREATE TABLE ot4(a INTEGER);
+INSERT INTO ot4 VALUES(1), (3), (5), (7), (9), (7), (3), (1);
+
+let $query=
+SELECT * FROM ot1,ot4
+WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
+                        FROM it2,it3);
+
+eval $query;
+eval explain $query;
+
+DROP TABLE IF EXISTS ot1, ot4, it2, it3;
+
+
+--echo #
+--echo # Bug#729039: NULL keys used to evaluate subquery
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (NULL), (1), (NULL), (2);
+
+CREATE TABLE t2 (a int, INDEX idx(a)) ;
+INSERT INTO t2 VALUES (NULL), (1), (NULL);
+
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 USE INDEX () WHERE t2.a = t1.a);
+EXPLAIN
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 USE INDEX() WHERE t2.a = t1.a);
+
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+EXPLAIN
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#752992: Wrong results for a subquery with 'semijoin=on'
+--echo #
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL);
+INSERT INTO t1 VALUES (11,0);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (15,0);
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL);
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (12,2);
+INSERT INTO t2 VALUES (15,4);
+
+EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
+SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
+
+DROP table t1,t2;
+
+--echo #
+--echo # Bug#751350: crash with pushed condition for outer references when
+--echo #             there should be none of such conditions
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0),(0,0);
+
+EXPLAIN
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #11765713 58705:
+--echo # OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+--echo # CREATED BY OPT_SUM_QUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1)
+  );
+
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1 where a is null)
+  ); 
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#779885: Crash in eliminate_item_equal with materialization=on in
+--echo # maria-5.3
+--echo #
+
+CREATE TABLE t1 ( f1 int );
+INSERT INTO t1 VALUES (19), (20);
+
+CREATE TABLE t2 ( f10 varchar(32) );
+INSERT INTO t2 VALUES ('c'),('d');
+
+CREATE TABLE t3 ( f10 varchar(32) );
+INSERT INTO t3 VALUES ('a'),('b');
+
+SELECT *
+FROM t1
+WHERE
+( 't' ) IN (
+        SELECT t3.f10
+        FROM t3
+        JOIN t2
+        ON t2.f10 = t3.f10
+);
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Fix of LP BUG#780386 (NULL left part with empty ALL subquery).
+--echo #
+CREATE TABLE t1 ( f11 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3)) ;
+INSERT IGNORE INTO t2 VALUES (NULL,NULL),(5,0);
+
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (0),(0);
+
+SELECT a1.f3 AS r FROM t2 AS a1 , t1 WHERE a1.f3 < ALL ( SELECT f3 FROM t3 WHERE f3 = 1 ) ;
+DROP TABLE t1, t2, t3;
+
+--echo End of 5.3 tests
+
+--echo End of 5.5 tests.
+
+--echo #
+--echo # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
+--echo #
+
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2(a1 int);
+INSERT INTO t2 VALUES (3);
+
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+
+## All these are subject to the transformation
+## '1 < some (...)' => '1 < max(...)'
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2.0 FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 'a' FROM t2);
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
+
+SET SESSION sql_mode=@old_sql_mode;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#50257: Missing info in REF column of the EXPLAIN 
+--echo #            lines for subselects
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+--echo
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+--echo
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+
+--echo
+DROP TABLE t1;
+
+--echo #
+--echo # Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
+--echo #                BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0), (1); 
+
+CREATE TABLE t2(
+  b TEXT, 
+  c INT, 
+  PRIMARY KEY (b(1))
+);
+INSERT INTO t2 VALUES ('a', 2), ('b', 3);
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   ORDER BY b
+ );
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   GROUP BY b
+ );
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+
+let $query=SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+
+eval $query;
+eval explain $query;
+
+DROP TABLE t1,t2;
+
+set optimizer_switch=@subselect_tmp;

@@ -1,6 +1,5 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
-
 /* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -486,6 +485,7 @@ public:
   virtual Field *create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length);
   bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
+  virtual bool collect_outer_ref_processor(uchar *param);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);
@@ -546,6 +546,7 @@ public:
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name()); 
   }
+  bool clear_sum_processor(uchar *arg) { clear(); return 0; }
 };
 
 
@@ -1061,11 +1062,6 @@ protected:
   void restore_to_before_no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
-  /*
-    MIN/MAX uses Item_cache_datetime for storing DATETIME values, thus
-    in this case a correct INT value can be provided.
-  */
-  bool result_as_longlong() { return args[0]->result_as_longlong(); }
 };
 
 
@@ -1456,8 +1452,13 @@ public:
   void make_unique();
   double val_real()
   {
-    String *res;  res=val_str(&str_value);
-    return res ? my_atof(res->c_ptr()) : 0.0;
+    int error;
+    const char *end;
+    String *res;
+    if (!(res= val_str(&str_value)))
+      return 0.0;
+    end= res->ptr() + res->length();
+    return (my_strtod(res->ptr(), (char**) &end, &error));
   }
   longlong val_int()
   {

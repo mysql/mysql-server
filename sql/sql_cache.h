@@ -293,14 +293,14 @@ private:
   my_thread_id m_cache_lock_thread_id;
 #endif
   mysql_cond_t COND_cache_status_changed;
+  uint m_requests_in_progress;
   enum Cache_lock_status { UNLOCKED, LOCKED_NO_WAIT, LOCKED };
   Cache_lock_status m_cache_lock_status;
-
-  bool m_query_cache_is_disabled;
+  enum Cache_staus {OK, DISABLE_REQUEST, DISABLED};
+  Cache_staus m_cache_status;
 
   void free_query_internal(Query_cache_block *point);
   void invalidate_table_internal(THD *thd, uchar *key, uint32 key_length);
-  void disable_query_cache(void) { m_query_cache_is_disabled= TRUE; }
 
 protected:
   /*
@@ -312,7 +312,7 @@ protected:
       2. query block (for operation inside query (query block/results))
 
     Thread doing cache flush releases the mutex once it sets
-    m_cache_status flag, so other threads may bypass the cache as
+    m_cache_lock_status flag, so other threads may bypass the cache as
     if it is disabled, not waiting for reset to finish.  The exception
     is other threads that were going to do cache flush---they'll wait
     till the end of a flush operation.
@@ -427,8 +427,7 @@ protected:
     If query is cacheable return number tables in query
     (query without tables not cached)
   */
-  TABLE_COUNTER_TYPE is_cacheable(THD *thd, size_t query_len,
-                                  const char *query,
+  TABLE_COUNTER_TYPE is_cacheable(THD *thd,
                                   LEX *lex, TABLE_LIST *tables_used,
                                   uint8 *tables_type);
   TABLE_COUNTER_TYPE process_and_count_tables(THD *thd,
@@ -444,7 +443,9 @@ protected:
 	      uint def_query_hash_size = QUERY_CACHE_DEF_QUERY_HASH_SIZE,
 	      uint def_table_hash_size = QUERY_CACHE_DEF_TABLE_HASH_SIZE);
 
-  bool is_disabled(void) { return m_query_cache_is_disabled; }
+  bool is_disabled(void) { return m_cache_status != OK; }
+  bool is_disable_in_progress(void)
+  { return m_cache_status == DISABLE_REQUEST; }
 
   /* initialize cache (mutex) */
   void init();
@@ -465,22 +466,23 @@ protected:
   int send_result_to_client(THD *thd, char *query, uint query_length);
 
   /* Remove all queries that uses any of the listed following tables */
-  void invalidate(THD* thd, TABLE_LIST *tables_used,
+  void invalidate(THD *thd, TABLE_LIST *tables_used,
 		  my_bool using_transactions);
-  void invalidate(CHANGED_TABLE_LIST *tables_used);
-  void invalidate_locked_for_write(TABLE_LIST *tables_used);
-  void invalidate(THD* thd, TABLE *table, my_bool using_transactions);
+  void invalidate(THD *thd, CHANGED_TABLE_LIST *tables_used);
+  void invalidate_locked_for_write(THD *thd, TABLE_LIST *tables_used);
+  void invalidate(THD *thd, TABLE *table, my_bool using_transactions);
   void invalidate(THD *thd, const char *key, uint32  key_length,
 		  my_bool using_transactions);
 
   /* Remove all queries that uses any of the tables in following database */
-  void invalidate(char *db);
+  void invalidate(THD *thd, char *db);
 
   /* Remove all queries that uses any of the listed following table */
   void invalidate_by_MyISAM_filename(const char *filename);
 
   void flush();
-  void pack(ulong join_limit = QUERY_CACHE_PACK_LIMIT,
+  void pack(THD *thd,
+            ulong join_limit = QUERY_CACHE_PACK_LIMIT,
 	    uint iteration_limit = QUERY_CACHE_PACK_ITERATION);
 
   void destroy();
@@ -511,10 +513,13 @@ protected:
 			const char *name);
   my_bool in_blocks(Query_cache_block * point);
 
-  bool try_lock(bool use_timeout= FALSE);
-  void lock(void);
+  enum Cache_try_lock_mode {WAIT, TIMEOUT, TRY};
+  bool try_lock(THD *thd, Cache_try_lock_mode mode= WAIT);
+  void lock(THD *thd);
   void lock_and_suspend(void);
   void unlock(void);
+
+  void disable_query_cache(THD *thd);
 };
 
 #ifdef HAVE_QUERY_CACHE
@@ -550,7 +555,7 @@ struct Query_cache_query_flags
 #define query_cache_resize(A) query_cache.resize(A)
 #define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
 #define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
-#define query_cache_invalidate1(A) query_cache.invalidate(A)
+#define query_cache_invalidate1(A, B) query_cache.invalidate(A, B)
 #define query_cache_send_result_to_client(A, B, C) \
   query_cache.send_result_to_client(A, B, C)
 #define query_cache_invalidate_by_MyISAM_filename_ref \
@@ -562,20 +567,19 @@ struct Query_cache_query_flags
   (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
-#define query_cache_store_query(A, B)
-#define query_cache_destroy()
-#define query_cache_result_size_limit(A)
-#define query_cache_init()
-#define query_cache_resize(A)
-#define query_cache_set_min_res_unit(A)
-#define query_cache_invalidate3(A, B, C)
-#define query_cache_invalidate1(A)
+#define query_cache_store_query(A, B)     do { } while(0)
+#define query_cache_destroy()             do { } while(0)
+#define query_cache_result_size_limit(A)  do { } while(0)
+#define query_cache_init()                do { } while(0)
+#define query_cache_resize(A)             do { } while(0)
+#define query_cache_set_min_res_unit(A)   do { } while(0)
+#define query_cache_invalidate3(A, B, C)  do { } while(0)
+#define query_cache_invalidate1(A,B)      do { } while(0)
 #define query_cache_send_result_to_client(A, B, C) 0
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 
-#define query_cache_abort(A)
-#define query_cache_end_of_result(A)
-#define query_cache_invalidate_by_MyISAM_filename_ref NULL
+#define query_cache_abort(A)              do { } while(0)
+#define query_cache_end_of_result(A)      do { } while(0)
 #define query_cache_maybe_disabled(T) 1
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/

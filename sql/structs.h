@@ -83,12 +83,12 @@ typedef struct st_key_part_info {	/* Info about a key part */
 } KEY_PART_INFO ;
 
 class engine_option_value;
+struct ha_index_option_struct;
 
 typedef struct st_key {
   uint	key_length;			/* Tot length of key */
   ulong flags;                          /* dupp key and pack flags */
   uint	key_parts;			/* How many key_parts */
-  uint  extra_length;
   uint	usable_key_parts;		/* Should normally be = key_parts */
   uint  block_size;
   uint  name_length;
@@ -119,7 +119,7 @@ typedef struct st_key {
   LEX_STRING comment;
   /** reference to the list of options or NULL */
   engine_option_value *option_list;
-  void *option_struct;                  /* structure with parsed options */
+  ha_index_option_struct *option_struct;                  /* structure with parsed options */
 } KEY;
 
 

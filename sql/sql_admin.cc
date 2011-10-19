@@ -309,6 +309,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   int result_code;
   bool need_repair_or_alter= 0;
   DBUG_ENTER("mysql_admin_table");
+  DBUG_PRINT("enter", ("extra_open_options: %u", extra_open_options));
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
   item->maybe_null = 1;
@@ -332,9 +333,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     bool open_error;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
-    DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
-    thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /*
       To make code safe for re-execution we need to reset type of MDL
@@ -365,6 +364,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
+      if (lex->sql_command == SQLCOM_CHECK ||
+          lex->sql_command == SQLCOM_REPAIR ||
+          lex->sql_command == SQLCOM_ANALYZE ||
+          lex->sql_command == SQLCOM_OPTIMIZE)
+	thd->prepare_derived_at_open= TRUE;
+
+      thd->open_options|= extra_open_options;
       if (!thd->locked_tables_mode && repair_table_use_frm)
       {
         /*
@@ -397,10 +403,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         open_error= open_and_lock_tables(thd, table, TRUE, 0);
       }
+      thd->open_options&= ~extra_open_options;
+      thd->prepare_derived_at_open= FALSE;
 
       table->next_global= save_next_global;
       table->next_local= save_next_local;
-      thd->open_options&= ~extra_open_options;
 
       /*
         If open_and_lock_tables() failed, close_thread_tables() will close

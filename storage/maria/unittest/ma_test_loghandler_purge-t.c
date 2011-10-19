@@ -19,8 +19,8 @@
 #include <tap.h>
 #include "../trnman.h"
 
-extern my_bool maria_log_remove();
-extern void translog_example_table_init();
+extern my_bool maria_log_remove(const char *testdir);
+extern char *create_tmpdir(const char *progname);
 
 #ifndef DBUG_OFF
 static const char *default_dbug_option;
@@ -49,8 +49,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   bzero(&pagecache, sizeof(pagecache));
   bzero(long_buffer, LONG_BUFFER_SIZE);
-  maria_data_root= (char *)".";
-  if (maria_log_remove())
+  maria_data_root= create_tmpdir(argv[0]);
+  if (maria_log_remove(0))
     exit(1);
 
   bzero(long_tr_id, 6);
@@ -78,7 +78,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+  if (translog_init_with_table(maria_data_root, LOG_FILE_SIZE, 50112, 0, &pagecache,
                                LOG_FLAGS, 0, &translog_example_table_init,
                                0))
   {
@@ -186,7 +186,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();
-  if (maria_log_remove())
+  if (maria_log_remove(maria_data_root))
     exit(1);
   exit(0);
 }

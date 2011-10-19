@@ -5,7 +5,8 @@
    the Free Software Foundation.
 
    There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software.
+   is applied to this software. View the full text of the exception in file
+   EXCEPTIONS-CLIENT in the directory of this software distribution.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -213,11 +214,19 @@ void STDCALL mysql_server_end()
   {
     my_end(0);
   }
+#ifdef NOT_NEEDED
+  /*
+    The following is not needed as if the program explicitely called
+    my_init() then we can assume it will also call my_end().
+    The reason to not also do it here is in that case we can't get
+    statistics from my_end() to debug log.
+  */
   else
   {
     free_charsets();
     mysql_thread_end();
   }
+#endif
 
   mysql_client_init= org_my_init_done= 0;
 }
@@ -3183,7 +3192,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   case MYSQL_TYPE_TIME:
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_time(value, length, tm, &err);
+    str_to_time(value, length, tm, TIME_FUZZY_DATE, &err);
     *param->error= test(err);
     break;
   }
@@ -3315,7 +3324,8 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_DATETIME:
   {
     int error;
-    value= number_to_datetime(value, (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
+    value= number_to_datetime(value, 0,
+                              (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
                               &error);
     *param->error= test(error);
     break;
@@ -3521,7 +3531,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       fetch_string_with_conversion:
     */
     char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(my_time, buff);
+    uint length= my_TIME_to_str(my_time, buff, field->decimals);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;
@@ -3998,7 +4008,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
     break;
   case MYSQL_TYPE_TIME:
-    field->max_length= 15;                    /* 19:23:48.123456 */
+    field->max_length= 17;                    /* -819:23:48.123456 */
     param->skip_result= skip_result_with_length;
     break;
   case MYSQL_TYPE_DATE:

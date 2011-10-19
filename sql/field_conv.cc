@@ -205,6 +205,14 @@ static void do_skip(Copy_field *copy __attribute__((unused)))
 }
 
 
+/* 
+  Copy: (NULLable field) -> (NULLable field) 
+
+  note: if the record we're copying from is NULL-complemetned (i.e. 
+  from_field->table->null_row==1), it will also have all NULLable columns to be
+  set to NULLs, so we dont need to check table->null_row here.
+*/
+
 static void do_copy_null(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
@@ -219,6 +227,10 @@ static void do_copy_null(Copy_field *copy)
   }
 }
 
+/*
+  Copy: (not-NULL field in table that can be NULL-complemented) -> (NULLable 
+     field)
+*/
 
 static void do_outer_field_null(Copy_field *copy)
 {
@@ -236,6 +248,7 @@ static void do_outer_field_null(Copy_field *copy)
 }
 
 
+/* Copy: (NULL-able field) -> (not NULL-able field) */
 static void do_copy_not_null(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
@@ -249,6 +262,7 @@ static void do_copy_not_null(Copy_field *copy)
 }
 
 
+/* Copy: (non-NULLable field) -> (NULLable field) */
 static void do_copy_maybe_null(Copy_field *copy)
 {
   *copy->to_null_ptr&= ~copy->to_bit;
@@ -366,6 +380,14 @@ static void do_field_decimal(Copy_field *copy)
 }
 
 
+static void do_field_temporal(Copy_field *copy)
+{
+  MYSQL_TIME ltime;
+  copy->from_field->get_date(&ltime, TIME_FUZZY_DATE);
+  copy->to_field->store_time_dec(&ltime, copy->from_field->decimals());
+}
+
+
 /**
   string copy for single byte characters set when to string is shorter than
   from string.
@@ -450,7 +472,8 @@ static void do_varstring1(Copy_field *copy)
   if (length > copy->to_length- 1)
   {
     length=copy->to_length - 1;
-    if (copy->from_field->table->in_use->count_cuted_fields)
+    if (copy->from_field->table->in_use->count_cuted_fields &&
+        copy->to_field)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
@@ -486,7 +509,8 @@ static void do_varstring2(Copy_field *copy)
   if (length > copy->to_length- HA_KEY_BLOB_LENGTH)
   {
     length=copy->to_length-HA_KEY_BLOB_LENGTH;
-    if (copy->from_field->table->in_use->count_cuted_fields)
+    if (copy->from_field->table->in_use->count_cuted_fields &&
+        copy->to_field)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
@@ -550,9 +574,9 @@ void Copy_field::set(uchar *to,Field *from)
       do_copy=	  do_field_to_null_str;
   }
   else
-  {
+  { 
     to_null_ptr=  0;				// For easy debugging
-    do_copy=	  do_field_eq;
+    do_copy= do_field_eq;
   }
 }
 
@@ -560,7 +584,7 @@ void Copy_field::set(uchar *to,Field *from)
 /*
   To do: 
 
-  If 'save\ is set to true and the 'from' is a blob field, do_copy is set to
+  If 'save' is set to true and the 'from' is a blob field, do_copy is set to
   do_save_blob rather than do_conv_blob.  The only differences between them
   appears to be:
 
@@ -637,13 +661,11 @@ void Copy_field::set(Field *to,Field *from,bool save)
 Copy_field::Copy_func *
 Copy_field::get_copy_func(Field *to,Field *from)
 {
-  bool compatible_db_low_byte_first= (to->table->s->db_low_byte_first ==
-                                     from->table->s->db_low_byte_first);
   if (to->flags & BLOB_FLAG)
   {
     if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
-    if (from_length != to_length || !compatible_db_low_byte_first)
+    if (from_length != to_length)
     {
       // Correct pointer to point at char pointer
       to_ptr+=   to_length - to->table->s->blob_ptr_size;
@@ -658,6 +680,16 @@ Copy_field::get_copy_func(Field *to,Field *from)
       return do_field_int;
     if (to->result_type() == DECIMAL_RESULT)
       return do_field_decimal;
+    if (from->cmp_type() == TIME_RESULT)
+    {
+      /* If types are not 100 % identical then convert trough get_date() */
+      if (!to->eq_def(from) ||
+          ((to->table->in_use->variables.sql_mode &
+            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE)) &&
+             mysql_type_to_time_type(to->type()) != MYSQL_TIMESTAMP_TIME))
+        return do_field_temporal;
+      /* Do binary copy */
+    }
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
@@ -670,16 +702,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
           to->type() == MYSQL_TYPE_VARCHAR && !to->has_charset())
         return do_field_varbinary_pre50;
 
-      /*
-        If we are copying date or datetime's we have to check the dates
-        if we don't allow 'all' dates.
-      */
-      if (to->real_type() != from->real_type() ||
-          !compatible_db_low_byte_first ||
-          ((to->table->in_use->variables.sql_mode &
-            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
-           (to->type() == MYSQL_TYPE_DATE ||
-            to->type() == MYSQL_TYPE_DATETIME)))
+      if (to->real_type() != from->real_type())
       {
 	if (from->real_type() == MYSQL_TYPE_ENUM ||
 	    from->real_type() == MYSQL_TYPE_SET)
@@ -711,6 +734,9 @@ Copy_field::get_copy_func(Field *to,Field *from)
                                                     do_varstring1_mb) :
                   (from->charset()->mbmaxlen == 1 ? do_varstring2 :
                                                     do_varstring2_mb));
+        else 
+          return  (((Field_varstring*) from)->length_bytes == 1 ?
+                    do_varstring1 : do_varstring2);
       }
       else if (to_length < from_length)
 	return (from->charset()->mbmaxlen == 1 ?
@@ -723,8 +749,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
       }
     }
     else if (to->real_type() != from->real_type() ||
-	     to_length != from_length ||
-             !compatible_db_low_byte_first)
+	     to_length != from_length)
     {
       if (to->real_type() == MYSQL_TYPE_DECIMAL ||
 	  to->result_type() == STRING_RESULT)
@@ -735,7 +760,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
     }
     else
     {
-      if (!to->eq_def(from) || !compatible_db_low_byte_first)
+      if (!to->eq_def(from))
       {
 	if (to->real_type() == MYSQL_TYPE_DECIMAL)
 	  return do_field_string;
@@ -768,14 +793,13 @@ int field_conv(Field *to,Field *from)
   {
     if (to->pack_length() == from->pack_length() &&
         !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
+        to->decimals() == from->decimals() &&
 	to->real_type() != MYSQL_TYPE_ENUM &&
 	to->real_type() != MYSQL_TYPE_SET &&
         to->real_type() != MYSQL_TYPE_BIT &&
         (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
-         ((to->field_length == from->field_length &&
-           (((Field_num*)to)->dec == ((Field_num*)from)->dec)))) &&
+         to->field_length == from->field_length) &&
         from->charset() == to->charset() &&
-	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&
@@ -784,8 +808,13 @@ int field_conv(Field *to,Field *from)
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))
     {						// Identical fields
-      // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
-      memmove(to->ptr, from->ptr, to->pack_length());
+      /*
+        This may happen if one does 'UPDATE ... SET x=x'
+        The test is here mostly for valgrind, but can also be relevant
+        if memcpy() is implemented with prefetch-write
+       */
+      if (to->ptr != from->ptr)
+        memcpy(to->ptr,from->ptr,to->pack_length());
       return 0;
     }
   }
@@ -811,7 +840,22 @@ int field_conv(Field *to,Field *from)
     ((Field_enum *)(to))->store_type(0);
     return 0;
   }
-  else if ((from->result_type() == STRING_RESULT &&
+  if (from->result_type() == REAL_RESULT)
+    return to->store(from->val_real());
+  if (from->result_type() == DECIMAL_RESULT)
+  {
+    my_decimal buff;
+    return to->store_decimal(from->val_decimal(&buff));
+  }
+  if (from->cmp_type() == TIME_RESULT)
+  {
+    MYSQL_TIME ltime;
+    if (from->get_date(&ltime, TIME_FUZZY_DATE))
+      return to->reset();
+    else
+      return to->store_time_dec(&ltime, from->decimals());
+  }
+  if ((from->result_type() == STRING_RESULT &&
             (to->result_type() == STRING_RESULT ||
              (from->real_type() != MYSQL_TYPE_ENUM &&
               from->real_type() != MYSQL_TYPE_SET))) ||
@@ -828,13 +872,5 @@ int field_conv(Field *to,Field *from)
     */
     return to->store(result.c_ptr_quick(),result.length(),from->charset());
   }
-  else if (from->result_type() == REAL_RESULT)
-    return to->store(from->val_real());
-  else if (from->result_type() == DECIMAL_RESULT)
-  {
-    my_decimal buff;
-    return to->store_decimal(from->val_decimal(&buff));
-  }
-  else
-    return to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
+  return to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
 }
