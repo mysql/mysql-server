@@ -101,23 +101,6 @@ static const char *ha_ndb_ext=".ndb";
 const uint error_conflict_fn_violation= 9999;
 #endif /* HAVE_NDB_BINLOG */
 
-
-class Mutex_guard
-{
-public:
-  Mutex_guard(pthread_mutex_t &mutex) : m_mutex(mutex)
-  {
-    pthread_mutex_lock(&m_mutex);
-  };
-  ~Mutex_guard()
-  {
-    pthread_mutex_unlock(&m_mutex);
-  };
-private:
-  pthread_mutex_t &m_mutex;
-};
-
-
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
 extern unsigned char g_node_id_map[max_ndb_nodes];

@@ -2413,6 +2413,23 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   thd->db= thd_db_save;
 }
 
+
+class Mutex_guard
+{
+public:
+  Mutex_guard(pthread_mutex_t &mutex) : m_mutex(mutex)
+  {
+    pthread_mutex_lock(&m_mutex);
+  };
+  ~Mutex_guard()
+  {
+    pthread_mutex_unlock(&m_mutex);
+  };
+private:
+  pthread_mutex_t &m_mutex;
+};
+
+
 static int
 ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
                                       NdbEventOperation *pOp,
