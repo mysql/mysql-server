@@ -950,13 +950,6 @@ test3039.tdbrun: test3039.tdb
 $(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF)
 	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
 
-clean:
-	rm -f $(ALL_BINS)
-	rm -rf dir.* *.check.output *.check.valgrind
-	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
-	rm -f *.bdb *.tdb
-	rm -f *.fastlog
-
 BLOCKING_SRCS = $(wildcard blocking-*.c)
 BLOCKING_TDB_TESTS = $(patsubst %.c,%.tdbrun,$(BLOCKING_SRCS))
 BLOCKING_BDB_TESTS = $(patsubst %.c,%.bdbrun,$(BLOCKING_SRCS))
@@ -979,3 +972,9 @@ drd_test_stress1.tdbrun: test_stress1.tdb
 	./test_stress1.tdb --only_create --envdir dir.$@ && \
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress1.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@
 
+clean:
+	rm -f $(ALL_BINS)
+	rm -rf dir.* *.check.output *.check.valgrind
+	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
+	rm -f *.bdb *.tdb
+	rm -f *.fastlog
