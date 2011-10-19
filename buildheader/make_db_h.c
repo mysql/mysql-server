@@ -550,6 +550,13 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        msn_discards;             /* how many messages were ignored by leaf because of msn */ \n");
     printf("  u_int64_t        max_workdone;             /* max workdone value of any buffer  */ \n");
     printf("  u_int64_t        dsn_gap;                  /* dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read) */ \n");
+    printf("  uint64_t         total_searches;              /* total number of searches */ \n");
+    printf("  uint64_t         total_retries;               /* total number of search retries due to TRY_AGAIN */ \n");
+    printf("  uint64_t         max_search_excess_retries;   /* max number of excess search retries (retries - treeheight) due to TRY_AGAIN */ \n");
+    printf("  uint64_t         max_search_root_tries;       /* max number of times root node was fetched in a single search */ \n");
+    printf("  uint64_t         search_root_retries;         /* number of searches that required the root node to be fetched more than once */ \n");
+    printf("  uint64_t         search_tries_gt_height;      /* number of searches that required more tries than the height of the tree */ \n");
+    printf("  uint64_t         search_tries_gt_heightplus3; /* number of searches that required more tries than the height of the tree plus three */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
     printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
