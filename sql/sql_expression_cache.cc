@@ -56,7 +56,8 @@ Expression_cache_tmptable::Expression_cache_tmptable(THD *thd,
 
 void Expression_cache_tmptable::disable_cache()
 {
-  cache_table->file->ha_index_end();
+  if (cache_table->file->inited)
+    cache_table->file->ha_index_end();
   free_tmp_table(table_thd, cache_table);
   cache_table= NULL;
 }
