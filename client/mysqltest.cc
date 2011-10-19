@@ -4822,6 +4822,7 @@ void do_get_errcodes(struct st_command *command)
   struct st_match_err *to= saved_expected_errors.err;
   char *p= command->first_argument;
   uint count= 0;
+  char *next;
 
   DBUG_ENTER("do_get_errcodes");
 
@@ -4840,6 +4841,17 @@ void do_get_errcodes(struct st_command *command)
     end= p;
     while (*end && *end != ',' && *end != ' ')
       end++;
+
+    next=end;
+
+    /* code to handle variables passed to mysqltest */
+     if( *p == '$')
+     {
+        const char* fin;
+        VAR *var = var_get(p,&fin,0,0);
+        p=var->str_val;
+        end=p+var->str_val_len;
+     }
 
     if (*p == 'S')
     {
@@ -4915,7 +4927,7 @@ void do_get_errcodes(struct st_command *command)
       die("Too many errorcodes specified");
 
     /* Set pointer to the end of the last error code */
-    p= end;
+    p= next;
 
     /* Find next ',' */
     while (*p && *p != ',')
