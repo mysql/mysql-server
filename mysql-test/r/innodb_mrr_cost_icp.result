@@ -549,7 +549,7 @@ DROP TABLE t1, t2;
 # Bug#12321461: CRASH IN DSMRR_IMPL::DSMRR_INIT ON SELECT STRAIGHT_JOIN
 #
 set @save_optimizer_switch = @@optimizer_switch;
-set optimizer_switch='block_nested_loop=off,batch_key_access=off';
+set optimizer_switch='block_nested_loop=off,batched_key_access=off';
 CREATE TABLE t1 (
 pk INTEGER,
 c1 VARCHAR(1) NOT NULL,

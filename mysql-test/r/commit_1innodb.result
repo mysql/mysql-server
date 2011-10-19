@@ -549,11 +549,9 @@ SUCCESS
 # 15. Read-write statement: UPDATE IGNORE, change 0 rows. 
 #
 update ignore t1 set a=2 where a=1;
-call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 
 #
