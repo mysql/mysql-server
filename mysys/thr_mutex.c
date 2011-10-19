@@ -201,7 +201,7 @@ int safe_mutex_init(safe_mutex_t *mp,
 
   /* Deadlock detection is initialised only lazily, on first use. */
 
-  mp->create_flags= safe_mutex_deadlock_detector ? MYF_NO_DEADLOCK_DETECTION : 0;
+  mp->create_flags= safe_mutex_deadlock_detector ? 0 : MYF_NO_DEADLOCK_DETECTION;
 
 #ifdef SAFE_MUTEX_DETECT_DESTROY
   /*

@@ -41,17 +41,11 @@ Master_info::Master_info(bool is_slave_recovery)
   bzero((char*) &file, sizeof(file));
   mysql_mutex_init(key_master_info_run_lock, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_master_info_data_lock, &data_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_setflags(&run_lock, MYF_NO_DEADLOCK_DETECTION);
+  mysql_mutex_setflags(&data_lock, MYF_NO_DEADLOCK_DETECTION);
   mysql_cond_init(key_master_info_data_cond, &data_cond, NULL);
   mysql_cond_init(key_master_info_start_cond, &start_cond, NULL);
   mysql_cond_init(key_master_info_stop_cond, &stop_cond, NULL);
-
-#ifdef SAFE_MUTEX
-  /* Define mutex order for locks to find wrong lock usage */
-  mysql_mutex_lock(&data_lock);
-  mysql_mutex_lock(&run_lock);
-  mysql_mutex_unlock(&run_lock);
-  mysql_mutex_unlock(&data_lock);
-#endif
 }
 
 Master_info::~Master_info()

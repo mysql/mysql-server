@@ -3331,6 +3331,10 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   LINT_INIT(saved_master_log_pos);
   LINT_INIT(saved_log_pos);
+
+  thd = new THD; // note that contructor of THD uses DBUG_ !
+  thd->thread_stack = (char*)&thd; // remember where our stack is
+
   DBUG_ASSERT(rli->inited);
   mysql_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(!rli->slave_running);
@@ -3339,8 +3343,6 @@ pthread_handler_t handle_slave_sql(void *arg)
   rli->events_till_abort = abort_slave_event_count;
 #endif
 
-  thd = new THD; // note that contructor of THD uses DBUG_ !
-  thd->thread_stack = (char*)&thd; // remember where our stack is
   rli->sql_thd= thd;
   
   /* Inform waiting threads that slave has started */

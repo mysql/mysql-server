@@ -1518,6 +1518,7 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer, int num)
       mysql_cond_init(key_TRANSLOG_BUFFER_prev_sent_to_disk_cond,
                       &buffer->prev_sent_to_disk_cond, 0))
     DBUG_RETURN(1);
+  mysql_mutex_setflags(&buffer->mutex, MYF_NO_DEADLOCK_DETECTION);
   buffer->is_closing_buffer= 0;
   buffer->prev_sent_to_disk= LSN_IMPOSSIBLE;
   buffer->prev_buffer_offset= LSN_IMPOSSIBLE;

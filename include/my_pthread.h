@@ -512,11 +512,13 @@ void safe_mutex_free_deadlock_data(safe_mutex_t *mp);
 #define safe_mutex_assert_not_owner(mp) \
           DBUG_ASSERT(! (mp)->count || \
                       ! pthread_equal(pthread_self(), (mp)->thread))
+#define safe_mutex_setflags(mp, F)      do { (mp)->create_flags|= (F); } while (0)
 #else
 #define my_pthread_mutex_init(A,B,C,D) pthread_mutex_init((A),(B))
 #define safe_mutex_assert_owner(mp)    do {} while(0)
 #define safe_mutex_assert_not_owner(mp) do {} while(0)
 #define safe_mutex_free_deadlock_data(mp) do {} while(0)
+#define safe_mutex_setflags(mp, F) do {} while (0)
 #endif /* SAFE_MUTEX */
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
@@ -919,6 +921,16 @@ extern uint thd_lib_detected;
 #define status_var_decrement(V) (V)--
 #define status_var_add(V,C)     (V)+=(C)
 #define status_var_sub(V,C)     (V)-=(C)
+
+#ifdef SAFE_MUTEX
+#define mysql_mutex_record_order(A,B)                   \
+  do {                                                  \
+    mysql_mutex_lock(A); mysql_mutex_lock(B);           \
+    mysql_mutex_unlock(B); mysql_mutex_unlock(A);       \
+  }  while(0)
+#else
+#define mysql_mutex_record_order(A,B) do { } while(0) 
+#endif
 
 #ifdef  __cplusplus
 }
