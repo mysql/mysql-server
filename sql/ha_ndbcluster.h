@@ -564,10 +564,10 @@ private:
                                       NDB_SHARE *share);
 
   void check_read_before_write_removal();
-  static int drop_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
-                        const char *path,
-                        const char *db,
-                        const char *table_name);
+  static int drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
+                             const char *path,
+                             const char *db,
+                             const char *table_name);
 
   int add_index_impl(THD *thd, TABLE *table_arg,
                      KEY *key_info, uint num_of_keys);
