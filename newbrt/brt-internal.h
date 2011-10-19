@@ -773,6 +773,8 @@ typedef struct brt_status {
     u_int64_t dsn_gap;                     // dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read)
     u_int64_t bytes_leaf;                  // memory used by leaf nodes
     u_int64_t bytes_nonleaf;               // memory used by nonleaf nodes
+    uint64_t  total_searches;              // total number of searches
+    uint64_t  total_retries;               // total number of search retries due to TRY_AGAIN
     uint64_t  max_search_excess_retries;   // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
     uint64_t  max_search_root_tries;       // max number of times root node was fetched in a single search
     uint64_t  search_root_retries;         // number of searches that required the root node to be fetched more than once

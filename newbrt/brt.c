@@ -6260,17 +6260,13 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
 // All searches are performed through this function.
 {
     int r;
-    uint retrycount = 0;   // How many retries did it take to get the result?
+    uint trycount = 0;     // How many tries did it take to get the result?
     uint root_tries = 0;   // How many times did we fetch the root node from disk?
     uint tree_height;      // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
-    BOOL retry = false;    // Have we attempted this search yet?  
 
 try_again:
     
-    if (retry)             // don't count first attempt as a retry
-	retrycount++;
-    retry = true;
-
+    trycount++;
     assert(brt->h);
 
     u_int32_t fullhash;
@@ -6372,6 +6368,9 @@ try_again:
     }
 
     {   // accounting (to detect and measure thrashing)
+	uint retrycount = trycount - 1;         // how many retries were needed?
+	brt_status.total_searches++;
+	brt_status.total_retries += retrycount;
 	if (root_tries > 1) {                   // if root was read from disk more than once
 	    brt_status.search_root_retries++;   
 	    if (root_tries > brt_status.max_search_root_tries)
