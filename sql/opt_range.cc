@@ -10395,6 +10395,11 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          except MIN and MAX. For queries with DISTINCT, aggregate functions
          are allowed.
     SA5. The select list in DISTINCT queries should not contain expressions.
+    SA6. Clustered index can not be used by GROUP_MIN_MAX quick select
+         for AGG_FUNC(DISTINCT ...) optimization because cursor position is
+         never stored after a unique key lookup in the clustered index and
+         furhter index_next/prev calls can not be used. So loose index scan
+         optimization can not be used in this case.
     GA1. If Q has a GROUP BY clause, then GA is a prefix of I. That is, if
          G_i = A_j => i = j.
     GA2. If Q has a DISTINCT clause, then there is a permutation of SA that
@@ -10971,6 +10976,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       add_alnum("cause", "unsupported_predicate_on_agg_attribute");
     DBUG_RETURN(NULL);
   }
+
+  /*
+    Check (SA6) if clustered key is used
+  */
+  if (is_agg_distinct && index == table->s->primary_key &&
+      table->file->primary_key_is_clustered())
+    DBUG_RETURN(NULL);
+
   /* The query passes all tests, so construct a new TRP object. */
   read_plan= new (param->mem_root)
                  TRP_GROUP_MIN_MAX(have_min, have_max, is_agg_distinct,
