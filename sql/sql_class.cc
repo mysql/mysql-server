@@ -2004,7 +2004,8 @@ int THD::send_explain_fields(select_result *result)
   List<Item> field_list;
   Item *item;
   CHARSET_INFO *cs= system_charset_info;
-  field_list.push_back(new Item_return_int("id",3, MYSQL_TYPE_LONGLONG));
+  field_list.push_back(item= new Item_return_int("id",3, MYSQL_TYPE_LONGLONG));
+  item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
   field_list.push_back(item= new Item_empty_string("table", NAME_CHAR_LEN, cs));
   item->maybe_null= 1;
