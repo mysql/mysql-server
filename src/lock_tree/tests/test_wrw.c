@@ -13,7 +13,7 @@ int main(int argc, const char *argv[]) {
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
-            if (verbose > 0) verbose++;
+            verbose++;
             continue;
         }
         if (strcmp(argv[i], "-q") == 0 || strcmp(argv[i], "--quiet") == 0) {
