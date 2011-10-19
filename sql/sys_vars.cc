@@ -581,9 +581,11 @@ export bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type)
   switch (delay_key_write_options) {
   case DELAY_KEY_WRITE_NONE:
     myisam_delay_key_write=0;
+    ha_open_options&= ~HA_OPEN_DELAY_KEY_WRITE;
     break;
   case DELAY_KEY_WRITE_ON:
     myisam_delay_key_write=1;
+    ha_open_options&= ~HA_OPEN_DELAY_KEY_WRITE;
     break;
   case DELAY_KEY_WRITE_ALL:
     myisam_delay_key_write=1;
