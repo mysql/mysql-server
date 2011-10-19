@@ -47,7 +47,7 @@ IF(NOT WIN32)
   ENDFOREACH(file)
   ADD_CUSTOM_COMMAND(OUTPUT dbug-t DEPENDS tests-t.pl
                      COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/tests-t.pl dbug-t)
-  ADD_CUSTOM_TARGET(dbug-t ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/dbug-t)                 
+  ADD_CUSTOM_TARGET(dbug-unit-tests ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/dbug-t)                 
   MY_ADD_TEST(dbug)
 
   IF(GROFF)
