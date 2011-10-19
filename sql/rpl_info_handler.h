@@ -20,6 +20,11 @@
 #include <dynamic_ids.h>
 #include "rpl_info_values.h"
 
+/*
+  Defines status on the repository.
+*/
+enum enum_return_check { REPOSITORY_DOES_NOT_EXIST= 1, REPOSITORY_EXISTS, ERROR_CHECKING_REPOSITORY };
+
 class Rpl_info_handler
 {
 public:
@@ -41,16 +46,19 @@ public:
   }
 
   /**
-    Checks if any necessary dependency is satisfied such as a
-    file exists.
+    Checks the repository's status.
 
     @param[in] uidx Array of fields that identifies an object
     @param[in] nidx Number of fields in the array
 
-    @retval FALSE success,
-    @retval TRUE  otherwise error.
+    @retval REPOSITORY_EXISTS         reposistory is ready to
+                                       be used.
+    @retval REPOSITORY_DOES_NOT_EXIST repository needs to be 
+                                      configured.
+    @retval ERROR_CHECKING_REPOSITORY error while checking the
+                                      reposistory.
   */
-  int check_info(const ulong *uidx, const uint nidx)
+  enum_return_check check_info(const ulong *uidx, const uint nidx)
   {
     return do_check_info(uidx, nidx);
   }
@@ -334,7 +342,7 @@ protected:
 
 private:
   virtual int do_init_info(const ulong *uidx, const uint nidx)= 0;
-  virtual int do_check_info(const ulong *uidx, const uint nidx)= 0;
+  virtual enum_return_check do_check_info(const ulong *uidx, const uint nidx)= 0;
   virtual int do_flush_info(const ulong *uidx, const uint nidx,
                             const bool force)= 0;
   virtual int do_remove_info(const ulong *uidx, const uint nidx)= 0;
