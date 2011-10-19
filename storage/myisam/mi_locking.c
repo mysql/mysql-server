@@ -315,7 +315,6 @@ void mi_update_status(void* param)
   */
   if (info->state == &info->save_state)
   {
-#ifndef DBUG_OFF
     DBUG_PRINT("info",
                ("updating status:  key_file: %lu  data_file: %lu  rows: %lu",
                 (ulong) info->state->key_file_length,
@@ -326,7 +325,6 @@ void mi_update_status(void* param)
       DBUG_PRINT("warning",("old info:  key_file: %ld  data_file: %ld",
 			    (long) info->s->state.state.key_file_length,
 			    (long) info->s->state.state.data_file_length));
-#endif
     info->s->state.state= *info->state;
 #ifdef HAVE_QUERY_CACHE
     DBUG_PRINT("info", ("invalidator... '%s' (status update)",

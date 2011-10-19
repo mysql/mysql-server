@@ -1984,7 +1984,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   CHARSET_INFO *cs= system_charset_info;
   char *user;
   my_hrtime_t unow= my_hrtime();
-  DBUG_ENTER("fill_process_list");
+  DBUG_ENTER("fill_schema_processlist");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;

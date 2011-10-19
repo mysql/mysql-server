@@ -49,9 +49,8 @@
                               // mysql_restore_table
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_admin.h"        // mysql_assign_to_keycache
-#include "sql_connect.h"      // check_user,
-                              // decrease_user_connections,
-                              // thd_init_client_charset, check_mqh,
+#include "sql_connect.h"      // decrease_user_connections,
+                              // check_mqh,
                               // reset_mqh
 #include "sql_rename.h"       // mysql_rename_table
 #include "sql_tablespace.h"   // mysql_alter_tablespace

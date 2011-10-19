@@ -886,6 +886,7 @@ static void init_connection_thd(struct st_connection *cn)
 
 #else /*EMBEDDED_LIBRARY*/
 
+#define init_connection_thd(X)    do { } while(0)
 #define do_send_query(cn,q,q_len) mysql_send_query(cn->mysql, q, q_len)
 #define do_read_query_result(cn) mysql_read_query_result(cn->mysql)
 
@@ -5487,9 +5488,7 @@ void do_connect(struct st_command *command)
     con_slot->name= 0;
   }
 
-#ifdef EMBEDDED_LIBRARY
   init_connection_thd(con_slot);
-#endif /*EMBEDDED_LIBRARY*/
 
   if (!(con_slot->mysql= mysql_init(0)))
     die("Failed on mysql_init()");
@@ -8470,9 +8469,7 @@ int main(int argc, char **argv)
   cursor_protocol_enabled= cursor_protocol;
 
   st_connection *con= connections;
-#ifdef EMBEDDED_LIBRARY
   init_connection_thd(con);
-#endif /*EMBEDDED_LIBRARY*/
   if (! (con->mysql= mysql_init(0)))
     die("Failed in mysql_init()");
   if (opt_connect_timeout)

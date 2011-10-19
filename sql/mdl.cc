@@ -2223,9 +2223,6 @@ bool MDL_context::visit_subgraph(MDL_wait_for_graph_visitor *gvisitor)
   @note If during deadlock resolution context which performs deadlock
         detection is chosen as a victim it will be informed about the
         fact by setting VICTIM status to its wait slot.
-
-  @retval TRUE  A deadlock is found.
-  @retval FALSE No deadlock found.
 */
 
 void MDL_context::find_deadlock()

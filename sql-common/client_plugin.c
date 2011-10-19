@@ -243,6 +243,7 @@ int mysql_client_plugin_init()
   struct st_mysql_client_plugin **builtin;
   va_list unused;
   DBUG_ENTER("mysql_client_plugin_init");
+  LINT_INIT_STRUCT(unused);
 
   if (initialized)
     DBUG_RETURN(0);
@@ -307,6 +308,7 @@ mysql_client_register_plugin(MYSQL *mysql,
 {
   va_list unused;
   DBUG_ENTER("mysql_client_register_plugin");
+  LINT_INIT_STRUCT(unused);
 
   if (is_not_initialized(mysql, plugin->name))
     DBUG_RETURN(NULL);

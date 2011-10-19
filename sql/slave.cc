@@ -2206,11 +2206,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
                   simulate_error|= (1 << SLAVE_THD_IO););
   DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_SQL););
-#if !defined(DBUG_OFF)
-  if (init_thr_lock() || thd->store_globals() || simulate_error & (1<< thd_type))
-#else
-  if (init_thr_lock() || thd->store_globals())
-#endif
+  if (init_thr_lock() || thd->store_globals() ||
+      IF_DBUG(simulate_error & (1<< thd_type), 0))
   {
     thd->cleanup();
     DBUG_RETURN(-1);

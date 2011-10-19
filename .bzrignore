@@ -1129,3 +1129,4 @@ libmysql/strings_def.h
 libmysql_r/strings_def.h
 storage/maria/aria_log_control
 scripts/mytop
+include/*.h.tmp
