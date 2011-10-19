@@ -9038,7 +9038,7 @@ static uchar *dump_chunk(uchar *buffer, uchar *ptr)
   }
   {
     intptr offset= ptr - buffer;
-    DBUG_ASSERT(offset >= 0 && offset <= UINT_MAX16);
+    DBUG_ASSERT(offset <= UINT_MAX16);
     length= translog_get_total_chunk_length(buffer, (uint16)offset);
   }
   printf("      Length %u\n", length);

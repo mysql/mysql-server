@@ -972,11 +972,11 @@ typedef unsigned long long my_ulonglong;
 #endif
 
 #if SIZEOF_CHARP == SIZEOF_INT
-typedef int intptr;
+typedef unsigned int intptr;
 #elif SIZEOF_CHARP == SIZEOF_LONG
-typedef long intptr;
+typedef unsigned long intptr;
 #elif SIZEOF_CHARP == SIZEOF_LONG_LONG
-typedef long long intptr;
+typedef unsigned long long intptr;
 #else
 #error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
