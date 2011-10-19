@@ -1515,8 +1515,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       sure the new current database has a name with the same length
       as the previous one.
     */
-    size_t *db_len= (size_t *) (sql + query_length + 1);
-    if (thd->db_length != *db_len)
+    size_t db_len;
+    memcpy((char *) &db_len, (sql + query_length + 1), sizeof(size_t));
+    if (thd->db_length != db_len)
     {
       /*
         We should probably reallocate the buffer in this case,
