@@ -58,7 +58,13 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
 
@@ -1742,6 +1748,8 @@ void st_select_lex_unit::init_query()
 void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
+  resolve_place= RESOLVE_NONE;
+  resolve_nest= NULL;
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
@@ -2179,6 +2187,15 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
                       order_group_num));
   if (!ref_pointer_array.is_null())
   {
+    /*
+      The Query may have been permanently transformed by removal of
+      ORDER BY or GROUP BY. Memory has already been allocated, but by
+      reducing the size of ref_pointer_array a tight bound is
+      maintained by Bounds_checked_array
+    */
+    if (ref_pointer_array.size() > n_elems)
+      ref_pointer_array.resize(n_elems);
+
     DBUG_ASSERT(ref_pointer_array.size() == n_elems);
     return false;
   }
@@ -3099,9 +3116,9 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    AND/OR trees.
     We also save the chain of ORDER::next in group_list, in case
     the list is modified by remove_const().
-    AND/OR trees.
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
 */

@@ -381,80 +381,104 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
                                          Rpl_info_handler **handler_dest,
                                          const char **msg)
 {
-
-  DBUG_ENTER("Rpl_info_factory::decide_repository");
   bool error= TRUE;
+  enum_return_check return_check_src= ERROR_CHECKING_REPOSITORY;
+  enum_return_check return_check_dst= ERROR_CHECKING_REPOSITORY;
+  DBUG_ENTER("Rpl_info_factory::decide_repository");
 
-  DBUG_ASSERT((*handler_dest) != NULL);
   if (option == INFO_REPOSITORY_DUMMY)
     DBUG_RETURN(FALSE);
 
-  /*
-    check_info() returns FALSE if the repository exists. If a FILE, 
-    for example, this means that FALSE is returned if a file exists.
-    If a TABLE, for example, this means that FALSE is returned if
-    the table exists and is populated. Otherwise, TRUE is returned.
+  DBUG_ASSERT((*handler_src) != NULL && (*handler_dest) != NULL &&
+              (*handler_src) != (*handler_dest));
 
-    The check_info() behavior is odd and we are going to fix this
-    in the future.
-
-    So,
-
-      . is_src  == TRUE, means that the source repository exists.
-      . is_dest == TRUE, means that the destination repository
-        exists.
-
-    /Alfranio
-  */
-
-  bool is_src= !((*handler_src)->check_info(info->uidx, info->nidx));
-  bool is_dest= !((*handler_dest)->check_info(info->uidx, info->nidx));
-
-  DBUG_ASSERT((*handler_dest) != NULL && (*handler_dest) != NULL);
-  if (is_src && is_dest)
+  return_check_src= (*handler_src)->check_info(info->uidx, info->nidx);
+  return_check_dst= (*handler_dest)->check_info(info->uidx, info->nidx);
+  if (return_check_src == ERROR_CHECKING_REPOSITORY ||
+      return_check_dst == ERROR_CHECKING_REPOSITORY)
   {
-    *msg= "Multiple replication metadata repository instances "
-          "found with data in them. Unable to decide which is "
-          "the correct one to choose";
-    DBUG_RETURN(error);
-  }
-
-  if (!is_dest && is_src)
-  {
-    if ((*handler_src)->init_info(info->uidx, info->nidx) ||
-        (*handler_dest)->init_info(info->uidx, info->nidx))
-    {
-      *msg= "Error transfering information";
-      goto err;
-    }
     /*
-      Transfer the information from source to destination and delete the
-      source. Note this is not fault-tolerant and a crash before removing
-      source may cause the next restart to fail as is_src and is_dest may
-      be true. Moreover, any failure in removing the source may lead to
-      the same.
+      If there is an error, we cannot proceed with the normal operation.
+      In this case, we just pick the dest repository if check_info() has
+      not failed to execute against it in order to give users the chance
+      to fix the problem and restart the server.
 
-      /Alfranio
+      Notice that migration will not take place and the destination may
+      be empty.
     */
-    if (info->copy_info(*handler_src, *handler_dest) ||
-        (*handler_dest)->flush_info(info->uidx, info->nidx, TRUE))
+    if (opt_skip_slave_start && return_check_dst != ERROR_CHECKING_REPOSITORY)
     {
-      *msg= "Error transfering information";
+      sql_print_warning("Error while checking replication metadata. "
+                        "Setting the requested repository in order to "
+                        "give users the chance to fix the problem and "
+                        "restart the server.");
+      delete (*handler_src);
+      *handler_src= NULL;
+      info->set_rpl_info_handler(*handler_dest);
+      info->set_rpl_info_type(option);
+      error= FALSE;
       goto err;
     }
-    (*handler_src)->end_info(info->uidx, info->nidx);
-    if ((*handler_src)->remove_info(info->uidx, info->nidx))
+    else
     {
-      *msg= "Error removing old repository";
+      *msg= "Error while checking replication metadata.";
       goto err;
     }
   }
+  else
+  {
+    /*
+      If there is no error, we can proceed with the normal operation and
+      check if we need to do some migration between repositories.
+      However, if both repositories are set an error will be printed out.
+    */
+    if (return_check_src == REPOSITORY_EXISTS &&
+        return_check_dst == REPOSITORY_EXISTS)
+    {
+      *msg= "Multiple replication metadata repository instances "
+            "found with data in them. Unable to decide which is "
+            "the correct one to choose";
+      DBUG_RETURN(error);
+    }
 
-  delete (*handler_src);
-  *handler_src= NULL;
-  info->set_rpl_info_handler(*handler_dest);
-  info->set_rpl_info_type(option);
-  error= FALSE;
+    if (return_check_src == REPOSITORY_EXISTS &&
+        return_check_dst == REPOSITORY_DOES_NOT_EXIST)
+    {
+      if ((*handler_src)->init_info(info->uidx, info->nidx) ||
+          (*handler_dest)->init_info(info->uidx, info->nidx))
+      {
+        *msg= "Error transfering information";
+        goto err;
+      }
+      /*
+        Transfer the information from source to destination and delete the
+        source. Note this is not fault-tolerant and a crash before removing
+        source may cause the next restart to fail as is_src and is_dest may
+        be true. Moreover, any failure in removing the source may lead to
+        the same.
+
+        /Alfranio
+      */
+      if (info->copy_info(*handler_src, *handler_dest) ||
+          (*handler_dest)->flush_info(info->uidx, info->nidx, TRUE))
+      {
+        *msg= "Error transfering information";
+        goto err;
+      }
+      (*handler_src)->end_info(info->uidx, info->nidx);
+      if ((*handler_src)->remove_info(info->uidx, info->nidx))
+      {
+        *msg= "Error removing old repository";
+        goto err;
+      }
+    }
+
+    delete (*handler_src);
+    *handler_src= NULL;
+    info->set_rpl_info_handler(*handler_dest);
+    info->set_rpl_info_type(option);
+    error= FALSE;
+  }
 
 err:
   DBUG_RETURN(error); 
@@ -494,11 +518,13 @@ bool Rpl_info_factory::change_repository(Rpl_info *info,
                                          const char **msg)
 {
   bool error= TRUE;
-
+  enum_return_check return_check_src= ERROR_CHECKING_REPOSITORY;
   DBUG_ENTER("Rpl_info_factory::change_repository");
+  DBUG_ASSERT((*handler_src) != NULL && (*handler_dest) != NULL &&
+              (*handler_src) != (*handler_dest));
 
-  DBUG_ASSERT((*handler_dest) != NULL && (*handler_dest) != NULL);
-  if (!(*handler_src)->check_info(info->uidx, info->nidx))
+  return_check_src= (*handler_src)->check_info(info->uidx, info->nidx);
+  if (return_check_src == REPOSITORY_EXISTS)
   {
     if ((*handler_dest)->init_info(info->uidx, info->nidx))
     {
@@ -516,12 +542,19 @@ bool Rpl_info_factory::change_repository(Rpl_info *info,
       /Alfranio
     */
     if (info->copy_info(*handler_src, *handler_dest) ||
-        (*handler_dest)->flush_info(info->uidx, info->nidx, TRUE))
+        (*handler_dest)->flush_info(info->uidx, info->nidx, true))
     {
       *msg= "Error transfering information";
       goto err;
     }
   }
+
+  if (return_check_src == ERROR_CHECKING_REPOSITORY)
+  {
+    *msg= "Error checking old repository";
+    goto err;
+  }
+
   (*handler_src)->end_info(info->uidx, info->nidx);
   if ((*handler_src)->remove_info(info->uidx, info->nidx))
   {

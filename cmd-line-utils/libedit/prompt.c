@@ -1,4 +1,4 @@
-/*	$NetBSD: prompt.c,v 1.11 2003/08/07 16:44:32 agc Exp $	*/
+/*	$NetBSD: prompt.c,v 1.20 2011/07/29 15:16:33 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -46,54 +46,66 @@ static char sccsid[] = "@(#)prompt.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include "el.h"
 
-private char	*prompt_default(EditLine *);
-private char	*prompt_default_r(EditLine *);
+private Char	*prompt_default(EditLine *);
+private Char	*prompt_default_r(EditLine *);
 
 /* prompt_default():
  *	Just a default prompt, in case the user did not provide one
  */
-private char *
+private Char *
 /*ARGSUSED*/
 prompt_default(EditLine *el __attribute__((__unused__)))
 {
-	static char a[3] = {'?', ' ', '\0'};
+	static Char a[3] = {'?', ' ', '\0'};
 
-	return (a);
+	return a;
 }
 
 
 /* prompt_default_r():
  *	Just a default rprompt, in case the user did not provide one
  */
-private char *
+private Char *
 /*ARGSUSED*/
 prompt_default_r(EditLine *el __attribute__((__unused__)))
 {
-	static char a[1] = {'\0'};
+	static Char a[1] = {'\0'};
 
-	return (a);
+	return a;
 }
 
 
 /* prompt_print():
  *	Print the prompt and update the prompt position.
- *	We use an array of integers in case we want to pass
- * 	literal escape sequences in the prompt and we want a
- *	bit to flag them
  */
 protected void
 prompt_print(EditLine *el, int op)
 {
 	el_prompt_t *elp;
-	char *p;
+	Char *p;
+	int ignore = 0;
 
 	if (op == EL_PROMPT)
 		elp = &el->el_prompt;
 	else
 		elp = &el->el_rprompt;
-	p = (elp->p_func) (el);
-	while (*p)
-		re_putc(el, *p++, 1);
+
+	if (elp->p_wide)
+		p = (*elp->p_func)(el);
+	else
+		p = ct_decode_string((char *)(void *)(*elp->p_func)(el),
+		    &el->el_scratch);
+
+	for (; *p; p++) {
+		if (elp->p_ignore == *p) {
+			ignore = !ignore;
+			continue;
+		}
+		if (ignore)
+			terminal__putc(el, *p);
+		else
+			re_putc(el, *p, 1);
+	}
 
 	elp->p_pos.v = el->el_refresh.r_cursor.v;
 	elp->p_pos.h = el->el_refresh.r_cursor.h;
@@ -110,10 +122,12 @@ prompt_init(EditLine *el)
 	el->el_prompt.p_func = prompt_default;
 	el->el_prompt.p_pos.v = 0;
 	el->el_prompt.p_pos.h = 0;
+	el->el_prompt.p_ignore = '\0';
 	el->el_rprompt.p_func = prompt_default_r;
 	el->el_rprompt.p_pos.v = 0;
 	el->el_rprompt.p_pos.h = 0;
-	return (0);
+	el->el_rprompt.p_ignore = '\0';
+	return 0;
 }
 
 
@@ -131,24 +145,31 @@ prompt_end(EditLine *el __attribute__((__unused__)))
  *	Install a prompt printing function
  */
 protected int
-prompt_set(EditLine *el, el_pfunc_t prf, int op)
+prompt_set(EditLine *el, el_pfunc_t prf, Char c, int op, int wide)
 {
 	el_prompt_t *p;
 
-	if (op == EL_PROMPT)
+	if (op == EL_PROMPT || op == EL_PROMPT_ESC)
 		p = &el->el_prompt;
 	else
 		p = &el->el_rprompt;
+
 	if (prf == NULL) {
-		if (op == EL_PROMPT)
+		if (op == EL_PROMPT || op == EL_PROMPT_ESC)
 			p->p_func = prompt_default;
 		else
 			p->p_func = prompt_default_r;
-	} else
+	} else {
 		p->p_func = prf;
+	}
+
+	p->p_ignore = c;
+
 	p->p_pos.v = 0;
 	p->p_pos.h = 0;
-	return (0);
+	p->p_wide = wide;
+
+	return 0;
 }
 
 
@@ -156,14 +177,22 @@ prompt_set(EditLine *el, el_pfunc_t prf, int op)
  *	Retrieve the prompt printing function
  */
 protected int
-prompt_get(EditLine *el, el_pfunc_t *prf, int op)
+prompt_get(EditLine *el, el_pfunc_t *prf, Char *c, int op)
 {
+	el_prompt_t *p;
 
 	if (prf == NULL)
-		return (-1);
+		return -1;
+
 	if (op == EL_PROMPT)
-		*prf = el->el_prompt.p_func;
+		p = &el->el_prompt;
 	else
-		*prf = el->el_rprompt.p_func;
-	return (0);
+		p = &el->el_rprompt;
+
+	if (prf)
+		*prf = p->p_func;
+	if (c)
+		*c = p->p_ignore;
+
+	return 0;
 }
