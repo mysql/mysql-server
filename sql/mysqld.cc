@@ -6439,8 +6439,8 @@ struct my_option my_long_options[] =
    &opt_debugging, &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"general_log", OPT_GENERAL_LOG,
-   "Enable/disable general log.  Filename can be specified with --general-log-file or --log-basename.  Is 'hostname.err' by default.",
-   &opt_log, &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   "Enable/disable general log.  Filename can be specified with --general-log-file or --log-basename.  Is 'hostname.log' by default.",
+   &opt_log, &opt_log, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_LARGE_PAGES
   {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. "
    "Disable with --skip-large-pages.", &opt_large_pages, &opt_large_pages,

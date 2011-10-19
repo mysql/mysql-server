@@ -151,7 +151,10 @@ my_bool my_gethwaddr(uchar *to)
   {
     if (info->Type == MIB_IF_TYPE_ETHERNET &&
         info->AddressLength == ETHER_ADDR_LEN)
+    {
       res= memcpy_and_test(to, info->Address, ETHER_ADDR_LEN);
+    }
+    info = info->Next;
   }
 
 err:
