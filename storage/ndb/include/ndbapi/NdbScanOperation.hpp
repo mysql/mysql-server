@@ -252,12 +252,8 @@ public:
 #endif
   
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  NdbBlob* getBlobHandle(const char* anAttrName);
-  NdbBlob* getBlobHandle(Uint32 anAttrId);
-  /* Const variants not overloaded - underlying 
-   * const NdbOperation::getBlobHandle implementation
-   * only returns existing Blob operations 
-   */
+  virtual NdbBlob* getBlobHandle(const char* anAttrName);
+  virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
 
   /** 
    * setInterpretedCode
@@ -530,12 +526,13 @@ protected:
 
   // Overloaded private methods from NdbOperation
   int init(const NdbTableImpl* tab, NdbTransaction*);
-  int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
+  int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId,
+                  NdbOperation::AbortOption);
   int doSend(int ProcessorId);
   virtual void setReadLockMode(LockMode lockMode);
 
-  virtual void setErrorCode(int aErrorCode);
-  virtual void setErrorCodeAbort(int aErrorCode);
+  virtual void setErrorCode(int aErrorCode) const;
+  virtual void setErrorCodeAbort(int aErrorCode) const;
   
   /* This is the transaction which defined this scan
    *   The transaction(connection) used for the scan is
@@ -678,6 +675,17 @@ protected:
 private:
   NdbScanOperation(const NdbScanOperation&); // Not impl.
   NdbScanOperation&operator=(const NdbScanOperation&);
+
+  /**
+   * Const variants overloaded...calling NdbOperation::getBlobHandle()
+   *  (const NdbOperation::getBlobHandle implementation
+   *   only returns existing Blob operations)
+   *
+   * I'm not sure...but these doesn't seem to be an users of this...
+   * so I make them private...
+   */
+  virtual NdbBlob* getBlobHandle(const char* anAttrName) const;
+  virtual NdbBlob* getBlobHandle(Uint32 anAttrId) const;
 };
 
 inline
