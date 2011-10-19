@@ -1053,7 +1053,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
-    *(size_t *)(pbuf+qbuf.length()+1)= thd->db_length;
+    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
   }
   else
     DBUG_RETURN(TRUE);
