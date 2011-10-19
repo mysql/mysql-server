@@ -4432,6 +4432,16 @@ sub check_warnings ($) {
 	if ( $res == 0 ) {
 	  # Check completed with problem
 	  my $report= mtr_grab_file($err_file);
+	  # In rare cases on Windows, exit code 62 is lost, so check output
+	  if (IS_WINDOWS and
+	      $report =~ /^The test .* is not supported by this installation/) {
+	    # Extra sanity check
+	    if ($report =~ /^reason: OK$/m) {
+	      $res= 62;
+	      mtr_print("Seems to have lost exit code 62, assume no warn\n");
+	      goto LOST62;
+	    }
+	  }
 	  # Log to var/log/warnings file
 	  mtr_tofile("$opt_vardir/log/warnings",
 		     $tname."\n".$report);
@@ -4439,7 +4449,7 @@ sub check_warnings ($) {
 	  $tinfo->{'warnings'}.= $report;
 	  $result= 1;
 	}
-
+      LOST62:
 	if ( $res == 62 ) {
 	  # Test case was ok and called "skip"
 	  # Remove the .err file the check generated

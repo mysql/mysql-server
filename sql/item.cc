@@ -891,11 +891,26 @@ Item *Item_static_float_func::safe_charset_converter(const CHARSET_INFO *tocs)
 
 Item *Item_string::safe_charset_converter(const CHARSET_INFO *tocs)
 {
+  return charset_converter(tocs, true);
+}
+
+
+/**
+  Convert a string item into the requested character set.
+
+  @param tocs       Character set to to convert the string to.
+  @param lossless   Whether data loss is acceptable.
+
+  @return A new item representing the converted string.
+*/
+Item *Item_string::charset_converter(const CHARSET_INFO *tocs, bool lossless)
+{
   Item_string *conv;
   uint conv_errors;
   char *ptr;
   String tmp, cstr, *ostr= val_str(&tmp);
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  conv_errors= lossless && conv_errors;
   if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
                                              cstr.charset(),
                                              collation.derivation)))

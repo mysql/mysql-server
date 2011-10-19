@@ -669,6 +669,124 @@ WHERE NOT EXISTS
   ] /* steps */
 }	0	0
 
+SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER BY b);
+1
+1
+
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER BY b)	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `test`.`t1`.`a` from `test`.`t1`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where (not(exists(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1`)))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(not(exists(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1`)))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(not(exists(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1`)))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(not(exists(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1`)))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_evaluation": [
+                    {
+                      "subselect_execution": {
+                        "select#": 2,
+                        "steps": [
+                          {
+                            "join_optimization": {
+                              "select#": 2,
+                              "steps": [
+                                {
+                                  "table_dependencies": [
+                                    {
+                                      "database": "test",
+                                      "table": "t1",
+                                      "row_may_be_null": false,
+                                      "map_bit": 0,
+                                      "depends_on_map_bits": [
+                                      ] /* depends_on_map_bits */
+                                    }
+                                  ] /* table_dependencies */
+                                },
+                                {
+                                  "rows_estimation": [
+                                    {
+                                      "database": "test",
+                                      "table": "t1",
+                                      "rows": 1,
+                                      "cost": 1,
+                                      "table_type": "system"
+                                    }
+                                  ] /* rows_estimation */
+                                }
+                              ] /* steps */,
+                              "empty_result": {
+                                "cause": "no matching row in const table"
+                              } /* empty_result */
+                            } /* join_optimization */
+                          },
+                          {
+                            "join_execution": {
+                              "select#": 2,
+                              "steps": [
+                              ] /* steps */
+                            } /* join_execution */
+                          }
+                        ] /* steps */
+                      } /* subselect_execution */
+                    }
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+
 DROP TABLE t1,t2;
 #
 # BUG#12905521 - ASSERT IN OPT_TRACE_STMT::SYNTAX_ERROR ON SELECT
@@ -825,13 +943,13 @@ field4,field5,field6	{
                     "select#": 3,
                     "steps": [
                       {
-                        "expanded_query": "/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)"
+                        "expanded_query": "/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)"
                       }
                     ] /* steps */
                   } /* join_preparation */
                 },
                 {
-                  "expanded_query": "/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))"
+                  "expanded_query": "/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))"
                 }
               ] /* steps */
             } /* join_preparation */
@@ -873,7 +991,7 @@ field4,field5,field6	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select distinct `test`.`alias1`.`col_varchar_key` AS `field1`,`test`.`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))) AS `field3`,(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from ((`test`.`t4` `alias3` left join ((/* select#5 */ select `test`.`sq3_alias2`.`pk` AS `pk`,`test`.`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`test`.`sq3_alias2`.`col_int_key` AS `col_int_key`,`test`.`sq3_alias2`.`col_date_key` AS `col_date_key`,`test`.`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`test`.`sq3_alias2`.`col_time_key` AS `col_time_key`,`test`.`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`test`.`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`test`.`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`test`.`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`test`.`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from (`test`.`t5` `sq3_alias1` join `test`.`t4` `sq3_alias2`))) `alias2` on((`test`.`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) left join `test`.`t5` `alias1` on((`test`.`alias3`.`col_int_key` = `alias2`.`pk`))) where (<in_optimizer>(`test`.`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select 1 from (`test`.`t3` `sq4_alias1` join (`test`.`t3` `sq4_alias3` left join `test`.`t2` `sq4_alias2` on((`test`.`sq4_alias3`.`pk` = `test`.`sq4_alias2`.`col_int_key`))) on((`test`.`sq4_alias3`.`col_varchar_nokey` = `test`.`sq4_alias2`.`col_varchar_key`))) where ((`test`.`sq4_alias2`.`col_int_key` < `test`.`alias1`.`col_int_nokey`) and (`test`.`sq4_alias3`.`col_varchar_nokey` <> `test`.`alias1`.`col_varchar_key`) and (<cache>(`test`.`alias1`.`col_varchar_nokey`) = `test`.`sq4_alias1`.`col_varchar_key`)))) and (`test`.`alias1`.`col_int_key` <> 214)) group by `test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))),(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`),`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`"
+            "expanded_query": "/* select#1 */ select distinct `test`.`alias1`.`col_varchar_key` AS `field1`,`test`.`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))) AS `field3`,(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from ((`test`.`t4` `alias3` left join ((/* select#5 */ select `test`.`sq3_alias2`.`pk` AS `pk`,`test`.`sq3_alias2`.`col_int_nokey` AS `col_int_nokey`,`test`.`sq3_alias2`.`col_int_key` AS `col_int_key`,`test`.`sq3_alias2`.`col_date_key` AS `col_date_key`,`test`.`sq3_alias2`.`col_date_nokey` AS `col_date_nokey`,`test`.`sq3_alias2`.`col_time_key` AS `col_time_key`,`test`.`sq3_alias2`.`col_time_nokey` AS `col_time_nokey`,`test`.`sq3_alias2`.`col_datetime_key` AS `col_datetime_key`,`test`.`sq3_alias2`.`col_datetime_nokey` AS `col_datetime_nokey`,`test`.`sq3_alias2`.`col_varchar_key` AS `col_varchar_key`,`test`.`sq3_alias2`.`col_varchar_nokey` AS `col_varchar_nokey` from (`test`.`t5` `sq3_alias1` join `test`.`t4` `sq3_alias2`))) `alias2` on((`test`.`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) left join `test`.`t5` `alias1` on((`test`.`alias3`.`col_int_key` = `alias2`.`pk`))) where (<in_optimizer>(`test`.`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select 1 from (`test`.`t3` `sq4_alias1` join (`test`.`t3` `sq4_alias3` left join `test`.`t2` `sq4_alias2` on((`test`.`sq4_alias3`.`pk` = `test`.`sq4_alias2`.`col_int_key`))) on((`test`.`sq4_alias3`.`col_varchar_nokey` = `test`.`sq4_alias2`.`col_varchar_key`))) where ((`test`.`sq4_alias2`.`col_int_key` < `test`.`alias1`.`col_int_nokey`) and (`test`.`sq4_alias3`.`col_varchar_nokey` <> `test`.`alias1`.`col_varchar_key`) and (<cache>(`test`.`alias1`.`col_varchar_nokey`) = `test`.`sq4_alias1`.`col_varchar_key`)))) and (`test`.`alias1`.`col_int_key` <> 214)) group by `test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))),(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`),`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -987,7 +1105,7 @@ field4,field5,field6	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select distinct `test`.`alias1`.`col_varchar_key` AS `field1`,`test`.`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))) AS `field3`,(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from `test`.`t4` `alias3` join ((/* select#5 */ select '0' AS `pk`,'7' AS `col_int_nokey`,'8' AS `col_int_key`,'2008-10-02' AS `col_date_key`,'2008-10-02' AS `col_date_nokey`,'04:07:22' AS `col_time_key`,'04:07:22' AS `col_time_nokey`,'2001-10-08 00:00:00' AS `col_datetime_key`,'2001-10-08 00:00:00' AS `col_datetime_nokey`,'g' AS `col_varchar_key`,'g' AS `col_varchar_nokey` from `test`.`t5` `sq3_alias1`)) `alias2` join `test`.`t5` `alias1` where (<in_optimizer>(`test`.`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select 1 from (`test`.`t3` `sq4_alias1` join (`test`.`t3` `sq4_alias3` left join `test`.`t2` `sq4_alias2` on((`test`.`sq4_alias3`.`pk` = `test`.`sq4_alias2`.`col_int_key`))) on((`test`.`sq4_alias3`.`col_varchar_nokey` = `test`.`sq4_alias2`.`col_varchar_key`))) where ((`test`.`sq4_alias2`.`col_int_key` < `test`.`alias1`.`col_int_nokey`) and (`test`.`sq4_alias3`.`col_varchar_nokey` <> `test`.`alias1`.`col_varchar_key`) and (<cache>(`test`.`alias1`.`col_varchar_nokey`) = `test`.`sq4_alias1`.`col_varchar_key`)))) and (`test`.`alias1`.`col_int_key` <> 214) and (`test`.`alias3`.`col_int_key` = `alias2`.`pk`) and (`test`.`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`)) group by `test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))),(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`),`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`"
+              "expanded_query": "/* select#1 */ select distinct `test`.`alias1`.`col_varchar_key` AS `field1`,`test`.`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))) AS `field3`,(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`) AS `field4`,`alias2`.`col_varchar_nokey` AS `field5`,`alias2`.`col_varchar_nokey` AS `field6` from `test`.`t4` `alias3` join ((/* select#5 */ select '0' AS `pk`,'7' AS `col_int_nokey`,'8' AS `col_int_key`,'2008-10-02' AS `col_date_key`,'2008-10-02' AS `col_date_nokey`,'04:07:22' AS `col_time_key`,'04:07:22' AS `col_time_nokey`,'2001-10-08 00:00:00' AS `col_datetime_key`,'2001-10-08 00:00:00' AS `col_datetime_nokey`,'g' AS `col_varchar_key`,'g' AS `col_varchar_nokey` from `test`.`t5` `sq3_alias1`)) `alias2` join `test`.`t5` `alias1` where (<in_optimizer>(`test`.`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select 1 from (`test`.`t3` `sq4_alias1` join (`test`.`t3` `sq4_alias3` left join `test`.`t2` `sq4_alias2` on((`test`.`sq4_alias3`.`pk` = `test`.`sq4_alias2`.`col_int_key`))) on((`test`.`sq4_alias3`.`col_varchar_nokey` = `test`.`sq4_alias2`.`col_varchar_key`))) where ((`test`.`sq4_alias2`.`col_int_key` < `test`.`alias1`.`col_int_nokey`) and (`test`.`sq4_alias3`.`col_varchar_nokey` <> `test`.`alias1`.`col_varchar_key`) and (<cache>(`test`.`alias1`.`col_varchar_nokey`) = `test`.`sq4_alias1`.`col_varchar_key`)))) and (`test`.`alias1`.`col_int_key` <> 214) and (`test`.`alias3`.`col_int_key` = `alias2`.`pk`) and (`test`.`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`)) group by `test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))),(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`),`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`"
             } /* transformations_to_nested_joins */
           },
           {
@@ -1288,7 +1406,7 @@ field4,field5,field6	{
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))),(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`),`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`",
+              "original_clause": "`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`))),(/* select#4 */ select max(`test`.`sq2_alias1`.`pk`) AS `sq2_field1` from `test`.`t5` `sq2_alias1`),`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`",
               "items": [
                 {
                   "item": "`test`.`alias1`.`col_varchar_key`"
@@ -1297,7 +1415,7 @@ field4,field5,field6	{
                   "item": "`test`.`alias1`.`col_date_key`"
                 },
                 {
-                  "item": "(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)))",
+                  "item": "(/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`test`.`t1` `sq1_alias1` join (`test`.`t5` `sq1_alias2` left join `test`.`t5` `sq1_alias3` on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) on((`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)))",
                   "subselect_evaluation": [
                     {
                       "subselect_execution": {
@@ -1314,31 +1432,31 @@ field4,field5,field6	{
                                       "JOIN_condition_to_WHERE",
                                       "parenthesis_removal"
                                     ] /* transformations */,
-                                    "expanded_query": "/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from `test`.`t1` `sq1_alias1` join `test`.`t5` `sq1_alias2` join `test`.`t5` `sq1_alias3` where (exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))"
+                                    "expanded_query": "/* select#2 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from `test`.`t1` `sq1_alias1` join `test`.`t5` `sq1_alias2` join `test`.`t5` `sq1_alias3` where (exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))"
                                   } /* transformations_to_nested_joins */
                                 },
                                 {
                                   "condition_processing": {
                                     "condition": "WHERE",
-                                    "original_condition": "(exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))",
+                                    "original_condition": "(exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`) and (`test`.`sq1_alias3`.`col_varchar_nokey` = `test`.`sq1_alias2`.`col_varchar_key`))",
                                     "steps": [
                                       {
                                         "transformation": "equality_propagation",
                                         "subselect_evaluation": [
                                         ] /* subselect_evaluation */,
-                                        "resulting_condition": "(exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and multiple equal(`test`.`sq1_alias3`.`col_varchar_nokey`, `test`.`sq1_alias2`.`col_varchar_key`))"
+                                        "resulting_condition": "(exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and multiple equal(`test`.`sq1_alias3`.`col_varchar_nokey`, `test`.`sq1_alias2`.`col_varchar_key`))"
                                       },
                                       {
                                         "transformation": "constant_propagation",
                                         "subselect_evaluation": [
                                         ] /* subselect_evaluation */,
-                                        "resulting_condition": "(exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and multiple equal(`test`.`sq1_alias3`.`col_varchar_nokey`, `test`.`sq1_alias2`.`col_varchar_key`))"
+                                        "resulting_condition": "(exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and multiple equal(`test`.`sq1_alias3`.`col_varchar_nokey`, `test`.`sq1_alias2`.`col_varchar_key`))"
                                       },
                                       {
                                         "transformation": "trivial_condition_removal",
                                         "subselect_evaluation": [
                                         ] /* subselect_evaluation */,
-                                        "resulting_condition": "(exists(/* select#3 */ select distinct `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and multiple equal(`test`.`sq1_alias3`.`col_varchar_nokey`, `test`.`sq1_alias2`.`col_varchar_key`))"
+                                        "resulting_condition": "(exists(/* select#3 */ select `test`.`c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`test`.`t4` `c_sq1_alias2` left join `test`.`t3` `c_sq1_alias1` on((`test`.`c_sq1_alias2`.`col_int_nokey` = `test`.`c_sq1_alias1`.`pk`))) where (`test`.`c_sq1_alias2`.`col_varchar_key` = `test`.`sq1_alias2`.`col_varchar_nokey`)) and multiple equal(`test`.`sq1_alias3`.`col_varchar_nokey`, `test`.`sq1_alias2`.`col_varchar_key`))"
                                       }
                                     ] /* steps */
                                   } /* condition_processing */
