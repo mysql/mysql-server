@@ -25,10 +25,10 @@
 
 NdbWaitGroup::NdbWaitGroup(Ndb_cluster_connection *_conn, int _ndbs) :
   m_conn(_conn),
+  m_multiWaitHandler(0),
   m_array_size(_ndbs),
   m_count(0),
-  m_nodeId(0),
-  m_multiWaitHandler(0)
+  m_nodeId(0)
 {
   /* Allocate the array of Ndbs */
   m_array = new Ndb *[m_array_size];
