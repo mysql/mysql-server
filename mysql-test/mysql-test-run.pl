@@ -161,8 +161,27 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,maria,parts,percona,vcol,oqgraph,sphinx,pbxt,unit" . 
-                    ",handler,optimizer_unfixed_bugs";
+my $DEFAULT_SUITES= join(',', qw(
+    main
+    binlog
+    federated
+    funcs_1
+    funcs_2
+    handler
+    innodb
+    maria
+    optimizer_unfixed_bugs
+    oqgraph
+    parts
+    pbxt
+    percona
+    perfschema
+    rpl
+    sphinx
+    sys_vars
+    unit
+    vcol
+  ));
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -3446,12 +3465,6 @@ sub mysql_install_db {
   # --bootstrap, to accommodate this.
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
-
-  # MASV add only to bootstrap.test
-  # Setup args for bootstrap.test
-  #
-  #mtr_init_args(\$cmd_args);
-  #mtr_add_arg($cmd_args, "--loose-skip-aria")
 
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>

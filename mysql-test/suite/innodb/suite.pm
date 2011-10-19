@@ -6,7 +6,7 @@ package My::Suite::InnoDB;
 my @combinations;
 
 push @combinations, 'innodb_plugin' if $ENV{HA_INNODB_SO};
-push @combinations, 'xtradb_plugin' if $ENV{HA_XTRADB_SO};
+push @combinations, 'xtradb_plugin' if $ENV{HA_XTRADB_SO} and not $::opt_embedded_server;
 push @combinations, 'xtradb' if $::mysqld_variables{'innodb'} eq "ON";
 
 return "Neither innodb_plugin nor xtradb are available" unless @combinations;

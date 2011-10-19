@@ -1,5 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2011, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2011 Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -355,7 +356,12 @@ sub collect_one_suite
   my $suite_opts= [ opts_from_file("$testdir/suite.opt") ];
   $suite_opts = [ opts_from_file("$suitedir/suite.opt") ] unless @$suite_opts;
 
-  my (@case_names)= $::suites{$suite}->list_cases($testdir);
+  my @case_names;
+  {
+    my $s= $::suites{$suite};
+    $s = 'My::Suite' unless ref $s;
+    @case_names= $s->list_cases($testdir);
+  }
 
   if ( @$opt_cases )
   {
@@ -1044,7 +1050,7 @@ my $tags_map= {'big_test' => ['big_test', 1],
                'not_embedded' => ['not_embedded', 1],
                'not_valgrind' => ['not_valgrind', 1],
                'have_ssl' => ['need_ssl', 1],
-               'include/check_ipv6.inc' => ['need_ipv6', 1],
+               'check_ipv6' => ['need_ipv6', 1],
                'long_test' => ['long_test', 1],
 };
 my $tags_regex_string= join('|', keys %$tags_map);
@@ -1065,7 +1071,7 @@ my $file_to_slave_opts= { };
 sub get_tags_from_file {
   my ($file, $suitedir)= @_;
 
-  return ('', '', '') unless -f $file;
+  return ([], [], []) unless -f $file;
 
   return ($file_to_tags->{$file}, $file_to_master_opts->{$file},
           $file_to_slave_opts->{$file})

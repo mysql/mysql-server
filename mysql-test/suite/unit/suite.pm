@@ -28,6 +28,7 @@ sub start_test {
 }
 
 { 
+  return "Not run for embedded server" if $::opt_embedded_server;
   return "Not configured to run ctest" unless -f "../CTestTestfile.cmake";
   my ($ctest_vs)= $opt_vs_config ? "--build-config $opt_vs_config" : "";
   my (@ctest_list)= `cd .. && ctest $opt_vs_config --show-only --verbose`;
