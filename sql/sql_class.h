@@ -1654,6 +1654,7 @@ public:
     uint       stage, max_stage;
     ulonglong  counter, max_counter;
     ulonglong  next_report_time;
+    Query_arena *arena;
   } progress;
 
   thr_lock_type update_lock_default;

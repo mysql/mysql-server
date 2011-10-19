@@ -788,6 +788,7 @@ THD::THD()
   user_time.val= start_time= start_time_sec_part= 0;
   start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
+  progress.arena= 0;
   progress.report_to_client= 0;
   progress.max_counter= 0;
   current_linfo =  0;
@@ -1235,11 +1236,6 @@ void THD::update_all_stats()
 {
   ulonglong end_cpu_time, end_utime;
   double busy_time, cpu_time;
-
-  /* Reset status variables used by information_schema.processlist */
-  progress.max_counter= 0;
-  progress.max_stage= 0;
-  progress.report= 0;
 
   /* This is set at start of query if opt_userstat_running was set */
   if (!userstat_running)
@@ -3741,6 +3737,9 @@ static void thd_send_progress(THD *thd)
 
 extern "C" void thd_progress_init(MYSQL_THD thd, uint max_stage)
 {
+  DBUG_ASSERT(thd->stmt_arena != thd->progress.arena);
+  if (thd->progress.arena)
+    return; // already initialized
   /*
     Send progress reports to clients that supports it, if the command
     is a high level command (like ALTER TABLE) and we are not in a
@@ -3753,6 +3752,7 @@ extern "C" void thd_progress_init(MYSQL_THD thd, uint max_stage)
   thd->progress.stage= 0;
   thd->progress.counter= thd->progress.max_counter= 0;
   thd->progress.max_stage= max_stage;
+  thd->progress.arena= thd->stmt_arena;
 }
 
 
@@ -3761,6 +3761,8 @@ extern "C" void thd_progress_init(MYSQL_THD thd, uint max_stage)
 extern "C" void thd_progress_report(MYSQL_THD thd,
                                     ulonglong progress, ulonglong max_progress)
 {
+  if (thd->stmt_arena != thd->progress.arena)
+    return;
   if (thd->progress.max_counter != max_progress)        // Simple optimization
   {
     mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -3784,6 +3786,8 @@ extern "C" void thd_progress_report(MYSQL_THD thd,
 
 extern "C" void thd_progress_next_stage(MYSQL_THD thd)
 {
+  if (thd->stmt_arena != thd->progress.arena)
+    return;
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->progress.stage++;
   thd->progress.counter= 0;
@@ -3810,11 +3814,14 @@ extern "C" void thd_progress_next_stage(MYSQL_THD thd)
 
 extern "C" void thd_progress_end(MYSQL_THD thd)
 {
+  if (thd->stmt_arena != thd->progress.arena)
+    return;
   /*
     It's enough to reset max_counter to set disable progress indicator
     in processlist.
   */
   thd->progress.max_counter= 0;
+  thd->progress.arena= 0;
 }
 
 
