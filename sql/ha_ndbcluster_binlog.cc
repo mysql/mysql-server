@@ -2494,17 +2494,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
         */
         post_epoch_log_list->push_back(schema, mem_root);
         DBUG_RETURN(0);
+
       case SOT_ALTER_TABLE_COMMIT:
-        // fall through
       case SOT_RENAME_TABLE_PREPARE:
-        // fall through
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
-        // fall through
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
         post_epoch_log_list->push_back(schema, mem_root);
         post_epoch_unlock_list->push_back(schema, mem_root);
         DBUG_RETURN(0);
-        break;
+
       default:
         break;
       }
@@ -2517,7 +2515,6 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
         switch (schema_type)
         {
         case SOT_RENAME_TABLE:
-          // fall through
         case SOT_RENAME_TABLE_NEW:
         {
           uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
@@ -5826,13 +5823,13 @@ ndb_binlog_thread_handle_non_data_event(THD *thd,
                         share->key, (long) share, (long) pOp,
                         (long) share->op, (long) share->new_op));
     break;
+
   case NDBEVENT::TE_NODE_FAILURE:
-    /* fall through */
   case NDBEVENT::TE_SUBSCRIBE:
-    /* fall through */
   case NDBEVENT::TE_UNSUBSCRIBE:
     /* ignore */
     return 0;
+
   default:
     sql_print_error("NDB Binlog: unknown non data event %d for %s. "
                     "Ignoring...", (unsigned) type, share->key);
@@ -5944,10 +5941,10 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
       switch(pOp->getEventType())
       {
       case NDBEVENT::TE_INSERT:
-        // fall through
       case NDBEVENT::TE_UPDATE:
         event_has_data = true;
         break;
+
       case NDBEVENT::TE_DELETE:
         break;
       default:
