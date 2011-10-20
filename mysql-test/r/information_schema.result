@@ -39,8 +39,7 @@ insert into t5 values (10);
 create view v1 (c) as
 SELECT table_name FROM information_schema.TABLES
 WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
-table_name<>'ndb_binlog_index' AND
-table_name<>'ndb_apply_status';
+table_name not like 'ndb%';
 select * from v1;
 c
 CHARACTER_SETS
@@ -850,7 +849,7 @@ VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name not like 'ndb%' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	28
 mysql	22
@@ -1230,7 +1229,8 @@ INNER JOIN
 information_schema.columns c1
 ON t.table_schema = c1.table_schema AND
 t.table_name = c1.table_name
-WHERE t.table_schema = 'information_schema' AND
+WHERE t.table_name not like 'ndb%' AND
+t.table_schema = 'information_schema' AND
 c1.ordinal_position =
 ( SELECT COALESCE(MIN(c2.ordinal_position),1)
 FROM information_schema.columns c2
@@ -1273,7 +1273,8 @@ INNER JOIN
 information_schema.columns c1
 ON t.table_schema = c1.table_schema AND
 t.table_name = c1.table_name
-WHERE t.table_schema = 'information_schema' AND
+WHERE t.table_name not like 'ndb%' AND
+t.table_schema = 'information_schema' AND
 c1.ordinal_position =
 ( SELECT COALESCE(MIN(c2.ordinal_position),1)
 FROM information_schema.columns c2
@@ -1365,7 +1366,8 @@ count(*) as num1
 from information_schema.tables t
 inner join information_schema.columns c1
 on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
-where t.table_schema = 'information_schema' and
+where t.table_name not like 'ndb%' and
+t.table_schema = 'information_schema' and
 c1.ordinal_position =
 (select isnull(c2.column_type) -
 isnull(group_concat(c2.table_schema, '.', c2.table_name)) +

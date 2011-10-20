@@ -11935,7 +11935,8 @@ int ha_ndbcluster::close(void)
   wait on condition for a Ndb object to be released.
   - Alt.2 Seize/release from pool, wait until next release 
 */
-Thd_ndb* ha_ndbcluster::seize_thd_ndb()
+Thd_ndb*
+ha_ndbcluster::seize_thd_ndb(THD * thd)
 {
   Thd_ndb *thd_ndb;
   DBUG_ENTER("seize_thd_ndb");
@@ -11957,6 +11958,10 @@ Thd_ndb* ha_ndbcluster::seize_thd_ndb()
     */
     delete thd_ndb;
     thd_ndb= NULL;
+  }
+  else
+  {
+    thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
   }
   DBUG_RETURN(thd_ndb);
 }
@@ -11994,7 +11999,10 @@ bool Thd_ndb::recycle_ndb(THD* thd)
                          ndb->getNdbError().message));
     DBUG_RETURN(false);
   }
-
+  else
+  {
+   ndb->setCustomData64(thd_get_thread_id(thd));
+  }
   DBUG_RETURN(true);
 }
 
@@ -12032,7 +12040,7 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb)
   {
-    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb(thd)))
       return NULL;
     set_thd_ndb(thd, thd_ndb);
   }
@@ -15827,7 +15835,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
   /* Get thd_ndb for this thread */
-  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb(thd)))
   {
     sql_print_error("Could not allocate Thd_ndb object");
     pthread_mutex_lock(&LOCK_ndb_util_thread);
@@ -18288,12 +18296,8 @@ struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 
-#include "ha_ndbinfo.h"
-
-extern struct st_mysql_sys_var* ndbinfo_system_variables[];
-
-struct st_mysql_storage_engine ndbinfo_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION };
+extern struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin;
+extern struct st_mysql_plugin ndbinfo_plugin;
 
 mysql_declare_plugin(ndbcluster)
 {
@@ -18310,20 +18314,9 @@ mysql_declare_plugin(ndbcluster)
   system_variables,           /* system variables */
   NULL                        /* config options                  */
 },
-{
-  MYSQL_STORAGE_ENGINE_PLUGIN,
-  &ndbinfo_storage_engine,
-  "ndbinfo",
-  "Sun Microsystems Inc.",
-  "MySQL Cluster system information storage engine",
-  PLUGIN_LICENSE_GPL,
-  ndbinfo_init,               /* plugin init */
-  ndbinfo_deinit,             /* plugin deinit */
-  0x0001,                     /* plugin version */
-  NULL,                       /* status variables */
-  ndbinfo_system_variables,   /* system variables */
-  NULL                        /* config options */
-}
+ndbinfo_plugin, /* ndbinfo plugin */
+/* IS plugin table which maps between mysql connection id and ndb trans-id */
+i_s_ndb_transid_mysql_connection_map_plugin
 mysql_declare_plugin_end;
 
 #endif

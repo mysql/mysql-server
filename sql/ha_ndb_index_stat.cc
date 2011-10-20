@@ -1984,7 +1984,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
   }
 
   /* Get thd_ndb for this thread */
-  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb(thd)))
   {
     sql_print_error("Could not allocate Thd_ndb object");
     pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
