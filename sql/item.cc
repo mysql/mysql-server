@@ -2172,6 +2172,12 @@ bool Item_field::enumerate_field_refs_processor(uchar *arg)
   return FALSE;
 }
 
+bool Item_field::covering_keys_processor(uchar *arg)
+{
+  if (field && field->table)
+    field->table->covering_keys.intersect(field->part_of_key);
+  return FALSE;
+}
 
 const char *Item_ident::full_name() const
 {
