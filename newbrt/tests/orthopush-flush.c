@@ -1102,6 +1102,12 @@ test_main (int argc, const char *argv[]) {
             flush_to_leaf(t, true, false);
             flush_to_leaf(t, true, true);
         }
+        for (int i = 0; i < 10; ++i) {
+            flush_to_leaf_with_keyrange(t, false);
+            flush_to_leaf_with_keyrange(t, true);
+            compare_apply_and_flush(t, false);
+            compare_apply_and_flush(t, true);
+        }
     }
 
     r = toku_close_brt(t, 0);          assert(r==0);

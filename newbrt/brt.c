@@ -3141,7 +3141,6 @@ flush_some_child (BRT t, BRTNODE parent)
     fill_bfe_for_min_read(&bfe, t->h, t->db, t->compare_fun);
     toku_pin_brtnode_off_client_thread(t, targetchild, childfullhash, &bfe, 1, &parent, &child);
 
-
     // for test
     call_flusher_thread_callback(ft_flush_after_child_pin);
 
@@ -3159,7 +3158,7 @@ flush_some_child (BRT t, BRTNODE parent)
     VERIFY_NODE(t, child);
 
     parent->dirty = 1;
-    
+
     // detach buffer
     BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
     NONLEAF_CHILDINFO bnc = BNC(parent, childnum);
@@ -3168,7 +3167,7 @@ flush_some_child (BRT t, BRTNODE parent)
     //
     // at this point, the buffer has been detached from the parent
     // and a new empty buffer has been placed in its stead
-    // so, if we are absolutely sure that the child is not 
+    // so, if we are absolutely sure that the child is not
     // reactive, we can unpin the parent
     //
     if (!may_child_be_reactive) {
@@ -3182,7 +3181,6 @@ flush_some_child (BRT t, BRTNODE parent)
     //
     bring_node_fully_into_memory(child, t);
     child->dirty = 1;
-    
 
     // It is possible after reading in the entire child,
     // that we now know that the child is not reactive
@@ -3465,15 +3463,17 @@ static void flush_node_fun(void *fe_v)
     // The node that has been placed on the background
     // thread may not be fully in memory. Some message
     // buffers may be compressed. Before performing
-    // any operations, we must first make sure 
+    // any operations, we must first make sure
     // the node is fully in memory
     bring_node_fully_into_memory(fe->node,fe->brt);
     fe->node->dirty = 1;
 
     if (fe->bnc) {
+        // In this case, we have a bnc to flush to a node
+
         // for test purposes
         call_flusher_thread_callback(ft_flush_before_applying_inbox);
-        // In this case, we have a bnc to flush to a node
+
         r = toku_bnc_flush_to_child(fe->brt, fe->bnc, fe->node); assert_zero(r);
         destroy_nonleaf_childinfo(fe->bnc);
 
@@ -3489,7 +3489,7 @@ static void flush_node_fun(void *fe_v)
         }
     }
     else {
-        // In this case, we were just passed a node with no 
+        // In this case, we were just passed a node with no
         // bnc, which means we are tasked with flushing some
         // buffer in the node.
         // It is the responsibility of flush_some_child to unlock the node
@@ -3545,12 +3545,16 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
     BRTNODE child;
     u_int32_t childfullhash = compute_child_fullhash(brt->cf, parent, childnum);
     int r = toku_cachetable_maybe_get_and_pin_clean (
-        brt->cf, 
-        BP_BLOCKNUM(parent,childnum), 
-        childfullhash, 
+        brt->cf,
+        BP_BLOCKNUM(parent,childnum),
+        childfullhash,
         &node_v
         );
-    if (r == 0) {
+    if (r != 0) {
+        // In this case, we could not lock the child, so just place the parent on the background thread
+        place_node_and_bnc_on_background_thread(brt, parent, NULL);
+    }
+    else {
         //
         // successfully locked child
         //
@@ -3564,26 +3568,24 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
             BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
             NONLEAF_CHILDINFO bnc = BNC(parent, childnum);
             set_BNC(parent, childnum, toku_create_empty_nl());
-            
+
             //
             // at this point, the buffer has been detached from the parent
             // and a new empty buffer has been placed in its stead
-            // so, because we know for sure the child is not 
+            // so, because we know for sure the child is not
             // reactive, we can unpin the parent
             //
             toku_unpin_brtnode(brt, parent);
             place_node_and_bnc_on_background_thread(brt, child, bnc);
-            return;
         }
         else {
-            // because the child may be reactive, we need to 
+            // because the child may be reactive, we need to
             // put parent on background thread.
             // As a result, we unlock the child here.
             toku_unpin_brtnode(brt, child);
+            place_node_and_bnc_on_background_thread(brt, parent, NULL);
         }
     }
-    // In this case, we could not lock the child, so just place the parent on the background thread
-    place_node_and_bnc_on_background_thread(brt, parent, NULL);
 }
 
 int 
