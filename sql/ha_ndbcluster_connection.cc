@@ -346,10 +346,8 @@ ndb_transid_mysql_connection_map_fill_table(THD* thd, TABLE_LIST* tables, COND* 
 {
   DBUG_ENTER("ndb_transid_mysql_connection_map_fill_table");
 
-  if (check_global_access(thd, PROCESS_ACL))
-  {
-    DBUG_RETURN(0);
-  }
+  const bool all = check_global_access(thd, PROCESS_ACL);
+  const ulonglong self = thd_get_thread_id(thd);
 
   TABLE* table= tables->table;
   for (uint i = 0; i<g_pool_alloc; i++)
@@ -360,16 +358,20 @@ ndb_transid_mysql_connection_map_fill_table(THD* thd, TABLE_LIST* tables, COND* 
       const Ndb * p = g_pool[i]->get_next_ndb_object(0);
       while (p)
       {
-        table->field[0]->set_notnull();
-        table->field[0]->store(p->getCustomData64(), true);
-        table->field[1]->set_notnull();
-        table->field[1]->store(g_pool[i]->node_id());
-        table->field[2]->set_notnull();
-        table->field[2]->store(p->getNextTransactionId(), true);
-        schema_table_store_record(thd, table);
-        p = g_pool[i]->get_next_ndb_object(p);
+        Uint64 connection_id = p->getCustomData64();
+        if ((connection_id == self) || all)
+        {
+          table->field[0]->set_notnull();
+          table->field[0]->store(p->getCustomData64(), true);
+          table->field[1]->set_notnull();
+          table->field[1]->store(g_pool[i]->node_id());
+          table->field[2]->set_notnull();
+          table->field[2]->store(p->getNextTransactionId(), true);
+          schema_table_store_record(thd, table);
+          p = g_pool[i]->get_next_ndb_object(p);
+        }
+        g_pool[i]->unlock_ndb_objects();
       }
-      g_pool[i]->unlock_ndb_objects();
     }
   }
 
