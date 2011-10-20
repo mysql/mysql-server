@@ -1847,7 +1847,7 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
   signalT.header.theSendersBlockRef      = reference();
   signalT.header.theTrace                = tTrace;
   signalT.header.theSignalId             = tSignalId;
-  signalT.header.theLength               = ((len+3)/4)+1;
+  signalT.header.theLength               = (Uint32)((len+3)/4)+1;
   
 #ifdef NDBD_MULTITHREADED
   sendlocal(m_threadId,
@@ -1892,7 +1892,7 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
   signalT.header.theSendersBlockRef      = reference();
   signalT.header.theTrace                = tTrace;
   signalT.header.theSignalId             = tSignalId;
-  signalT.header.theLength               = ((len+3)/4)+1;
+  signalT.header.theLength               = (Uint32)((len+3)/4)+1;
 
 #ifdef NDBD_MULTITHREADED
   sendlocal(m_threadId,
