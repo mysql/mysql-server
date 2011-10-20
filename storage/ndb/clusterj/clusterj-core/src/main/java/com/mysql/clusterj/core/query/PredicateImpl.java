@@ -34,6 +34,9 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import com.mysql.clusterj.query.Predicate;
 
+import java.util.Comparator;
+import java.util.TreeSet;
+
 public abstract class PredicateImpl implements Predicate {
 
     /** My message translator */
@@ -45,6 +48,20 @@ public abstract class PredicateImpl implements Predicate {
     /** My domain object. */
     protected QueryDomainTypeImpl<?> dobj;
 
+    /** The primary/unique index for this query if it exists */
+    CandidateIndexImpl uniqueIndex;
+
+    /** The comparator for candidate indices, ordered descending by score */
+    Comparator<CandidateIndexImpl> candidateIndexComparator = new Comparator<CandidateIndexImpl>() {
+        public int compare(CandidateIndexImpl o1, CandidateIndexImpl o2) {
+            return o2.score - o1.score;
+        }
+    };
+
+    /** The candidate indices ordered by score */
+    private TreeSet<CandidateIndexImpl> scoredCandidateIndices =
+        new TreeSet<CandidateIndexImpl>(candidateIndexComparator);
+
     /** Scan types. */
     protected enum ScanType {
         INDEX_SCAN,
@@ -52,6 +69,15 @@ public abstract class PredicateImpl implements Predicate {
         UNIQUE_KEY,
         PRIMARY_KEY
     }
+
+    /** Indicates no bound set while setting bounds on index operations */
+    public static int NO_BOUND_SET = 0;
+    /** Indicates lower bound set while setting bounds on index operations */
+    public static int LOWER_BOUND_SET = 1;
+    /** Indicates upper bound set while setting bounds on index operations */
+    public static int UPPER_BOUND_SET = 2;
+    /** Indicates both bounds set while setting bounds on index operations */
+    public static int BOTH_BOUNDS_SET = 3;
 
     public PredicateImpl(QueryDomainTypeImpl<?> dobj) {
         this.dobj = dobj;
@@ -84,19 +110,19 @@ public abstract class PredicateImpl implements Predicate {
         // default is nothing to do
     }
 
-    public void operationSetBounds(QueryExecutionContext context,
+    public int operationSetBounds(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationSetLowerBound(QueryExecutionContext context,
+    public int operationSetLowerBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationSetUpperBound(QueryExecutionContext context,
+    public int operationSetUpperBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn){
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
@@ -181,47 +207,35 @@ public abstract class PredicateImpl implements Predicate {
     }
 
     public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context) {
-        return getBestCandidateIndexFor(context, this);
+        return getBestCandidateIndexFor(context, getTopLevelPredicates());
     }
 
     /** Get the best candidate index for the query, considering all indices
-     * defined and all predicates in the query.
+     * defined and all predicates in the query. If a unique index is usable
+     * (no non-null parameters) then return it. Otherwise, simply choose the
+     * first index for which there is at least one leading non-null parameter.
      * @param predicates the predicates
      * @return the best index for the query
      */
     protected CandidateIndexImpl getBestCandidateIndexFor(QueryExecutionContext context,
             PredicateImpl... predicates) {
-        // Create CandidateIndexImpl to decide how to scan.
-        CandidateIndexImpl[] candidateIndices = dobj.createCandidateIndexes();
-        // Iterate over predicates and have each one register with
-        // candidate indexes.
-        for (PredicateImpl predicateImpl : predicates) {
-            predicateImpl.markBoundsForCandidateIndices(context, candidateIndices);
+        // if there is a primary/unique index, see if it can be used in the current context
+        if (uniqueIndex != null && uniqueIndex.isUsable(context)) {
+            if (logger.isDebugEnabled()) logger.debug("usable unique index: " + uniqueIndex.getIndexName());
+            return uniqueIndex;
         }
-        // Iterate over candidate indices to find one that is usable.
-        int highScore = 0;
-        // Holder for the best index; default to the index for null where clause
-        CandidateIndexImpl bestCandidateIndexImpl = 
-                CandidateIndexImpl.getIndexForNullWhereClause();
-        // Hash index operations require the predicates to have no extra conditions
-        // beyond the index columns.
-        int numberOfConditions = getNumberOfConditionsInPredicate();
-        for (CandidateIndexImpl candidateIndex : candidateIndices) {
-            if (candidateIndex.supportsConditionsOfLength(numberOfConditions)) {
-                // opportunity for a user-defined plugin to evaluate indices
-                int score = candidateIndex.getScore();
-                if (logger.isDetailEnabled()) {
-                    logger.detail("Score: " + score + " from " + candidateIndex);
-                }
-                if (score > highScore) {
-                    bestCandidateIndexImpl = candidateIndex;
-                    highScore = score;
-                }
+        // find the best candidate index by returning the highest scoring index that is usable
+        // in the current context; i.e. has non-null parameters
+        // TODO: it might be better to score indexes again considering the current context
+        for (CandidateIndexImpl index: scoredCandidateIndices) {
+            if (index.isUsable(context)) {
+            if (logger.isDebugEnabled()) logger.debug("usable ordered index: " + index.getIndexName());
+                return index;
             }
         }
-        if (logger.isDetailEnabled()) logger.detail("High score: " + highScore
-                + " from " + bestCandidateIndexImpl.getIndexName());
-        return bestCandidateIndexImpl;
+        // there is no index that is usable in the current context
+        return CandidateIndexImpl.getIndexForNullWhereClause();
+
     }
 
     /** Get the number of conditions in the top level predicate.
@@ -235,6 +249,64 @@ public abstract class PredicateImpl implements Predicate {
      */
     protected int getNumberOfConditionsInPredicate() {
         return 1;
+    }
+
+    /** Analyze this predicate to determine whether a primary key, unique key, or ordered index
+     * might be used. The result will be used during query execution once the actual parameters
+     * are known.
+     */
+    public void prepare() {
+        // Create CandidateIndexImpls
+        CandidateIndexImpl[] candidateIndices = dobj.createCandidateIndexes();
+        // Iterate over predicates and have each one register with
+        // candidate indexes.
+        for (PredicateImpl predicateImpl : getTopLevelPredicates()) {
+            predicateImpl.markBoundsForCandidateIndices(candidateIndices);
+        }
+        // Iterate over candidate indices to find those that are usable.
+        // Hash index operations require the predicates to have no extra conditions
+        // beyond the index columns.
+        // Btree index operations are ranked by the number of usable conditions
+        int numberOfConditions = getNumberOfConditionsInPredicate();
+        for (CandidateIndexImpl candidateIndex : candidateIndices) {
+            if (candidateIndex.supportsConditionsOfLength(numberOfConditions)) {
+                candidateIndex.score();
+                int score = candidateIndex.getScore();
+                if (score != 0) {
+                    if (candidateIndex.isUnique()) {
+                        // there can be only one unique index for a given predicate
+                        uniqueIndex = candidateIndex;
+                    } else {
+                        // add possible indices to ordered map
+                        scoredCandidateIndices.add(candidateIndex);
+                    }
+                }
+                if (logger.isDetailEnabled()) {
+                    logger.detail("Score: " + score + " from " + candidateIndex.getIndexName());
+                }
+            }
+        }
+    }
+
+    protected void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+        // default is nothing to do
+    }
+
+    /** Return an array of top level predicates that might be used with indices.
+     * 
+     * @return an array of top level predicates (defaults to {this}).
+     */
+    protected PredicateImpl[] getTopLevelPredicates() {
+        return new PredicateImpl[] {this};
+    }
+
+    public ParameterImpl getParameter() {
+        // default is there is no parameter for this predicate
+        return null;
+    }
+
+    public boolean isUsable(QueryExecutionContext context) {
+        return false;
     }
 
 }

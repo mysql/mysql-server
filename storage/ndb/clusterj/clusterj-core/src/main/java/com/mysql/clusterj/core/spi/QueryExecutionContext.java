@@ -52,4 +52,6 @@ public interface QueryExecutionContext {
 
     void deleteFilters();
 
+    boolean hasNoNullParameters();
+
 }

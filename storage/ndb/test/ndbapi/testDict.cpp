@@ -8167,6 +8167,8 @@ runBug58277loadtable(NDBT_Context* ctx, NDBT_Step* step)
     int cnt = 0;
     for (int i = 0; i < rows; i++)
     {
+      int retries = 10;
+  retry:
       NdbTransaction* pTx = 0;
       CHK2((pTx = pNdb->startTransaction()) != 0, pNdb->getNdbError());
 
@@ -8183,7 +8185,19 @@ runBug58277loadtable(NDBT_Context* ctx, NDBT_Step* step)
         int x[] = {
          -630
         };
-        CHK3(pTx->execute(Commit) == 0, pTx->getNdbError(), x);
+        int res = pTx->execute(Commit);
+        if (res != 0 &&
+            pTx->getNdbError().status == NdbError::TemporaryError)
+        {
+          retries--;
+          if (retries >= 0)
+          {
+            pTx->close();
+            NdbSleep_MilliSleep(10);
+            goto retry;
+          }
+        }
+        CHK3(res == 0, pTx->getNdbError(), x);
         cnt++;
       }
       while (0);
