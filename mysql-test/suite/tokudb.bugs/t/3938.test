@@ -1,0 +1,53 @@
+# Tokutek
+# Plugin synchronization tests 
+
+# get another connection
+#connect(conn1,localhost,root);
+#connection default;
+
+# try to use the information schema while the plugin is installed,
+# then while it is uninstalled
+select * from information_schema.tokudb_user_data;
+select * from information_schema.tokudb_user_data_exact;
+uninstall plugin tokudb;
+--error 1524
+select * from information_schema.tokudb_user_data;
+--error 1524
+select * from information_schema.tokudb_user_data_exact;
+install plugin tokudb soname 'ha_tokudb.so';
+select * from information_schema.tokudb_user_data;
+select * from information_schema.tokudb_user_data_exact;
+
+# make a table
+#--disable_warnings
+#drop table if exists t;
+#--enable_warnings
+#set global storage_engine='tokudb';
+#create table t (a int primary key, b int, c int, d int, e int);
+
+# insert a bunch of stuff into the table.
+#let $i = 5000;
+#while ($i) {
+#    eval insert t values($i, $i, $i, $i, $i);
+#    dec $i;
+#}
+
+# try a tokudb_user_data_exact query
+#connection default;
+#send select * from information_schema.tokudb_user_data_exact;
+# have the second connection uninstall the plugin while
+# the query is processing
+#connection conn1;
+#uninstall plugin tokudb;
+# reap the select query done before
+#connection default;
+#reap;
+
+# clean up, this drop should finalize the uninstall
+#connection conn1;
+#drop table t;
+#--sleep 2
+#create table h (a int) engine = tokudb;
+#drop table h;
+#connection default;
+# install plugin tokudb soname 'ha_tokudb.so';
