@@ -23,6 +23,7 @@
 #else
 #include "config.h"
 #endif
+
 #if defined(LIBC_SCCS) && !defined(lint)
 #endif /* LIBC_SCCS and not lint */
 
