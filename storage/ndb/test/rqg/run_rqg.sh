@@ -61,7 +61,7 @@ EOF
 	$mysqltest_exe ${ndb_db} < $tmp >> ${opre}.$no.ndbpush.$i.txt
     done
 
-    cnt=`$md5sum ${opre}.$no.*.txt | awk '{ print $1;}' | sort | uniq | wc -l`
+    cnt=`$md5sum ${opre}.$no.*.txt | $awk_exe '{ print $1;}' | sort | uniq | wc -l`
     if [ $cnt -ne 1 ]
     then
 	echo -n "$no "
@@ -129,7 +129,7 @@ run_all() {
     md5s=""
     for f in $tmpfiles
     do
-	md5s="$md5s `$md5sum $f | awk '{ print $1;}'`"
+	md5s="$md5s `$md5sum $f | $awk_exe '{ print $1;}'`"
     done
 
     ###
@@ -185,7 +185,7 @@ do
 	echo "--eval set ndb_join_pushdown='\$NDB_JOIN_PUSHDOWN';"
 	echo "$ecp"
 	${gensql} --seed=$us --queries=$queries --dsn="$dsn:database=${myisam_db}" --grammar=$grammar | grep -v "#" |
-        awk '{ print "--sorted_result"; print "--error 0,233,1242,4006"; print; }'
+        $awk_exe '{ print "--sorted_result"; print "--error 0,233,1242,4006"; print; }'
 	echo "--exit"
     ) > ${opre}_test.sql
 
