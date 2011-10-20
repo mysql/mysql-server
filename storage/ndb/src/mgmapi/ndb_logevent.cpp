@@ -616,7 +616,7 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     BaseString tmp(val);
     Vector<BaseString> list;
     tmp.split(list);
-    for (size_t j = 0; j<list.size(); j++)
+    for (unsigned j = 0; j<list.size(); j++)
     {
       dst->Data[j] = atoi(list[j].c_str());
     }

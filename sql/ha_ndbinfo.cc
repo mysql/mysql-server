@@ -246,7 +246,7 @@ bool ha_ndbinfo::get_error_message(int error, String *buf)
   if (!message)
     DBUG_RETURN(false);
 
-  buf->set(message, strlen(message), &my_charset_bin);
+  buf->set(message, (uint32)strlen(message), &my_charset_bin);
   DBUG_PRINT("exit", ("message: %s", buf->ptr()));
   DBUG_RETURN(false);
 }

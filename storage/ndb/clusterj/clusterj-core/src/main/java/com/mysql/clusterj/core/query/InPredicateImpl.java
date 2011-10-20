@@ -58,12 +58,17 @@ public class InPredicateImpl extends PredicateImpl {
     }
 
     @Override
-    void markBoundsForCandidateIndices(QueryExecutionContext context,
+    public void markBoundsForCandidateIndices(QueryExecutionContext context,
             CandidateIndexImpl[] candidateIndices) {
         if (parameter.getParameterValue(context) == null) {
             // null parameters cannot be used with index scans
             return;
         }
+        property.markInBound(candidateIndices, this);
+    }
+
+    @Override
+    public void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
         property.markInBound(candidateIndices, this);
     }
 
@@ -74,27 +79,27 @@ public class InPredicateImpl extends PredicateImpl {
      * @param index the index into the parameter list
      * @param lastColumn if true, can set strict bound
      */
-    public void operationSetBound(
+    public int operationSetBound(
             QueryExecutionContext context, IndexScanOperation op, int index, boolean lastColumn) {
         if (lastColumn) {
             // last column can be strict
-            operationSetBound(context, op, index, BoundType.BoundEQ);
+            return operationSetBound(context, op, index, BoundType.BoundEQ);
         } else {
             // not last column cannot be strict
-            operationSetBound(context, op, index, BoundType.BoundLE);
-            operationSetBound(context, op, index, BoundType.BoundGE);
+            return operationSetBound(context, op, index, BoundType.BoundLE) +
+                    operationSetBound(context, op, index, BoundType.BoundGE);
         }
     }
 
-    public void operationSetUpperBound(QueryExecutionContext context, IndexScanOperation op, int index) {
-        operationSetBound(context, op, index, BoundType.BoundGE);
+    public int operationSetUpperBound(QueryExecutionContext context, IndexScanOperation op, int index) {
+        return operationSetBound(context, op, index, BoundType.BoundGE);
     }
 
-    public void operationSetLowerBound(QueryExecutionContext context, IndexScanOperation op, int index) {
-        operationSetBound(context, op, index, BoundType.BoundLE);
+    public int operationSetLowerBound(QueryExecutionContext context, IndexScanOperation op, int index) {
+        return operationSetBound(context, op, index, BoundType.BoundLE);
     }
 
-    private void operationSetBound(
+    private int operationSetBound(
             QueryExecutionContext context, IndexScanOperation op, int index, BoundType boundType) {
     Object parameterValue = parameter.getParameterValue(context);
         if (parameterValue == null) {
@@ -103,8 +108,8 @@ public class InPredicateImpl extends PredicateImpl {
         } else if (parameterValue instanceof List<?>) {
             List<?> parameterList = (List<?>)parameterValue;
             Object value = parameterList.get(index);
-            property.operationSetBounds(value, boundType, op);
             if (logger.isDetailEnabled()) logger.detail("InPredicateImpl.operationSetBound for " + property.fmd.getName() + " List index: " + index + " value: " + value + " boundType: " + boundType);
+            property.operationSetBounds(value, boundType, op);
         } else if (parameterValue.getClass().isArray()) {
             Object[] parameterArray = (Object[])parameterValue;
             Object value = parameterArray[index];
@@ -115,6 +120,7 @@ public class InPredicateImpl extends PredicateImpl {
                     local.message("ERR_Parameter_Wrong_Type", parameter.parameterName,
                             parameterValue.getClass().getName(), "List<?> or Object[]"));
         }
+        return BOTH_BOUNDS_SET;
     }
 
     /** Set bounds for the multi-valued parameter identified by the index.
@@ -157,6 +163,7 @@ public class InPredicateImpl extends PredicateImpl {
      * @param context the query execution context with the parameter values
      * @param op the operation
      */
+    @Override
     public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op) {
         try {
@@ -176,6 +183,7 @@ public class InPredicateImpl extends PredicateImpl {
      * @param op the operation
      * @param filter the existing filter
      */
+    @Override
     public void filterCmpValue(QueryExecutionContext context, ScanOperation op, ScanFilter filter) {
         try {
             filter.begin(Group.GROUP_OR);
@@ -190,8 +198,8 @@ public class InPredicateImpl extends PredicateImpl {
                 }
             } else if (parameterValue.getClass().isArray()) {
                 Object[] parameterArray = (Object[])parameterValue;
-                for (Object parameter: parameterArray) {
-                    property.filterCmpValue(parameter, BinaryCondition.COND_EQ, filter);
+                for (Object value: parameterArray) {
+                    property.filterCmpValue(value, BinaryCondition.COND_EQ, filter);
                 }
             } else {
                 throw new ClusterJUserException(
@@ -228,6 +236,11 @@ public class InPredicateImpl extends PredicateImpl {
         }
         // single value parameter
         return result;
+    }
+
+    @Override 
+    public boolean isUsable(QueryExecutionContext context) {
+        return parameter.getParameterValue(context) != null;
     }
 
 }

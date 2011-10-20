@@ -39,8 +39,19 @@ public class GreaterEqualPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
-        property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLE, op);
+    public void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+        property.markLowerBound(candidateIndices, this, false);
+    }
+
+    @Override
+    public int operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
+        Object lowerBound = param.getParameterValue(context);
+        if (lowerBound != null) {
+            property.operationSetBounds(lowerBound, IndexScanOperation.BoundType.BoundLE, op);
+            return LOWER_BOUND_SET;
+        } else {
+            return NO_BOUND_SET;
+        }
     }
 
     /** Set the condition into the filter.
