@@ -128,7 +128,7 @@ AsyncFile::writeReq(Request * request)
           if (((i + 1) < request->par.readWrite.numberOfPages)) {
             // There are more pages to write
             // Check that offsets are consequtive
-            off_t tmp=(off_t)page_offset + request->par.readWrite.pages[i].size;
+            off_t tmp=(off_t)(page_offset+request->par.readWrite.pages[i].size);
             if (tmp != request->par.readWrite.pages[i+1].offset) {
               // Next page is not aligned with previous, not allowed
               DEBUG(ndbout_c("Page offsets are not aligned"));
