@@ -470,31 +470,34 @@ void Qmgr::setCCDelay(UintR aCCDelay)
 void Qmgr::execCONNECT_REP(Signal* signal)
 {
   jamEntry();
-  const Uint32 nodeId = signal->theData[0];
+  const Uint32 connectedNodeId = signal->theData[0];
 
   if (ERROR_INSERTED(931))
   {
     jam();
-    ndbout_c("Discarding CONNECT_REP(%d)", nodeId);
-    infoEvent("Discarding CONNECT_REP(%d)", nodeId);
+    ndbout_c("Discarding CONNECT_REP(%d)", connectedNodeId);
+    infoEvent("Discarding CONNECT_REP(%d)", connectedNodeId);
     return;
   }
 
-  c_connectedNodes.set(nodeId);
+  c_connectedNodes.set(connectedNodeId);
 
-  NodeRecPtr nodePtr;
-  nodePtr.i = nodeId;
-  ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
-  nodePtr.p->m_secret = 0;
+  {
+    NodeRecPtr connectedNodePtr;
+    connectedNodePtr.i = connectedNodeId;
+    ptrCheckGuard(connectedNodePtr, MAX_NODES, nodeRec);
+    connectedNodePtr.p->m_secret = 0;
+  }
 
-  nodePtr.i = getOwnNodeId();
-  ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
-  NodeInfo nodeInfo = getNodeInfo(nodeId);
-  switch(nodePtr.p->phase){
+  NodeRecPtr myNodePtr;
+  myNodePtr.i = getOwnNodeId();
+  ptrCheckGuard(myNodePtr, MAX_NODES, nodeRec);
+  NodeInfo connectedNodeInfo = getNodeInfo(connectedNodeId);
+  switch(myNodePtr.p->phase){
   case ZRUNNING:
-    if (nodeInfo.getType() == NodeInfo::DB)
+    if (connectedNodeInfo.getType() == NodeInfo::DB)
     {
-      ndbrequire(!c_clusterNodes.get(nodeId));
+      ndbrequire(!c_clusterNodes.get(connectedNodeId));
     }
   case ZSTARTING:
     jam();
@@ -504,16 +507,17 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     jam();
     return;
   case ZAPI_ACTIVE:
+    ndbrequire(false);
   case ZAPI_INACTIVE:
-    return;
+    ndbrequire(false);
   case ZINIT:
-    ndbrequire(getNodeInfo(nodeId).m_type == NodeInfo::MGM);
+    ndbrequire(getNodeInfo(connectedNodeId).m_type == NodeInfo::MGM);
     break;
   default:
     ndbrequire(false);
   }
 
-  if (nodeInfo.getType() != NodeInfo::DB)
+  if (connectedNodeInfo.getType() != NodeInfo::DB)
   {
     jam();
     return;
@@ -522,24 +526,24 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   switch(c_start.m_gsn){
   case GSN_CM_REGREQ:
     jam();
-    sendCmRegReq(signal, nodeId);
+    sendCmRegReq(signal, connectedNodeId);
 
     /**
      * We're waiting for CM_REGCONF c_start.m_nodes contains all configured
      *   nodes
      */
-    ndbrequire(nodePtr.p->phase == ZSTARTING);
-    ndbrequire(c_start.m_nodes.isWaitingFor(nodeId));
+    ndbrequire(myNodePtr.p->phase == ZSTARTING);
+    ndbrequire(c_start.m_nodes.isWaitingFor(connectedNodeId));
     return;
   case GSN_CM_NODEINFOREQ:
     jam();
     
-    if (c_start.m_nodes.isWaitingFor(nodeId))
+    if (c_start.m_nodes.isWaitingFor(connectedNodeId))
     {
       jam();
       ndbrequire(getOwnNodeId() != cpresident);
-      ndbrequire(nodePtr.p->phase == ZSTARTING);
-      sendCmNodeInfoReq(signal, nodeId, nodePtr.p);
+      ndbrequire(myNodePtr.p->phase == ZSTARTING);
+      sendCmNodeInfoReq(signal, connectedNodeId, myNodePtr.p);
       return;
     }
     return;
@@ -547,17 +551,17 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     jam();
     
     ndbrequire(getOwnNodeId() != cpresident);
-    ndbrequire(nodePtr.p->phase == ZRUNNING);
-    if (c_start.m_nodes.isWaitingFor(nodeId))
+    ndbrequire(myNodePtr.p->phase == ZRUNNING);
+    if (c_start.m_nodes.isWaitingFor(connectedNodeId))
     {
       jam();
-      c_start.m_nodes.clearWaitingFor(nodeId);
+      c_start.m_nodes.clearWaitingFor(connectedNodeId);
       c_start.m_gsn = RNIL;
       
       NodeRecPtr addNodePtr;
-      addNodePtr.i = nodeId;
+      addNodePtr.i = connectedNodeId;
       ptrCheckGuard(addNodePtr, MAX_NDB_NODES, nodeRec);
-      cmAddPrepare(signal, addNodePtr, nodePtr.p);
+      cmAddPrepare(signal, addNodePtr, myNodePtr.p);
       return;
     }
   }
@@ -565,11 +569,11 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     (void)1;
   }
   
-  ndbrequire(!c_start.m_nodes.isWaitingFor(nodeId));
-  ndbrequire(!c_readnodes_nodes.get(nodeId));
-  c_readnodes_nodes.set(nodeId);
+  ndbrequire(!c_start.m_nodes.isWaitingFor(connectedNodeId));
+  ndbrequire(!c_readnodes_nodes.get(connectedNodeId));
+  c_readnodes_nodes.set(connectedNodeId);
   signal->theData[0] = reference();
-  sendSignal(calcQmgrBlockRef(nodeId), GSN_READ_NODESREQ, signal, 1, JBA);
+  sendSignal(calcQmgrBlockRef(connectedNodeId), GSN_READ_NODESREQ, signal, 1, JBA);
   return;
 }//Qmgr::execCONNECT_REP()
 
