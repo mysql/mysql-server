@@ -5086,7 +5086,8 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
       parallelism = (data.m_fragCount - data.m_frags_complete) / roundTrips;
     }
 
-    ndbassert(parallelism <= data.m_fragCount - data.m_frags_complete);
+    ndbassert(parallelism >= 1);
+    ndbassert((Uint32)parallelism + data.m_frags_complete <= data.m_fragCount);
     data.m_parallelism = static_cast<Uint32>(parallelism);
 
 #ifdef DEBUG_SCAN_FRAGREQ
