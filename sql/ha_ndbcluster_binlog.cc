@@ -2248,6 +2248,7 @@ end:
   Handle _non_ data events from the storage nodes
 */
 
+static
 int
 ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
                          Ndb_event_data *event_data)
