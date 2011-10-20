@@ -2484,7 +2484,10 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
       }
 
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
+      {
+        DBUG_ASSERT(false);
         DBUG_RETURN(0);
+      }
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
