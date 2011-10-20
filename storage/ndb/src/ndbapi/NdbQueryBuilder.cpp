@@ -1661,7 +1661,8 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            int& error)
   : NdbQueryScanOperationDefImpl(table,options,ident,ix,id,error),
   m_interface(*this), 
-  m_index(index)
+  m_index(index),
+  m_paramInPruneKey(false)
 {
   memset(&m_bound, 0, sizeof m_bound);
   if (bound!=NULL) {
@@ -2316,7 +2317,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
 
 
 Uint32
-NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDef) const
+NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDef)
 {
   Uint32 appendedPattern = 0;
 
@@ -2408,6 +2409,7 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
           }
           case NdbQueryOperandImpl::Param:
             appendedPattern |= QN_ScanIndexNode::SI_PRUNE_PARAMS;
+            m_paramInPruneKey = true;
             serializedDef.append(QueryPattern::param(paramCnt++));
             break;
           default:

@@ -979,17 +979,17 @@ int ndb_error_string(int err_no, char *str, int size)
   int len;
 
   assert(size > 1);
-  if(size <= 1) 
+  if(size <= 1)
     return 0;
+
   error.code = err_no;
   ndberror_update(&error);
 
-  len =
-    my_snprintf(str, size-1, "%s: %s: %s", error.message,
+  len = (int)my_snprintf(str, size-1, "%s: %s: %s", error.message,
 		ndberror_status_message(error.status),
 		ndberror_classification_message(error.classification));
   str[size-1]= '\0';
-  
+
   if (error.classification != UE)
     return len;
   return -len;
