@@ -963,26 +963,32 @@ check_drd: tiny_test_stress1.drdrun mid_test_stress1.drdrun test_stress1.drdrun 
 	true
 
 tiny_test_stress1.drdrun: test_stress1.tdb
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress1.tdb $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress1.tdb $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@ \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 mid_test_stress1.drdrun: test_stress1.tdb
 	./test_stress1.tdb --only_create --envdir dir.$@ --num_elements 10000 && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress1.tdb $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress1.tdb $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 test_stress1.drdrun: test_stress1.tdb
 	./test_stress1.tdb --only_create --envdir dir.$@ && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress1.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress1.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 tiny_test_stress3.drdrun: test_stress3.tdb
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress3.tdb $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress3.tdb $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@ \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 mid_test_stress3.drdrun: test_stress3.tdb
 	./test_stress3.tdb --only_create --envdir dir.$@ --num_elements 10000 && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress3.tdb $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress3.tdb $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 test_stress3.drdrun: test_stress3.tdb
 	./test_stress3.tdb --only_create --envdir dir.$@ && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions ./test_stress3.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress3.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
+	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 clean:
 	rm -f $(ALL_BINS)
