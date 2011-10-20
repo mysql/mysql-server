@@ -1505,6 +1505,26 @@ a	b	c
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 #
+# LP bug #873263: materialized view used in correlated IN subquery
+#
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (5,4), (9,8);
+CREATE TABLE t2 (a int, b int) ;
+INSERT INTO t2 VALUES (4,5), (5,1);
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+SET SESSION optimizer_switch='derived_with_keys=on';
+EXPLAIN
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	<derived3>	ref	key0	key0	5	test.t1.a	2	Using where
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t1 WHERE t1.b IN (SELECT v2.a FROM v2 WHERE v2.b = t1.a);
+a	b
+5	4
+DROP VIEW v2;
+DROP TABLE t1,t2;
+#
 # LP bug #877316: query over a view with correlated subquery in WHERE
 #
 CREATE TABLE t1 (a int, b int, PRIMARY KEY (a)) ;
