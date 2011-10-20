@@ -382,6 +382,15 @@ public:
   virtual const IndexBound* getBounds() const
   { return NULL; } 
 
+  /** 
+   * True if this is a prunable scan and there are NdbQueryParamOperands in the
+   * distribution key.
+   */
+  virtual bool hasParamInPruneKey() const
+  {
+    return false;
+  }
+
   // Return 'true' is query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
 
@@ -523,7 +532,7 @@ protected:
   virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const
   { return 0; }
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef) const
+  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef)
   { return 0; }
 
 }; // class NdbQueryScanOperationDefImpl
@@ -553,11 +562,16 @@ public:
   virtual const IndexBound* getBounds() const
   { return &m_bound; } 
 
+  bool hasParamInPruneKey() const
+  {
+    return m_paramInPruneKey;
+  }
+
 protected:
   // Append pattern for creating complete range bounds to serialized code 
   virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const;
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef) const;
+  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef);
 
 private:
 
@@ -583,6 +597,12 @@ private:
 
   /** True if there is a set of bounds.*/
   IndexBound m_bound;
+
+  /** 
+   * True if scan is prunable and there are NdbQueryParamOperands in the 
+   * distribution key.
+   */
+  bool m_paramInPruneKey;
 }; // class NdbQueryIndexScanOperationDefImpl
 
 
