@@ -2511,33 +2511,12 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
       if (schema->node_id != node_id)
       {
         int log_query= 0, post_epoch_unlock= 0;
-        char errmsg[MYSQL_ERRMSG_SIZE];
-
+ 
         switch (schema_type)
         {
         case SOT_RENAME_TABLE:
         case SOT_RENAME_TABLE_NEW:
-        {
-          uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                                "NDB Binlog: Skipping renaming locally "
-                                "defined table '%s.%s' from binlog schema "
-                                "event '%s' from node %d. ",
-                                schema->db, schema->name, schema->query,
-                                schema->node_id);
-          errmsg[end]= '\0';
-        }
-        // fall through
         case SOT_DROP_TABLE:
-          if (schema_type == SOT_DROP_TABLE)
-          {
-            uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                                  "NDB Binlog: Skipping dropping locally "
-                                  "defined table '%s.%s' from binlog schema "
-                                  "event '%s' from node %d. ",
-                                  schema->db, schema->name, schema->query,
-                                  schema->node_id);
-            errmsg[end]= '\0';
-          }
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -2553,9 +2532,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           }
           else
           {
-            /* Tables exists as a local table, leave it */
-            DBUG_PRINT("info", ("%s", errmsg));
-            sql_print_error("%s", errmsg);
+            /* Tables exists as a local table, print error and leave it */
+            DBUG_PRINT("info", ("Found local table '%s.%s', leaving it",
+                                schema->db, schema->name));
+            sql_print_error("NDB Binlog: Skipping %sing locally "
+                            "defined table '%s.%s' from binlog schema "
+                            "event '%s' from node %d. ",
+                            (schema_type == SOT_DROP_TABLE ? "dropp" : "renam"),
+                            schema->db, schema->name, schema->query,
+                            schema->node_id);
             log_query= 1;
           }
           // Fall through
