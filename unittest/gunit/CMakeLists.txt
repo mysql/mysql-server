@@ -248,6 +248,7 @@ SET(SERVER_TESTS
   my_decimal
   opt_range
   opt_trace
+  get_diagnostics
 )
 
 FOREACH(test ${TESTS})

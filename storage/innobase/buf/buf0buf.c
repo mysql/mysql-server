@@ -1225,6 +1225,7 @@ buf_pool_free_instance(
 	}
 
 	mem_free(buf_pool->chunks);
+	ha_clear(buf_pool->page_hash);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
 }
