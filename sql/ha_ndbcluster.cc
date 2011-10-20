@@ -6117,7 +6117,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   uint blob_count= 0;
   if (uses_blob_value(table->write_set))
   {
-    int row_offset= new_data - table->record[0];
+    int row_offset= (int)(new_data - table->record[0]);
     int res= set_blob_values(op, row_offset, table->write_set, &blob_count,
                              (batch_allowed && !need_flush));
     if (res != 0)
@@ -11974,7 +11974,7 @@ int ndbcluster_find_all_files(THD *thd)
       else
       {
         /* set up replication for this table */
-        ndbcluster_create_binlog_setup(thd, ndb, key, end-key,
+        ndbcluster_create_binlog_setup(thd, ndb, key, (uint)(end-key),
                                        elmt.database, elmt.name,
                                        TRUE);
       }
@@ -15169,7 +15169,7 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
         ns.transaction_no_hint_count[i] > 0)
     {
       uint namelen= (uint)my_snprintf(name, sizeof(name), "node[%d]", i);
-      buflen= my_snprintf(buf, sizeof(buf),
+      buflen= (uint)my_snprintf(buf, sizeof(buf),
                           "transaction_hint=%ld, transaction_no_hint=%ld",
                           ns.transaction_hint_count[i],
                           ns.transaction_no_hint_count[i]);
@@ -16698,7 +16698,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
       table->field[IS_FILES_LOGFILE_GROUP_NAME]->
         store(ts.getDefaultLogfileGroup(),
-              strlen(ts.getDefaultLogfileGroup()),
+              (uint)strlen(ts.getDefaultLogfileGroup()),
               system_charset_info);
       table->field[IS_FILES_ENGINE]->set_notnull();
       table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,

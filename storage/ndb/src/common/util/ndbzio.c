@@ -428,7 +428,7 @@ int read_buffer(ndbzio_stream *s)
   my_errno= 0;
   if (s->stream.avail_in == 0)
   {
-    s->stream.avail_in = my_read(s->file, (uchar *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
+    s->stream.avail_in = (uInt)my_read(s->file, (uchar *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
     if(s->stream.avail_in > 0)
       my_errno= 0;
     if (s->stream.avail_in == 0)
@@ -681,7 +681,7 @@ unsigned int ZEXPORT ndbzread ( ndbzio_stream *s, voidp buf, unsigned int len, i
         bytes_read= my_read(s->file, (uchar *)next_out, s->stream.avail_out,
                             MYF(0));
         if(bytes_read>0)
-          s->stream.avail_out -= bytes_read;
+          s->stream.avail_out -= (uInt)bytes_read;
         if (bytes_read == 0)
         {
           s->z_eof = 1;
