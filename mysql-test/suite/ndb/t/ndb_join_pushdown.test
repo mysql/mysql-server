@@ -3843,6 +3843,40 @@ select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
 connection ddl;
 drop table t1;
 
+####################
+# Test pruned child scans using parameter values (known regression).
+####################
+create table t1 
+       (a int not null,
+       b int not null, 
+       c int not null,
+       d int not null,
+       primary key(a,b,c,d)) engine=ndb partition by key (b,c);
+
+connection spj;
+insert into t1 values (0x4f, 0x4f, 0x4f, 0x4f);
+
+# Prune key depends on parent row.
+explain select * from t1 as x1 
+	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+	join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=x2.c;
+
+select * from t1 as x1 
+	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+	join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=x2.c;
+
+# Prune key is fixed.
+explain select * from t1 as x1 
+	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+	join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=0x4f;
+
+select * from t1 as x1 
+	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+	join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=0x4f;
+
+connection ddl;
+drop table t1;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
