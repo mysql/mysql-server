@@ -1451,7 +1451,7 @@ bool ha_ndbcluster::get_error_message(int error,
 
   const NdbError err= ndb->getNdbError(error);
   bool temporary= err.status==NdbError::TemporaryError;
-  buf->set(err.message, strlen(err.message), &my_charset_bin);
+  buf->set(err.message, (uint32)strlen(err.message), &my_charset_bin);
   DBUG_PRINT("exit", ("message: %s, temporary: %d", buf->ptr(), temporary));
   DBUG_RETURN(temporary);
 }
