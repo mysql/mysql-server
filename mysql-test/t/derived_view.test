@@ -973,5 +973,28 @@ SELECT v1.a FROM v1
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # LP bug #878199: join of two materialized views
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1)) ;
+INSERT INTO t1 VALUES (7,'c'), (3,'h'), (7,'c');
+
+CREATE TABLE t2 (b varchar(1)) ;
+INSERT INTO t2 VALUES ('p'), ('c'), ('j'), ('c'), ('p');
+
+CREATE VIEW v1 AS SELECT * FROM t1 GROUP BY a,b;
+
+CREATE VIEW v2 AS SELECT * FROM t2 GROUP BY b;
+
+SET SESSION optimizer_switch = 'derived_with_keys=on';
+
+SELECT v1.a FROM v1,v2 WHERE v2.b = v1.b ORDER BY 1;
+EXPLAIN
+SELECT v1.a FROM v1,v2 WHERE v2.b = v1.b ORDER BY 1;
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
