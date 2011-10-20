@@ -59,23 +59,23 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #
-.* : conversion from '__int64' to .*int'.*
-.* : conversion from '__int64' to 'uint8'.*
-.* : conversion from '__int64' to 'uint32'.*
-.* : conversion from '__int64' to 'u.*long'.*
-.* : conversion from '__int64' to 'long'.*
-.* : conversion from '__int64' to 'off_t'.*
-.* : conversion from '.*size_t' to .*int'.*
-.* : conversion from '.*size_t' to 'TaoCrypt::word32'.*
-.* : conversion from '.*size_t' to 'u.*long'.*
-.* : conversion from '.*size_t' to 'uint32'.*
-.* : conversion from '.*size_t' to 'off_t'.*
-.* : conversion from '.*size_t' to 'size_s'.*
-.* : conversion from '.*size_t' to 'DWORD'.*
-.* : conversion from '.*size_t' to 'uLongf'.*
-.* : conversion from '.*size_t' to 'UINT'.*
-.* : conversion from '.*size_t' to 'uInt'.*
-.* : conversion from '.*size_t' to 'uint16'.*
+^(?:(?!ndb).)*$ : conversion from '__int64' to .*int'.*
+^(?:(?!ndb).)*$ : conversion from '__int64' to 'uint8'.*
+^(?:(?!ndb).)*$ : conversion from '__int64' to 'uint32'.*
+^(?:(?!ndb).)*$ : conversion from '__int64' to 'u.*long'.*
+^(?:(?!ndb).)*$ : conversion from '__int64' to 'long'.*
+^(?:(?!ndb).)*$ : conversion from '__int64' to 'off_t'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to .*int'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'TaoCrypt::word32'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'u.*long'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uint32'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'off_t'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'size_s'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'DWORD'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uLongf'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'UINT'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uInt'.*
+^(?:(?!ndb).)*$ : conversion from '.*size_t' to 'uint16'.*
 
 #
 # Ignore a few specific warnings in ndb
