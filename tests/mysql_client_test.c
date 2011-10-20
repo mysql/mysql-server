@@ -19703,14 +19703,14 @@ static void test_bug13001491()
 
   myheader("test_bug13001491");
 
-  snprintf(query, MAX_TEST_QUERY_LENGTH,
+  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
            "GRANT ALL PRIVILEGES ON *.* TO mysqltest_u1@%s",
            opt_host ? opt_host : "'localhost'");
            
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  snprintf(query, MAX_TEST_QUERY_LENGTH,
+  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
            "GRANT RELOAD ON *.* TO mysqltest_u1@%s",
            opt_host ? opt_host : "'localhost'");
            
@@ -19763,7 +19763,7 @@ static void test_bug13001491()
   mysql_close(c);
   c= NULL;
 
-  snprintf(query, MAX_TEST_QUERY_LENGTH,
+  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
            "DROP USER mysqltest_u1@%s",
            opt_host ? opt_host : "'localhost'");
            
