@@ -1533,6 +1533,15 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
     if (create_new_node) {
         // put value in cachetable and do checkpointing
         // of dependent nodes
+        //
+        // We do this here, before evaluating the split_node
+        // and split_at_in_node because this operation
+        // may write to disk the dependent nodes.
+        // While doing so, we may rebalance the leaf node
+        // we are splitting, thereby invalidating the
+        // values of split_node and split_at_in_node.
+        // So, we must call this before evaluating
+        // those two values
         cachetable_put_empty_node_with_dep_nodes(
             t,
             num_dependent_nodes,
