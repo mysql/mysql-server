@@ -1018,6 +1018,7 @@ public:
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
   virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
+  virtual bool covering_keys_processor(uchar *arg) { return 0; }
   virtual bool view_used_tables_processor(uchar *arg) { return 0; }
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
   virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
@@ -1832,6 +1833,7 @@ public:
   bool vcol_in_partition_func_processor(uchar *bool_arg);
   bool check_vcol_func_processor(uchar *arg) { return FALSE;}
   bool enumerate_field_refs_processor(uchar *arg);
+  bool covering_keys_processor(uchar *arg);
   void cleanup();
   Item_equal *get_item_equal() { return item_equal; }
   void set_item_equal(Item_equal *item_eq) { item_equal= item_eq; }
