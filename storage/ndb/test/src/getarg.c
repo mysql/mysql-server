@@ -309,7 +309,7 @@ arg_printusage (struct getargs *args,
 	max_len = max(max_len, len);
     }
     if (extra_string) {
-	col = check_column(stderr, col, strlen(extra_string) + 1, columns);
+	col = check_column(stderr, col, (int)strlen(extra_string) + 1, columns);
 	fprintf (stderr, " %s\n", extra_string);
     } else
 	fprintf (stderr, "\n");

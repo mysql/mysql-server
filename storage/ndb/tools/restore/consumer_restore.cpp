@@ -969,7 +969,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
   {
     DBUG_RETURN(TRUE);
   }
-  if (map_in_frm(new_data, (const char*)data, data_len, &new_data_len))
+  if (map_in_frm(new_data, (const char*)data, (uint)data_len, &new_data_len))
   {
     free(new_data);
     DBUG_RETURN(TRUE);

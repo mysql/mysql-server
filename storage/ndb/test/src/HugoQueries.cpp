@@ -57,7 +57,7 @@ HugoQueries::~HugoQueries()
 void
 HugoQueries::allocRows(int batch)
 {
-  for (size_t o = 0; o<m_ops.size(); o++)
+  for (unsigned o = 0; o<m_ops.size(); o++)
   {
     const NdbQueryOperationDef * pOp =m_query_def->getQueryOperation((Uint32)o);
     const NdbDictionary::Table* tab = pOp->getTable();

@@ -142,7 +142,7 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
 
     Guard tmp(m_processes);
     
-    for(size_t i = 0; i < m_processes.size(); i++) {
+    for(unsigned i = 0; i < m_processes.size(); i++) {
       if(m_processes[i]->m_id == id) {
 	proc = m_processes[i];
 	break;
