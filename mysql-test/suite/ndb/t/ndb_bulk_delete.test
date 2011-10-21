@@ -112,10 +112,10 @@ while($i)
   # Run the query
   eval delete from t3 where a in ($in);
 
-  # Check that execute count after DELETE is not greater than 3
+  # Check that execute count after DELETE is not greater than 5
   let $after= `select VARIABLE_VALUE from information_schema.session_status
                  where variable_name like 'NDB_EXECUTE_COUNT'`;
-  if (!`select $after-$before <= 3`)
+  if (!`select $after-$before <= 5`)
   {
     echo before: $before;
     echo after: $after;
