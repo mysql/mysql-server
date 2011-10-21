@@ -63,11 +63,6 @@ int mi_delete_all_rows(MI_INFO *info)
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
-#ifdef HAVE_MMAP
-  /* Map again */
-  if (share->file_map)
-    mi_dynmap_file(info, (my_off_t) 0);
-#endif
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 
