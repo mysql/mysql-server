@@ -40,8 +40,6 @@ static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
 #endif
 #endif /* not lint && not SCCSID */
 
-#include "chartype.c"                           /* XXXMYSQL  */
-
 /*
  * refresh.c: Lower level screen refreshing functions
  */

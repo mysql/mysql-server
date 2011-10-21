@@ -7,8 +7,8 @@ INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
 
 noinst_LIBRARIES =	libedit.a
 
-libedit_a_SOURCES =	chared.c el.c eln.c history.c historyn.c map.c prompt.c readline.c \
-			search.c tokenizer.c tokenizern.c vi.c common.c emacs.c \
+libedit_a_SOURCES =	chared.c el.c eln.c history.c historyn.c map.c prompt.c chartype.c \
+			readline.c search.c tokenizer.c tokenizern.c vi.c common.c emacs.c \
 			hist.c keymacro.c parse.c read.c refresh.c sig.c terminal.c \
 			tty.c help.c fcns.c filecomplete.c \
 			np/unvis.c np/strlcpy.c np/vis.c np/strlcat.c \
@@ -19,8 +19,8 @@ libedit_a_DEPENDENCIES 	= 	@LIBEDIT_LOBJECTS@
 
 pkginclude_HEADERS =	readline/readline.h
 
-noinst_HEADERS =	chared.h el.h el_terminal.h histedit.h keymacro.h parse.h refresh.h sig.h \
-			sys.h config.h hist.h map.h prompt.h read.h \
+noinst_HEADERS =	chared.h chartype.h el.h el_terminal.h histedit.h keymacro.h parse.h \
+			refresh.h sig.h sys.h config.h hist.h map.h prompt.h read.h \
 			search.h tty.h filecomplete.h np/vis.h
 
 EXTRA_DIST = makelist.sh
@@ -74,6 +74,7 @@ eln.o: vi.h emacs.h common.h help.h fcns.h
 history.o: vi.h emacs.h common.h help.h fcns.h 
 historyn.o: vi.h emacs.h common.h help.h fcns.h 
 map.o: vi.h emacs.h common.h help.h fcns.h
+chartype.o: vi.h emacs.h common.h help.h fcns.h
 prompt.o: vi.h emacs.h common.h help.h fcns.h
 readline.o: vi.h emacs.h common.h help.h fcns.h
 search.o: vi.h emacs.h common.h help.h fcns.h
