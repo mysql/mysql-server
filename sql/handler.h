@@ -1566,29 +1566,6 @@ public:
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
-  /**
-    Retrieves the names of the table and the key for which there was a
-    duplicate entry in the case of HA_ERR_FOREIGN_DUPLICATE_KEY.
-
-    If any of the table or key name is not available this method will return
-    false and will not change any of child_table_name or child_key_name.
-
-    @param child_table_name[out]    Table name
-    @param child_table_name_len[in] Table name buffer size
-    @param child_key_name[out]      Key name
-    @param child_key_name_len[in]   Key name buffer size
-
-    @retval  true                  table and key names were available
-                                   and were written into the corresponding
-                                   out parameters.
-    @retval  false                 table and key names were not available,
-                                   the out parameters were not touched.
-  */
-  virtual bool get_foreign_dup_key(char *child_table_name,
-                                   uint child_table_name_len,
-                                   char *child_key_name,
-                                   uint child_key_name_len)
-  { DBUG_ASSERT(false); return(false); }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     table= table_arg;

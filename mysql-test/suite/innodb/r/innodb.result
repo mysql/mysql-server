@@ -2772,7 +2772,7 @@ INSERT INTO t1 VALUES ('other', 'anyvalue');
 INSERT INTO t2 VALUES ('old');
 INSERT INTO t2 VALUES ('other');
 UPDATE t1 SET field1 = 'other' WHERE field2 = 'somevalu';
-ERROR 23000: Foreign key constraint for table 't1', record 'other-somevalu' would lead to a duplicate entry in table 't2', key 'PRIMARY'
+ERROR 23000: Upholding foreign key constraints for table 't1', entry 'other-somevalu', key 1 would lead to a duplicate entry
 DROP TABLE t2;
 DROP TABLE t1;
 create table t1 (
