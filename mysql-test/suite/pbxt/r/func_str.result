@@ -1506,7 +1506,7 @@ select locate('lo','hello',-18446744073709551615);
 locate('lo','hello',-18446744073709551615)
 0
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select locate('lo','hello',18446744073709551615);
 locate('lo','hello',18446744073709551615)
 0
@@ -1514,22 +1514,22 @@ select locate('lo','hello',-18446744073709551616);
 locate('lo','hello',-18446744073709551616)
 0
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select locate('lo','hello',18446744073709551616);
 locate('lo','hello',18446744073709551616)
 0
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select locate('lo','hello',-18446744073709551617);
 locate('lo','hello',-18446744073709551617)
 0
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select locate('lo','hello',18446744073709551617);
 locate('lo','hello',18446744073709551617)
 0
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select left('hello', 10);
 left('hello', 10)
 hello
@@ -1561,8 +1561,8 @@ select left('hello', -18446744073709551615);
 left('hello', -18446744073709551615)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select left('hello', 18446744073709551615);
 left('hello', 18446744073709551615)
 hello
@@ -1570,26 +1570,26 @@ select left('hello', -18446744073709551616);
 left('hello', -18446744073709551616)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select left('hello', 18446744073709551616);
 left('hello', 18446744073709551616)
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select left('hello', -18446744073709551617);
 left('hello', -18446744073709551617)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select left('hello', 18446744073709551617);
 left('hello', 18446744073709551617)
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select right('hello', 10);
 right('hello', 10)
 hello
@@ -1621,8 +1621,8 @@ select right('hello', -18446744073709551615);
 right('hello', -18446744073709551615)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select right('hello', 18446744073709551615);
 right('hello', 18446744073709551615)
 hello
@@ -1630,26 +1630,26 @@ select right('hello', -18446744073709551616);
 right('hello', -18446744073709551616)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select right('hello', 18446744073709551616);
 right('hello', 18446744073709551616)
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select right('hello', -18446744073709551617);
 right('hello', -18446744073709551617)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select right('hello', 18446744073709551617);
 right('hello', 18446744073709551617)
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select substring('hello', 2, -1);
 substring('hello', 2, -1)
 
@@ -1681,8 +1681,8 @@ select substring('hello', -18446744073709551615, 1);
 substring('hello', -18446744073709551615, 1)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select substring('hello', 18446744073709551615, 1);
 substring('hello', 18446744073709551615, 1)
 
@@ -1690,26 +1690,26 @@ select substring('hello', -18446744073709551616, 1);
 substring('hello', -18446744073709551616, 1)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select substring('hello', 18446744073709551616, 1);
 substring('hello', 18446744073709551616, 1)
 
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select substring('hello', -18446744073709551617, 1);
 substring('hello', -18446744073709551617, 1)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select substring('hello', 18446744073709551617, 1);
 substring('hello', 18446744073709551617, 1)
 
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select substring('hello', 1, -1);
 substring('hello', 1, -1)
 
@@ -1735,8 +1735,8 @@ select substring('hello', 1, -18446744073709551615);
 substring('hello', 1, -18446744073709551615)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select substring('hello', 1, 18446744073709551615);
 substring('hello', 1, 18446744073709551615)
 hello
@@ -1744,26 +1744,26 @@ select substring('hello', 1, -18446744073709551616);
 substring('hello', 1, -18446744073709551616)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select substring('hello', 1, 18446744073709551616);
 substring('hello', 1, 18446744073709551616)
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select substring('hello', 1, -18446744073709551617);
 substring('hello', 1, -18446744073709551617)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select substring('hello', 1, 18446744073709551617);
 substring('hello', 1, 18446744073709551617)
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select substring('hello', -1, -1);
 substring('hello', -1, -1)
 
@@ -1789,10 +1789,10 @@ select substring('hello', -18446744073709551615, -18446744073709551615);
 substring('hello', -18446744073709551615, -18446744073709551615)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select substring('hello', 18446744073709551615, 18446744073709551615);
 substring('hello', 18446744073709551615, 18446744073709551615)
 
@@ -1800,34 +1800,34 @@ select substring('hello', -18446744073709551616, -18446744073709551616);
 substring('hello', -18446744073709551616, -18446744073709551616)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select substring('hello', 18446744073709551616, 18446744073709551616);
 substring('hello', 18446744073709551616, 18446744073709551616)
 
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select substring('hello', -18446744073709551617, -18446744073709551617);
 substring('hello', -18446744073709551617, -18446744073709551617)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select substring('hello', 18446744073709551617, 18446744073709551617);
 substring('hello', 18446744073709551617, 18446744073709551617)
 
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select insert('hello', -1, 1, 'hi');
 insert('hello', -1, 1, 'hi')
 hello
@@ -1853,7 +1853,7 @@ select insert('hello', -18446744073709551615, 1, 'hi');
 insert('hello', -18446744073709551615, 1, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select insert('hello', 18446744073709551615, 1, 'hi');
 insert('hello', 18446744073709551615, 1, 'hi')
 hello
@@ -1861,22 +1861,22 @@ select insert('hello', -18446744073709551616, 1, 'hi');
 insert('hello', -18446744073709551616, 1, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select insert('hello', 18446744073709551616, 1, 'hi');
 insert('hello', 18446744073709551616, 1, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select insert('hello', -18446744073709551617, 1, 'hi');
 insert('hello', -18446744073709551617, 1, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select insert('hello', 18446744073709551617, 1, 'hi');
 insert('hello', 18446744073709551617, 1, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select insert('hello', 1, -1, 'hi');
 insert('hello', 1, -1, 'hi')
 hi
@@ -1902,7 +1902,7 @@ select insert('hello', 1, -18446744073709551615, 'hi');
 insert('hello', 1, -18446744073709551615, 'hi')
 hi
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select insert('hello', 1, 18446744073709551615, 'hi');
 insert('hello', 1, 18446744073709551615, 'hi')
 hi
@@ -1910,22 +1910,22 @@ select insert('hello', 1, -18446744073709551616, 'hi');
 insert('hello', 1, -18446744073709551616, 'hi')
 hi
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select insert('hello', 1, 18446744073709551616, 'hi');
 insert('hello', 1, 18446744073709551616, 'hi')
 hi
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select insert('hello', 1, -18446744073709551617, 'hi');
 insert('hello', 1, -18446744073709551617, 'hi')
 hi
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select insert('hello', 1, 18446744073709551617, 'hi');
 insert('hello', 1, 18446744073709551617, 'hi')
 hi
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select insert('hello', -1, -1, 'hi');
 insert('hello', -1, -1, 'hi')
 hello
@@ -1951,8 +1951,8 @@ select insert('hello', -18446744073709551615, -18446744073709551615, 'hi');
 insert('hello', -18446744073709551615, -18446744073709551615, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select insert('hello', 18446744073709551615, 18446744073709551615, 'hi');
 insert('hello', 18446744073709551615, 18446744073709551615, 'hi')
 hello
@@ -1960,26 +1960,26 @@ select insert('hello', -18446744073709551616, -18446744073709551616, 'hi');
 insert('hello', -18446744073709551616, -18446744073709551616, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select insert('hello', 18446744073709551616, 18446744073709551616, 'hi');
 insert('hello', 18446744073709551616, 18446744073709551616, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 select insert('hello', -18446744073709551617, -18446744073709551617, 'hi');
 insert('hello', -18446744073709551617, -18446744073709551617, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select insert('hello', 18446744073709551617, 18446744073709551617, 'hi');
 insert('hello', 18446744073709551617, 18446744073709551617, 'hi')
 hello
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 select repeat('hello', -1);
 repeat('hello', -1)
 
@@ -2011,8 +2011,8 @@ select repeat('hello', -18446744073709551615);
 repeat('hello', -18446744073709551615)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select repeat('hello', 18446744073709551615);
 repeat('hello', 18446744073709551615)
 NULL
@@ -2022,27 +2022,27 @@ select repeat('hello', -18446744073709551616);
 repeat('hello', -18446744073709551616)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select repeat('hello', 18446744073709551616);
 repeat('hello', 18446744073709551616)
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select repeat('hello', -18446744073709551617);
 repeat('hello', -18446744073709551617)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select repeat('hello', 18446744073709551617);
 repeat('hello', 18446744073709551617)
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select space(-1);
 space(-1)
@@ -2075,8 +2075,8 @@ select space(-18446744073709551615);
 space(-18446744073709551615)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select space(18446744073709551615);
 space(18446744073709551615)
 NULL
@@ -2086,27 +2086,27 @@ select space(-18446744073709551616);
 space(-18446744073709551616)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select space(18446744073709551616);
 space(18446744073709551616)
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select space(-18446744073709551617);
 space(-18446744073709551617)
 
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select space(18446744073709551617);
 space(18446744073709551617)
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select rpad('hello', -1, '1');
 rpad('hello', -1, '1')
@@ -2139,8 +2139,8 @@ select rpad('hello', -18446744073709551615, '1');
 rpad('hello', -18446744073709551615, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select rpad('hello', 18446744073709551615, '1');
 rpad('hello', 18446744073709551615, '1')
 NULL
@@ -2150,27 +2150,27 @@ select rpad('hello', -18446744073709551616, '1');
 rpad('hello', -18446744073709551616, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select rpad('hello', 18446744073709551616, '1');
 rpad('hello', 18446744073709551616, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
 select rpad('hello', -18446744073709551617, '1');
 rpad('hello', -18446744073709551617, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select rpad('hello', 18446744073709551617, '1');
 rpad('hello', 18446744073709551617, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
 select lpad('hello', -1, '1');
 lpad('hello', -1, '1')
@@ -2203,8 +2203,8 @@ select lpad('hello', -18446744073709551615, '1');
 lpad('hello', -18446744073709551615, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551615' to INT. Value truncated.
 select lpad('hello', 18446744073709551615, '1');
 lpad('hello', 18446744073709551615, '1')
 NULL
@@ -2214,28 +2214,27 @@ select lpad('hello', -18446744073709551616, '1');
 lpad('hello', -18446744073709551616, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551616' to INT. Value truncated.
 select lpad('hello', 18446744073709551616, '1');
 lpad('hello', 18446744073709551616, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551616' to INT. Value truncated.
 Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
 select lpad('hello', -18446744073709551617, '1');
 lpad('hello', -18446744073709551617, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '-18446744073709551617' to INT. Value truncated.
 select lpad('hello', 18446744073709551617, '1');
 lpad('hello', 18446744073709551617, '1')
 NULL
 Warnings:
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
-Error	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
->>>>>>> MERGE-SOURCE
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
+Warning	1916	Got overflow when converting '18446744073709551617' to INT. Value truncated.
 Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE=traditional;

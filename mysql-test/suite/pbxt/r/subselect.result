@@ -50,11 +50,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
-<<<<<<< TREE
-Note	1003	select 1 AS `1` from dual having (<expr_cache><'1'>((select '1')) = 1)
-=======
-Note	1003	select 1 AS `1` from (select 1 AS `a`) `b` having ((select 1) = 1)
->>>>>>> MERGE-SOURCE
+Note	1003	select 1 AS `1` from dual having ((select 1) = 1)
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
@@ -207,11 +203,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using filesort
 Warnings:
-<<<<<<< TREE
-Note	1003	select (select `test`.`t3`.`a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,'2' AS `a` from dual
-=======
 Note	1003	select (select `test`.`t3`.`a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,`tt`.`a` AS `a` from (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
->>>>>>> MERGE-SOURCE
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -1189,7 +1181,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where (0 = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
+Note	1003	select <in_optimizer>(0,<exists>(select 1 from dual where (0 = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
 INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
@@ -4302,7 +4294,7 @@ NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select 2 AS `2` from `test`.`t1` where <expr_cache><`test`.`t1`.`a`>(exists((select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) union (select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`))))
+Note	1003	select 2 AS `2` from `test`.`t1` where exists((select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) union (select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))
 DROP TABLE t1,t2;
 create table t1(f11 int, f12 int);
 create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));

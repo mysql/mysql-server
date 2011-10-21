@@ -12,6 +12,7 @@ AS "user_comment",
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name not like 'pbxt_%' AND table_name not like 'xtradb_%'
 ORDER BY table_schema,table_name;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
@@ -779,29 +780,6 @@ TABLE_TYPE	SYSTEM VIEW
 ENGINE	MYISAM_OR_MARIA
 VERSION	10
 ROW_FORMAT	DYNAMIC_OR_PAGE
-TABLE_ROWS	#TBLR#
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	#CRT#
-UPDATE_TIME	#UT#
-CHECK_TIME	#CT#
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	#CO#
-TABLE_COMMENT	#TC#
-user_comment	
-Separator	-----------------------------------------------------
-TABLE_CATALOG	def
-TABLE_SCHEMA	information_schema
-TABLE_NAME	XTRADB_ADMIN_COMMAND
-TABLE_TYPE	SYSTEM VIEW
-ENGINE	MEMORY
-VERSION	10
-ROW_FORMAT	Fixed
 TABLE_ROWS	#TBLR#
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
@@ -834,6 +812,7 @@ AS "user_comment",
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
 AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name not like 'pbxt_%' AND table_name not like 'xtradb_%'
 ORDER BY table_schema,table_name;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
@@ -1601,29 +1580,6 @@ TABLE_TYPE	SYSTEM VIEW
 ENGINE	MYISAM_OR_MARIA
 VERSION	10
 ROW_FORMAT	DYNAMIC_OR_PAGE
-TABLE_ROWS	#TBLR#
-AVG_ROW_LENGTH	#ARL#
-DATA_LENGTH	#DL#
-MAX_DATA_LENGTH	#MDL#
-INDEX_LENGTH	#IL#
-DATA_FREE	#DF#
-AUTO_INCREMENT	NULL
-CREATE_TIME	#CRT#
-UPDATE_TIME	#UT#
-CHECK_TIME	#CT#
-TABLE_COLLATION	utf8_general_ci
-CHECKSUM	NULL
-CREATE_OPTIONS	#CO#
-TABLE_COMMENT	#TC#
-user_comment	
-Separator	-----------------------------------------------------
-TABLE_CATALOG	def
-TABLE_SCHEMA	information_schema
-TABLE_NAME	XTRADB_ADMIN_COMMAND
-TABLE_TYPE	SYSTEM VIEW
-ENGINE	MEMORY
-VERSION	10
-ROW_FORMAT	Fixed
 TABLE_ROWS	#TBLR#
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#

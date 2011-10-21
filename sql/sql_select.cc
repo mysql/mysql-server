@@ -9672,6 +9672,7 @@ void JOIN_TAB::cleanup()
       end_read_record(&read_record);
       //psergey-merge:
       table->pos_in_table_list->jtbm_subselect->cleanup();
+      table= NULL;
       DBUG_VOID_RETURN;
     }
     /*
@@ -9943,8 +9944,12 @@ void JOIN::cleanup(bool full)
     */
     if (table_count > const_tables) // Test for not-const tables
     {
-      free_io_cache(table[const_tables]);
-      filesort_free_buffers(table[const_tables],full);
+      JOIN_TAB *first_tab= first_top_level_tab(this, WITHOUT_CONST_TABLES);
+      if (first_tab->table)
+      {
+        free_io_cache(first_tab->table);
+        filesort_free_buffers(first_tab->table, full);
+      }
     }
 
     if (full)
@@ -9952,7 +9957,6 @@ void JOIN::cleanup(bool full)
       for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
            tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
 	tab->cleanup();
-      table= 0;
     }
     else
     {

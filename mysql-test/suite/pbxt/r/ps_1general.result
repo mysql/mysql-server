@@ -443,7 +443,7 @@ prepare stmt1 from ' KILL 0 ';
 prepare stmt1 from ' explain select a from t1 order by b ';
 execute stmt1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					id	8	3	1	N	32929	0	63
+def					id	8	3	1	Y	32928	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	Y	0	31	8
 def					type	253	10	3	Y	0	31	8
@@ -459,7 +459,7 @@ SET @arg00=1 ;
 prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
 execute stmt1 using @arg00;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					id	8	3	1	N	32929	0	63
+def					id	8	3	1	Y	32928	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	Y	0	31	8
 def					type	253	10	5	Y	0	31	8

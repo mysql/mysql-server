@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3,t4,t5,t6;
+drop view if exists v1, v2;
 set @subselect4_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
@@ -121,14 +122,14 @@ EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	SUBQUERY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
 a	b
 EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
 a	b
 1	NULL
@@ -151,28 +152,28 @@ EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	SUBQUERY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
 a	b
 EXPLAIN
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	SUBQUERY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
 c	d
 EXPLAIN
 SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	SUBQUERY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
 e	f
 EXPLAIN
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	SUBQUERY	x	x	x	x	x	x	x	x
+x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
 c	d
 SELECT * FROM t1 WHERE ( a, b ) NOT IN 
@@ -224,7 +225,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from `test`.`t1`
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual
 first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -235,7 +236,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from `test`.`t1` group by NULL
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
 second equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -246,7 +247,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from `test`.`t1` group by NULL
+Note	1003	select (select 1 from `test`.`t2` where 0) AS `RESULT` from dual group by NULL
 DROP TABLE t1,t2;
 #
 # BUG#45928 "Differing query results depending on MRR and
@@ -506,6 +507,7 @@ DROP TABLE t1,t2;
 #
 # End of 5.3 tests.
 #
+#
 # Bug#53236 Segfault in DTCollation::set(DTCollation&)
 #
 CREATE TABLE t1 (
@@ -574,7 +576,7 @@ INSERT INTO t1 VALUES ('28','6','m'),('29','4','c');
 CREATE TABLE t2 (f11 varchar(1)) ;
 INSERT INTO t2 VALUES ('f'),('d');
 SET @old_optimizer_switch = @@session.optimizer_switch;
-SET SESSION optimizer_switch = 'materialization=on,in_to_exists=off,';
+SET SESSION optimizer_switch = 'materialization=on,in_to_exists=off';
 EXPLAIN
 SELECT * FROM t1
 WHERE f3 = (
@@ -1232,8 +1234,7 @@ FROM t2 JOIN t1 ON t1.f3
 WHERE ('v') IN (SELECT f4 FROM t2)
 GROUP BY f9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
 SELECT COUNT(t2.f3),
@@ -1249,8 +1250,7 @@ FROM t2 JOIN t1 ON t1.f3
 WHERE ('v') IN (SELECT f4 FROM t2)
 ORDER BY f9;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
 SELECT COUNT(t2.f3),
@@ -1502,6 +1502,8 @@ RIGHT JOIN t0 AS alias2 ON alias2.f10
 WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
 f1	f2
 8	8
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'u'
 EXPLAIN
 SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1534,6 +1536,8 @@ RIGHT JOIN t0 AS alias2 ON alias2.f10
 WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
 f1	f2
 8	8
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'u'
 EXPLAIN
 SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1755,6 +1759,9 @@ ON SUBQUERY2_t2.col_varchar_key
 WHERE SUBQUERY2_t2.col_varchar_nokey IN
 (SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
 col_int_key
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
 set @@optimizer_switch='subquery_cache=off,materialization=off,in_to_exists=on,semijoin=off';
 EXPLAIN
 SELECT col_int_key
@@ -1777,6 +1784,9 @@ ON SUBQUERY2_t2.col_varchar_key
 WHERE SUBQUERY2_t2.col_varchar_nokey IN
 (SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
 col_int_key
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
 drop table t1, t2;
 set @@optimizer_switch = @old_optimizer_switch;
 #
@@ -1884,9 +1894,7 @@ EXPLAIN SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
 WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
 SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
@@ -1897,9 +1905,7 @@ EXPLAIN SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
 WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT t1.f4
 FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3

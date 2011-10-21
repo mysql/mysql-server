@@ -101,7 +101,7 @@ Com_show_status	3
 show status like 'hand%write%';
 Variable_name	Value
 Handler_tmp_write	0
-Handler_write	5
+Handler_write	0
 show status like '%tmp%';
 Variable_name	Value
 Created_tmp_disk_tables	0
@@ -113,7 +113,7 @@ Rows_tmp_read	5
 show status like 'hand%write%';
 Variable_name	Value
 Handler_tmp_write	0
-Handler_write	7
+Handler_write	0
 show status like '%tmp%';
 Variable_name	Value
 Created_tmp_disk_tables	0
