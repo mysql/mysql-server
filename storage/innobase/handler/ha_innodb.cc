@@ -3412,24 +3412,15 @@ ha_innobase::get_row_type() const
 	if (prebuilt && prebuilt->table) {
 		const ulint	flags = prebuilt->table->flags;
 
-		if (UNIV_UNLIKELY(!flags)) {
+		switch (dict_tf_get_rec_format(flags)) {
+		case REC_FORMAT_REDUNDANT:
 			return(ROW_TYPE_REDUNDANT);
-		}
-
-		ut_ad(flags & DICT_TF_COMPACT);
-
-		switch (flags & DICT_TF_FORMAT_MASK) {
-		case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
+		case REC_FORMAT_COMPACT:
 			return(ROW_TYPE_COMPACT);
-		case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT:
-			if (flags & DICT_TF_ZSSIZE_MASK) {
-				return(ROW_TYPE_COMPRESSED);
-			} else {
-				return(ROW_TYPE_DYNAMIC);
-			}
-#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
-# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
-#endif
+		case REC_FORMAT_COMPRESSED:
+			return(ROW_TYPE_COMPRESSED);
+		case REC_FORMAT_DYNAMIC:
+			return(ROW_TYPE_DYNAMIC);
 		}
 	}
 	ut_ad(0);
@@ -3451,7 +3442,7 @@ ha_innobase::table_flags() const
 	ulong const tx_isolation = thd_tx_isolation(ha_thd());
 
 	if (tx_isolation <= ISO_READ_COMMITTED) {
-		return int_table_flags;
+		return(int_table_flags);
 	}
 
 	return(int_table_flags | HA_BINLOG_STMT_CAPABLE);
@@ -7321,14 +7312,20 @@ ha_innobase::create(
 	char		norm_name[FN_REFLEN];
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
+	ibool		zip_allowed = TRUE;
+	enum row_type	row_format;
+	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
+
+	/* Zip Shift Size - log2 - 9 of compressed page size,
+	zero for uncompressed */
+	ulint		zip_ssize = 0;
 	ulint		flags = 0;
 	ulint		flags2 = 0;
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
-	const ulint	file_format = srv_file_format;
+	const ulint	file_format_allowed = srv_file_format;
 	const char*	stmt;
 	size_t		stmt_len;
-	enum row_type	row_format;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -7378,44 +7375,41 @@ ha_innobase::create(
 	}
 
 	if (create_info->key_block_size) {
-		/* Determine the page_zip.ssize corresponding to the
-		requested page size (key_block_size) in kilobytes. */
-
-		ulint	ssize, ksize;
-		ulint	key_block_size = create_info->key_block_size;
-
-		/*  Set 'flags' to the correct key_block_size.
-		It will be zero if key_block_size is an invalid number.*/
-		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
-		     ssize++, ksize <<= 1) {
-			if (key_block_size == ksize) {
-				flags = ssize << DICT_TF_ZSSIZE_SHIFT
-					| DICT_TF_COMPACT
-					| UNIV_FORMAT_B
-					  << DICT_TF_FORMAT_SHIFT;
+		/* The requested compressed page size (key_block_size)
+		is given in kilobytes. If it is a valid number, store
+		that value as the number of log2 shifts from 512 in
+		zip_ssize. Zero means it is not compressed. */
+		ulint zssize;		/* Zip Shift Size */
+		ulint kbsize;		/* Key Block Size */
+		for (zssize = kbsize = 1;
+		     zssize <= PAGE_ZIP_SSIZE_MAX;
+		     zssize++, kbsize <<= 1) {
+			if (kbsize == create_info->key_block_size) {
+				zip_ssize = zssize;
 				break;
 			}
 		}
 
+		/* Make sure compressed row format is allowed. */
 		if (!srv_file_per_table) {
 			push_warning(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_per_table.");
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 
-		if (file_format < UNIV_FORMAT_B) {
+		if (file_format_allowed < UNIV_FORMAT_B) {
 			push_warning(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_format > Antelope.");
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 
-		if (!flags) {
+		if (!zip_allowed || zssize > PAGE_ZIP_SSIZE_MAX) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7426,7 +7420,7 @@ ha_innobase::create(
 
 	row_format = form->s->row_type;
 
-	if (flags) {
+	if (zip_ssize && zip_allowed) {
 		/* if ROW_FORMAT is set to default,
 		automatically change it to COMPRESSED.*/
 		if (row_format == ROW_TYPE_DEFAULT) {
@@ -7444,28 +7438,24 @@ ha_innobase::create(
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
 				" unless ROW_FORMAT=COMPRESSED.",
 				create_info->key_block_size);
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 	} else {
-		/* flags == 0 means no KEY_BLOCK_SIZE.*/
-		if (row_format == ROW_TYPE_COMPRESSED) {
+		/* zip_ssize == 0 means no KEY_BLOCK_SIZE.*/
+		if (row_format == ROW_TYPE_COMPRESSED && zip_allowed) {
 			/* ROW_FORMAT=COMPRESSED without
 			KEY_BLOCK_SIZE implies half the
 			maximum KEY_BLOCK_SIZE. */
-			flags = (DICT_TF_ZSSIZE_MAX - 1)
-				<< DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| UNIV_FORMAT_B
-				<< DICT_TF_FORMAT_SHIFT;
-#if DICT_TF_ZSSIZE_MAX < 1
-# error "DICT_TF_ZSSIZE_MAX < 1"
-#endif
+			zip_ssize = PAGE_ZIP_SSIZE_MAX - 1;
 		}
 	}
 
+	/* Validate the row format.  Correct it if necessary */
 	switch (row_format) {
 	case ROW_TYPE_REDUNDANT:
+		innodb_row_format = REC_FORMAT_REDUNDANT;
 		break;
+
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
 		if (!srv_file_per_table) {
@@ -7475,7 +7465,7 @@ ha_innobase::create(
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_format));
-		} else if (file_format < UNIV_FORMAT_B) {
+		} else if (file_format_allowed == UNIV_FORMAT_A) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7483,13 +7473,13 @@ ha_innobase::create(
 				" innodb_file_format > Antelope.",
 				get_row_format_name(row_format));
 		} else {
-			flags |= DICT_TF_COMPACT
-			         | (UNIV_FORMAT_B
-			            << DICT_TF_FORMAT_SHIFT);
+			innodb_row_format = (row_format == ROW_TYPE_DYNAMIC
+					     ? REC_FORMAT_DYNAMIC
+					     : REC_FORMAT_COMPRESSED);
 			break;
 		}
-
-		/* fall through */
+		zip_allowed = FALSE;
+		/* fall through to set row_format = COMPACT */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
@@ -7498,20 +7488,25 @@ ha_innobase::create(
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: assuming ROW_FORMAT=COMPACT.");
 	case ROW_TYPE_DEFAULT:
+		/* If we fell through, set row format to Compact. */
+		row_format = ROW_TYPE_COMPACT;
 	case ROW_TYPE_COMPACT:
-		flags = DICT_TF_COMPACT;
 		break;
 	}
 
-	/* Look for a primary key */
+	/* Set the table flags */
+	if (!zip_allowed) {
+		zip_ssize = 0;
+	}
+	dict_tf_set(&flags, innodb_row_format, zip_ssize);
 
+	/* Look for a primary key */
 	primary_key_no = (form->s->primary_key != MAX_KEY ?
 			 (int) form->s->primary_key :
 			 -1);
 
 	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
-
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Check for name conflicts (with reserved name) for
@@ -7972,7 +7967,7 @@ innobase_rename_table(
 	my_free(norm_to);
 	my_free(norm_from);
 
-	return error;
+	return(error);
 }
 
 /*********************************************************************//**
