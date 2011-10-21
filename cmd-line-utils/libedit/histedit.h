@@ -247,15 +247,6 @@ int		 tok_str(Tokenizer *, const char *,
 /*
  * Begin Wide Character Support
  */
-#ifdef __linux__
-/* Apparently we need _GNU_SOURCE defined to get access to wcsdup on Linux */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#endif
-
-#include <wchar.h>
-#include <wctype.h>
 
 /*
  * Wide character versions
