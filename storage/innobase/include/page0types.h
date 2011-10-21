@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,11 +49,14 @@ page0*.h includes rem0rec.h and may include rem0rec.ic. */
 /** Number of bits needed for representing different compressed page sizes */
 #define PAGE_ZIP_SSIZE_BITS 3
 
-/** Number of supported compressed page sizes */
-#define PAGE_ZIP_NUM_SSIZE	\
-	(UNIV_ZIP_SIZE_SHIFT_MAX - UNIV_ZIP_SIZE_SHIFT_MIN + 2)
-#if PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)
-# error "PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)"
+/** Maximum compressed page shift size */
+#define PAGE_ZIP_SSIZE_MAX	\
+	(UNIV_ZIP_SIZE_SHIFT_MAX - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
+
+/* Make sure there are enough bits available to store the maximum zip
+ssize, which is the number of shifts from 512. */
+#if PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)
+# error "PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)"
 #endif
 
 /** Compressed page descriptor */
@@ -71,9 +74,9 @@ struct page_zip_des_struct
 					columns on the page; the maximum
 					is 744 on a 16 KiB page */
 	unsigned	ssize:PAGE_ZIP_SSIZE_BITS;
-					/*!< 0 or compressed page size;
+					/*!< 0 or compressed page shift size;
 					the size in bytes is
-					UNIV_ZIP_SIZE_MIN << (ssize - 1). */
+					(UNIV_ZIP_SIZE_MIN >> 1) << ssize. */
 };
 
 /** Compression statistics for a given page size */
@@ -94,7 +97,7 @@ struct page_zip_stat_struct {
 typedef struct page_zip_stat_struct page_zip_stat_t;
 
 /** Statistics on compression, indexed by page_zip_des_struct::ssize - 1 */
-extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
+extern page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must

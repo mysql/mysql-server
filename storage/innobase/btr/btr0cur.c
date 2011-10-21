@@ -4612,8 +4612,7 @@ btr_check_blob_fil_page_type(
 		ulint	flags = fil_space_get_flags(space_id);
 
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
-		if (UNIV_LIKELY((flags & DICT_TF_FORMAT_MASK)
-				== (UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT))) {
+		if (dict_tf_get_format(flags) == UNIV_FORMAT_A) {
 			/* Old versions of InnoDB did not initialize
 			FIL_PAGE_TYPE on BLOB pages.  Do not print
 			anything about the type mismatch when reading
