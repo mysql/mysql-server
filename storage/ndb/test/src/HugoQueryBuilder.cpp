@@ -55,7 +55,7 @@ HugoQueryBuilder::init()
 
 HugoQueryBuilder::~HugoQueryBuilder()
 {
-  for (size_t i = 0; i<m_queries.size(); i++)
+  for (unsigned i = 0; i<m_queries.size(); i++)
     m_queries[i]->destroy();
 }
 
@@ -76,7 +76,7 @@ HugoQueryBuilder::fixOptions()
 void
 HugoQueryBuilder::addTable(Ndb* ndb, const NdbDictionary::Table* tab)
 {
-  for (size_t i = 0; i<m_tables.size(); i++)
+  for (unsigned i = 0; i<m_tables.size(); i++)
   {
     if (m_tables[i].m_table == tab)
       return;
@@ -133,7 +133,7 @@ HugoQueryBuilder::getJoinLevel() const
 void
 HugoQueryBuilder::removeTable(const NdbDictionary::Table* tab)
 {
-  for (size_t i = 0; i<m_tables.size(); i++)
+  for (unsigned i = 0; i<m_tables.size(); i++)
   {
     if (m_tables[i].m_table == tab)
     {
@@ -215,11 +215,11 @@ HugoQueryBuilder::checkBindable(Vector<const NdbDictionary::Column*> cols,
                                 Vector<Op> ops,
                                 bool allow_bind_nullable)
 {
-  for (size_t c = 0; c < cols.size(); c++)
+  for (unsigned c = 0; c < cols.size(); c++)
   {
     const NdbDictionary::Column * col = cols[c];
     bool found = false;
-    for (size_t t = 0; !found && t<ops.size(); t++)
+    for (unsigned t = 0; !found && t<ops.size(); t++)
     {
       const NdbDictionary::Table * tab = ops[t].m_op->getTable();
       if (tab)
@@ -274,7 +274,7 @@ HugoQueryBuilder::checkBusyScan(Op op) const
     op = m_query[op.m_parent];
   }
 
-  for (size_t i = op.m_idx + 1; i < m_query.size(); i++)
+  for (unsigned i = op.m_idx + 1; i < m_query.size(); i++)
     if (isAncestor(op, m_query[i]) && isScan(m_query[i].m_op))
       return true;
 
@@ -537,11 +537,11 @@ loop:
       if (op.m_op == 0)
       {
         ndbout << "Failed to add to " << endl;
-        for (size_t i = 0; i<m_query.size(); i++)
+        for (unsigned i = 0; i<m_query.size(); i++)
           ndbout << m_query[i] << endl;
 
         ndbout << "Parents: " << endl;
-        for (size_t i = 0; i<parents.size(); i++)
+        for (unsigned i = 0; i<parents.size(); i++)
           ndbout << parents[i].m_idx << " ";
         ndbout << endl;
       }

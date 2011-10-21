@@ -322,7 +322,7 @@ waitClusterStatus(const char* _addr,
 	 * First check if any node is not starting
 	 * then it's no idea to wait anymore
 	 */
-	for (size_t n = 0; n < ndbNodes.size(); n++){
+	for (unsigned n = 0; n < ndbNodes.size(); n++){
 	  if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED &&
 	      ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTING)
 	    waitMore = false;
@@ -359,7 +359,7 @@ waitClusterStatus(const char* _addr,
     allInState = (ndbNodes.size() > 0);
 
     /* Loop through all nodes and check their state */
-    for (size_t n = 0; n < ndbNodes.size(); n++) {
+    for (unsigned n = 0; n < ndbNodes.size(); n++) {
       ndb_mgm_node_state* ndbNode = &ndbNodes[n];
 
       assert(ndbNode != NULL);

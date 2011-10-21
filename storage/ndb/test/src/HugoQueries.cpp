@@ -42,7 +42,7 @@ HugoQueries::HugoQueries(const NdbQueryDef & query)
 
 HugoQueries::~HugoQueries()
 {
-  for (size_t o = 0; o<m_ops.size(); o++)
+  for (unsigned o = 0; o<m_ops.size(); o++)
   {
     while (m_ops[o].m_rows.size())
     {
@@ -64,7 +64,7 @@ HugoQueries::allocRows(int batch)
 
     if (tab)
     {
-      while (m_ops[o].m_rows.size() < (size_t)batch)
+      while (m_ops[o].m_rows.size() < (unsigned)batch)
       {
         m_ops[o].m_rows.push_back(new NDBT_ResultRow(* tab));
       }
@@ -198,7 +198,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
         return NDBT_FAILED;
       }
 
-      for (size_t o = 0; o<m_ops.size(); o++)
+      for (unsigned o = 0; o<m_ops.size(); o++)
       {
         NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
         HugoQueries::getValueForQueryOp(pOp, m_ops[o].m_rows[b]);
@@ -226,7 +226,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       NdbQuery * query = queries[b];
       if (query->nextResult() == NdbQuery::NextResult_gotRow)
       {
-        for (size_t o = 0; o<m_ops.size(); o++)
+        for (unsigned o = 0; o<m_ops.size(); o++)
         {
           NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
           if (!pOp->isRowNULL())
@@ -244,7 +244,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     pTrans->close();
     r += batch;
 
-    for (size_t i = 0; i<batch_rows_found.size(); i++)
+    for (unsigned i = 0; i<batch_rows_found.size(); i++)
       m_rows_found[i] += batch_rows_found[i];
   }
 
@@ -293,7 +293,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       return NDBT_FAILED;
     }
 
-    for (size_t o = 0; o<m_ops.size(); o++)
+    for (unsigned o = 0; o<m_ops.size(); o++)
     {
       NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
       HugoQueries::getValueForQueryOp(pOp, m_ops[o].m_rows[0]);
@@ -336,7 +336,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       return NDBT_OK;
       }
 
-      for (size_t o = 0; o<m_ops.size(); o++)
+      for (unsigned o = 0; o<m_ops.size(); o++)
       {
         NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
         if (!pOp->isRowNULL())
