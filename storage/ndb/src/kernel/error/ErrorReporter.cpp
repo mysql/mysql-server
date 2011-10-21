@@ -163,7 +163,7 @@ ErrorReporter::formatMessage(int thr_no,
   {
     for (Uint32 i = 1 ; i < num_threads; i++)
     {
-      sofar = strlen(messptr);
+      sofar = (int)strlen(messptr);
       if(sofar < MESSAGE_LENGTH)
       {
 	BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
@@ -172,7 +172,7 @@ ErrorReporter::formatMessage(int thr_no,
     }
   }
 
-  sofar = strlen(messptr);
+  sofar = (int)strlen(messptr);
   if(sofar < MESSAGE_LENGTH)
   {
     BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
