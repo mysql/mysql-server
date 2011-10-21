@@ -819,6 +819,7 @@ uint32 ha_archive::max_row_length(const uchar *buf)
        ptr != end ;
        ptr++)
   {
+    if (!table->field[*ptr]->is_null())
       length += 2 + ((Field_blob*)table->field[*ptr])->get_length();
   }
 
@@ -1178,6 +1179,17 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
 
   /* Copy null bits */
   const uchar *ptr= record_buffer->buffer;
+  /*
+    Field::unpack() is not called when field is NULL. For VARCHAR
+    Field::unpack() only unpacks as much bytes as occupied by field
+    value. In these cases respective memory area on record buffer is
+    not initialized.
+
+    These uninitialized areas may be accessed by CHECKSUM TABLE or
+    by optimizer using temporary table (BUG#12997905). We may remove
+    this memset() when they're fixed.
+  */
+  memset(record, 0, table->s->reclength);
   memcpy(record, ptr, table->s->null_bytes);
   ptr+= table->s->null_bytes;
   for (Field **field=table->field ; *field ; field++)
