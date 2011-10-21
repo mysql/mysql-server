@@ -444,13 +444,13 @@ BaseString::argify(const char *argv0, const char *src) {
     char **argv = (char **)malloc(sizeof(*argv) * (vargv.size()));
     if(argv == NULL)
     {
-        for(size_t i = 0; i < vargv.size(); i++)
+        for(unsigned i = 0; i < vargv.size(); i++)
           free(vargv[i]);
         errno = ENOMEM;
 	return NULL;
     }
     
-    for(size_t i = 0; i < vargv.size(); i++){
+    for(unsigned i = 0; i < vargv.size(); i++){
 	argv[i] = vargv[i];
     }
     
@@ -460,7 +460,7 @@ BaseString::argify(const char *argv0, const char *src) {
 BaseString&
 BaseString::trim(const char * delim){
     trim(m_chr, delim);
-    m_len = strlen(m_chr);
+    m_len = (unsigned)strlen(m_chr);
     return * this;
 }
 

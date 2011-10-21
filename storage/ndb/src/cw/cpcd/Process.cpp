@@ -411,7 +411,7 @@ CPCD::Process::do_exec() {
     }
     int f = fds[i]= open(redirects[i]->c_str(), flags, mode);
     if(f == -1){
-      logger.error("Cannot redirect %ld to/from '%s' : %s\n", i,
+      logger.error("Cannot redirect %u to/from '%s' : %s\n", i,
 		   redirects[i]->c_str(), strerror(errno));
       _exit(1);
     }

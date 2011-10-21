@@ -1375,7 +1375,7 @@ logevent2str(BaseString& str, int eventType,
         {
           BaseString::snprintf(pretty_text+pretty_text_len, 4 , " - ");
           ndb_error_string(val, pretty_text+(pretty_text_len+3),
-                           pretty_text_size-pretty_text_len-3);
+                           (int)(pretty_text_size-pretty_text_len-3));
         }
       }
     } while (ndb_logevent_body[++i].type == eventType);
@@ -2019,7 +2019,7 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
       if((r= read_socket(m_socket,
                          SOCKET_TIMEOUT,
                          &buf64[start],
-                         len64-start)) < 1)
+                         (int)(len64-start))) < 1)
       {
         delete[] buf64;
         result.assfmt("read_socket failed, errno: %d", errno);
