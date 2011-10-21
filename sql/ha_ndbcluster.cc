@@ -14980,6 +14980,10 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
 
   int range_no= 0;
   int mrr_range_no= starting_range;
+  bool any_real_read= FALSE;
+
+  if (m_read_before_write_removal_possible)
+    check_read_before_write_removal();
 
   for (;
        !m_range_res;
@@ -15024,7 +15028,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
       if (part_spec.start_part > part_spec.end_part)
       {
         /*
-          We can skip this partition since the key won't fit into any
+          We can skip this range since the key won't fit into any
           partition
         */
         multi_range_entry_type(row_buf)= enum_skip_range;
@@ -15061,6 +15065,9 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
           DBUG_RETURN(error);
       }
 
+      any_real_read= TRUE;
+      DBUG_PRINT("info", ("any_real_read= TRUE"));
+      
       /* Create the scan operation for the first scan range. */
       if (!m_multi_cursor)
       {
@@ -15153,6 +15160,8 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
     }
     else
     {
+      multi_range_entry_type(row_buf)= enum_unique_range;
+
       if (!trans)
       {
         DBUG_ASSERT(active_index != MAX_KEY);
@@ -15161,24 +15170,43 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
                                                     error))))
           DBUG_RETURN(error);
       }
-      /* Convert to primary/unique key operation. */
-      Uint32 partitionId;
-      Uint32* ppartitionId = NULL;
 
-      if (m_user_defined_partitioning &&
-          (cur_index_type == PRIMARY_KEY_ORDERED_INDEX ||
-           cur_index_type == PRIMARY_KEY_INDEX))
+      if (m_read_before_write_removal_used)
       {
-        partitionId=part_spec.start_part;
-        ppartitionId=&partitionId;
-      }
+        DBUG_PRINT("info", ("m_read_before_write_removal_used == TRUE"));
 
-      multi_range_entry_type(row_buf)= enum_unique_range;
-      if (!(op= pk_unique_index_read_key(active_index,
-                                         mrr_cur_range.start_key.key,
-                                         multi_range_row(row_buf), lm,
-                                         ppartitionId)))
-        ERR_RETURN(trans->getNdbError());
+        /* Key will later be returned as result record.
+         * Save it in 'row_buf' from where it will later retrieved.
+         */
+        key_restore(multi_range_row(row_buf),
+                    (uchar*)mrr_cur_range.start_key.key,
+                    key_info, key_info->key_length);
+
+        op= NULL;  // read_before_write_removal
+      }
+      else
+      {
+        any_real_read= TRUE;
+        DBUG_PRINT("info", ("any_real_read= TRUE"));
+
+        /* Convert to primary/unique key operation. */
+        Uint32 partitionId;
+        Uint32* ppartitionId = NULL;
+
+        if (m_user_defined_partitioning &&
+            (cur_index_type == PRIMARY_KEY_ORDERED_INDEX ||
+             cur_index_type == PRIMARY_KEY_INDEX))
+        {
+          partitionId=part_spec.start_part;
+          ppartitionId=&partitionId;
+        }
+
+        if (!(op= pk_unique_index_read_key(active_index,
+                                           mrr_cur_range.start_key.key,
+                                           multi_range_row(row_buf), lm,
+                                           ppartitionId)))
+          ERR_RETURN(trans->getNdbError());
+      }
       oplist[num_keyops++]= op;
       row_buf= multi_range_next_entry(row_buf, reclength);
     }
@@ -15196,7 +15224,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
     }
   }
 
-  if (execute_no_commit_ie(m_thd_ndb, trans))
+  if (any_real_read && execute_no_commit_ie(m_thd_ndb, trans))
     ERR_RETURN(trans->getNdbError());
 
   if (!m_range_res)
@@ -15240,7 +15268,10 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
       continue;
 
     DBUG_ASSERT(op_idx < MRR_MAX_RANGES);
-    const NdbError &error= oplist[op_idx]->getNdbError();
+    if ((op= oplist[op_idx++]) == NULL)
+      continue;  // read_before_write_removal
+
+    const NdbError &error= op->getNdbError();
     if (error.code != 0)
     {
       if (error.classification == NdbError::NoDataFound)
@@ -15260,7 +15291,6 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
         ERR_RETURN(error);      /* purecov: deadcode */
       }
     }
-    op_idx++;
   }
 
   DBUG_RETURN(0);
@@ -15278,7 +15308,6 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
 
   for(;;)
   {
-
     /* for each range (we should have remembered the number) */
     while (first_running_range < first_unstarted_range)
     {
