@@ -10671,6 +10671,72 @@ ha_innobase::get_error_message(
 }
 
 /*******************************************************************//**
+  Retrieves the names of the table and the key for which there was a
+  duplicate entry in the case of HA_ERR_FOREIGN_DUPLICATE_KEY.
+
+  If any of the names is not available, then this method will return
+  false and will not change any of child_table_name or child_key_name.
+
+  @param child_table_name[out]    Table name
+  @param child_table_name_len[in] Table name buffer size
+  @param child_key_name[out]      Key name
+  @param child_key_name_len[in]   Key name buffer size
+
+  @retval  true                  table and key names were available
+                                 and were written into the corresponding
+                                 out parameters.
+  @retval  false                 table and key names were not available,
+                                 the out parameters were not touched.
+*/
+bool
+ha_innobase::get_foreign_dup_key(
+/*=============================*/
+	char*	child_table_name,
+	uint	child_table_name_len,
+	char*	child_key_name,
+	uint	child_key_name_len)
+{
+	const dict_index_t*	err_index;
+
+	ut_a(prebuilt->trx != NULL);
+	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
+
+	err_index = trx_get_error_info(prebuilt->trx);
+
+	if (err_index == NULL) {
+		return(false);
+	}
+	/* else */
+
+	/* copy table name (and convert from filename-safe encoding to
+	system_charset_info, e.g. "foo_@0J@00b6" -> "foo_ö") */
+	char*	p;
+	p = strchr(err_index->table->name, '/');
+	/* strip ".../" prefix if any */
+	if (p != NULL) {
+		p++;
+	} else {
+		p = err_index->table->name;
+	}
+	innobase_convert_name(child_table_name, child_table_name_len,
+			      p, strlen(p), NULL, TRUE);
+	/* remove quotes if any */
+	if (child_table_name[0] == '"'
+	    && child_table_name[strlen(child_table_name) - 1] == '"') {
+		size_t	len_no_quotes = strlen(child_table_name) - 2;
+		/* "abc" -> abcc" */
+		memmove(child_table_name, child_table_name + 1, len_no_quotes);
+		/* abcc" -> abc */
+		child_table_name[len_no_quotes] = '\0';
+	}
+
+	/* copy index name */
+	ut_snprintf(child_key_name, child_key_name_len, "%s", err_index->name);
+
+	return(true);
+}
+
+/*******************************************************************//**
 Compares two 'refs'. A 'ref' is the (internal) primary key value of the row.
 If there is no explicitly declared non-null unique key or a primary key, then
 InnoDB internally uses the row id as the primary key.
