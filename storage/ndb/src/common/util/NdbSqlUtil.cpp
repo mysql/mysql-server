@@ -693,7 +693,7 @@ NdbSqlUtil::likeChar(const void* info, const void* p1, unsigned n1, const void* 
   const char* v2 = (const char*)p2;
   CHARSET_INFO* cs = (CHARSET_INFO*)(info);
   // strip end spaces to match (incorrect) MySQL behaviour
-  n1 = (*cs->cset->lengthsp)(cs, v1, n1);
+  n1 = (unsigned)(*cs->cset->lengthsp)(cs, v1, n1);
   int k = (*cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
   return k == 0 ? 0 : +1;
 }
@@ -980,13 +980,13 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   if (n1 <= 0)
     return -1;
   // strxfrm to binary
-  int n2 = ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
+  int n2 = (int)ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
   if (n2 <= 0)
     return -1;
   // XXX bug workaround - strnxfrm may not write full string
   memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
-  int n3 = ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
+  int n3 = (int)ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
   // pad with strxfrm-ed space chars
   int n4 = n3;
   while (n4 < (int)dstLen) {

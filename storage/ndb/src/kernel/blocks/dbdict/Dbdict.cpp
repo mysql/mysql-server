@@ -15406,7 +15406,7 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal,
   }
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
-    int len = strlen(evntRecPtr.p->m_eventRec.NAME);
+    int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
     memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
 #ifdef EVENT_DEBUG
     printf("CreateEvntReq::RT_USER_CREATE; EventName %s, len %u\n",
@@ -15434,7 +15434,7 @@ sendref:
   }
   r0.getString(evntRecPtr.p->m_eventRec.TABLE_NAME);
   {
-    int len = strlen(evntRecPtr.p->m_eventRec.TABLE_NAME);
+    int len = (int)strlen(evntRecPtr.p->m_eventRec.TABLE_NAME);
     memset(evntRecPtr.p->m_eventRec.TABLE_NAME+len, 0, MAX_TAB_NAME_SIZE-len);
   }
 
@@ -16059,7 +16059,7 @@ Dbdict::createEvent_RT_USER_GET(Signal* signal,
   }
 
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
-  int len = strlen(evntRecPtr.p->m_eventRec.NAME);
+  int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
   memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
   
   releaseSections(handle);
@@ -17122,7 +17122,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
   }
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
-    int len = strlen(evntRecPtr.p->m_eventRec.NAME);
+    int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
     memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
 #ifdef EVENT_DEBUG
     printf("DropEvntReq; EventName %s, len %u\n",
