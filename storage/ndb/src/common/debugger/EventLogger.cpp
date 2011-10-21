@@ -1524,7 +1524,7 @@ EventLogger::getText(char * dst, size_t dst_len,
   if (nodeId != 0)
   {
     BaseString::snprintf(dst, dst_len, "Node %u: ", nodeId);
-    pos= strlen(dst);
+    pos= (int)strlen(dst);
   }
   if (dst_len-pos > 0)
     textF(dst+pos, dst_len-pos, theData, len);

@@ -85,7 +85,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   {
     MY_STAT buf;
     my_stat(fileName, &buf, MYF(0));
-    NO_MBYTE_IN_FILE = buf.st_size / (1024 * 1024);
+    NO_MBYTE_IN_FILE = (unsigned)(buf.st_size / (1024 * 1024));
     if (NO_MBYTE_IN_FILE != 16)
     {
       ndbout_c("Detected %umb files", NO_MBYTE_IN_FILE);

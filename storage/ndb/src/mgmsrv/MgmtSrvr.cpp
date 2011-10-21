@@ -3576,7 +3576,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     return false;
 
   // Print list of possible nodes
-  for (size_t i = 0; i < nodes.size(); i++)
+  for (unsigned i = 0; i < nodes.size(); i++)
   {
     const PossibleNode& node = nodes[i];
     g_eventLogger->debug(" [%u]: %u, '%s', %d",

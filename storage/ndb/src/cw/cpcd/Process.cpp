@@ -334,7 +334,7 @@ save_environment(const char *env, Vector<BaseString> &saved) {
 
 void
 CPCD::Process::do_exec() {
-  size_t i;
+  unsigned i;
 
 #ifdef _WIN32
   Vector<BaseString> saved;

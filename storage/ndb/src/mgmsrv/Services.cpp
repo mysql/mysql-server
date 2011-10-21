@@ -1370,7 +1370,7 @@ logevent2str(BaseString& str, int eventType,
       str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
       if(strcmp(ndb_logevent_body[i].token,"error") == 0)
       {
-        int pretty_text_len= strlen(pretty_text);
+        int pretty_text_len= (int)strlen(pretty_text);
         if(pretty_text_size-pretty_text_len-3 > 0)
         {
           BaseString::snprintf(pretty_text+pretty_text_len, 4 , " - ");
@@ -1631,7 +1631,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
   Vector<BaseString> list;
   param.trim();
   param.split(list, " ,");
-  for(size_t i = 0; i<list.size(); i++){
+  for(unsigned i = 0; i<list.size(); i++){
     Vector<BaseString> spec;
     list[i].trim();
     list[i].split(spec, "=:");
@@ -1852,7 +1852,7 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   lister->m_output->println("session.%llu.m_stop: %d",id,s->m_stop);
   if(s->m_ctx)
   {
-    int l= strlen(s->m_ctx->m_tokenBuffer);
+    int l= (int)strlen(s->m_ctx->m_tokenBuffer);
     char *buf= (char*) malloc(2*l+1);
     char *b= buf;
     for(int i=0; i<l;i++)
@@ -1922,7 +1922,7 @@ MgmApiSession::get_session(SocketServer::Session *_s, void *data)
   p->l->m_output->println("m_stop: %d",s->m_stop);
   if(s->m_ctx)
   {
-    int l= strlen(s->m_ctx->m_tokenBuffer);
+    int l= (int)strlen(s->m_ctx->m_tokenBuffer);
     p->l->m_output->println("parser_buffer_len: %u",l);
     p->l->m_output->println("parser_status: %d",s->m_ctx->m_status);
   }

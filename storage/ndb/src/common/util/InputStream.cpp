@@ -57,7 +57,7 @@ SocketInputStream::gets(char * buf, int bufLen) {
     m_startover= false;
   }
   else
-    offset= strlen(buf);
+    offset= (int)strlen(buf);
 
   int time= 0;
   int res = readln_socket(m_socket, m_timeout_remain, &time,

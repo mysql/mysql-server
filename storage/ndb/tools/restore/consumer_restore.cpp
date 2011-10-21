@@ -679,7 +679,7 @@ BackupRestore::rebuild_indexes(const TableS& table)
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
 
   Vector<NdbDictionary::Index*> & indexes = m_index_per_table[id];
-  for(size_t i = 0; i<indexes.size(); i++)
+  for(unsigned i = 0; i<indexes.size(); i++)
   {
     const NdbDictionary::Index * const idx = indexes[i];
     const char * const idx_name = idx->getName();
@@ -818,7 +818,7 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
                                    const char **data, const char *end_data,
                                    uint *new_data_len)
 {
-  uint search_str_len = strlen(search_str);
+  uint search_str_len = (uint)strlen(search_str);
   uint inx = 0;
   bool in_delimiters = FALSE;
   bool escape_char = FALSE;
@@ -1997,7 +1997,7 @@ BackupRestore::endOfTables(){
     return true;
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
-  for(size_t i = 0; i<m_indexes.size(); i++){
+  for(unsigned i = 0; i<m_indexes.size(); i++){
     NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
 
     BaseString db_name, schema_name, table_name;
