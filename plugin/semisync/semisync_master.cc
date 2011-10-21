@@ -47,11 +47,7 @@ static int getWaitTime(const struct timespec& start_ts);
 
 static unsigned long long timespec_to_usec(const struct timespec *ts)
 {
-#ifndef __WIN__
   return (unsigned long long) ts->tv_sec * TIME_MILLION + ts->tv_nsec / TIME_THOUSAND;
-#else
-  return ts->tv.i64 / 10;
-#endif /* __WIN__ */
 }
 
 /*******************************************************************************
@@ -678,10 +674,6 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
 
       /* Calcuate the waiting period. */
-#ifdef __WIN__
-      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
-      abstime.max_timeout_msec= (long)wait_timeout_;
-#else
       unsigned long long diff_nsecs =
         start_ts.tv_nsec + (unsigned long long)wait_timeout_ * TIME_MILLION;
       abstime.tv_sec = start_ts.tv_sec;
@@ -691,7 +683,6 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
         diff_nsecs -= TIME_BILLION;
       }
       abstime.tv_nsec = diff_nsecs;
-#endif /* __WIN__ */
       
       /* In semi-synchronous replication, we wait until the binlog-dump
        * thread has received the reply on the relevant binlog segment from the

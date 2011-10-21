@@ -28,7 +28,7 @@ IF(WIN32)
       log_client.cc common.cc handshake.cc)
 
   MYSQL_ADD_PLUGIN(authentication_windows_client ${PLUGIN_SOURCES} ${HEADERS}
-    LINK_LIBRARUES Secur32
+    LINK_LIBRARIES Secur32
     MODULE_ONLY)
 
 ENDIF(WIN32)

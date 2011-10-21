@@ -45,22 +45,16 @@ xtPublic void xt_p_init_threading(void)
 
 xtPublic int xt_p_set_normal_priority(pthread_t thr)
 {
-	if (!SetThreadPriority (thr, THREAD_PRIORITY_NORMAL))
-		return GetLastError();
 	return 0;
 }
 
 xtPublic int xt_p_set_low_priority(pthread_t thr)
 {
-	if (!SetThreadPriority (thr, THREAD_PRIORITY_LOWEST))
-		return GetLastError();
 	return 0;
 }
 
 xtPublic int xt_p_set_high_priority(pthread_t thr)
 {
-	if (!SetThreadPriority (thr, THREAD_PRIORITY_HIGHEST))
-		return GetLastError();
 	return 0;
 }
 
@@ -401,31 +395,7 @@ xtPublic int xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mt, struct t
 
 xtPublic int xt_p_join(pthread_t thread, void **value)
 {
-	DWORD exitcode;
-
-	while(1) {
-		switch (WaitForSingleObject(thread, 10000)) {
-			case WAIT_OBJECT_0:
-				return 0;
-			case WAIT_TIMEOUT:
-				/* Don't do this! According to the Win docs:
-				 * _endthread automatically closes the thread handle
-				 * (whereas _endthreadex does not). Therefore, when using
-				 * _beginthread and _endthread, do not explicitly close the
-				 * thread handle by calling the Win32 CloseHandle API.
-				CloseHandle(thread);
-				 */
-				/* This is done so that if the thread was not [yet] in the running
-				 * state when this function was called we won't deadlock here.
-				 */
-				if (GetExitCodeThread(thread, &exitcode) && (exitcode == STILL_ACTIVE))
-					break;
-				return 0;
-			case WAIT_FAILED:
-				return GetLastError();
-		}
-	}
-
+	pthread_join(thread, value);
 	return 0;
 }
 

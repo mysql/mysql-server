@@ -26,10 +26,10 @@
 #include "field.h"
 #include "item.h"
 #include <mysqld_error.h>
+#include <my_net.h>
 
 #ifndef __WIN__
 	// UNIX-specific
-	#include <my_net.h>
 	#include <netdb.h>
 	#include <sys/un.h>
 
@@ -39,8 +39,6 @@
 #else
 	// Windows-specific
 	#include <io.h>
-	#define strcasecmp	stricmp
-	#define snprintf	_snprintf
 
 	#define	RECV_FLAGS	0
 

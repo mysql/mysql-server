@@ -90,6 +90,5 @@ src/xt_config.h
 src/xt_defs.h
 src/xt_errno.h)
 
-SET(PBXT_PLUGIN_STATIC  "pbxt")
-MYSQL_ADD_PLUGIN(pbxt ${PBXT_SOURCES} STORAGE_ENGINE)
+MYSQL_ADD_PLUGIN(pbxt ${PBXT_SOURCES} STORAGE_ENGINE STATIC_ONLY)
 

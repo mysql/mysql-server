@@ -2753,6 +2753,7 @@ extern "C" char *my_demangle(const char *mangled_name, int *status)
 }
 #endif
 
+extern const char *optimizer_switch_names[];
 
 extern "C" sig_handler handle_segfault(int sig)
 {
@@ -2859,7 +2860,6 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     fprintf(stderr, "Status: %s\n", kreason);
     fprintf(stderr, "Optimizer switch: ");
 
-    extern const char *optimizer_switch_names[];
     ulonglong optsw= global_system_variables.optimizer_switch;
     for (uint i= 0; optimizer_switch_names[i+1]; i++, optsw >>= 1)
     {

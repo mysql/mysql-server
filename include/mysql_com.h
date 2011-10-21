@@ -56,6 +56,9 @@
 #define LOCAL_HOST	"localhost"
 #define LOCAL_HOST_NAMEDPIPE "."
 
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#endif
 
 #if defined(__WIN__) && !defined( _CUSTOMCONFIG_)
 #define MYSQL_NAMEDPIPE "MySQL"

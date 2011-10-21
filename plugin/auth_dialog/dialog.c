@@ -24,31 +24,15 @@
   asks the user the question, as provided by the server and reports
   the answer back to the server. No encryption is involved,
   the answers are sent in clear text.
-
-  Two examples are provided: two_questions server plugin, that asks
-  the password and an "Are you sure?" question with a reply "yes, of course".
-  It demonstrates the usage of "password" (input is hidden) and "ordinary"
-  (input can be echoed) questions, and how to mark the last question,
-  to avoid an extra roundtrip.
-
-  And three_attempts plugin that gives the user three attempts to enter
-  a correct password. It shows the situation when a number of questions
-  is not known in advance.
 */
-#if defined (WIN32) && !defined (RTLD_DEFAULT)
+#include <my_global.h>
+#include <mysql/client_plugin.h>
+#include <mysql.h>
+#include <string.h>
+
+#if defined (_WIN32)
 # define RTLD_DEFAULT GetModuleHandle(NULL)
 #endif
-
-#if !defined (_GNU_SOURCE)
-# define _GNU_SOURCE /* for RTLD_DEFAULT */
-#endif
-
-#include <mysql/client_plugin.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <mysql.h>
-#include <dlfcn.h>
 
 /*
   This plugin performs a dialog with the user, asking questions and

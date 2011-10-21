@@ -122,9 +122,9 @@ int PSIZE= sizeof(struct st_mysql_plugin);                                    \
 struct st_mysql_plugin DECLS[]= {
 
 #define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                   \
-int VERSION= MARIA_PLUGIN_INTERFACE_VERSION;                                  \
-int PSIZE= sizeof(struct st_maria_plugin);                                    \
-struct st_maria_plugin DECLS[]= {
+MYSQL_PLUGIN_EXPORT int VERSION= MARIA_PLUGIN_INTERFACE_VERSION;              \
+MYSQL_PLUGIN_EXPORT int PSIZE= sizeof(struct st_maria_plugin);                \
+MYSQL_PLUGIN_EXPORT struct st_maria_plugin DECLS[]= {
 #else
 
 #define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \

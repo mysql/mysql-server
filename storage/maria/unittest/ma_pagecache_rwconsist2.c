@@ -261,7 +261,7 @@ int main(int argc __attribute__((unused)),
   pagecache_file_init(file1, &dummy_callback, &dummy_callback,
                       &dummy_fail_callback, &dummy_callback, NULL);
   DBUG_PRINT("info", ("file1: %d", file1.file));
-  if (my_chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO, MYF(MY_WME)))
+  if (my_chmod(file1_name, 0777, MYF(MY_WME)))
     exit(1);
   my_pwrite(file1.file, (const uchar*) "test file", 9, 0, MYF(0));
 

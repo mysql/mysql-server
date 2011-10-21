@@ -29,6 +29,13 @@ Created 9/20/1997 Heikki Tuuri
 #include "log0recv.ic"
 #endif
 
+#include "config.h"
+#ifdef HAVE_ALLOCA_H
+#include "alloca.h"
+#else
+#include "malloc.h"
+#endif
+
 #include "mem0mem.h"
 #include "buf0buf.h"
 #include "buf0flu.h"

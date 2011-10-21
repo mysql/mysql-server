@@ -1377,7 +1377,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-		os_aio_use_native_aio = TRUE;
+		srv_use_native_aio = TRUE;
 #endif
 	} else {
 		ut_print_timestamp(stderr);

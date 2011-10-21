@@ -91,21 +91,6 @@ struct timespec {
   long tv_nsec;
 };
 
-
-/**
-   Compare two timespec structs.
-
-   @retval  1 If TS1 ends after TS2.
-
-   @retval  0 If TS1 is equal to TS2.
-
-   @retval -1 If TS1 ends before TS2.
-*/
-#define cmp_timespec(TS1, TS2) \
-  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
-   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
-
-
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);

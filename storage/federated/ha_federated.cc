@@ -3027,8 +3027,19 @@ int ha_federated::delete_all_rows()
 }
 
 
+
+
 /*
-  The idea with handler::store_lock() is the following:
+  Used to manually truncate the table via a delete of all rows in a table.
+*/
+
+int ha_federated::truncate()
+{
+  return delete_all_rows();
+}
+
+
+/*  The idea with handler::store_lock() is the following:
 
   The statement decided which locks we should need for the table
   for updates/deletes/inserts we get WRITE locks, for SELECT... we get

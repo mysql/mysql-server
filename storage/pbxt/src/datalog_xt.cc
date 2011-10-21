@@ -26,8 +26,8 @@
 #include <stdio.h>
 #ifndef XT_WIN
 #include <unistd.h>
-#include <signal.h>
 #endif
+#include <signal.h>
 #include <stdlib.h>
 
 #ifndef DRIZZLED

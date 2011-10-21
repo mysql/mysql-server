@@ -154,7 +154,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
   pagecache_file_init(file1, &dummy_callback, &dummy_callback,
                       &dummy_fail_callback, maria_flush_log_for_page, NULL);
-  if (my_chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO, MYF(MY_WME)))
+  if (my_chmod(file1_name, 0777, MYF(MY_WME)))
     exit(1);
 
   {

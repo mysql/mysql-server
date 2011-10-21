@@ -19,8 +19,6 @@
 #ifndef _my_base_h
 #define _my_base_h
 
-#ifndef stdin				/* Included first in handler */
-#define CHSIZE_USED
 #include <my_global.h>
 #include <my_dir.h>			/* This includes types */
 #include <my_sys.h>
@@ -31,7 +29,6 @@
 #define EOVERFLOW 84
 #endif
 
-#endif	/* stdin */
 #include <my_list.h>
 
 /* The following is bits in the flag parameter to ha_open() */

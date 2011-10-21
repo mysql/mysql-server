@@ -1513,16 +1513,7 @@ xtPublic pthread_t xt_run_thread(XTThreadPtr self, XTThreadPtr child, void *(*st
 	data.td_started = FALSE;
 	data.td_thr = child;
 	data.td_start_routine = start_routine;
-#ifdef XT_WIN
-	{
-		pthread_attr_t	attr = { 0, 0, 0 };
-
-		attr.priority = THREAD_PRIORITY_NORMAL;
-		err = pthread_create(&child_thread, &attr, xt_thread_main, &data);
-	}
-#else
 	err = pthread_create(&child_thread, NULL, xt_thread_main, &data);
-#endif
 	if (err) {
 		xt_free_thread(child);
 		xt_throw_errno(XT_CONTEXT, err);

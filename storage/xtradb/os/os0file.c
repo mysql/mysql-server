@@ -37,7 +37,7 @@ Created 10/21/1995 Heikki Tuuri
 #ifdef UNIV_NONINL
 #include "os0file.ic"
 #endif
-
+#include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -1601,7 +1601,7 @@ try_again:
 		}
 	} else {
 		*success = TRUE;
-		if (os_aio_use_native_aio && ((attributes & FILE_FLAG_OVERLAPPED) != 0)) {
+		if (srv_use_native_aio && ((attributes & FILE_FLAG_OVERLAPPED) != 0)) {
 			ut_a(CreateIoCompletionPort(file, completion_port, 0, 0));
 		}
 	}
@@ -4285,18 +4285,6 @@ os_aio_windows_handle(
 
 	ret = GetQueuedCompletionStatus(completion_port, &len, &key, 
 		(OVERLAPPED **)&slot, INFINITE);
-
-	if (srv_recovery_stats && recv_recovery_is_on() && n_consecutive) {
-		mutex_enter(&(recv_sys->mutex));
-		if (slot->type == OS_FILE_READ) {
-			recv_sys->stats_read_io_pages += n_consecutive;
-			recv_sys->stats_read_io_consecutive[n_consecutive - 1]++;
-		} else if (slot->type == OS_FILE_WRITE) {
-			recv_sys->stats_write_io_pages += n_consecutive;
-			recv_sys->stats_write_io_consecutive[n_consecutive - 1]++;
-		}
-		mutex_exit(&(recv_sys->mutex));
-	}
 
 	/* If shutdown key was received, repost the shutdown message and exit */
 	if (ret && (key == IOCP_SHUTDOWN_KEY)) {

@@ -59,7 +59,7 @@
 #define EXTRA_DEBUG_fflush fflush
 #else
 static void inline EXTRA_DEBUG_fprintf(...) {}
-static int EXTRA_DEBUG_fflush(...) {}
+static int inline EXTRA_DEBUG_fflush(...) { return 0; }
 #endif
 #ifdef MYSQL_SERVER
 #define MYSQL_SERVER_my_error my_error
