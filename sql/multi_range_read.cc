@@ -848,7 +848,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       if (h_idx->primary_key_is_clustered())
       {
         uint pk= h_idx->get_table()->s->primary_key;
-        saved_pk_length= h_idx->get_table()->key_info[pk].key_length;
+        if (pk != MAX_KEY)
+          saved_pk_length= h_idx->get_table()->key_info[pk].key_length;
       }
       
       KEY *used_index= &h_idx->get_table()->key_info[h_idx->active_index];
