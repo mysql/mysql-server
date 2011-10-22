@@ -32,13 +32,13 @@ uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 class String
 {
   char *Ptr;
-  uint32 str_length,Alloced_length;
+  uint32 str_length,Alloced_length, extra_alloc;
   bool alloced;
   CHARSET_INFO *str_charset;
 public:
   String()
   { 
-    Ptr=0; str_length=Alloced_length=0; alloced=0; 
+    Ptr=0; str_length=Alloced_length=extra_alloc=0; alloced=0; 
     str_charset= &my_charset_bin; 
   }
   String(uint32 length_arg)
@@ -48,23 +48,24 @@ public:
   }
   String(const char *str, CHARSET_INFO *cs)
   { 
-    Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
+    Ptr=(char*) str; str_length= (uint32) strlen(str);
+    Alloced_length= extra_alloc= 0; alloced=0;
     str_charset=cs;
   }
   String(const char *str,uint32 len, CHARSET_INFO *cs)
   { 
-    Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;
+    Ptr=(char*) str; str_length=len; Alloced_length= extra_alloc=0; alloced=0;
     str_charset=cs;
   }
   String(char *str,uint32 len, CHARSET_INFO *cs)
   { 
-    Ptr=(char*) str; Alloced_length=str_length=len; alloced=0;
+    Ptr=(char*) str; Alloced_length=str_length=len; extra_alloc= 0; alloced=0;
     str_charset=cs;
   }
   String(const String &str)
   { 
     Ptr=str.Ptr ; str_length=str.str_length ;
-    Alloced_length=str.Alloced_length; alloced=0; 
+    Alloced_length=str.Alloced_length; extra_alloc= 0; alloced=0; 
     str_charset=str.str_charset;
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
