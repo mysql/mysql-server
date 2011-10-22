@@ -1018,7 +1018,7 @@ public:
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
   virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
-  virtual bool covering_keys_processor(uchar *arg) { return 0; }
+  virtual bool update_table_bitmaps_processor(uchar *arg) { return 0; }
   virtual bool view_used_tables_processor(uchar *arg) { return 0; }
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
   virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
@@ -1817,11 +1817,20 @@ public:
   bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
   bool is_null() { return field->is_null(); }
   void update_null_value();
-  void update_used_tables() 
+  void update_table_bitmaps()
   {
     if (field && field->table)
-      field->table->covering_keys.intersect(field->part_of_key);
+    {
+      TABLE *tab= field->table;
+      tab->covering_keys.intersect(field->part_of_key);
+      tab->merge_keys.merge(field->part_of_key);
+      if (tab->read_set)
+        bitmap_fast_test_and_set(tab->read_set, field->field_index);
+      if (field->vcol_info)
+        tab->mark_virtual_col(field);
+    }  
   }
+  void update_used_tables() { update_table_bitmaps(); }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);
@@ -1833,7 +1842,7 @@ public:
   bool vcol_in_partition_func_processor(uchar *bool_arg);
   bool check_vcol_func_processor(uchar *arg) { return FALSE;}
   bool enumerate_field_refs_processor(uchar *arg);
-  bool covering_keys_processor(uchar *arg);
+  bool update_table_bitmaps_processor(uchar *arg);
   void cleanup();
   Item_equal *get_item_equal() { return item_equal; }
   void set_item_equal(Item_equal *item_eq) { item_equal= item_eq; }

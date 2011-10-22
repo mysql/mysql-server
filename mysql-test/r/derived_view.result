@@ -1576,4 +1576,59 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
 DROP VIEW v1,v2;
 DROP TABLE t1,t2;
+#
+# Bug #743378: join over merged view employing BNL
+#
+CREATE TABLE t1 ( d varchar(1) NOT NULL) ;
+INSERT INTO t1 VALUES ('j'),('v'),('c');
+CREATE TABLE t2 (h time NOT NULL, d varchar(1) NOT NULL) ;
+INSERT INTO t2 VALUES ('05:03:03','w'),('02:59:24','d'),('00:01:58','e');
+CREATE TABLE t3 (
+b int NOT NULL, e varchar(1) NOT NULL, d varchar(1) NOT NULL, KEY (e,b)
+);
+INSERT INTO t3 VALUES (4,'x','x'),(9,'w','w'),(4,'d','d'),(8,'e','e');
+CREATE TABLE t4 (i int NOT NULL, m varchar(1) NOT NULL) ;
+INSERT INTO t4 VALUES (8,'m'),(9,'d'),(2,'s'),(4,'r'),(8,'m');
+CREATE TABLE t5 (
+a int NOT NULL, c int NOT NULL, b int NOT NULL, f date NOT NULL,
+g date NOT NULL, h time NOT NULL, j time NOT NULL, k datetime NOT NULL
+);
+INSERT INTO t5 VALUES
+(1,4,0,'0000-00-00','0000-00-00','21:22:34','21:22:34','2002-02-13 17:30'),
+(2,6,8,'2004-09-18','2004-09-18','10:50:38','10:50:38','2008-09-27 00:34');
+CREATE VIEW v3 AS SELECT t3.*, t4.i FROM t3, t4, t5;
+SET SESSION join_cache_level = 1;
+SET SESSION join_buffer_size = 512;
+EXPLAIN
+SELECT t2.d FROM t1,t2,v3 WHERE v3.e = t2.d AND v3.i < 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t3	ref	e	e	3	test.t2.d	1	Using index
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
+SELECT t2.d FROM t1,t2,v3 WHERE v3.e = t2.d AND v3.i < 3;
+d
+w
+d
+e
+w
+d
+e
+w
+d
+e
+w
+d
+e
+w
+d
+e
+w
+d
+e
+SET SESSION join_cache_level = DEFAULT;
+SET SESSION join_buffer_size = DEFAULT;
+DROP VIEW v3;
+DROP TABLE t1,t2,t3,t4,t5;
 set optimizer_switch=@exit_optimizer_switch;

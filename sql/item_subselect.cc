@@ -492,7 +492,7 @@ void Item_subselect::recalc_used_tables(st_select_lex *new_parent,
           upper->item->walk(&Item::enumerate_field_refs_processor, FALSE,
                             (uchar*)&fixer);
           used_tables_cache |= fixer.used_tables;
-          upper->item->walk(&Item::covering_keys_processor, FALSE, NULL);
+          upper->item->walk(&Item::update_table_bitmaps_processor, FALSE, NULL);
 /*
           if (after_pullout)
             upper->item->fix_after_pullout(new_parent, &(upper->item));

@@ -2172,10 +2172,9 @@ bool Item_field::enumerate_field_refs_processor(uchar *arg)
   return FALSE;
 }
 
-bool Item_field::covering_keys_processor(uchar *arg)
+bool Item_field::update_table_bitmaps_processor(uchar *arg)
 {
-  if (field && field->table)
-    field->table->covering_keys.intersect(field->part_of_key);
+  update_table_bitmaps();
   return FALSE;
 }
 
