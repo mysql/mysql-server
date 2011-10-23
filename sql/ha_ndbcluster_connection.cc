@@ -367,10 +367,10 @@ ndb_transid_mysql_connection_map_fill_table(THD* thd, TABLE_LIST* tables, COND* 
           table->field[2]->set_notnull();
           table->field[2]->store(p->getNextTransactionId(), true);
           schema_table_store_record(thd, table);
-          p = g_pool[i]->get_next_ndb_object(p);
         }
-        g_pool[i]->unlock_ndb_objects();
+        p = g_pool[i]->get_next_ndb_object(p);
       }
+      g_pool[i]->unlock_ndb_objects();
     }
   }
 
