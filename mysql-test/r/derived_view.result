@@ -1631,4 +1631,74 @@ SET SESSION join_cache_level = DEFAULT;
 SET SESSION join_buffer_size = DEFAULT;
 DROP VIEW v3;
 DROP TABLE t1,t2,t3,t4,t5;
+#
+# Bug #879882: right join within mergeable derived table
+#
+CREATE TABLE t1 (a varchar(1));
+INSERT INTO t1 VALUES ('c'), ('a');
+CREATE TABLE t2 (a int, b int, c varchar(1));
+INSERT INTO t2 VALUES (29,8,'c'), (39,7,'b');
+CREATE TABLE t3 (b int);
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b AND t.c = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on(multiple equal(NULL, `test`.`t2`.`a`)) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and `test`.`t2`.`b`)
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b AND t.c = t1.a;
+b	c	a
+8	c	c
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b <> 0 AND t.c = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on(multiple equal(NULL, `test`.`t2`.`a`)) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t2`.`b` <> 0))
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b <> 0 AND t.c = t1.a;
+b	c	a
+8	c	c
+INSERT INTO t3 VALUES (100), (200);
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b AND t.c = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`b` = `test`.`t2`.`a`)) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and `test`.`t2`.`b`)
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b AND t.c = t1.a;
+b	c	a
+8	c	c
+EXPLAIN EXTENDED
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b <> 0 AND t.c = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`b` = `test`.`t2`.`a`)) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t2`.`b` <> 0))
+SELECT t.b, t.c, t1.a
+FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
+WHERE t.b <> 0 AND t.c = t1.a;
+b	c	a
+8	c	c
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@exit_optimizer_switch;

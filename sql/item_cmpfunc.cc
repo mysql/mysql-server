@@ -4195,6 +4195,7 @@ Item_cond::eval_not_null_tables(uchar *opt_arg)
 {
   Item *item;
   List_iterator<Item> li(list);
+  not_null_tables_cache= (table_map) 0;
   and_tables_cache= ~(table_map) 0;
   while ((item=li++))
   {
