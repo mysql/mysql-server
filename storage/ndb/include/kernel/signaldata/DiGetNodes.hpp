@@ -65,7 +65,7 @@ private:
   Uint32 distr_key_indicator;
   Uint32 unused;
   union {
-    void * jamBuffer;
+    void * jamBufferPtr;
     Uint32 jamBufferStorage[2];
   };
 };
