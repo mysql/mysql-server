@@ -2090,7 +2090,7 @@ transactions.
     if (aSignal->getLength() == TcRollbackRep::SignalLength)
     {
       // Signal may contain additional error data
-      theError.details = (char *) aSignal->readData(5);
+      theError.details = (char *)UintPtr(aSignal->readData(5));
     }
 
     /**********************************************************************/
