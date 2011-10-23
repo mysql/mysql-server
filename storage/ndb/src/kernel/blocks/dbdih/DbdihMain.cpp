@@ -9023,7 +9023,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   Uint32 fragId, newFragId = RNIL;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
-  EmulatedJamBuffer * jambuf = * (EmulatedJamBuffer**)(req->jamBuffer);
+  EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
   thrjamEntry(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
