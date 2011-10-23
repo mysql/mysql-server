@@ -594,9 +594,8 @@ err_len:
 }
 
 /********************************************************************//**
-Determine the flags of a table described in SYS_TABLES.
-@return compressed page size in kilobytes; or 0 if the tablespace is
-uncompressed, ULINT_UNDEFINED on error */
+Determine the flags of a table as stored in SYS_TABLES.TYPE and N_COLS.
+@return  ULINT_UNDEFINED if error, else a valid dict_table_t::flags. */
 static
 ulint
 dict_sys_tables_get_flags(
@@ -605,54 +604,30 @@ dict_sys_tables_get_flags(
 {
 	const byte*	field;
 	ulint		len;
+	ulint		type;
 	ulint		n_cols;
-	ulint		flags;
 
-	field = rec_get_nth_field_old(rec, 5, &len);
+	/* read the 4 byte flags from the TYPE field */
+	field = rec_get_nth_field_old(rec, 5/*TYPE*/, &len);
 	ut_a(len == 4);
+	type = mach_read_from_4(field);
 
-	flags = mach_read_from_4(field);
-
-	if (UNIV_LIKELY(flags == DICT_TABLE_ORDINARY)) {
-		return(0);
-	}
-
+	/* The low order bit of SYS_TABLES.TYPE is always set to 1. If no
+	other bits are used, that is defined as SYS_TABLE_TYPE_ANTELOPE.
+	But in dict_table_t::flags the low order bit is used to determine
+	if the row format is Redundant or Compact when the format is
+	Antelope.
+	Read the 4 byte N_COLS field and look at the high order bit.  It
+	should be set for COMPACT and later.  It should not be set for
+	REDUNDANT. */
 	field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
+	ut_a(len == 4);
 	n_cols = mach_read_from_4(field);
 
-	if (UNIV_UNLIKELY(!(n_cols & DICT_N_COLS_COMPACT))) {
-		/* New file formats require ROW_FORMAT=COMPACT. */
-		return(ULINT_UNDEFINED);
-	}
-
-	switch (flags & (DICT_TF_FORMAT_MASK | DICT_TF_COMPACT)) {
-	default:
-	case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
-	case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
-		/* flags should be DICT_TABLE_ORDINARY,
-		or DICT_TF_FORMAT_MASK should be nonzero. */
-		return(ULINT_UNDEFINED);
-
-	case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
-#if UNIV_FORMAT_MAX > UNIV_FORMAT_B
-# error "missing case labels for UNIV_FORMAT_B .. UNIV_FORMAT_MAX"
-#endif
-		/* We support this format. */
-		break;
-	}
-
-	if (UNIV_UNLIKELY((flags & DICT_TF_ZSSIZE_MASK)
-			  > (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT))) {
-		/* Unsupported compressed page size. */
-		return(ULINT_UNDEFINED);
-	}
-
-	if (UNIV_UNLIKELY(flags & ~DICT_TF_BIT_MASK)) {
-		/* Some unused bits are set. */
-		return(ULINT_UNDEFINED);
-	}
-
-	return(flags);
+	/* This validation function also combines the DICT_N_COLS_COMPACT
+	flag in n_cols into the type field to effectively make it a
+	dict_table_t::flags. */
+	return(dict_sys_tables_type_validate(type, n_cols));
 }
 
 /********************************************************************//**
@@ -723,13 +698,14 @@ loop:
 		ulint		flags;
 		char*		name;
 
-		field = rec_get_nth_field_old(rec, 0, &len);
+		field = rec_get_nth_field_old(rec, 0/*NAME*/, &len);
 		name = mem_strdupl((char*) field, len);
 
 		flags = dict_sys_tables_get_flags(rec);
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-
-			field = rec_get_nth_field_old(rec, 5, &len);
+			/* Read again the 4 bytes from rec. */
+			field = rec_get_nth_field_old(rec, 5/*TYPE*/, &len);
+			ut_ad(len == 4); /* this was checked earlier */
 			flags = mach_read_from_4(field);
 
 			ut_print_timestamp(stderr);
@@ -743,7 +719,7 @@ loop:
 			goto loop;
 		}
 
-		field = rec_get_nth_field_old(rec, 9, &len);
+		field = rec_get_nth_field_old(rec, 9/*SPACE*/, &len);
 		ut_a(len == 4);
 
 		space_id = mach_read_from_4(field);
@@ -760,13 +736,14 @@ loop:
 			Do not print warnings for temporary tables. */
 			ibool	is_temp;
 
-			field = rec_get_nth_field_old(rec, 4, &len);
+			field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
 			if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
 				/* ROW_FORMAT=COMPACT: read the is_temp
 				flag from SYS_TABLES.MIX_LEN. */
-				field = rec_get_nth_field_old(rec, 7, &len);
-				is_temp = mach_read_from_4(field)
-					& DICT_TF2_TEMPORARY;
+				field = rec_get_nth_field_old(
+					rec, 7/*MIX_LEN*/, &len);
+				is_temp = !!(mach_read_from_4(field)
+					     & DICT_TF2_TEMPORARY);
 			} else {
 				/* For tables created with old versions
 				of InnoDB, SYS_TABLES.MIX_LEN may contain
@@ -784,8 +761,9 @@ loop:
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
-			fil_open_single_table_tablespace(FALSE, space_id,
-							 flags, name);
+			fil_open_single_table_tablespace(
+				FALSE, space_id,
+				dict_tf_to_fsp_flags(flags), name);
 		}
 
 		mem_free(name);
@@ -1540,7 +1518,7 @@ dict_load_table_low(
 	ulint		space;
 	ulint		n_cols;
 	ulint		flags = 0;
-	ulint		flags2 = 0;
+	ulint		flags2;
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 		return("delete-marked record in SYS_TABLES");
@@ -1586,10 +1564,13 @@ err_len:
 		goto err_len;
 	}
 
-	rec_get_nth_field_offs_old(rec, 7/*MIX_LEN*/, &len);
+	field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
 	if (UNIV_UNLIKELY(len != 4)) {
 		goto err_len;
 	}
+
+	/* MIX_LEN may hold additional flags in post-antelope file formats. */
+	flags2 = mach_read_from_4(field);
 
 	rec_get_nth_field_offs_old(rec, 8/*CLUSTER_ID*/, &len);
 	if (UNIV_UNLIKELY(len != UNIV_SQL_NULL)) {
@@ -1605,37 +1586,27 @@ err_len:
 	space = mach_read_from_4(field);
 
 	/* Check if the tablespace exists and has the right name */
-	if (space != 0) {
-		flags = dict_sys_tables_get_flags(rec);
+	flags = dict_sys_tables_get_flags(rec);
 
-		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-			field = rec_get_nth_field_old(rec, 5/*TYPE*/, &len);
-			ut_ad(len == 4); /* this was checked earlier */
-			flags = mach_read_from_4(field);
+	if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
+		field = rec_get_nth_field_old(rec, 5/*TYPE*/, &len);
+		ut_ad(len == 4); /* this was checked earlier */
+		flags = mach_read_from_4(field);
 
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: table ", stderr);
-			ut_print_filename(stderr, name);
-			fprintf(stderr, "\n"
-				"InnoDB: in InnoDB data dictionary"
-				" has unknown type %lx.\n",
-				(ulong) flags);
-			return("incorrect flags in SYS_TABLES");
-		}
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: table ", stderr);
+		ut_print_filename(stderr, name);
+		fprintf(stderr, "\n"
+			"InnoDB: in InnoDB data dictionary"
+			" has unknown type %lx.\n",
+			(ulong) flags);
+		return("incorrect flags in SYS_TABLES");
 	}
 
 	/* The high-order bit of N_COLS is the "compact format" flag.
 	For tables in that format, MIX_LEN may hold additional flags. */
 	if (n_cols & DICT_N_COLS_COMPACT) {
-		flags |= DICT_TF_COMPACT;
-
-		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
-
-		if (UNIV_UNLIKELY(len != 4)) {
-			goto err_len;
-		}
-
-		flags2 = mach_read_from_4(field);
+		ut_ad(flags & DICT_TF_COMPACT);
 
 		if (flags2 & ~DICT_TF2_BIT_MASK) {
 			ut_print_timestamp(stderr);
@@ -1646,8 +1617,13 @@ err_len:
 				" has unknown flags %lx.\n",
 				(ulong) flags2);
 
+			/* Clean it up and keep going */
 			flags2 &= DICT_TF2_BIT_MASK;
 		}
+	} else {
+		/* Do not trust the MIX_LEN field when the
+		row format is Redundant. */
+		flags2 = 0;
 	}
 
 	/* See if the tablespace is available. */
@@ -1773,8 +1749,8 @@ err_exit:
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
 				TRUE, table->space,
-				table->flags == DICT_TF_COMPACT ? 0 :
-				table->flags, name)) {
+				dict_tf_to_fsp_flags(table->flags),
+				name)) {
 				/* We failed to find a sensible
 				tablespace file */
 

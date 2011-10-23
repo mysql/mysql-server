@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -211,7 +211,8 @@ struct fil_space_struct {
 				tablespace whose size we do not know yet;
 				last incomplete megabytes in data files may be
 				ignored if space == 0 */
-	ulint		flags;	/*!< compressed page size and file format, or 0 */
+	ulint		flags;	/*!< tablespace flags; see
+				fsp_flags_validate(), fsp_flags_get_zip_size() */
 	ulint		n_reserved_extents;
 				/*!< number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -802,12 +803,12 @@ fil_node_open_file(
 			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 
-		if (!(flags & DICT_TF_ZSSIZE_MASK)) {
+		if (!fsp_flags_is_compressed(flags)) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 		} else {
 			node->size = (ulint)
 				(size_bytes
-				 / dict_table_flags_to_zip_size(flags));
+				 / fsp_flags_get_zip_size(flags));
 		}
 
 #ifdef UNIV_HOTBACKUP
@@ -1162,8 +1163,9 @@ fil_space_truncate_start(
 #endif /* UNIV_LOG_ARCHIVE */
 
 /*******************************************************************//**
-Creates a space memory object and puts it to the tablespace memory cache. If
-there is an error, prints an error message to the .err log.
+Creates a tablespace memory object and puts it to the tablespace memory
+cache.  If there is an error, prints an error message to the .err log.
+This function is not called for the system tablespace.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
@@ -1171,18 +1173,12 @@ fil_space_create(
 /*=============*/
 	const char*	name,	/*!< in: space name */
 	ulint		id,	/*!< in: space id */
-	ulint		flags,	/*!< in: compressed page size
-				and file format, or 0 */
+	ulint		flags,	/*!< in: tablespace flags */
 	ulint		purpose)/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_space_t*	space;
 
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
-	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	fsp_flags_validate(flags);
 
 try_again:
 	/*printf(
@@ -1560,7 +1556,7 @@ fil_space_get_zip_size(
 
 	if (flags && flags != ULINT_UNDEFINED) {
 
-		return(dict_table_flags_to_zip_size(flags));
+		return(fsp_flags_get_zip_size(flags));
 	}
 
 	return(flags);
@@ -2726,12 +2722,7 @@ fil_create_new_single_table_tablespace(
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
-	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	fsp_flags_validate(flags);
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -2830,16 +2821,14 @@ error_exit2:
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
-	if (!(flags & DICT_TF_ZSSIZE_MASK)) {
+	if (!(fsp_flags_is_compressed(flags))) {
 		buf_flush_init_for_writing(page, NULL, 0);
 		ret = os_file_write(path, file, page, 0, UNIV_PAGE_SIZE);
 	} else {
 		page_zip_des_t	page_zip;
 		ulint		zip_size;
 
-		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
-			    << ((flags & DICT_TF_ZSSIZE_MASK)
-				>> DICT_TF_ZSSIZE_SHIFT));
+		zip_size = fsp_flags_get_zip_size(flags);
 
 		page_zip_set_size(&page_zip, zip_size);
 		page_zip.data = page + UNIV_PAGE_SIZE;
@@ -3112,12 +3101,7 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
-	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	fsp_flags_validate(flags);
 
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -3966,7 +3950,7 @@ retry:
 		return(TRUE);
 	}
 
-	page_size = dict_table_flags_to_zip_size(space->flags);
+	page_size = fsp_flags_get_zip_size(space->flags);
 	if (!page_size) {
 		page_size = UNIV_PAGE_SIZE;
 	}
@@ -4110,7 +4094,7 @@ fil_extend_tablespaces_to_stored_len(void)
 					      mutex, because this is a
 					      single-threaded operation */
 		error = fil_read(TRUE, space->id,
-				 dict_table_flags_to_zip_size(space->flags),
+				 fsp_flags_get_zip_size(space->flags),
 				 0, 0, UNIV_PAGE_SIZE, buf, NULL);
 		ut_a(error == DB_SUCCESS);
 
