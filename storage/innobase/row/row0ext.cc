@@ -91,7 +91,7 @@ row_ext_create(
 	mem_heap_t*	heap)	/*!< in: heap where created */
 {
 	ulint		i;
-	ulint		zip_size = dict_table_flags_to_zip_size(flags);
+	ulint		zip_size = dict_tf_get_zip_size(flags);
 
 	row_ext_t*	ret;
 

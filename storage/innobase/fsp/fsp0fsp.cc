@@ -83,7 +83,7 @@ descriptor page, but used only in the first. */
 					about the first extent, but have not
 					physically allocted those pages to the
 					file */
-#define	FSP_SPACE_FLAGS		16	/* table->flags & ~DICT_TF_COMPACT */
+#define	FSP_SPACE_FLAGS		16	/* fil_space_t::flags */
 #define	FSP_FRAG_N_USED		20	/* number of used pages in the
 					FSP_FREE_FRAG list */
 #define	FSP_FREE		24	/* list of free extents */
@@ -232,7 +232,7 @@ the extent are free and which contain old tuple version to clean. */
 #define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
 
 #ifndef UNIV_HOTBACKUP
-/* Flag to indicate if we have printed the tablespace full error. */
+/** Flag to indicate if we have printed the tablespace full error. */
 static ibool fsp_tbs_full_error_printed = FALSE;
 
 /**********************************************************************//**
@@ -381,7 +381,7 @@ fsp_get_space_header(
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 	ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
-	ut_ad(zip_size == dict_table_flags_to_zip_size(
+	ut_ad(zip_size == fsp_flags_get_zip_size(
 		      mach_read_from_4(FSP_SPACE_FLAGS + header)));
 	return(header);
 }
@@ -734,7 +734,7 @@ xdes_get_descriptor_with_space_hdr(
 	/* Read free limit and space size */
 	limit = mach_read_from_4(sp_header + FSP_FREE_LIMIT);
 	size  = mach_read_from_4(sp_header + FSP_SIZE);
-	zip_size = dict_table_flags_to_zip_size(
+	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(sp_header + FSP_SPACE_FLAGS));
 
 	/* If offset is >= size or > limit, return NULL */
@@ -941,11 +941,7 @@ fsp_header_init_fields(
 	ulint	flags)		/*!< in: tablespace flags (FSP_SPACE_FLAGS):
 				0, or table->flags if newer than COMPACT */
 {
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
-	ut_a(flags != DICT_TF_COMPACT);
+	fsp_flags_validate(flags);
 
 	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page,
 			space_id);
@@ -975,7 +971,7 @@ fsp_header_init(
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
 
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 	block = buf_page_create(space, 0, zip_size, mtr);
 	buf_page_get(space, zip_size, 0, RW_X_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
@@ -1070,7 +1066,7 @@ fsp_header_get_zip_size(
 {
 	ulint	flags = fsp_header_get_flags(page);
 
-	return(dict_table_flags_to_zip_size(flags));
+	return(fsp_flags_get_zip_size(flags));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1093,7 +1089,7 @@ fsp_header_inc_size(
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
 
 	header = fsp_get_space_header(space,
-				      dict_table_flags_to_zip_size(flags),
+				      fsp_flags_get_zip_size(flags),
 				      mtr);
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
@@ -1208,7 +1204,7 @@ fsp_try_extend_data_file(
 	}
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
-	zip_size = dict_table_flags_to_zip_size(
+	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(header + FSP_SPACE_FLAGS));
 
 	old_size = size;
@@ -1332,7 +1328,7 @@ fsp_fill_free_list(
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, mtr);
 
-	zip_size = dict_table_flags_to_zip_size(
+	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + header));
 	ut_a(ut_is_2pow(zip_size));
 	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
@@ -1892,7 +1888,7 @@ fsp_alloc_seg_inode_page(
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
 	space = page_get_space_id(page_align(space_header));
-	zip_size = dict_table_flags_to_zip_size(
+	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
 
 	page_no = fsp_alloc_free_page(space, zip_size, 0, mtr, mtr);
@@ -1958,7 +1954,7 @@ fsp_alloc_seg_inode(
 
 	page_no = flst_get_first(space_header + FSP_SEG_INODES_FREE, mtr).page;
 
-	zip_size = dict_table_flags_to_zip_size(
+	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + space_header));
 	block = buf_page_get(page_get_space_id(page_align(space_header)),
 			     zip_size, page_no, RW_X_LATCH, mtr);
@@ -2247,7 +2243,7 @@ fseg_create_general(
 	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
 
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	if (page != 0) {
 		block = buf_page_get(space, zip_size, page, RW_X_LATCH, mtr);
@@ -2408,7 +2404,7 @@ fseg_n_reserved_pages(
 
 	space = page_get_space_id(page_align(header));
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -2779,7 +2775,7 @@ got_hinted_page:
 		can be obtained immediately with buf_page_get without need
 		for a disk read */
 		buf_block_t*	block;
-		ulint		zip_size = dict_table_flags_to_zip_size(
+		ulint		zip_size = fsp_flags_get_zip_size(
 			mach_read_from_4(FSP_SPACE_FLAGS + space_header));
 		mtr_t*		block_mtr = init_mtr ? init_mtr : mtr;
 
@@ -2856,7 +2852,7 @@ fseg_alloc_free_page_general(
 
 	latch = fil_space_get_latch(space, &flags);
 
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -2983,7 +2979,7 @@ fsp_reserve_free_extents(
 	*n_reserved = n_ext;
 
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -3120,7 +3116,7 @@ fsp_get_available_space_in_free_extents(
 	by another thread. However, the tablespace pages can still be freed
 	from the buffer pool. We need to check for that again. */
 
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	mtr_x_lock(latch, &mtr);
 
@@ -3412,7 +3408,7 @@ fseg_free_page(
 	rw_lock_t*	latch;
 
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -3527,7 +3523,7 @@ fseg_free_step(
 	header_page = page_get_page_no(page_align(header));
 
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -3608,7 +3604,7 @@ fseg_free_step_not_header(
 	space = page_get_space_id(page_align(header));
 
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	mtr_x_lock(latch, mtr);
 
@@ -3731,7 +3727,7 @@ fseg_validate_low(
 
 		mtr_start(&mtr);
 		mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
-		zip_size = dict_table_flags_to_zip_size(flags);
+		zip_size = fsp_flags_get_zip_size(flags);
 
 		descr = xdes_lst_get_descriptor(space, zip_size,
 						node_addr, &mtr);
@@ -3754,7 +3750,7 @@ fseg_validate_low(
 
 		mtr_start(&mtr);
 		mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
-		zip_size = dict_table_flags_to_zip_size(flags);
+		zip_size = fsp_flags_get_zip_size(flags);
 
 		descr = xdes_lst_get_descriptor(space, zip_size,
 						node_addr, &mtr);
@@ -3780,7 +3776,7 @@ fseg_validate_low(
 
 		mtr_start(&mtr);
 		mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
-		zip_size = dict_table_flags_to_zip_size(flags);
+		zip_size = fsp_flags_get_zip_size(flags);
 
 		descr = xdes_lst_get_descriptor(space, zip_size,
 						node_addr, &mtr);
@@ -3818,7 +3814,7 @@ fseg_validate(
 	space = page_get_space_id(page_align(header));
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	inode = fseg_inode_get(header, space, zip_size, mtr);
 
@@ -3894,7 +3890,7 @@ fseg_print(
 	space = page_get_space_id(page_align(header));
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	inode = fseg_inode_get(header, space, zip_size, mtr);
 
@@ -3934,7 +3930,7 @@ fsp_validate(
 	ulint		seg_inode_len_full;
 
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 	ut_a(ut_is_2pow(zip_size));
 	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
@@ -4184,7 +4180,7 @@ fsp_print(
 	mtr_t		mtr2;
 
 	latch = fil_space_get_latch(space, &flags);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	/* Start first a mini-transaction mtr2 to lock out all other threads
 	from the fsp system */

@@ -61,6 +61,7 @@ dict_create_sys_tables_tuple(
 	dtuple_t*	entry;
 	dfield_t*	dfield;
 	byte*		ptr;
+	ulint		type;
 
 	ut_ad(table);
 	ut_ad(heap);
@@ -87,10 +88,6 @@ dict_create_sys_tables_tuple(
 	/* 4: N_COLS ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 2/*N_COLS*/);
 
-#if DICT_TF_COMPACT != 1
-#error
-#endif
-
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
 	mach_write_to_4(ptr, table->n_def
 			| ((table->flags & DICT_TF_COMPACT) << 31));
@@ -100,16 +97,12 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 3/*TYPE*/);
 
 	ptr = static_cast<byte*>(mem_heap_alloc(heap, 4));
-	if (table->flags & ~DICT_TF_COMPACT) {
-		ut_a(table->flags & DICT_TF_COMPACT);
-		ut_a(dict_table_get_format(table) >= UNIV_FORMAT_B);
-		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
-		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
-		ut_a(!(table->flags & ~DICT_TF_BIT_MASK));
-		mach_write_to_4(ptr, table->flags & DICT_TF_BIT_MASK);
-	} else {
-		mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
-	}
+
+	/* Validate the table flags and convert them to what is saved in
+	SYS_TABLES.TYPE.  Table flag values 0 and 1 are both written to
+	SYS_TABLES.TYPE as 1. */
+	type = dict_tf_to_sys_tables_type(table->flags);
+	mach_write_to_4(ptr, type);
 
 	dfield_set_data(dfield, ptr, 4);
 
@@ -243,7 +236,6 @@ dict_build_table_def_step(
 	dict_table_t*	table;
 	dtuple_t*	row;
 	ulint		error;
-	ulint		flags;
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
@@ -298,11 +290,9 @@ dict_build_table_def_step(
 		ut_ad(!dict_table_zip_size(table)
 		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
-		flags = table->flags;
-		ut_a(!(flags & ~DICT_TF_BIT_MASK));
 		error = fil_create_new_single_table_tablespace(
 			space, path_or_name, is_path,
-			flags == DICT_TF_COMPACT ? 0 : flags,
+			dict_tf_to_fsp_flags(table->flags),
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 

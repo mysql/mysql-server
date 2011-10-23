@@ -1379,7 +1379,7 @@ i_s_cmp_fill_low(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
-	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
+	for (uint i = 0; i < PAGE_ZIP_SSIZE_MAX; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 
 		table->field[0]->store(UNIV_ZIP_SIZE_MIN << i);
