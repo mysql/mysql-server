@@ -3827,7 +3827,9 @@ add_key_field(JOIN *join,
   uint optimize= 0;  
   if (eq_func &&
       ((join->is_allowed_hash_join_access() &&
-        field->hash_join_is_possible()) ||
+        field->hash_join_is_possible() && 
+        !(field->table->pos_in_table_list->is_materialized_derived() &&
+          field->table->created)) ||
        (field->table->pos_in_table_list->is_materialized_derived() &&
         !field->table->created)))
   {

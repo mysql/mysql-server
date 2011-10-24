@@ -1107,5 +1107,38 @@ FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug #880724: materialized const view as inner table of outer join
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1));
+INSERT INTO t1 VALUES (9,NULL), (6,'r'), (7,'c');
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (6);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+
+SET SESSION optimizer_switch = 'derived_with_keys=on';
+SET SESSION join_cache_level = 4;
+
+EXPLAIN
+SELECT t1.b,v2.a  FROM t1 LEFT JOIN v2 ON v2.a = t1.a;
+SELECT t1.b,v2.a  FROM t1 LEFT JOIN v2 ON v2.a = t1.a;
+
+CREATE TABLE t3 (a int, b varchar(1));
+INSERT INTO t3 VALUES (8,'x'), (5,'r'), (9,'y');
+
+EXPLAIN
+SELECT * FROM t3
+  WHERE t3.b <> ANY (SELECT t1.b  FROM t1 LEFT JOIN v2 ON v2.a = t1.a);
+SELECT * FROM t3
+  WHERE t3.b <> ANY (SELECT t1.b  FROM t1 LEFT JOIN v2 ON v2.a = t1.a);
+
+SET SESSION join_cache_level = default;
+
+DROP VIEW v2;
+DROP TABLE t1,t2,t3;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;

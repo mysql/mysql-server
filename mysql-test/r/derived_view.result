@@ -1701,4 +1701,44 @@ WHERE t.b <> 0 AND t.c = t1.a;
 b	c	a
 8	c	c
 DROP TABLE t1,t2,t3;
+#
+# Bug #880724: materialized const view as inner table of outer join
+#
+CREATE TABLE t1 (a int, b varchar(1));
+INSERT INTO t1 VALUES (9,NULL), (6,'r'), (7,'c');
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (6);
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t2;
+SET SESSION optimizer_switch = 'derived_with_keys=on';
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT t1.b,v2.a  FROM t1 LEFT JOIN v2 ON v2.a = t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	1	Using where
+2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT t1.b,v2.a  FROM t1 LEFT JOIN v2 ON v2.a = t1.a;
+b	a
+NULL	NULL
+r	6
+c	NULL
+CREATE TABLE t3 (a int, b varchar(1));
+INSERT INTO t3 VALUES (8,'x'), (5,'r'), (9,'y');
+EXPLAIN
+SELECT * FROM t3
+WHERE t3.b <> ANY (SELECT t1.b  FROM t1 LEFT JOIN v2 ON v2.a = t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	1	Using where
+3	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t3
+WHERE t3.b <> ANY (SELECT t1.b  FROM t1 LEFT JOIN v2 ON v2.a = t1.a);
+a	b
+8	x
+5	r
+9	y
+SET SESSION join_cache_level = default;
+DROP VIEW v2;
+DROP TABLE t1,t2,t3;
 set optimizer_switch=@exit_optimizer_switch;
