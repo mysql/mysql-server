@@ -10073,7 +10073,15 @@ bool JOIN::set_access_methods()
      }
     else
     {
-      if (create_ref_for_key(this, tab, keyuse, used_tables))
+      /*
+        In a materialized semi-join nest, only the inner tables are available.
+        @see make_join_select()
+        @see Item_equal::get_subst_item()
+      */
+      const table_map available_tables=
+        sj_is_materialize_strategy(tab->get_sj_strategy()) ?
+          used_tables & tab->emb_sj_nest->sj_inner_tables : used_tables;
+      if (create_ref_for_key(this, tab, keyuse, available_tables))
         DBUG_RETURN(true);
     }
    }
@@ -10927,6 +10935,8 @@ static bool make_join_select(JOIN *join, Item *cond)
         conditions referring to preceding non-const tables.
          - If we're looking at the first SJM table, reset used_tables
            to refer to only allowed tables
+        @see create_ref_for_key()
+        @see Item_equal::get_subst_item()
       */
       if (sj_is_materialize_strategy(tab->get_sj_strategy()) &&
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))
@@ -14362,6 +14372,8 @@ Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
         against the first item within the SJM nest (if the item is not the first
         item within the SJM nest), or match against the first item in the
         list (if the item is the first one in the SJM nest).
+        @see create_ref_for_key()
+        @see make_join_select()
       */
       head= item_const ? item_const : item_equal->get_subst_item(item_field);
       if (head == item_field)                   // First item in SJM nest
