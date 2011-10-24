@@ -45,3 +45,6 @@ CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   EXTRA_FILES src/main/resources/META-INF
               src/main/resources/schema.sql
   BROKEN_JAVAC ${BROKEN_JAVAC})
+
+INSTALL(FILES clusterj-test-${MYSQL_CLUSTER_VERSION}.jar
+        DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)
