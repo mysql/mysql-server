@@ -599,15 +599,17 @@ MgmApiSession::getConfig(Parser_t::Context &,
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->print("\n");
 
+  unsigned len = (unsigned)strlen(pack64.c_str());
   if(ERROR_INSERTED(3))
   {
     // Return only half the packed config
     BaseString half64 = pack64.substr(0, pack64.length());
-    m_output->println(half64.c_str());
+    m_output->write(half64.c_str(), (unsigned)strlen(half64.c_str()));
+    m_output->write("\n", 1);
     return;
   }
-  m_output->println(pack64.c_str());
-  m_output->print("\n");
+  m_output->write(pack64.c_str(), len);
+  m_output->write("\n\n", 2);
   return;
 }
 
@@ -1430,9 +1432,20 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
 
       int r;
       if (m_clients[i].m_parsable)
-        r= out.println(str.c_str());
+      {
+        unsigned len = str.length();
+        r= out.write(str.c_str(), len);
+      }
       else
-        r= out.println(pretty_text);
+      {
+        unsigned len = (unsigned)strlen(pretty_text);
+        r= out.write(pretty_text, len);
+      }
+
+      if (! (r < 0))
+      {
+        r = out.write("\n", 1);
+      }
 
       if (r<0)
       {
