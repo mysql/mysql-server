@@ -82,7 +82,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_conflict_trans.cc
 )
 
-# Inlude directories used when building ha_ndbcluster
+# Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)

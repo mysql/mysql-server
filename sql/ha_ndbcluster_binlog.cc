@@ -292,9 +292,9 @@ static void run_query(THD *thd, char *buf, char *end,
 }
 
 static void
-ndbcluster_binlog_close_table(THD *thd, NDB_SHARE *share)
+ndb_binlog_close_shadow_table(THD *thd, NDB_SHARE *share)
 {
-  DBUG_ENTER("ndbcluster_binlog_close_table");
+  DBUG_ENTER("ndb_binlog_close_shadow_table");
   Ndb_event_data *event_data= share->event_data;
   if (event_data)
   {
@@ -2248,6 +2248,7 @@ end:
   Handle _non_ data events from the storage nodes
 */
 
+static
 int
 ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
                          Ndb_event_data *event_data)
@@ -2413,6 +2414,23 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   thd->db= thd_db_save;
 }
 
+
+class Mutex_guard
+{
+public:
+  Mutex_guard(pthread_mutex_t &mutex) : m_mutex(mutex)
+  {
+    pthread_mutex_lock(&m_mutex);
+  };
+  ~Mutex_guard()
+  {
+    pthread_mutex_unlock(&m_mutex);
+  };
+private:
+  pthread_mutex_t &m_mutex;
+};
+
+
 static int
 ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
                                       NdbEventOperation *pOp,
@@ -2466,7 +2484,10 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
       }
 
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
+      {
+        DBUG_ASSERT(false);
         DBUG_RETURN(0);
+      }
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
@@ -2477,17 +2498,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
         */
         post_epoch_log_list->push_back(schema, mem_root);
         DBUG_RETURN(0);
+
       case SOT_ALTER_TABLE_COMMIT:
-        // fall through
       case SOT_RENAME_TABLE_PREPARE:
-        // fall through
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
-        // fall through
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
         post_epoch_log_list->push_back(schema, mem_root);
         post_epoch_unlock_list->push_back(schema, mem_root);
         DBUG_RETURN(0);
-        break;
+
       default:
         break;
       }
@@ -2495,34 +2514,12 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
       if (schema->node_id != node_id)
       {
         int log_query= 0, post_epoch_unlock= 0;
-        char errmsg[MYSQL_ERRMSG_SIZE];
-
+ 
         switch (schema_type)
         {
         case SOT_RENAME_TABLE:
-          // fall through
         case SOT_RENAME_TABLE_NEW:
-        {
-          uint end= (uint)my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                                "NDB Binlog: Skipping renaming locally "
-                                "defined table '%s.%s' from binlog schema "
-                                "event '%s' from node %d. ",
-                                schema->db, schema->name, schema->query,
-                                schema->node_id);
-          errmsg[end]= '\0';
-        }
-        // fall through
         case SOT_DROP_TABLE:
-          if (schema_type == SOT_DROP_TABLE)
-          {
-            uint end= (uint)my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
-                                  "NDB Binlog: Skipping dropping locally "
-                                  "defined table '%s.%s' from binlog schema "
-                                  "event '%s' from node %d. ",
-                                  schema->db, schema->name, schema->query,
-                                  schema->node_id);
-            errmsg[end]= '\0';
-          }
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -2538,9 +2535,15 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           }
           else
           {
-            /* Tables exists as a local table, leave it */
-            DBUG_PRINT("info", ("%s", errmsg));
-            sql_print_error("%s", errmsg);
+            /* Tables exists as a local table, print error and leave it */
+            DBUG_PRINT("info", ("Found local table '%s.%s', leaving it",
+                                schema->db, schema->name));
+            sql_print_error("NDB Binlog: Skipping %sing locally "
+                            "defined table '%s.%s' from binlog schema "
+                            "event '%s' from node %d. ",
+                            (schema_type == SOT_DROP_TABLE ? "dropp" : "renam"),
+                            schema->db, schema->name, schema->query,
+                            schema->node_id);
             log_query= 1;
           }
           // Fall through
@@ -2598,6 +2601,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           }
           log_query= 1;
           break;
+
         case SOT_DROP_DB:
           /* Drop the database locally if it only contains ndb tables */
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -2622,11 +2626,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
             log_query= 1;
           }
           break;
+
         case SOT_CREATE_DB:
-          if (opt_ndb_extra_logging > 9)
-            sql_print_information("SOT_CREATE_DB %s", schema->db);
-          
-          /* fall through */
         case SOT_ALTER_DB:
         {
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -2637,6 +2638,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           log_query= 1;
           break;
         }
+
         case SOT_CREATE_USER:
         case SOT_DROP_USER:
         case SOT_RENAME_USER:
@@ -2657,16 +2659,22 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           log_query= 1;
 	  break;
         }
+
         case SOT_TABLESPACE:
         case SOT_LOGFILE_GROUP:
           log_query= 1;
           break;
+
         case SOT_ALTER_TABLE_COMMIT:
         case SOT_RENAME_TABLE_PREPARE:
         case SOT_ONLINE_ALTER_TABLE_PREPARE:
         case SOT_ONLINE_ALTER_TABLE_COMMIT:
         case SOT_CLEAR_SLOCK:
+          // Impossible to come here, the above types has already
+          // been handled and caused the function to return 
           abort();
+          break;
+
         }
         if (log_query && ndb_binlog_running)
           ndb_binlog_query(thd, schema);
@@ -3046,7 +3054,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             sql_print_information("NDB Binlog: handeling online alter/rename");
 
           pthread_mutex_lock(&share->mutex);
-          ndbcluster_binlog_close_table(thd, share);
+          ndb_binlog_close_shadow_table(thd, share);
 
           if ((error= ndb_binlog_open_shadow_table(thd, share)))
             sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
@@ -5706,8 +5714,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
   Handle error states on events from the storage nodes
 */
 static int
-ndb_binlog_thread_handle_error(Ndb *ndb,
-                               NdbEventOperation *pOp)
+ndb_binlog_thread_handle_error(NdbEventOperation *pOp)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *share= event_data->share;
@@ -5809,13 +5816,13 @@ ndb_binlog_thread_handle_non_data_event(THD *thd,
                         share->key, (long) share, (long) pOp,
                         (long) share->op, (long) share->new_op));
     break;
+
   case NDBEVENT::TE_NODE_FAILURE:
-    /* fall through */
   case NDBEVENT::TE_SUBSCRIBE:
-    /* fall through */
   case NDBEVENT::TE_UNSUBSCRIBE:
     /* ignore */
     return 0;
+
   default:
     sql_print_error("NDB Binlog: unknown non data event %d for %s. "
                     "Ignoring...", (unsigned) type, share->key);
@@ -5927,10 +5934,10 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
       switch(pOp->getEventType())
       {
       case NDBEVENT::TE_INSERT:
-        // fall through
       case NDBEVENT::TE_UPDATE:
         event_has_data = true;
         break;
+
       case NDBEVENT::TE_DELETE:
         break;
       default:
@@ -7085,7 +7092,7 @@ restart_cluster_failure:
           event_count++;
 #endif
           if (pOp->hasError() &&
-              ndb_binlog_thread_handle_error(i_ndb, pOp) < 0)
+              ndb_binlog_thread_handle_error(pOp) < 0)
             goto err;
 
 #ifndef DBUG_OFF
