@@ -2485,7 +2485,11 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
 
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
       {
-        DBUG_ASSERT(false);
+        /**
+         * This happens if there is a schema event on a table (object)
+         *   that this mysqld does not know about.
+         *   E.g it had a local table shadowing a ndb table...
+         */
         DBUG_RETURN(0);
       }
       switch (schema_type)
