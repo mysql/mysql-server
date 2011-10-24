@@ -2601,6 +2601,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           }
           log_query= 1;
           break;
+
         case SOT_DROP_DB:
           /* Drop the database locally if it only contains ndb tables */
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -2625,11 +2626,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
             log_query= 1;
           }
           break;
+
         case SOT_CREATE_DB:
-          if (opt_ndb_extra_logging > 9)
-            sql_print_information("SOT_CREATE_DB %s", schema->db);
-          
-          /* fall through */
         case SOT_ALTER_DB:
         {
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -2640,6 +2638,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           log_query= 1;
           break;
         }
+
         case SOT_CREATE_USER:
         case SOT_DROP_USER:
         case SOT_RENAME_USER:
@@ -2660,16 +2659,22 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           log_query= 1;
 	  break;
         }
+
         case SOT_TABLESPACE:
         case SOT_LOGFILE_GROUP:
           log_query= 1;
           break;
+
         case SOT_ALTER_TABLE_COMMIT:
         case SOT_RENAME_TABLE_PREPARE:
         case SOT_ONLINE_ALTER_TABLE_PREPARE:
         case SOT_ONLINE_ALTER_TABLE_COMMIT:
         case SOT_CLEAR_SLOCK:
+          // Impossible to come here, the above types has already
+          // been handled and caused the function to return 
           abort();
+          break;
+
         }
         if (log_query && ndb_binlog_running)
           ndb_binlog_query(thd, schema);
