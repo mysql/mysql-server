@@ -1160,7 +1160,6 @@ sync_thread_add_level(
 	case SYNC_DOUBLEWRITE:
 	case SYNC_BUF_POOL:
 	case SYNC_SEARCH_SYS:
-	case SYNC_SEARCH_SYS_CONF:
 	case SYNC_TRX_LOCK_HEAP:
 	case SYNC_KERNEL:
 	case SYNC_IBUF_BITMAP_MUTEX:
