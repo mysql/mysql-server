@@ -2160,6 +2160,8 @@ public:
   void cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
+  bool get_best_combination();
+
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -2168,6 +2170,8 @@ private:
   bool implicit_grouping; 
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
   void cleanup_item_list(List<Item> &items) const;
+  void set_semijoin_info();
+  bool set_access_methods();
 };
 
 

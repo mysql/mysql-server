@@ -88,7 +88,6 @@ static int join_tab_cmp_embedded_first(const void *emb, const void* ptr1, const 
 C_MODE_END
 static uint cache_record_length(JOIN *join,uint index);
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
-static bool get_best_combination(JOIN *join);
 static store_key *get_store_key(THD *thd,
 				Key_use *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
@@ -5661,7 +5660,7 @@ const_table_extraction_done:
       DBUG_RETURN(true);
 
   /* Generate an execution plan from the found optimal join order. */
-  if (get_best_combination(join))
+  if (join->get_best_combination())
     DBUG_RETURN(true);
 
   /* Some called function may still set thd->is_fatal_error unnoticed */
@@ -9981,100 +9980,121 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
 }
 
 
-/*
-  Set up join struct according to the picked join order in
-  
-  SYNOPSIS
-    get_best_combination()
-      join  The join to process (the picked join order is mainly in
-            join->best_positions)
+/**
+  Set up JOIN_TAB structs according to the picked join order in best_positions
 
-  DESCRIPTION
-    Setup join structures according the picked join order
+  @return False if success, True if error
+
+  @details
+    - create join->join_tab array and copy from existing JOIN_TABs in join order
     - finalize semi-join strategy choices
-      (see fix_semijoin_strategies_for_picked_join_order)
-    - create join->join_tab array and put there the JOIN_TABs in the join order
     - create data structures describing ref access methods.
-
-  RETURN 
-    FALSE  OK
-    TRUE   Out of memory
 */
 
-static bool get_best_combination(JOIN *join)
+bool JOIN::get_best_combination()
 {
-  table_map used_tables;
-  Key_use *keyuse;
-  const uint table_count= join->tables;
-  THD *thd=join->thd;
-  DBUG_ENTER("get_best_combination");
+  DBUG_ENTER("JOIN::get_best_combination");
 
-  if (!(join->join_tab= new (thd->mem_root) JOIN_TAB[table_count]))
-    DBUG_RETURN(TRUE);
+  if (fix_semijoin_strategies_for_picked_join_order(this))
+    DBUG_RETURN(true);
 
-  join->full_join=0;
+  if (!(join_tab= new (thd->mem_root) JOIN_TAB[tables]))
+    DBUG_RETURN(true);
 
-  used_tables= OUTER_REF_TABLE_BIT;		// Outer row is already read
-
-  if (fix_semijoin_strategies_for_picked_join_order(join))
-    DBUG_RETURN(TRUE);
-
-  for (uint tableno= 0; tableno < table_count; tableno++)
+  for (uint tableno= 0; tableno < tables; tableno++)
   {
-    JOIN_TAB *j= join->join_tab + tableno;
-    TABLE *form;
-    *j= *join->best_positions[tableno].table;
-    form=join->all_tables[tableno]= j->table;
-    used_tables|= form->map;
-    form->reginfo.join_tab=j;
-    if (!*j->on_expr_ref)
-      form->reginfo.not_exists_optimize=0;	// Only with LEFT JOIN
-    DBUG_PRINT("info",("type: %d", j->type));
-
-    if (j->type == JT_CONST)
-      continue;					// Handled in make_join_stat..
-
-    /*
-      Assign preliminary join cache setting based on decision from
-      greedy optimizer.
-    */
-    j->use_join_cache= join->best_positions[tableno].use_join_buffer ?
-                         JOIN_CACHE::ALG_BNL : JOIN_CACHE::ALG_NONE;
-
-    j->loosescan_match_tab= NULL;  //non-nulls will be set later
-    j->ref.key = -1;
-    j->ref.key_parts=0;
-
-    if (j->type == JT_SYSTEM)
-      continue;
-    
-    if (j->keys.is_clear_all() ||
-        !(keyuse= join->best_positions[tableno].key) || 
-        (join->best_positions[tableno].sj_strategy == SJ_OPT_LOOSE_SCAN))
-    {
-      j->type=JT_ALL;
-      j->index= join->best_positions[tableno].loosescan_key;
-      if (tableno != join->const_tables)
-	join->full_join=1;
-    }
-    else if (create_ref_for_key(join, j, keyuse, used_tables))
-      DBUG_RETURN(TRUE);                        // Something went wrong
+    JOIN_TAB *const tab= join_tab + tableno;
+    *tab= *best_positions[tableno].table;
+    TABLE    *const table= tab->table;
+    all_tables[tableno]= table;
+    table->reginfo.join_tab= tab;
+    if (!*tab->on_expr_ref)
+      table->reginfo.not_exists_optimize= false;     // Only with LEFT JOIN
+    map2table[table->tablenr]= tab;
   }
 
-  for (uint tableno= 0; tableno < table_count; tableno++)
-    join->map2table[join->join_tab[tableno].table->tablenr]=
-      join->join_tab + tableno;
+  set_semijoin_info();
 
-  update_depend_map(join);
+  if (set_access_methods())
+    DBUG_RETURN(true);
 
-  /*
-    Set the first_sj_inner_tab and last_sj_inner_tab fields for all tables
-    inside the semijoin nests of the query.
-  */
-  for (uint tableno= join->const_tables; tableno < table_count; )
+  update_depend_map(this);
+
+  DBUG_RETURN(false);
+}
+
+/**
+  Set access methods for the tables of a query plan.
+
+  @return False if success, True if error
+
+  @details
+    We need to fill in data for the case where
+     - There is no key selected (use JT_ALL)
+     - Loose scan semi-join strategy is selected (use JT_ALL)
+     - A ref key can be used (use JT_REF, JT_REF_OR_NULL, JT_EQ_REF or JT_FT)
+*/
+bool JOIN::set_access_methods()
+{
+  DBUG_ENTER("JOIN::set_access_methods");
+
+  full_join= false;
+
+  table_map used_tables= OUTER_REF_TABLE_BIT;   // Outer row is already read
+
+  for (uint tableno= 0; tableno < tables; tableno++)
   {
-    JOIN_TAB *tab= join->join_tab + tableno;
-    const POSITION *pos= join->best_positions + tableno;
+    JOIN_TAB *const tab=   join_tab + tableno;
+    TABLE    *const table= tab->table;
+
+    DBUG_PRINT("info",("type: %d", tab->type));
+    used_tables|= table->map;
+
+    // Set preliminary join cache setting based on decision from greedy search
+    tab->use_join_cache= best_positions[tableno].use_join_buffer ?
+                           JOIN_CACHE::ALG_BNL : JOIN_CACHE::ALG_NONE;
+
+    if (tab->type == JT_CONST || tab->type == JT_SYSTEM)
+      continue;                      // Handled in make_join_statistics()
+
+    tab->loosescan_match_tab= NULL;  //non-nulls will be set later
+    tab->ref.key = -1;
+    tab->ref.key_parts=0;
+
+    Key_use *keyuse;
+    if (tab->keys.is_clear_all() ||
+        !(keyuse= best_positions[tableno].key) || 
+        best_positions[tableno].sj_strategy == SJ_OPT_LOOSE_SCAN)
+    {
+      tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
+      tab->index= best_positions[tableno].loosescan_key;
+      if (tableno > const_tables)
+       full_join= true;
+     }
+    else
+    {
+      if (create_ref_for_key(this, tab, keyuse, used_tables))
+        DBUG_RETURN(true);
+    }
+   }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Set the first_sj_inner_tab and last_sj_inner_tab fields for all tables
+  inside the semijoin nests of the query.
+*/
+void JOIN::set_semijoin_info()
+{
+  if (select_lex->sj_nests.is_empty())
+    return;
+
+  for (uint tableno= const_tables; tableno < tables; )
+  {
+    JOIN_TAB *const tab= join_tab + tableno;
+    const POSITION *const pos= best_positions + tableno;
 
     switch (pos->sj_strategy)
     {
@@ -10106,26 +10126,37 @@ static bool get_best_combination(JOIN *join)
       break;
     }
   }
-
-  DBUG_RETURN(FALSE);
 }
+
+
+/**
+  Setup a ref access for looking up rows via an index (a key).
+
+  @param join          The join object being handled
+  @param j             The join_tab which will have the ref access populated
+  @param first_keyuse  First key part of (possibly multi-part) key
+  @param used_tables   Bitmap of available tables
+
+  @return False if success, True if error
+
+  @details
+    This function will set up a ref access using the best key found
+    during access path analysis and cost analysis.
+*/
 
 
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 			       table_map used_tables)
 {
-  Key_use *keyuse= org_keyuse;
-  bool ftkey=(keyuse->keypart == FT_KEYPART);
-  THD  *thd= join->thd;
-  uint keyparts,length,key;
-  TABLE *table;
-  KEY *keyinfo;
   DBUG_ENTER("create_ref_for_key");
 
-  /*  Use best key found during dependency analysis */
-  table=j->table;
-  key=keyuse->key;
-  keyinfo=table->key_info+key;
+  Key_use *keyuse= org_keyuse;
+  const uint key= keyuse->key;
+  const bool ftkey= (keyuse->keypart == FT_KEYPART);
+  THD  *const thd= join->thd;
+  uint keyparts, length;
+  TABLE *const table= j->table;
+  KEY   *const keyinfo= table->key_info+key;
 
   if (ftkey)
   {
@@ -10161,7 +10192,6 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   } /* not ftkey */
 
   /* set up fieldref */
-  keyinfo=table->key_info+key;
   j->ref.key_parts=keyparts;
   j->ref.key_length=length;
   j->ref.key=(int) key;
@@ -10181,8 +10211,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   j->ref.disable_cache= FALSE;
   keyuse=org_keyuse;
 
-  uchar *key_buff=j->ref.key_buff, *null_ref_key= 0;
-  bool keyuse_uses_no_tables= TRUE;
+  uchar *key_buff= j->ref.key_buff;
+  uchar *null_ref_key= NULL;
+  bool keyuse_uses_no_tables= true;
   if (ftkey)
   {
     j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
@@ -10252,7 +10283,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     }
   } /* not ftkey */
   if (j->type == JT_FT)
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   if (j->type == JT_CONST)
     j->table->const_table= 1;
   else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
@@ -10275,7 +10306,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   }
   else
     j->type=JT_EQ_REF;
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
