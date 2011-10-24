@@ -272,7 +272,7 @@ next_page:
 
 		mutex_enter(&((buf_block_t*) bpage)->mutex);
 		is_fixed = bpage->buf_fix_count > 0
-			|| !((buf_block_t*) bpage)->is_hashed;
+			|| !((buf_block_t*) bpage)->index;
 		mutex_exit(&((buf_block_t*) bpage)->mutex);
 
 		if (is_fixed) {
@@ -407,7 +407,7 @@ scan_again:
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 			/* This is a compressed-only block
 			descriptor. Do nothing. */
-		} else if (((buf_block_t*) bpage)->is_hashed) {
+		} else if (((buf_block_t*) bpage)->index) {
 			ulint	page_no;
 			ulint	zip_size;
 
@@ -419,7 +419,7 @@ scan_again:
 			mutex_exit(block_mutex);
 
 			/* Note that the following call will acquire
-			an S-latch on the page */
+			and release an X-latch on the page. */
 
 			btr_search_drop_page_hash_when_freed(
 				id, zip_size, page_no);
