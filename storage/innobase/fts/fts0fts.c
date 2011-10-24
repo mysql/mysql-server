@@ -432,7 +432,7 @@ fts_load_user_stopword(
 	trx->op_info = "Load user stopword table into FTS cache";
 
 	if (!has_lock) {
-		row_mysql_lock_data_dictionary(trx);
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	/* Validate the user table existence and in the right
@@ -500,7 +500,7 @@ fts_load_user_stopword(
 
 cleanup:
 	if (!has_lock) {
-		row_mysql_unlock_data_dictionary(trx);
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	trx_free_for_background(trx);
@@ -5928,7 +5928,7 @@ fts_load_stopword(
 	ulint		error = DB_SUCCESS;
 	ulint		use_stopword;
 	fts_cache_t*	cache;
-	const char*	stopword_to_use;
+	const char*	stopword_to_use = NULL;
 	ibool		new_trx = FALSE;
 	byte		str_buffer[MAX_FULL_NAME_LEN + 1];
 
@@ -5979,17 +5979,18 @@ fts_load_stopword(
 		error = fts_config_get_value(trx, &fts_table,
 					     FTS_STOPWORD_TABLE_NAME,
 					     &str);
+
 		if (error != DB_SUCCESS) {
 			goto cleanup;
 		}
 
-		stopword_to_use = (const char*) str.f_str;
-
+		if (strlen((char*) str.f_str) > 0) {
+			stopword_to_use = (const char*) str.f_str;
+		}
 	} else {
 		stopword_to_use = (session_stopword_table)
 					? session_stopword_table
 					: global_stopword_table;
-
 	}
 
 	if (stopword_to_use
