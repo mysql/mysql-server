@@ -499,7 +499,10 @@ ndb_mgm_call(NdbMgmHandle handle,
   out.println("%s", "");
 
   if (cmd_bulk)
-    out.println(cmd_bulk);
+  {
+    out.write(cmd_bulk, strlen(cmd_bulk));
+    out.write("\n", 1);
+  }
 
   CHECK_TIMEDOUT_RET(handle, in, out, NULL);
 
