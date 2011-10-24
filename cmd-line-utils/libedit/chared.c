@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.c,v 1.35 2011/08/16 16:25:15 christos Exp $	*/
+/*	$NetBSD: chared.c,v 1.36 2011/10/23 17:37:55 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -200,7 +200,7 @@ c_delbefore1(EditLine *el)
 protected int
 ce__isword(Int p)
 {
-	return Isalnum(p || Strchr(STR("*?_-.[]~="), p) != NULL);
+        return Isalnum(p) || Strchr(STR("*?_-.[]~="), p) != NULL;
 }
 
 
