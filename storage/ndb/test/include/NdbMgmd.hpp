@@ -227,7 +227,7 @@ public:
 
     SocketOutputStream out(socket());
 
-    if (out.println(cmd)){
+    if (out.println("%s", cmd)){
       error("call: println failed at line %d", __LINE__);
       return false;
     }
@@ -278,9 +278,16 @@ public:
     }
 
     // Send any bulk data
-    if (bulk && out.println(bulk)){
-      error("call: print('<bulk>') failed at line %d", __LINE__);
-      return false;
+    if (bulk)
+    {
+      if (out.write(bulk, strlen(bulk)) >= 0)
+      {
+        if (out.write("\n", 1) < 0)
+        {
+          error("call: print('<bulk>') failed at line %d", __LINE__);
+          return false;
+        }
+      }
     }
 
     BaseString buf;
