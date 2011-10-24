@@ -3955,7 +3955,7 @@ ibuf_insert_to_index_page(
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
-	ut_ad(!buf_block_align(page)->is_hashed);
+	ut_ad(!buf_block_align(page)->index);
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {

@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.9 2004/01/17 17:57:40 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.17 2011/09/28 14:08:04 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -48,14 +48,6 @@
 # define __attribute__(A)
 #endif
 
-#ifndef _DIAGASSERT
-# define _DIAGASSERT(x)
-#endif
-
-#ifndef SIZE_T_MAX
-# define SIZE_T_MAX UINT_MAX
-#endif
-
 #ifndef __BEGIN_DECLS
 # ifdef  __cplusplus
 #  define __BEGIN_DECLS  extern "C" {
@@ -79,18 +71,8 @@
 			/* When we want to hide everything	*/
 #endif
 
-#ifndef HAVE_U_INT32_T
-typedef unsigned int  u_int32_t;
-#endif
-
-#ifndef _PTR_T
-# define _PTR_T
-typedef void	*ptr_t;
-#endif
-
-#ifndef _IOCTL_T
-# define _IOCTL_T
-typedef void	*ioctl_t;
+#ifndef __arraycount
+# define __arraycount(a) (sizeof(a) / sizeof(*(a)))
 #endif
 
 #include <stdio.h>
@@ -110,10 +92,44 @@ size_t	strlcpy(char *dst, const char *src, size_t size);
 char	*fgetln(FILE *fp, size_t *len);
 #endif
 
+#ifdef __linux__
+/* Apparently we need _GNU_SOURCE defined to get access to wcsdup on Linux */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#endif
+
+#ifndef __USE_XOPEN
+#define __USE_XOPEN
+#endif
+
+#include <wchar.h>
+#include <wctype.h>
+
+#ifndef HAVE_WCSDUP
+wchar_t *wcsdup(const wchar_t *);
+#endif
+
+#ifndef _DIAGASSERT
+#define _DIAGASSERT(x)
+#endif
+
+#ifndef __RCSID
+#define __RCSID(x)
+#endif
+
+#ifndef HAVE_U_INT32_T
+typedef unsigned int	u_int32_t;
+#endif
+
+#ifndef SIZE_T_MAX
+#define SIZE_T_MAX	((size_t)-1)
+#endif
+
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
 
-#ifdef __SunOS
+#if defined(__sun)
 extern int tgetent(char *, const char *);
 extern int tgetflag(char *);
 extern int tgetnum(char *);
@@ -162,8 +178,8 @@ extern void	perror(const char *);
 #  define strerror(e)	sys_errlist[e]
 # endif
 # ifdef SABER
-extern ptr_t    memcpy(ptr_t, const ptr_t, size_t);
-extern ptr_t    memset(ptr_t, int, size_t);
+extern void *   memcpy(void *, const void *, size_t);
+extern void *   memset(void *, int, size_t);
 # endif
 extern char    *fgetline(FILE *, int *);
 #endif
