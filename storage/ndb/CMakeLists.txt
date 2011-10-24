@@ -186,7 +186,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
 # Check for Java and JDK needed by ndbjtie and clusterj
 INCLUDE(FindJava)
 INCLUDE(FindJNI)
-INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
+INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
 
 IF(JAVA_COMPILE AND JAVA_ARCHIVE)
   MESSAGE(STATUS "Found Java")

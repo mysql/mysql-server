@@ -28,27 +28,9 @@ CONFIGURE_FILE(ndb_types.h.in
 LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_types\\\\.h$)
 
 #
-# Read a value for variable from ndb_configure.m4
-#
-MACRO(NDB_GET_CONFIG_VALUE keyword var)
- IF(NOT ${var})
-   # Read the line which contains the keyword
-   FILE (STRINGS ${NDB_SOURCE_DIR}/VERSION str
-         REGEX "^[ ]*${keyword}=")
-   IF(str)
-     # Remove the keyword=
-     STRING(REPLACE "${keyword}=" "" str ${str})
-     # Remove whitespace
-     STRING(REGEX REPLACE "[ ].*" "" str "${str}")
-     SET(${var} ${str})
-   ENDIF()
- ENDIF()
-ENDMACRO()
-
-#
 # Read ndb_configure.m4 and extract the NDB_VERSION_XX=YY variables
 #
-
+INCLUDE("${NDB_SOURCE_DIR}/cmake/ndb_get_config_value.cmake")
 NDB_GET_CONFIG_VALUE(NDB_VERSION_MAJOR major)
 SET(NDB_VERSION_MAJOR "${major}" CACHE INTERNAL "NDB Major Version" FORCE)
 
