@@ -292,9 +292,9 @@ static void run_query(THD *thd, char *buf, char *end,
 }
 
 static void
-ndbcluster_binlog_close_table(THD *thd, NDB_SHARE *share)
+ndb_binlog_close_shadow_table(THD *thd, NDB_SHARE *share)
 {
-  DBUG_ENTER("ndbcluster_binlog_close_table");
+  DBUG_ENTER("ndb_binlog_close_shadow_table");
   Ndb_event_data *event_data= share->event_data;
   if (event_data)
   {
@@ -3054,7 +3054,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             sql_print_information("NDB Binlog: handeling online alter/rename");
 
           pthread_mutex_lock(&share->mutex);
-          ndbcluster_binlog_close_table(thd, share);
+          ndb_binlog_close_shadow_table(thd, share);
 
           if ((error= ndb_binlog_open_shadow_table(thd, share)))
             sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
