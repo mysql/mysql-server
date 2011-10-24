@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.28 2009/02/06 19:53:23 sketch Exp $	*/
+/*	$NetBSD: tty.c,v 1.41 2011/10/04 15:27:04 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -45,8 +45,10 @@ static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
  */
 #include <assert.h>
 #include <errno.h>
-#include "tty.h"
+#include <unistd.h>	/* for isatty */
+#include <strings.h>	/* for ffs */
 #include "el.h"
+#include "tty.h"
 
 typedef struct ttymodes_t {
 	const char *m_name;
@@ -55,7 +57,7 @@ typedef struct ttymodes_t {
 }          ttymodes_t;
 
 typedef struct ttymap_t {
-	int nch, och;		/* Internal and termio rep of chars */
+	Int nch, och;		/* Internal and termio rep of chars */
 	el_action_t bind[3];	/* emacs, vi, and vi-cmd */
 } ttymap_t;
 
@@ -151,7 +153,7 @@ private const ttymap_t tty_map[] = {
 	{C_LNEXT, VLNEXT,
 	{ED_QUOTED_INSERT, ED_QUOTED_INSERT, ED_UNASSIGNED}},
 #endif /* VLNEXT */
-	{-1, -1,
+	{(Int)-1, (Int)-1,
 	{ED_UNASSIGNED, ED_UNASSIGNED, ED_UNASSIGNED}}
 };
 
@@ -492,14 +494,21 @@ tty_setup(EditLine *el)
 	int rst = 1;
 
 	if (el->el_flags & EDIT_DISABLED)
-		return (0);
+		return 0;
 
+	if (!isatty(el->el_outfd)) {
+#ifdef DEBUG_TTY
+		(void) fprintf(el->el_errfile,
+		    "tty_setup: isatty: %s\n", strerror(errno));
+#endif /* DEBUG_TTY */
+		return -1;
+	}
 	if (tty_getty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
 		(void) fprintf(el->el_errfile,
 		    "tty_setup: tty_getty: %s\n", strerror(errno));
 #endif /* DEBUG_TTY */
-		return (-1);
+		return -1;
 	}
 	el->el_tty.t_ts = el->el_tty.t_ex = el->el_tty.t_ed;
 
@@ -549,13 +558,9 @@ tty_setup(EditLine *el)
 			    "tty_setup: tty_setty: %s\n",
 			    strerror(errno));
 #endif /* DEBUG_TTY */
-			return (-1);
+			return -1;
 		}
 	}
-#ifdef notdef
-	else
-		tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
-#endif
 
 	el->el_tty.t_ed.c_iflag &= ~el->el_tty.t_t[ED_IO][MD_INP].t_clrmask;
 	el->el_tty.t_ed.c_iflag |= el->el_tty.t_t[ED_IO][MD_INP].t_setmask;
@@ -571,7 +576,7 @@ tty_setup(EditLine *el)
 
 	tty__setchar(&el->el_tty.t_ed, el->el_tty.t_c[ED_IO]);
 	tty_bind_char(el, 1);
-	return (0);
+	return 0;
 }
 
 protected int
@@ -582,7 +587,7 @@ tty_init(EditLine *el)
 	el->el_tty.t_vdisable = _POSIX_VDISABLE;
 	(void) memcpy(el->el_tty.t_t, ttyperm, sizeof(ttyperm_t));
 	(void) memcpy(el->el_tty.t_c, ttychar, sizeof(ttychar_t));
-	return (tty_setup(el));
+	return tty_setup(el);
 }
 
 
@@ -608,7 +613,7 @@ tty__getspeed(struct termios *td)
 
 	if ((spd = cfgetispeed(td)) == 0)
 		spd = cfgetospeed(td);
-	return (spd);
+	return spd;
 }
 
 /* tty__getspeed():
@@ -892,7 +897,7 @@ tty_bind_char(EditLine *el, int force)
 
 	unsigned char *t_n = el->el_tty.t_c[ED_IO];
 	unsigned char *t_o = el->el_tty.t_ed.c_cc;
-	unsigned char new[2], old[2];
+	Char new[2], old[2];
 	const ttymap_t *tp;
 	el_action_t *map, *alt;
 	const el_action_t *dmap, *dalt;
@@ -908,22 +913,22 @@ tty_bind_char(EditLine *el, int force)
 		dalt = NULL;
 	}
 
-	for (tp = tty_map; tp->nch != -1; tp++) {
+	for (tp = tty_map; tp->nch != (Int)-1; tp++) {
 		new[0] = t_n[tp->nch];
 		old[0] = t_o[tp->och];
 		if (new[0] == old[0] && !force)
 			continue;
 		/* Put the old default binding back, and set the new binding */
-		key_clear(el, map, (char *)old);
-		map[old[0]] = dmap[old[0]];
-		key_clear(el, map, (char *)new);
+		keymacro_clear(el, map, old);
+		map[UC(old[0])] = dmap[UC(old[0])];
+		keymacro_clear(el, map, new);
 		/* MAP_VI == 1, MAP_EMACS == 0... */
-		map[new[0]] = tp->bind[el->el_map.type];
+		map[UC(new[0])] = tp->bind[el->el_map.type];
 		if (dalt) {
-			key_clear(el, alt, (char *)old);
-			alt[old[0]] = dalt[old[0]];
-			key_clear(el, alt, (char *)new);
-			alt[new[0]] = tp->bind[el->el_map.type + 1];
+			keymacro_clear(el, alt, old);
+			alt[UC(old[0])] = dalt[UC(old[0])];
+			keymacro_clear(el, alt, new);
+			alt[UC(new[0])] = tp->bind[el->el_map.type + 1];
 		}
 	}
 }
@@ -937,21 +942,21 @@ tty_rawmode(EditLine *el)
 {
 
 	if (el->el_tty.t_mode == ED_IO || el->el_tty.t_mode == QU_IO)
-		return (0);
+		return 0;
 
 	if (el->el_flags & EDIT_DISABLED)
-		return (0);
+		return 0;
 
 	if (tty_getty(el, &el->el_tty.t_ts) == -1) {
 #ifdef DEBUG_TTY
 		(void) fprintf(el->el_errfile, "tty_rawmode: tty_getty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
-		return (-1);
+		return -1;
 	}
 	/*
          * We always keep up with the eight bit setting and the speed of the
-         * tty. But only we only believe changes that are made to cooked mode!
+         * tty. But we only believe changes that are made to cooked mode!
          */
 	el->el_tty.t_eight = tty__geteightbit(&el->el_tty.t_ts);
 	el->el_tty.t_speed = tty__getspeed(&el->el_tty.t_ts);
@@ -1077,10 +1082,10 @@ tty_rawmode(EditLine *el)
 		(void) fprintf(el->el_errfile, "tty_rawmode: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
-		return (-1);
+		return -1;
 	}
 	el->el_tty.t_mode = ED_IO;
-	return (0);
+	return 0;
 }
 
 
@@ -1092,10 +1097,10 @@ tty_cookedmode(EditLine *el)
 {				/* set tty in normal setup */
 
 	if (el->el_tty.t_mode == EX_IO)
-		return (0);
+		return 0;
 
 	if (el->el_flags & EDIT_DISABLED)
-		return (0);
+		return 0;
 
 	if (tty_setty(el, TCSADRAIN, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
@@ -1103,10 +1108,10 @@ tty_cookedmode(EditLine *el)
 		    "tty_cookedmode: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
-		return (-1);
+		return -1;
 	}
 	el->el_tty.t_mode = EX_IO;
-	return (0);
+	return 0;
 }
 
 
@@ -1117,7 +1122,7 @@ protected int
 tty_quotemode(EditLine *el)
 {
 	if (el->el_tty.t_mode == QU_IO)
-		return (0);
+		return 0;
 
 	el->el_tty.t_qu = el->el_tty.t_ed;
 
@@ -1138,10 +1143,10 @@ tty_quotemode(EditLine *el)
 		(void) fprintf(el->el_errfile, "QuoteModeOn: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
-		return (-1);
+		return -1;
 	}
 	el->el_tty.t_mode = QU_IO;
-	return (0);
+	return 0;
 }
 
 
@@ -1153,16 +1158,16 @@ tty_noquotemode(EditLine *el)
 {
 
 	if (el->el_tty.t_mode != QU_IO)
-		return (0);
+		return 0;
 	if (tty_setty(el, TCSADRAIN, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
 		(void) fprintf(el->el_errfile, "QuoteModeOff: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
-		return (-1);
+		return -1;
 	}
 	el->el_tty.t_mode = ED_IO;
-	return (0);
+	return 0;
 }
 
 
@@ -1171,19 +1176,20 @@ tty_noquotemode(EditLine *el)
  */
 protected int
 /*ARGSUSED*/
-tty_stty(EditLine *el, int argc __attribute__((__unused__)), const char **argv)
+tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 {
 	const ttymodes_t *m;
 	char x;
 	int aflag = 0;
-	const char *s, *d;
-	const char *name;
+	const Char *s, *d;
+        char name[EL_BUFSIZ];
 	struct termios *tios = &el->el_tty.t_ex;
 	int z = EX_IO;
 
 	if (argv == NULL)
-		return (-1);
-	name = *argv++;
+		return -1;
+	strncpy(name, ct_encode_string(*argv++, &el->el_scratch), sizeof(name));
+        name[sizeof(name) - 1] = '\0';
 
 	while (argv && *argv && argv[0][0] == '-' && argv[0][2] == '\0')
 		switch (argv[0][1]) {
@@ -1210,12 +1216,12 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const char **argv)
 			(void) fprintf(el->el_errfile,
 			    "%s: Unknown switch `%c'.\n",
 			    name, argv[0][1]);
-			return (-1);
+			return -1;
 		}
 
 	if (!argv || !*argv) {
 		int i = -1;
-		int len = 0, st = 0, cu;
+		size_t len = 0, st = 0, cu;
 		for (m = ttymodes; m->m_name; m++) {
 			if (m->m_type != i) {
 				(void) fprintf(el->el_outfile, "%s%s",
@@ -1228,8 +1234,9 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const char **argv)
 			if (i != -1) {
 			    x = (el->el_tty.t_t[z][i].t_setmask & m->m_value)
 				?  '+' : '\0';
-			    x = (el->el_tty.t_t[z][i].t_clrmask & m->m_value)
-				? '-' : x;
+
+			    if (el->el_tty.t_t[z][i].t_clrmask & m->m_value)
+				x = '-';
 			} else {
 			    x = '\0';
 			}
@@ -1238,9 +1245,9 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const char **argv)
 
 				cu = strlen(m->m_name) + (x != '\0') + 1;
 
-				if (len + cu >= el->el_term.t_size.h) {
+				if (len + cu >= (size_t)el->el_terminal.t_size.h) {
 					(void) fprintf(el->el_outfile, "\n%*s",
-					    st, "");
+					    (int)st, "");
 					len = st + cu;
 				} else
 					len += cu;
@@ -1254,40 +1261,41 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const char **argv)
 			}
 		}
 		(void) fprintf(el->el_outfile, "\n");
-		return (0);
+		return 0;
 	}
 	while (argv && (s = *argv++)) {
-		const char *p;
+		const Char *p;
 		switch (*s) {
 		case '+':
 		case '-':
-			x = *s++;
+			x = (char)*s++;
 			break;
 		default:
 			x = '\0';
 			break;
 		}
 		d = s;
-		p = strchr(s, '=');
+		p = Strchr(s, '=');
 		for (m = ttymodes; m->m_name; m++)
-			if ((p ? strncmp(m->m_name, d, (size_t)(p - d)) :
-			    strcmp(m->m_name, d)) == 0 &&
+			if ((p ? strncmp(m->m_name, ct_encode_string(d, &el->el_scratch), (size_t)(p - d)) :
+			    strcmp(m->m_name, ct_encode_string(d, &el->el_scratch))) == 0 &&
 			    (p == NULL || m->m_type == MD_CHAR))
 				break;
 
 		if (!m->m_name) {
 			(void) fprintf(el->el_errfile,
-			    "%s: Invalid argument `%s'.\n", name, d);
-			return (-1);
+			    "%s: Invalid argument `" FSTR "'.\n", name, d);
+			return -1;
 		}
 		if (p) {
 			int c = ffs((int)m->m_value);
-			int v = *++p ? parse__escape((const char **) &p) :
+			int v = *++p ? parse__escape(&p) :
 			    el->el_tty.t_vdisable;
-			assert(c-- != 0);
+			assert(c != 0);
+			c--;
 			c = tty__getcharindex(c);
 			assert(c != -1);
-			tios->c_cc[c] = v;
+			tios->c_cc[c] = (cc_t)v;
 			continue;
 		}
 		switch (x) {
@@ -1312,11 +1320,11 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const char **argv)
 			(void) fprintf(el->el_errfile,
 			    "tty_stty: tty_setty: %s\n", strerror(errno));
 #endif /* DEBUG_TTY */
-			return (-1);
+			return -1;
 		}
 	}
 
-	return (0);
+	return 0;
 }
 
 

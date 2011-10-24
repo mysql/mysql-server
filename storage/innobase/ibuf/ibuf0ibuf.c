@@ -2197,7 +2197,7 @@ ibuf_add_free_page(void)
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
 	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &flags), &mtr);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	header_page = ibuf_header_page_get(&mtr);
 
@@ -2283,7 +2283,7 @@ ibuf_remove_free_page(void)
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
 	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, &flags), &mtr);
-	zip_size = dict_table_flags_to_zip_size(flags);
+	zip_size = fsp_flags_get_zip_size(flags);
 
 	header_page = ibuf_header_page_get(&mtr);
 
@@ -3986,7 +3986,7 @@ ibuf_insert_to_index_page(
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
-	ut_ad(!buf_block_align(page)->is_hashed);
+	ut_ad(!buf_block_align(page)->index);
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {

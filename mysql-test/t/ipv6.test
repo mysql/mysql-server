@@ -1,7 +1,3 @@
-# Copyright (C) 2009 SUN Microsystems
-# All rights reserved. Use is subject to license terms.
-# Author: Horst Hunger
-# Nov. 19, 2009
 # Test of ipv6 format
 # Options: --skip-name-resolve, --bind-address=:: (see corresponding opt file).
 #
