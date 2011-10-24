@@ -1070,6 +1070,16 @@ insert into t1 values (3, 1);
 
 set ndb_join_pushdown=true;
 
+##
+# In ps-protocol, server will adds calls to execute(Commit)
+#   (these are optimized away by ndbapi, since there is nothing to commit)
+#   and these generates a diff in execute-count
+# To not have to investigate problem futher, I simply set autocommit=off
+#   (and back further down where we don't track execute-count any longer)
+# It would probably be good to changes these tests to instead use frazers new
+#   ndbapi counters, and instead measure #round-trips
+set autocommit=off;
+
 explain extended
 select *
 from t1, t1 as t2
@@ -1083,6 +1093,8 @@ where t1.a in (1,3,5)
   and t2.a = t1.b;
 --source suite/ndb/include/ndb_execute_count.inc
 --echo This should yield 3 executes (for now...buh)
+
+set autocommit=on;
 
 connection ddl;
 drop table t1;
@@ -1098,6 +1110,16 @@ insert into t1 values (3, 1);
 
 set ndb_join_pushdown=true;
 
+##
+# In ps-protocol, server will adds calls to execute(Commit)
+#   (these are optimized away by ndbapi, since there is nothing to commit)
+#   and these generates a diff in execute-count
+# To not have to investigate problem futher, I simply set autocommit=off
+#   (and back further down where we don't track execute-count any longer)
+# It would probably be good to changes these tests to instead use frazers new
+#   ndbapi counters, and instead measure #round-trips
+set autocommit=off;
+
 explain extended
 select *
 from t1, t1 as t2
@@ -1112,6 +1134,7 @@ where t1.a in (1,3,5)
 --source suite/ndb/include/ndb_execute_count.inc
 --echo This should yield 1 execute (but inefficient since it's based on scan)
 
+set autocommit=on;
 
 ## Adding and 'order by ... desc' trigger the usage
 ## of QUICK_SELECT_DESC which somehow prepares a 
