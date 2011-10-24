@@ -42,7 +42,7 @@ then merge remaining bits by hand.  All MySQL-specific changes should be
 marked with XXXMYSQL to make them easier to identify and merge.  To generate
 a 'clean' diff against upstream you can use the above commands but use
 
-	cvs co -D "2011/10/04 15:27:04" [..]
+	cvs co -D "2011/10/23 17:37:55" [..]
 
 to fetch the baseline of most recent merge.
 
