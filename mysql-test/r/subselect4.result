@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3,t4,t5,t6;
+drop table if exists t0,t1,t2,t3,t4,t5,t6;
 drop view if exists v1, v2;
 set @subselect4_tmp= @@optimizer_switch;
 set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';

@@ -14793,6 +14793,7 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   if (entry->file && entry->created)
   {
+    entry->file->ha_index_or_rnd_end();
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
     else

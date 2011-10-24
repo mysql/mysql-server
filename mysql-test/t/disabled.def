@@ -20,4 +20,3 @@ archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this le
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
 mysql_embedded           : Bug#12561297 2011-06-15 New test failing on all platforms
 tablespace               : disabled in MariaDB (no TABLESPACE table attribute)
-derived_view            : SergeyP

@@ -1,3 +1,6 @@
+--disable_warnings
+drop table if exists t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
 set optimizer_switch='subquery_cache=on';
 
 create table t1 (a int, b int);

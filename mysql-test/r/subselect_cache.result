@@ -1,3 +1,4 @@
+drop table if exists t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 set optimizer_switch='subquery_cache=on';
 create table t1 (a int, b int);
 insert into t1 values (1,2),(3,4),(1,2),(3,4),(3,4),(4,5),(4,5),(5,6),(5,6),(4,5);
