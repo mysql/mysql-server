@@ -21,7 +21,7 @@ my $basedir = dirname($mysql_test_dir);
 # Check if the needed tests are available
 #
 my $sql_file = my_find_file($basedir,
-                            ["storage/ndb/tools", "share/mysql/"],
+                            ["storage/ndb/tools", "share/mysql/", "share" ],
                             "ndb_dist_priv.sql", NOT_REQUIRED);
 
 my $F = IO::File->new("$vardir/tmp/have_ndb_dist_priv_result.inc", "w") or die;
