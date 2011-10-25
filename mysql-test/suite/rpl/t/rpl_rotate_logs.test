@@ -37,19 +37,19 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 # START SLAVE will fail because it can't read the file (mode 000)
 # (system error 13)
 --replace_result $MYSQL_TEST_DIR TESTDIR
---error 1105,1105,29
+--error ER_MASTER_INFO, 29
 start slave;
 chmod 0600  $MYSQLD_SLAVE_DATADIR/master.info;
 # It will fail again because the file is empty so the slave cannot get valuable
 # info about how to connect to the master from it (failure in
 # init_strvar_from_file() in init_master_info()).
---error 1201
+--error ER_MASTER_INFO
 start slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 
 # CHANGE MASTER will fail because it first parses master.info before changing
 # it (so when master.info is bad, people have to use RESET SLAVE first).
---error 1201
+--error ER_MASTER_INFO
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 reset slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -191,10 +191,10 @@ sync_slave_with_master;
 #
 # Bug #29420: crash with show and purge binlogs
 #
---error 1220
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events in 'non existing_binlog_file';
 purge master logs before now();
---error 1220
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events in '';
 purge master logs before now();
 
