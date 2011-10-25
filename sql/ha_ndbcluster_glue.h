@@ -234,11 +234,4 @@ uint partition_info_num_subparts(const partition_info* part_info)
 #endif
 }
 
-#if MYSQL_VERSION_ID >= 50600
-
-/* New multi range read interface replaced original mrr */
-#define NDB_WITH_NEW_MRR_INTERFACE
-
-#endif
-
 #endif
