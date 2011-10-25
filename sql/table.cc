@@ -73,6 +73,10 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
 static uint find_field(Field **fields, uchar *record, uint start, uint length);
 
+static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
+                               const char *name,
+                               Name_resolution_context *context);
+
 inline bool is_system_table_name(const char *name, uint length);
 
 static ulong get_form_pos(File file, uchar *head);
@@ -1521,13 +1525,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                    decimals,
                                                    f_is_dec(pack_flag) == 0);
       sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
-                      "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
+                      "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
                       share->fieldnames.type_names[i], share->table_name.str,
                       share->table_name.str);
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_CRASHED_ON_USAGE,
                           "Found incompatible DECIMAL field '%s' in %s; "
-                          "Please do \"ALTER TABLE '%s' FORCE\" to fix it!",
+                          "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
                           share->fieldnames.type_names[i],
                           share->table_name.str,
                           share->table_name.str);
@@ -1728,13 +1732,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                               field->key_length());
             key_part->length= (uint16)field->key_length();
             sql_print_error("Found wrong key definition in %s; "
-                            "Please do \"ALTER TABLE '%s' FORCE \" to fix it!",
+                            "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
                             share->table_name.str,
                             share->table_name.str);
             push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                                 ER_CRASHED_ON_USAGE,
                                 "Found wrong key definition in %s; "
-                                "Please do \"ALTER TABLE '%s' FORCE\" to fix "
+                                "Please do \"ALTER TABLE `%s` FORCE\" to fix "
                                 "it!",
                                 share->table_name.str,
                                 share->table_name.str);
@@ -4431,8 +4435,9 @@ Item *Natural_join_column::create_item(THD *thd)
   if (view_field)
   {
     DBUG_ASSERT(table_field == NULL);
+    SELECT_LEX *select= thd->lex->current_select;
     return create_view_field(thd, table_ref, &view_field->item,
-                             view_field->name);
+                             view_field->name, &select->context);
   }
   return table_field;
 }
@@ -4522,11 +4527,14 @@ const char *Field_iterator_view::name()
 
 Item *Field_iterator_view::create_item(THD *thd)
 {
-  return create_view_field(thd, view, &ptr->item, ptr->name);
+  SELECT_LEX *select= thd->lex->current_select;
+  return create_view_field(thd, view, &ptr->item, ptr->name,
+                           &select->context);
 }
 
-Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
-                        const char *name)
+static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
+                               const char *name,
+                               Name_resolution_context *context)
 {
   bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
   Item *field= *field_ref;
@@ -4559,7 +4567,8 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(view, field_ref, name);
+  Item *item= new Item_direct_view_ref(context, field_ref,
+                                       view->alias, view->table_name, name);
   DBUG_RETURN(item);
 }
 
