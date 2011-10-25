@@ -763,29 +763,21 @@ SELECT @done, @x;
 0	1
 INSERT INTO temp VALUES('1', NULL);
 CALL sp1();
-Warnings:
-Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	1
 INSERT INTO temp VALUES('2', NULL);
 CALL sp2();
-Warnings:
-Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	1
 INSERT INTO temp VALUES('3', NULL);
 CALL sp3();
-Warnings:
-Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	0
 INSERT INTO temp VALUES('4', NULL);
 CALL sp4();
-Warnings:
-Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	0
