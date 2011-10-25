@@ -283,7 +283,7 @@ next_page:
 
 		mutex_enter(&((buf_block_t*) bpage)->mutex);
 		is_fixed = bpage->buf_fix_count > 0
-			|| !((buf_block_t*) bpage)->is_hashed;
+			|| !((buf_block_t*) bpage)->index;
 		mutex_exit(&((buf_block_t*) bpage)->mutex);
 
 		if (is_fixed) {

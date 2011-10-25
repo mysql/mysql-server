@@ -1337,9 +1337,6 @@ enum enum_derived_type {
 class select_union;
 class TMP_TABLE_PARAM;
 
-Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
-                        const char *name);
-
 struct Field_translator
 {
   Item *item;

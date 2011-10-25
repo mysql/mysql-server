@@ -340,8 +340,6 @@ struct PFS_socket_class : public PFS_instr_class
 {
   /** Socket usage statistics. */
   PFS_socket_stat m_socket_stat;
-  /** Self index in @c socket_class_array. */
-  uint m_index;
   /** Singleton instance. */
   PFS_socket *m_singleton;
 };
