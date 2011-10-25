@@ -1,3 +1,5 @@
+--source include/have_mutex_deadlock_detector.inc
+
 # bool readonly
 
 #

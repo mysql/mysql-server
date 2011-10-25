@@ -123,7 +123,9 @@ wait/synch/cond/sql/Master_info::data_cond
 wait/synch/cond/sql/Master_info::start_cond
 wait/synch/cond/sql/Master_info::stop_cond
 wait/synch/cond/sql/MDL_context::COND_wait_status
+wait/synch/cond/sql/MYSQL_BIN_LOG::COND_queue_busy
 wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond
+wait/synch/cond/sql/MYSQL_RELAY_LOG::COND_queue_busy
 wait/synch/cond/sql/MYSQL_RELAY_LOG::update_cond
 wait/synch/cond/sql/Query_cache::COND_cache_status_changed
 wait/synch/cond/sql/Relay_log_info::data_cond

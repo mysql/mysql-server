@@ -539,12 +539,14 @@ public:
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
-                    PSI_file_key key_file_log_index)
+                    PSI_file_key key_file_log_index,
+                    PSI_file_key key_COND_queue_busy)
   {
     m_key_LOCK_index= key_LOCK_index;
     m_key_update_cond= key_update_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
+    m_key_COND_queue_busy= key_COND_queue_busy;
   }
 #endif
 

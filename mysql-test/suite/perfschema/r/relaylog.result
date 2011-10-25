@@ -55,6 +55,7 @@ from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "%MYSQL_BIN_LOG%" order by event_name;
 EVENT_NAME	COUNT_STAR
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_prep_xids	NONE
+wait/synch/cond/sql/MYSQL_BIN_LOG::COND_queue_busy	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_prep_xids	NONE
@@ -70,6 +71,7 @@ wait/io/file/sql/relaylog_index	0	0	0	0
 select * from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "%MYSQL_RELAY_LOG%" order by event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
+wait/synch/cond/sql/MYSQL_RELAY_LOG::COND_queue_busy	0	0	0	0	0
 wait/synch/cond/sql/MYSQL_RELAY_LOG::update_cond	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	0	0	0	0	0
 "============ Performance schema on slave ============"
@@ -126,6 +128,7 @@ from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "%MYSQL_BIN_LOG%" order by event_name;
 EVENT_NAME	COUNT_STAR
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_prep_xids	NONE
+wait/synch/cond/sql/MYSQL_BIN_LOG::COND_queue_busy	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond	NONE
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_prep_xids	NONE
@@ -164,6 +167,7 @@ if (count_star > 0, "MANY", "NONE") as COUNT_STAR
 from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "%MYSQL_RELAY_LOG%" order by event_name;
 EVENT_NAME	COUNT_STAR
+wait/synch/cond/sql/MYSQL_RELAY_LOG::COND_queue_busy	NONE
 wait/synch/cond/sql/MYSQL_RELAY_LOG::update_cond	MANY
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	MANY
 include/stop_slave.inc

@@ -5946,7 +5946,8 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
       {
         if (!current->error &&
             RUN_HOOK(binlog_storage, after_flush,
-                (current->thd, log_file_name, log_file.pos_in_file, synced)))
+                (current->thd, log_file_name,
+                 current->cache_mngr->last_commit_pos_offset, synced)))
         {
           current->error= ER_ERROR_ON_WRITE;
           current->commit_errno= -1;
@@ -6828,7 +6829,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   mysql_mutex_init(key_LOCK_pool, &LOCK_pool, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_active, &COND_active, 0);
   mysql_cond_init(key_COND_pool, &COND_pool, 0);
-  mysql_cond_init(key_COND_queue_busy, &COND_queue_busy, 0);
+  mysql_cond_init(key_TC_LOG_MMAP_COND_queue_busy, &COND_queue_busy, 0);
 
   inited=6;
 
