@@ -14668,8 +14668,6 @@ read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type, const KEY *key_info,
     The implementation is copied from handler::multi_range_read_info_const.
     The only difference is that NDB-MRR cannot handle blob columns or keys
     with NULLs for unique indexes. We disable MRR for those cases.
-    As Pushed join execution has not yet been integrated into NDB-MRR,
-    we also disable MRR for those.
 
   NOTES
     See NOTES for handler::multi_range_read_info_const().
@@ -14730,9 +14728,7 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   {
     if (uses_blob_value(table->read_set) ||
         ((get_index_type(keyno) ==  UNIQUE_INDEX &&
-         has_null_in_unique_index(keyno)) && null_ranges)
-        || (m_pushed_join_operation==PUSHED_ROOT &&
-           !m_disable_pushed_join))
+         has_null_in_unique_index(keyno)) && null_ranges))
     {
       /* Use default MRR implementation */
       *flags|= HA_MRR_USE_DEFAULT_IMPL;
@@ -14867,6 +14863,9 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
       || bufsize < multi_range_fixed_size(1) +
                    multi_range_max_entry(get_index_type(active_index),
                                          table_share->reclength)
+      || (m_pushed_join_operation==PUSHED_ROOT &&
+         !m_disable_pushed_join &&
+         !m_pushed_join_member->get_query_def().isScanQuery())
       || m_delete_cannot_batch || m_update_cannot_batch)
   {
     m_disable_multi_read= TRUE;
@@ -14992,7 +14991,10 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
     if (range_no >= max_range)
       break;
     my_bool need_scan=
-      read_multi_needs_scan(cur_index_type, key_info, &mrr_cur_range);
+      read_multi_needs_scan(cur_index_type, key_info, &mrr_cur_range) ||
+      // Pushed joins restricted to ordered range scan in mrr
+      (m_pushed_join_operation==PUSHED_ROOT &&
+       m_pushed_join_member->get_query_def().isScanQuery());
     if (row_buf + multi_range_entry_size(!need_scan, reclength) > end_of_buffer)
       break;
     if (need_scan)
@@ -15069,7 +15071,25 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
       DBUG_PRINT("info", ("any_real_read= TRUE"));
       
       /* Create the scan operation for the first scan range. */
-      if (!m_multi_cursor)
+      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, 
+                            active_index,
+                            !m_active_query && mrr_is_output_sorted))
+      {
+        DBUG_ASSERT(!m_read_before_write_removal_used);
+        if (!m_active_query)
+        {
+          const int error= create_pushed_join();
+          if (unlikely(error))
+            DBUG_RETURN(error);
+
+          NdbQuery* const query= m_active_query;
+          if (mrr_is_output_sorted &&
+              query->getQueryOperation((uint)PUSHED_ROOT)->setOrdering(NdbQueryOptions::ScanOrdering_ascending))
+            ERR_RETURN(query->getNdbError());
+        }
+      } // check_if_pushable()
+
+      else if (!m_multi_cursor)
       {
         /* Do a multi-range index scan for ranges not done by primary/unique key. */
         NdbScanOperation::ScanOptions options;
@@ -15147,12 +15167,24 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
 			   &mrr_cur_range.start_key, &mrr_cur_range.end_key, 0);
       bound.range_no= range_no;
 
-      if (m_multi_cursor->setBound(m_index[active_index].ndb_record_key,
-                                   bound,
-                                   ndbPartSpecPtr, // Only for user-def tables
-                                   sizeof(Ndb::PartitionSpec)))
+      const NdbRecord *key_rec= m_index[active_index].ndb_record_key;
+      if (m_active_query)
       {
-        ERR_RETURN(trans->getNdbError());
+        DBUG_PRINT("info", ("setBound:%d, for pushed join", bound.range_no));
+        if (m_active_query->setBound(key_rec, &bound))
+        {
+          ERR_RETURN(trans->getNdbError());
+        }
+      }
+      else
+      {
+        if (m_multi_cursor->setBound(m_index[active_index].ndb_record_key,
+                                     bound,
+                                     ndbPartSpecPtr, // Only for user-def tables
+                                     sizeof(Ndb::PartitionSpec)))
+        {
+          ERR_RETURN(trans->getNdbError());
+        }
       }
 
       multi_range_entry_type(row_buf)= enum_ordered_range;
@@ -15201,17 +15233,60 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
           ppartitionId=&partitionId;
         }
 
-        if (!(op= pk_unique_index_read_key(active_index,
-                                           mrr_cur_range.start_key.key,
-                                           multi_range_row(row_buf), lm,
-                                           ppartitionId)))
-          ERR_RETURN(trans->getNdbError());
+        /**
+         * 'Pushable codepath' is incomplete and expected not
+         * to be produced as make_join_pushed() handle 
+         * AT_MULTI_UNIQUE_KEY as non-pushable.
+         */
+        if (m_pushed_join_operation==PUSHED_ROOT &&
+            !m_disable_pushed_join &&
+            !m_pushed_join_member->get_query_def().isScanQuery())
+        {
+          DBUG_ASSERT(false);  // FIXME: Incomplete code, should not be executed
+          DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
+          const int error= pk_unique_index_read_key_pushed(active_index,
+                                                           mrr_cur_range.start_key.key,
+                                                           ppartitionId);
+          if (unlikely(error))
+            DBUG_RETURN(error);
+        }
+        else
+        {
+          if (m_pushed_join_operation == PUSHED_ROOT)
+          {
+            DBUG_PRINT("info", ("Cannot push join due to incomplete implementation."));
+            m_thd_ndb->m_pushed_queries_dropped++;
+          }
+          if (!(op= pk_unique_index_read_key(active_index,
+                                             mrr_cur_range.start_key.key,
+                                             multi_range_row(row_buf), lm,
+                                             ppartitionId)))
+            ERR_RETURN(trans->getNdbError());
+        }
       }
       oplist[num_keyops++]= op;
       row_buf= multi_range_next_entry(row_buf, reclength);
     }
   }
 
+  if (m_active_query != NULL &&         
+      m_pushed_join_member->get_query_def().isScanQuery())
+  {
+    m_thd_ndb->m_scan_count++;
+    if (mrr_is_output_sorted)
+    {        
+      m_thd_ndb->m_sorted_scan_count++;
+    }
+
+    bool prunable= false;
+    if (unlikely(m_active_query->isPrunable(prunable) != 0))
+      ERR_RETURN(m_active_query->getNdbError());
+    if (prunable)
+      m_thd_ndb->m_pruned_scan_count++;
+
+    DBUG_PRINT("info", ("Is MRR scan-query pruned to 1 partition? :%u", prunable));
+    DBUG_ASSERT(!m_multi_cursor);
+  }
   if (m_multi_cursor)
   {
     DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
