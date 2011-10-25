@@ -14968,10 +14968,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     else // if ((...PUSHED_ROOT && m_pushed_join->get_query_def().isScanQuery()) ||...
     {
-      if (m_pushed_join_operation == PUSHED_ROOT)
-      {
-        m_thd_ndb->m_pushed_queries_dropped++;
-      }
       if (!trans)
       {
         DBUG_ASSERT(active_index != MAX_KEY);

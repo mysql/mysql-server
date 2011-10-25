@@ -5539,7 +5539,7 @@ sorted_scan_count
 pushed_queries_defined
 405
 pushed_queries_dropped
-11
+8
 pushed_queries_executed
 550
 set ndb_join_pushdown = @save_ndb_join_pushdown;
