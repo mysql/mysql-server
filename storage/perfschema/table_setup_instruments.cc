@@ -170,7 +170,7 @@ int table_setup_instruments::rnd_pos(const void *pos)
     instr_class= find_statement_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_SOCKET:
-    instr_class= find_table_class(m_pos.m_index_2);
+    instr_class= find_socket_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_IDLE:
     instr_class= find_idle_class(m_pos.m_index_2);
