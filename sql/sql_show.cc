@@ -4385,6 +4385,7 @@ err:
 
 /**
   @brief    Store field characteristics into appropriate I_S table columns
+            starting from DATA_TYPE column till DTD_IDENTIFIER column.
 
   @param[in]      table             I_S table
   @param[in]      field             processed field
@@ -4406,8 +4407,8 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
 
   field->sql_type(column_type);
   /* DTD_IDENTIFIER column */
-  table->field[offset + 7]->store(column_type.ptr(), column_type.length(), cs);
-  table->field[offset + 7]->set_notnull();
+  table->field[offset + 8]->store(column_type.ptr(), column_type.length(), cs);
+  table->field[offset + 8]->set_notnull();
   /*
     DATA_TYPE column:
     MySQL column type has the following format:
@@ -4477,6 +4478,14 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
     if (decimals == NOT_FIXED_DEC)
       decimals= -1;                           // return NULL
     break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIME:
+    /* DATETIME_PRECISION column */
+    table->field[offset + 5]->store(0, TRUE);
+    table->field[offset + 5]->set_notnull();
+    field_length= decimals= -1;
+    break;
   default:
     field_length= decimals= -1;
     break;
@@ -4498,12 +4507,12 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
   {
     /* CHARACTER_SET_NAME column*/
     tmp_buff= field->charset()->csname;
-    table->field[offset + 5]->store(tmp_buff, strlen(tmp_buff), cs);
-    table->field[offset + 5]->set_notnull();
-    /* COLLATION_NAME column */
-    tmp_buff= field->charset()->name;
     table->field[offset + 6]->store(tmp_buff, strlen(tmp_buff), cs);
     table->field[offset + 6]->set_notnull();
+    /* COLLATION_NAME column */
+    tmp_buff= field->charset()->name;
+    table->field[offset + 7]->store(tmp_buff, strlen(tmp_buff), cs);
+    table->field[offset + 7]->set_notnull();
   }
 }
 
@@ -4579,41 +4588,48 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         end=strmov(end,grant_types.type_names[bitnr]);
       }
     }
-    table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+    table->field[IS_COLUMNS_PRIVILEGES]->store(tmp+1,
+                                               end == tmp ? 0 : 
+                                               (uint) (end-tmp-1), cs);
 
 #endif
-    table->field[0]->store(STRING_WITH_LEN("def"), cs);
-    table->field[1]->store(db_name->str, db_name->length, cs);
-    table->field[2]->store(table_name->str, table_name->length, cs);
-    table->field[3]->store(field->field_name, strlen(field->field_name),
-                           cs);
-    table->field[4]->store((longlong) count, TRUE);
+    table->field[IS_COLUMNS_TABLE_CATALOG]->store(STRING_WITH_LEN("def"), cs);
+    table->field[IS_COLUMNS_TABLE_SCHEMA]->store(db_name->str,
+                                                 db_name->length, cs);
+    table->field[IS_COLUMNS_TABLE_NAME]->store(table_name->str,
+                                               table_name->length, cs);
+    table->field[IS_COLUMNS_COLUMN_NAME]->store(field->field_name,
+                                                strlen(field->field_name), cs);
+    table->field[IS_COLUMNS_ORDINAL_POSITION]->store((longlong) count, TRUE);
     field->sql_type(type);
-    table->field[14]->store(type.ptr(), type.length(), cs);
+    table->field[IS_COLUMNS_COLUMN_TYPE]->store(type.ptr(), type.length(), cs);
 
     if (get_field_default_value(thd, timestamp_field, field, &type, 0))
     {
-      table->field[5]->store(type.ptr(), type.length(), cs);
-      table->field[5]->set_notnull();
+      table->field[IS_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(), type.length(),
+                                                    cs);
+      table->field[IS_COLUMNS_COLUMN_DEFAULT]->set_notnull();
     }
     pos=(uchar*) ((field->flags & NOT_NULL_FLAG) ?  "NO" : "YES");
-    table->field[6]->store((const char*) pos,
+    table->field[IS_COLUMNS_IS_NULLABLE]->store((const char*) pos,
                            strlen((const char*) pos), cs);
-    store_column_type(table, field, cs, 7);
+    store_column_type(table, field, cs, IS_COLUMNS_DATA_TYPE);
     pos=(uchar*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                  (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
                  (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-    table->field[15]->store((const char*) pos,
+    table->field[IS_COLUMNS_COLUMN_KEY]->store((const char*) pos,
                             strlen((const char*) pos), cs);
 
     if (field->unireg_check == Field::NEXT_NUMBER)
-      table->field[16]->store(STRING_WITH_LEN("auto_increment"), cs);
+      table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("auto_increment"),
+                                           cs);
     if (timestamp_field == field &&
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
-      table->field[16]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
-                              cs);
+      table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN
+                                           ("on update CURRENT_TIMESTAMP"), cs);
 
-    table->field[18]->store(field->comment.str, field->comment.length, cs);
+    table->field[IS_COLUMNS_COLUMN_COMMENT]->store(field->comment.str,
+                                                   field->comment.length, cs);
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
   }
@@ -4895,13 +4911,17 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
     if (routine_type == TYPE_ENUM_FUNCTION)
     {
       restore_record(table, s->default_values);
-      table->field[0]->store(STRING_WITH_LEN("def"), cs);
-      table->field[1]->store(sp_db.ptr(), sp_db.length(), cs);
-      table->field[2]->store(sp_name.ptr(), sp_name.length(), cs);
-      table->field[3]->store((longlong) 0, TRUE);
+      table->field[IS_PARAMETERS_SPECIFIC_CATALOG]->store(STRING_WITH_LEN
+                                                          ("def"), cs);
+      table->field[IS_PARAMETERS_SPECIFIC_SCHEMA]->store(sp_db.ptr(),
+                                                         sp_db.length(), cs);
+      table->field[IS_PARAMETERS_SPECIFIC_NAME]->store(sp_name.ptr(),
+                                                       sp_name.length(), cs);
+      table->field[IS_PARAMETERS_ORDINAL_POSITION]->store((longlong) 0, TRUE);
       get_field(thd->mem_root, proc_table->field[MYSQL_PROC_MYSQL_TYPE],
                 &tmp_string);
-      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[IS_PARAMETERS_ROUTINE_TYPE]->store(tmp_string.ptr(),
+                                                      tmp_string.length(), cs);
       field_def= &sp->m_return_field_def;
       field= make_field(&share, (uchar*) 0, field_def->length,
                         (uchar*) "", 0, field_def->pack_flag,
@@ -4911,7 +4931,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
 
       field->table= &tbl;
       tbl.in_use= thd;
-      store_column_type(table, field, cs, 6);
+      store_column_type(table, field, cs, IS_PARAMETERS_DATA_TYPE);
       if (schema_table_store_record(thd, table))
       {
         free_table_share(&share);
@@ -4944,17 +4964,24 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
       }  
 
       restore_record(table, s->default_values);
-      table->field[0]->store(STRING_WITH_LEN("def"), cs);
-      table->field[1]->store(sp_db.ptr(), sp_db.length(), cs);
-      table->field[2]->store(sp_name.ptr(), sp_name.length(), cs);
-      table->field[3]->store((longlong) i + 1, TRUE);
-      table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
-      table->field[4]->set_notnull();
-      table->field[5]->store(spvar->name.str, spvar->name.length, cs);
-      table->field[5]->set_notnull();
+      table->field[IS_PARAMETERS_SPECIFIC_CATALOG]->store(STRING_WITH_LEN
+                                                          ("def"), cs);
+      table->field[IS_PARAMETERS_SPECIFIC_SCHEMA]->store(sp_db.ptr(),
+                                                         sp_db.length(), cs);
+      table->field[IS_PARAMETERS_SPECIFIC_NAME]->store(sp_name.ptr(),
+                                                       sp_name.length(), cs);
+      table->field[IS_PARAMETERS_ORDINAL_POSITION]->store((longlong) i + 1,
+                                                          TRUE);
+      table->field[IS_PARAMETERS_PARAMETER_MODE]->store(tmp_buff,
+                                                        strlen(tmp_buff), cs);
+      table->field[IS_PARAMETERS_PARAMETER_MODE]->set_notnull();
+      table->field[IS_PARAMETERS_PARAMETER_NAME]->store(spvar->name.str,
+                                                        spvar->name.length, cs);
+      table->field[IS_PARAMETERS_PARAMETER_NAME]->set_notnull();
       get_field(thd->mem_root, proc_table->field[MYSQL_PROC_MYSQL_TYPE],
                 &tmp_string);
-      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[IS_PARAMETERS_ROUTINE_TYPE]->store(tmp_string.ptr(),
+                                                      tmp_string.length(), cs);
 
       field= make_field(&share, (uchar*) 0, field_def->length,
                         (uchar*) "", 0, field_def->pack_flag,
@@ -4964,7 +4991,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
 
       field->table= &tbl;
       tbl.in_use= thd;
-      store_column_type(table, field, cs, 6);
+      store_column_type(table, field, cs, IS_PARAMETERS_DATA_TYPE);
       if (schema_table_store_record(thd, table))
       {
         free_table_share(&share);
@@ -5020,13 +5047,15 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
     if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
     {
       int enum_idx= (int) proc_table->field[MYSQL_PROC_FIELD_ACCESS]->val_int();
-      table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
+      table->field[IS_ROUTINES_ROUTINE_NAME]->store(sp_name.ptr(),
+                                                    sp_name.length(), cs);
 
-      copy_field_as_string(table->field[0],
+      copy_field_as_string(table->field[IS_ROUTINES_SPECIFIC_NAME],
                            proc_table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]);
-      table->field[1]->store(STRING_WITH_LEN("def"), cs);
-      table->field[2]->store(sp_db.ptr(), sp_db.length(), cs);
-      copy_field_as_string(table->field[4],
+      table->field[IS_ROUTINES_ROUTINE_CATALOG]->store(STRING_WITH_LEN("def"),
+                                                       cs);
+      table->field[IS_ROUTINES_ROUTINE_SCHEMA]->store(sp_db.ptr(), sp_db.length(), cs);
+      copy_field_as_string(table->field[IS_ROUTINES_ROUTINE_TYPE],
                            proc_table->field[MYSQL_PROC_MYSQL_TYPE]);
 
       if (proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() ==
@@ -5062,7 +5091,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 
           field->table= &tbl;
           tbl.in_use= thd;
-          store_column_type(table, field, cs, 5);
+          store_column_type(table, field, cs, IS_ROUTINES_DATA_TYPE);
           free_table_share(&share);
           if (free_sp_head)
             delete sp;
@@ -5071,40 +5100,45 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 
       if (full_access)
       {
-        copy_field_as_string(table->field[14],
+        copy_field_as_string(table->field[IS_ROUTINES_ROUTINE_DEFINITION],
                              proc_table->field[MYSQL_PROC_FIELD_BODY_UTF8]);
-        table->field[14]->set_notnull();
+        table->field[IS_ROUTINES_ROUTINE_DEFINITION]->set_notnull();
       }
-      table->field[13]->store(STRING_WITH_LEN("SQL"), cs);
-      table->field[17]->store(STRING_WITH_LEN("SQL"), cs);
-      copy_field_as_string(table->field[18],
+      table->field[IS_ROUTINES_ROUTINE_BODY]->store(STRING_WITH_LEN("SQL"), cs);
+      table->field[IS_ROUTINES_PARAMETER_STYLE]->store(STRING_WITH_LEN("SQL"),
+                                                       cs);
+      copy_field_as_string(table->field[IS_ROUTINES_IS_DETERMINISTIC],
                            proc_table->field[MYSQL_PROC_FIELD_DETERMINISTIC]);
-      table->field[19]->store(sp_data_access_name[enum_idx].str, 
-                              sp_data_access_name[enum_idx].length , cs);
-      copy_field_as_string(table->field[21],
+      table->field[IS_ROUTINES_SQL_DATA_ACCESS]->
+                   store(sp_data_access_name[enum_idx].str, 
+                         sp_data_access_name[enum_idx].length , cs);
+      copy_field_as_string(table->field[IS_ROUTINES_SECURITY_TYPE],
                            proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]);
 
       memset(&time, 0, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_CREATED])->
         get_time(&time);
-      table->field[22]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[IS_ROUTINES_CREATED]->
+                   store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       memset(&time, 0, sizeof(time));
       ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_MODIFIED])->
         get_time(&time);
-      table->field[23]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
-      copy_field_as_string(table->field[24],
+      table->field[IS_ROUTINES_LAST_ALTERED]->
+                   store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      copy_field_as_string(table->field[IS_ROUTINES_SQL_MODE],
                            proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]);
-      copy_field_as_string(table->field[25],
+      copy_field_as_string(table->field[IS_ROUTINES_ROUTINE_COMMENT],
                            proc_table->field[MYSQL_PROC_FIELD_COMMENT]);
 
-      table->field[26]->store(definer.ptr(), definer.length(), cs);
-      copy_field_as_string(table->field[27],
+      table->field[IS_ROUTINES_DEFINER]->store(definer.ptr(),
+                                               definer.length(), cs);
+      copy_field_as_string(table->field[IS_ROUTINES_CHARACTER_SET_CLIENT],
                            proc_table->
                            field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]);
-      copy_field_as_string(table->field[28],
+      copy_field_as_string(table->field[IS_ROUTINES_COLLATION_CONNECTION],
                            proc_table->
                            field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]);
-      copy_field_as_string(table->field[29],
+      copy_field_as_string(table->field[IS_ROUTINES_DATABASE_COLLATION],
 			   proc_table->field[MYSQL_PROC_FIELD_DB_COLLATION]);
 
       return schema_table_store_record(thd, table);
@@ -6808,7 +6842,16 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 
 int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  int fields_arr[]= {3, 14, 13, 6, 15, 5, 16, 17, 18, -1};
+  int fields_arr[]= {IS_COLUMNS_COLUMN_NAME,
+                     IS_COLUMNS_COLUMN_TYPE,
+                     IS_COLUMNS_COLLATION_NAME,
+                     IS_COLUMNS_IS_NULLABLE,
+                     IS_COLUMNS_COLUMN_KEY,
+                     IS_COLUMNS_COLUMN_DEFAULT,
+                     IS_COLUMNS_EXTRA,
+                     IS_COLUMNS_PRIVILEGES,
+                     IS_COLUMNS_COLUMN_COMMENT,
+                     -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
   Name_resolution_context *context= &thd->lex->select_lex.context;
@@ -6816,9 +6859,9 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   for (; *field_num >= 0; field_num++)
   {
     field_info= &schema_table->fields_info[*field_num];
-    if (!thd->lex->verbose && (*field_num == 13 ||
-                               *field_num == 17 ||
-                               *field_num == 18))
+    if (!thd->lex->verbose && (*field_num == IS_COLUMNS_COLLATION_NAME ||
+                               *field_num == IS_COLUMNS_PRIVILEGES     ||
+                               *field_num == IS_COLUMNS_COLUMN_COMMENT))
       continue;
     Item_field *field= new Item_field(context,
                                       NullS, NullS, field_info->field_name);
@@ -6862,7 +6905,18 @@ int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 
 int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  int fields_arr[]= {2, 3, 4, 26, 23, 22, 21, 25, 27, 28, 29, -1};
+  int fields_arr[]= {IS_ROUTINES_ROUTINE_SCHEMA,
+                     IS_ROUTINES_ROUTINE_NAME,
+                     IS_ROUTINES_ROUTINE_TYPE,
+                     IS_ROUTINES_DEFINER,
+                     IS_ROUTINES_LAST_ALTERED,
+                     IS_ROUTINES_CREATED,
+                     IS_ROUTINES_SECURITY_TYPE,
+                     IS_ROUTINES_ROUTINE_COMMENT,
+                     IS_ROUTINES_CHARACTER_SET_CLIENT,
+                     IS_ROUTINES_COLLATION_CONNECTION,
+                     IS_ROUTINES_DATABASE_COLLATION,
+                     -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
   Name_resolution_context *context= &thd->lex->select_lex.context;
@@ -7277,6 +7331,8 @@ ST_FIELD_INFO columns_fields_info[]=
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
   {"NUMERIC_SCALE", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONGLONG,
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
+  {"DATETIME_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FULL_TABLE},
   {"CHARACTER_SET_NAME", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 1, 0,
    OPEN_FRM_ONLY},
   {"COLLATION_NAME", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 1, "Collation",
@@ -7394,6 +7450,8 @@ ST_FIELD_INFO proc_fields_info[]=
   {"NUMERIC_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0, SKIP_OPEN_TABLE},
+  {"DATETIME_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"DTD_IDENTIFIER", 65535, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
@@ -7805,6 +7863,8 @@ ST_FIELD_INFO parameters_fields_info[]=
   {"NUMERIC_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FULL_TABLE},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0, OPEN_FULL_TABLE},
+  {"DATETIME_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FULL_TABLE},
   {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0, OPEN_FULL_TABLE},
   {"DTD_IDENTIFIER", 65535, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
