@@ -1039,6 +1039,32 @@ DROP TABLE t1, t2, t3, t4;
 set join_cache_level= @tmp869001_jcl;
 set optimizer_switch= @tmp869001_os;
 
+--echo # 
+--echo # Bug #881318: join cache + duplicate elimination + left join
+--echo #              with empty materialized derived inner table
+--echo #
+
+CREATE TABLE t1 (b varchar(1)) ENGINE=InnoDB;
+
+CREATE TABLE t2 (a varchar(1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('a');
+
+CREATE TABLE t3 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('c','c');
+
+CREATE TABLE t4 (b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t4 VALUES ('c'), ('b');
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN
+SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
+  WHERE t3.b IN (SELECT b FROM t4);
+SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
+  WHERE t3.b IN (SELECT b FROM t4);
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4;
 
 --echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;

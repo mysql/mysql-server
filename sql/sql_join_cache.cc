@@ -1413,12 +1413,22 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 	  TABLE *table= (TABLE *) copy->str;
           copy->str= table->file->ref;
           copy->length= table->file->ref_length;
+          if (!copy->str)
+	  {
+            /* 
+              If table is an empty inner table of an outer join and it is
+              a materialized derived table then table->file->ref == NULL.
+	    */
+	    cp+= copy->length;
+            break;
+          }
         }
         /* fall through */
       default:      
         /* Copy the entire image of the field from the record buffer */
         DBUG_ASSERT(cp + copy->length <= buff + buff_size);
-	memcpy(cp, copy->str, copy->length);
+        if (copy->str)
+	  memcpy(cp, copy->str, copy->length);
 	cp+= copy->length;
       }
     }
@@ -1811,6 +1821,13 @@ uint JOIN_CACHE::read_record_field(CACHE_FIELD *copy, bool blob_in_rec_buff)
       memset(copy->str+len, ' ', copy->length-len);
       len+= 2;
       break;
+    case CACHE_ROWID:
+      if (!copy->str)
+      {
+        len= copy->length;
+        break;
+      }
+      /* fall through */ 
     default:
       /* Copy the entire image of the field from the record buffer */
       len= copy->length;
