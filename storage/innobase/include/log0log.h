@@ -44,7 +44,8 @@ Created 12/9/1995 Heikki Tuuri
 /* Type used for all log sequence number storage and arithmetics */
 typedef	ib_uint64_t		lsn_t;
 #define LSN_MAX			IB_UINT64_MAX
-#define LSN_PF			"%llu"
+
+#define LSN_PF			UINT64PF
 
 /** Redo log buffer */
 typedef struct log_struct	log_t;

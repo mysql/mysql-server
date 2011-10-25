@@ -440,25 +440,25 @@ dfield_print_also_hex(
 		case DATA_TRX_ID:
 			id = mach_read_from_6(data);
 
-			fprintf(stderr, "trx_id " TRX_ID_FMT, (ullint) id);
+			fprintf(stderr, "trx_id " TRX_ID_FMT, id);
 			break;
 
 		case DATA_ROLL_PTR:
 			id = mach_read_from_7(data);
 
-			fprintf(stderr, "roll_ptr " TRX_ID_FMT, (ullint) id);
+			fprintf(stderr, "roll_ptr " TRX_ID_FMT, id);
 			break;
 
 		case DATA_ROW_ID:
 			id = mach_read_from_6(data);
 
-			fprintf(stderr, "row_id " TRX_ID_FMT, (ullint) id);
+			fprintf(stderr, "row_id " TRX_ID_FMT, id);
 			break;
 
 		default:
 			id = mach_ull_read_compressed(data);
 
-			fprintf(stderr, "mix_id " TRX_ID_FMT, (ullint) id);
+			fprintf(stderr, "mix_id " TRX_ID_FMT, id);
 		}
 		break;
 

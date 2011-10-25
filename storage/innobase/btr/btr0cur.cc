@@ -945,7 +945,7 @@ btr_cur_open_at_index_side_func(
 		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
 }
@@ -1153,8 +1153,7 @@ btr_cur_trx_report(
 	const dict_index_t*	index,	/*!< in: index */
 	const char*		op)	/*!< in: operation */
 {
-	fprintf(stderr, "Trx with id " TRX_ID_FMT " going to ",
-		(ullint) trx->id);
+	fprintf(stderr, "Trx with id " TRX_ID_FMT " going to ", trx->id);
 	fputs(op, stderr);
 	dict_index_name_print(stderr, trx, index);
 	putc('\n', stderr);

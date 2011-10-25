@@ -2524,9 +2524,10 @@ try_again:
 	}
 
 	fprintf(stderr,
-		"InnoDB: Error: tried to read %lu bytes at offset %llu.\n"
+		"InnoDB: Error: tried to read "ULINTPF" bytes at offset "
+		UINT64PF"\n"
 		"InnoDB: Was only able to read %ld.\n",
-		(ulong)n, offset, (long)ret);
+		n, offset, (lint) ret);
 #endif /* __WIN__ */
 #ifdef __WIN__
 error_handling:
@@ -2858,7 +2859,7 @@ retry:
 
 		fprintf(stderr,
 			"  InnoDB: Error: Write to file %s failed"
-			" at offset %llu.\n"
+			" at offset "UINT64PF".\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %ld were written.\n"
 			"InnoDB: Operating system error number %lu.\n"
@@ -2866,8 +2867,8 @@ retry:
 			" support files of this size.\n"
 			"InnoDB: Check also that the disk is not full"
 			" or a disk quota exceeded.\n",
-			name, offset, n, (long int)ret,
-			(ulint)errno);
+			name, offset, n, (lint) ret,
+			(ulint) errno);
 		if (strerror(errno) != NULL) {
 			fprintf(stderr,
 				"InnoDB: Error number %lu means '%s'.\n",
@@ -4896,7 +4897,7 @@ consecutive_loop:
 
 	if (os_aio_print_debug) {
 		fprintf(stderr,
-			"InnoDB: doing i/o of type %lu at offset %llu,"
+			"InnoDB: doing i/o of type %lu at offset "UINT64PF","
 			" length %lu\n",
 			(ulong) slot->type, slot->offset, (ulong) total_len);
 	}

@@ -401,6 +401,9 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
+# define os_atomic_increment_uint64(ptr, amount) \
+	os_atomic_increment(ptr, amount)
+
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
 
@@ -468,6 +471,9 @@ amount of increment. */
 
 # define os_atomic_increment_lint(ptr, amount) \
 	os_atomic_increment_ulint((ulong_t*) ptr, amount)
+
+# define os_atomic_increment_uint64(ptr, amount) \
+	atomic_add_64_nv(ptr, amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
@@ -564,6 +570,9 @@ amount of increment. */
 
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
+
+# define os_atomic_increment_uint64(ptr, amount) \
+	((ulint) (win_xchg_and_add(ptr, (lint) amount) + amount))
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the

@@ -1296,7 +1296,7 @@ trx_print_low(
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
+	fprintf(f, "TRANSACTION " TRX_ID_FMT, trx->id);
 
 	/* trx->state cannot change from or to NOT_STARTED while we
 	are holding the trx_sys->mutex. It may change from ACTIVE to
@@ -1382,8 +1382,7 @@ state_ok:
 
 	if (trx->undo_no != 0) {
 		newline = TRUE;
-		fprintf(f, ", undo log entries %llu",
-			(ullint) trx->undo_no);
+		fprintf(f, ", undo log entries "TRX_ID_FMT, trx->undo_no);
 	}
 
 	if (newline) {
@@ -1690,13 +1689,13 @@ trx_recover_for_mysql(
 			fprintf(stderr,
 				"  InnoDB: Transaction " TRX_ID_FMT " in"
 				" prepared state after recovery\n",
-				(ullint) trx->id);
+				trx->id);
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Transaction contains changes"
-				" to %llu rows\n",
-				(ullint) trx->undo_no);
+				" to "TRX_ID_FMT" rows\n",
+				trx->undo_no);
 
 			count++;
 

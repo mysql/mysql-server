@@ -573,7 +573,7 @@ trx_rollback_active(
 	fprintf(stderr,
 		"  InnoDB: Rolling back trx with id " TRX_ID_FMT ", %lu%s"
 		" rows to undo\n",
-		(ullint) trx->id,
+		trx->id,
 		(ulong) rows_to_undo, unit);
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
@@ -600,9 +600,9 @@ trx_rollback_active(
 		drop the relevant table, if it still exists */
 
 		fprintf(stderr,
-			"InnoDB: Dropping table with id %llu"
+			"InnoDB: Dropping table with id "UINT64PF
 			" in recovery if it exists\n",
-			(ullint) trx->table_id);
+			(ib_uint64_t) trx->table_id);
 
 		table = dict_table_open_on_id(trx->table_id, dictionary_locked);
 
@@ -635,7 +635,7 @@ trx_rollback_active(
 
 	fprintf(stderr, "\nInnoDB: Rolling back of trx id " TRX_ID_FMT
 		" completed\n",
-		(ullint) trx->id);
+		trx->id);
 
 	mem_heap_free(heap);
 

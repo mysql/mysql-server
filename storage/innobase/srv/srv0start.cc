@@ -600,9 +600,9 @@ open_or_create_log_file(
 
 			fprintf(stderr,
 				"InnoDB: Error: log file %s is"
-				" of different size %llu bytes\n"
+				" of different size "UINT64PF" bytes\n"
 				"InnoDB: than specified in the .cnf"
-				" file %llu bytes!\n",
+				" file "UINT64PF" bytes!\n",
 				name, size,
 				(os_offset_t) srv_log_file_size
 				<< UNIV_PAGE_SIZE_SHIFT);

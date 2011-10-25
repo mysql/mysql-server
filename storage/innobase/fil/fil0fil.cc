@@ -741,7 +741,7 @@ fil_node_open_file(
 			fprintf(stderr,
 				"InnoDB: Error: the size of single-table"
 				" tablespace file %s\n"
-				"InnoDB: is only %llu,"
+				"InnoDB: is only "UINT64PF","
 				" should be at least %lu!\n",
 				node->name,
 				size_bytes,
@@ -3367,7 +3367,7 @@ fil_load_single_table_tablespace(
 		fprintf(stderr,
 			"InnoDB: Error: the size of single-table tablespace"
 			" file %s\n"
-			"InnoDB: is only %llu, should be at least %lu!",
+			"InnoDB: is only "UINT64PF", should be at least %lu!",
 			filepath,
 			size, (ulong) (4 * UNIV_PAGE_SIZE));
 		os_file_close(file);

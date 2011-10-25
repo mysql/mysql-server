@@ -731,7 +731,7 @@ page_rec_get_next_low(
 
 	offs = rec_get_next_offs(rec, comp);
 
-	if (UNIV_UNLIKELY(offs >= UNIV_PAGE_SIZE)) {
+	if (offs >= UNIV_PAGE_SIZE) {
 		fprintf(stderr,
 			"InnoDB: Next record offset is nonsensical %lu"
 			" in record at offset %lu\n"
@@ -743,9 +743,7 @@ page_rec_get_next_low(
 		buf_page_print(page, 0);
 
 		ut_error;
-	}
-
-	if (UNIV_UNLIKELY(offs == 0)) {
+	} else if (offs == 0) {
 
 		return(NULL);
 	}

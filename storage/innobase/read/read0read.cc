@@ -581,20 +581,20 @@ read_view_print(
 
 	if (view->type == VIEW_HIGH_GRANULARITY) {
 		fprintf(stderr,
-			"High-granularity read view undo_n:o %llu\n",
-			(ullint) view->undo_no);
+			"High-granularity read view undo_n:o " TRX_ID_FMT "\n",
+			view->undo_no);
 	} else {
 		fprintf(stderr, "Normal read view\n");
 	}
 
 	fprintf(stderr, "Read view low limit trx n:o " TRX_ID_FMT "\n",
-		(ullint) view->low_limit_no);
+		view->low_limit_no);
 
 	fprintf(stderr, "Read view up limit trx id " TRX_ID_FMT "\n",
-		(ullint) view->up_limit_id);
+		view->up_limit_id);
 
 	fprintf(stderr, "Read view low limit trx id " TRX_ID_FMT "\n",
-		(ullint) view->low_limit_id);
+		view->low_limit_id);
 
 	fprintf(stderr, "Read view individually stored trx ids:\n");
 
@@ -602,7 +602,7 @@ read_view_print(
 
 	for (i = 0; i < n_ids; i++) {
 		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
-			(ullint) view->trx_ids[i]);
+			view->trx_ids[i]);
 	}
 }
 

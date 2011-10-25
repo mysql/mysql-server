@@ -1589,14 +1589,19 @@ sync_print_wait_info(
 	FILE*	file)		/*!< in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
-	fprintf(file, "Mutex exits %llu, rws exits %llu, rwx exits %llu\n",
+	fprintf(file,
+		"Mutex exits "UINT64PF", "
+		"rws exits "UINT64PF",  rwx exits "UINT64PF"\n",
 		mutex_exit_count, rw_s_exit_count, rw_x_exit_count);
 #endif
 
 	fprintf(file,
-		"Mutex spin waits %llu, rounds %llu, OS waits %llu\n"
-		"RW-shared spins %llu, rounds %llu, OS waits %llu\n"
-		"RW-excl spins %llu, rounds %llu, OS waits %llu\n",
+		"Mutex spin waits "UINT64PF", rounds "UINT64PF", "
+		"OS waits "UINT64PF"\n"
+		"RW-shared spins "UINT64PF", rounds "UINT64PF", "
+		"OS waits "UINT64PF"\n"
+		"RW-excl spins "UINT64PF", rounds "UINT64PF", "
+		"OS waits "UINT64PF"\n",
 		mutex_spin_wait_count,
 		mutex_spin_round_count,
 		mutex_os_wait_count,
