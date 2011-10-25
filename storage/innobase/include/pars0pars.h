@@ -105,13 +105,13 @@ pars_sql(
 	pars_info_t*	info,	/*!< in: extra information, or NULL */
 	const char*	str);	/*!< in: SQL string */
 /*************************************************************//**
-Retrieves characters to the lexical analyzer. */
+Retrieves characters to the lexical analyzer.
+@return number of characters copied or EOF */
 UNIV_INTERN
-void
+int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int*	result,		/*!< out: number of characters copied or EOF */
 	int	max_size);	/*!< in: maximum number of characters which fit
 				in the buffer */
 /*************************************************************//**

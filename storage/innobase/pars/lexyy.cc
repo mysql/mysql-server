@@ -747,7 +747,7 @@ Created 12/14/1997 Heikki Tuuri
 
 /* Note: We cast &result to int* from yysize_t* */
 #define YY_INPUT(buf, result, max_size) \
-	pars_get_lex_chars(buf, (int*) &result, max_size)
+	((result) = pars_get_lex_chars(buf, max_size))
 
 /* String buffer for removing quotes */
 static ulint	stringbuf_len_alloc = 0; /* Allocated length */
