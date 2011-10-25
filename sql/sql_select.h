@@ -1802,22 +1802,9 @@ public:
   POSITION *best_positions;
 
 /******* Join optimization state members start *******/
-  /*
-    If non-NULL, we are optimizing a materialized semi-join nest.
-    If NULL, we are optimizing a complete join plan.
-    This member is used only within the class Optimize_table_order, and
-    within class Loose_scan_opt (called from best_access_path()).
-  */
-  TABLE_LIST *emb_sjm_nest;
   
   /* Current join optimization state */
   POSITION *positions;  
-  /*
-    Bitmap of inner tables of semi-join nests that have a proper subset of
-    their tables in the current join prefix. That is, of those semi-join
-    nests that have their tables both in and outside of the join prefix.
-  */
-  table_map cur_sj_inner_tables;
 
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
