@@ -51,4 +51,15 @@ This (3072) is the maximum index row length allowed, so we cannot create index
 prefix column longer than that. */
 #define REC_VERSION_56_MAX_INDEX_COL_LEN	3072
 
+/** Innodb row types are a subset of the MySQL global enum row_type.
+They are made into their own enum so that switch statements can account
+for each of them. */
+enum rec_format_enum {
+	REC_FORMAT_REDUNDANT	= 0,	/*!< REDUNDANT row format */
+	REC_FORMAT_COMPACT	= 1,	/*!< COMPACT row format */
+	REC_FORMAT_COMPRESSED	= 2,	/*!< COMPRESSED row format */
+	REC_FORMAT_DYNAMIC	= 3	/*!< DYNAMIC row format */
+};
+typedef enum rec_format_enum rec_format_t;
+
 #endif
