@@ -851,24 +851,17 @@ row_raw_format_int(
 {
 	ulint	ret;
 
-	if (data_len <= sizeof(ullint)) {
+	if (data_len <= sizeof(ib_uint64_t)) {
 
-		ullint		value;
+		ib_uint64_t	value;
 		ibool		unsigned_type = prtype & DATA_UNSIGNED;
 
-		value = mach_read_int_type((const byte*) data,
-					   data_len, unsigned_type);
+		value = mach_read_int_type(
+			(const byte*) data, data_len, unsigned_type);
 
-		if (unsigned_type) {
-
-			ret = ut_snprintf(buf, buf_size, "%llu",
-					  value) + 1;
-		} else {
-
-			ret = ut_snprintf(buf, buf_size, "%lld",
-					  (long long) value) + 1;
-		}
-
+		ret = ut_snprintf(
+			buf, buf_size,
+			unsigned_type ? UINT64PF : INT64PF, value) + 1;
 	} else {
 
 		*format_in_hex = TRUE;

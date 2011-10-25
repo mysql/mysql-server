@@ -486,18 +486,20 @@ buf_page_is_corrupted(
 
 			fprintf(stderr,
 				"  InnoDB: Error: page %lu log sequence number"
-				" %llu\n"
+				" " LSN_PF "\n"
 				"InnoDB: is in the future! Current system "
 				"log sequence number " LSN_PF ".\n"
 				"InnoDB: Your database may be corrupt or "
 				"you may have copied the InnoDB\n"
 				"InnoDB: tablespace but not the InnoDB "
 				"log files. See\n"
-				"InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
+				"InnoDB: " REFMAN
+				"forcing-innodb-recovery.html\n"
 				"InnoDB: for more information.\n",
-				(ulong) mach_read_from_4(read_buf
-							 + FIL_PAGE_OFFSET),
-				mach_read_from_8(read_buf + FIL_PAGE_LSN),
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_OFFSET),
+				(lsn_t) mach_read_from_8(
+					read_buf + FIL_PAGE_LSN),
 				current_lsn);
 		}
 	}
@@ -523,7 +525,7 @@ buf_page_is_corrupted(
 	if (checksum_field1 == 0 && checksum_field2 == 0
 	    && mach_read_from_4(read_buf + FIL_PAGE_LSN) == 0) {
 		/* make sure that the page is really empty */
-		ut_d(ulint i; for (i = 0; i < UNIV_PAGE_SIZE; i++) {
+		ut_d(for (ulint i = 0; i < UNIV_PAGE_SIZE; i++) {
 		     ut_a(read_buf[i] == 0); });
 
 		return(FALSE);

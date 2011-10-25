@@ -2029,7 +2029,8 @@ log_checkpoint(
 
 #ifdef UNIV_DEBUG
 	if (log_debug_writes) {
-		fprintf(stderr, "Making checkpoint no %llu at lsn " LSN_PF "\n",
+		fprintf(stderr, "Making checkpoint no "
+			LSN_PF " at lsn " LSN_PF "\n",
 			log_sys->next_checkpoint_no,
 			oldest_lsn);
 	}
@@ -2464,7 +2465,7 @@ loop:
 #ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
-			"Archiving starting at lsn %llu, len %lu"
+			"Archiving starting at lsn " LSN_PF ", len %lu"
 			" to group %lu\n",
 			start_lsn,
 			(ulong) len, (ulong) group->id);
@@ -2748,7 +2749,7 @@ arch_none:
 #ifdef UNIV_DEBUG
 	if (log_debug_writes) {
 		fprintf(stderr,
-			"Archiving from lsn %llu to lsn %llu\n",
+			"Archiving from lsn " LSN_PF " to lsn " LSN_PF "\n",
 			log_sys->archived_lsn, limit_lsn);
 	}
 #endif /* UNIV_DEBUG */

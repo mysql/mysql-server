@@ -128,6 +128,11 @@ Sun Studio */
 
 #endif /* #if (defined(WIN32) || ... */
 
+#ifndef __WIN__
+#define __STDC_FORMAT_MACROS    /* Enable C99 printf format macros */
+#include <inttypes.h>
+#endif /* !__WIN__ */
+
 /* Following defines are to enable performance schema
 instrumentation in each of four InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
@@ -388,41 +393,41 @@ database name and table name. In addition, 14 bytes is added for:
 /* Note that inside MySQL 'byte' is defined as char on Linux! */
 #define byte			unsigned char
 
-/* Define an unsigned integer type that is exactly 32 bits. */
-
-#if SIZEOF_INT == 4
-typedef unsigned int		ib_uint32_t;
-#define UINT32PF		"%u"
-#elif SIZEOF_LONG == 4
-typedef unsigned long		ib_uint32_t;
-#define UINT32PF		"%lu"
-#else
-#error "Neither int or long is 4 bytes"
-#endif
-
 /* Another basic type we use is unsigned long integer which should be equal to
 the word size of the machine, that is on a 32-bit platform 32 bits, and on a
 64-bit platform 64 bits. We also give the printf format for the type as a
 macro ULINTPF. */
 
-#ifdef _WIN64
-typedef unsigned __int64	ulint;
-#define ULINTPF			"%I64u"
-typedef __int64			lint;
-#else
-typedef unsigned long int	ulint;
-#define ULINTPF			"%lu"
-typedef long int		lint;
-#endif
 
 #ifdef __WIN__
-typedef __int64			ib_int64_t;
-typedef unsigned __int64	ib_uint64_t;
-#elif !defined(UNIV_HOTBACKUP)
-/** Note: longlong and ulonglong come from MySQL headers. */
-typedef longlong		ib_int64_t;
-typedef ulonglong		ib_uint64_t;
-#endif
+/* Use the integer types and formatting strings defined in Visual Studio. */
+# define UINT32PF	"%I32u"
+# define INT64PF	"%I64d"
+# define UINT64PF	"%I64u"
+typedef __int64 ib_int64_t;
+typedef unsigned __int64 ib_uint64_t;
+typedef unsigned __int32 ib_uint32_t;
+#else
+/* Use the integer types and formatting strings defined in the C99 standard. */
+# define UINT32PF	"%"PRIu32
+# define INT64PF	"%"PRId64
+# define UINT64PF	"%"PRIu64
+typedef int64_t ib_int64_t;
+typedef uint64_t ib_uint64_t;
+typedef uint32_t ib_uint32_t;
+# endif /* __WIN__ */
+
+# define IB_ID_FMT	UINT64PF
+
+#ifdef _WIN64
+typedef unsigned __int64	ulint;
+typedef __int64			lint;
+# define ULINTPF		UINT64PF
+#else
+typedef unsigned long int	ulint;
+typedef long int		lint;
+# define ULINTPF		"%lu"
+#endif /* _WIN64 */
 
 #ifndef UNIV_HOTBACKUP
 typedef unsigned long long int	ullint;

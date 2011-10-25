@@ -3934,7 +3934,7 @@ ha_innobase::innobase_initialize_autoinc()
 	} else {
 		dict_index_t*	index;
 		const char*	col_name;
-		ulonglong	read_auto_inc;
+		ib_uint64_t	read_auto_inc;
 		ulint		err;
 
 		update_thd(ha_thd());
