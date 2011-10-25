@@ -1803,13 +1803,13 @@ pars_stored_procedure_call(
 }
 
 /*************************************************************//**
-Retrieves characters to the lexical analyzer. */
+Retrieves characters to the lexical analyzer.
+@return number of characters copied or EOF */
 UNIV_INTERN
-void
+int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int*	result,		/*!< out: number of characters copied or EOF */
 	int	max_size)	/*!< in: maximum number of characters which fit
 				in the buffer */
 {
@@ -1821,9 +1821,7 @@ pars_get_lex_chars(
 #ifdef YYDEBUG
 		/* fputs("SQL string ends\n", stderr); */
 #endif
-		*result = 0;
-
-		return;
+		return(0);
 	}
 
 	if (len > max_size) {
@@ -1845,9 +1843,10 @@ pars_get_lex_chars(
 
 	ut_memcpy(buf, pars_sym_tab_global->sql_string
 		  + pars_sym_tab_global->next_char_pos, len);
-	*result = len;
 
 	pars_sym_tab_global->next_char_pos += len;
+
+	return(len);
 }
 
 /*************************************************************//**
