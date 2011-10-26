@@ -981,6 +981,10 @@ ha_innobase::add_index(
 	/* Check each index's column length to make sure they do not
 	exceed limit */
 	for (ulint i = 0; i < num_of_keys; i++) {
+		if (key_info[i].flags & HA_FULLTEXT) {
+			continue;
+		}
+
 		error = innobase_check_column_length(prebuilt->table,
 						     &key_info[i]);
 
