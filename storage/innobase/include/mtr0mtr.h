@@ -36,8 +36,6 @@ first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 #define MTR_MEMO_MODIFY		54
 #define	MTR_MEMO_S_LOCK		55
 #define	MTR_MEMO_X_LOCK		56
-/* The mini-transaction freed a clustered index leaf page. */
-#define MTR_MEMO_FREE_CLUST_LEAF	57
 
 /* Log item types: we have made them to be of the type 'byte'
 for the compiler to warn if val and type parameters are switched
@@ -317,12 +315,9 @@ struct mtr_struct{
 	ulint		state;	/* MTR_ACTIVE, MTR_COMMITTING, MTR_COMMITTED */
 	dyn_array_t	memo;	/* memo stack for locks etc. */
 	dyn_array_t	log;	/* mini-transaction log */
-	unsigned	modifications:1;
+	ibool		modifications;
 				/* TRUE if the mtr made modifications to
 				buffer pool pages */
-	unsigned	freed_clust_leaf:1;
-				/* TRUE if MTR_MEMO_FREE_CLUST_LEAF
-				was logged in the mini-transaction */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */

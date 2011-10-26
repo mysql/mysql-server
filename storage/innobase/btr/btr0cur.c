@@ -2051,6 +2051,43 @@ return_after_reservations:
 	return(err);
 }
 
+/*****************************************************************
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/* in: cursor */
+	mtr_t*		mtr)	/* in/out: mini-transaction */
+{
+	buf_block_t*	block;
+
+	block = buf_block_align(btr_cur_get_rec(cursor));
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
+				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* Keep the locks across the mtr_commit(mtr). */
+	rw_lock_x_lock(dict_index_get_lock(cursor->index));
+	rw_lock_x_lock(&block->lock);
+	mutex_enter(&block->mutex);
+#ifdef UNIV_SYNC_DEBUG
+	buf_block_buf_fix_inc_debug(block, __FILE__, __LINE__);
+#else
+	buf_block_buf_fix_inc(block);
+#endif
+	mutex_exit(&block->mutex);
+	/* Write out the redo log. */
+	mtr_commit(mtr);
+	mtr_start(mtr);
+	/* Reassociate the locks with the mini-transaction.
+	They will be released on mtr_commit(mtr). */
+	mtr_memo_push(mtr, dict_index_get_lock(cursor->index),
+		      MTR_MEMO_X_LOCK);
+	mtr_memo_push(mtr, block, MTR_MEMO_PAGE_X_FIX);
+}
+
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
 
 /********************************************************************
@@ -3449,11 +3486,6 @@ btr_store_big_rec_extern_fields(
 					this function returns */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
-	mtr_t*		alloc_mtr,	/* in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
 	mtr_t*		local_mtr __attribute__((unused))) /* in: mtr
 					containing the latch to rec and to the
 					tree */
@@ -3474,8 +3506,6 @@ btr_store_big_rec_extern_fields(
 	ulint	i;
 	mtr_t	mtr;
 
-	ut_ad(local_mtr);
-	ut_ad(!alloc_mtr || alloc_mtr == local_mtr);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
@@ -3484,25 +3514,6 @@ btr_store_big_rec_extern_fields(
 	ut_a(index->type & DICT_CLUSTERED);
 
 	space_id = buf_frame_get_space_id(rec);
-
-	if (alloc_mtr) {
-		/* Because alloc_mtr will be committed after
-		mtr, it is possible that the tablespace has been
-		extended when the B-tree record was updated or
-		inserted, or it will be extended while allocating
-		pages for big_rec.
-
-		TODO: In mtr (not alloc_mtr), write a redo log record
-		about extending the tablespace to its current size,
-		and remember the current size. Whenever the tablespace
-		grows as pages are allocated, write further redo log
-		records to mtr. (Currently tablespace extension is not
-		covered by the redo log. If it were, the record would
-		only be written to alloc_mtr, which is committed after
-		mtr.) */
-	} else {
-		alloc_mtr = &mtr;
-	}
 
 	/* We have to create a file segment to the tablespace
 	for each field and put the pointer to the field in rec */
@@ -3530,7 +3541,7 @@ btr_store_big_rec_extern_fields(
 			}
 
 			page = btr_page_alloc(index, hint_page_no,
-					      FSP_NO_DIR, 0, alloc_mtr, &mtr);
+					      FSP_NO_DIR, 0, &mtr);
 			if (page == NULL) {
 
 				mtr_commit(&mtr);
@@ -3584,42 +3595,37 @@ btr_store_big_rec_extern_fields(
 
 			extern_len -= store_len;
 
-			if (alloc_mtr == &mtr) {
 #ifdef UNIV_SYNC_DEBUG
-				rec_page =
+			rec_page =
 #endif /* UNIV_SYNC_DEBUG */
-					buf_page_get(
-						space_id,
-						buf_frame_get_page_no(data),
-						RW_X_LATCH, &mtr);
+			buf_page_get(space_id,
+				     buf_frame_get_page_no(data),
+				     RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-				buf_page_dbg_add_level(
-					rec_page, SYNC_NO_ORDER_CHECK);
+			buf_page_dbg_add_level(rec_page, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
-			}
-
 			mlog_write_ulint(data + local_len + BTR_EXTERN_LEN, 0,
-					 MLOG_4BYTES, alloc_mtr);
+					 MLOG_4BYTES, &mtr);
 			mlog_write_ulint(data + local_len + BTR_EXTERN_LEN + 4,
 					 big_rec_vec->fields[i].len
 					 - extern_len,
-					 MLOG_4BYTES, alloc_mtr);
+					 MLOG_4BYTES, &mtr);
 
 			if (prev_page_no == FIL_NULL) {
 				mlog_write_ulint(data + local_len
 						 + BTR_EXTERN_SPACE_ID,
 						 space_id,
-						 MLOG_4BYTES, alloc_mtr);
+						 MLOG_4BYTES, &mtr);
 
 				mlog_write_ulint(data + local_len
 						 + BTR_EXTERN_PAGE_NO,
 						 page_no,
-						 MLOG_4BYTES, alloc_mtr);
+						 MLOG_4BYTES, &mtr);
 
 				mlog_write_ulint(data + local_len
 						 + BTR_EXTERN_OFFSET,
 						 FIL_PAGE_DATA,
-						 MLOG_4BYTES, alloc_mtr);
+						 MLOG_4BYTES, &mtr);
 
 				/* Set the bit denoting that this field
 				in rec is stored externally */
@@ -3627,7 +3633,7 @@ btr_store_big_rec_extern_fields(
 				rec_set_nth_field_extern_bit(
 					rec, index,
 					big_rec_vec->fields[i].field_no,
-					TRUE, alloc_mtr);
+					TRUE, &mtr);
 			}
 
 			prev_page_no = page_no;

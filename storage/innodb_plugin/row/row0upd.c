@@ -1978,22 +1978,21 @@ row_upd_clust_rec(
 		rec_offs_init(offsets_);
 
 		ut_a(err == DB_SUCCESS);
-		/* Write out the externally stored columns, but
-		allocate the pages and write the pointers using the
-		mini-transaction of the record update. If any pages
-		were freed in the update, temporarily mark them
-		allocated so that off-page columns will not overwrite
-		them. We must do this, because we write the redo log
-		for the BLOB writes before writing the redo log for
-		the record update. */
+		/* Write out the externally stored columns while still
+		x-latching index->lock and block->lock. We have to
+		mtr_commit(mtr) first, so that the redo log will be
+		written in the correct order. Otherwise, we would run
+		into trouble on crash recovery if mtr freed B-tree
+		pages on which some of the big_rec fields will be
+		written. */
+		btr_cur_mtr_commit_and_start(btr_cur, mtr);
 
-		btr_mark_freed_leaves(index, mtr, TRUE);
 		rec = btr_cur_get_rec(btr_cur);
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
-			big_rec, mtr, TRUE, mtr);
+			mtr, TRUE, big_rec);
 		/* If writing big_rec fails (for example, because of
 		DB_OUT_OF_FILE_SPACE), the record will be corrupted.
 		Even if we did not update any externally stored
@@ -2003,8 +2002,6 @@ row_upd_clust_rec(
 		to the undo log, and thus the record cannot be rolled
 		back. */
 		ut_a(err == DB_SUCCESS);
-		/* Free the pages again in order to avoid a leak. */
-		btr_mark_freed_leaves(index, mtr, FALSE);
 	}
 
 	mtr_commit(mtr);
