@@ -1,4 +1,4 @@
-/*	$NetBSD: map.h,v 1.8 2003/08/07 16:44:32 agc Exp $	*/
+/*	$NetBSD: map.h,v 1.9 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -41,9 +41,9 @@
 #define	_h_el_map
 
 typedef struct el_bindings_t {	/* for the "bind" shell command */
-	const char	*name;		/* function name for bind command */
+	const Char	*name;		/* function name for bind command */
 	int		 func;		/* function numeric value */
-	const char	*description;	/* description of function */
+	const Char	*description;	/* description of function */
 } el_bindings_t;
 
 
@@ -63,13 +63,15 @@ typedef struct el_map_t {
 #define	MAP_EMACS	0
 #define	MAP_VI		1
 
-protected int	map_bind(EditLine *, int, const char **);
+#define N_KEYS      256
+
+protected int	map_bind(EditLine *, int, const Char **);
 protected int	map_init(EditLine *);
 protected void	map_end(EditLine *);
 protected void	map_init_vi(EditLine *);
 protected void	map_init_emacs(EditLine *);
-protected int	map_set_editor(EditLine *, char *);
-protected int	map_get_editor(EditLine *, const char **);
-protected int	map_addfunc(EditLine *, const char *, const char *, el_func_t);
+protected int	map_set_editor(EditLine *, Char *);
+protected int	map_get_editor(EditLine *, const Char **);
+protected int	map_addfunc(EditLine *, const Char *, const Char *, el_func_t);
 
 #endif /* _h_el_map */
