@@ -6402,12 +6402,6 @@ void updateInjectorStats(Ndb* schemaNdb, Ndb* dataNdb)
     dataNdb->getClientStat(Ndb::EventBytesRecvdCount);
 }
 
-enum Binlog_thread_state
-{
-  BCCC_running= 0,
-  BCCC_exit= 1,
-  BCCC_restart= 2
-};
 
 extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
 extern ulong opt_ndb_report_thresh_binlog_mem_usage;
@@ -6421,7 +6415,8 @@ ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   injector *inj= injector::instance();
   uint incident_id= 0;
-  Binlog_thread_state do_ndbcluster_binlog_close_connection;
+
+  enum { BCCC_running, BCCC_exit, BCCC_restart } binlog_thread_state;
 
   /**
    * If we get error after having reported incident
@@ -6495,7 +6490,7 @@ ndb_binlog_thread_func(void *arg)
 
 restart_cluster_failure:
   int have_injector_mutex_lock= 0;
-  do_ndbcluster_binlog_close_connection= BCCC_exit;
+  binlog_thread_state= BCCC_exit;
 
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
@@ -6626,7 +6621,7 @@ restart_cluster_failure:
           thread to get rid of any garbage on the ndb objects
         */
         have_injector_mutex_lock= 1;
-        do_ndbcluster_binlog_close_connection= BCCC_restart;
+        binlog_thread_state= BCCC_restart;
         goto err;
       }
       /* ndb not connected yet */
@@ -6732,19 +6727,19 @@ restart_cluster_failure:
     thd->db= db;
   }
   do_incident = true; // If we get disconnected again...do incident report
-  do_ndbcluster_binlog_close_connection= BCCC_running;
+  binlog_thread_state= BCCC_running;
   for ( ; !((ndbcluster_binlog_terminating ||
-             do_ndbcluster_binlog_close_connection) &&
+             binlog_thread_state) &&
             ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci()) &&
-          do_ndbcluster_binlog_close_connection != BCCC_restart; )
+          binlog_thread_state != BCCC_restart; )
   {
 #ifndef DBUG_OFF
-    if (do_ndbcluster_binlog_close_connection)
+    if (binlog_thread_state)
     {
-      DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection: %d, "
+      DBUG_PRINT("info", ("binlog_thread_state: %d, "
                           "ndb_latest_handled_binlog_epoch: %u/%u, "
                           "*get_latest_trans_gci(): %u/%u",
-                          do_ndbcluster_binlog_close_connection,
+                          binlog_thread_state,
                           (uint)(ndb_latest_handled_binlog_epoch >> 32),
                           (uint)(ndb_latest_handled_binlog_epoch),
                           (uint)(ndb_get_latest_trans_gci() >> 32),
@@ -6788,7 +6783,7 @@ restart_cluster_failure:
     }
 
     if ((ndbcluster_binlog_terminating ||
-         do_ndbcluster_binlog_close_connection) &&
+         binlog_thread_state) &&
         (ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci() ||
          !ndb_binlog_running))
       break; /* Shutting down server */
@@ -6827,10 +6822,10 @@ restart_cluster_failure:
                               "<empty>"));
           if (i_ndb->getEventOperation() == NULL &&
               s_ndb->getEventOperation() == NULL &&
-              do_ndbcluster_binlog_close_connection == BCCC_running)
+              binlog_thread_state == BCCC_running)
           {
-            DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
-            do_ndbcluster_binlog_close_connection= BCCC_restart;
+            DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
+            binlog_thread_state= BCCC_restart;
             if (ndb_latest_received_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
             {
               sql_print_error("NDB Binlog: latest transaction in epoch %u/%u not in binlog "
@@ -6873,10 +6868,10 @@ restart_cluster_failure:
         }
         if (i_ndb->getEventOperation() == NULL &&
             s_ndb->getEventOperation() == NULL &&
-            do_ndbcluster_binlog_close_connection == BCCC_running)
+            binlog_thread_state == BCCC_running)
         {
-          DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
-          do_ndbcluster_binlog_close_connection= BCCC_restart;
+          DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
+          binlog_thread_state= BCCC_restart;
         }
       }
       updateInjectorStats(s_ndb, i_ndb);
@@ -7143,10 +7138,10 @@ restart_cluster_failure:
                                 "<empty>"));
             if (i_ndb->getEventOperation() == NULL &&
                 s_ndb->getEventOperation() == NULL &&
-                do_ndbcluster_binlog_close_connection == BCCC_running)
+                binlog_thread_state == BCCC_running)
             {
-              DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
-              do_ndbcluster_binlog_close_connection= BCCC_restart;
+              DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
+              binlog_thread_state= BCCC_restart;
               if (ndb_latest_received_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
               {
                 sql_print_error("NDB Binlog: latest transaction in epoch %lu not in binlog "
@@ -7277,7 +7272,7 @@ restart_cluster_failure:
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
  err:
-  if (do_ndbcluster_binlog_close_connection != BCCC_restart)
+  if (binlog_thread_state != BCCC_restart)
   {
     sql_print_information("Stopping Cluster Binlog");
     DBUG_PRINT("info",("Shutting down cluster binlog thread"));
@@ -7403,7 +7398,7 @@ restart_cluster_failure:
     }
   }
 
-  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
+  if (binlog_thread_state == BCCC_restart)
   {
     pthread_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
