@@ -15211,6 +15211,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
             !m_disable_pushed_join &&
             !m_pushed_join_member->get_query_def().isScanQuery())
         {
+          op= NULL;            // Avoid compiler warning
           DBUG_ASSERT(false);  // FIXME: Incomplete code, should not be executed
           DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
           const int error= pk_unique_index_read_key_pushed(active_index,
