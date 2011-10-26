@@ -2099,9 +2099,7 @@ btr_cur_pessimistic_update(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/*!< in/out: cursor on the record to update;
-				cursor may become invalid if *big_rec == NULL
-				|| !(flags & BTR_KEEP_POS_FLAG) */
+	btr_cur_t*	cursor,	/*!< in: cursor on the record to update */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
@@ -2240,7 +2238,7 @@ btr_cur_pessimistic_update(
 	record to be inserted: we have to remember which fields were such */
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
-	ut_ad(rec_offs_validate(rec, index, offsets));
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
 	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -2263,10 +2261,6 @@ make_external:
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
 		}
-
-		ut_ad(page_is_leaf(page));
-		ut_ad(dict_index_is_clust(index));
-		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2294,8 +2288,6 @@ make_external:
 	rec = btr_cur_insert_if_possible(cursor, new_entry, n_ext, mtr);
 
 	if (rec) {
-		page_cursor->rec = rec;
-
 		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
 						   rec, block);
 
@@ -2309,10 +2301,7 @@ make_external:
 						     rec, index, offsets, mtr);
 		}
 
-		btr_cur_compress_if_useful(
-			cursor,
-			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
-			mtr);
+		btr_cur_compress_if_useful(cursor, mtr);
 
 		if (page_zip && !dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
@@ -2332,21 +2321,6 @@ make_external:
 		}
 	}
 
-	if (big_rec_vec) {
-		ut_ad(page_is_leaf(page));
-		ut_ad(dict_index_is_clust(index));
-		ut_ad(flags & BTR_KEEP_POS_FLAG);
-
-		/* btr_page_split_and_insert() in
-		btr_cur_pessimistic_insert() invokes
-		mtr_memo_release(mtr, index->lock, MTR_MEMO_X_LOCK).
-		We must keep the index->lock when we created a
-		big_rec, so that row_upd_clust_rec() can store the
-		big_rec in the same mini-transaction. */
-
-		mtr_x_lock(dict_index_get_lock(index), mtr);
-	}
-
 	/* Was the record to be updated positioned as the first user
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
@@ -2362,7 +2336,6 @@ make_external:
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
-	page_cursor->rec = rec;
 
 	if (dict_index_is_sec_or_ibuf(index)) {
 		/* Update PAGE_MAX_TRX_ID in the index page header.
@@ -2419,39 +2392,6 @@ return_after_reservations:
 	*big_rec = big_rec_vec;
 
 	return(err);
-}
-
-/**************************************************************//**
-Commits and restarts a mini-transaction so that it will retain an
-x-lock on index->lock and the cursor page. */
-UNIV_INTERN
-void
-btr_cur_mtr_commit_and_start(
-/*=========================*/
-	btr_cur_t*	cursor,	/*!< in: cursor */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-{
-	buf_block_t*	block;
-
-	block = btr_cur_get_block(cursor);
-
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
-				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	/* Keep the locks across the mtr_commit(mtr). */
-	rw_lock_x_lock(dict_index_get_lock(cursor->index));
-	rw_lock_x_lock(&block->lock);
-	mutex_enter(&block->mutex);
-	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
-	mutex_exit(&block->mutex);
-	/* Write out the redo log. */
-	mtr_commit(mtr);
-	mtr_start(mtr);
-	/* Reassociate the locks with the mini-transaction.
-	They will be released on mtr_commit(mtr). */
-	mtr_memo_push(mtr, dict_index_get_lock(cursor->index),
-		      MTR_MEMO_X_LOCK);
-	mtr_memo_push(mtr, block, MTR_MEMO_PAGE_X_FIX);
 }
 
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
@@ -2829,12 +2769,10 @@ UNIV_INTERN
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
-	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to compress;
-				cursor does not stay valid if !adjust and
-				compression occurs */
-	ibool		adjust,	/*!< in: TRUE if should adjust the
-				cursor position even if compression occurs */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	btr_cur_t*	cursor,	/*!< in: cursor on the page to compress;
+				cursor does not stay valid if compression
+				occurs */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
@@ -2843,7 +2781,7 @@ btr_cur_compress_if_useful(
 				MTR_MEMO_PAGE_X_FIX));
 
 	return(btr_cur_compress_recommendation(cursor, mtr)
-	       && btr_compress(cursor, adjust, mtr));
+	       && btr_compress(cursor, mtr));
 }
 
 /*******************************************************//**
@@ -3085,7 +3023,7 @@ return_after_reservations:
 	mem_heap_free(heap);
 
 	if (ret == FALSE) {
-		ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
+		ret = btr_cur_compress_if_useful(cursor, mtr);
 	}
 
 	if (n_extents > 0) {

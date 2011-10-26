@@ -1194,42 +1194,49 @@ page_dir_balance_slot(
 }
 
 /****************************************************************
-Returns the nth record of the record list. */
+Returns the middle record of the record list. If there are an even number
+of records in the list, returns the first record of the upper half-list. */
 
 rec_t*
-page_rec_get_nth(
-/*=============*/
-			/* out: nth record */
-	page_t*	page,	/* in: page */
-	ulint	nth)	/* in: nth record */
+page_get_middle_rec(
+/*================*/
+			/* out: middle record */
+	page_t*	page)	/* in: page */
 {
 	page_dir_slot_t*	slot;
+	ulint			middle;
 	ulint			i;
 	ulint			n_owned;
+	ulint			count;
 	rec_t*			rec;
 
-	ut_ad(nth < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
+	/* This many records we must leave behind */
+	middle = (page_get_n_recs(page) + 2) / 2;
+
+	count = 0;
 
 	for (i = 0;; i++) {
 
 		slot = page_dir_get_nth_slot(page, i);
 		n_owned = page_dir_slot_get_n_owned(slot);
 
-		if (n_owned > nth) {
+		if (count + n_owned > middle) {
 			break;
 		} else {
-			nth -= n_owned;
+			count += n_owned;
 		}
 	}
 
 	ut_ad(i > 0);
 	slot = page_dir_get_nth_slot(page, i - 1);
 	rec = page_dir_slot_get_rec(slot);
+	rec = page_rec_get_next(rec);
 
-	do {
+	/* There are now count records behind rec */
+
+	for (i = 0; i < middle - count; i++) {
 		rec = page_rec_get_next(rec);
-		ut_ad(rec);
-	} while (nth--);
+	}
 
 	return(rec);
 }
