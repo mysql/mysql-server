@@ -488,14 +488,11 @@ UNIV_INTERN
 ibool
 btr_compress(
 /*=========*/
-	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to merge
-				or lift; the page must not be empty:
-				when deleting records, use btr_discard_page()
-				if the page would become empty */
-	ibool		adjust,	/*!< in: TRUE if should adjust the
-				cursor position even if compression occurs */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	btr_cur_t*	cursor,	/*!< in: cursor on the page to merge or lift;
+				the page must not be empty: in record delete
+				use btr_discard_page if the page would become
+				empty */
+	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************//**
 Discards a page from a B-tree. This is used to remove the last record from
 a B-tree page: the whole page must be removed at the same time. This cannot

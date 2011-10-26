@@ -101,16 +101,6 @@
 	* page/page0zip.c, rem/rem0rec.c:
 	Fix Bug#61191 question about page_zip_available()
 
-2011-06-16	The InnoDB Team
-
-	* btr/btr0btr.c, btr/btr0cur.c, include/btr0btr.h, include/btr0cur.h,
-	include/btr0cur.ic, include/buf0buf.h, include/buf0buf.ic,
-	include/page0cur.ic, include/page0page.h, include/page0page.ic,
-	include/sync0rw.ic, include/sync0sync.h, page/page0cur.c,
-	page/page0page.c, row/row0ins.c, row/row0upd.c,
-	sync/sync0rw.c, sync/sync0sync.c:
-	Fix Bug#12612184 Race condition after btr_cur_pessimistic_update()
-
 2011-06-09	The InnoDB Team
 	* btr/btr0cur.c, include/rem0rec.h, include/rem0rec.ic,
 	* row/row0row.c, row/row0vers.c, trx/trx0rec.c:
