@@ -403,9 +403,7 @@ read_view_open_now_low(
 
 	/* No active transaction should be visible, except cr_trx */
 
-	ut_list_map(
-		trx_sys->trx_list,
-		offsetof(trx_t, trx_list), CreateView(view));
+	ut_list_map(trx_sys->trx_list, &trx_t::trx_list, CreateView(view));
 
 	if (view->n_trx_ids > 0) {
 		/* The last active transaction has the smallest id: */
@@ -656,9 +654,7 @@ read_cursor_view_create_for_mysql(
 
 	/* No active transaction should be visible */
 
-	ut_list_map(
-		trx_sys->trx_list,
-		offsetof(trx_t, trx_list), CreateView(view));
+	ut_list_map(trx_sys->trx_list, &trx_t::trx_list, CreateView(view));
 
 	view->creator_trx_id = cr_trx->id;
 

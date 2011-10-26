@@ -346,19 +346,20 @@ struct	NullValidate { void operator()(const void* elem) { } };
 Iterate over all the elements and call the functor for each element.
 @param list	base node (not a pointer to it)
 @param functor	Functor that is called for each element in the list
-@parm offset	offset of list node within list element */
+@parm  node	pointer to member node within list element */
 template <typename List, class Functor>
 void
 ut_list_map(
 	List&		list,
-	size_t		offset,
+	ut_list_node<typename List::elem_type>
+			List::elem_type::*node,
 	Functor		functor)
 {
 	ulint		count = 0;
 
 	for (typename List::elem_type* elem = list.start;
 	     elem != 0;
-	     elem = ut_elem_get_node(*elem, offset).next, ++count) {
+	     elem = (elem->*node).next, ++count) {
 
 		functor(elem);
 	}
@@ -373,27 +374,28 @@ Checks the consistency of a two-way list.
 @param LIST		base node (not a pointer to it)
 @param FUNCTOR		called for each list element */
 #define UT_LIST_MAP(NAME, TYPE, LIST, FUNCTOR)			\
-	ut_list_map(LIST, offsetof(TYPE, NAME), FUNCTOR)
+	ut_list_map(LIST, &TYPE::NAME, FUNCTOR)
 
 /********************************************************************//**
 Checks the consistency of a two-way list.
 @param list	base node (not a pointer to it)
 @param functor	Functor that is called for each element in the list
-@parm offset	offset of list node within list element */
+@parm  node	pointer to member node within list element */
 template <typename List, class Functor>
 void
 ut_list_validate(
 	List&		list,
-	size_t		offset,
+	ut_list_node<typename List::elem_type>
+			List::elem_type::*node,
 	Functor		functor = NullValidate())
 {
-	ut_list_map(list, offset, functor);
+	ut_list_map(list, node, functor);
 
 	ulint		count = 0;
 
 	for (typename List::elem_type* elem = list.end;
 	     elem != 0;
-	     elem = ut_elem_get_node(*elem, offset).prev, ++count) {
+	     elem = (elem->*node).prev, ++count) {
 
 		functor(elem);
 	}
@@ -408,9 +410,9 @@ Checks the consistency of a two-way list.
 @param LIST		base node (not a pointer to it)
 @param FUNCTOR		called for each list element */
 #define UT_LIST_VALIDATE(NAME, TYPE, LIST, FUNCTOR)			\
-	ut_list_validate(LIST, offsetof(TYPE, NAME), FUNCTOR)
+	ut_list_validate(LIST, &TYPE::NAME, FUNCTOR)
 
-#define UT_LIST_CHECK(NAME, TYPE, LIST)			\
-	ut_list_validate(LIST, offsetof(TYPE, NAME), NullValidate())
-#endif
+#define UT_LIST_CHECK(NAME, TYPE, LIST)					\
+	ut_list_validate(LIST, &TYPE::NAME, NullValidate())
 
+#endif /* ut0lst.h */

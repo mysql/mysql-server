@@ -1354,16 +1354,6 @@ buf_pool_clear_hash_index(void)
 	}
 }
 
-#ifdef UNIV_DEBUG
-/** Functor to validate the LRU list. */
-struct	Check {
-	void	operator()(const buf_page_t* elem) const
-	{
-                ut_a(elem->in_LRU_list);
-	}
-};
-#endif /* UNIV_DEBUG */
-
 /********************************************************************//**
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list.
@@ -1444,7 +1434,8 @@ buf_relocate(
 #endif /* UNIV_LRU_DEBUG */
 	}
 
-        ut_d(UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU, Check()));
+        ut_d(UT_LIST_VALIDATE(
+		LRU, buf_page_t, buf_pool->LRU, CheckInLRUList()));
 
 	/* relocate buf_pool->page_hash */
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
