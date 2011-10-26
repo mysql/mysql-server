@@ -2806,18 +2806,17 @@ handle_schema_event(THD *thd, Ndb *s_ndb,
   the epoch is complete
 */
 static void
-handle_schema_event_post_epoch(THD *thd,
-                               List<Cluster_schema> *post_epoch_log_list,
-                               List<Cluster_schema> *post_epoch_unlock_list)
+handle_schema_log_post_epoch(THD *thd,
+                             List<Cluster_schema> *log_list)
 {
-  if (post_epoch_log_list->elements == 0)
-    return;
-  DBUG_ENTER("handle_schema_event_post_epoch");
-  Cluster_schema *schema;
+  DBUG_ENTER("handle_schema_log_post_epoch");
+
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
-  while ((schema= post_epoch_log_list->pop()))
+
+  Cluster_schema *schema;
+  while ((schema= log_list->pop()))
   {
     Thd_ndb_options_guard thd_ndb_options(thd_ndb);
     DBUG_PRINT("info",
@@ -3174,13 +3173,25 @@ handle_schema_event_post_epoch(THD *thd,
     if (ndb_binlog_running && log_query)
       ndb_binlog_query(thd, schema);
   }
-  while ((schema= post_epoch_unlock_list->pop()))
+  DBUG_VOID_RETURN;
+}
+
+
+static void
+handle_schema_unlock_post_epoch(THD *thd,
+                                List<Cluster_schema> *unlock_list)
+{
+  DBUG_ENTER("handle_schema_unlock_post_epoch");
+
+  Cluster_schema *schema;
+  while ((schema= unlock_list->pop()))
   {
     ndbcluster_update_slock(thd, schema->db, schema->name,
                             schema->id, schema->version);
   }
   DBUG_VOID_RETURN;
 }
+
 
 /*
   Timer class for doing performance measurements
@@ -7265,8 +7276,15 @@ restart_cluster_failure:
       }
     }
 
-    handle_schema_event_post_epoch(thd, &post_epoch_log_list,
-                                   &post_epoch_unlock_list);
+    if (post_epoch_log_list.elements > 0)
+    {
+      handle_schema_log_post_epoch(thd, &post_epoch_log_list);
+      // NOTE post_epoch_unlock_list may not be handled! 
+      handle_schema_unlock_post_epoch(thd, &post_epoch_unlock_list);
+    }
+    DBUG_ASSERT(post_epoch_log_list.elements == 0);
+    DBUG_ASSERT(post_epoch_unlock_list.elements == 0);
+
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
