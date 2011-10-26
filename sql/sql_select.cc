@@ -19294,7 +19294,12 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   /* Materialize table prior reading it */
   if (join_tab->materialize_table &&
       !join_tab->table->pos_in_table_list->materialized)
+  {
     error= (*join_tab->materialize_table)(join_tab);
+    // Bind to the rowid buffer managed by the TABLE object.
+    if (join_tab->copy_current_rowid)
+      join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
+  }
 
   if (!error)
     error= (*join_tab->read_first_record)(join_tab);

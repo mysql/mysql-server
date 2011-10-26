@@ -333,6 +333,8 @@ inline bool sj_is_materialize_strategy(uint strategy)
 */
 enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 
+struct st_cache_field;
+
 typedef struct st_join_table : public Sql_alloc
 {
   st_join_table();
@@ -488,9 +490,11 @@ public:
   
   /*
     Used by DuplicateElimination. tab->table->ref must have the rowid
-    whenever we have a current record.
+    whenever we have a current record. copy_current_rowid needed because
+    we cannot bind to the rowid buffer before the table has been opened.
   */
   int  keep_current_rowid;
+  st_cache_field *copy_current_rowid;
 
   /* NestedOuterJoins: Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
@@ -644,6 +648,7 @@ st_join_table::st_join_table()
     found_match(FALSE),
 
     keep_current_rowid(0),
+    copy_current_rowid(NULL),
     embedding_map(0)
 {
   /**
@@ -691,6 +696,8 @@ typedef struct st_cache_field {
   /* The remaining structure fields are used as containers for temp values */
   uint blob_length; /**< length of the blob to be copied */
   uint offset;      /**< field offset to be saved in cache buffer */
+
+  void bind_buffer(uchar *buffer) { str= buffer; }
 } CACHE_FIELD;
 
 
