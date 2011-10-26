@@ -1807,6 +1807,25 @@ set optimizer_switch= @tmp_os_861147;
 
 DROP TABLE t1,t2,t3,t4,t5,t6;
 
+--echo #
+--echo # BUG#877288: Wrong result with semijoin + materialization + multipart key
+--echo #
+set @tmp_877288=@@optimizer_switch;
+set optimizer_switch='semijoin=ON,materialization=ON';
+CREATE TABLE t1 ( a int) ;
+INSERT INTO t1 VALUES (19),(19),(19),(20),(20),(20),(20),(20),(20);
+
+CREATE TABLE t2 ( b int NOT NULL , c int NOT NULL , KEY (b,c)) ;
+INSERT INTO t2 VALUES (14,1),(15,1),(16,1),(17,1),(18,1),(19,1),(20,1);
+
+CREATE TABLE t3 ( a int, d int) ;
+INSERT INTO t3 VALUES (19,1),(7,1),(3,1),(3,1),(20,1),(3,1),(16,1),(17,1),(9,1),(4,1),(6,1),(15,1),(17,1);
+
+explain
+SELECT * FROM t1 WHERE (a) IN (SELECT a FROM t2 JOIN t3 ON b = a); 
+SELECT * FROM t1 WHERE (a) IN (SELECT a FROM t2 JOIN t3 ON b = a); 
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp_877288;
 
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

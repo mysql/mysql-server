@@ -7360,7 +7360,8 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
       while (((~used_tables) & keyuse->used_tables) || 
 	     (keyuse->keypart != 
               (is_hash_join_key_no(key) ?
-                 keyinfo->key_part[i].field->field_index : i))) 
+                 keyinfo->key_part[i].field->field_index : i)) || 
+             !are_tables_local(j, keyuse->val->used_tables())) 
 	 keyuse++;                              	/* Skip other parts */ 
 
       uint maybe_null= test(keyinfo->key_part[i].null_bit);
