@@ -57,7 +57,7 @@ buf_buddy_get(
 }
 
 /** Validate a given zip_free list. */
-struct	Check {
+struct	CheckZipFree {
 	void	operator()(const buf_page_t* elem) const
 	{
 		ut_a(buf_page_get_state(elem) == BUF_BLOCK_ZIP_FREE);
@@ -65,7 +65,7 @@ struct	Check {
 };
 
 #define BUF_BUDDY_LIST_VALIDATE(bp, i)				\
-	UT_LIST_VALIDATE(list, buf_page_t, bp->zip_free[i], Check())
+	UT_LIST_VALIDATE(list, buf_page_t, bp->zip_free[i], CheckZipFree())
 
 /**********************************************************************//**
 Add a block to the head of the appropriate buddy free list. */

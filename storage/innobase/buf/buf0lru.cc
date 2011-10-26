@@ -2116,30 +2116,6 @@ func_exit:
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/** Functor to validate the LRU list. */
-struct	CheckInLRUList {
-	void	operator()(const buf_page_t* elem) const
-	{
-		ut_a(elem->in_LRU_list);
-	}
-};
-
-/** Functor to validate the LRU list. */
-struct	CheckInFreeList {
-	void	operator()(const buf_page_t* elem) const
-	{
-		ut_a(elem->in_free_list);
-	}
-};
-
-struct	CheckUnzipLRUAndLRUList {
-	void	operator()(const buf_block_t* elem) const
-	{
-                ut_a(elem->page.in_LRU_list);
-                ut_a(elem->in_unzip_LRU_list);
-	}
-};
-
 /**********************************************************************//**
 Validates the LRU list for one buffer pool instance. */
 static
