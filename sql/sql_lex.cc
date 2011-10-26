@@ -3408,12 +3408,12 @@ void SELECT_LEX::update_used_tables()
 {
   TABLE_LIST *tl;
   List_iterator<TABLE_LIST> ti(leaf_tables);
+
   while ((tl= ti++))
   {
-    TABLE_LIST *embedding;
     if (tl->table && !tl->is_view_or_derived())
     {
-      embedding= tl->embedding;
+      TABLE_LIST *embedding= tl->embedding;
       for (embedding= tl->embedding; embedding; embedding=embedding->embedding)
       {
         if (embedding->is_view_or_derived())
@@ -3429,7 +3429,12 @@ void SELECT_LEX::update_used_tables()
         }
       }
     }
-    embedding= tl;
+  }
+
+  ti.rewind();
+  while ((tl= ti++))
+  {
+    TABLE_LIST *embedding= tl;
     do
     {
       bool maybe_null;
@@ -3458,6 +3463,7 @@ void SELECT_LEX::update_used_tables()
       embedding= tl->embedding;
     }
   }
+
   if (join->conds)
   {
     join->conds->update_used_tables();

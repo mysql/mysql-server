@@ -1140,5 +1140,31 @@ SET SESSION join_cache_level = default;
 DROP VIEW v2;
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug #881449: OUTER JOIN usin  a merged view within IN subquery
+--echo #
+
+CREATE TABLE t1 (a varchar(1)) ;
+INSERT INTO t1 VALUES ('y'), ('x');
+
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (1), (2);
+
+CREATE TABLE t3 (a int, b varchar(1)) ;
+INSERT INTO t3 VALUES (1,'x');
+
+CREATE VIEW v3 AS SELECT * FROM t3;
+
+SET SESSION optimizer_switch='semijoin=on';
+
+EXPLAIN 
+SELECT * FROM t1 WHERE a IN (SELECT v3.b FROM t2 RIGHT JOIN v3 ON v3.a = t2.a);
+SELECT * FROM t1 WHERE a IN (SELECT v3.b FROM t2 RIGHT JOIN v3 ON v3.a = t2.a);
+
+set optimizer_switch= @save_optimizer_switch;
+
+DROP VIEW v3;
+DROP TABLE t1,t2,t3;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
