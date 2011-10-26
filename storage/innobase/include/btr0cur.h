@@ -252,6 +252,15 @@ btr_cur_pessimistic_update(
 				updates */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr);	/* in: mtr */
+/*****************************************************************
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/* in: cursor */
+	mtr_t*		mtr);	/* in/out: mini-transaction */
 /***************************************************************
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -462,11 +471,6 @@ btr_store_big_rec_extern_fields(
 					this function returns */
 	big_rec_t*	big_rec_vec,	/* in: vector containing fields
 					to be stored externally */
-	mtr_t*		alloc_mtr,	/* in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
 	mtr_t*		local_mtr);	/* in: mtr containing the latch to
 					rec and to the tree */
 /***********************************************************************

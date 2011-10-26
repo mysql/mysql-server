@@ -300,30 +300,29 @@ btr_page_alloc_for_ibuf(
 /******************************************************************
 Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents! */
-static
-ulint
-btr_page_alloc_low(
-/*===============*/
-					/* out: allocated page number,
-					FIL_NULL if out of space */
+
+page_t*
+btr_page_alloc(
+/*===========*/
+					/* out: new allocated page, x-latched;
+					NULL if out of space */
 	dict_index_t*	index,		/* in: index */
 	ulint		hint_page_no,	/* in: hint of a good page */
 	byte		file_direction,	/* in: direction where a possible
 					page split is made */
 	ulint		level,		/* in: level where the page is placed
 					in the tree */
-	mtr_t*		mtr,		/* in/out: mini-transaction
-					for the allocation */
-	mtr_t*		init_mtr)	/* in/out: mini-transaction
-					in which the page should be
-					initialized (may be the same
-					as mtr), or NULL if it should
-					not be initialized (the page
-					at hint was previously freed
-					in mtr) */
+	mtr_t*		mtr)		/* in: mtr */
 {
 	fseg_header_t*	seg_header;
 	page_t*		root;
+	page_t*		new_page;
+	ulint		new_page_no;
+
+	if (index->type & DICT_IBUF) {
+
+		return(btr_page_alloc_for_ibuf(index, mtr));
+	}
 
 	root = btr_root_get(index, mtr);
 
@@ -337,61 +336,19 @@ btr_page_alloc_low(
 	reservation for free extents, and thus we know that a page can
 	be allocated: */
 
-	return(fseg_alloc_free_page_general(seg_header, hint_page_no,
-					    file_direction, TRUE,
-					    mtr, init_mtr));
-}
-
-/**************************************************************//**
-Allocates a new file page to be used in an index tree. NOTE: we assume
-that the caller has made the reservation for free extents! */
-
-page_t*
-btr_page_alloc(
-/*===========*/
-					/* out:	new allocated block, x-latched;
-					NULL if out of space */
-	dict_index_t*	index,		/* in: index */
-	ulint		hint_page_no,	/* in: hint of a good page */
-	byte		file_direction,	/* in: direction where a possible
-					page split is made */
-	ulint		level,		/* in: level where the page is placed
-					in the tree */
-	mtr_t*		mtr,		/* in/out: mini-transaction
-					for the allocation */
-	mtr_t*		init_mtr)	/* in/out: mini-transaction
-					for x-latching and initializing
-					the page */
-{
-	page_t*		new_page;
-	ulint		new_page_no;
-
-	if (index->type & DICT_IBUF) {
-
-		return(btr_page_alloc_for_ibuf(index, mtr));
-	}
-
-	new_page_no = btr_page_alloc_low(
-		index, hint_page_no, file_direction, level, mtr, init_mtr);
-
+	new_page_no = fseg_alloc_free_page_general(seg_header, hint_page_no,
+						   file_direction, TRUE, mtr);
 	if (new_page_no == FIL_NULL) {
 
 		return(NULL);
 	}
 
 	new_page = buf_page_get(dict_index_get_space(index), new_page_no,
-				RW_X_LATCH, init_mtr);
+				RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(new_page, SYNC_TREE_NODE_NEW);
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (mtr->freed_clust_leaf) {
-		mtr_memo_release(mtr, new_page, MTR_MEMO_FREE_CLUST_LEAF);
-		ut_ad(!mtr_memo_contains(mtr, buf_block_align(new_page),
-					 MTR_MEMO_FREE_CLUST_LEAF));
-	}
-
-	ut_ad(btr_freed_leaves_validate(mtr));
 	return(new_page);
 }
 
@@ -538,137 +495,7 @@ btr_page_free(
 	level = btr_page_get_level(page, mtr);
 
 	btr_page_free_low(index, page, level, mtr);
-
-	/* The handling of MTR_MEMO_FREE_CLUST_LEAF assumes this. */
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
-
-	if (level == 0 && (index->type & DICT_CLUSTERED)) {
-		/* We may have to call btr_mark_freed_leaves() to
-		temporarily mark the block nonfree for invoking
-		btr_store_big_rec_extern_fields() after an
-		update. Remember that the block was freed. */
-		mtr->freed_clust_leaf = TRUE;
-		mtr_memo_push(mtr, buf_block_align(page),
-			      MTR_MEMO_FREE_CLUST_LEAF);
-	}
-
-	ut_ad(btr_freed_leaves_validate(mtr));
 }
-
-/**************************************************************//**
-Marks all MTR_MEMO_FREE_CLUST_LEAF pages nonfree or free.
-For invoking btr_store_big_rec_extern_fields() after an update,
-we must temporarily mark freed clustered index pages allocated, so
-that off-page columns will not be allocated from them. Between the
-btr_store_big_rec_extern_fields() and mtr_commit() we have to
-mark the pages free again, so that no pages will be leaked. */
-
-void
-btr_mark_freed_leaves(
-/*==================*/
-	dict_index_t*	index,	/* in/out: clustered index */
-	mtr_t*		mtr,	/* in/out: mini-transaction */
-	ibool		nonfree)/* in: TRUE=mark nonfree, FALSE=mark freed */
-{
-	/* This is loosely based on mtr_memo_release(). */
-
-	ulint	offset;
-
-	ut_ad(index->type & DICT_CLUSTERED);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-
-	if (!mtr->freed_clust_leaf) {
-		return;
-	}
-
-	offset = dyn_array_get_data_size(&mtr->memo);
-
-	while (offset > 0) {
-		mtr_memo_slot_t*	slot;
-		buf_block_t*		block;
-
-		offset -= sizeof *slot;
-
-		slot = dyn_array_get_element(&mtr->memo, offset);
-
-		if (slot->type != MTR_MEMO_FREE_CLUST_LEAF) {
-			continue;
-		}
-
-		/* Because btr_page_alloc() does invoke
-		mtr_memo_release on MTR_MEMO_FREE_CLUST_LEAF, all
-		blocks tagged with MTR_MEMO_FREE_CLUST_LEAF in the
-		memo must still be clustered index leaf tree pages. */
-		block = slot->object;
-		ut_a(buf_block_get_space(block)
-		     == dict_index_get_space(index));
-		ut_a(fil_page_get_type(buf_block_get_frame(block))
-		     == FIL_PAGE_INDEX);
-		ut_a(btr_page_get_level(buf_block_get_frame(block), mtr) == 0);
-
-		if (nonfree) {
-			/* Allocate the same page again. */
-			ulint	page_no;
-			page_no = btr_page_alloc_low(
-				index, buf_block_get_page_no(block),
-				FSP_NO_DIR, 0, mtr, NULL);
-			ut_a(page_no == buf_block_get_page_no(block));
-		} else {
-			/* Assert that the page is allocated and free it. */
-			btr_page_free_low(index, buf_block_get_frame(block),
-					  0, mtr);
-		}
-	}
-
-	ut_ad(btr_freed_leaves_validate(mtr));
-}
-
-#ifdef UNIV_DEBUG
-/**************************************************************//**
-Validates all pages marked MTR_MEMO_FREE_CLUST_LEAF.
-See btr_mark_freed_leaves(). */
-
-ibool
-btr_freed_leaves_validate(
-/*======================*/
-			/* out: TRUE if valid */
-	mtr_t*	mtr)	/* in: mini-transaction */
-{
-	ulint	offset;
-
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-
-	offset = dyn_array_get_data_size(&mtr->memo);
-
-	while (offset > 0) {
-		mtr_memo_slot_t*	slot;
-		buf_block_t*		block;
-
-		offset -= sizeof *slot;
-
-		slot = dyn_array_get_element(&mtr->memo, offset);
-
-		if (slot->type != MTR_MEMO_FREE_CLUST_LEAF) {
-			continue;
-		}
-
-		ut_a(mtr->freed_clust_leaf);
-		/* Because btr_page_alloc() does invoke
-		mtr_memo_release on MTR_MEMO_FREE_CLUST_LEAF, all
-		blocks tagged with MTR_MEMO_FREE_CLUST_LEAF in the
-		memo must still be clustered index leaf tree pages. */
-		block = slot->object;
-		ut_a(fil_page_get_type(buf_block_get_frame(block))
-		     == FIL_PAGE_INDEX);
-		ut_a(btr_page_get_level(buf_block_get_frame(block), mtr) == 0);
-	}
-
-	return(TRUE);
-}
-#endif /* UNIV_DEBUG */
 
 /******************************************************************
 Sets the child node file address in a node pointer. */
@@ -1199,7 +1026,7 @@ btr_root_raise_and_insert(
 	a node pointer to the new page, and then splitting the new page. */
 
 	new_page = btr_page_alloc(index, 0, FSP_NO_DIR,
-				  btr_page_get_level(root, mtr), mtr, mtr);
+				  btr_page_get_level(root, mtr), mtr);
 
 	btr_page_create(new_page, index, mtr);
 
@@ -1820,7 +1647,7 @@ func_start:
 
 	/* 2. Allocate a new page to the index */
 	new_page = btr_page_alloc(cursor->index, hint_page_no, direction,
-				  btr_page_get_level(page, mtr), mtr, mtr);
+				  btr_page_get_level(page, mtr), mtr);
 	btr_page_create(new_page, cursor->index, mtr);
 
 	/* 3. Calculate the first record on the upper half-page, and the

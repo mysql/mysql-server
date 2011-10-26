@@ -2421,6 +2421,39 @@ return_after_reservations:
 	return(err);
 }
 
+/**************************************************************//**
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+UNIV_INTERN
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/*!< in: cursor */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	buf_block_t*	block;
+
+	block = btr_cur_get_block(cursor);
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
+				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	/* Keep the locks across the mtr_commit(mtr). */
+	rw_lock_x_lock(dict_index_get_lock(cursor->index));
+	rw_lock_x_lock(&block->lock);
+	mutex_enter(&block->mutex);
+	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
+	mutex_exit(&block->mutex);
+	/* Write out the redo log. */
+	mtr_commit(mtr);
+	mtr_start(mtr);
+	/* Reassociate the locks with the mini-transaction.
+	They will be released on mtr_commit(mtr). */
+	mtr_memo_push(mtr, dict_index_get_lock(cursor->index),
+		      MTR_MEMO_X_LOCK);
+	mtr_memo_push(mtr, block, MTR_MEMO_PAGE_X_FIX);
+}
+
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
 
 /****************************************************************//**
@@ -3863,9 +3896,6 @@ btr_store_big_rec_extern_fields_func(
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
-	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
-					to be stored externally */
-
 #ifdef UNIV_DEBUG
 	mtr_t*		local_mtr,	/*!< in: mtr containing the
 					latch to rec and to the tree */
@@ -3874,11 +3904,9 @@ btr_store_big_rec_extern_fields_func(
 	ibool		update_in_place,/*! in: TRUE if the record is updated
 					in place (not delete+insert) */
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	mtr_t*		alloc_mtr)	/*!< in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
+	const big_rec_t*big_rec_vec)	/*!< in: vector containing fields
+					to be stored externally */
+
 {
 	ulint	rec_page_no;
 	byte*	field_ref;
@@ -3897,9 +3925,6 @@ btr_store_big_rec_extern_fields_func(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_any_extern(offsets));
-	ut_ad(local_mtr);
-	ut_ad(!alloc_mtr || alloc_mtr == local_mtr);
-	ut_ad(!update_in_place || alloc_mtr);
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, rec_block, MTR_MEMO_PAGE_X_FIX));
@@ -3914,25 +3939,6 @@ btr_store_big_rec_extern_fields_func(
 	zip_size = buf_block_get_zip_size(rec_block);
 	rec_page_no = buf_block_get_page_no(rec_block);
 	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
-
-	if (alloc_mtr) {
-		/* Because alloc_mtr will be committed after
-		mtr, it is possible that the tablespace has been
-		extended when the B-tree record was updated or
-		inserted, or it will be extended while allocating
-		pages for big_rec.
-
-		TODO: In mtr (not alloc_mtr), write a redo log record
-		about extending the tablespace to its current size,
-		and remember the current size. Whenever the tablespace
-		grows as pages are allocated, write further redo log
-		records to mtr. (Currently tablespace extension is not
-		covered by the redo log. If it were, the record would
-		only be written to alloc_mtr, which is committed after
-		mtr.) */
-	} else {
-		alloc_mtr = &mtr;
-	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
@@ -4010,7 +4016,7 @@ btr_store_big_rec_extern_fields_func(
 			}
 
 			block = btr_page_alloc(index, hint_page_no,
-					       FSP_NO_DIR, 0, alloc_mtr, &mtr);
+					       FSP_NO_DIR, 0, &mtr);
 			if (UNIV_UNLIKELY(block == NULL)) {
 
 				mtr_commit(&mtr);
@@ -4137,15 +4143,11 @@ btr_store_big_rec_extern_fields_func(
 					goto next_zip_page;
 				}
 
-				if (alloc_mtr == &mtr) {
-					rec_block = buf_page_get(
-						space_id, zip_size,
-						rec_page_no,
-						RW_X_LATCH, &mtr);
-					buf_block_dbg_add_level(
-						rec_block,
-						SYNC_NO_ORDER_CHECK);
-				}
+				rec_block = buf_page_get(space_id, zip_size,
+							 rec_page_no,
+							 RW_X_LATCH, &mtr);
+				buf_block_dbg_add_level(rec_block,
+							SYNC_NO_ORDER_CHECK);
 
 				if (err == Z_STREAM_END) {
 					mach_write_to_4(field_ref
@@ -4179,8 +4181,7 @@ btr_store_big_rec_extern_fields_func(
 
 				page_zip_write_blob_ptr(
 					page_zip, rec, index, offsets,
-					big_rec_vec->fields[i].field_no,
-					alloc_mtr);
+					big_rec_vec->fields[i].field_no, &mtr);
 
 next_zip_page:
 				prev_page_no = page_no;
@@ -4225,23 +4226,19 @@ next_zip_page:
 
 				extern_len -= store_len;
 
-				if (alloc_mtr == &mtr) {
-					rec_block = buf_page_get(
-						space_id, zip_size,
-						rec_page_no,
-						RW_X_LATCH, &mtr);
-					buf_block_dbg_add_level(
-						rec_block,
-						SYNC_NO_ORDER_CHECK);
-				}
+				rec_block = buf_page_get(space_id, zip_size,
+							 rec_page_no,
+							 RW_X_LATCH, &mtr);
+				buf_block_dbg_add_level(rec_block,
+							SYNC_NO_ORDER_CHECK);
 
 				mlog_write_ulint(field_ref + BTR_EXTERN_LEN, 0,
-						 MLOG_4BYTES, alloc_mtr);
+						 MLOG_4BYTES, &mtr);
 				mlog_write_ulint(field_ref
 						 + BTR_EXTERN_LEN + 4,
 						 big_rec_vec->fields[i].len
 						 - extern_len,
-						 MLOG_4BYTES, alloc_mtr);
+						 MLOG_4BYTES, &mtr);
 
 				if (prev_page_no == FIL_NULL) {
 					btr_blob_dbg_add_blob(
@@ -4251,19 +4248,18 @@ next_zip_page:
 
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_SPACE_ID,
-							 space_id, MLOG_4BYTES,
-							 alloc_mtr);
+							 space_id,
+							 MLOG_4BYTES, &mtr);
 
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_PAGE_NO,
-							 page_no, MLOG_4BYTES,
-							 alloc_mtr);
+							 page_no,
+							 MLOG_4BYTES, &mtr);
 
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_OFFSET,
 							 FIL_PAGE_DATA,
-							 MLOG_4BYTES,
-							 alloc_mtr);
+							 MLOG_4BYTES, &mtr);
 				}
 
 				prev_page_no = page_no;
