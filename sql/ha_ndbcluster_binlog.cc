@@ -2431,6 +2431,8 @@ private:
 };
 
 
+class Ndb_schema_event_handler {
+
 static int
 handle_schema_event(THD *thd, Ndb *s_ndb,
                     NdbEventOperation *pOp,
@@ -3192,6 +3194,49 @@ handle_schema_unlock_post_epoch(THD *thd,
   DBUG_VOID_RETURN;
 }
 
+  THD* m_thd;
+  MEM_ROOT* m_mem_root;
+
+  List<Cluster_schema> m_post_epoch_log_list;
+  List<Cluster_schema> m_post_epoch_unlock_list;
+
+public:
+  Ndb_schema_event_handler(); // Not implemented
+  Ndb_schema_event_handler(const Ndb_schema_event_handler&); // Not implemented
+
+  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root):
+    m_thd(thd), m_mem_root(mem_root)
+  {
+  }
+
+  ~Ndb_schema_event_handler()
+  {
+    // There should be no work left todo...
+    DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_unlock_list.elements == 0);
+  }
+
+  void handle_event(Ndb* s_ndb, NdbEventOperation *pOp)
+  {
+    handle_schema_event(m_thd, s_ndb, pOp,
+                        &m_post_epoch_log_list,
+                        &m_post_epoch_unlock_list,
+                        m_mem_root);
+  }
+
+  void post_epoch()
+  {
+    if (m_post_epoch_log_list.elements > 0)
+    {
+      handle_schema_log_post_epoch(m_thd, &m_post_epoch_log_list);
+      // NOTE post_epoch_unlock_list may not be handled!
+      handle_schema_unlock_post_epoch(m_thd, &m_post_epoch_unlock_list);
+    }
+    // There should be no work left todo...
+    DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_unlock_list.elements == 0);
+  }
+};
 
 /*********************************************************************
   Internal helper functions for handeling of the cluster replication tables
@@ -6772,8 +6817,11 @@ restart_cluster_failure:
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
     init_sql_alloc(&mem_root, 4096, 0);
-    List<Cluster_schema> post_epoch_log_list;
-    List<Cluster_schema> post_epoch_unlock_list;
+
+    // The Ndb_schema_event_handler does not necessarily need
+    // to use the same memroot(or vice versa)
+    Ndb_schema_event_handler schema_event_handler(thd, &mem_root);
+
     *root_ptr= &mem_root;
 
     if (unlikely(schema_res > 0))
@@ -6789,10 +6837,8 @@ restart_cluster_failure:
       {
         if (!pOp->hasError())
         {
-          handle_schema_event(thd, s_ndb, pOp,
-                              &post_epoch_log_list,
-                              &post_epoch_unlock_list,
-                              &mem_root);
+          schema_event_handler.handle_event(s_ndb, pOp);
+
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                               "<empty>"));
@@ -7221,14 +7267,9 @@ restart_cluster_failure:
       }
     }
 
-    if (post_epoch_log_list.elements > 0)
-    {
-      handle_schema_log_post_epoch(thd, &post_epoch_log_list);
-      // NOTE post_epoch_unlock_list may not be handled! 
-      handle_schema_unlock_post_epoch(thd, &post_epoch_unlock_list);
-    }
-    DBUG_ASSERT(post_epoch_log_list.elements == 0);
-    DBUG_ASSERT(post_epoch_unlock_list.elements == 0);
+    // Notify the schema event handler about post_epoch so it may finish
+    // any outstanding business
+    schema_event_handler.post_epoch();
 
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
