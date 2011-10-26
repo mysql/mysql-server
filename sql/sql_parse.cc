@@ -359,15 +359,18 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
                                             CF_OPTIMIZER_TRACE |
-                                            CF_CAN_BE_EXPLAINED;
+                                            CF_CAN_BE_EXPLAINED |
+                                            CF_ONLY_BINLOGGABLE_WITH_SF;
   // (1) so that subquery is traced when doing "SET @var = (subquery)"
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS |
-                                            CF_OPTIMIZER_TRACE; // (1)
+                                            CF_OPTIMIZER_TRACE | // (1)
+                                            CF_ONLY_BINLOGGABLE_WITH_SF;
   // (1) so that subquery is traced when doing "DO @var := (subquery)"
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS |
-                                            CF_OPTIMIZER_TRACE; // (1)
+                                            CF_OPTIMIZER_TRACE | // (1)
+                                            CF_ONLY_BINLOGGABLE_WITH_SF;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -422,6 +425,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -457,7 +461,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE_ALL]=         CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
 
@@ -1998,6 +2002,27 @@ err:
 }
 
 
+void implicit_commit_after(THD *thd)
+{
+  DBUG_ENTER("implicit_commit_after");
+
+  /* No transaction control allowed in sub-statements. */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->get_stmt_da()->set_overwrite_status(true);
+  /* Commit the normal transaction if one is active. */
+  trans_commit_implicit(thd);
+  thd->get_stmt_da()->set_overwrite_status(false);
+  thd->mdl_context.release_transactional_locks();
+
+#ifdef HAVE_UGID
+  if (thd->variables.ugid_commit)
+    thd->variables.ugid_has_ongoing_super_group= 0;
+#endif
+  DBUG_VOID_RETURN;
+}
+
+
 /**
   Execute command saved in thd and lex->sql_command.
 
@@ -2204,6 +2229,40 @@ mysql_execute_command(THD *thd)
     }
 #ifdef HAVE_REPLICATION
   } /* endif unlikely slave */
+#endif
+
+#ifdef HAVE_UGID
+  /*
+    Execute ugid_before_statement, so that we acquire ownership of
+    groups as specified by ugid_next and ugid_next_list.
+  */
+  if (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt)
+  {
+    /*
+      Initialize the cache manager if this was not done yet.
+      binlog_setup_trx_data is idempotent and if it's not called here
+      it's called elsewhere.  It is neede here just so that
+      thd->get_group_cache won't crash.
+    */
+    thd->binlog_setup_trx_data();
+    enum_ugid_statement_status state=
+      ugid_before_statement(thd, &mysql_bin_log.sid_lock,
+                            &mysql_bin_log.group_log_state,
+                            thd->get_group_cache(false),
+                            thd->get_group_cache(true));
+    if (state == UGID_STATEMENT_CANCEL)
+      // error has already been printed; don't print anything more here
+      DBUG_RETURN(-1);
+    else if (state == UGID_STATEMENT_SKIP)
+    {
+      // even if statement is skipped, we have to check if ugid_commit
+      // causes it to commit the master-super-group.
+      if (thd->variables.ugid_commit)
+        implicit_commit_after(thd);
+      my_ok(thd);
+      DBUG_RETURN(0);
+    }
+  }
 #endif
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
@@ -4670,16 +4729,14 @@ finish:
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
 
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
+  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)
+#ifdef HAVE_UGID
+      || (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
+          thd->variables.ugid_commit)
+#endif
+      )
   {
-    /* No transaction control allowed in sub-statements. */
-    DBUG_ASSERT(! thd->in_sub_stmt);
-    /* If commit fails, we should be able to reset the OK status. */
-    thd->get_stmt_da()->set_overwrite_status(true);
-    /* Commit the normal transaction if one is active. */
-    trans_commit_implicit(thd);
-    thd->get_stmt_da()->set_overwrite_status(false);
-    thd->mdl_context.release_transactional_locks();
+    implicit_commit_after(thd);
   }
   else if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
   {
@@ -5371,15 +5428,16 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
 bool check_global_access(THD *thd, ulong want_access)
 {
+  DBUG_ENTER("check_global_access");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   char command[128];
   if ((thd->security_ctx->master_access & want_access))
-    return 0;
+    DBUG_RETURN(0);
   get_privilege_desc(command, sizeof(command), want_access);
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
-  return 1;
+  DBUG_RETURN(1);
 #else
-  return 0;
+  DBUG_RETURN(0);
 #endif
 }
 

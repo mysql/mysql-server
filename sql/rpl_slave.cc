@@ -2015,7 +2015,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
     if (likely((bool)ev))
     {
       ev->server_id= 0; // don't be ignored by slave SQL thread
-      if (unlikely(rli->relay_log.append(ev)))
+      if (unlikely(rli->relay_log.append_event(ev)))
         mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                    ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
                    "failed to write a Rotate event"
@@ -4057,7 +4057,7 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
     offset= rli->get_group_relay_log_pos();
     for (int checking= 0 ; not_reached_commit; checking++)
     {
-      if ((file= open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
+      if ((file= open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       {
         error= TRUE;
         sql_print_error("%s", errmsg);
@@ -5035,7 +5035,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
           break;
         Execute_load_log_event xev(thd,0,0);
         xev.log_pos = cev->log_pos;
-        if (unlikely(mi->rli->relay_log.append(&xev)))
+        if (unlikely(mi->rli->relay_log.append_event(&xev)))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -5049,7 +5049,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
       {
         cev->block = net->read_pos;
         cev->block_len = num_bytes;
-        if (unlikely(mi->rli->relay_log.append(cev)))
+        if (unlikely(mi->rli->relay_log.append_event(cev)))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -5064,7 +5064,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
         aev.block = net->read_pos;
         aev.block_len = num_bytes;
         aev.log_pos = cev->log_pos;
-        if (unlikely(mi->rli->relay_log.append(&aev)))
+        if (unlikely(mi->rli->relay_log.append_event(&aev)))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -5256,7 +5256,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
       Log_event::Log_event(const char* buf...) in log_event.cc).
       */
       ev->log_pos+= event_len; /* make log_pos be the pos of the end of the event */
-    if (unlikely(rli->relay_log.append(ev)))
+    if (unlikely(rli->relay_log.append_event(ev)))
     {
       delete ev;
       mysql_mutex_unlock(&mi->data_lock);
@@ -5314,7 +5314,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     break;
   }
 
-  if (unlikely(rli->relay_log.append(ev)))
+  if (unlikely(rli->relay_log.append_event(ev)))
   {
     delete ev;
     mysql_mutex_unlock(&mi->data_lock);
@@ -5703,7 +5703,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   else
   {
     /* write the event to the relay log */
-    if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
+    if (likely(!(rli->relay_log.append_buffer(buf,event_len))))
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
@@ -6000,8 +6000,8 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
   DBUG_ASSERT(rli->cur_log_fd == -1);
 
   IO_CACHE *cur_log = rli->cur_log=&rli->cache_buf;
-  if ((rli->cur_log_fd=open_binlog(cur_log,rli->get_event_relay_log_name(),
-                                   errmsg)) <0)
+  if ((rli->cur_log_fd=open_binlog_file(cur_log,rli->get_event_relay_log_name(),
+                                        errmsg)) <0)
     DBUG_RETURN(0);
   /*
     We want to start exactly where we was before:
@@ -6501,9 +6501,9 @@ static Log_event* next_event(Relay_log_info* rli)
         sql_print_information("next log '%s' is not active",
                               rli->linfo.log_file_name);
 #endif
-      // open_binlog() will check the magic header
-      if ((rli->cur_log_fd=open_binlog(cur_log,rli->linfo.log_file_name,
-                                       &errmsg)) <0)
+      // open_binlog_file() will check the magic header
+      if ((rli->cur_log_fd=open_binlog_file(cur_log,rli->linfo.log_file_name,
+                                            &errmsg)) <0)
         goto err;
     }
     else

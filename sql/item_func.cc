@@ -50,6 +50,8 @@
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
+#include "zgroups.h"
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
 #endif
@@ -3745,6 +3747,44 @@ longlong Item_master_pos_wait::val_int()
 #endif
   return event_count;
 }
+
+
+#ifdef HAVE_UGID
+/**
+  Return 1 if both arguments are group_sets and the first is a subset
+  of the second.  Generate an error if any of the arguments is not a
+  group_set.
+*/
+longlong Item_func_group_subset::val_int()
+{
+  DBUG_ENTER("Item_func_group_subset::val_int()");
+  if (args[0]->null_value || args[1]->null_value)
+  {
+    null_value= true;
+    DBUG_RETURN(0);
+  }
+  String *string;
+  const char *ptr;
+  int ret= 0;
+  enum_return_status status;
+  if ((string= args[0]->val_str(&buf)) != NULL &&
+      (ptr= string->c_ptr_safe()) != NULL)
+  {
+    mysql_bin_log.sid_lock.rdlock();
+    const Group_set sub_set(&mysql_bin_log.sid_map, ptr, &status);
+    PROPAGATE_REPORTED_ERROR_INT(status);
+    if ((string= args[1]->val_str(&buf)) != NULL &&
+        (ptr= string->c_ptr_safe()) != NULL)
+    {
+      const Group_set super_set(&mysql_bin_log.sid_map, ptr, &status);
+      PROPAGATE_REPORTED_ERROR_INT(status);
+      ret= sub_set.is_subset(&super_set) ? 1 : 0;
+    }
+    mysql_bin_log.sid_lock.unlock();
+  }
+  DBUG_RETURN(ret);
+}
+#endif
 
 
 /**

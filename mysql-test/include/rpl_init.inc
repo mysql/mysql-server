@@ -140,8 +140,11 @@ if (!$SERVER_MYPORT_4)
 # Check that $rpl_server_count is set
 if (!$rpl_server_count)
 {
-  --let $_compute_rpl_server_count= `SELECT REPLACE('$rpl_topology', '->', ',')`
-  --let $rpl_server_count= `SELECT GREATEST($_compute_rpl_server_count)`
+  --let $rpl_server_count= `SELECT REPLACE('$rpl_topology', '->', ',')`
+  if (`SELECT LOCATE(',', '$rpl_server_count')`)
+  {
+    --let $rpl_server_count= `SELECT GREATEST($rpl_server_count)`
+  }
 }
 
 

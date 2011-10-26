@@ -311,6 +311,7 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_ugid;
 
 /*
   Prototypes for helper functions
@@ -327,6 +328,10 @@ sql_mode_t expand_sql_mode(sql_mode_t sql_mode);
 bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *ls);
 
 extern sys_var *Sys_autocommit_ptr;
+extern sys_var *Sys_ugid_next_ptr;
+extern sys_var *Sys_ugid_next_list_ptr;
+extern sys_var *Sys_ugid_end_ptr;
+extern sys_var *Sys_ugid_commit_ptr;
 
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 
