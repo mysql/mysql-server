@@ -3193,10 +3193,6 @@ handle_schema_unlock_post_epoch(THD *thd,
 }
 
 
-/*
-  Timer class for doing performance measurements
-*/
-
 /*********************************************************************
   Internal helper functions for handeling of the cluster replication tables
   - ndb_binlog_index
@@ -6247,25 +6243,6 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   return 0;
 }
 
-//#define RUN_NDB_BINLOG_TIMER
-#ifdef RUN_NDB_BINLOG_TIMER
-class Timer
-{
-public:
-  Timer() { start(); }
-  void start() { gettimeofday(&m_start, 0); }
-  void stop() { gettimeofday(&m_stop, 0); }
-  ulong elapsed_ms()
-  {
-    return (ulong)
-      (((longlong) m_stop.tv_sec - (longlong) m_start.tv_sec) * 1000 +
-       ((longlong) m_stop.tv_usec -
-        (longlong) m_start.tv_usec + 999) / 1000);
-  }
-private:
-  struct timeval m_start,m_stop;
-};
-#endif
 
 /****************************************************************
   Injector thread main loop
@@ -6435,10 +6412,6 @@ ndb_binlog_thread_func(void *arg)
    *   in that case, don't report incident again
    */
   bool do_incident = true;
-
-#ifdef RUN_NDB_BINLOG_TIMER
-  Timer main_timer;
-#endif
 
   pthread_mutex_lock(&injector_mutex);
   /*
@@ -6757,11 +6730,6 @@ restart_cluster_failure:
                           (uint)(ndb_get_latest_trans_gci())));
     }
 #endif
-#ifdef RUN_NDB_BINLOG_TIMER
-    main_timer.stop();
-    sql_print_information("main_timer %ld ms",  main_timer.elapsed_ms());
-    main_timer.start();
-#endif
 
     /*
       now we don't want any events before next gci is complete
@@ -6957,11 +6925,6 @@ restart_cluster_failure:
       while (pOp != NULL)
       {
         rows= &_row;
-#ifdef RUN_NDB_BINLOG_TIMER
-        Timer gci_timer, write_timer;
-        int event_count= 0;
-        gci_timer.start();
-#endif
         gci= pOp->getGCI();
         DBUG_PRINT("info", ("Handling gci: %u/%u",
                             (uint)(gci >> 32),
@@ -7089,14 +7052,9 @@ restart_cluster_failure:
             sql_print_error("NDB: Could not get apply status share");
           }
         }
-#ifdef RUN_NDB_BINLOG_TIMER
-        write_timer.start();
-#endif
+
         do
         {
-#ifdef RUN_NDB_BINLOG_TIMER
-          event_count++;
-#endif
           if (pOp->hasError() &&
               handle_error(pOp) < 0)
             goto err;
@@ -7172,9 +7130,6 @@ restart_cluster_failure:
           note! pOp is not referring to an event in the next epoch
           or is == 0
         */
-#ifdef RUN_NDB_BINLOG_TIMER
-        write_timer.stop();
-#endif
 
         while (trans.good())
         {
@@ -7249,18 +7204,8 @@ restart_cluster_failure:
           break;
         }
         ndb_latest_handled_binlog_epoch= gci;
-
-#ifdef RUN_NDB_BINLOG_TIMER
-        gci_timer.stop();
-        sql_print_information("gci %ld event_count %d write time "
-                              "%ld(%d e/s), total time %ld(%d e/s)",
-                              (ulong)gci, event_count,
-                              write_timer.elapsed_ms(),
-                              (1000*event_count) / write_timer.elapsed_ms(),
-                              gci_timer.elapsed_ms(),
-                              (1000*event_count) / gci_timer.elapsed_ms());
-#endif
       }
+
       if(!i_ndb->isConsistent(gci))
       {
         char errmsg[64];
