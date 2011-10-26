@@ -2432,15 +2432,13 @@ private:
 
 
 static int
-ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
-                                      NdbEventOperation *pOp,
-                                      List<Cluster_schema> 
-                                      *post_epoch_log_list,
-                                      List<Cluster_schema> 
-                                      *post_epoch_unlock_list,
-                                      MEM_ROOT *mem_root)
+handle_schema_event(THD *thd, Ndb *s_ndb,
+                    NdbEventOperation *pOp,
+                    List<Cluster_schema> *post_epoch_log_list,
+                    List<Cluster_schema> *post_epoch_unlock_list,
+                    MEM_ROOT *mem_root)
 {
-  DBUG_ENTER("ndb_binlog_thread_handle_schema_event");
+  DBUG_ENTER("handle_schema_event");
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *tmp_share= event_data->share;
   if (tmp_share && ndb_schema_share == tmp_share)
@@ -2808,15 +2806,13 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
   the epoch is complete
 */
 static void
-ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
-                                                 List<Cluster_schema>
-                                                 *post_epoch_log_list,
-                                                 List<Cluster_schema>
-                                                 *post_epoch_unlock_list)
+handle_schema_event_post_epoch(THD *thd,
+                               List<Cluster_schema> *post_epoch_log_list,
+                               List<Cluster_schema> *post_epoch_unlock_list)
 {
   if (post_epoch_log_list->elements == 0)
     return;
-  DBUG_ENTER("ndb_binlog_thread_handle_schema_event_post_epoch");
+  DBUG_ENTER("handle_schema_event_post_epoch");
   Cluster_schema *schema;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
@@ -5718,11 +5714,11 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
   Handle error states on events from the storage nodes
 */
 static int
-ndb_binlog_thread_handle_error(NdbEventOperation *pOp)
+handle_error(NdbEventOperation *pOp)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *share= event_data->share;
-  DBUG_ENTER("ndb_binlog_thread_handle_error");
+  DBUG_ENTER("handle_error");
 
   int overrun= pOp->isOverrun();
   if (overrun)
@@ -5759,9 +5755,9 @@ ndb_binlog_thread_handle_error(NdbEventOperation *pOp)
 }
 
 static int
-ndb_binlog_thread_handle_non_data_event(THD *thd,
-                                        NdbEventOperation *pOp,
-                                        ndb_binlog_index_row &row)
+handle_non_data_event(THD *thd,
+                      NdbEventOperation *pOp,
+                      ndb_binlog_index_row &row)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *share= event_data->share;
@@ -5894,11 +5890,11 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
 
 
 static int
-ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
-                                    ndb_binlog_index_row **rows,
-                                    injector::transaction &trans,
-                                    unsigned &trans_row_count,
-                                    unsigned &trans_slave_row_count)
+handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
+                  ndb_binlog_index_row **rows,
+                  injector::transaction &trans,
+                  unsigned &trans_row_count,
+                  unsigned &trans_slave_row_count)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   TABLE *table= event_data->shadow_table;
@@ -6819,10 +6815,10 @@ restart_cluster_failure:
       {
         if (!pOp->hasError())
         {
-          ndb_binlog_thread_handle_schema_event(thd, s_ndb, pOp,
-                                                &post_epoch_log_list,
-                                                &post_epoch_unlock_list,
-                                                &mem_root);
+          handle_schema_event(thd, s_ndb, pOp,
+                              &post_epoch_log_list,
+                              &post_epoch_unlock_list,
+                              &mem_root);
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                               "<empty>"));
@@ -6872,7 +6868,7 @@ restart_cluster_failure:
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
           {
             ndb_binlog_index_row row;
-            ndb_binlog_thread_handle_non_data_event(thd, pOp, row);
+            handle_non_data_event(thd, pOp, row);
           }
         }
         if (i_ndb->getEventOperation() == NULL &&
@@ -7096,7 +7092,7 @@ restart_cluster_failure:
           event_count++;
 #endif
           if (pOp->hasError() &&
-              ndb_binlog_thread_handle_error(pOp) < 0)
+              handle_error(pOp) < 0)
             goto err;
 
 #ifndef DBUG_OFF
@@ -7134,11 +7130,11 @@ restart_cluster_failure:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(thd, i_ndb, pOp, &rows, trans,
-                                                trans_row_count, trans_slave_row_count);
+            handle_data_event(thd, i_ndb, pOp, &rows, trans,
+                              trans_row_count, trans_slave_row_count);
           else
           {
-            ndb_binlog_thread_handle_non_data_event(thd, pOp, *rows);
+            handle_non_data_event(thd, pOp, *rows);
             DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                                 s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                                 "<empty>"));
@@ -7274,9 +7270,8 @@ restart_cluster_failure:
       }
     }
 
-    ndb_binlog_thread_handle_schema_event_post_epoch(thd,
-                                                     &post_epoch_log_list,
-                                                     &post_epoch_unlock_list);
+    handle_schema_event_post_epoch(thd, &post_epoch_log_list,
+                                   &post_epoch_unlock_list);
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
