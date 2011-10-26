@@ -6598,3 +6598,51 @@ ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
 ER_DA_INVALID_CONDITION_NUMBER 35000
   eng "Invalid condition number"
   por "Número de condição inválido"
+
+ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER
+  eng "The system variable %.200s can not be set in stored functions or triggers."
+
+ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+  eng "The system variable %.200s can not be set when there is an ongoing transaction."
+
+ER_UGID_NEXT_IS_NOT_IN_UGID_NEXT_LIST
+  eng "The system variable @@SESSION.UGID_NEXT has value %.200s, which is not listed in @@SESSION.UGID_NEXT_LIST."
+
+ER_CANT_CHANGE_UGID_NEXT_IN_SUPER_GROUP_WHEN_UGID_NEXT_LIST_IS_NULL
+  eng "When @@SESSION.UGID_NEXT_LIST == NULL and there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes."
+
+ER_CANT_CHANGE_UGID_NEXT_LIST_IN_SUPER_GROUP
+  eng "When there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT_LIST can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes."
+
+ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
+  eng "The statement 'SET %.200s' cannot invoke a stored function."
+
+ER_UGID_NEXT_IS_ENDED_IN_GROUP_CACHE
+  eng "The system variable @@SESSION.UGID_NEXT has value %.200s, which has already been ended in this client."
+
+ER_UGID_END_IS_ON_BUT_UGID_NEXT_IS_AUTO_OR_ANON
+  eng "The system variable @@SESSION.UGID_END cannot be 1 when @@SESSION.UGID_NEXT is 'AUTOMATIC' or 'ANONYMOUS'."
+
+ER_UGID_NEXT_CANT_BE_AUTOMATIC_IF_UGID_NEXT_LIST_IS_NON_NULL
+  eng "The system variable @@SESSION.UGID_NEXT cannot be 'AUTOMATIC' when @@SESSION.UGID_NEXT_LIST is non-NULL."
+
+ER_SKIPPING_LOGGED_GROUP
+  eng "Skipping group %.200s because it has already been executed and logged."
+
+ER_UGID_END_REQUIRES_UGID_COMMIT_WHEN_UGID_NEXT_LIST_IS_NULL
+  eng "When UGID_NEXT_LIST = NULL and UGID_NEXT has the form UUID:NUMBER, UGID_END cannot be set if UGID_COMMIT is not set."
+
+ER_MALFORMED_GROUP_SET_SPECIFICATION
+  eng "Malformed group set specification '%.200s'."
+
+ER_MALFORMED_GROUP_SPECIFICATION
+  eng "Malformed group specification '%.200s'."
+
+ER_FILE_FORMAT
+  eng "File '%.200s' has an unknown format at position %lld, it may be corrupt."
+
+ER_FILE_TRUNCATED
+  eng "File '%.200s' was truncated in the middle."
+
+ER_GNO_EXHAUSTED
+  eng "Impossible to generate automatic GNO: the space of possible values is exhausted.  Restart the server with a new SID."

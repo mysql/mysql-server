@@ -36,10 +36,20 @@
 #include "sql_priv.h"
 #include <signal.h>
 #include <my_dir.h>
+
+/*
+  error() is used in macro BINLOG_ERROR which is invoked in
+  zgroups.h, hence the early forward declaration.
+*/
+static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+
+#include "zgroups.h"
 #include "log_event.h"
 #include "log_event_old.h"
 #include "sql_common.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "sql_string.h"
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -63,9 +73,6 @@ static FILE *result_file;
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
-
-static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 static my_bool one_database=0, disable_log_bin= 0;
 static my_bool opt_hexdump= 0;
@@ -1183,6 +1190,31 @@ static struct my_option my_long_options[] =
    /* def_value 4GB */ UINT_MAX, /* min_value */ 256,
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
+#ifdef HAVE_UGID
+/* ALFRANIO CHECK THIS
+  {"skip-ugids", OPT_MYSQLBINLOG_SKIP_UGIDS,
+   "Do not print universal group identifier information "
+   "(SET UGID_NEXT=... etc).",
+   &opt_skip_ugids, &opt_skip_ugids, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"include-ugids", OPT_MYSQLBINLOG_INCLUDE_UGIDS,
+   "Include only the given universal group identifiers.",
+   &opt_include_ugids_str, &opt_include_ugids_str, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"exclude-ugids", OPT_MYSQLBINLOG_EXCLUDE_UGIDS,
+   "Print all but the given universal group identifiers.",
+   &opt_exclude_ugids_str, &opt_exclude_ugids_str, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"first-lgid", OPT_MYSQLBINLOG_FIRST_LGID,
+   "Ignore groups before the given Local Group ID.",
+   &opt_first_lgid_str, &opt_first_lgid_str, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"last-lgid", OPT_MYSQLBINLOG_LAST_LGID,
+   "Ignore groups after the given Local Group ID.",
+   &opt_last_lgid_str, &opt_last_lgid_str, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+*/
+#endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1450,11 +1482,12 @@ static Exit_status safe_connect()
 */
 static Exit_status dump_log_entries(const char* logname)
 {
+  DBUG_ENTER("dump_log_entries");
+
   Exit_status rc;
   PRINT_EVENT_INFO print_event_info;
-
   if (!print_event_info.init_ok())
-    return ERROR_STOP;
+    DBUG_RETURN(ERROR_STOP);
   /*
      Set safe delimiter, to dump things
      like CREATE PROCEDURE safely
@@ -1485,7 +1518,7 @@ static Exit_status dump_log_entries(const char* logname)
     fprintf(result_file, "DELIMITER ;\n");
     strmov(print_event_info.delimiter, ";");
   }
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -1501,6 +1534,7 @@ static Exit_status dump_log_entries(const char* logname)
 */
 static Exit_status check_master_version()
 {
+  DBUG_ENTER("check_master_version");
   MYSQL_RES* res = 0;
   MYSQL_ROW row;
   const char* version;
@@ -1510,7 +1544,7 @@ static Exit_status check_master_version()
   {
     error("Could not find server version: "
           "Query failed when checking master version: %s", mysql_error(mysql));
-    return ERROR_STOP;
+    DBUG_RETURN(ERROR_STOP);
   }
   if (!(row = mysql_fetch_row(res)))
   {
@@ -1567,11 +1601,11 @@ static Exit_status check_master_version()
   }
 
   mysql_free_result(res);
-  return OK_CONTINUE;
+  DBUG_RETURN(OK_CONTINUE);
 
 err:
   mysql_free_result(res);
-  return ERROR_STOP;
+  DBUG_RETURN(ERROR_STOP);
 }
 
 
@@ -1590,7 +1624,6 @@ err:
 */
 static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname)
-
 {
   uchar buf[128];
   ulong len;
@@ -1861,6 +1894,7 @@ static Exit_status check_header(IO_CACHE* file,
                                 PRINT_EVENT_INFO *print_event_info,
                                 const char* logname)
 {
+  DBUG_ENTER("check_header");
   uchar header[BIN_LOG_HEADER_SIZE];
   uchar buf[PROBE_HEADER_LEN];
   my_off_t tmp_pos, pos;
@@ -1869,7 +1903,7 @@ static Exit_status check_header(IO_CACHE* file,
   if (!(glob_description_event= new Format_description_log_event(3)))
   {
     error("Failed creating Format_description_log_event; out of memory?");
-    return ERROR_STOP;
+    DBUG_RETURN(ERROR_STOP);
   }
 
   pos= my_b_tell(file);
@@ -1877,12 +1911,12 @@ static Exit_status check_header(IO_CACHE* file,
   if (my_b_read(file, header, sizeof(header)))
   {
     error("Failed reading header; probably an empty file.");
-    return ERROR_STOP;
+    DBUG_RETURN(ERROR_STOP);
   }
   if (memcmp(header, BINLOG_MAGIC, sizeof(header)))
   {
     error("File is not a binary log file.");
-    return ERROR_STOP;
+    DBUG_RETURN(ERROR_STOP);
   }
 
   /*
@@ -1907,7 +1941,7 @@ static Exit_status check_header(IO_CACHE* file,
       {
         error("Could not read entry at offset %llu: "
               "Error in log format or read error.", (ulonglong)tmp_pos);
-        return ERROR_STOP;
+        DBUG_RETURN(ERROR_STOP);
       }
       /*
         Otherwise this is just EOF : this log currently contains 0-2
@@ -1942,7 +1976,7 @@ static Exit_status check_header(IO_CACHE* file,
           {
             error("Failed creating Format_description_log_event; "
                   "out of memory?");
-            return ERROR_STOP;
+            DBUG_RETURN(ERROR_STOP);
           }
         }
         break;
@@ -1962,7 +1996,7 @@ static Exit_status check_header(IO_CACHE* file,
           error("Could not read a Format_description_log_event event at "
                 "offset %llu; this could be a log format error or read error.",
                 (ulonglong)tmp_pos);
-          return ERROR_STOP;
+          DBUG_RETURN(ERROR_STOP);
         }
         if (opt_base64_output_mode == BASE64_OUTPUT_AUTO)
         {
@@ -1975,7 +2009,7 @@ static Exit_status check_header(IO_CACHE* file,
                                             new_description_event, tmp_pos,
                                             logname);
           if (retval != OK_CONTINUE)
-            return retval;
+            DBUG_RETURN(retval);
         }
         else
         {
@@ -1995,7 +2029,7 @@ static Exit_status check_header(IO_CACHE* file,
           error("Could not read a Rotate_log_event event at offset %llu;"
                 " this could be a log format error or read error.",
                 (ulonglong)tmp_pos);
-          return ERROR_STOP;
+          DBUG_RETURN(ERROR_STOP);
         }
         delete ev;
       }
@@ -2004,7 +2038,7 @@ static Exit_status check_header(IO_CACHE* file,
     }
   }
   my_b_seek(file, pos);
-  return OK_CONTINUE;
+  DBUG_RETURN(OK_CONTINUE);
 }
 
 
@@ -2024,22 +2058,24 @@ static Exit_status check_header(IO_CACHE* file,
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname)
 {
+  DBUG_ENTER("dump_local_log_entries");
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   uchar tmp_buff[BIN_LOG_HEADER_SIZE];
   Exit_status retval= OK_CONTINUE;
+  bool opened_iocache= false;
 
   if (logname && strcmp(logname, "-") != 0)
   {
-    /* read from normal file */
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
-      return ERROR_STOP;
+      goto err;
     if (init_io_cache(file, fd, 0, READ_CACHE, start_position_mot, 0,
 		      MYF(MY_WME | MY_NABP)))
     {
       my_close(fd, MYF(MY_WME));
-      return ERROR_STOP;
+      goto err;
     }
+    opened_iocache= true;
     if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
       goto end;
   }
@@ -2058,15 +2094,16 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (_setmode(fileno(stdin), O_BINARY) == -1)
     {
       error("Could not set binary mode on stdin.");
-      return ERROR_STOP;
+      goto err;
     }
 #endif 
     if (init_io_cache(file, my_fileno(stdin), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
     {
       error("Failed to init IO cache.");
-      return ERROR_STOP;
+      goto err;
     }
+    opened_iocache= true;
     if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
       goto end;
     if (start_position)
@@ -2097,6 +2134,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     error("Failed reading from file.");
     goto err;
   }
+
   for (;;)
   {
     char llbuff[21];
@@ -2122,6 +2160,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       // file->error == 0 means EOF, that's OK, we break in this case
       goto end;
     }
+
     if ((retval= process_event(print_event_info, ev, old_off, logname)) !=
         OK_CONTINUE)
       goto end;
@@ -2135,8 +2174,9 @@ err:
 end:
   if (fd >= 0)
     my_close(fd, MYF(MY_WME));
-  end_io_cache(file);
-  return retval;
+  if (opened_iocache)
+    end_io_cache(file);
+  DBUG_RETURN(retval);
 }
 
 /* Post processing of arguments to check for conflicts and other setups */
@@ -2308,3 +2348,10 @@ int main(int argc, char** argv)
 #include "log_event.cc"
 #include "log_event_old.cc"
 #include "rpl_utility.cc"
+
+#include "zsid_map.cc"
+#include "zreturn.cc"
+#include "zsubgroup_coder.cc"
+#include "zuuid.cc"
+#include "zgroup_set.cc"
+#include "zgroup.cc"

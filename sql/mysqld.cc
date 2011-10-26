@@ -65,6 +65,7 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 #include "opt_trace_context.h"
+#include "zgroups.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -613,6 +614,7 @@ SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
+SHOW_COMP_OPTION have_ugid;
 
 /* Thread specific variables */
 
@@ -4046,21 +4048,26 @@ static int init_server_auto_options()
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
     DBUG_RETURN(1);
 
+  DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (strlen(uuid) != UUID_LENGTH)
+#ifdef HAVE_UGID
+    if (!Uuid::is_valid(uuid))
     {
-      sql_print_error("The UUID stored in auto.cnf file is the wrong length.");
+      sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
+#endif
     strcpy(server_uuid, uuid);
   }
   else
   {
+    DBUG_PRINT("info", ("generating server_uuid"));
     flush= TRUE;
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
+    DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
     sql_print_warning("No existing UUID has been found, so we assume that this"
                       " is the first time that this server has been started."
                       " Generating a new UUID: %s.",
@@ -4450,8 +4457,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                                        WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
+  if (opt_bin_log && mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
+                                               WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
     unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
@@ -4881,13 +4888,35 @@ int mysqld_main(int argc, char **argv)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (!opt_bootstrap && init_server_auto_options())
+  if (!opt_bootstrap)
   {
-    sql_print_error("Initialzation of the server's UUID failed because it could"
-                    " not be read from the auto.cnf file. If this is a new"
-                    " server, the initialization failed because it was not"
-                    " possible to generate a new UUID.");
-    unireg_abort(1);
+    if (init_server_auto_options())
+    {
+      sql_print_error("Initialzation of the server's UUID failed because it could"
+                      " not be read from the auto.cnf file. If this is a new"
+                      " server, the initialization failed because it was not"
+                      " possible to generate a new UUID.");
+      unireg_abort(1);
+    }
+
+#ifdef HAVE_UGID
+    if (opt_bin_log)
+    {
+      /*
+        Add server_uuid to the sid_map.  This must be done after
+        server_uuid has been initialized in init_server_auto_options and
+        after the binary log (and sid_map file) has been initialized in
+        init_server_components().
+
+        No error message is needed: init_sid_map() prints a message.
+      */
+      mysql_bin_log.sid_lock.rdlock();
+      int ret= mysql_bin_log.init_sid_map();
+      mysql_bin_log.sid_lock.unlock();
+      if (ret)
+        unireg_abort(1);
+    }
+#endif
   }
 
   init_ssl();
@@ -7437,6 +7466,11 @@ static int mysql_init_variables(void)
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
+#ifdef HAVE_UGID
+  have_ugid=SHOW_OPTION_YES;
+#else
+  have_ugid=SHOW_OPTION_NO;
+#endif
 
 #if defined(__WIN__)
   /* Allow Win32 users to move MySQL anywhere */
@@ -8611,6 +8645,7 @@ PSI_stage_info stage_user_lock= { 0, "User lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
 PSI_stage_info stage_waiting_for_delay_list= { 0, "waiting for delay_list", 0};
+PSI_stage_info stage_waiting_for_group_to_be_written_to_binary_log= { 0, "waiting for group to be written to binary log", 0};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0};
 PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0};

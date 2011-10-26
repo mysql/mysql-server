@@ -177,8 +177,23 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+#ifdef HAVE_UGID
+  /**
+    Add @@global.server_uuid to this binlog's Sid_map.
 
-  int open(const char *opt_name);
+    This can't be done in the constructor because the constructor is
+    invoked at server startup before server_uuid is initialized.
+    
+    @retval 0 Success
+    @retval 1 Error (out of memory or IO error).
+  */
+  int init_sid_map();
+#endif
+
+private:
+  int open(const char *opt_name) { return open_binlog(opt_name); }
+public:
+  int open_binlog(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
@@ -213,24 +228,26 @@ public:
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
   void set_need_start_event() { need_start_event = 1; }
-  void init(bool no_auto_events_arg, ulong max_size);
+  int init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
-  bool open(const char *log_name,
-            enum_log_type log_type,
-            const char *new_name,
-	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg, ulong max_size,
-            bool null_created,
-            bool need_mutex);
+  bool open_binlog(const char *log_name,
+                   enum_log_type log_type,
+                   const char *new_name,
+                   enum cache_type io_cache_type_arg,
+                   bool no_auto_events_arg, ulong max_size,
+                   bool null_created,
+                   bool need_mutex);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
   int new_file();
 
-  bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, bool incident, bool prepared);
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  bool write_event(Log_event* event_info);
+  bool write_cache(THD *thd, class binlog_cache_mngr *cache_mngr,
+                   class binlog_cache_data *binlog_cache_data,
+                   bool prepared, my_off_t offset_after_last_statement);
+  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -241,12 +258,8 @@ public:
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  /*
-    v stands for vector
-    invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
-  */
-  bool appendv(const char* buf,uint len,...);
-  bool append(Log_event* ev);
+  bool append_buffer(const char* buf, uint len);
+  bool append_event(Log_event* ev);
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
@@ -308,6 +321,13 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+
+#ifdef HAVE_UGID
+  Checkable_rwlock sid_lock;
+  Sid_map sid_map;
+  Group_log_state group_log_state;
+  rpl_sidno server_uuid_sidno;
+#endif
 };
 
 typedef struct st_load_file_info
@@ -327,8 +347,8 @@ bool trans_cannot_safely_rollback(const THD* thd);
 bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
-File open_binlog(IO_CACHE *log, const char *log_file_name,
-                 const char **errmsg);
+File open_binlog_file(IO_CACHE *log, const char *log_file_name,
+                      const char **errmsg);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
@@ -338,5 +358,11 @@ void check_binlog_stmt_cache_size(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
+#ifdef HAVE_UGID
+extern const char *group_log_files_filename;
+extern const char *group_log_filename;
+extern const char *group_log_init_state_filename;
+extern const char *sid_map_filename;
+#endif
 
 #endif /* BINLOG_H_INCLUDED */
