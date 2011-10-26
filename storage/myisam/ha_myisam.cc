@@ -1022,6 +1022,18 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 			mi_get_mask_all_keys_active(share->base.keys) :
 			share->state.key_map);
     uint testflag=param.testflag;
+#ifdef HAVE_MMAP
+    bool remap= test(share->file_map);
+    /*
+      mi_repair*() functions family use file I/O even if memory
+      mapping is available.
+
+      Since mixing mmap I/O and file I/O may cause various artifacts,
+      memory mapping must be disabled.
+    */
+    if (remap)
+      mi_munmap_file(file);
+#endif
     if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
 	(local_testflag & T_REP_BY_SORT))
     {
@@ -1053,6 +1065,10 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       error=  mi_repair(&param, file, fixed_name,
 			param.testflag & T_QUICK);
     }
+#ifdef HAVE_MMAP
+    if (remap)
+      mi_dynmap_file(file, file->state->data_file_length);
+#endif
     param.testflag=testflag;
     optimize_done=1;
   }
@@ -2166,7 +2182,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
     pushed index condition and the BLOB field might be part of the
     range evaluation done by the ICP code.
   */
-  const KEY *key= &table->key_info[keyno_arg];
+  const KEY *key= &table_share->key_info[keyno_arg];
 
   for (uint k= 0; k < key->key_parts; ++k)
   {

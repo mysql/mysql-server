@@ -2187,6 +2187,15 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
                       order_group_num));
   if (!ref_pointer_array.is_null())
   {
+    /*
+      The Query may have been permanently transformed by removal of
+      ORDER BY or GROUP BY. Memory has already been allocated, but by
+      reducing the size of ref_pointer_array a tight bound is
+      maintained by Bounds_checked_array
+    */
+    if (ref_pointer_array.size() > n_elems)
+      ref_pointer_array.resize(n_elems);
+
     DBUG_ASSERT(ref_pointer_array.size() == n_elems);
     return false;
   }
@@ -3107,9 +3116,9 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    AND/OR trees.
     We also save the chain of ORDER::next in group_list, in case
     the list is modified by remove_const().
-    AND/OR trees.
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
 */

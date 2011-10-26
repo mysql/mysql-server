@@ -116,7 +116,7 @@ public:
     return (handler);
   }
 
-  int check_info()
+  enum_return_check check_info()
   {
     return (handler->check_info(uidx, nidx));
   }

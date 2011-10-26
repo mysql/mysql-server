@@ -559,6 +559,99 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 }
 
 #define MAGIC_IN_WHERE_TOP_LEVEL 10
+
+/**
+   Since LIMIT is not supported for table subquery predicates
+   (IN/ALL/EXISTS/etc), the following clauses are redundant for
+   subqueries:
+
+   ORDER BY
+   DISTINCT
+   GROUP BY   if there are no aggregate functions and no HAVING
+              clause
+
+   Because redundant clauses are removed both from JOIN and
+   select_lex, the removal is permanent. Thus, it only makes sense to
+   call this function for normal queries and on first execution of
+   SP/PS
+
+   @param subq_select_lex   select_lex that is part of a subquery 
+                            predicate. This object and the associated 
+                            join is modified.
+*/
+static
+void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
+{
+  Item_subselect *subq_predicate= subq_select_lex->master_unit()->item;
+  /*
+    The removal should happen for IN, ALL, ANY and EXISTS subqueries,
+    which means all but single row subqueries. Example single row
+    subqueries: 
+       a) SELECT * FROM t1 WHERE t1.a = (<single row subquery>) 
+       b) SELECT a, (<single row subquery) FROM t1
+   */
+  if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS)
+    return;
+
+  // A subquery that is not single row should be one of IN/ALL/ANY/EXISTS.
+  DBUG_ASSERT (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+               subq_predicate->substype() == Item_subselect::IN_SUBS     ||
+               subq_predicate->substype() == Item_subselect::ALL_SUBS    ||
+               subq_predicate->substype() == Item_subselect::ANY_SUBS);
+
+  enum change
+  {
+    REMOVE_NONE=0,
+    REMOVE_ORDER= 1 << 0,
+    REMOVE_DISTINCT= 1 << 1,
+    REMOVE_GROUP= 1 << 2
+  };
+
+  uint changelog= 0;
+
+  if (subq_select_lex->order_list.elements)
+  {
+    changelog|= REMOVE_ORDER;
+    subq_select_lex->join->order= NULL;
+    subq_select_lex->order_list.empty();
+  }
+
+  if (subq_select_lex->options & SELECT_DISTINCT)
+  {
+    changelog|= REMOVE_DISTINCT;
+    subq_select_lex->join->select_distinct= false;
+    subq_select_lex->options&= ~SELECT_DISTINCT;
+  }
+
+  /*
+    Remove GROUP BY if there are no aggregate functions and no HAVING
+    clause
+  */
+  if (subq_select_lex->group_list.elements &&
+      !subq_select_lex->with_sum_func && !subq_select_lex->join->having)
+  {
+    changelog|= REMOVE_GROUP;
+    subq_select_lex->join->group_list= NULL;
+    subq_select_lex->group_list.empty();
+  }
+
+  if (changelog)
+  {
+    Opt_trace_context * trace= &subq_select_lex->join->thd->opt_trace;
+    if (unlikely(trace->is_started()))
+    {
+      Opt_trace_object trace_wrapper(trace);
+      Opt_trace_array trace_changes(trace, "transformations_to_subquery");
+      if (changelog & REMOVE_ORDER)
+        trace_changes.add_alnum("removed_ordering");
+      if (changelog & REMOVE_DISTINCT)
+        trace_changes.add_alnum("removed_distinct");
+      if (changelog & REMOVE_GROUP)
+        trace_changes.add_alnum("removed_grouping");
+    }
+  }
+}
+
 /**
   Function to setup clauses without sum functions.
 */
@@ -652,6 +745,22 @@ JOIN::prepare(TABLE_LIST *tables_init,
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
+
+  /*
+    Permanently remove redundant parts from the query if
+      1) This is a subquery
+      2) This is the first time this query is optimized (since the
+         transformation is permanent
+      3) Not normalizing a view. Removal should take place when a
+         query involving a view is optimized, not when the view
+         is created
+  */
+  if (select_lex->master_unit()->item &&                               // 1)
+      select_lex->first_cond_optimization &&                           // 2)
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
+  {
+    remove_redundant_subquery_clauses(select_lex);
+  }
 
   /* Check that all tables, fields, conds and order are ok */
 
@@ -1000,7 +1109,7 @@ bool resolve_subquery(THD *thd, JOIN *join)
     semi-join (which is done in flatten_subqueries()). The requirements are:
       1. Subquery predicate is an IN/=ANY subquery predicate
       2. Subquery is a single SELECT (not a UNION)
-      3. Subquery does not have GROUP BY or ORDER BY
+      3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
       5. Subquery predicate is at the AND-top-level of ON/WHERE clause
       6. We are not in a subquery of a single table UPDATE/DELETE that 
@@ -1019,7 +1128,7 @@ bool resolve_subquery(THD *thd, JOIN *join)
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
       subq_predicate_substype == Item_subselect::IN_SUBS &&             // 1
       !select_lex->is_part_of_union() &&                                // 2
-      !select_lex->group_list.elements && !join->order &&               // 3
+      !select_lex->group_list.elements &&                               // 3
       !join->having && !select_lex->with_sum_func &&                    // 4
       (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5
        outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5
@@ -4624,6 +4733,19 @@ static bool pull_out_semijoin_tables(JOIN *join)
     List_iterator<TABLE_LIST> child_li(sj_nest->nested_join->join_list);
     TABLE_LIST *tbl;
     /*
+      Calculate set of tables within this semi-join nest that have
+      other dependent tables
+    */
+    table_map dep_tables= 0;
+    while ((tbl= child_li++))
+    {
+      TABLE *const table= tbl->table;
+      if (table &&
+         (table->reginfo.join_tab->dependent &
+          sj_nest->nested_join->used_tables))
+        dep_tables|= table->reginfo.join_tab->dependent;
+    }
+    /*
       Find which tables we can pull out based on key dependency data.
       Note that pulling one table out can allow us to pull out some
       other tables too.
@@ -4635,7 +4757,9 @@ static bool pull_out_semijoin_tables(JOIN *join)
       child_li.rewind();
       while ((tbl= child_li++))
       {
-        if (tbl->table && !(pulled_tables & tbl->table->map))
+        if (tbl->table &&
+            !(pulled_tables & tbl->table->map) &&
+            !(dep_tables & tbl->table->map))
         {
           if (find_eq_ref_candidate(tbl->table, 
                                     sj_nest->nested_join->used_tables & 
@@ -4979,6 +5103,16 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
+
+    DBUG_EXECUTE_IF("bug11747970_raise_error",
+                    {
+                      if (!error)
+                      {
+                        my_error(ER_UNKNOWN_ERROR, MYF(0));
+                        goto error;
+                      }
+                    });
+
     if (error)
     {
       table->file->print_error(error, MYF(0));
@@ -5227,7 +5361,7 @@ const_table_extraction_done:
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
       table=s->table;
-
+      TABLE_LIST *const tl= table->pos_in_table_list;
       /* 
         If equi-join condition by a key is null rejecting and after a
         substitution of a const table the key value happens to be null
@@ -5268,7 +5402,7 @@ const_table_extraction_done:
 	  continue;
 	if (table->file->stats.records <= 1L &&
 	    (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-            !table->pos_in_table_list->in_outer_join_nest())
+            !tl->in_outer_join_nest())
 	{					// system table
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;
@@ -5313,11 +5447,13 @@ const_table_extraction_done:
             Extract const tables with proper key dependencies.
             Exclude tables that
              1. are full-text searched, or
-             2. are part of nested outer join.
+             2. are part of nested outer join, or
+             3. are part of semi-join
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched &&                           // 1
-              !table->pos_in_table_list->in_outer_join_nest())       // 2
+              !tl->in_outer_join_nest() &&                           // 2
+              !(tl->embedding && tl->embedding->sj_on_expr))         // 3
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -5584,8 +5720,9 @@ static bool optimize_semijoin_nests(JOIN *join)
     if (join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
         join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
     {
-      /* semi-join nests with only constant tables are not valid */
-      DBUG_ASSERT(sj_nest->sj_inner_tables & ~join->const_table_map);
+      /* A semi-join nest should not contain tables marked as const */
+      DBUG_ASSERT(!(sj_nest->sj_inner_tables & join->const_table_map));
+
       Opt_trace_object trace_wrapper(trace);
       Opt_trace_object
         trace_sjmat(trace, "execution_plan_for_potential_materialization");
@@ -11750,7 +11887,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     for any join operation (inner join, outer join, semi-join) with 'JT_ALL' 
     access method.  In that case, a JOIN_CACHE_BNL object is always employed.
 
-    If an index is used to access rows of the joined table and batch_key_access
+    If an index is used to access rows of the joined table and batched_key_access
     is on, then a JOIN_CACHE_BKA object is employed. (Unless debug flag,
     test_bka unique, is set, then a JOIN_CACHE_BKA_UNIQUE object is employed
     instead.) 
@@ -13117,7 +13254,10 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     {
       if (order->item[0]->has_subquery() && 
           !(join->select_lex->options & SELECT_DESCRIBE))
+      {
+        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
         order->item[0]->val_str(&order->item[0]->str_value);
+      }
       trace_one_item.add("uses_only_constant_tables", true);
       continue;					// skip const item
     }
@@ -15950,7 +16090,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array
-          trace_subselect(trace, "subselect_equality_propagation");
+          trace_subselect(trace, "subselect_evaluation");
         conds= build_equal_items(join->thd, conds, NULL, join_list,
                                  &join->cond_equal);
       }
@@ -15965,7 +16105,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array
-          trace_subselect(trace, "subselect_constant_propagation");
+          trace_subselect(trace, "subselect_evaluation");
         propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
       }
       step_wrapper.add("resulting_condition", conds);
@@ -15982,7 +16122,7 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
       {
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
-        Opt_trace_array trace_subselect(trace, "subselect_cond_removal");
+        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
         conds= remove_eq_conds(thd, conds, cond_value) ;
       }
       step_wrapper.add("resulting_condition", conds);
@@ -18646,10 +18786,14 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     DBUG_RETURN(rc);
   }
 
-  Semijoin_mat_exec *sjm= join_tab->emb_sj_nest->sj_mat_exec;
+  Semijoin_mat_exec *const sjm= join_tab->emb_sj_nest->sj_mat_exec;
+
+  // Cache a pointer to the last of the materialized inner tables:
+  JOIN_TAB *const last_tab= join_tab + (sjm->table_count - 1);
+
   if (end_of_records)
   {
-    rc= (*join_tab[sjm->table_count - 1].next_select)
+    rc= (*last_tab->next_select)
           (join, join_tab + sjm->table_count, end_of_records);
     DBUG_RETURN(rc);
   }
@@ -18659,23 +18803,8 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       Do the materialization. First, put end_sj_materialize after the last
       inner table so we can catch record combinations of sj-inner tables.
     */
-    Next_select_func next_func= join_tab[sjm->table_count - 1].next_select;
-    join_tab[sjm->table_count - 1].next_select= end_sj_materialize;
-
-    if (sjm->is_scan)
-    {
-      JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
-      if (last_tab->save_read_first_record == NULL)
-      {
-        /* Save a copy of the read first function before substituting it */
-        last_tab->save_read_first_record= last_tab->read_first_record;
-      }
-      else
-      {
-        /* Restore read function saved in previous materialization round */
-        last_tab->read_first_record= last_tab->save_read_first_record;
-      }
-    }
+    const Next_select_func next_func= last_tab->next_select;
+    last_tab->next_select= end_sj_materialize;
     /*
       Now run the join for the inner tables. The first call is to run the
       join, the second one is to signal EOF (this is essential for some
@@ -18684,55 +18813,48 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     if ((rc= sub_select(join, join_tab, FALSE)) < 0 ||
         (rc= sub_select(join, join_tab, TRUE/*EOF*/)) < 0)
     {
-      join_tab[sjm->table_count - 1].next_select= next_func;
+      last_tab->next_select= next_func;
       DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
     }
-    join_tab[sjm->table_count - 1].next_select= next_func;
-
-    /*
-      Ok, materialization finished. Initialize the access to the temptable
-    */
-    join_tab->read_record.read_record= join_no_more_records;
-    if (sjm->is_scan)
-    {
-      /* Initialize full scan */
-      JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
-      init_read_record(&last_tab->read_record, join->thd,
-                       sjm->table, NULL, TRUE, TRUE, FALSE);
-
-      last_tab->read_first_record= join_read_record_no_init;
-      last_tab->read_record.copy_field= sjm->copy_field;
-      last_tab->read_record.copy_field_end= sjm->copy_field +
-                                            sjm->table_cols.elements;
-      last_tab->read_record.read_record= rr_sequential_and_unpack;
-
-      // Clear possible outer join information from earlier use of this join tab
-      last_tab->last_inner= NULL;
-      last_tab->first_unmatched= NULL;
-    }
+    last_tab->next_select= next_func;
 
     sjm->materialized= true;
-  }
-  else
-  {
-    if (sjm->is_scan)
-    {
-      /* Reset the cursor for a new scan over the table */
-      if (sjm->table->file->ha_rnd_init(TRUE))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
-    }
   }
 
   if (sjm->is_scan)
   {
-    /* Do full scan of the materialized table */
-    JOIN_TAB *last_tab= join_tab + (sjm->table_count - 1);
+    /*
+      Perform a full scan over the materialized table.
+      Reuse the join tab of the last inner table for the materialized table.
+    */
 
-    Item *save_cond= last_tab->condition();
+    // Save contents of join tab for possible repeated materializations:
+    const READ_RECORD saved_access= last_tab->read_record;
+    const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
+
+    // Initialize full scan
+    init_read_record(&last_tab->read_record, join->thd,
+                     sjm->table, NULL, TRUE, TRUE, FALSE);
+
+    last_tab->read_first_record= join_read_record_no_init;
+    last_tab->read_record.copy_field= sjm->copy_field;
+    last_tab->read_record.copy_field_end= sjm->copy_field +
+                                          sjm->table_cols.elements;
+    last_tab->read_record.read_record= rr_sequential_and_unpack;
+
+    // Clear possible outer join information from earlier use of this join tab
+    last_tab->last_inner= NULL;
+    last_tab->first_unmatched= NULL;
+
+    Item *const save_cond= last_tab->condition();
     last_tab->set_condition(sjm->join_cond, __LINE__);
     rc= sub_select(join, last_tab, end_of_records);
+    end_read_record(&last_tab->read_record);
+
+    // Restore access method used for materialization
     last_tab->set_condition(save_cond, __LINE__);
-    DBUG_RETURN(rc);
+    last_tab->read_record= saved_access;
+    last_tab->read_first_record= saved_rfr;
   }
   else
   {
@@ -18741,9 +18863,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (res || !sjm->in_equality->val_int())
       DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+    rc= (*last_tab->next_select)
+      (join, join_tab + sjm->table_count, end_of_records);
   }
-  rc= (*join_tab[sjm->table_count - 1].next_select)
-        (join, join_tab + sjm->table_count, end_of_records);
   DBUG_RETURN(rc);
 }
 
@@ -18979,7 +19101,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
 
   join->return_tab= join_tab;
-  join_tab->not_null_compl= TRUE;
+  join_tab->not_null_compl= true;
+  join_tab->found_match= false;
 
   if (join_tab->last_inner)
   {

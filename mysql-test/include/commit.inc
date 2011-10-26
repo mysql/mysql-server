@@ -524,9 +524,31 @@ call p_verify_status_increment(2, 2, 2, 2);
 --disable_warnings
 update ignore t1 set a=2 where a=1;
 --enable_warnings
-call p_verify_status_increment(2, 2, 1, 0);
+if (`select @@binlog_format = 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(2, 2, 1, 0);
+  --enable_query_log
+}
+if (`select @@binlog_format != 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(1, 0, 1, 0);
+  --enable_query_log
+}
 commit;
-call p_verify_status_increment(2, 2, 1, 0);
+if (`select @@binlog_format = 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(2, 2, 1, 0);
+  --enable_query_log
+}
+if (`select @@binlog_format != 'STATEMENT'`)
+{
+  --disable_query_log
+  call p_verify_status_increment(1, 0, 1, 0);
+  --enable_query_log
+}
 --echo #
 --echo # Create a stored function that modifies a
 --echo # non-transactional table. Demonstrate that changes in

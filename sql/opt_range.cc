@@ -6088,8 +6088,21 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   if (cond_func->functype() == Item_func::BETWEEN ||
       cond_func->functype() == Item_func::IN_FUNC)
     inv= ((Item_func_opt_neg *) cond_func)->negated;
-  else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-    DBUG_RETURN(0);			       
+  else
+  {
+    /*
+      During the cond_func->select_optimize() evaluation we can come across a
+      subselect item which may allocate memory on the thd->mem_root and assumes
+      all the memory allocated has the same life span as the subselect item
+      itself. So we have to restore the thread's mem_root here.
+    */
+    MEM_ROOT *tmp_root= param->mem_root;
+    param->thd->mem_root= param->old_root;
+    Item_func::optimize_type opt_type= cond_func->select_optimize();
+    param->thd->mem_root= tmp_root;
+    if (opt_type == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(NULL);
+  }
 
   param->cond= cond;
 

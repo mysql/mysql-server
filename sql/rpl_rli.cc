@@ -707,9 +707,10 @@ improper_arguments: %d  timed_out: %d",
   DBUG_RETURN( error ? error : event_count );
 }
 
-void Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
-                                                bool skip_lock)
+int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
+                                            bool skip_lock)
 {
+  int error= 0;
   DBUG_ENTER("Relay_log_info::inc_group_relay_log_pos");
 
   if (skip_lock)
@@ -724,16 +725,6 @@ void Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
   notify_group_relay_log_name_update();
 
-  /*
-    If the slave does not support transactions and replicates a transaction,
-    users should not trust group_master_log_pos (which they can display with
-    SHOW SLAVE STATUS or read from relay-log.info), because to compute
-    group_master_log_pos the slave relies on log_pos stored in the master's
-    binlog, but if we are in a master's transaction these positions are always
-    the BEGIN's one (excepted for the COMMIT), so group_master_log_pos does
-    not advance as it should on the non-transactional slave (it advances by
-    big leaps, whereas it should advance by small leaps).
-  */
   /*
     In 4.x we used the event's len to compute the positions here. This is
     wrong if the event was 3.23/4.0 and has been converted to 5.0, because
@@ -770,12 +761,22 @@ void Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   */
   DBUG_ASSERT(!is_parallel_exec() ||
               mts_group_status != Relay_log_info::MTS_IN_GROUP);
-  flush_info(is_transactional() ? TRUE : FALSE);  // todo: error branch
+  /*
+    We do not force synchronization at this point, note the
+    parameter false, because a non-transactional change is
+    being committed.
+
+    For that reason, the synchronization here is subjected to
+    the option sync_relay_log_info.
+
+    See sql/rpl_rli.h for further information on this behavior.
+  */
+  error= flush_info(FALSE);
 
   mysql_cond_broadcast(&data_cond);
   if (!skip_lock)
     mysql_mutex_unlock(&data_lock);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 
@@ -1032,8 +1033,10 @@ bool Relay_log_info::cached_charset_compare(char *charset) const
 }
 
 
-void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
+int Relay_log_info::stmt_done(my_off_t event_master_log_pos)
 {
+  int error= 0;
+
   clear_flag(IN_STMT);
 
   DBUG_ASSERT(!belongs_to_client());
@@ -1041,27 +1044,34 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
   DBUG_ASSERT(!is_mts_worker(info_thd));
 
   /*
-    If in a transaction, and if the slave supports transactions, just
-    inc_event_relay_log_pos(). We only have to check for OPTION_BEGIN
-    (not OPTION_NOT_AUTOCOMMIT) as transactions are logged with
-    BEGIN/COMMIT, not with SET AUTOCOMMIT= .
+    Replication keeps event and group positions to specify the
+    set of events that were executed.
+    Event positions are incremented after processing each event
+    whereas group positions are incremented when an event or a
+    set of events is processed such as in a transaction and are
+    committed or rolled back.
 
-    CAUTION: opt_using_transactions means innodb || bdb ; suppose the
-    master supports InnoDB and BDB, but the slave supports only BDB,
-    problems will arise: - suppose an InnoDB table is created on the
-    master, - then it will be MyISAM on the slave - but as
-    opt_using_transactions is true, the slave will believe he is
-    transactional with the MyISAM table. And problems will come when
-    one does START SLAVE; STOP SLAVE; START SLAVE; (the slave will
-    resume at BEGIN whereas there has not been any rollback).  This is
-    the problem of using opt_using_transactions instead of a finer
-    "does the slave support _transactional handler used on the
-    master_".
+    A transaction can be ended with a Query Event, i.e. either
+    commit or rollback, or by a Xid Log Event. Query Event is
+    used to terminate pseudo-transactions that are executed
+    against non-transactional engines such as MyIsam. Xid Log
+    Event denotes though that a set of changes executed
+    against a transactional engine is about to commit.
 
-    More generally, we'll have problems when a query mixes a
-    transactional handler and MyISAM and STOP SLAVE is issued in the
-    middle of the "transaction". START SLAVE will resume at BEGIN
-    while the MyISAM table has already been updated.
+    Events' positions are incremented at stmt_done(). However,
+    transactions that are ended with Xid Log Event have their
+    group position incremented in the do_apply_event() and in
+    the do_apply_event_work().
+
+    Notice that the type of the engine, i.e. where data and
+    positions are stored, against what events are being applied
+    are not considered in this logic.
+
+    Regarding the code that follows, notice that the executed
+    group coordinates don't change if the current event is internal
+    to the group. The same applies to MTS Coordinator when it
+    handles a Format Descriptor event that appears in the middle
+    of a group that is about to be assigned.
   */
   if ((!is_parallel_exec() && is_in_group()) ||
       mts_group_status != MTS_NOT_IN_GROUP)
@@ -1081,10 +1091,13 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos)
         synchronization. For that reason, the checkpoint routine is
         called here.
       */
-      (void) mts_checkpoint_routine(this, 0, FALSE, FALSE); // TODO: ALFRANIO ERROR
+      error= mts_checkpoint_routine(this, 0, FALSE, FALSE);
     }
-    inc_group_relay_log_pos(event_master_log_pos);
+    if (!error)
+      error= inc_group_relay_log_pos(event_master_log_pos);
   }
+
+  return error;
 }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -1214,6 +1227,7 @@ bool mysql_show_relaylog_events(THD* thd)
 int Relay_log_info::init_info()
 {
   int error= 0;
+  enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   const char *msg= NULL;
 
   DBUG_ENTER("Relay_log_info::init_info");
@@ -1355,20 +1369,27 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     }
   }
 
-  /*
+   /*
     This checks if the repository was created before and thus there
     will be values to be read. Please, do not move this call after
-    the handler->init_info().
+    the handler->init_info(). 
   */
-  int necessary_to_configure= check_info();
-  if ((error= handler->init_info(uidx, nidx)))
+  check_return= check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+  {
+    msg= "Error checking relay log repository";
+    error= 1;
+    goto err;
+  }
+
+  if (handler->init_info(uidx, nidx))
   {
     msg= "Error reading relay log configuration";
     error= 1;
     goto err;
   }
 
-  if (necessary_to_configure)
+  if (check_return == REPOSITORY_DOES_NOT_EXIST)
   {
     /* Init relay log with first entry in the relay index file */
     if (init_relay_log_pos(NullS, BIN_LOG_HEADER_SIZE, 0 /* no data lock */,
@@ -1420,7 +1441,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 #endif
   }
 
-  if ((error= flush_info(TRUE)))
+  inited= 1;
+  if (flush_info(TRUE))
   {
     msg= "Error reading relay log configuration";
     error= 1;
@@ -1434,11 +1456,11 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     goto err;
   }
 
-  inited= 1;
   is_relay_log_recovery= FALSE;
   DBUG_RETURN(error);
 
 err:
+  inited= 0;
   sql_print_error("%s.", msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   DBUG_RETURN(error);
@@ -1547,6 +1569,9 @@ void Relay_log_info::set_master_info(Master_info* info)
 int Relay_log_info::flush_info(const bool force)
 {
   DBUG_ENTER("Relay_log_info::flush_info");
+
+  if (!inited)
+    DBUG_RETURN(0);
 
   /* 
     We update the sync_period at this point because only here we

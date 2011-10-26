@@ -1,0 +1,61 @@
+SET @start_global_value = @@global.innodb_stats_persistent_sample_pages;
+SELECT @start_global_value;
+@start_global_value
+20
+Valid values are zero or above
+SELECT @@global.innodb_stats_persistent_sample_pages >=0;
+@@global.innodb_stats_persistent_sample_pages >=0
+1
+SELECT @@global.innodb_stats_persistent_sample_pages;
+@@global.innodb_stats_persistent_sample_pages
+20
+SELECT @@session.innodb_stats_persistent_sample_pages;
+ERROR HY000: Variable 'innodb_stats_persistent_sample_pages' is a GLOBAL variable
+SHOW global variables LIKE 'innodb_stats_persistent_sample_pages';
+Variable_name	Value
+innodb_stats_persistent_sample_pages	20
+SHOW session variables LIKE 'innodb_stats_persistent_sample_pages';
+Variable_name	Value
+innodb_stats_persistent_sample_pages	20
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_STATS_PERSISTENT_SAMPLE_PAGES	20
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_STATS_PERSISTENT_SAMPLE_PAGES	20
+SET global innodb_stats_persistent_sample_pages=10;
+SELECT @@global.innodb_stats_persistent_sample_pages;
+@@global.innodb_stats_persistent_sample_pages
+10
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_STATS_PERSISTENT_SAMPLE_PAGES	10
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_STATS_PERSISTENT_SAMPLE_PAGES	10
+SET session innodb_stats_persistent_sample_pages=1;
+ERROR HY000: Variable 'innodb_stats_persistent_sample_pages' is a GLOBAL variable and should be set with SET GLOBAL
+SET global innodb_stats_persistent_sample_pages=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_stats_persistent_sample_pages'
+SET global innodb_stats_persistent_sample_pages=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_stats_persistent_sample_pages'
+SET global innodb_stats_persistent_sample_pages="foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_stats_persistent_sample_pages'
+SET global innodb_stats_persistent_sample_pages=-7;
+Warnings:
+Warning	1292	Truncated incorrect innodb_stats_persistent_sample_p value: '-7'
+SELECT @@global.innodb_stats_persistent_sample_pages;
+@@global.innodb_stats_persistent_sample_pages
+1
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_stats_persistent_sample_pages';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_STATS_PERSISTENT_SAMPLE_PAGES	1
+SET @@global.innodb_stats_persistent_sample_pages = @start_global_value;
+SELECT @@global.innodb_stats_persistent_sample_pages;
+@@global.innodb_stats_persistent_sample_pages
+20
