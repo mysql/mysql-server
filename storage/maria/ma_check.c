@@ -5671,7 +5671,8 @@ static my_off_t get_record_for_key(MARIA_KEYDEF *keyinfo,
   MARIA_KEY key;
   key.keyinfo= keyinfo;
   key.data= (uchar*) key_data;
-  key.data_length= _ma_keylength(keyinfo, key_data);
+  key.data_length= (_ma_keylength(keyinfo, key_data) -
+                    keyinfo->share->rec_reflength);
   return _ma_row_pos_from_key(&key);
 } /* get_record_for_key */
 

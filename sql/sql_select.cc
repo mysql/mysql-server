@@ -14172,6 +14172,13 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
 	keyinfo->key_parts > table->file->max_key_parts() ||
 	share->uniques)
     {
+      if (!share->uniques && !(keyinfo->flags & HA_NOSAME))
+      {
+        my_error(ER_INTERNAL_ERROR, MYF(0),
+                 "Using too big key for internal temp tables");
+        DBUG_RETURN(1);
+      }
+
       /* Can't create a key; Make a unique constraint instead of a key */
       share->keys=    0;
       share->uniques= 1;
@@ -14190,9 +14197,9 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
     }
     else
     {
-      /* Create an unique key */
+      /* Create a key */
       bzero((char*) &keydef,sizeof(keydef));
-      keydef.flag=HA_NOSAME;
+      keydef.flag= keyinfo->flags & HA_NOSAME;
       keydef.keysegs=  keyinfo->key_parts;
       keydef.seg= seg;
     }
@@ -14368,7 +14375,8 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
     {
       /* Create an unique key */
       bzero((char*) &keydef,sizeof(keydef));
-      keydef.flag=HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+      keydef.flag= ((keyinfo->flags & HA_NOSAME) | HA_BINARY_PACK_KEY |
+                    HA_PACK_KEY);
       keydef.keysegs=  keyinfo->key_parts;
       keydef.seg= seg;
     }

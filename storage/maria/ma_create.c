@@ -623,7 +623,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       to be able to put at least 2 keys on an index block for the key
       algorithms to work).
     */
-    if (length > maria_max_key_length())
+    if (length > _ma_max_key_length())
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err_no_lock;

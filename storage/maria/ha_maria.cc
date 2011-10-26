@@ -935,8 +935,7 @@ double ha_maria::scan_time()
 
 uint ha_maria::max_supported_key_length() const
 {
-  uint tmp= (maria_max_key_length() - 8 - HA_MAX_KEY_SEG*3);
-  return min(HA_MAX_KEY_BUFF, tmp);
+  return maria_max_key_length();
 }
 
 
@@ -2598,6 +2597,14 @@ void ha_maria::drop_table(const char *name)
   DBUG_ASSERT(file->s->temporary);
   (void) ha_close();
   (void) maria_delete_table_files(name, 0);
+}
+
+
+void ha_maria::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+{
+  handler::change_table_ptr(table_arg, share);
+  if (file)
+    file->external_ref= table_arg;
 }
 
 

@@ -551,7 +551,6 @@ my_bool mi_killed_in_mariadb(MI_INFO *info)
 
 }
 
-
 ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
@@ -2003,6 +2002,13 @@ int ha_myisam::reset_auto_increment(ulonglong value)
 int ha_myisam::delete_table(const char *name)
 {
   return mi_delete_table(name);
+}
+
+void ha_myisam::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+{
+  handler::change_table_ptr(table_arg, share);
+  if (file)
+    file->external_ref= table_arg;
 }
 
 

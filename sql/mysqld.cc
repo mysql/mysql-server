@@ -669,6 +669,10 @@ ulong extra_max_connections;
 */
 ulong max_long_data_size;
 
+/* Limits for internal temporary tables (MyISAM or Aria) */
+uint internal_tmp_table_max_key_length;
+uint internal_tmp_table_max_key_segments;
+
 int  max_user_connections= 0;
 bool max_user_connections_checking=0;
 ulonglong denied_connections;
@@ -4464,6 +4468,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("Aria engine is not enabled or did not start. The Aria engine must be enabled to continue as mysqld was configured with --with-aria-tmp-tables");
     unireg_abort(1);
   }
+  internal_tmp_table_max_key_length=   maria_max_key_length();
+  internal_tmp_table_max_key_segments= maria_max_key_segments();
+#else
+  internal_tmp_table_max_key_length=   myisam_max_key_length();
+  internal_tmp_table_max_key_segments= myisam_max_key_segments();
 #endif
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
