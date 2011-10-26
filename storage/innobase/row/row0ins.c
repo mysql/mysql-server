@@ -2090,20 +2090,15 @@ row_ins_index_entry_low(
 			if (big_rec) {
 				ut_a(err == DB_SUCCESS);
 				/* Write out the externally stored
-				columns, but allocate the pages and
-				write the pointers using the
-				mini-transaction of the record update.
-				If any pages were freed in the update,
-				temporarily mark them allocated so
-				that off-page columns will not
-				overwrite them. We must do this,
-				because we will write the redo log for
-				the BLOB writes before writing the
-				redo log for the record update. Thus,
-				redo log application at crash recovery
-				will see BLOBs being written to free pages. */
-
-				btr_mark_freed_leaves(index, &mtr, TRUE);
+				columns while still x-latching
+				index->lock and block->lock. We have
+				to mtr_commit(mtr) first, so that the
+				redo log will be written in the
+				correct order. Otherwise, we would run
+				into trouble on crash recovery if mtr
+				freed B-tree pages on which some of
+				the big_rec fields will be written. */
+				btr_cur_mtr_commit_and_start(&cursor, &mtr);
 
 				rec = btr_cur_get_rec(&cursor);
 				offsets = rec_get_offsets(rec, index, offsets,
@@ -2111,8 +2106,7 @@ row_ins_index_entry_low(
 							  &heap);
 
 				err = btr_store_big_rec_extern_fields(
-					index, rec, offsets, big_rec,
-					&mtr, &mtr);
+					index, rec, offsets, big_rec, &mtr);
 				/* If writing big_rec fails (for
 				example, because of DB_OUT_OF_FILE_SPACE),
 				the record will be corrupted. Even if
@@ -2125,9 +2119,6 @@ row_ins_index_entry_low(
 				undo log, and thus the record cannot
 				be rolled back. */
 				ut_a(err == DB_SUCCESS);
-				/* Free the pages again
-				in order to avoid a leak. */
-				btr_mark_freed_leaves(index, &mtr, FALSE);
 				goto stored_big_rec;
 			}
 		} else {
@@ -2175,8 +2166,7 @@ function_exit:
 					  ULINT_UNDEFINED, &heap);
 
 		err = btr_store_big_rec_extern_fields(index, rec,
-						      offsets, big_rec,
-						      NULL, &mtr);
+						      offsets, big_rec, &mtr);
 stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);

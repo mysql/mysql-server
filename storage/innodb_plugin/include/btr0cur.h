@@ -326,6 +326,16 @@ btr_cur_pessimistic_update(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr);	/*!< in: mtr; must be committed before
 				latching any further pages */
+/*****************************************************************
+Commits and restarts a mini-transaction so that it will retain an
+x-lock on index->lock and the cursor page. */
+UNIV_INTERN
+void
+btr_cur_mtr_commit_and_start(
+/*=========================*/
+	btr_cur_t*	cursor,	/*!< in: cursor */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /***********************************************************//**
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -530,8 +540,6 @@ btr_store_big_rec_extern_fields_func(
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
-	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
-					to be stored externally */
 #ifdef UNIV_DEBUG
 	mtr_t*		local_mtr,	/*!< in: mtr containing the
 					latch to rec and to the tree */
@@ -540,12 +548,9 @@ btr_store_big_rec_extern_fields_func(
 	ibool		update_in_place,/*! in: TRUE if the record is updated
 					in place (not delete+insert) */
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	mtr_t*		alloc_mtr)	/*!< in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
+	const big_rec_t*big_rec_vec)	/*!< in: vector containing fields
+					to be stored externally */
+	__attribute__((nonnull));
 
 /** Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
@@ -554,22 +559,21 @@ file segment of the index tree.
 @param index	in: clustered index; MUST be X-latched by mtr
 @param b	in/out: block containing rec; MUST be X-latched by mtr
 @param rec	in/out: clustered index record
-@param offs	in: rec_get_offsets(rec, index);
+@param offsets	in: rec_get_offsets(rec, index);
 		the "external storage" flags in offsets will not be adjusted
-@param big	in: vector containing fields to be stored externally
 @param mtr	in: mini-transaction that holds x-latch on index and b
 @param upd	in: TRUE if the record is updated in place (not delete+insert)
-@param rmtr	in/out: in updates, the mini-transaction that holds rec
+@param big	in: vector containing fields to be stored externally
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 #ifdef UNIV_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,mtr,upd,rmtr)
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,mtr,upd,big)
 #elif defined UNIV_BLOB_LIGHT_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,upd,rmtr)
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,upd,big)
 #else
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,rmtr)
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,big)
 #endif
 
 /*******************************************************************//**
