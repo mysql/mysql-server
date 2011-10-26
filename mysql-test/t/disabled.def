@@ -10,7 +10,6 @@
 #
 ##############################################################################
 events_time_zone         : Test is not predictable as it depends on precise timing.
-table_elim              : sergeyp to reapply 2643.26.4 in Item_sum::update_used_tables
 lowercase_table3         : Bug#11762269 2010-06-30 alik main.lowercase_table3 on Mac OSX
 read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
 sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested

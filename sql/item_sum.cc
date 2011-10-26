@@ -550,11 +550,20 @@ void Item_sum::update_used_tables ()
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
     }
+    /*
+      MariaDB: don't run the following {
+      
+      used_tables_cache&= PSEUDO_TABLE_BITS;
 
-    used_tables_cache&= PSEUDO_TABLE_BITS;
-
-    /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->table_count) - 1;
+      // the aggregate function is aggregated into its local context
+      used_tables_cache |=  (1 << aggr_sel->join->table_count) - 1;
+      
+      } because if we do it, table elimination will assume that
+        - constructs like "COUNT(*)" use columns from all tables
+        - so, it is not possible to eliminate any table
+      our solution for COUNT(*) is that it has
+        item->used_tables() == 0 && !item->const_item()
+    */
   }
 }
 

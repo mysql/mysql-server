@@ -1424,7 +1424,11 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
   cache->setup(args[0]);
   if (cache->cols() == 1)
   {
-    if ((used_tables_cache= args[0]->used_tables()))
+    /* 
+      Note: there can be cases when used_tables()==0 && !const_item(). See
+      Item_sum::update_used_tables for details.
+    */
+    if ((used_tables_cache= args[0]->used_tables()) || !args[0]->const_item())
       cache->set_used_tables(OUTER_REF_TABLE_BIT);
     else
       cache->set_used_tables(0);
@@ -1434,7 +1438,8 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
     {
-      if (args[0]->element_index(i)->used_tables())
+      Item *element=args[0]->element_index(i);
+      if (element->used_tables() || !element->const_item())
 	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
       else
 	((Item_cache *)cache->element_index(i))->set_used_tables(0);
