@@ -4192,11 +4192,10 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
   tl->next_leaf= subq_lex->leaf_tables;
 
   /*
-    Same as above for next_local chain
-    (a theory: a next_local chain always starts with ::leaf_tables
-     because view's tables are inserted after the view)
+    Same as above for next_local chain. This needed only for re-execution.
+    (The next_local chain always starts with SELECT_LEX::table_list)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  for (tl= parent_lex->get_table_list(); tl->next_local; tl= tl->next_local)
   {}
   tl->next_local= subq_lex->leaf_tables;
 
