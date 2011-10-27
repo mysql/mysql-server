@@ -257,4 +257,35 @@ inline void set_binlog_use_update(NDB_SHARE *share)
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
+
+NDB_SHARE *ndbcluster_get_share(const char *key,
+                                struct TABLE *table,
+                                bool create_if_not_exists,
+                                bool have_lock);
+NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
+void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
+void ndbcluster_real_free_share(NDB_SHARE **share);
+int handle_trailing_share(THD *thd, NDB_SHARE *share);
+int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
+int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
+int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
+void ndbcluster_mark_share_dropped(NDB_SHARE*);
+inline NDB_SHARE *get_share(const char *key,
+                            struct TABLE *table,
+                            bool create_if_not_exists= TRUE,
+                            bool have_lock= FALSE)
+{
+  return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
+}
+
+inline NDB_SHARE *get_share(NDB_SHARE *share)
+{
+  return ndbcluster_get_share(share);
+}
+
+inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
+{
+  ndbcluster_free_share(share, have_lock);
+}
+
 #endif
