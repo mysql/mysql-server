@@ -8675,7 +8675,7 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
 void rr_unlock_row(st_join_table *tab)
 {
   READ_RECORD *info= &tab->read_record;
-  info->file->unlock_row();
+  info->table->file->unlock_row();
 }
 
 
@@ -9349,7 +9349,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     TABLE *table=tab->table;
     uint jcl= tab->used_join_cache_level;
     tab->read_record.table= table;
-    tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
@@ -15719,7 +15718,7 @@ int join_read_key2(THD *thd, JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
     */
     if (tab && tab->ref.has_record && tab->ref.use_count == 0)
     {
-      tab->read_record.file->unlock_row();
+      tab->read_record.table->file->unlock_row();
       table_ref->has_record= FALSE;
     }
     error=table->file->ha_index_read_map(table->record[0],
@@ -15905,7 +15904,7 @@ join_init_quick_read_record(JOIN_TAB *tab)
 int init_read_record_seq(JOIN_TAB *tab)
 {
   tab->read_record.read_record= rr_sequential;
-  if (tab->read_record.file->ha_rnd_init_with_error(1))
+  if (tab->read_record.table->file->ha_rnd_init_with_error(1))
     return 1;
   return (*tab->read_record.read_record)(&tab->read_record);
 }
@@ -15972,7 +15971,6 @@ join_read_first(JOIN_TAB *tab)
   tab->table->status=0;
   tab->read_record.read_record=join_read_next;
   tab->read_record.table=table;
-  tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
@@ -15993,7 +15991,7 @@ static int
 join_read_next(READ_RECORD *info)
 {
   int error;
-  if ((error= info->file->ha_index_next(info->record)))
+  if ((error= info->table->file->ha_index_next(info->record)))
     return report_error(info->table, error);
 
   return 0;
@@ -16011,7 +16009,6 @@ join_read_last(JOIN_TAB *tab)
   tab->table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
-  tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
@@ -16029,7 +16026,7 @@ static int
 join_read_prev(READ_RECORD *info)
 {
   int error;
-  if ((error= info->file->ha_index_prev(info->record)))
+  if ((error= info->table->file->ha_index_prev(info->record)))
     return report_error(info->table, error);
   return 0;
 }
@@ -16063,7 +16060,7 @@ static int
 join_ft_read_next(READ_RECORD *info)
 {
   int error;
-  if ((error= info->file->ha_ft_read(info->table->record[0])))
+  if ((error= info->table->file->ha_ft_read(info->table->record[0])))
     return report_error(info->table, error);
   return 0;
 }

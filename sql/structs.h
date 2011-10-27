@@ -149,7 +149,7 @@ struct READ_RECORD {			/* Parameter to read_record */
   typedef int (*Read_func)(READ_RECORD*);
   typedef void (*Unlock_row_func)(st_join_table *);
   struct st_table *table;			/* Head-form */
-  handler *file;
+ // handler *file_;
   struct st_table **forms;			/* head and ref forms */
 
   Read_func read_record;
