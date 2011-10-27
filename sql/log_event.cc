@@ -1582,82 +1582,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 #ifdef MYSQL_CLIENT
 
-
-#ifdef HAVE_UGID
-void Log_event::print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *pei)
-{
-  if (pei->skip_ugids)
-    return;
-
-  if (subgroup == NULL)
-  {
-    if (!pei->last_subgroup_printed ||
-        pei->last_subgroup.type != ANONYMOUS_SUBGROUP)
-      my_b_printf(out, "SET UGID_NEXT='ANONYMOUS'%s\n", pei->delimiter);
-    return;
-  }
-
-  bool force= !pei->last_subgroup_printed;
-  bool printed_header= false;
-  Subgroup *prev= &pei->last_subgroup;
-
-  char header[2 + Subgroup::MAX_TEXT_LENGTH + 5 + 1]= "# ";
-  strcpy(header + 2 + subgroup->to_string(header + 2, pei->sid_map), "\nSET ");
-
-#define PRINT_HEADER                                            \
-  (my_b_printf(out, "%s", printed_header ? ", " : header),      \
-   printed_header= true)
-  if (force || subgroup->type != prev->type ||
-      (subgroup->type != ANONYMOUS_SUBGROUP &&
-       (subgroup->sidno != prev->sidno || subgroup->gno != prev->gno)))
-  {
-    PRINT_HEADER;
-    my_b_printf(out, "UGID_NEXT='");
-    switch (subgroup->type)
-    {
-    case ANONYMOUS_SUBGROUP:
-      my_b_printf(out, "ANONYMOUS");
-      break;
-    case DUMMY_SUBGROUP:
-      my_b_printf(out, "AUTOMATIC");
-      break;
-    case NORMAL_SUBGROUP:
-      // Group g= { subgroup->sidno, subgroup->gno }; // ALFRANIO CHECK THIS
-      char buf[Group::MAX_TEXT_LENGTH + 1];
-      // g.to_string(&sid_map, buf); ALFRANIO CHECK THIS
-      my_b_printf(out, "%s", buf);
-      break;
-    }
-    my_b_printf(out, "'");
-    prev->type= subgroup->type;
-    prev->sidno= subgroup->sidno;
-    prev->gno= subgroup->gno;
-  }
-  bool is_last_event=
-    event_end_position >= (subgroup->binlog_pos + subgroup->binlog_length -
-                           subgroup->binlog_offset_after_last_statement);
-  bool group_commit= subgroup->group_commit && is_last_event;
-  bool group_end= subgroup->group_end && is_last_event;
-  if (force || group_end != prev->group_end)
-  {
-    PRINT_HEADER;
-    my_b_printf(out, "UGID_END=%d", group_end ? 1 : 0);
-    prev->group_end= group_end;
-  }
-  if (force || group_commit != prev->group_commit)
-  {
-    PRINT_HEADER;
-    my_b_printf(out, "UGID_COMMIT=%d", group_commit ? 1 : 0);
-    prev->group_commit= group_commit;
-  }
-  if (printed_header)
-    my_b_printf(out, "%s\n", pei->delimiter);
-
-  pei->last_subgroup_printed= true;
-}
-#endif // ifdef HAVE_UGID
-
-
 /*
   Log_event::print_header()
 */
@@ -1669,10 +1593,6 @@ void Log_event::print_header(IO_CACHE* file,
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;
   DBUG_ENTER("Log_event::print_header");
-
-#ifdef HAVE_UGID
-  print_subgroup_info(file, print_event_info);
-#endif
 
   my_b_printf(file, "#");
   print_timestamp(file);

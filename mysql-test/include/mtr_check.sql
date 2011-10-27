@@ -61,12 +61,8 @@ BEGIN
   -- Dump all global variables except those that may change.
   -- timestamp changes if time passes. server_uuid changes if server restarts.
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-<<<<<<< TREE
-    WHERE variable_name NOT IN ('timestamp', 'server_uuid',
-                                'innodb_file_format_max')
-=======
-    WHERE variable_name != 'timestamp' AND variable_name != 'server_uuid' AND variable_name != 'ugid_ended_groups' AND variable_name != 'ugid_partial_groups'
->>>>>>> MERGE-SOURCE
+    WHERE variable_name NOT IN ('timestamp', 'server_uuid', 'ugid_ended_groups',
+                                'ugid_partial_groups', 'innodb_file_format_max')
     ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
