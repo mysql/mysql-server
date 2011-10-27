@@ -18839,8 +18839,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
 
     // Initialize full scan
-    init_read_record(&last_tab->read_record, join->thd,
-                     sjm->table, NULL, TRUE, TRUE, FALSE);
+    if (init_read_record(&last_tab->read_record, join->thd,
+                         sjm->table, NULL, TRUE, TRUE, FALSE))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
 
     last_tab->read_first_record= join_read_record_no_init;
     last_tab->read_record.copy_field= sjm->copy_field;
@@ -20082,8 +20083,9 @@ int join_init_read_record(JOIN_TAB *tab)
     report_error(tab->table, error);
     return 1;
   }
-  init_read_record(&tab->read_record, tab->join->thd, tab->table,
-		   tab->select,1,1, FALSE);
+  if (init_read_record(&tab->read_record, tab->join->thd, tab->table,
+                       tab->select, 1, 1, FALSE))
+    return 1;
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
