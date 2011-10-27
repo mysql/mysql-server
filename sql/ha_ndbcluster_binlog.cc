@@ -1388,111 +1388,6 @@ ndb_binlog_setup(THD *thd)
 #define SCHEMA_SIZE 9u
 #define SCHEMA_SLOCK_SIZE 32u
 
-struct Cluster_schema
-{
-  uchar db_length;
-  char db[64];
-  uchar name_length;
-  char name[64];
-  uchar slock_length;
-  uint32 slock[SCHEMA_SLOCK_SIZE/4];
-  unsigned short query_length;
-  char *query;
-  Uint64 epoch;
-  uint32 node_id;
-  uint32 id;
-  uint32 version;
-  uint32 type;
-  uint32 any_value;
-};
-
-static void
-print_could_not_discover_error(THD *thd,
-                               const Cluster_schema *schema)
-{
-  sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
-                  "binlog schema event '%s' from node %d. "
-                  "my_errno: %d",
-                   schema->db, schema->name, schema->query,
-                   schema->node_id, my_errno);
-  print_warning_list("NDB Binlog", thd_warn_list(thd));
-}
-
-
-/*
-  Transfer schema table data into corresponding struct
-*/
-static void ndbcluster_get_schema(Ndb_event_data *event_data,
-                                  Cluster_schema *s)
-{
-  TABLE *table= event_data->shadow_table;
-  Field **field;
-  /* unpack blob values */
-  uchar* blobs_buffer= 0;
-  uint blobs_buffer_size= 0;
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-  {
-    ptrdiff_t ptrdiff= 0;
-    int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
-                                 blobs_buffer, blobs_buffer_size,
-                                 ptrdiff);
-    if (ret != 0)
-    {
-      my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-      DBUG_PRINT("info", ("blob read error"));
-      DBUG_ASSERT(FALSE);
-    }
-  }
-  /* db varchar 1 length uchar */
-  field= table->field;
-  s->db_length= *(uint8*)(*field)->ptr;
-  DBUG_ASSERT(s->db_length <= (*field)->field_length);
-  DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->db));
-  memcpy(s->db, (*field)->ptr + 1, s->db_length);
-  s->db[s->db_length]= 0;
-  /* name varchar 1 length uchar */
-  field++;
-  s->name_length= *(uint8*)(*field)->ptr;
-  DBUG_ASSERT(s->name_length <= (*field)->field_length);
-  DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->name));
-  memcpy(s->name, (*field)->ptr + 1, s->name_length);
-  s->name[s->name_length]= 0;
-  /* slock fixed length */
-  field++;
-  s->slock_length= (*field)->field_length;
-  DBUG_ASSERT((*field)->field_length == sizeof(s->slock));
-  memcpy(s->slock, (*field)->ptr, s->slock_length);
-  /* query blob */
-  field++;
-  {
-    Field_blob *field_blob= (Field_blob*)(*field);
-    uint blob_len= field_blob->get_length((*field)->ptr);
-    uchar *blob_ptr= 0;
-    field_blob->get_ptr(&blob_ptr);
-    DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
-    s->query_length= blob_len;
-    s->query= sql_strmake((char*) blob_ptr, blob_len);
-  }
-  /* node_id */
-  field++;
-  s->node_id= (Uint32)((Field_long *)*field)->val_int();
-  /* epoch */
-  field++;
-  s->epoch= ((Field_long *)*field)->val_int();
-  /* id */
-  field++;
-  s->id= (Uint32)((Field_long *)*field)->val_int();
-  /* version */
-  field++;
-  s->version= (Uint32)((Field_long *)*field)->val_int();
-  /* type */
-  field++;
-  s->type= (Uint32)((Field_long *)*field)->val_int();
-  /* free blobs buffer */
-  my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  dbug_tmp_restore_column_map(table->read_set, old_map);
-}
-
 /*
   helper function to pack a ndb varchar
 */
@@ -1514,179 +1409,6 @@ char *ndb_pack_varchar(const NDBCOL *col, char *buf,
       break;
   }
   return buf;
-}
-
-/*
-  acknowledge handling of schema operation
-*/
-static int
-ndbcluster_update_slock(THD *thd,
-                        const char *db,
-                        const char *table_name,
-                        uint32 table_id,
-                        uint32 table_version)
-{
-  DBUG_ENTER("ndbcluster_update_slock");
-  if (!ndb_schema_share)
-  {
-    DBUG_RETURN(0);
-  }
-
-  const NdbError *ndb_error= 0;
-  uint32 node_id= g_ndb_cluster_connection->node_id();
-  Ndb *ndb= check_ndb_in_thd(thd);
-  char save_db[FN_HEADLEN];
-  strcpy(save_db, ndb->getDatabaseName());
-
-  char tmp_buf[FN_REFLEN];
-  NDBDICT *dict= ndb->getDictionary();
-  ndb->setDatabaseName(NDB_REP_DB);
-  Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
-  const NDBTAB *ndbtab= ndbtab_g.get_table();
-  NdbTransaction *trans= 0;
-  int retries= 100;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
-  const NDBCOL *col[SCHEMA_SIZE];
-  unsigned sz[SCHEMA_SIZE];
-
-  MY_BITMAP slock;
-  uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
-  bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, false);
-
-  if (ndbtab == 0)
-  {
-    if (dict->getNdbError().code != 4009)
-      abort();
-    DBUG_RETURN(0);
-  }
-
-  {
-    uint i;
-    for (i= 0; i < SCHEMA_SIZE; i++)
-    {
-      col[i]= ndbtab->getColumn(i);
-      if (i != SCHEMA_QUERY_I)
-      {
-        sz[i]= col[i]->getLength();
-        DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
-      }
-    }
-  }
-
-  while (1)
-  {
-    if ((trans= ndb->startTransaction()) == 0)
-      goto err;
-    {
-      NdbOperation *op= 0;
-      int r= 0;
-
-      /* read the bitmap exlusive */
-      r|= (op= trans->getNdbOperation(ndbtab)) == 0;
-      DBUG_ASSERT(r == 0);
-      r|= op->readTupleExclusive();
-      DBUG_ASSERT(r == 0);
-    
-      /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
-      r|= op->equal(SCHEMA_DB_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* name */
-      ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                       (int)strlen(table_name));
-      r|= op->equal(SCHEMA_NAME_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* slock */
-      r|= op->getValue(SCHEMA_SLOCK_I, (char*)slock.bitmap) == 0;
-      DBUG_ASSERT(r == 0);
-    }
-    if (trans->execute(NdbTransaction::NoCommit))
-      goto err;
-
-    if (opt_ndb_extra_logging > 19)
-    {
-      uint32 copy[SCHEMA_SLOCK_SIZE/4];
-      memcpy(copy, bitbuf, sizeof(copy));
-      bitmap_clear_bit(&slock, node_id);
-      sql_print_information("NDB: reply to %s.%s(%u/%u) from %x%x to %x%x",
-                            db, table_name,
-                            table_id, table_version,
-                            copy[0], copy[1],
-                            slock.bitmap[0],
-                            slock.bitmap[1]);
-    }
-    else
-    {
-      bitmap_clear_bit(&slock, node_id);
-    }
-
-    {
-      NdbOperation *op= 0;
-      int r= 0;
-
-      /* now update the tuple */
-      r|= (op= trans->getNdbOperation(ndbtab)) == 0;
-      DBUG_ASSERT(r == 0);
-      r|= op->updateTuple();
-      DBUG_ASSERT(r == 0);
-
-      /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
-      r|= op->equal(SCHEMA_DB_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* name */
-      ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                       (int)strlen(table_name));
-      r|= op->equal(SCHEMA_NAME_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* slock */
-      r|= op->setValue(SCHEMA_SLOCK_I, (char*)slock.bitmap);
-      DBUG_ASSERT(r == 0);
-      /* node_id */
-      r|= op->setValue(SCHEMA_NODE_ID_I, node_id);
-      DBUG_ASSERT(r == 0);
-      /* type */
-      r|= op->setValue(SCHEMA_TYPE_I, (uint32)SOT_CLEAR_SLOCK);
-      DBUG_ASSERT(r == 0);
-    }
-    if (trans->execute(NdbTransaction::Commit, 
-                       NdbOperation::DefaultAbortOption, 1 /*force send*/) == 0)
-    {
-      DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
-                          node_id, db, table_name));
-      dict->forceGCPWait(1);
-      break;
-    }
-  err:
-    const NdbError *this_error= trans ?
-      &trans->getNdbError() : &ndb->getNdbError();
-    if (this_error->status == NdbError::TemporaryError && !thd->killed)
-    {
-      if (retries--)
-      {
-        if (trans)
-          ndb->closeTransaction(trans);
-        do_retry_sleep(retry_sleep);
-        continue; // retry
-      }
-    }
-    ndb_error= this_error;
-    break;
-  }
-
-  if (ndb_error)
-  {
-    char buf[1024];
-    my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
-                db, table_name);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                        ndb_error->code, ndb_error->message, buf);
-  }
-  if (trans)
-    ndb->closeTransaction(trans);
-  ndb->setDatabaseName(save_db);
-  DBUG_RETURN(0);
 }
 
 
@@ -2352,68 +2074,6 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   DBUG_RETURN(0);
 }
 
-static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
-{
-  /* any_value == 0 means local cluster sourced change that
-   * should be logged
-   */
-  if (ndbcluster_anyvalue_is_reserved(schema->any_value))
-  {
-    /* Originating SQL node did not want this query logged */
-    if (!ndbcluster_anyvalue_is_nologging(schema->any_value))
-      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
-                        "query not logged",
-                        schema->any_value);
-    return;
-  }
-  
-  Uint32 queryServerId = ndbcluster_anyvalue_get_serverid(schema->any_value);
-  /* 
-     Start with serverId as received AnyValue, in case it's a composite
-     (server_id_bits < 31).
-     This is for 'future', as currently schema ops do not have composite
-     AnyValues.
-     In future it may be useful to support *not* mapping composite
-     AnyValues to/from Binlogged server-ids.
-  */
-  Uint32 loggedServerId = schema->any_value;
-
-  if (queryServerId)
-  {
-    /* 
-       AnyValue has non-zero serverId, must be a query applied by a slave 
-       mysqld.
-       TODO : Assert that we are running in the Binlog injector thread?
-    */
-    if (! g_ndb_log_slave_updates)
-    {
-      /* This MySQLD does not log slave updates */
-      return;
-    }
-  }
-  else
-  {
-    /* No ServerId associated with this query, mark it as ours */
-    ndbcluster_anyvalue_set_serverid(loggedServerId, ::server_id);
-  }
-
-  uint32 thd_server_id_save= thd->server_id;
-  DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
-  char *thd_db_save= thd->db;
-  thd->server_id = loggedServerId;
-  thd->db= schema->db;
-  int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
-  thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
-                    schema->query_length, FALSE,
-#ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
-                    TRUE,
-#endif
-                    schema->name[0] == 0 || thd->db[0] == 0,
-                    errcode);
-  thd->server_id= thd_server_id_save;
-  thd->db= thd_db_save;
-}
-
 
 class Mutex_guard
 {
@@ -2432,6 +2092,351 @@ private:
 
 
 class Ndb_schema_event_handler {
+
+  struct Cluster_schema
+  {
+    uchar db_length;
+    char db[64];
+    uchar name_length;
+    char name[64];
+    uchar slock_length;
+    uint32 slock[SCHEMA_SLOCK_SIZE/4];
+    unsigned short query_length;
+    char *query;
+    Uint64 epoch;
+    uint32 node_id;
+    uint32 id;
+    uint32 version;
+    uint32 type;
+    uint32 any_value;
+  };
+
+
+  static void
+  print_could_not_discover_error(THD *thd,
+                                 const Cluster_schema *schema)
+  {
+    sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
+                    "binlog schema event '%s' from node %d. "
+                    "my_errno: %d",
+                     schema->db, schema->name, schema->query,
+                     schema->node_id, my_errno);
+    print_warning_list("NDB Binlog", thd_warn_list(thd));
+  }
+
+
+  /*
+    Transfer schema table event data into Cluster_schema struct
+  */
+  static void ndbcluster_get_schema(const Ndb_event_data *event_data,
+                                    Cluster_schema *s)
+  {
+    TABLE *table= event_data->shadow_table;
+    Field **field;
+    /* unpack blob values */
+    uchar* blobs_buffer= 0;
+    uint blobs_buffer_size= 0;
+    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+    {
+      ptrdiff_t ptrdiff= 0;
+      int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
+                                   blobs_buffer, blobs_buffer_size,
+                                   ptrdiff);
+      if (ret != 0)
+      {
+        my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+        DBUG_PRINT("info", ("blob read error"));
+        DBUG_ASSERT(FALSE);
+      }
+    }
+    /* db varchar 1 length uchar */
+    field= table->field;
+    s->db_length= *(uint8*)(*field)->ptr;
+    DBUG_ASSERT(s->db_length <= (*field)->field_length);
+    DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->db));
+    memcpy(s->db, (*field)->ptr + 1, s->db_length);
+    s->db[s->db_length]= 0;
+    /* name varchar 1 length uchar */
+    field++;
+    s->name_length= *(uint8*)(*field)->ptr;
+    DBUG_ASSERT(s->name_length <= (*field)->field_length);
+    DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->name));
+    memcpy(s->name, (*field)->ptr + 1, s->name_length);
+    s->name[s->name_length]= 0;
+    /* slock fixed length */
+    field++;
+    s->slock_length= (*field)->field_length;
+    DBUG_ASSERT((*field)->field_length == sizeof(s->slock));
+    memcpy(s->slock, (*field)->ptr, s->slock_length);
+    /* query blob */
+    field++;
+    {
+      Field_blob *field_blob= (Field_blob*)(*field);
+      uint blob_len= field_blob->get_length((*field)->ptr);
+      uchar *blob_ptr= 0;
+      field_blob->get_ptr(&blob_ptr);
+      DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
+      s->query_length= blob_len;
+      s->query= sql_strmake((char*) blob_ptr, blob_len);
+    }
+    /* node_id */
+    field++;
+    s->node_id= (Uint32)((Field_long *)*field)->val_int();
+    /* epoch */
+    field++;
+    s->epoch= ((Field_long *)*field)->val_int();
+    /* id */
+    field++;
+    s->id= (Uint32)((Field_long *)*field)->val_int();
+    /* version */
+    field++;
+    s->version= (Uint32)((Field_long *)*field)->val_int();
+    /* type */
+    field++;
+    s->type= (Uint32)((Field_long *)*field)->val_int();
+    /* free blobs buffer */
+    my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+    dbug_tmp_restore_column_map(table->read_set, old_map);
+  }
+
+
+  static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
+  {
+    /* any_value == 0 means local cluster sourced change that
+     * should be logged
+     */
+    if (ndbcluster_anyvalue_is_reserved(schema->any_value))
+    {
+      /* Originating SQL node did not want this query logged */
+      if (!ndbcluster_anyvalue_is_nologging(schema->any_value))
+        sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
+                          "query not logged",
+                          schema->any_value);
+      return;
+    }
+
+    Uint32 queryServerId = ndbcluster_anyvalue_get_serverid(schema->any_value);
+    /*
+       Start with serverId as received AnyValue, in case it's a composite
+       (server_id_bits < 31).
+       This is for 'future', as currently schema ops do not have composite
+       AnyValues.
+       In future it may be useful to support *not* mapping composite
+       AnyValues to/from Binlogged server-ids.
+    */
+    Uint32 loggedServerId = schema->any_value;
+
+    if (queryServerId)
+    {
+      /*
+         AnyValue has non-zero serverId, must be a query applied by a slave
+         mysqld.
+         TODO : Assert that we are running in the Binlog injector thread?
+      */
+      if (! g_ndb_log_slave_updates)
+      {
+        /* This MySQLD does not log slave updates */
+        return;
+      }
+    }
+    else
+    {
+      /* No ServerId associated with this query, mark it as ours */
+      ndbcluster_anyvalue_set_serverid(loggedServerId, ::server_id);
+    }
+
+    uint32 thd_server_id_save= thd->server_id;
+    DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
+    char *thd_db_save= thd->db;
+    thd->server_id = loggedServerId;
+    thd->db= schema->db;
+    int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+    thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
+                      schema->query_length, FALSE,
+  #ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
+                      TRUE,
+  #endif
+                      schema->name[0] == 0 || thd->db[0] == 0,
+                      errcode);
+    thd->server_id= thd_server_id_save;
+    thd->db= thd_db_save;
+  }
+
+
+
+  /*
+    acknowledge handling of schema operation
+  */
+  static int
+  ndbcluster_update_slock(THD *thd,
+                          const char *db,
+                          const char *table_name,
+                          uint32 table_id,
+                          uint32 table_version)
+  {
+    DBUG_ENTER("ndbcluster_update_slock");
+    if (!ndb_schema_share)
+    {
+      DBUG_RETURN(0);
+    }
+
+    const NdbError *ndb_error= 0;
+    uint32 node_id= g_ndb_cluster_connection->node_id();
+    Ndb *ndb= check_ndb_in_thd(thd);
+    char save_db[FN_HEADLEN];
+    strcpy(save_db, ndb->getDatabaseName());
+
+    char tmp_buf[FN_REFLEN];
+    NDBDICT *dict= ndb->getDictionary();
+    ndb->setDatabaseName(NDB_REP_DB);
+    Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+    NdbTransaction *trans= 0;
+    int retries= 100;
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    const NDBCOL *col[SCHEMA_SIZE];
+    unsigned sz[SCHEMA_SIZE];
+
+    MY_BITMAP slock;
+    uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
+    bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, false);
+
+    if (ndbtab == 0)
+    {
+      if (dict->getNdbError().code != 4009)
+        abort();
+      DBUG_RETURN(0);
+    }
+
+    {
+      uint i;
+      for (i= 0; i < SCHEMA_SIZE; i++)
+      {
+        col[i]= ndbtab->getColumn(i);
+        if (i != SCHEMA_QUERY_I)
+        {
+          sz[i]= col[i]->getLength();
+          DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
+        }
+      }
+    }
+
+    while (1)
+    {
+      if ((trans= ndb->startTransaction()) == 0)
+        goto err;
+      {
+        NdbOperation *op= 0;
+        int r= 0;
+
+        /* read the bitmap exlusive */
+        r|= (op= trans->getNdbOperation(ndbtab)) == 0;
+        DBUG_ASSERT(r == 0);
+        r|= op->readTupleExclusive();
+        DBUG_ASSERT(r == 0);
+
+        /* db */
+        ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
+        r|= op->equal(SCHEMA_DB_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* name */
+        ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
+                         (int)strlen(table_name));
+        r|= op->equal(SCHEMA_NAME_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* slock */
+        r|= op->getValue(SCHEMA_SLOCK_I, (char*)slock.bitmap) == 0;
+        DBUG_ASSERT(r == 0);
+      }
+      if (trans->execute(NdbTransaction::NoCommit))
+        goto err;
+
+      if (opt_ndb_extra_logging > 19)
+      {
+        uint32 copy[SCHEMA_SLOCK_SIZE/4];
+        memcpy(copy, bitbuf, sizeof(copy));
+        bitmap_clear_bit(&slock, node_id);
+        sql_print_information("NDB: reply to %s.%s(%u/%u) from %x%x to %x%x",
+                              db, table_name,
+                              table_id, table_version,
+                              copy[0], copy[1],
+                              slock.bitmap[0],
+                              slock.bitmap[1]);
+      }
+      else
+      {
+        bitmap_clear_bit(&slock, node_id);
+      }
+
+      {
+        NdbOperation *op= 0;
+        int r= 0;
+
+        /* now update the tuple */
+        r|= (op= trans->getNdbOperation(ndbtab)) == 0;
+        DBUG_ASSERT(r == 0);
+        r|= op->updateTuple();
+        DBUG_ASSERT(r == 0);
+
+        /* db */
+        ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
+        r|= op->equal(SCHEMA_DB_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* name */
+        ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
+                         (int)strlen(table_name));
+        r|= op->equal(SCHEMA_NAME_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* slock */
+        r|= op->setValue(SCHEMA_SLOCK_I, (char*)slock.bitmap);
+        DBUG_ASSERT(r == 0);
+        /* node_id */
+        r|= op->setValue(SCHEMA_NODE_ID_I, node_id);
+        DBUG_ASSERT(r == 0);
+        /* type */
+        r|= op->setValue(SCHEMA_TYPE_I, (uint32)SOT_CLEAR_SLOCK);
+        DBUG_ASSERT(r == 0);
+      }
+      if (trans->execute(NdbTransaction::Commit,
+                         NdbOperation::DefaultAbortOption, 1 /*force send*/) == 0)
+      {
+        DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
+                            node_id, db, table_name));
+        dict->forceGCPWait(1);
+        break;
+      }
+    err:
+      const NdbError *this_error= trans ?
+        &trans->getNdbError() : &ndb->getNdbError();
+      if (this_error->status == NdbError::TemporaryError && !thd->killed)
+      {
+        if (retries--)
+        {
+          if (trans)
+            ndb->closeTransaction(trans);
+          do_retry_sleep(retry_sleep);
+          continue; // retry
+        }
+      }
+      ndb_error= this_error;
+      break;
+    }
+
+    if (ndb_error)
+    {
+      char buf[1024];
+      my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
+                  db, table_name);
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ndb_error->code, ndb_error->message, buf);
+    }
+    if (trans)
+      ndb->closeTransaction(trans);
+    ndb->setDatabaseName(save_db);
+    DBUG_RETURN(0);
+  }
+
 
 static int
 handle_schema_event(THD *thd, Ndb *s_ndb,
