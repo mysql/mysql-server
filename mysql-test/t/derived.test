@@ -977,6 +977,33 @@ SET @@SESSION.optimizer_switch= @save_switch;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug#13106350: MRR initialization on a derived table caused crash.
+--echo #
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
+
+INSERT INTO t1 VALUES(7, 'seven'), (13, 'thirteen');
+
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, vc1 VARCHAR(20), vc2 VARCHAR(20));
+
+INSERT INTO t2 VALUES(7, 'seven', 's'), (14, 'fourteen', 'f');
+
+CREATE TABLE t3 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
+
+INSERT INTO t3 VALUES(5, 'f'), (6, 's'), (7, 's');
+
+let $query=
+SELECT derived.vc
+FROM (SELECT * FROM t1) AS derived
+WHERE derived.vc IN (
+  SELECT t2.vc1
+  FROM t2 JOIN t3 ON t2.vc2=t3.vc);
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
 
 --echo #
 --echo # Bug#13107577: Derived table in a semi-join caused failed assertion. 
