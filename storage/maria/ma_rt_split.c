@@ -380,7 +380,6 @@ int maria_rtree_split_page(const MARIA_KEY *key, MARIA_PAGE *page,
   SplitStruct *stop;
   double *coord_buf;
   double *next_coord;
-  double *old_coord;
   int n_dim;
   uchar *source_cur, *cur1, *cur2;
   uchar *new_page_buff, *log_internal_copy, *log_internal_copy_ptr,
@@ -426,7 +425,6 @@ int maria_rtree_split_page(const MARIA_KEY *key, MARIA_PAGE *page,
   maria_rtree_d_mbr(keyinfo->seg, key->data, key_data_length, cur->coords);
   cur->key= key->data;
 
-  old_coord= next_coord;
 
   if (split_maria_rtree_node(task, max_keys + 1,
                              page->size + full_length + 2,

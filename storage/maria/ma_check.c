@@ -5610,7 +5610,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
 			   my_off_t prev_block)
 {
   uint a_length,t_length,nod_flag;
-  my_off_t filepos,key_file_length;
+  my_off_t filepos;
   uchar *anc_buff,*lastkey;
   MARIA_KEY_PARAM s_temp;
   MARIA_KEYDEF *keyinfo=sort_param->keyinfo;
@@ -5678,7 +5678,6 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   _ma_store_page_used(share, anc_buff, key_block->last_length);
   bzero(anc_buff+key_block->last_length,
 	keyinfo->block_length- key_block->last_length);
-  key_file_length=share->state.state.key_file_length;
   if ((filepos= _ma_new(info, DFLT_INIT_HITS, &page_link)) == HA_OFFSET_ERROR)
     DBUG_RETURN(1);
   _ma_fast_unlock_key_del(info);
@@ -5789,7 +5788,7 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
 int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
 {
   uint nod_flag,length;
-  my_off_t filepos,key_file_length;
+  my_off_t filepos;
   SORT_KEY_BLOCKS *key_block;
   MARIA_SORT_INFO *sort_info= sort_param->sort_info;
   myf myf_rw=sort_info->param->myf_rw;
@@ -5806,7 +5805,6 @@ int _ma_flush_pending_blocks(MARIA_SORT_PARAM *sort_param)
     length= _ma_get_page_used(info->s, key_block->buff);
     if (nod_flag)
       _ma_kpointer(info,key_block->end_pos,filepos);
-    key_file_length= info->s->state.state.key_file_length;
     bzero(key_block->buff+length, keyinfo->block_length-length);
     if ((filepos= _ma_new(info, DFLT_INIT_HITS, &page_link)) ==
         HA_OFFSET_ERROR)

@@ -364,7 +364,7 @@ my_bool _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
   for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
   {
     tmp_key.data= key_ptr;
-    if (_ma_ck_real_write_btree(info, key, &root, SEARCH_SAME))
+    if (_ma_ck_real_write_btree(info, &tmp_key, &root, SEARCH_SAME))
       DBUG_RETURN(1);
   }
 

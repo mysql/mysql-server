@@ -4997,7 +4997,8 @@ static my_bool read_row_extent_info(MARIA_HA *info, uchar *buff,
   MARIA_EXTENT_CURSOR extent;
   MARIA_RECORD_POS *tail_pos;
   uchar *data, *end_of_data;
-  uint flag, row_extents, row_extents_size, field_lengths;
+  uint flag, row_extents, row_extents_size;
+  uint field_lengths __attribute__ ((unused));
   uchar *extents, *end;
   DBUG_ENTER("read_row_extent_info");
 
@@ -5032,6 +5033,10 @@ static my_bool read_row_extent_info(MARIA_HA *info, uchar *buff,
   }
   info->cur_row.extents_count= row_extents;
 
+  /*
+    field_lengths looks unused but get_key_length will
+    increment data, which is required as data it's used later.
+  */
   if (share->base.max_field_lengths)
     get_key_length(field_lengths, data);
 
@@ -6730,11 +6735,11 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
       uint i;
       uint      res;
       uint      page_range;
-      pgcache_page_no_t page, start_page;
+      pgcache_page_no_t page;
       uchar     *buff;
       uint	data_on_page= data_size;
 
-      start_page= page= page_korr(header);
+      page= page_korr(header);
       header+= PAGE_STORE_SIZE;
       page_range= pagerange_korr(header);
       header+= PAGERANGE_STORE_SIZE;

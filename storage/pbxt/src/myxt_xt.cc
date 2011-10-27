@@ -830,7 +830,10 @@ xtPublic xtBool myxt_create_row_from_key(XTOpenTablePtr XT_UNUSED(ot), XTIndexPt
 {
 	byte					*record = (byte *) dest_buff;
 	register byte			*key;
-	byte					*pos,*key_end;
+	byte					*pos;
+#ifdef CHECK_KEYS
+        byte                                    *key_end;
+#endif
 	register XTIndexSegRec	*keyseg = ind->mi_seg;
 
 	/* GOTCHA: When selecting from multiple
@@ -843,7 +846,9 @@ xtPublic xtBool myxt_create_row_from_key(XTOpenTablePtr XT_UNUSED(ot), XTIndexPt
 	memset(dest_buff, 0xFF, table->s->null_bytes);
 	*/
 	key = (byte *) b_value;
+#ifdef CHECK_KEYS
 	key_end = key + key_len;
+#endif
 	for (u_int i=0; i<ind->mi_seg_count; i++, keyseg++) {
 		if (keyseg->null_bit) {
 			if (!*key++)
@@ -1021,7 +1026,8 @@ xtPublic u_int myxt_get_key_length(XTIndexPtr ind, xtWord1 *key_buf)
 	register XTIndexSegRec	*keyseg = ind->mi_seg;
 	register uchar			*key_data = (uchar *) key_buf;
 	uint					seg_len;
-	uint					pack_len;
+	uint					pack_len
+          __attribute__ ((unused));
 
 	for (u_int i=0; i<ind->mi_seg_count; i++, keyseg++) {
 		/* Handle NULL part */
@@ -1506,7 +1512,7 @@ xtPublic u_int myxt_key_seg_length(XTIndexSegRec *keyseg, u_int key_offset, xtWo
 xtPublic xtWord4 myxt_store_row_length(XTOpenTablePtr ot, char *rec_buff)
 {
 	TABLE	*table = ot->ot_table->tab_dic.dic_my_table;
-	char	*sdata;
+	char	*sdata __attribute__ ((unused));
 	xtWord4	dlen;
 	xtWord4	item_size;
 	xtWord4 row_size = 0;
@@ -1886,7 +1892,8 @@ xtPublic void myxt_print_key(XTIndexPtr ind, xtWord1 *key_value)
 	register XTIndexSegRec	*keyseg = ind->mi_seg;
 	register uchar			*b = (uchar *) key_value;
 	uint					b_length;
-	uint					pack_len;
+	uint					pack_len
+          __attribute__ ((unused));
 
 	for (u_int i = 0; i < ind->mi_seg_count; i++, keyseg++) {
 		if (i!=0)
