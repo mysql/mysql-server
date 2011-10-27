@@ -521,12 +521,13 @@ public:
     enum_return_status return_status= do_append(buffer, length);
     if (return_status != RETURN_STATUS_OK)
     {
-      /*if (truncate(truncate_position) != RETURN_STATUS_OK)
-        DBUG_RETURN(APPEND_ERROR);*/ // ALFRANIO CHECK THIS
+      if (truncate(truncate_position) != RETURN_STATUS_OK)
+        DBUG_RETURN(APPEND_ERROR);
       DBUG_RETURN(APPEND_NONE);
     }
     DBUG_RETURN(APPEND_OK);
   }
+
   /**
     Truncate the Appender to the given size.
 
@@ -537,7 +538,13 @@ public:
     @param new_position Position to truncate to.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status truncate(my_off_t new_position);
+  enum_return_status truncate(my_off_t truncate_position)
+  {
+    DBUG_ENTER("Appender::truncate");
+    PROPAGATE_REPORTED_ERROR(do_truncate(truncate_position));
+    RETURN_OK;
+  }
+
   /**
     Get the current read position.
     @param[out] position If successful, the position will be stored here.
@@ -630,127 +637,6 @@ private:
   const uchar *data;
   size_t pos;
 };
-
-
-class File_reader : public Reader
-{
-public:
-  File_reader(File _fd= -1) : fd(_fd), pos(0) {}
-  enum_return_status open(const char *filename)
-  {
-    DBUG_ENTER("File_reader::open");
-    fd= my_open(filename, O_RDONLY, MYF(MY_WME));
-    if (fd == -1)
-      RETURN_REPORTED_ERROR;
-    RETURN_OK;
-  }
-  enum_return_status close()
-  {
-    DBUG_ENTER("File_reader::close");
-    if (my_close(fd, MYF(MY_WME)) != 0)
-      RETURN_REPORTED_ERROR;
-    RETURN_OK;
-  }
-  void set_file(File _fd= -1) { fd= _fd; pos= 0; }
-  enum_read_status read(uchar *buffer, size_t length)
-  {
-    DBUG_ENTER("File_reader::read");
-    PROPAGATE_READ_STATUS(file_pread(fd, buffer, length, pos));
-    pos+= length;
-    DBUG_RETURN(READ_OK);
-  }
-  enum_read_status seek(my_off_t new_position)
-  {
-    DBUG_ENTER("File_reader::seek");
-    PROPAGATE_READ_STATUS(file_seek(fd, pos, new_position));
-    pos= new_position;
-    DBUG_RETURN(READ_OK);
-  }
-  enum_return_status tell(my_off_t *position) const
-  { *position= pos; return RETURN_STATUS_OK; }
-  const char *get_source_name() const { return my_filename(fd); }
-private:
-  File fd;
-  my_off_t pos;
-};
-
-
-/**
-  Appender object where the output is stored in a File.
-*/
-class File_appender : public Appender
-{
-public:
-  /**
-    Create a new File_reader
-
-    @param _fd File descriptor. If this is not given, you have to call
-    open() or set_file() before using this File_appender. You have to
-    call set_file() with no arguments before destroying this object.
-  */
-  File_appender(File _fd= -1) : fd(_fd) {}
-  /**
-    Open the back-end file.
-    @param filename Name of the file to open.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status open(const char *filename)
-  {
-    DBUG_ENTER("File_appender::open");
-    fd= my_open(filename, O_WRONLY, MYF(MY_WME));
-    if (fd == -1)
-      RETURN_REPORTED_ERROR;
-    RETURN_OK;
-  }
-  /**
-    Set the back-end file to an existing, open file.
-    @param _fd File descriptor of the open file.
-  */
-  void set_file(File _fd) { fd= _fd; }
-  /// Unsets the back-end file.
-  void unset_file() { fd= -1; }
-  /**
-    Close the back-end file.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status close()
-  {
-    DBUG_ENTER("File_appender::close");
-    if (my_close(fd, MYF(MY_WME)) != 0)
-      RETURN_REPORTED_ERROR;
-    RETURN_OK;
-  }
-protected:
-  const char *do_get_source_name() const { return my_filename(fd); }
-  enum_return_status do_tell(my_off_t *position) const
-  { return file_tell(fd, position); }
-  enum_return_status do_append(const uchar *buf, size_t length)
-  {
-    DBUG_ENTER("File_appender::append");
-    if (my_write(fd, buf, length, MYF(MY_WME | MY_WAIT_IF_FULL)) != length)
-      RETURN_REPORTED_ERROR;
-    RETURN_OK;
-  }
-  enum_return_status do_truncate(my_off_t new_position)
-  { return file_truncate(fd, new_position); }
-public:
-  enum_return_status sync()
-  {
-    DBUG_ENTER("File_appender::sync");
-    if (my_sync(fd, MYF(MY_WME)) != 0)
-      RETURN_REPORTED_ERROR;
-    RETURN_OK;
-  }
-  /**
-    Return true if there is a back-end file associated with this
-    File_appender.
-  */
-  bool is_open() const { return fd != -1; }
-  //~File_appender() { DBUG_ASSERT(!is_open()); }
-private:
-  File fd;
-};
-
 
 #ifndef MYSQL_CLIENT
 /**
@@ -1032,22 +918,6 @@ public:
   */
   enum_return_status clear();
   /**
-    Open the disk file if it is not already open.
-    @param base_filename The base of the filename, i.e., without "-sids".
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status open(const char *base_filename, bool writable= true);
-  /**
-    Close the disk file.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status close();
-  /**
-    Sync changes on disk.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status sync();
-  /**
     Permanently add the given SID to this map if it does not already
     exist.
 
@@ -1132,10 +1002,6 @@ public:
     sid_lock->assert_some_lock();
     return _sidno_to_sid.elements;
   }
-  /**
-    Return true iff open() has been (successfully) called.
-  */
-  bool is_open() { return status == OPEN; }
 
 private:
   /// Node pointed to by both the hash and the array.
@@ -1154,12 +1020,6 @@ private:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_node(rpl_sidno sidno, const rpl_sid *sid);
-  /**
-    Write changes to disk.
-
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status write_to_disk(rpl_sidno sidno, const rpl_sid *sid);
 
   /// Read-write lock that protects updates to the number of SIDNOs.
   mutable Checkable_rwlock *sid_lock;
@@ -1181,17 +1041,6 @@ private:
     @see Sid_map::get_sorted_sidno.
   */
   DYNAMIC_ARRAY _sorted;
-  /// Filename.
-  char filename[FN_REFLEN];
-  /// File descriptor for the back-end file.
-  File fd;
-  /// Appender object to write to the file.
-  File_appender appender;
-  enum sid_map_status
-  {
-    CLOSED_OK, CLOSED_ERROR, OPEN
-  };
-  sid_map_status status;
 };
 
 

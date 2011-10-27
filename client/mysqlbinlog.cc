@@ -139,6 +139,12 @@ enum Exit_status {
   OK_STOP
 };
 
+#ifdef HAVE_UGID
+static char *opt_include_ugids_str, *opt_exclude_ugids_str;
+static char *opt_first_lgid_str= NULL, *opt_last_lgid_str= NULL;
+static my_bool opt_skip_ugids= 0;
+#endif
+
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname);
 static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
@@ -1191,7 +1197,6 @@ static struct my_option my_long_options[] =
    /* max_value */ ULONG_MAX, /* sub_size */ 0,
    /* block_size */ 256, /* app_type */ 0},
 #ifdef HAVE_UGID
-/* ALFRANIO CHECK THIS
   {"skip-ugids", OPT_MYSQLBINLOG_SKIP_UGIDS,
    "Do not print universal group identifier information "
    "(SET UGID_NEXT=... etc).",
@@ -1213,7 +1218,6 @@ static struct my_option my_long_options[] =
    "Ignore groups after the given Local Group ID.",
    &opt_last_lgid_str, &opt_last_lgid_str, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-*/
 #endif
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

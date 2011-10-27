@@ -170,7 +170,6 @@ enum_return_status
 Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
                                             const Group_set *group_set)
 {
-
   DBUG_ENTER("Group_cache::add_dummy_subgroups_if_missing(Group_log_state *, Group_set *)");
   /*
     @todo: This algorithm is
@@ -193,6 +192,7 @@ Group_cache::add_dummy_subgroups_if_missing(const Group_log_state *gls,
   }
   RETURN_OK;
 }
+
 
 enum_return_status
 Group_cache::update_group_log_state(const THD *thd, Group_log_state *gls) const
@@ -286,116 +286,6 @@ enum_return_status Group_cache::generate_automatic_gno(const THD *thd,
     last_automatic_subgroup->group_end= true;
   RETURN_OK;
 }
-
-
-enum_return_status
-Group_cache::write_to_log_prepare(Group_cache *trx_group_cache,
-                                  rpl_binlog_pos offset_after_last_statement,
-                                  Cached_subgroup **last_non_dummy_subgroup)
-{
-  DBUG_ENTER("Group_cache::write_to_log(Group_cache *)");
-
-  int n_subgroups= get_n_subgroups();
-
-  /*
-    If this is the stmt group cache, and the trx_group_cache contains
-    a group that is ended in this cache, then we have to clear the end
-    flag in this cache here and add an ended dummy subgroup to the
-    trx_group_cache.
-  */
-  if (trx_group_cache != this)
-  {
-    for (int i= 0; i < n_subgroups; i++)
-    {
-      Cached_subgroup *cs= get_unsafe_pointer(i);
-      if (cs->group_end && trx_group_cache->contains_group(cs->sidno, cs->gno))
-      {
-        cs->group_end= false;
-        if (!trx_group_cache->group_is_ended(cs->sidno, cs->gno))
-          PROPAGATE_REPORTED_ERROR(trx_group_cache->
-                                   add_dummy_subgroup(cs->sidno, cs->gno,
-                                                      true));
-      }
-    }
-  }
-
-#ifndef DBUG_OFF
-  /*
-    Assert that UGID is valid for all groups. This ensures that group
-    numbers have been generated for automatic subgroups.
-  */
-  {
-    for (int i= 0; i < n_subgroups; i++)
-    {
-      Cached_subgroup *cs= get_unsafe_pointer(i);
-      DBUG_ASSERT(cs->type == ANONYMOUS_SUBGROUP ||
-                  (cs->sidno > 0 && cs->gno > 0));
-    }
-  }
-#endif
-
-  /*
-    Find the last non-dummy group so that we can set
-    offset_after_last_statement for it.
-  */
-  // offset_after_last_statement is -1 if this Group_cache contains
-  // only dummy groups.
-#ifdef DBUG_OFF
-  if (offset_after_last_statement != -1)
-#endif
-  {
-    *last_non_dummy_subgroup= NULL;
-    for (int i= n_subgroups - 1; i >= 0; i--)
-    {
-      Cached_subgroup *cs= get_unsafe_pointer(i);
-      if (cs->type != DUMMY_SUBGROUP)
-      {
-        *last_non_dummy_subgroup= cs;
-        break;
-      }
-    }
-    DBUG_ASSERT((*last_non_dummy_subgroup != NULL &&
-                 offset_after_last_statement != -1) ||
-                (*last_non_dummy_subgroup == NULL &&
-                 offset_after_last_statement == -1));
-  }
-
-  RETURN_OK;
-}
-
-
-/* ALFRANIO CHECK THIS TO WRITE TO SOMEWHERE
-enum_return_status
-Group_cache::write_to_log(const THD *thd,
-                          Group_log *group_log, Group_cache *trx_group_cache,
-                          rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
-                          rpl_binlog_pos offset_after_last_statement,
-                          bool group_commit)
-{
-  DBUG_ENTER("Group_cache::write_to_log");
-  Cached_subgroup *last_non_dummy_subgroup;
-  PROPAGATE_REPORTED_ERROR(write_to_log_prepare(trx_group_cache,
-                                                offset_after_last_statement,
-                                                &last_non_dummy_subgroup));
-
-  if (group_log == NULL) // gl is NULL in unittests
-    RETURN_OK;
-
-  int n_subgroups= get_n_subgroups();
-  for (int i= 0; i < n_subgroups; i++)
-  {
-    Cached_subgroup *cs= get_unsafe_pointer(i);
-    if (i == n_subgroups - 1)
-      group_log->write_subgroup(thd, cs, binlog_no, binlog_pos,
-                                offset_after_last_statement, true);
-    else
-      group_log->write_subgroup(thd, cs, binlog_no, binlog_pos, 0, false);
-    binlog_pos+= cs->binlog_length;
-  }
-
-  RETURN_OK;
-}
-*/
 
 
 enum_return_status Group_cache::get_ended_groups(Group_set *gs) const
