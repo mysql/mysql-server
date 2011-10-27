@@ -1,0 +1,92 @@
+SET @start_global_value = @@global.innodb_flush_neighbors;
+SELECT @start_global_value;
+@start_global_value
+1
+Valid values are 'ON' and 'OFF' 
+select @@global.innodb_flush_neighbors in (0, 1);
+@@global.innodb_flush_neighbors in (0, 1)
+1
+select @@global.innodb_flush_neighbors;
+@@global.innodb_flush_neighbors
+1
+select @@session.innodb_flush_neighbors;
+ERROR HY000: Variable 'innodb_flush_neighbors' is a GLOBAL variable
+show global variables like 'innodb_flush_neighbors';
+Variable_name	Value
+innodb_flush_neighbors	ON
+show session variables like 'innodb_flush_neighbors';
+Variable_name	Value
+innodb_flush_neighbors	ON
+select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+set global innodb_flush_neighbors='OFF';
+select @@global.innodb_flush_neighbors;
+@@global.innodb_flush_neighbors
+0
+select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	OFF
+select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	OFF
+set @@global.innodb_flush_neighbors=1;
+select @@global.innodb_flush_neighbors;
+@@global.innodb_flush_neighbors
+1
+select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+set global innodb_flush_neighbors=0;
+select @@global.innodb_flush_neighbors;
+@@global.innodb_flush_neighbors
+0
+select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	OFF
+select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	OFF
+set @@global.innodb_flush_neighbors='ON';
+select @@global.innodb_flush_neighbors;
+@@global.innodb_flush_neighbors
+1
+select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+set session innodb_flush_neighbors='OFF';
+ERROR HY000: Variable 'innodb_flush_neighbors' is a GLOBAL variable and should be set with SET GLOBAL
+set @@session.innodb_flush_neighbors='ON';
+ERROR HY000: Variable 'innodb_flush_neighbors' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_flush_neighbors=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_neighbors'
+set global innodb_flush_neighbors=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_neighbors'
+set global innodb_flush_neighbors=2;
+ERROR 42000: Variable 'innodb_flush_neighbors' can't be set to the value of '2'
+NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+set global innodb_flush_neighbors=-3;
+select @@global.innodb_flush_neighbors;
+@@global.innodb_flush_neighbors
+1
+select * from information_schema.global_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+select * from information_schema.session_variables where variable_name='innodb_flush_neighbors';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_FLUSH_NEIGHBORS	ON
+set global innodb_flush_neighbors='AUTO';
+ERROR 42000: Variable 'innodb_flush_neighbors' can't be set to the value of 'AUTO'
+SET @@global.innodb_flush_neighbors = @start_global_value;
+SELECT @@global.innodb_flush_neighbors;
+@@global.innodb_flush_neighbors
+1

@@ -47,13 +47,11 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("varchar(64)") },
     { NULL, 0}
   },
-#if 0
   {
     { C_STRING_WITH_LEN("ENABLED") },
     { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
     { NULL, 0}
   },
-#endif
   {
     { C_STRING_WITH_LEN("TIMED") },
     { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
@@ -63,7 +61,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_setup_objects::m_field_def=
-{ 4, field_types };
+{ 5, field_types };
 
 PFS_engine_table_share
 table_setup_objects::m_share=
@@ -107,7 +105,8 @@ int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
   String object_name_data("%", 1, &my_charset_utf8_bin);
   String *object_schema= &object_schema_data;
   String *object_name= &object_name_data;
-  enum_yes_no yes_no;
+  enum_yes_no enabled_value= ENUM_YES;
+  enum_yes_no timed_value= ENUM_YES;
   bool enabled= true;
   bool timed= true;
 
@@ -126,15 +125,11 @@ int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
       case 2: /* OBJECT_NAME */
         object_name= get_field_varchar_utf8(f, &object_name_data);
         break;
-#if 0
       case 3: /* ENABLED */
-        yes_no= (enum_yes_no) get_field_enum(f);
-        enabled= (yes_no == ENUM_YES) ? true : false;
+        enabled_value= (enum_yes_no) get_field_enum(f);
         break;
-#endif
-      case 3: /* TIMED */
-        yes_no= (enum_yes_no) get_field_enum(f);
-        timed= (yes_no == ENUM_YES) ? true : false;
+      case 4: /* TIMED */
+        timed_value= (enum_yes_no) get_field_enum(f);
         break;
       default:
         DBUG_ASSERT(false);
@@ -145,6 +140,17 @@ int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
   /* Reject illegal enum values in OBJECT_TYPE */
   if (object_type != OBJECT_TYPE_TABLE)
     return HA_ERR_NO_REFERENCED_ROW;
+
+  /* Reject illegal enum values in ENABLED */
+  if ((enabled_value != ENUM_YES) && (enabled_value != ENUM_NO))
+    return HA_ERR_NO_REFERENCED_ROW;
+
+  /* Reject illegal enum values in TIMED */
+  if ((timed_value != ENUM_YES) && (timed_value != ENUM_NO))
+    return HA_ERR_NO_REFERENCED_ROW;
+
+  enabled= (enabled_value == ENUM_YES) ? true : false;
+  timed= (timed_value == ENUM_YES) ? true : false;
 
   result= insert_setup_object(object_type, object_schema, object_name,
                               enabled, timed);
@@ -227,17 +233,7 @@ void table_setup_objects::make_row(PFS_setup_object *pfs)
   m_row.m_schema_name_length= pfs->m_schema_name_length;
   memcpy(m_row.m_object_name, pfs->m_object_name, pfs->m_object_name_length);
   m_row.m_object_name_length= pfs->m_object_name_length;
-#if 0
   m_row.m_enabled_ptr= &pfs->m_enabled;
-#else
-  /*
-    The ENABLED column does not exist,
-    so disabled records are be displayed.
-  */
-  if (! pfs->m_enabled)
-    return;
-#endif
-
   m_row.m_timed_ptr= &pfs->m_timed;
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
@@ -281,12 +277,10 @@ int table_setup_objects::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-#if 0
       case 3: /* ENABLED */
         set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
         break;
-#endif
-      case 3: /* TIMED */
+      case 4: /* TIMED */
         set_field_enum(f, (*m_row.m_timed_ptr) ? ENUM_YES : ENUM_NO);
         break;
       default:
@@ -317,14 +311,18 @@ int table_setup_objects::update_row_values(TABLE *table,
       case 1: /* OBJECT_SCHEMA */
       case 2: /* OBJECT_NAME */
         return HA_ERR_WRONG_COMMAND;
-#if 0
       case 3: /* ENABLED */
         value= (enum_yes_no) get_field_enum(f);
+        /* Reject illegal enum values in ENABLED */
+        if ((value != ENUM_YES) && (value != ENUM_NO))
+          return HA_ERR_NO_REFERENCED_ROW;
         *m_row.m_enabled_ptr= (value == ENUM_YES) ? true : false;
         break;
-#endif
-      case 3: /* TIMED */
+      case 4: /* TIMED */
         value= (enum_yes_no) get_field_enum(f);
+        /* Reject illegal enum values in TIMED */
+        if ((value != ENUM_YES) && (value != ENUM_NO))
+          return HA_ERR_NO_REFERENCED_ROW;
         *m_row.m_timed_ptr= (value == ENUM_YES) ? true : false;
         break;
       default:

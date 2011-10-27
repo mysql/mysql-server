@@ -1,0 +1,41 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+select * from performance_schema.accounts
+  limit 1;
+
+select * from performance_schema.accounts
+  where user='FOO' or host='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.accounts
+  set user='FOO', host='BAR',
+  current_connections=1, total_connections=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.accounts
+  set current_connections=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.accounts
+  set current_connections=12 where host like "FOO";
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.accounts
+  where total_connections=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.accounts;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.accounts READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.accounts WRITE;
+UNLOCK TABLES;
+

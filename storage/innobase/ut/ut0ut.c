@@ -24,6 +24,7 @@ Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
 #include "ut0ut.h"
+#include "ut0sort.h"
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
@@ -434,6 +435,21 @@ ut_print_buf(
 	putc(';', file);
 }
 
+/**********************************************************************//**
+Sort function for ulint arrays. */
+UNIV_INTERN
+void
+ut_ulint_sort(
+/*==========*/
+	ulint*	arr,		/*!< in/out: array to sort */
+	ulint*	aux_arr,	/*!< in/out: aux array to use in sort */
+	ulint	low,		/*!< in: lower bound */
+	ulint	high)		/*!< in: upper bound */
+{
+	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
+			      ut_ulint_cmp);
+}
+
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return	first power of 2 which is >= n */
@@ -714,6 +730,10 @@ ut_strerr(
 		return("No index on referenced keys in referenced table");
 	case DB_FTS_INVALID_DOCID:
 		return("FTS Doc ID cannot be zero");
+	case DB_INDEX_CORRUPT:
+		return("Index corrupted");
+	case DB_UNDO_RECORD_TOO_BIG:
+		return("Undo record too big");
 	case DB_END_OF_INDEX:
 		return("End of index");
 	/* do not add default: in order to produce a warning if new code

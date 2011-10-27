@@ -1,0 +1,11 @@
+# 
+# Run subquery_sj_loosescan.test with BKA_UNIQUE enabled 
+#
+--source include/have_debug.inc
+SET debug= '+d,test_bka_unique';
+
+set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
+
+--source t/subquery_sj_loosescan.test
+
+set optimizer_switch=default;

@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -469,6 +469,13 @@ row_purge_del_mark(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		/* skip corrupted secondary index */
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		if (node->index->type != DICT_FTS) {
@@ -511,7 +518,8 @@ row_purge_upd_exist_or_extern_func(
 
 	ut_ad(node);
 
-	if (node->rec_type == TRX_UNDO_UPD_DEL_REC) {
+	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
+	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 
 		goto skip_secondaries;
 	}
@@ -519,6 +527,12 @@ row_purge_upd_exist_or_extern_func(
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
+		dict_table_skip_corrupt_index(node->index);
+
+		if (!node->index) {
+			break;
+		}
+
 		index = node->index;
 
 		if (row_upd_changes_ord_field_binary(node->index, node->update,
@@ -543,6 +557,7 @@ skip_secondaries:
 			= upd_get_nth_field(node->update, i);
 
 		if (dfield_is_ext(&ufield->new_val)) {
+			trx_rseg_t*	rseg;
 			buf_block_t*	block;
 			ulint		internal_offset;
 			byte*		data_field;
@@ -563,6 +578,11 @@ skip_secondaries:
 			trx_undo_decode_roll_ptr(node->roll_ptr,
 						 &is_insert, &rseg_id,
 						 &page_no, &offset);
+
+			rseg = trx_sys_get_nth_rseg(trx_sys, rseg_id);
+			ut_a(rseg != NULL);
+			ut_a(rseg->id == rseg_id);
+
 			mtr_start(&mtr);
 
 			/* We have to acquire an X-latch to the clustered
@@ -583,10 +603,9 @@ skip_secondaries:
 
 			btr_root_get(index, &mtr);
 
-			/* We assume in purge of externally stored fields
-			that the space id of the undo log record is 0! */
+			block = buf_page_get(
+				rseg->space, 0, page_no, RW_X_LATCH, &mtr);
 
-			block = buf_page_get(0, 0, page_no, RW_X_LATCH, &mtr);
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
 			data_field = buf_block_get_frame(block)
@@ -634,13 +653,12 @@ row_purge_parse_undo_rec(
 	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
 	ulint		type;
-	ulint		cmpl_info;
 
 	ut_ad(node && thr);
 
 	ptr = trx_undo_rec_get_pars(
-		undo_rec, &type, &cmpl_info, updated_extern,
-		&undo_no, &table_id);
+		undo_rec, &type, &node->cmpl_info,
+		updated_extern, &undo_no, &table_id);
 
 	node->rec_type = type;
 
@@ -654,7 +672,8 @@ row_purge_parse_undo_rec(
 	node->table = NULL;
 
 	if (type == TRX_UNDO_UPD_EXIST_REC
-	    && (cmpl_info & UPD_NODE_NO_ORD_CHANGE) && !*updated_extern) {
+	    && node->cmpl_info & UPD_NODE_NO_ORD_CHANGE
+	    && !(*updated_extern)) {
 
 		/* Purge requires no changes to indexes: we may return */
 
@@ -707,7 +726,7 @@ err_exit:
 
 	/* Read to the partial row the fields that occur in indexes */
 
-	if (!(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+	if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		ptr = trx_undo_rec_get_partial_row(
 			ptr, clust_index, &node->row,
 			type == TRX_UNDO_UPD_DEL_REC,

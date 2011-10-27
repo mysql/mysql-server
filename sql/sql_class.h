@@ -34,9 +34,33 @@
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
-
+#include "opt_trace_context.h"    /* Opt_trace_context */
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
+
+/**
+  The meat of thd_proc_info(THD*, char*), a macro that packs the last
+  three calling-info parameters.
+*/
+extern "C"
+const char *set_thd_proc_info(void *thd_arg, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
+
+#define thd_proc_info(thd, msg) \
+  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
+extern "C"
+void set_thd_stage_info(void *thd,
+                        const PSI_stage_info *new_stage,
+                        PSI_stage_info *old_stage,
+                        const char *calling_func,
+                        const char *calling_file,
+                        const unsigned int calling_line);
+                        
+#define THD_STAGE_INFO(thd, stage) \
+  (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
 class Reprepare_observer;
 class Relay_log_info;
@@ -58,7 +82,7 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
-                            SLAVE_EXEC_MODE_LAST_BIT};
+                            SLAVE_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
 enum enum_mark_columns
@@ -101,6 +125,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
+extern LEX_STRING EMPTY_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
@@ -419,6 +444,11 @@ typedef struct system_variables
   ulonglong long_query_time;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
+  ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
+  ulonglong optimizer_trace_features; ///< bitmap to select features to trace
+  long      optimizer_trace_offset;
+  long      optimizer_trace_limit;
+  ulong     optimizer_trace_max_mem_size;
   sql_mode_t sql_mode; ///< which non-standard SQL behaviour should be enabled
   ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ha_rows select_limit;
@@ -426,7 +456,6 @@ typedef struct system_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
-  ulong optimizer_join_cache_level;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
@@ -525,70 +554,75 @@ typedef struct system_variables
 
 typedef struct system_status_var
 {
-  ulong com_other;
-  ulong com_stat[(uint) SQLCOM_END];
-  ulong created_tmp_disk_tables;
-  ulong created_tmp_tables;
-  ulong ha_commit_count;
-  ulong ha_delete_count;
-  ulong ha_read_first_count;
-  ulong ha_read_last_count;
-  ulong ha_read_key_count;
-  ulong ha_read_next_count;
-  ulong ha_read_prev_count;
-  ulong ha_read_rnd_count;
-  ulong ha_read_rnd_next_count;
+  ulonglong created_tmp_disk_tables;
+  ulonglong created_tmp_tables;
+  ulonglong ha_commit_count;
+  ulonglong ha_delete_count;
+  ulonglong ha_read_first_count;
+  ulonglong ha_read_last_count;
+  ulonglong ha_read_key_count;
+  ulonglong ha_read_next_count;
+  ulonglong ha_read_prev_count;
+  ulonglong ha_read_rnd_count;
+  ulonglong ha_read_rnd_next_count;
   /*
     This number doesn't include calls to the default implementation and
     calls made by range access. The intent is to count only calls made by
     BatchedKeyAccess.
   */
-  ulong ha_multi_range_read_init_count;
-  ulong ha_rollback_count;
-  ulong ha_update_count;
-  ulong ha_write_count;
-  ulong ha_prepare_count;
-  ulong ha_discover_count;
-  ulong ha_savepoint_count;
-  ulong ha_savepoint_rollback_count;
-  ulong ha_external_lock_count;
+  ulonglong ha_multi_range_read_init_count;
+  ulonglong ha_rollback_count;
+  ulonglong ha_update_count;
+  ulonglong ha_write_count;
+  ulonglong ha_prepare_count;
+  ulonglong ha_discover_count;
+  ulonglong ha_savepoint_count;
+  ulonglong ha_savepoint_rollback_count;
+  ulonglong ha_external_lock_count;
 
+#if 0
+  /* Tatiana thinks this may be dead now. */
   /* KEY_CACHE parts. These are copies of the original */
-  ulong key_blocks_changed;
-  ulong key_blocks_used;
-  ulong key_cache_r_requests;
-  ulong key_cache_read;
-  ulong key_cache_w_requests;
-  ulong key_cache_write;
+  ulonglong key_blocks_changed;
+  ulonglong key_blocks_used;
+  ulonglong key_cache_r_requests;
+  ulonglong key_cache_read;
+  ulonglong key_cache_w_requests;
+  ulonglong key_cache_write;
   /* END OF KEY_CACHE parts */
+#endif
 
-  ulong opened_tables;
-  ulong opened_shares;
-  ulong select_full_join_count;
-  ulong select_full_range_join_count;
-  ulong select_range_count;
-  ulong select_range_check_count;
-  ulong select_scan_count;
-  ulong long_query_count;
-  ulong filesort_merge_passes;
-  ulong filesort_range_count;
-  ulong filesort_rows;
-  ulong filesort_scan_count;
+  ulonglong opened_tables;
+  ulonglong opened_shares;
+  ulonglong select_full_join_count;
+  ulonglong select_full_range_join_count;
+  ulonglong select_range_count;
+  ulonglong select_range_check_count;
+  ulonglong select_scan_count;
+  ulonglong long_query_count;
+  ulonglong filesort_merge_passes;
+  ulonglong filesort_range_count;
+  ulonglong filesort_rows;
+  ulonglong filesort_scan_count;
   /* Prepared statements and binary protocol */
-  ulong com_stmt_prepare;
-  ulong com_stmt_reprepare;
-  ulong com_stmt_execute;
-  ulong com_stmt_send_long_data;
-  ulong com_stmt_fetch;
-  ulong com_stmt_reset;
-  ulong com_stmt_close;
-  /*
-    Number of statements sent from the client
-  */
-  ulong questions;
+  ulonglong com_stmt_prepare;
+  ulonglong com_stmt_reprepare;
+  ulonglong com_stmt_execute;
+  ulonglong com_stmt_send_long_data;
+  ulonglong com_stmt_fetch;
+  ulonglong com_stmt_reset;
+  ulonglong com_stmt_close;
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+  /*
+    Number of statements sent from the client
+  */
+  ulonglong questions;
+
+  ulong com_other;
+  ulong com_stat[(uint) SQLCOM_END];
+
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
@@ -630,7 +664,7 @@ mysqld_collation_get_by_name(const char *name,
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
     if (loader.error[0])
       push_warning_printf(current_thd,
-                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          Sql_condition::WARN_LEVEL_WARN,
                           ER_UNKNOWN_COLLATION, "%s", loader.error);
   }
   return cs;
@@ -794,6 +828,23 @@ public:
     ENGINE INNODB STATUS.
   */
   CSET_STRING query_string;
+
+  /*
+    In some cases, we may want to modify the query (i.e. replace
+    passwords with their hashes before logging the statement etc.).
+
+    In case the query was rewritten, the original query will live in
+    query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, query_string should be logged.
+    If rewritten_query is non-empty, the rewritten query it contains
+    should be used in logs (general log, slow query log, binary log).
+
+    Currently, password obfuscation is the only rewriting we do; more
+    may follow at a later date, both pre- and post parsing of the query.
+    Rewriting of binloggable statements must preserve all pertinent
+    information.
+  */
+  String      rewritten_query;
 
   inline char *query() const { return query_string.str(); }
   inline uint32 query_length() const { return query_string.length(); }
@@ -1391,7 +1442,8 @@ enum enum_thread_type
   SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
   SYSTEM_THREAD_EVENT_SCHEDULER= 16,
   SYSTEM_THREAD_EVENT_WORKER= 32,
-  SYSTEM_THREAD_INFO_REPOSITORY= 64
+  SYSTEM_THREAD_INFO_REPOSITORY= 64,
+  SYSTEM_THREAD_SLAVE_WORKER= 128
 };
 
 inline char const *
@@ -1408,6 +1460,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -1457,9 +1510,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl) = 0;
+                                Sql_condition ** cond_hdl) = 0;
 
 private:
   Internal_error_handler *m_prev_internal_handler;
@@ -1478,9 +1531,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
+                        Sql_condition ** cond_hdl)
   {
     /* Ignore error */
     return TRUE;
@@ -1504,9 +1557,9 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
+                        Sql_condition::enum_warning_level level,
                         const char* msg,
-                        MYSQL_ERROR ** cond_hdl);
+                        Sql_condition ** cond_hdl);
 
 private:
 };
@@ -1788,6 +1841,19 @@ public:
   */
   const char *proc_info;
 
+private:
+  unsigned int m_current_stage_key;
+
+public:
+  void enter_stage(const PSI_stage_info *stage,
+                   PSI_stage_info *old_stage,
+                   const char *calling_func,
+                   const char *calling_file,
+                   const unsigned int calling_line);
+
+  const char *get_proc_info() const
+  { return proc_info; }
+
   /*
     Used in error messages to tell user in what part of MySQL we found an
     error. E. g. when where= "having clause", if fix_fields() fails, user
@@ -1836,15 +1902,6 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
-  /* Place to store various things */
-  union 
-  { 
-    /*
-      Used by subquery optimizations, see
-      Item_exists_subselect::embedding_join_nest.
-    */
-    TABLE_LIST *emb_on_expr_nest;
-  } thd_marker;
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -1895,7 +1952,7 @@ public:
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
   /** Tells whether the given optimizer_switch flag is on */
-  inline bool optimizer_switch_flag(ulonglong flag)
+  inline bool optimizer_switch_flag(ulonglong flag) const
   {
     return (variables.optimizer_switch & flag);
   }
@@ -1926,6 +1983,11 @@ private:
     transaction cache.
   */
   uint binlog_table_maps;
+  /*
+    MTS: db names listing to be updated by the query databases
+  */
+  List<char> *binlog_accessed_db_names;
+
 public:
   void issue_unsafe_warnings();
 
@@ -1935,6 +1997,24 @@ public:
   void clear_binlog_table_maps() {
     binlog_table_maps= 0;
   }
+
+  /*
+    MTS: accessor to binlog_accessed_db_names list
+  */
+  List<char> * get_binlog_accessed_db_names()
+  {
+    return binlog_accessed_db_names;
+  }
+
+  /*
+     MTS: resetter of binlog_accessed_db_names list normally
+     at the end of the query execution
+  */
+  void clear_binlog_accessed_db_names() { binlog_accessed_db_names= NULL; }
+
+  /* MTS: method inserts a new unique name into binlog_updated_dbs */
+  void add_to_binlog_accessed_dbs(const char *db);
+
 #endif /* MYSQL_CLIENT */
 
 public:
@@ -1981,17 +2061,17 @@ public:
     void push_unsafe_rollback_warnings(THD *thd)
     {
       if (all.has_modified_non_trans_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
 
       if (all.has_created_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
 
       if (all.has_dropped_temp_table())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
     }
@@ -2273,13 +2353,6 @@ public:
   void set_status_no_index_used();
   void set_status_no_good_index_used();
 
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in THD because
-    with more than one subquery, it is not clear what does the field mean.
-  */
-  table_map  used_tables;
   USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
@@ -2557,22 +2630,20 @@ public:
 
   // Begin implementation of MDL_context_owner interface.
 
-  /*
-    For enter_cond() / exit_cond() to work the mutex must be got before
-    enter_cond(); this mutex is then released by exit_cond().
-    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
-  */
-  inline const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
-                                const char* msg)
+  inline void
+  enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+             const PSI_stage_info *stage, PSI_stage_info *old_stage,
+             const char *src_function, const char *src_file,
+             int src_line)
   {
-    const char* old_msg = proc_info;
     mysql_mutex_assert_owner(mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
-    proc_info = msg;
-    return old_msg;
+    enter_stage(stage, old_stage, src_function, src_file, src_line);
   }
-  inline void exit_cond(const char* old_msg)
+  inline void exit_cond(const PSI_stage_info *stage,
+                        const char *src_function, const char *src_file,
+                        int src_line)
   {
     /*
       Putting the mutex unlock in thd->exit_cond() ensures that
@@ -2584,7 +2655,7 @@ public:
     mysql_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
-    proc_info = old_msg;
+    enter_stage(stage, NULL, src_function, src_file, src_line);
     mysql_mutex_unlock(&mysys_var->mutex);
     return;
   }
@@ -2830,10 +2901,6 @@ public:
   */
   inline bool is_error() const { return get_stmt_da()->is_error(); }
 
-  /// Returns Warning-information-area for the current diagnostics area.
-  Warning_info *get_stmt_wi()
-  { return get_stmt_da()->get_warning_info(); }
-
   /// Returns Diagnostics-area for the current statement.
   Diagnostics_area *get_stmt_da()
   { return m_stmt_da; }
@@ -3076,6 +3143,7 @@ public:
   */
   void push_internal_handler(Internal_error_handler *handler);
 
+private:
   /**
     Handle a sql condition.
     @param sql_errno the condition error number
@@ -3085,17 +3153,19 @@ public:
     @param[out] cond_hdl the sql condition raised, if any
     @return true if the condition is handled
   */
-  virtual bool handle_condition(uint sql_errno,
-                                const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
-                                const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+  bool handle_condition(uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_warning_level level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
 
+public:
   /**
     Remove the error handler last pushed.
   */
   Internal_error_handler *pop_internal_handler();
 
+  Opt_trace_context opt_trace; ///< optimizer trace of current statement
   /**
     Raise an exception condition.
     @param code the MYSQL_ERRNO error code of the error
@@ -3143,7 +3213,7 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD*, MYSQL_ERROR::enum_warning_level, uint, const char*);
+  friend void push_warning(THD*, Sql_condition::enum_warning_level, uint, const char*);
   friend void my_message_sql(uint, const char *, myf);
 
   /**
@@ -3154,10 +3224,10 @@ private:
     @param msg the condition message text
     @return The condition raised, or NULL
   */
-  MYSQL_ERROR*
+  Sql_condition*
   raise_condition(uint sql_errno,
                   const char* sqlstate,
-                  MYSQL_ERROR::enum_warning_level level,
+                  Sql_condition::enum_warning_level level,
                   const char* msg);
 
 public:
@@ -3279,7 +3349,7 @@ my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->set_row_count_func(affected_rows);
-  thd->get_stmt_da()->set_ok_status(thd, affected_rows, id, message);
+  thd->get_stmt_da()->set_ok_status(affected_rows, id, message);
 }
 
 
@@ -3336,6 +3406,11 @@ protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
 public:
+  /**
+    Number of records estimated in this result.
+    Valid only for materialized derived tables/views.
+  */
+  ha_rows estimated_rowcount;
   select_result();
   virtual ~select_result() {};
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -3617,6 +3692,13 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
+  /**
+    TRUE <=> don't actually create table handler when creating the result
+    table. This allows range optimizer to add indexes later.
+    Used for materialized derived tables/views.
+    @see TABLE_LIST::update_derived_keys.
+  */
+  bool skip_create_table;
   /*
     If TRUE, create_tmp_field called from create_tmp_table will convert
     all BIT fields to 64-bit longs. This is a workaround the limitation
@@ -3628,7 +3710,7 @@ public:
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     bit_fields_as_long(0)
+     skip_create_table(FALSE), bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3659,7 +3741,9 @@ public:
   void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
-                           const char *alias, bool bit_fields_as_long);
+                           const char *alias, bool bit_fields_as_long,
+                           bool create_table);
+  friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
 };
 
 /* Base subselect interface class */
@@ -4082,14 +4166,12 @@ public:
 #define CF_HA_CLOSE             (1U << 11)
 
 /**
-  Identifies statements that can directly update a rpl info table.
-*/
-#define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
-
-/**
   Identifies statements that can be explained with EXPLAIN.
 */
-#define CF_CAN_BE_EXPLAINED       (1U << 13)
+#define CF_CAN_BE_EXPLAINED       (1U << 12)
+
+/** Identifies statements which may generate an optimizer trace */
+#define CF_OPTIMIZER_TRACE        (1U << 14)
 
 /* Bits in server_command_flags */
 
@@ -4137,24 +4219,5 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 }
 
 #endif /* MYSQL_SERVER */
-
-/**
-  The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters.
-*/
-extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
-                              const char *calling_func,
-                              const char *calling_file,
-                              const unsigned int calling_line);
-
-#define thd_proc_info(thd, msg) \
-  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
-
-#define THD_STAGE_INFO(thd, stage) \
-  { \
-    set_thd_proc_info(thd, stage.m_name, __func__, __FILE__, __LINE__); \
-    MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__); \
-  }
 
 #endif /* SQL_CLASS_INCLUDED */

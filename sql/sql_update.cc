@@ -42,7 +42,7 @@
 #include "sql_derived.h" // mysql_derived_prepare,
                          // mysql_handle_derived,
                          // mysql_derived_filling
-
+#include "opt_trace.h"   // Opt_trace_object
 
 /**
    True if the table's input and output record buffers are comparable using
@@ -303,16 +303,20 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);
 
   if (thd->fill_derived_tables() &&
-      mysql_handle_derived(thd->lex, &mysql_derived_filling))
+      mysql_handle_derived(thd->lex, &mysql_derived_create))
   {
     mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
     DBUG_RETURN(1);
   }
-  if (!thd->lex->describe)
-    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   THD_STAGE_INFO(thd, stage_init);
   table= table_list->table;
+
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    DBUG_RETURN(1);
+  }
 
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
@@ -415,31 +419,36 @@ int mysql_update(THD *thd,
 
   table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
-  if (error || !limit ||
-      (select && select->check_quick(thd, safe_update, limit)))
-  {
-    if (thd->lex->describe && !error && !thd->is_error())
+
+  { // Enter scope for optimizer trace wrapper
+    Opt_trace_object wrapper(&thd->opt_trace);
+    wrapper.add_utf8_table(table);
+
+    if (error || !limit ||
+        (select && select->check_quick(thd, safe_update, limit)))
     {
-      error= explain_no_table(thd, "Impossible WHERE");
-      goto exit_without_my_ok;
+      if (thd->lex->describe && !error && !thd->is_error())
+      {
+        error= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
+      delete select;
+      free_underlaid_joins(thd, select_lex);
+      /*
+        There was an error or the error was already sent by
+        the quick select evaluation.
+        TODO: Add error code output parameter to Item::val_xxx() methods.
+        Currently they rely on the user checking DA for
+        errors when unwinding the stack after calling Item::val_xxx().
+      */
+      if (error || thd->is_error())
+      {
+        DBUG_RETURN(1);				// Error in where
+      }
+      my_ok(thd);				// No matching records
+      DBUG_RETURN(0);
     }
-    
-    delete select;
-    free_underlaid_joins(thd, select_lex);
-    /*
-      There was an error or the error was already sent by
-      the quick select evaluation.
-      TODO: Add error code output parameter to Item::val_xxx() methods.
-      Currently they rely on the user checking DA for
-      errors when unwinding the stack after calling Item::val_xxx().
-    */
-    if (error || thd->is_error())
-    {
-      DBUG_RETURN(1);				// Error in where
-    }
-    my_ok(thd);				// No matching records
-    DBUG_RETURN(0);
-  }
+  } // Ends scope for optimizer trace wrapper
 
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -819,7 +828,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->get_stmt_wi()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_warning();
     if (thd->is_error())
     {
       error= 1;
@@ -925,7 +934,7 @@ int mysql_update(THD *thd,
     char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-                (ulong) thd->get_stmt_wi()->statement_warn_count());
+                (ulong) thd->get_stmt_da()->current_statement_warn_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -1129,6 +1138,83 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
 }
 
 
+/**
+  Check if there is enough privilege on specific table used by the
+  main select list of multi-update directly or indirectly (through
+  a view).
+
+  @param[in]      thd                Thread context.
+  @param[in]      table              Table list element for the table.
+  @param[in]      tables_for_update  Bitmap with tables being updated.
+  @param[in/out]  updated_arg        Set to true if table in question is
+                                     updated, also set to true if it is
+                                     a view and one of its underlying
+                                     tables is updated. Should be
+                                     initialized to false by the caller
+                                     before a sequence of calls to this
+                                     function.
+
+  @note To determine which tables/views are updated we have to go from
+        leaves to root since tables_for_update contains map of leaf
+        tables being updated and doesn't include non-leaf tables
+        (fields are already resolved to leaf tables).
+
+  @retval false - Success, all necessary privileges on all tables are
+                  present or might be present on column-level.
+  @retval true  - Failure, some necessary privilege on some table is
+                  missing.
+*/
+
+static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
+                                            table_map tables_for_update,
+                                            bool *updated_arg)
+{
+  if (table->view)
+  {
+    bool updated= false;
+    /*
+      If it is a mergeable view then we need to check privileges on its
+      underlying tables being merged (including views). We also need to
+      check if any of them is updated in order to find if this view is
+      updated.
+      If it is a non-mergeable view then it can't be updated.
+    */
+    DBUG_ASSERT(table->merge_underlying_list ||
+                (!table->updatable &&
+                 !(table->table->map & tables_for_update)));
+
+    for (TABLE_LIST *tbl= table->merge_underlying_list; tbl;
+         tbl= tbl->next_local)
+    {
+      if (multi_update_check_table_access(thd, tbl, tables_for_update, &updated))
+        return true;
+    }
+    if (check_table_access(thd, updated ? UPDATE_ACL: SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return true;
+    *updated_arg|= updated;
+    /* We only need SELECT privilege for columns in the values list. */
+    table->grant.want_privilege= SELECT_ACL & ~table->grant.privilege;
+  }
+  else
+  {
+    /* Must be a base or derived table. */
+    const bool updated= table->table->map & tables_for_update;
+    if (check_table_access(thd, updated ? UPDATE_ACL : SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return true;
+    *updated_arg|= updated;
+    /* We only need SELECT privilege for columns in the values list. */
+    if (!table->derived)
+    {
+      table->grant.want_privilege= SELECT_ACL & ~table->grant.privilege;
+      table->table->grant.want_privilege= SELECT_ACL & ~table->table->grant.privilege;
+    }
+  }
+  return false;
+}
+
+
 /*
   make update specific preparation and checks after opening tables
 
@@ -1181,11 +1267,10 @@ int mysql_multi_update_prepare(THD *thd)
     call in setup_tables()).
   */
 
-  if (setup_tables_and_check_access(thd, &lex->select_lex.context,
-                                    &lex->select_lex.top_join_list,
-                                    table_list,
-                                    &lex->select_lex.leaf_tables, FALSE,
-                                    UPDATE_ACL, SELECT_ACL))
+  if (setup_tables(thd, &lex->select_lex.context,
+                   &lex->select_lex.top_join_list,
+                   table_list, &lex->select_lex.leaf_tables,
+                   FALSE))
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
@@ -1260,19 +1345,17 @@ int mysql_multi_update_prepare(THD *thd)
         tl->table->reginfo.lock_type= tl->lock_type;
     }
   }
+
+  /*
+    Check access privileges for tables being updated or read.
+    Note that unlike in the above loop we need to iterate here not only
+    through all leaf tables but also through all view hierarchy.
+  */
   for (tl= table_list; tl; tl= tl->next_local)
   {
-    /* Check access privileges for table */
-    if (!tl->derived)
-    {
-      uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
-      if (check_access(thd, want_privilege, tl->db,
-                       &tl->grant.privilege,
-                       &tl->grant.m_internal,
-                       0, 0) ||
-          check_grant(thd, want_privilege, tl, FALSE, 1, FALSE))
-        DBUG_RETURN(TRUE);
-    }
+    bool not_used= false;
+    if (multi_update_check_table_access(thd, tl, tables_for_update, &not_used))
+      DBUG_RETURN(TRUE);
   }
 
   /* check single table update for view compound from several tables */
@@ -1303,19 +1386,8 @@ int mysql_multi_update_prepare(THD *thd)
     skip all tables of UPDATE SELECT itself
   */
   lex->select_lex.exclude_from_table_unique_test= TRUE;
-  /* We only need SELECT privilege for columns in the values list */
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
-    TABLE *table= tl->table;
-    TABLE_LIST *tlist;
-    if (!(tlist= tl->top_table())->derived)
-    {
-      tlist->grant.want_privilege=
-        (SELECT_ACL & ~tlist->grant.privilege);
-      table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
-    }
-    DBUG_PRINT("info", ("table: %s  want_privilege: %u", tl->alias,
-                        (uint) table->grant.want_privilege));
     if (tl->lock_type != TL_READ &&
         tl->lock_type != TL_READ_NO_INSERT)
     {
@@ -1332,16 +1404,6 @@ int mysql_multi_update_prepare(THD *thd)
     further check in multi_update::prepare whether to use record cache.
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
- 
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(lex, &mysql_derived_filling))
-  {
-    mysql_handle_derived(lex, &mysql_derived_cleanup);
-    DBUG_RETURN(TRUE);
-  }
-  if (!thd->lex->describe)
-    mysql_handle_derived(lex, &mysql_derived_cleanup);
-
   DBUG_RETURN (FALSE);
 }
 

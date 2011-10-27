@@ -300,6 +300,8 @@ public:
     If the object was opened it will also be closed before being deleted.
   */
   virtual int open(const char *name, int mode, uint test_if_locked);
+  virtual void unbind_psi();
+  virtual void rebind_psi();
   virtual int close(void);
 
   /*
@@ -1103,8 +1105,8 @@ public:
     virtual int restore(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int dump(THD* thd, int fd = -1);
     virtual int net_read_dump(NET* net);
-    virtual uint checksum() const;
   */
+    virtual uint checksum() const;
   /* Enabled keycache for performance reasons, WL#4571 */
     virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);

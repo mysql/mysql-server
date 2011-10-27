@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -563,6 +563,20 @@ dict_table_get_next_index(
 # define dict_table_get_next_index(index) UT_LIST_GET_NEXT(indexes, index)
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+
+/* Skip corrupted index */
+#define dict_table_skip_corrupt_index(index)			\
+	while (index && dict_index_is_corrupted(index)) {	\
+		index = dict_table_get_next_index(index);	\
+	}
+
+/* Get the next non-corrupt index */
+#define dict_table_next_uncorrupted_index(index)		\
+do {								\
+	index = dict_table_get_next_index(index);		\
+	dict_table_skip_corrupt_index(index);			\
+} while (0)
+
 /********************************************************************//**
 Check whether the index is the clustered index.
 @return	nonzero for clustered index, zero for other indexes */
@@ -571,7 +585,7 @@ ulint
 dict_index_is_clust(
 /*================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Check whether the index is unique.
 @return	nonzero for unique index, zero for other indexes */
@@ -580,7 +594,7 @@ ulint
 dict_index_is_unique(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
@@ -589,7 +603,7 @@ ulint
 dict_index_is_ibuf(
 /*===============*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Check whether the index is a secondary index or the insert buffer tree.
 @return	nonzero for insert buffer, zero for other indexes */
@@ -598,7 +612,7 @@ ulint
 dict_index_is_sec_or_ibuf(
 /*======================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((pure));
+	__attribute__((nonnull, pure, warn_unused_result));
 
 /************************************************************************
 Gets the all the FTS indexes for the table. NOTE: must not be called for
@@ -618,7 +632,8 @@ UNIV_INLINE
 ulint
 dict_table_get_n_user_cols(
 /*=======================*/
-	const dict_table_t*	table);	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Gets the number of system columns in a table in the dictionary cache.
 @return	number of system (e.g., ROW_ID) columns of a table */
@@ -626,7 +641,8 @@ UNIV_INLINE
 ulint
 dict_table_get_n_sys_cols(
 /*======================*/
-	const dict_table_t*	table);	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
 Gets the number of all columns (also system) in a table in the dictionary
 cache.
@@ -635,7 +651,8 @@ UNIV_INLINE
 ulint
 dict_table_get_n_cols(
 /*==================*/
-	const dict_table_t*	table);	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the nth column of a table.
@@ -697,21 +714,47 @@ dict_table_get_format(
 /*==================*/
 	const dict_table_t*	table);	/*!< in: table */
 /********************************************************************//**
-Set the file format of a table. */
+Determine the file format from a dict_table_t::flags.
+@return	file format version */
+UNIV_INLINE
+ulint
+dict_tf_get_format(
+/*===============*/
+	ulint		flags);		/*!< in: dict_table_t::flags */
+/********************************************************************//**
+Set the various values in a dict_table_t::flags pointer. */
 UNIV_INLINE
 void
-dict_table_set_format(
-/*==================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ulint		format);/*!< in: file format version */
+dict_tf_set(
+/*========*/
+	ulint*		flags,		/*!< in/out: table */
+	rec_format_t	format,		/*!< in: file format */
+	ulint		zip_ssize);	/*!< in: zip shift size */
+/********************************************************************//**
+Convert a 32 bit integer table flags to the 32 bit integer that is
+written into the tablespace header at the offset FSP_SPACE_FLAGS and is
+also stored in the fil_space_t::flags field.  The following chart shows
+the translation of the low order bit.  Other bits are the same.
+========================= Low order bit ==========================
+                    | REDUNDANT | COMPACT | COMPRESSED | DYNAMIC
+dict_table_t::flags |     0     |    1    |     1      |    1
+fil_space_t::flags  |     0     |    0    |     1      |    1
+==================================================================
+@return	tablespace flags (fil_space_t::flags) */
+UNIV_INLINE
+ulint
+dict_tf_to_fsp_flags(
+/*=================*/
+	ulint	flags)	/*!< in: dict_table_t::flags */
+	__attribute__((const));
 /********************************************************************//**
 Extract the compressed page size from table flags.
 @return	compressed page size, or 0 if not compressed */
 UNIV_INLINE
 ulint
-dict_table_flags_to_zip_size(
-/*=========================*/
-	ulint	flags)	/*!< in: flags */
+dict_tf_get_zip_size(
+/*=================*/
+	ulint	flags)			/*!< in: flags */
 	__attribute__((const));
 /********************************************************************//**
 Check whether the table uses the compressed compact page format.
@@ -1356,6 +1399,57 @@ UNIV_INTERN
 void
 dict_close(void);
 /*============*/
+
+/**********************************************************************//**
+Check whether the table is corrupted.
+@return	nonzero for corrupted table, zero for valid tables */
+UNIV_INLINE
+ulint
+dict_table_is_corrupted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+/**********************************************************************//**
+Check whether the index is corrupted.
+@return	nonzero for corrupted index, zero for valid indexes */
+UNIV_INLINE
+ulint
+dict_index_is_corrupted(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+/**********************************************************************//**
+Flags an index and table corrupted both in the data dictionary cache
+and in the system table SYS_INDEXES. */
+UNIV_INTERN
+void
+dict_set_corrupted(
+/*===============*/
+	dict_index_t*	index)		/*!< in/out: index */
+	UNIV_COLD __attribute__((nonnull));
+
+/**********************************************************************//**
+Flags an index corrupted in the data dictionary cache only. This
+is used mostly to mark a corrupted index when index's own dictionary
+is corrupted, and we force to load such index for repair purpose */
+UNIV_INTERN
+void
+dict_set_corrupted_index_cache_only(
+/*================================*/
+	dict_index_t*	index,		/*!< in/out: index */
+	dict_table_t*	table);		/*!< in/out: table */
+
+/**********************************************************************//**
+Flags a table with specified space_id corrupted in the table dictionary
+cache.
+@return TRUE if successful */
+UNIV_INTERN
+ibool
+dict_set_corrupted_by_space(
+/*========================*/
+	ulint		space_id);	/*!< in: space ID */
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

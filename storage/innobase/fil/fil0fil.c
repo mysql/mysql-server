@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,12 +40,14 @@ Created 10/25/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "page0page.h"
 #include "page0zip.h"
+#include "trx0sys.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
 # include "sync0sync.h"
 # include "os0sync.h"
 #else /* !UNIV_HOTBACKUP */
+# include "srv0srv.h"
 static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
 
@@ -209,7 +211,8 @@ struct fil_space_struct {
 				tablespace whose size we do not know yet;
 				last incomplete megabytes in data files may be
 				ignored if space == 0 */
-	ulint		flags;	/*!< compressed page size and file format, or 0 */
+	ulint		flags;	/*!< tablespace flags; see
+				fsp_flags_validate(), fsp_flags_get_zip_size() */
 	ulint		n_reserved_extents;
 				/*!< number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -305,6 +308,9 @@ struct fil_system_struct {
 initialized. */
 static fil_system_t*	fil_system	= NULL;
 
+/** Determine if (i) is a user tablespace id or not. */
+# define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces)
+
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
 # define FIL_VALIDATE_SKIP	17
@@ -333,6 +339,19 @@ fil_validate_skip(void)
 	return(fil_validate());
 }
 #endif /* UNIV_DEBUG */
+
+/********************************************************************//**
+Determines if a file node belongs to the least-recently-used list.
+@return TRUE if the file belongs to fil_system->LRU mutex. */
+UNIV_INLINE
+ibool
+fil_space_belongs_in_lru(
+/*=====================*/
+	const fil_space_t*	space)	/*!< in: file space */
+{
+	return(space->purpose == FIL_TABLESPACE
+	       && fil_is_user_tablespace_id(space->id));
+}
 
 /********************************************************************//**
 NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
@@ -658,7 +677,7 @@ fil_node_create(
 }
 
 /********************************************************************//**
-Opens a the file of a node of a tablespace. The caller must own the fil_system
+Opens a file of a node of a tablespace. The caller must own the fil_system
 mutex. */
 static
 void
@@ -716,7 +735,7 @@ fil_node_open_file(
 		}
 #endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_LOG);
-		ut_a(space->id != 0);
+		ut_a(fil_is_user_tablespace_id(space->id));
 
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 			fprintf(stderr,
@@ -784,12 +803,12 @@ fil_node_open_file(
 			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 
-		if (!(flags & DICT_TF_ZSSIZE_MASK)) {
+		if (!fsp_flags_is_compressed(flags)) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 		} else {
 			node->size = (ulint)
 				(size_bytes
-				 / dict_table_flags_to_zip_size(flags));
+				 / fsp_flags_get_zip_size(flags));
 		}
 
 #ifdef UNIV_HOTBACKUP
@@ -829,7 +848,8 @@ add_size:
 	system->n_open++;
 	fil_n_file_opened++;
 
-	if (space->purpose == FIL_TABLESPACE && space->id != 0) {
+	if (fil_space_belongs_in_lru(space)) {
+
 		/* Put the node to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
@@ -852,8 +872,10 @@ fil_node_close_file(
 	ut_a(node->n_pending == 0);
 	ut_a(node->n_pending_flushes == 0);
 	ut_a(!node->being_extended);
+#ifndef UNIV_HOTBACKUP
 	ut_a(node->modification_counter == node->flush_counter
 	     || srv_fast_shutdown == 2);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret = os_file_close(node->handle);
 	ut_a(ret);
@@ -865,7 +887,8 @@ fil_node_close_file(
 	system->n_open--;
 	fil_n_file_opened--;
 
-	if (node->space->purpose == FIL_TABLESPACE && node->space->id != 0) {
+	if (fil_space_belongs_in_lru(node->space)) {
+
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
 		/* The node is in the LRU list, remove it */
@@ -1140,8 +1163,9 @@ fil_space_truncate_start(
 #endif /* UNIV_LOG_ARCHIVE */
 
 /*******************************************************************//**
-Creates a space memory object and puts it to the tablespace memory cache. If
-there is an error, prints an error message to the .err log.
+Creates a tablespace memory object and puts it to the tablespace memory
+cache.  If there is an error, prints an error message to the .err log.
+This function is not called for the system tablespace.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
@@ -1149,18 +1173,12 @@ fil_space_create(
 /*=============*/
 	const char*	name,	/*!< in: space name */
 	ulint		id,	/*!< in: space id */
-	ulint		flags,	/*!< in: compressed page size
-				and file format, or 0 */
+	ulint		flags,	/*!< in: tablespace flags */
 	ulint		purpose)/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_space_t*	space;
 
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
-	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	fsp_flags_validate(flags);
 
 try_again:
 	/*printf(
@@ -1242,7 +1260,7 @@ try_again:
 		return(FALSE);
 	}
 
-	space = mem_alloc(sizeof(fil_space_t));
+	space = mem_zalloc(sizeof(*space));
 
 	space->name = mem_strdup(name);
 	space->id = id;
@@ -1267,19 +1285,9 @@ try_again:
 		fil_system->max_assigned_id = id;
 	}
 
-	space->stop_ios = FALSE;
-	space->stop_ibuf_merges = FALSE;
-	space->is_being_deleted = FALSE;
 	space->purpose = purpose;
-	space->size = 0;
 	space->flags = flags;
 
-	space->n_reserved_extents = 0;
-
-	space->n_pending_flushes = 0;
-	space->n_pending_ibuf_merges = 0;
-
-	UT_LIST_INIT(space->chain);
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
 	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
@@ -1548,7 +1556,7 @@ fil_space_get_zip_size(
 
 	if (flags && flags != ULINT_UNDEFINED) {
 
-		return(dict_table_flags_to_zip_size(flags));
+		return(fsp_flags_get_zip_size(flags));
 	}
 
 	return(flags);
@@ -1612,47 +1620,51 @@ fil_open_log_and_system_tablespace_files(void)
 /*==========================================*/
 {
 	fil_space_t*	space;
-	fil_node_t*	node;
 
 	mutex_enter(&fil_system->mutex);
 
-	space = UT_LIST_GET_FIRST(fil_system->space_list);
+	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	     space != NULL;
+	     space = UT_LIST_GET_NEXT(space_list, space)) {
 
-	while (space != NULL) {
-		if (space->purpose != FIL_TABLESPACE || space->id == 0) {
-			node = UT_LIST_GET_FIRST(space->chain);
+		fil_node_t*	node;
 
-			while (node != NULL) {
-				if (!node->open) {
-					fil_node_open_file(node, fil_system,
-							   space);
-				}
-				if (fil_system->max_n_open
-				    < 10 + fil_system->n_open) {
-					fprintf(stderr,
-						"InnoDB: Warning: you must"
-						" raise the value of"
-						" innodb_open_files in\n"
-						"InnoDB: my.cnf! Remember that"
-						" InnoDB keeps all log files"
-						" and all system\n"
-						"InnoDB: tablespace files open"
-						" for the whole time mysqld is"
-						" running, and\n"
-						"InnoDB: needs to open also"
-						" some .ibd files if the"
-						" file-per-table storage\n"
-						"InnoDB: model is used."
-						" Current open files %lu,"
-						" max allowed"
-						" open files %lu.\n",
-						(ulong) fil_system->n_open,
-						(ulong) fil_system->max_n_open);
-				}
-				node = UT_LIST_GET_NEXT(chain, node);
+		if (fil_space_belongs_in_lru(space)) {
+
+			continue;
+		}
+
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+
+			if (!node->open) {
+				fil_node_open_file(node, fil_system, space);
+			}
+
+			if (fil_system->max_n_open < 10 + fil_system->n_open) {
+
+				fprintf(stderr,
+					"InnoDB: Warning: you must"
+					" raise the value of"
+					" innodb_open_files in\n"
+					"InnoDB: my.cnf! Remember that"
+					" InnoDB keeps all log files"
+					" and all system\n"
+					"InnoDB: tablespace files open"
+					" for the whole time mysqld is"
+					" running, and\n"
+					"InnoDB: needs to open also"
+					" some .ibd files if the"
+					" file-per-table storage\n"
+					"InnoDB: model is used."
+					" Current open files %lu,"
+					" max allowed"
+					" open files %lu.\n",
+					(ulong) fil_system->n_open,
+					(ulong) fil_system->max_n_open);
 			}
 		}
-		space = UT_LIST_GET_NEXT(space_list, space);
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -1727,6 +1739,7 @@ static
 ulint
 fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
+	ulint	space,		/*!< in: space to write to */
 	ulint	sum_of_sizes,	/*!< in: combined size of previous files
 				in space, in database pages */
 	lsn_t	lsn,		/*!< in: lsn to write */
@@ -1739,11 +1752,11 @@ fil_write_lsn_and_arch_no_to_file(
 	buf1 = mem_alloc(2 * UNIV_PAGE_SIZE);
 	buf = ut_align(buf1, UNIV_PAGE_SIZE);
 
-	fil_read(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	fil_read(TRUE, space, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
 	mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
-	fil_write(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	fil_write(TRUE, space, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
 	mem_free(buf1);
 
@@ -1763,30 +1776,35 @@ fil_write_flushed_lsn_to_data_files(
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
-	ulint		sum_of_sizes;
 	ulint		err;
 
 	mutex_enter(&fil_system->mutex);
 
-	space = UT_LIST_GET_FIRST(fil_system->space_list);
+	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	     space != NULL;
+	     space = UT_LIST_GET_NEXT(space_list, space)) {
 
-	while (space) {
 		/* We only write the lsn to all existing data files which have
 		been open during the lifetime of the mysqld process; they are
 		represented by the space objects in the tablespace memory
-		cache. Note that all data files in the system tablespace 0 are
-		always open. */
+		cache. Note that all data files in the system tablespace 0
+		and the UNDO log tablespaces (if separate) are always open. */
 
 		if (space->purpose == FIL_TABLESPACE
-		    && space->id == 0) {
-			sum_of_sizes = 0;
+		    && !fil_is_user_tablespace_id(space->id)) {
 
-			node = UT_LIST_GET_FIRST(space->chain);
-			while (node) {
+			ulint	sum_of_sizes = 0;
+
+			for (node = UT_LIST_GET_FIRST(space->chain);
+			     node != NULL;
+			     node = UT_LIST_GET_NEXT(chain, node)) {
+
 				mutex_exit(&fil_system->mutex);
 
 				err = fil_write_lsn_and_arch_no_to_file(
-					sum_of_sizes, lsn, arch_log_no);
+					space->id, sum_of_sizes, lsn,
+					arch_log_no);
+
 				if (err != DB_SUCCESS) {
 
 					return(err);
@@ -1795,10 +1813,8 @@ fil_write_flushed_lsn_to_data_files(
 				mutex_enter(&fil_system->mutex);
 
 				sum_of_sizes += node->size;
-				node = UT_LIST_GET_NEXT(chain, node);
 			}
 		}
-		space = UT_LIST_GET_NEXT(space_list, space);
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -2690,29 +2706,42 @@ fil_create_new_single_table_tablespace(
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
 {
-	os_file_t	file;
-	ibool		ret;
-	ulint		err;
-	byte*		buf2;
-	byte*		page;
-	ibool		success;
-	char*		path;
+	os_file_t		file;
+	ibool			ret;
+	ulint			err;
+	byte*			buf2;
+	byte*			page;
+	char*			path;
+	ibool			success;
+	os_file_create_t	create_mode;
 
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
-	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	fsp_flags_validate(flags);
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
-	file = os_file_create(innodb_file_data_key, path,
-			      OS_FILE_CREATE, OS_FILE_NORMAL,
-			      OS_DATA_FILE, &ret);
+	/* When srv_file_per_table is on, file creation failure may not
+	be critical to the whole instance. Do not crash the server in
+	case of unknown errors.
+
+	Note "srv_file_per_table" is a global variable with no explicit
+	synchronization protection. It could be changed during this execution
+	path. It might not have the same value as the one when building the
+	table definition */
+
+	create_mode = srv_file_per_table
+		    ? OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT
+		    : OS_FILE_CREATE;
+
+	file = os_file_create(
+		innodb_file_data_key, path,
+		create_mode,
+		OS_FILE_NORMAL,
+		OS_DATA_FILE,
+		&ret);
+
 	if (ret == FALSE) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error creating file ", stderr);
@@ -2788,16 +2817,14 @@ error_exit2:
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
-	if (!(flags & DICT_TF_ZSSIZE_MASK)) {
+	if (!(fsp_flags_is_compressed(flags))) {
 		buf_flush_init_for_writing(page, NULL, 0);
 		ret = os_file_write(path, file, page, 0, UNIV_PAGE_SIZE);
 	} else {
 		page_zip_des_t	page_zip;
 		ulint		zip_size;
 
-		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
-			    << ((flags & DICT_TF_ZSSIZE_MASK)
-				>> DICT_TF_ZSSIZE_SHIFT));
+		zip_size = fsp_flags_get_zip_size(flags);
 
 		page_zip_set_size(&page_zip, zip_size);
 		page_zip.data = page + UNIV_PAGE_SIZE;
@@ -3070,12 +3097,7 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
-	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
-	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	fsp_flags_validate(flags);
 
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -3919,7 +3941,7 @@ retry:
 		return(TRUE);
 	}
 
-	page_size = dict_table_flags_to_zip_size(space->flags);
+	page_size = fsp_flags_get_zip_size(space->flags);
 	if (!page_size) {
 		page_size = UNIV_PAGE_SIZE;
 	}
@@ -4063,7 +4085,7 @@ fil_extend_tablespaces_to_stored_len(void)
 					      mutex, because this is a
 					      single-threaded operation */
 		error = fil_read(TRUE, space->id,
-				 dict_table_flags_to_zip_size(space->flags),
+				 fsp_flags_get_zip_size(space->flags),
 				 0, 0, UNIV_PAGE_SIZE, buf, NULL);
 		ut_a(error == DB_SUCCESS);
 
@@ -4218,8 +4240,7 @@ fil_node_prepare_for_io(
 		fil_node_open_file(node, system, space);
 	}
 
-	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
-	    && space->id != 0) {
+	if (node->n_pending == 0 && fil_space_belongs_in_lru(space)) {
 		/* The node is in the LRU list, remove it */
 
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
@@ -4264,8 +4285,8 @@ fil_node_complete_io(
 		}
 	}
 
-	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
-	    && node->space->id != 0) {
+	if (node->n_pending == 0 && fil_space_belongs_in_lru(node->space)) {
+
 		/* The node must be put back to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
@@ -4430,7 +4451,7 @@ fil_io(
 			ut_error;
 		}
 
-		if (space->id != 0 && node->size == 0) {
+		if (fil_is_user_tablespace_id(space->id) && node->size == 0) {
 			/* We do not know the size of a single-table tablespace
 			before we open the file */
 
@@ -4450,7 +4471,7 @@ fil_io(
 	fil_node_prepare_for_io(node, fil_system, space);
 
 	/* Check that at least the start offset is within the bounds of a
-	single-table tablespace */
+	single-table tablespace, including rollback tablespaces. */
 	if (UNIV_UNLIKELY(node->size <= block_offset)
 	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
 
@@ -4816,8 +4837,7 @@ fil_validate(void)
 		ut_a(fil_node->n_pending == 0);
 		ut_a(!fil_node->being_extended);
 		ut_a(fil_node->open);
-		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
-		ut_a(fil_node->space->id != 0);
+		ut_a(fil_space_belongs_in_lru(fil_node->space));
 
 		fil_node = UT_LIST_GET_NEXT(LRU, fil_node);
 	}

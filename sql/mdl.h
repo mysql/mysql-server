@@ -35,6 +35,23 @@ class MDL_context;
 class MDL_lock;
 class MDL_ticket;
 
+/**
+  @def ENTER_COND(C, M, S, O)
+  Start a wait on a condition.
+  @param C the condition to wait on
+  @param M the associated mutex
+  @param S the new stage to enter
+  @param O the previous stage
+  @sa EXIT_COND().
+*/
+#define ENTER_COND(C, M, S, O) enter_cond(C, M, S, O, __func__, __FILE__, __LINE__)
+
+/**
+  @def EXIT_COND(S)
+  End a wait on a condition
+  @param S the new stage to enter
+*/
+#define EXIT_COND(S) exit_cond(S, __func__, __FILE__, __LINE__)
 
 /**
    An interface to separate the MDL module from the THD, and the rest of the
@@ -47,11 +64,38 @@ public:
   virtual ~MDL_context_owner() {}
 
   /**
-     @see THD::enter_cond() and THD::exit_cond()
-   */
-  virtual const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
-                                 const char* msg) = 0;
-  virtual void exit_cond(const char* old_msg) = 0;
+    Enter a condition wait.
+    For @c enter_cond() / @c exit_cond() to work the mutex must be held before
+    @c enter_cond(); this mutex is then released by @c exit_cond().
+    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
+    @param cond the condition to wait on
+    @param mutex the associated mutex
+    @param [in] stage the stage to enter, or NULL
+    @param [out] old_stage the previous stage, or NULL
+    @param src_function function name of the caller
+    @param src_file file name of the caller
+    @param src_line line number of the caller
+    @sa ENTER_COND(), THD::enter_cond()
+    @sa EXIT_COND(), THD::exit_cond()
+  */
+  virtual void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
+                          const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                          const char *src_function, const char *src_file,
+                          int src_line) = 0;
+
+  /**
+    @def EXIT_COND(S)
+    End a wait on a condition
+    @param [in] stage the new stage to enter
+    @param src_function function name of the caller
+    @param src_file file name of the caller
+    @param src_line line number of the caller
+    @sa ENTER_COND(), THD::enter_cond()
+    @sa EXIT_COND(), THD::exit_cond()
+  */
+  virtual void exit_cond(const PSI_stage_info *stage,
+                         const char *src_function, const char *src_file,
+                         int src_line) = 0;
   /**
      Has the owner thread been killed?
    */
@@ -223,6 +267,10 @@ enum enum_mdl_duration {
 class MDL_key
 {
 public:
+#ifdef HAVE_PSI_INTERFACE
+  static void init_psi_keys();
+#endif
+
   /**
     Object namespaces.
     Sic: when adding a new member to this enum make sure to
@@ -318,16 +366,16 @@ public:
     Get thread state name to be used in case when we have to
     wait on resource identified by key.
   */
-  const char * get_wait_state_name() const
+  const PSI_stage_info * get_wait_state_name() const
   {
-    return m_namespace_to_wait_state_name[(int)mdl_namespace()];
+    return & m_namespace_to_wait_state_name[(int)mdl_namespace()];
   }
 
 private:
   uint16 m_length;
   uint16 m_db_name_length;
   char m_ptr[MAX_MDLKEY_LENGTH];
-  static const char * m_namespace_to_wait_state_name[NAMESPACE_END];
+  static PSI_stage_info m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
   MDL_key(const MDL_key &);                     /* not implemented */
   MDL_key &operator=(const MDL_key &);          /* not implemented */
@@ -628,7 +676,8 @@ public:
   void reset_status();
   enum_wait_status timed_wait(MDL_context_owner *owner,
                               struct timespec *abs_timeout,
-                              bool signal_timeout, const char *wait_state_name);
+                              bool signal_timeout,
+                              const PSI_stage_info *wait_state_name);
 private:
   /**
     Condvar which is used for waiting until this context's pending

@@ -35,6 +35,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "transaction.h"
+#include "opt_trace.h"                          // Opt_trace_object
 #include "opt_explain.h"
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
@@ -214,21 +215,27 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
     DBUG_RETURN(TRUE);
-  if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
-  {
-    delete select;
-    free_underlaid_joins(thd, select_lex);
-    /* 
-      Error was already created by quick select evaluation (check_quick()).
-      TODO: Add error code output parameter to Item::val_xxx() methods.
-      Currently they rely on the user checking DA for
-      errors when unwinding the stack after calling Item::val_xxx().
-    */
-    if (thd->is_error())
-      DBUG_RETURN(TRUE);
-    my_ok(thd, 0);
-    DBUG_RETURN(0);				// Nothing to delete
-  }
+
+  { // Enter scope for optimizer trace wrapper
+    Opt_trace_object wrapper(&thd->opt_trace);
+    wrapper.add_utf8_table(table);
+
+    if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
+    {
+      delete select;
+      free_underlaid_joins(thd, select_lex);
+      /*
+         Error was already created by quick select evaluation (check_quick()).
+         TODO: Add error code output parameter to Item::val_xxx() methods.
+         Currently they rely on the user checking DA for
+         errors when unwinding the stack after calling Item::val_xxx().
+      */
+      if (thd->is_error())
+        DBUG_RETURN(true);
+      my_ok(thd, 0);
+      DBUG_RETURN(false);                       // Nothing to delete
+    }
+  } // Ends scope for optimizer trace wrapper
 
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())

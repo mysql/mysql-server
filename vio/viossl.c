@@ -312,10 +312,10 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 {
   int r;
   SSL *ssl;
-
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("ssl_do");
   DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
-                       (long) ptr, vio->sd, (long) ptr->ssl_context));
+                       (long) ptr, sd, (long) ptr->ssl_context));
 
   if (!(ssl= SSL_new(ptr->ssl_context)))
   {
@@ -326,7 +326,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
-  SSL_set_fd(ssl, vio->sd);
+  SSL_set_fd(ssl, sd);
 
   /*
     Since yaSSL does not support non-blocking send operations, use

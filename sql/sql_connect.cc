@@ -76,12 +76,12 @@ int get_or_create_user_conn(THD *thd, const char *user,
   temp_len= (strmov(strmov(temp_user, user)+1, host) - temp_user)+1;
   mysql_mutex_lock(&LOCK_user_conn);
   if (!(uc = (struct  user_conn *) my_hash_search(&hash_user_connections,
-					       (uchar*) temp_user, temp_len)))
+                 (uchar*) temp_user, temp_len)))
   {
     /* First connection for user; Create a user connection object */
     if (!(uc= ((struct user_conn*)
-	       my_malloc(sizeof(struct user_conn) + temp_len+1,
-			 MYF(MY_WME)))))
+         my_malloc(sizeof(struct user_conn) + temp_len+1,
+       MYF(MY_WME)))))
     {
       /* MY_WME ensures an error is set in THD. */
       return_val= 1;
@@ -113,19 +113,19 @@ end:
 
 /*
   check if user has already too many connections
-  
+
   SYNOPSIS
   check_for_max_user_connections()
-  thd			Thread handle
-  uc			User connect object
+  thd     Thread handle
+  uc      User connect object
 
   NOTES
     If check fails, we decrease user connection count, which means one
     shouldn't call decrease_user_connections() after this function.
 
   RETURN
-    0	ok
-    1	error
+    0 ok
+    1 error
 */
 
 int check_for_max_user_connections(THD *thd, USER_CONN *uc)
@@ -184,7 +184,7 @@ end:
 
   SYNOPSIS
     decrease_user_connections()
-    uc			User connection object
+    uc      User connection object
 
   NOTES
     If there is a n user connection object for a connection
@@ -218,8 +218,8 @@ void decrease_user_connections(USER_CONN *uc)
 
   SYNOPSIS:
     time_out_user_resource_limits()
-    thd			Thread handler
-    uc			User connection details
+    thd     Thread handler
+    uc      User connection details
 
   NOTE:
     This assumes that the LOCK_user_conn mutex has been acquired, so it is
@@ -273,7 +273,7 @@ bool check_mqh(THD *thd, uint check_command)
     /* Check that we have not done too many updates / hour */
     if (uc->user_resources.updates &&
         (sql_command_flags[check_command] & CF_CHANGES_DATA) &&
-	uc->updates++ >= uc->user_resources.updates)
+  uc->updates++ >= uc->user_resources.updates)
     {
       my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_updates",
                (long) uc->user_resources.updates);
@@ -294,7 +294,7 @@ end:
 */
 
 extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
-			      my_bool not_used __attribute__((unused)))
+            my_bool not_used __attribute__((unused)))
 {
   *length= buff->len;
   return (uchar*) buff->user;
@@ -357,7 +357,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
       USER_CONN *uc=(struct user_conn *)
         my_hash_element(&hash_user_connections, idx);
       if (get_them)
-	get_mqh(uc->user,uc->host,uc);
+  get_mqh(uc->user,uc->host,uc);
       uc->questions=0;
       uc->updates=0;
       uc->conn_per_hour=0;
@@ -413,9 +413,9 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
                cs->csname);
       return true;
-    }    
+    }
     thd->variables.character_set_results=
-      thd->variables.collation_connection= 
+      thd->variables.collation_connection=
       thd->variables.character_set_client= cs;
   }
   return false;
@@ -494,9 +494,9 @@ static int check_connection(THD *thd)
       }
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
-		       (thd->main_security_ctx.host ?
+           (thd->main_security_ctx.host ?
                         thd->main_security_ctx.host : "unknown host"),
-		       (thd->main_security_ctx.ip ?
+           (thd->main_security_ctx.ip ?
                         thd->main_security_ctx.ip : "unknown ip")));
     if (acl_check_host(thd->main_security_ctx.host, thd->main_security_ctx.ip))
     {
@@ -514,7 +514,7 @@ static int check_connection(THD *thd)
     memset(&net->vio->remote, 0, sizeof(net->vio->remote));
   }
   vio_keepalive(net->vio, TRUE);
-  
+
   if (thd->packet.alloc(thd->variables.net_buffer_length))
     return 1; /* The error is set by alloc(). */
 
@@ -580,10 +580,10 @@ bool login_connection(THD *thd)
   thd->protocol->end_statement();
 
   if (error)
-  {						// Wrong permissions
+  {           // Wrong permissions
 #ifdef _WIN32
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
-      my_sleep(1000);				/* must wait after eof() */
+      my_sleep(1000);       /* must wait after eof() */
 #endif
     statistic_increment(aborted_connects,&LOCK_status);
     DBUG_RETURN(1);
@@ -649,7 +649,7 @@ void prepare_new_connection_state(THD* thd)
   Security_context *sctx= thd->security_ctx;
 
   if (thd->client_capabilities & CLIENT_COMPRESS)
-    thd->net.compress=1;				// Use compression
+    thd->net.compress=1;        // Use compression
 
   /*
     Much of this is duplicated in create_embedded_thd() for the
@@ -685,7 +685,7 @@ void prepare_new_connection_state(THD* thd)
 
   SYNOPSIS
     handle_one_connection()
-    arg		Connection object (THD)
+    arg   Connection object (THD)
 
   IMPLEMENTATION
     This function (normally) does the following:
@@ -775,7 +775,10 @@ void do_handle_one_connection(THD *thd_arg)
 
   for (;;)
   {
-    bool rc;
+	bool rc;
+
+    NET *net= &thd->net;
+    mysql_socket_set_thread_owner(net->vio->mysql_socket);
 
     rc= thd_prepare_connection(thd);
     if (rc)
@@ -785,10 +788,10 @@ void do_handle_one_connection(THD *thd_arg)
     {
       mysql_audit_release(thd);
       if (do_command(thd))
-	break;
+  break;
     }
     end_connection(thd);
-   
+
 end_thread:
     close_connection(thd);
     if (MYSQL_CALLBACK_ELSE(thread_scheduler, end_thread, (thd, 1), 0))

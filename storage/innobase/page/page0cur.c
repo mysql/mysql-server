@@ -1173,7 +1173,7 @@ page_cur_insert_rec_zip_reorg(
 	ulint		pos;
 
 	/* Recompress or reorganize and recompress the page. */
-	if (UNIV_LIKELY(page_zip_compress(page_zip, page, index, mtr))) {
+	if (page_zip_compress(page_zip, page, index, mtr)) {
 		return(rec);
 	}
 

@@ -181,5 +181,4 @@ create index idx2 on worklog5743(a(767));
 drop table worklog5743;
 SET GLOBAL innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=0;
-SET GLOBAL innodb_file_format_max=Antelope;
 SET GLOBAL innodb_large_prefix=0;

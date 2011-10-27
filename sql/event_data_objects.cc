@@ -607,7 +607,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
                                        table, &creation_ctx))
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        Sql_condition::WARN_LEVEL_WARN,
                         ER_EVENT_INVALID_CREATION_CTX,
                         ER(ER_EVENT_INVALID_CREATION_CTX),
                         (const char *) dbname.str,

@@ -6,18 +6,21 @@
 # - no rotation of relay log if heartbeat is less that slave_net_timeout
 # - SHOW STATUS like 'Slave_received_heartbeats' action
 # - SHOW STATUS like 'Slave_heartbeat_period' report
+# - SHOW STATUS like 'Slave_last_heartbeat' check
 
--- source include/have_log_bin.inc
-
-connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-connect (slave,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
-
-connection master;
-reset master;
+--let $rpl_skip_start_slave= 1
+--let $rpl_skip_reset_master_and_slave= 1
+--let $rpl_skip_change_master= 1
+--source include/master-slave.inc
 
 connection slave;
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
+
+#
+# check for null value of the Slave_last_heartbeat variable when the slave is not enabled
+#
+--query_vertical SHOW STATUS LIKE "Slave_last_heartbeat"
 
 ###
 ### Checking the range
@@ -156,6 +159,14 @@ while (!$slave_value)
   let $slave_value= query_get_value("SHOW STATUS like 'Slave_received_heartbeats'", Value, 1);
 }
 --echo A heartbeat has been received by the slave
+
+#
+# check for non-null value of the Slave_last_heartbeat variable when the slave is enabled
+#
+--let $assert_text= Slave_last_heartbeat should not be empty
+--let $assert_cond= \'[SHOW STATUS LIKE "Slave_last_heartbeat", Value, 1]\' != "" 
+--source include/assert.inc  
+
 # cleanup
 
 connection master;
@@ -165,6 +176,4 @@ drop table t1;
 sync_slave_with_master;
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
 
---source include/stop_slave.inc
-
---echo End of tests
+--source include/rpl_end.inc

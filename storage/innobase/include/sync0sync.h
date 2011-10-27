@@ -66,7 +66,6 @@ instrumentation due to their large number of instances. */
 #ifdef UNIV_PFS_MUTEX
 /* Key defines to register InnoDB mutexes with performance schema */
 extern mysql_pfs_key_t	autoinc_mutex_key;
-extern mysql_pfs_key_t	btr_search_enabled_mutex_key;
 extern mysql_pfs_key_t	buffer_block_mutex_key;
 extern mysql_pfs_key_t	buf_pool_mutex_key;
 extern mysql_pfs_key_t	buf_pool_zip_mutex_key;
@@ -115,10 +114,12 @@ extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
 extern mysql_pfs_key_t	lock_sys_wait_mutex_key;
-extern mysql_pfs_key_t	read_view_mutex_key;
+extern mysql_pfs_key_t	trx_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+#ifndef HAVE_ATOMIC_BUILTINS
 extern mysql_pfs_key_t	srv_conc_mutex_key;
+#endif /* !HAVE_ATOMIC_BUILTINS */
 extern mysql_pfs_key_t	event_os_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t	os_mutex_key;
@@ -608,7 +609,7 @@ V
 lock_sys_mutex				Mutex protecting lock_sys_t
 |
 V
-trx_sys->lock				RW-lock protecting trx_sys_t
+trx_sys->mutex				Mutex protecting trx_sys_t
 |
 V
 Threads mutex				Background thread scheduling mutex
@@ -664,10 +665,6 @@ or row lock! */
 #define SYNC_DICT_HEADER	995
 #define SYNC_IBUF_HEADER	914
 #define SYNC_IBUF_PESS_INSERT_MUTEX 912
-#define SYNC_IBUF_MUTEX		910	/* ibuf mutex is really below
-					SYNC_FSP_PAGE: we assign a value this
-					high only to make the program to pass
-					the debug checks */
 /*-------------------------------*/
 #define	SYNC_INDEX_TREE		900
 #define SYNC_TREE_NODE_NEW	892
@@ -683,8 +680,11 @@ or row lock! */
 #define	SYNC_FSP		400
 #define	SYNC_FSP_PAGE		395
 /*------------------------------------- Insert buffer headers */
-/*------------------------------------- ibuf_mutex */
+#define SYNC_IBUF_MUTEX		370	/* ibuf_mutex */
 /*------------------------------------- Insert buffer tree */
+#define SYNC_IBUF_INDEX_TREE	360
+#define SYNC_IBUF_TREE_NODE_NEW	359
+#define SYNC_IBUF_TREE_NODE	358
 #define	SYNC_IBUF_BITMAP_MUTEX	351
 #define	SYNC_IBUF_BITMAP	350
 /*------------------------------------- MySQL query cache mutex */
@@ -694,7 +694,6 @@ or row lock! */
 #define SYNC_LOCK_SYS		299
 #define SYNC_TRX_SYS		298
 #define SYNC_TRX		297
-#define SYNC_READ_VIEW		296
 #define SYNC_THREADS		295
 #define SYNC_REC_LOCK		294
 #define SYNC_TRX_SYS_HEADER	290
@@ -706,7 +705,6 @@ or row lock! */
 #define SYNC_FTS_BG_THREADS	165
 #define SYNC_FTS_OPTIMIZE       164     // FIXME: is this correct number, test
 #define	SYNC_WORK_QUEUE		162
-#define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
 					heap that can be extended to the
 					buffer pool, its logical level is
@@ -719,7 +717,6 @@ or row lock! */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
-#define SYNC_THR_LOCAL		133
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130
 

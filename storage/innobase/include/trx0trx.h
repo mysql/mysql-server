@@ -45,7 +45,7 @@ extern sess_t*	trx_dummy_sess;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
-UNIV_INTERN
+UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
@@ -239,7 +239,7 @@ trx_commit_step(
 
 /**********************************************************************//**
 Prints info about a transaction.
-Caller must hold trx_sys->lock. */
+Caller must hold trx_sys->mutex. */
 UNIV_INTERN
 void
 trx_print_low(
@@ -261,7 +261,7 @@ trx_print_low(
 
 /**********************************************************************//**
 Prints info about a transaction.
-The caller must hold lock_sys->mutex and trx_sys->lock.
+The caller must hold lock_sys->mutex and trx_sys->mutex.
 When possible, use trx_print() instead. */
 UNIV_INTERN
 void
@@ -275,7 +275,7 @@ trx_print_latched(
 
 /**********************************************************************//**
 Prints info about a transaction.
-Acquires and releases lock_sys->mutex and trx_sys->lock. */
+Acquires and releases lock_sys->mutex and trx_sys->mutex. */
 UNIV_INTERN
 void
 trx_print(
@@ -323,7 +323,7 @@ trx_set_dict_operation(
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determines if a transaction is in the given state.
-The caller must hold trx_sys->lock, or it must be the thread
+The caller must hold trx_sys->mutex, or it must be the thread
 that is serving a running transaction.
 A running transaction must be in trx_sys->trx_list.
 @return	TRUE if trx->state == state */
@@ -340,7 +340,7 @@ trx_state_eq(
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
 Asserts that a transaction has been started.
-The caller must hold trx_sys->lock.
+The caller must hold trx_sys->mutex.
 @return TRUE if started */
 UNIV_INTERN
 ibool
@@ -531,15 +531,15 @@ so without holding any mutex. The following are exceptions to this:
 
 * trx_rollback_resurrected() may access resurrected (connectionless)
 transactions while the system is already processing new user
-transactions. The trx_sys->lock prevents a race condition between it
+transactions. The trx_sys->mutex prevents a race condition between it
 and lock_trx_release_locks() [invoked by trx_commit()].
 
 * trx_print_low() may access transactions not associated with the current
-thread. The caller must be holding trx_sys->lock and lock_sys->mutex.
+thread. The caller must be holding trx_sys->mutex and lock_sys->mutex.
 
 * When a transaction handle is in the trx_sys->mysql_trx_list or
 trx_sys->trx_list, some of its fields must not be modified without
-holding trx_sys->lock exclusively.
+holding trx_sys->mutex exclusively.
 
 * The locking code (in particular, lock_deadlock_recursive() and
 lock_rec_convert_impl_to_expl()) will access transactions associated
@@ -564,7 +564,7 @@ struct trx_struct{
 					and ACTIVE->PREPARED->COMMITTED
 					are possible when trx->in_trx_list.
 					The transition ACTIVE->PREPARED is
-					protected by trx_sys->lock.
+					protected by trx_sys->mutex.
 					The transitions ACTIVE->COMMITTED
 					and PREPARED->COMMITTED are protected
 					by lock_sys->mutex and trx->mutex.
@@ -572,7 +572,7 @@ struct trx_struct{
 					When trx->in_mysql_trx_list
 					but not trx->in_trx_list, only
 					the transition NOT_STARTED->ACTIVE
-					is possible, under trx_sys->lock.
+					is possible, under trx_sys->mutex.
 
 					Transitions to ACTIVE or NOT_STARTED
 					occur when !trx->in_trx_list. */
@@ -582,7 +582,7 @@ struct trx_struct{
 					or both */
 	ulint		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back,
-					protected by trx_sys->lock when
+					protected by trx_sys->mutex when
 					trx->in_trx_list holds */
 
 	/* These fields are not protected by any mutex. */
@@ -669,7 +669,7 @@ struct trx_struct{
 					max trx id shortly before the
 					transaction is moved to
 					COMMITTED_IN_MEMORY state.
-					Protected by trx_sys_t::lock
+					Protected by trx_sys_t::mutex
 					when trx->in_trx_list. Initially
 					set to IB_ULONGLONG_MAX. */
 
@@ -706,13 +706,13 @@ struct trx_struct{
 	/*------------------------------*/
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/*!< list of transactions;
-					protected by trx_sys->lock */
+					protected by trx_sys->mutex */
 #ifdef UNIV_DEBUG
 	ibool		in_trx_list;	/*!< TRUE if in trx_sys->trx_list */
 #endif /* UNIV_DEBUG */
 	UT_LIST_NODE_T(trx_t)
 			mysql_trx_list;	/*!< list of transactions created for
-					MySQL; protected by trx_sys->lock */
+					MySQL; protected by trx_sys->mutex */
 #ifdef UNIV_DEBUG
 	ibool		in_mysql_trx_list;
 					/*!< TRUE if in
@@ -889,6 +889,24 @@ struct commit_node_struct{
 #define trx_mutex_exit(t) do {			\
 	mutex_exit(&t->mutex);			\
 } while (0)
+
+/** @brief The latch protecting the adaptive search system
+
+This latch protects the
+(1) hash index;
+(2) columns of a record to which we have a pointer in the hash index;
+
+but does NOT protect:
+
+(3) next record offset field in a record;
+(4) next or previous records on the same page.
+
+Bear in mind (3) and (4) when using the hash index.
+*/
+extern rw_lock_t*	btr_search_latch_temp;
+
+/** The latch protecting the adaptive search system */
+#define btr_search_latch	(*btr_search_latch_temp)
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

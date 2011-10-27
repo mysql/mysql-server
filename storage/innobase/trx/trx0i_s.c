@@ -174,7 +174,7 @@ struct trx_i_s_cache_struct {
 	ha_storage_t*	storage;	/*!< storage for external volatile
 					data that may become unavailable
 					when we release
-					lock_sys->mutex or trx_sys->lock */
+					lock_sys->mutex or trx_sys->mutex */
 	ulint		mem_allocd;	/*!< the amount of memory
 					allocated with mem_alloc*() */
 	ibool		is_truncated;	/*!< this is TRUE if the memory
@@ -1281,9 +1281,7 @@ fetch_data_into_cache(
 	i_s_locks_row_t*	requested_lock_row;
 
 	ut_ad(lock_mutex_own());
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	trx_i_s_cache_clear(cache);
 
@@ -1347,11 +1345,11 @@ trx_i_s_possibly_fetch_data_into_cache(
 
 	lock_mutex_enter();
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->mutex);
 
 	fetch_data_into_cache(cache);
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->mutex);
 
 	lock_mutex_exit();
 

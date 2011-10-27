@@ -16,27 +16,31 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <pfs_global.h>
+#include <string.h>
 
 bool pfs_initialized= false;
 
 bool stub_alloc_always_fails= true;
 int stub_alloc_fails_after_count= 0;
 
-void *pfs_malloc(size_t, myf)
+void *pfs_malloc(size_t size, myf)
 {
-  static char garbage[100];
-
   if (stub_alloc_always_fails)
     return NULL;
 
   if (--stub_alloc_fails_after_count <= 0)
     return NULL;
 
-  return garbage;
+  void *ptr= malloc(size);
+  if (ptr != NULL)
+    memset(ptr, 0, size);
+  return ptr;
 }
 
-void pfs_free(void *)
+void pfs_free(void *ptr)
 {
+  if (ptr != NULL)
+    free(ptr);
 }
 
 void pfs_print_error(const char *format, ...)

@@ -1461,3 +1461,17 @@ ALTER TABLE t1 FORCE;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
+# Bug#11748057 (formerly known as 34972): ALTER TABLE statement doesn't
+#                                         identify correct column name.
+#
+CREATE TABLE t1 (c1 int unsigned , c2 char(100) not null default '');
+ALTER TABLE t1 ADD c3 char(16) NOT NULL DEFAULT '' AFTER c2,
+MODIFY c2 char(100) NOT NULL DEFAULT '' AFTER c1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(10) unsigned DEFAULT NULL,
+  `c2` char(100) NOT NULL DEFAULT '',
+  `c3` char(16) NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;

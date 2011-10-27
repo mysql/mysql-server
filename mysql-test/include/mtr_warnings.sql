@@ -226,6 +226,12 @@ INSERT INTO global_suppressions VALUES
  */
  (".*If a crash happens this configuration does not guarantee.*"),
 
+ /*
+  In MTS if the user issues a stop slave sql while it is scheduling a group
+  of events, this warning is emitted.
+  */
+ ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

@@ -470,10 +470,19 @@ MYSQL *rpl_connect_master(MYSQL *mysql);
    @param cond     The condition the thread is going to wait for
    @param mutex    The mutex associated with the condition, this must be
                    held before call this function
-   @param msg      The new process message for the thread
+   @param stage    The new process message for the thread
+   @param old_stage The old process message for the thread
+   @param src_function The caller source function name
+   @param src_file The caller source file name
+   @param src_line The caller source line number
 */
-const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
-                           mysql_mutex_t *mutex, const char *msg);
+void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line);
+
+#define THD_ENTER_COND(P1, P2, P3, P4, P5) \
+  thd_enter_cond(P1, P2, P3, P4, P5, __func__, __FILE__, __LINE__)
 
 /**
    Set thread leaving a condition
@@ -482,10 +491,18 @@ const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
    condition.
 
    @param thd      The thread entering the condition, NULL means current thread
-   @param old_msg  The process message, ususally this should be the old process
+   @param stage    The process message, ususally this should be the old process
                    message before calling @f thd_enter_cond
+   @param src_function The caller source function name
+   @param src_file The caller source file name
+   @param src_line The caller source line number
 */
-void thd_exit_cond(MYSQL_THD thd, const char *old_msg);
+void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line);
+
+#define THD_EXIT_COND(P1, P2) \
+  thd_exit_cond(P1, P2, __func__, __FILE__, __LINE__)
 
 /**
    Get the value of user variable as an integer.

@@ -158,7 +158,7 @@ dtype_form_prtype(
 	ulint	charset_coll)	/*!< in: MySQL charset-collation code */
 {
 	ut_a(old_prtype < 256 * 256);
-	ut_a(charset_coll < 256);
+	ut_a(charset_coll <= MAX_CHAR_COLL_NUM);
 
 	return(old_prtype + (charset_coll << 16));
 }

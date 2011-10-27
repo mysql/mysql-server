@@ -20,7 +20,7 @@
 #include "table.h"                              /* TABLE */
 #include "sql_string.h"                         /* String */
 #include "my_decimal.h"                         /* my_decimal */
-#include "sql_error.h"                          /* MYSQL_ERROR */
+#include "sql_error.h"                          /* Sql_condition */
 
 #define DATETIME_DEC                     6
 
@@ -98,8 +98,10 @@ public:
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   /* Field is part of the following keys */
-  key_map	key_start, part_of_key, part_of_key_not_clustered;
-  key_map       part_of_sortkey;
+  key_map key_start;                /* Keys that starts with this field */
+  key_map part_of_key;              /* All keys that includes this field */
+  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
+  key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
     of current binary format of .frm file. We'd like to be able to support 
@@ -264,7 +266,17 @@ public:
   */
   virtual void sql_type(String &str) const =0;
   inline bool is_null(my_ptrdiff_t row_offset= 0)
-  { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : table->null_row; }
+  {
+    /*
+      If the field is NULLable, it has a valid null_ptr pointer, and its
+      NULLity is recorded in the "null_bit" bit of null_ptr[row_offset].
+      Otherwise, it can still be NULL, if it belongs to the inner table of an
+      outer join and the row is NULL-complemented: that case is recorded in
+      TABLE::null_row.
+    */
+    return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) :
+      table->null_row;
+  }
   inline bool is_real_null(my_ptrdiff_t row_offset= 0)
     { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : 0; }
   inline bool is_null_in_record(const uchar *record)
@@ -480,15 +492,15 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
+  bool set_warning(Sql_condition::enum_warning_level, unsigned int code,
                    int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, uint code, 
                             const char *str, uint str_len,
                             timestamp_type ts_type, int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, uint code, 
                             longlong nr, timestamp_type ts_type,
                             int cuted_increment);
-  void set_datetime_warning(MYSQL_ERROR::enum_warning_level, const uint code, 
+  void set_datetime_warning(Sql_condition::enum_warning_level, const uint code, 
                             double nr, timestamp_type ts_type);
   inline bool check_overflow(int op_result)
   {

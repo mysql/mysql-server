@@ -327,6 +327,20 @@ longlong Item_func_not_all::val_int()
 
 bool Item_func_not_all::empty_underlying_subquery()
 {
+  DBUG_ASSERT(subselect || !(test_sum_item || test_sub_item));
+  /*
+   When outer argument is NULL the subquery has not yet been evaluated, we
+   need to evaluate it to get to know whether it returns any rows to return
+   the correct result. 'ANY' subqueries are an exception because the
+   result would be false or null which for a top level item always mean false.
+   The subselect->unit->item->... chain should be used instead of
+   subselect->... to workaround subquery transformation which could make
+   subselect->engine unusable.
+  */
+  if (subselect && 
+      subselect->substype() != Item_subselect::ANY_SUBS &&
+      !subselect->unit->item->is_evaluated())
+    subselect->unit->item->exec();
   return ((test_sum_item && !test_sum_item->any_value()) ||
           (test_sub_item && !test_sub_item->any_value()));
 }
@@ -690,7 +704,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (error > 0)
-    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                                  str->ptr(), str->length(),
                                  warn_type, warn_name);
 
@@ -2720,37 +2734,43 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_func_if::cache_type_info(Item *source)
+{
+  collation.set(source->collation);
+  cached_field_type=  source->field_type();
+  cached_result_type= source->result_type();
+  decimals=           source->decimals;
+  max_length=         source->max_length;
+  maybe_null=         source->maybe_null;
+  unsigned_flag=      source->unsigned_flag;
+}
+
+
 void
 Item_func_if::fix_length_and_dec()
 {
-  maybe_null=args[1]->maybe_null || args[2]->maybe_null;
-  decimals= max(args[1]->decimals, args[2]->decimals);
-  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
-
-  enum Item_result arg1_type=args[1]->result_type();
-  enum Item_result arg2_type=args[2]->result_type();
-  bool null1=args[1]->const_item() && args[1]->null_value;
-  bool null2=args[2]->const_item() && args[2]->null_value;
-
-  if (null1 && args[2]->type() != NULL_ITEM)
+  // Let IF(cond, expr, NULL) and IF(cond, NULL, expr) inherit type from expr.
+  if (args[1]->type() == NULL_ITEM)
   {
-    cached_result_type= arg2_type;
-    collation.set(args[2]->collation);
-    cached_field_type= args[2]->field_type();
-    max_length= args[2]->max_length;
+    cache_type_info(args[2]);
+    maybe_null= true;
+    // If both arguments are NULL, make resulting type BINARY(0).
+    if (args[2]->type() == NULL_ITEM)
+      cached_field_type= MYSQL_TYPE_STRING;
     return;
   }
-
-  if (null2 && args[1]->type() != NULL_ITEM)
+  if (args[2]->type() == NULL_ITEM)
   {
-    cached_result_type= arg1_type;
-    collation.set(args[1]->collation);
-    cached_field_type= args[1]->field_type();
-    max_length= args[1]->max_length;
+    cache_type_info(args[1]);
+    maybe_null= true;
     return;
   }
 
   agg_result_type(&cached_result_type, args + 1, 2);
+  maybe_null= args[1]->maybe_null || args[2]->maybe_null;
+  decimals= max(args[1]->decimals, args[2]->decimals);
+  unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
+
   if (cached_result_type == STRING_RESULT)
   {
     if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
@@ -4360,7 +4380,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 {
   List_iterator_fast<Item> li(item->list);
   while (Item *it= li++)
-    list.push_back(it->copy_andor_structure(thd));
+    list.push_back(it->real_item()->copy_andor_structure(thd));
 }
 
 
@@ -4370,13 +4390,14 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
+  st_select_lex::Resolve_place save_resolve=
+    thd->lex->current_select->resolve_place;
   uchar buff[sizeof(char*)];			// Max local vars in function
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
 
   if (functype() != COND_AND_FUNC)
-    thd->thd_marker.emb_on_expr_nest= NULL;
+    thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4435,7 +4456,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
+  thd->lex->current_select->resolve_place= save_resolve;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
@@ -4888,21 +4909,20 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->const_item())
-  {
-    String* res2= args[1]->val_str((String *)&cmp.value2);
-    const char *ptr2;
+  if (!args[1]->const_item())
+    return OPTIMIZE_NONE;
 
-    if (!res2 || !(ptr2= res2->ptr()))
-      return OPTIMIZE_NONE;
+  String* res2= args[1]->val_str((String *)&cmp.value2);
+  if (!res2)
+    return OPTIMIZE_NONE;
 
-    if (*ptr2 != wild_many)
-    {
-      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
-	return OPTIMIZE_OP;
-    }
-  }
-  return OPTIMIZE_NONE;
+  if (!res2->length()) // Can optimize empty wildcard: column LIKE ''
+    return OPTIMIZE_OP;
+
+  DBUG_ASSERT(res2->ptr());
+  char first= res2->ptr()[0];
+  return (first == wild_many || first == wild_one) ?
+    OPTIMIZE_NONE : OPTIMIZE_OP;
 }
 
 
@@ -5762,33 +5782,7 @@ void Item_equal::merge(Item_equal *item)
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  bool swap;
-  List_iterator<Item_field> it(fields);
-  do
-  {
-    Item_field *item1= it++;
-    Item_field **ref1= it.ref();
-    Item_field *item2;
-
-    swap= FALSE;
-    while ((item2= it++))
-    {
-      Item_field **ref2= it.ref();
-      if (compare(item1, item2, arg) < 0)
-      {
-        Item_field *item= *ref1;
-        *ref1= *ref2;
-        *ref2= item;
-        swap= TRUE;
-      }
-      else
-      {
-        item1= item2;
-        ref1= ref2;
-      }
-    }
-    it.rewind();
-  } while (swap);
+  fields.sort((Node_cmp_func)compare, arg);
 }
 
 
@@ -5953,6 +5947,49 @@ void Item_equal::print(String *str, enum_query_type query_type)
     item->print(str, query_type);
   }
   str->append(')');
+}
+
+
+void Item_func_trig_cond::print(String *str, enum_query_type query_type)
+{
+  /*
+    Print:
+    trigcond_if(<property><(optional list of source tables)>, condition, TRUE)
+    which means: if a certain property (<property>) is true, then return
+    the value of <condition>, else return TRUE. If source tables are
+    present, they are the owner of the property.
+  */
+  str->append(func_name());
+  str->append("_if(");
+  switch(trig_type)
+  {
+  case IS_NOT_NULL_COMPL:
+    str->append("is_not_null_compl");
+    break;
+  case FOUND_MATCH:
+    str->append("found_match");
+    break;
+  case OUTER_FIELD_IS_NOT_NULL:
+    str->append("outer_field_is_not_null");
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+  if (trig_tab != NULL)
+  {
+    str->append("(");
+    str->append(trig_tab->table->alias);
+    if (trig_tab->last_inner != trig_tab)
+    {
+      /* case of t1 LEFT JOIN (t2,t3,...): print range of inner tables */
+      str->append("..");
+      str->append(trig_tab->last_inner->table->alias);
+    }
+    str->append(")");
+  }
+  str->append(", ");
+  args[0]->print(str, query_type);
+  str->append(", true)");
 }
 
 

@@ -72,6 +72,9 @@ void init_alloc_root(MEM_ROOT *mem_root, size_t block_size,
   DBUG_VOID_RETURN;
 }
 
+/** This is a no-op unless the build is debug or for Valgrind. */
+#define TRASH_MEM(X) TRASH(((char*)(X) + ((X)->size-(X)->left)), (X)->left)
+
 
 /*
   SYNOPSIS
@@ -120,7 +123,11 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
         {
           /* remove block from the list and free it */
           *prev= mem->next;
-          my_free(mem);
+          {
+            mem->left= mem->size;
+            TRASH_MEM(mem);
+            my_free(mem);
+          }
         }
         else
           prev= &mem->next;
@@ -292,8 +299,6 @@ void *multi_alloc_root(MEM_ROOT *root, ...)
   DBUG_RETURN((void*) start);
 }
 
-#define TRASH_MEM(X) TRASH(((char*)(X) + ((X)->size-(X)->left)), (X)->left)
-
 /* Mark all data in blocks free for reusage */
 
 static inline void mark_blocks_free(MEM_ROOT* root)
@@ -362,13 +367,21 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   {
     old=next; next= next->next ;
     if (old != root->pre_alloc)
+    {
+      old->left= old->size;
+      TRASH_MEM(old);
       my_free(old);
+    }
   }
   for (next=root->free ; next ;)
   {
     old=next; next= next->next;
     if (old != root->pre_alloc)
+    {
+      old->left= old->size;
+      TRASH_MEM(old);
       my_free(old);
+    }
   }
   root->used=root->free=0;
   if (root->pre_alloc)

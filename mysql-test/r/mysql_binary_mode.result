@@ -26,13 +26,11 @@ B`;
 
 # '--exec mysql ...' without --binary-mode option
 # It creates the table with a wrong table name and generates an error.
-ERROR at line 34: ASCII '\0' appeared in the statement, but this is not allowed unless option --binary-mode is enabled and mysql is run in non-interactive mode. Set --binary-mode to 1 if ASCII '\0' is expected. Query: 'INSERT INTO `A
-B` VALUES("A'.
+# (error output was suppressed to make the test case platform agnostic)
 
-# It is not in binary_mode, so table name '0x410D0A42' is translated to
-# '0x410A42' by mysql.
-DROP TABLE `A
-B`;
+# It is not in binary_mode, so table name '0x410D0A42' can be translated to
+# '0x410A42' by mysql depending on the OS - Windows or Unix-like.
+DROP TABLE `TABLE_NAME_MASKED`;
 
 # In binary_mode, table name '0x410D0A42' and string '0x410042' can be
 # handled correctly.
@@ -44,3 +42,7 @@ HEX(c1)
 
 DROP TABLE `A
 B`;
+RESET MASTER;
+include/assert.inc [Table and contents created through mysqltest match 0x610D0A62.]
+include/assert.inc [Table and contents created while replaying binary log without --binary-mode set match 0x61(0D)0A62.]
+include/assert.inc [Table and contents created while replaying binary log with --binary-mode set match 0x610D0A62.]

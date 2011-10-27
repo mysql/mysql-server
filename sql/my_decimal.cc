@@ -40,22 +40,22 @@ int decimal_operation_results(int result)
   case E_DEC_OK:
     break;
   case E_DEC_TRUNCATED:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
 			"", (long)-1);
     break;
   case E_DEC_OVERFLOW:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE),
 			"DECIMAL", "");
     break;
   case E_DEC_DIV_ZERO:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
     break;
   case E_DEC_BAD_NUM:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
 			ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
 			"decimal", "", "", (long)-1);

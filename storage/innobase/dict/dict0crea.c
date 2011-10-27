@@ -61,6 +61,7 @@ dict_create_sys_tables_tuple(
 	dtuple_t*	entry;
 	dfield_t*	dfield;
 	byte*		ptr;
+	ulint		type;
 
 	ut_ad(table);
 	ut_ad(heap);
@@ -87,10 +88,6 @@ dict_create_sys_tables_tuple(
 	/* 4: N_COLS ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 2/*N_COLS*/);
 
-#if DICT_TF_COMPACT != 1
-#error
-#endif
-
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, table->n_def
 			| ((table->flags & DICT_TF_COMPACT) << 31));
@@ -100,16 +97,12 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 3/*TYPE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
-	if (table->flags & ~DICT_TF_COMPACT) {
-		ut_a(table->flags & DICT_TF_COMPACT);
-		ut_a(dict_table_get_format(table) >= UNIV_FORMAT_B);
-		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
-		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
-		ut_a(!(table->flags & ~DICT_TF_BIT_MASK));
-		mach_write_to_4(ptr, table->flags & DICT_TF_BIT_MASK);
-	} else {
-		mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
-	}
+
+	/* Validate the table flags and convert them to what is saved in
+	SYS_TABLES.TYPE.  Table flag values 0 and 1 are both written to
+	SYS_TABLES.TYPE as 1. */
+	type = dict_tf_to_sys_tables_type(table->flags);
+	mach_write_to_4(ptr, type);
 
 	dfield_set_data(dfield, ptr, 4);
 
@@ -243,7 +236,6 @@ dict_build_table_def_step(
 	dict_table_t*	table;
 	dtuple_t*	row;
 	ulint		error;
-	ulint		flags;
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
@@ -298,11 +290,9 @@ dict_build_table_def_step(
 		ut_ad(!dict_table_zip_size(table)
 		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
-		flags = table->flags;
-		ut_a(!(flags & ~DICT_TF_BIT_MASK));
 		error = fil_create_new_single_table_tablespace(
 			space, path_or_name, is_path,
-			flags == DICT_TF_COMPACT ? 0 : flags,
+			dict_tf_to_fsp_flags(table->flags),
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 
@@ -850,7 +840,7 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, mtr);
 
 	btr_free_root(space, zip_size, root_page_no, mtr);
 create:
@@ -1258,6 +1248,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	trx_t*		trx;
 	ulint		error;
 	ibool		success;
+	ibool		srv_file_per_table_backup;
 
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
@@ -1302,6 +1293,13 @@ dict_create_or_check_foreign_constraint_tables(void)
 	'CHAR' (internally, really a VARCHAR). We should have made the type
 	VARBINARY, like in other InnoDB system tables, to get a clean
 	design. */
+
+	srv_file_per_table_backup = (ibool) srv_file_per_table;
+
+	/* We always want SYSTEM tables to be created inside the system
+	tablespace. */
+
+	srv_file_per_table = 0;
 
 	error = que_eval_sql(NULL,
 			     "PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
@@ -1359,6 +1357,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	success = dict_check_sys_foreign_tables_exist();
 	ut_a(success);
+
+	srv_file_per_table = (my_bool) srv_file_per_table_backup;
 
 	return(error);
 }

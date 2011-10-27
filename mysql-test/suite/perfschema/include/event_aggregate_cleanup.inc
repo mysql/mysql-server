@@ -1,18 +1,3 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
 # Tests for the performance schema
 
 # ==========================================
@@ -29,6 +14,35 @@ drop user user2@localhost;
 drop user user3@localhost;
 drop user user4@localhost;
 flush privileges;
+
+drop procedure dump_thread;
+drop procedure dump_one_thread;
+
+drop prepare dump_waits_account;
+drop prepare dump_waits_user;
+drop prepare dump_waits_host;
+drop prepare dump_waits_history;
+drop prepare dump_waits_global;
+
+drop prepare dump_stages_account;
+drop prepare dump_stages_user;
+drop prepare dump_stages_host;
+drop prepare dump_stages_history;
+drop prepare dump_stages_global;
+
+drop prepare dump_statements_account;
+drop prepare dump_statements_user;
+drop prepare dump_statements_host;
+drop prepare dump_statements_history;
+drop prepare dump_statements_global;
+
+drop prepare dump_users;
+drop prepare dump_hosts;
+drop prepare dump_accounts;
+
+truncate table performance_schema.accounts;
+truncate table performance_schema.users;
+truncate table performance_schema.hosts;
 
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors

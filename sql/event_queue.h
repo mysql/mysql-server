@@ -94,8 +94,8 @@ private:
   unlock_data(const char *func, uint line);
 
   void
-  cond_wait(THD *thd, struct timespec *abstime, const char* msg,
-            const char *func, uint line);
+  cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info *stage,
+            const char *src_func, const char *src_file, uint src_line);
 
   void
   find_n_remove_event(LEX_STRING db, LEX_STRING name);

@@ -80,5 +80,31 @@ reset slave;
 source include/check_slave_no_error.inc;
 change master to master_user='root';
 
---let $rpl_only_running_threads= 1
+
+#
+# BUG#11809016 - NO WAY TO DISCOVER AN INSTANCE IS NO LONGER A SLAVE FOLLOWING MYSQL BUG#28796
+#
+
+reset slave;
+--source include/start_slave.inc
+
+--source include/stop_slave.inc
+--let $_slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+--let $_slave_master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
+--let $_slave_master_port= query_get_value(SHOW SLAVE STATUS, Master_Port, 1)
+
+reset slave all;
+--error ER_BAD_SLAVE
+start slave;
+
+--let $_show_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+if ($_show_master_host != No such row)
+{
+  die;
+}
+
+--replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port
+--source include/start_slave.inc
+
 --source include/rpl_end.inc

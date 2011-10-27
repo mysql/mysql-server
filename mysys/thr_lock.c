@@ -400,7 +400,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   mysql_cond_t *cond= &thread_var->suspend;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
-  const char *old_proc_info;
+  PSI_stage_info old_stage;
   DBUG_ENTER("wait_for_lock");
 
   /*
@@ -439,8 +439,9 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_cond=  cond;
   data->cond= cond;
 
-  old_proc_info= proc_info_hook(NULL, "Waiting for table level lock",
-                                __func__, __FILE__, __LINE__);
+  proc_info_hook(NULL, &stage_waiting_for_table_level_lock,
+                 &old_stage,
+                 __func__, __FILE__, __LINE__);
 
   /*
     Since before_lock_wait potentially can create more threads to
@@ -530,7 +531,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_cond=  0;
   mysql_mutex_unlock(&thread_var->mutex);
 
-  proc_info_hook(NULL, old_proc_info, __func__, __FILE__, __LINE__);
+  proc_info_hook(NULL, &old_stage, NULL, __func__, __FILE__, __LINE__);
 
   DBUG_RETURN(result);
 }

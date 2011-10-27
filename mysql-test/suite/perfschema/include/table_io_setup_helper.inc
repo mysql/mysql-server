@@ -1,18 +1,3 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-
 # Performance schema test template
 
 # How to use this script in a test case
@@ -63,6 +48,9 @@ truncate table performance_schema.events_waits_history_long;
 
 # Reset lost counters to a known state
 flush status;
+
+# Make sure there is room to instrument tables from this test.
+flush tables;
 
 # By default, dump table io only for test.
 # A test can overide this

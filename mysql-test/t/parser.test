@@ -776,3 +776,12 @@ drop logfile group ndb_lg1;
 drop tablespace ndb_ts1 engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 drop tablespace ndb_ts1;
+
+#
+# Bug#12546960 - 60993: NAME QUOTED WITH QUOTE INSTEAD OF BACKTICK 
+#                       GIVES NO SYNTAX ERROR
+#
+CREATE TABLE t (id INT PRIMARY KEY);
+--error ER_PARSE_ERROR
+--query ALTER TABLE t RENAME TO `t1';
+DROP TABLE t;

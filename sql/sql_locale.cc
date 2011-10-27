@@ -3492,7 +3492,7 @@ MY_LOCALE *my_locale_by_name(const char *name)
     if (thd)
     {
       // Send a warning to the client
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),
                           name, locale->name);
     }

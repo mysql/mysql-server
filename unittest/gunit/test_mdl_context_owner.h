@@ -25,15 +25,22 @@ public:
   Test_MDL_context_owner()
     : m_current_mutex(NULL)
   {}
-  virtual const char* enter_cond(mysql_cond_t *cond,
-                                 mysql_mutex_t* mutex,
-                                 const char* msg)
+  virtual void enter_cond(mysql_cond_t *cond,
+                          mysql_mutex_t* mutex,
+                          const PSI_stage_info *stage,
+                          PSI_stage_info *old_stage,
+                          const char *src_function,
+                          const char *src_file,
+                          int src_line)
   {
     m_current_mutex= mutex;
-    return NULL;
+    return;
   }
 
-  virtual void exit_cond(const char* old_msg)
+  virtual void exit_cond(const PSI_stage_info *stage,
+                         const char *src_function,
+                         const char *src_file,
+                         int src_line)
   {
     mysql_mutex_unlock(m_current_mutex);
   }

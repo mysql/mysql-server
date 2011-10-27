@@ -1,0 +1,58 @@
+#
+#  2011-08-01  Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_rollback_segments;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are zero or above
+SELECT @@global.innodb_rollback_segments >=0;
+SELECT @@global.innodb_rollback_segments <=128;
+SELECT @@global.innodb_rollback_segments;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_rollback_segments;
+SHOW global variables LIKE 'innodb_rollback_segments';
+SHOW session variables LIKE 'innodb_rollback_segments';
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_rollback_segments';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_rollback_segments';
+
+#
+# show that it's writable
+#
+SET global innodb_rollback_segments=100;
+SELECT @@global.innodb_rollback_segments;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_rollback_segments';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_rollback_segments';
+--error ER_GLOBAL_VARIABLE
+SET session innodb_rollback_segments=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_rollback_segments=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_rollback_segments=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_rollback_segments="foo";
+SET global innodb_rollback_segments=-7;
+SELECT @@global.innodb_rollback_segments;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_rollback_segments';
+
+#
+# cleanup
+#
+
+SET @@global.innodb_rollback_segments = @start_global_value;
+SELECT @@global.innodb_rollback_segments;

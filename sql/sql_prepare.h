@@ -252,7 +252,7 @@ public:
   */
   ulong get_warn_count() const
   {
-    return m_diagnostics_area.get_warning_info()->warn_count();
+    return m_diagnostics_area.warn_count();
   }
 
   /**

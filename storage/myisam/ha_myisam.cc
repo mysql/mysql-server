@@ -1022,6 +1022,18 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 			mi_get_mask_all_keys_active(share->base.keys) :
 			share->state.key_map);
     uint testflag=param.testflag;
+#ifdef HAVE_MMAP
+    bool remap= test(share->file_map);
+    /*
+      mi_repair*() functions family use file I/O even if memory
+      mapping is available.
+
+      Since mixing mmap I/O and file I/O may cause various artifacts,
+      memory mapping must be disabled.
+    */
+    if (remap)
+      mi_munmap_file(file);
+#endif
     if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
 	(local_testflag & T_REP_BY_SORT))
     {
@@ -1053,6 +1065,10 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       error=  mi_repair(&param, file, fixed_name,
 			param.testflag & T_QUICK);
     }
+#ifdef HAVE_MMAP
+    if (remap)
+      mi_dynmap_file(file, file->state->data_file_length);
+#endif
     param.testflag=testflag;
     optimize_done=1;
   }
@@ -1603,6 +1619,8 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   key_part_map keypart_map,
                                   enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(pushed_idx_cond == NULL);
+  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&SSV::ha_read_key_count);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
@@ -2164,7 +2182,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
     pushed index condition and the BLOB field might be part of the
     range evaluation done by the ICP code.
   */
-  const KEY *key= &table->key_info[keyno_arg];
+  const KEY *key= &table_share->key_info[keyno_arg];
 
   for (uint k= 0; k < key->key_parts; ++k)
   {
@@ -2214,7 +2232,8 @@ mysql_declare_plugin(myisam)
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   myisam_sysvars,             /* system variables                */
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

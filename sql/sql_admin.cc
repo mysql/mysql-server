@@ -352,17 +352,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
 
         Diagnostics_area *da= thd->get_stmt_da();
-        Warning_info wi(thd->query_id, false);
-        Warning_info *wi_saved= thd->get_stmt_wi();
+        Warning_info tmp_wi(thd->query_id, false);
 
-        da->set_warning_info(&wi);
+        da->push_warning_info(&tmp_wi);
 
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
           open_error= open_and_lock_tables(thd, table, TRUE, 0);
 
-        da->set_warning_info(wi_saved);
+        da->pop_warning_info();
       }
       else
       {
@@ -480,13 +479,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (!table->table)
     {
       DBUG_PRINT("admin", ("open table failed"));
-      if (thd->get_stmt_wi()->is_empty())
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      if (thd->get_stmt_da()->is_warning_info_empty())
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->get_stmt_da()->is_error() &&
           table_not_corrupt_error(thd->get_stmt_da()->sql_errno()))
@@ -639,8 +638,9 @@ send_result:
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     {
-      Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
-      const MYSQL_ERROR *err;
+      Diagnostics_area::Sql_condition_iterator it=
+        thd->get_stmt_da()->sql_conditions();
+      const Sql_condition *err;
       while ((err= it++))
       {
         protocol->prepare_for_resend();
@@ -653,7 +653,7 @@ send_result:
         if (protocol->write())
           goto err;
       }
-      thd->get_stmt_wi()->clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->clear_warning_info(thd->query_id);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);

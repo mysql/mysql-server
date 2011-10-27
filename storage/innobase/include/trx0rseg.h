@@ -29,6 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "univ.i"
 #include "trx0types.h"
 #include "trx0sys.h"
+#include "ut0bh.h"
 
 /******************************************************************//**
 Gets a rollback segment header.
@@ -121,15 +122,28 @@ UNIV_INTERN
 void
 trx_rseg_mem_free(
 /*==============*/
-	trx_rseg_t*	rseg);		/* in, own: instance to free */
+	trx_rseg_t*	rseg);		/*!< in, own: instance to free */
 
 /*********************************************************************
 Creates a rollback segment. */
 UNIV_INTERN
 trx_rseg_t*
-trx_rseg_create(void);
-/*==================*/
+trx_rseg_create(
+/*============*/
+	ulint	space);			/*!< in: id of UNDO tablespace */
 
+/********************************************************************
+Get the number of unique rollback tablespaces in use except space id 0.
+The last space id will be the sentinel value ULINT_UNDEFINED. The array
+will be sorted on space id. Note: space_ids should have have space for
+TRX_SYS_N_RSEGS + 1 elements.
+@return number of unique rollback tablespaces in use. */
+UNIV_INTERN
+ulint
+trx_rseg_get_n_undo_tablespaces(
+/*============================*/
+	ulint*		space_ids);	/*!< out: array of space ids of
+					UNDO tablespaces */
 /* Number of undo log slots in a rollback segment file copy */
 #define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
 

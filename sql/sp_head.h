@@ -25,6 +25,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"                            // Item
+#include "sp_pcontext.h"                        // sp_pcontext
 
 #include <stddef.h>
 
@@ -49,12 +50,9 @@ sp_map_item_type(enum enum_field_types type);
 uint
 sp_get_flags_for_command(LEX *lex);
 
-struct sp_label;
 class sp_instr;
 class sp_instr_opt_meta;
 class sp_instr_jump_if_not;
-struct sp_cond_type;
-struct sp_variable;
 
 /*************************************************************************/
 
@@ -216,15 +214,11 @@ private:
   uint32 unsafe_flags;
 
 public:
-  inline Stored_program_creation_ctx *get_creation_ctx()
-  {
-    return m_creation_ctx;
-  }
+  Stored_program_creation_ctx *get_creation_ctx()
+  { return m_creation_ctx; }
 
-  inline void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
-  {
-    m_creation_ctx= creation_ctx->clone(mem_root);
-  }
+  void set_creation_ctx(Stored_program_creation_ctx *creation_ctx)
+  { m_creation_ctx= creation_ctx->clone(mem_root); }
 
   longlong m_created;
   longlong m_modified;
@@ -320,13 +314,11 @@ public:
   int
   add_instr(sp_instr *instr);
 
-  inline uint
+  uint
   instructions()
-  {
-    return m_instr.elements;
-  }
+  { return m_instr.elements; }
 
-  inline sp_instr *
+  sp_instr *
   last_instruction()
   {
     sp_instr *i;
@@ -354,12 +346,12 @@ public:
 
   /// Put the instruction on the backpatch list, associated with the label.
   int
-  push_backpatch(sp_instr *, struct sp_label *);
+  push_backpatch(sp_instr *, sp_label *);
 
   /// Update all instruction with this label in the backpatch list to
   /// the current position.
   void
-  backpatch(struct sp_label *);
+  backpatch(sp_label *);
 
   /// Start a new cont. backpatch level. If 'i' is NULL, the level is just incr.
   int
@@ -415,7 +407,7 @@ public:
 
   void recursion_level_error(THD *thd);
 
-  inline sp_instr *
+  sp_instr *
   get_instr(uint i)
   {
     sp_instr *ip;
@@ -495,7 +487,7 @@ private:
   DYNAMIC_ARRAY m_instr;	///< The "instructions"
   typedef struct
   {
-    struct sp_label *lab;
+    sp_label *lab;
     sp_instr *instr;
   } bp_t;
   List<bp_t> m_backpatch;	///< Instructions needing backpatching
@@ -581,21 +573,10 @@ public:
   virtual int execute(THD *thd, uint *nextp) = 0;
 
   /**
-    Execute <code>open_and_lock_tables()</code> for this statement.
-    Open and lock the tables used by this statement, as a pre-requisite
-    to execute the core logic of this instruction with
-    <code>exec_core()</code>.
-    @param thd the current thread
-    @param tables the list of tables to open and lock
-    @return zero on success, non zero on failure.
-  */
-  int exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables);
-
-  /**
     Get the continuation destination of this instruction.
     @return the continuation destination
   */
-  virtual uint get_cont_dest();
+  virtual uint get_cont_dest() const;
 
   /*
     Execute core function of instruction after all preparations (e.g.
@@ -696,17 +677,13 @@ public:
   int reset_lex_and_exec_core(THD *thd, uint *nextp, bool open_tables,
                               sp_instr* instr);
 
-  inline uint sql_command() const
-  {
-    return (uint)m_lex->sql_command;
-  }
+  uint sql_command() const
+  { return (uint)m_lex->sql_command; }
 
   void disable_query_cache()
-  {
-    m_lex->safe_to_cache_query= 0;
-  }
-private:
+  { m_lex->safe_to_cache_query= 0; }
 
+private:
   LEX *m_lex;
   /**
     Indicates whenever this sp_lex_keeper instance responsible
@@ -867,7 +844,7 @@ public:
   virtual void set_destination(uint old_dest, uint new_dest)
     = 0;
 
-  virtual uint get_cont_dest();
+  virtual uint get_cont_dest() const;
 
 protected:
 
@@ -1018,15 +995,21 @@ class sp_instr_hpush_jump : public sp_instr_jump
 
 public:
 
-  sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, int htype, uint fp)
-    : sp_instr_jump(ip, ctx), m_type(htype), m_frame(fp)
+  sp_instr_hpush_jump(uint ip,
+                      sp_pcontext *ctx,
+                      sp_handler *handler)
+   :sp_instr_jump(ip, ctx),
+    m_handler(handler),
+    m_opt_hpop(0),
+    m_frame(ctx->current_var_count())
   {
-    m_cond.empty();
+    DBUG_ASSERT(m_handler->condition_values.elements == 0);
   }
 
   virtual ~sp_instr_hpush_jump()
   {
-    m_cond.empty();
+    m_handler->condition_values.empty();
+    m_handler= NULL;
   }
 
   virtual int execute(THD *thd, uint *nextp);
@@ -1041,17 +1024,31 @@ public:
     return m_ip;
   }
 
-  inline void add_condition(struct sp_cond_type *cond)
+  virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
   {
-    m_cond.push_front(cond);
+    DBUG_ASSERT(!m_dest || !m_opt_hpop);
+    if (!m_dest)
+      m_dest= dest;
+    else
+      m_opt_hpop= dest;
   }
 
+  void add_condition(sp_condition_value *condition_value)
+  { m_handler->condition_values.push_back(condition_value); }
+
+  sp_handler *get_handler()
+  { return m_handler; }
+
 private:
+  /// Handler.
+  sp_handler *m_handler;
 
-  int m_type;			///< Handler type
+  /// hpop marking end of handler scope.
+  uint m_opt_hpop;
+
+  // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
+  // debug version only). It's used in print().
   uint m_frame;
-  List<struct sp_cond_type> m_cond;
-
 }; // class sp_instr_hpush_jump : public sp_instr_jump
 
 
@@ -1086,9 +1083,9 @@ class sp_instr_hreturn : public sp_instr_jump
   void operator=(sp_instr_hreturn &);
 
 public:
-
-  sp_instr_hreturn(uint ip, sp_pcontext *ctx, uint fp)
-    : sp_instr_jump(ip, ctx), m_frame(fp)
+  sp_instr_hreturn(uint ip, sp_pcontext *ctx)
+   :sp_instr_jump(ip, ctx),
+    m_frame(ctx->current_var_count())
   {}
 
   virtual ~sp_instr_hreturn()
@@ -1107,9 +1104,9 @@ public:
   virtual uint opt_mark(sp_head *sp, List<sp_instr> *leads);
 
 private:
-
+  // This attribute is needed for SHOW PROCEDURE CODE only (i.e. it's needed in
+  // debug version only). It's used in print().
   uint m_frame;
-
 }; // class sp_instr_hreturn : public sp_instr_jump
 
 
@@ -1243,7 +1240,7 @@ public:
 
   virtual void print(String *str);
 
-  void add_to_varlist(struct sp_variable *var)
+  void add_to_varlist(sp_variable *var)
   {
     m_varlist.push_back(var);
   }
@@ -1251,7 +1248,7 @@ public:
 private:
 
   uint m_cursor;
-  List<struct sp_variable> m_varlist;
+  List<sp_variable> m_varlist;
 
 }; // class sp_instr_cfetch : public sp_instr
 
@@ -1349,6 +1346,8 @@ sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
+
+bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access);
 
 /**
   @} (end of group Stored_Routines)

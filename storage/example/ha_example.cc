@@ -1001,6 +1001,7 @@ mysql_declare_plugin(example)
   0x0001 /* 0.1 */,
   func_status,                                  /* status variables */
   example_system_variables,                     /* system variables */
-  NULL                                          /* config options */
+  NULL,                                         /* config options */
+  0,                                            /* flags */
 }
 mysql_declare_plugin_end;

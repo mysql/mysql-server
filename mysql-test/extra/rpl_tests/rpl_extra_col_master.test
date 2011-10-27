@@ -128,6 +128,7 @@ call mtr.add_suppression("Slave.*Can.t DROP .c7.; check that column.key exists.*
 call mtr.add_suppression("Slave.*Unknown column .c7. in .t15.* Error_code: 1054");
 call mtr.add_suppression("Slave.*Key column .c6. doesn.t exist in table.* Error_code: 1072");
 call mtr.add_suppression("Slave SQL.*Column 2 of table .test.t1.. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --enable_query_log
 
 sync_slave_with_master;

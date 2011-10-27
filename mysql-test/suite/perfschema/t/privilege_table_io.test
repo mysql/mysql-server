@@ -1,18 +1,3 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-
 # Tests for PERFORMANCE_SCHEMA table io
 
 --source include/not_embedded.inc
@@ -34,6 +19,8 @@ optimize table mysql.db;
 
 # Start recording events
 update performance_schema.setup_consumers set enabled='YES';
+update performance_schema.setup_objects set enabled='YES'
+  where object_type='TABLE' and object_schema= 'mysql';
 
 # Code to test
 
@@ -52,3 +39,5 @@ let $schema_to_dump= "test", "mysql";
 # Cleanup
 --source ../include/table_io_cleanup_helper.inc
 
+update performance_schema.setup_objects set enabled='NO'
+  where object_type='TABLE' and object_schema= 'mysql';

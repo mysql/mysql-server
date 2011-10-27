@@ -67,8 +67,7 @@ trx_rseg_header_create(
 				MTR_MEMO_X_LOCK));
 
 	/* Allocate a new file segment for the rollback segment */
-	block = fseg_create(space, 0,
-			    TRX_RSEG + TRX_RSEG_FSEG_HEADER, mtr);
+	block = fseg_create(space, 0, TRX_RSEG + TRX_RSEG_FSEG_HEADER, mtr);
 
 	if (block == NULL) {
 		/* No space left */
@@ -152,7 +151,10 @@ trx_rseg_mem_free(
 		trx_undo_mem_free(undo);
 	}
 
-	trx_sys_set_nth_rseg(trx_sys, rseg->id, NULL);
+	/* const_cast<trx_rseg_t*>() because this function is
+	like a destructor.  */
+
+	*((trx_rseg_t**) trx_sys->rseg_array + rseg->id) = NULL;
 
 	mem_free(rseg);
 }
@@ -193,7 +195,9 @@ trx_rseg_mem_create(
 
 	mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_RSEG);
 
-	trx_sys_set_nth_rseg(trx_sys, id, rseg);
+	/* const_cast<trx_rseg_t*>() because this function is
+	like a constructor.  */
+	*((trx_rseg_t**) trx_sys->rseg_array + rseg->id) = rseg;
 
 	rseg_header = trx_rsegf_get_new(space, zip_size, page_no, mtr);
 
@@ -268,9 +272,7 @@ trx_rseg_create_instance(
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
-		if (page_no == FIL_NULL) {
-			trx_sys_set_nth_rseg(trx_sys, i, NULL);
-		} else {
+		if (page_no != FIL_NULL) {
 			ulint		space;
 			ulint		zip_size;
 			trx_rseg_t*	rseg = NULL;
@@ -285,6 +287,8 @@ trx_rseg_create_instance(
 				i, space, zip_size, page_no, ib_bh, mtr);
 
 			ut_a(rseg->id == i);
+		} else {
+			ut_a(trx_sys->rseg_array[i] == NULL);
 		}
 	}
 }
@@ -294,8 +298,9 @@ Creates a rollback segment.
 @return pointer to new rollback segment if create successful */
 UNIV_INTERN
 trx_rseg_t*
-trx_rseg_create(void)
-/*=================*/
+trx_rseg_create(
+/*============*/
+	ulint		space)		/*!< in: id of UNDO tablespace */
 {
 	mtr_t		mtr;
 	ulint		slot_no;
@@ -304,25 +309,26 @@ trx_rseg_create(void)
 	mtr_start(&mtr);
 
 	/* To obey the latching order, acquire the file space
-	x-latch before the trx_sys->lock. */
-	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), &mtr);
+	x-latch before the trx_sys->mutex. */
+	mtr_x_lock(fil_space_get_latch(space, NULL), &mtr);
 
 	slot_no = trx_sysf_rseg_find_free(&mtr);
 
 	if (slot_no != ULINT_UNDEFINED) {
-		ulint		space;
+		ulint		id;
 		ulint		page_no;
 		ulint		zip_size;
 		trx_sysf_t*	sys_header;
 
 		page_no = trx_rseg_header_create(
-			TRX_SYS_SPACE, 0, ULINT_MAX, slot_no, &mtr);
+			space, 0, ULINT_MAX, slot_no, &mtr);
 
 		ut_a(page_no != FIL_NULL);
 
 		sys_header = trx_sysf_get(&mtr);
 
-		space = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
+		id = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
+		ut_a(id == space);
 
 		zip_size = space ? fil_space_get_zip_size(space) : 0;
 
@@ -350,4 +356,70 @@ trx_rseg_array_init(
 	trx_sys->rseg_history_len = 0;
 
 	trx_rseg_create_instance(sys_header, ib_bh, mtr);
+}
+
+/********************************************************************
+Get the number of unique rollback tablespaces in use except space id 0.
+The last space id will be the sentinel value ULINT_UNDEFINED. The array
+will be sorted on space id. Note: space_ids should have have space for
+TRX_SYS_N_RSEGS + 1 elements.
+@return number of unique rollback tablespaces in use. */
+UNIV_INTERN
+ulint
+trx_rseg_get_n_undo_tablespaces(
+/*============================*/
+	ulint*		space_ids)	/*!< out: array of space ids of
+					UNDO tablespaces */
+{
+	ulint		i;
+	mtr_t		mtr;
+	trx_sysf_t*	sys_header;
+	ulint		n_undo_tablespaces = 0;
+	ulint		space_ids_aux[TRX_SYS_N_RSEGS + 1];
+
+	mtr_start(&mtr);
+
+	sys_header = trx_sysf_get(&mtr);
+
+	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+		ulint	page_no;
+		ulint	space;
+
+		page_no = trx_sysf_rseg_get_page_no(sys_header, i, &mtr);
+
+		if (page_no == FIL_NULL) {
+			continue;
+		}
+
+		space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
+
+		if (space != 0) {
+			ulint	j;
+			ibool	found = FALSE;
+
+			for (j = 0; j < n_undo_tablespaces; ++j) {
+				if (space_ids[j] == space) {
+					found = TRUE;
+					break;
+				}
+			}
+
+			if (!found) {
+				ut_a(n_undo_tablespaces <= i);
+				space_ids[n_undo_tablespaces++] = space;
+			}
+		}
+	}
+
+	mtr_commit(&mtr);
+
+	ut_a(n_undo_tablespaces <= TRX_SYS_N_RSEGS);
+
+	space_ids[n_undo_tablespaces] = ULINT_UNDEFINED;
+
+	if (n_undo_tablespaces > 0) {
+		ut_ulint_sort(space_ids, space_ids_aux, 0, n_undo_tablespaces);
+	}
+
+	return(n_undo_tablespaces);
 }

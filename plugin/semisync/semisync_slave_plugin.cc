@@ -225,6 +225,7 @@ mysql_declare_plugin(semi_sync_slave)
   0x0100 /* 1.0 */,
   semi_sync_slave_status_vars,	/* status variables */
   semi_sync_slave_system_vars,	/* system variables */
-  NULL                        /* config options                  */
+  NULL,                         /* config options */
+  0,                            /* flags */
 }
 mysql_declare_plugin_end;

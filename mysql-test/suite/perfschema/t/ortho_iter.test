@@ -1,18 +1,3 @@
-# Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-
 # Tests for PERFORMANCE_SCHEMA
 # Verify the orthogonality of iterators (table*::rnd_next()),
 # for every table and instruments.
@@ -51,7 +36,7 @@ begin
   declare continue handler for sqlstate '02000'
     set done = 1;
 
-  select (instr_name like "wait/%") into is_wait;
+  select (instr_name like "wait/%") or (instr_name like "idle/%") into is_wait;
   select (instr_name like "stage/%") into is_stage;
   select (instr_name like "statement/%") into is_statement;
 
@@ -154,6 +139,8 @@ call check_instrument("stage/");
 call check_instrument("statement/com/");
 call check_instrument("statement/sql/");
 call check_instrument("statement/");
+call check_instrument("idle/io/socket");
+call check_instrument("idle/");
 
 drop procedure check_instrument;
 

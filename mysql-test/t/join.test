@@ -488,6 +488,7 @@ select t1.*, t2.* from t1 natural join t2;
 select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
 
 # Queries over subselects in the FROM clause
+--sorted_result
 select * from (select * from t1 natural join t2) as t12
               natural join
               (select * from t3 natural join t4) as t34;
@@ -934,3 +935,43 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug #59696 Optimizer fails to move WHERE condition on JOIN column 
+--echo #            when joining with a view
+--echo #
+
+CREATE TABLE t1 (
+  c1 INTEGER NOT NULL
+);
+
+INSERT INTO t1 VALUES (1),(2),(3);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  c1 INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (1,4),(3,5),(2,6);
+
+let $query=
+SELECT t2.pk, t2.c1 FROM t2, t1 
+WHERE t2.pk = t1.c1 AND t2.pk >= 2;
+
+eval EXPLAIN $query;
+eval $query;
+
+# Create a view on one of the tables. The same query plan should
+# be used when joining with this view as with the underlying table.
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+
+let $query=
+SELECT v_t2.pk, v_t2.c1 FROM v_t2, t1 
+WHERE v_t2.pk = t1.c1 AND v_t2.pk >= 2;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW v_t2;
+DROP TABLE t1, t2;

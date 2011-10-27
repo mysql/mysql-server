@@ -1,5 +1,16 @@
 drop table if exists t1, t2;
 #
+# Bug#13007154: Crash in keys_to_use_for_scanning with ORDER BY
+#               and PARTITIONING
+#
+CREATE TABLE t1 (a INT, KEY(a))
+ENGINE = InnoDB
+PARTITION BY KEY (a) PARTITIONS 1;
+SELECT 1 FROM t1 WHERE a > (SELECT LAST_INSERT_ID() FROM t1 LIMIT 0)
+ORDER BY a;
+1
+DROP TABLE t1;
+#
 # Bug#56287: crash when using Partition datetime in sub in query
 #
 CREATE TABLE t1
@@ -29,7 +40,8 @@ DROP TABLE t1;
 # Bug#54747: Deadlock between REORGANIZE PARTITION and
 #            SELECT is not detected
 #
-SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
+SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 SET GLOBAL innodb_thread_concurrency = 1;
 CREATE TABLE t1
 (user_num BIGINT,
@@ -60,6 +72,7 @@ COMMIT;
 # con1, reaping ALTER.
 # Disconnecting con1 and switching to default. Cleaning up.
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
 DROP TABLE t1;
 #
 # Bug#50418: DROP PARTITION does not interact with transactions

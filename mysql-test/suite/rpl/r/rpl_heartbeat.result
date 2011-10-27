@@ -1,6 +1,10 @@
-reset master;
+include/master-slave.inc
+[connection master]
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
+SHOW STATUS LIKE "Slave_last_heartbeat";
+Variable_name	Slave_last_heartbeat
+Value	
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
@@ -57,7 +61,7 @@ show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
 Value	0.500
 A heartbeat has been received by the slave
+include/assert.inc [Slave_last_heartbeat should not be empty]
 drop table t1;
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
-include/stop_slave.inc
-End of tests
+include/rpl_end.inc

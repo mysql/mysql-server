@@ -44,10 +44,8 @@ struct row_setup_objects
   char m_object_name[NAME_LEN];
   /** Length in bytes of @c m_object_name. */
   uint m_object_name_length;
-#if 0
   /** Column ENABLED. */
   bool *m_enabled_ptr;
-#endif
   /** Column TIMED. */
   bool *m_timed_ptr;
 };

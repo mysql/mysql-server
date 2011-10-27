@@ -121,7 +121,7 @@ struct show_table_authors_st show_table_authors[]= {
   { "Benjamin Pflugmann", "",
     "Extended MERGE storage engine to handle INSERT" },
   { "Evgeny Potemkin", "Russia",
-    "Filesort and derived tables optimizations, bugfixes" },
+    "Filesort and derived tables optimizations, various small optimizations"},
   { "Igor Romanenko", "",
     "mysqldump" },
   { "Mikael Ronström", "Stockholm, Sweden",

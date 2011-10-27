@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,12 +87,11 @@ mtr_memo_slot_release(
 			buf_page_release((buf_block_t*)object, type);
 		} else if (type == MTR_MEMO_S_LOCK) {
 			rw_lock_s_unlock((rw_lock_t*)object);
-#ifdef UNIV_DEBUG
 		} else if (type != MTR_MEMO_X_LOCK) {
-			ut_ad(type == MTR_MEMO_MODIFY);
+			ut_ad(type == MTR_MEMO_MODIFY
+			      || type == MTR_MEMO_FREE_CLUST_LEAF);
 			ut_ad(mtr_memo_contains(mtr, object,
 						MTR_MEMO_PAGE_X_FIX));
-#endif /* UNIV_DEBUG */
 		} else {
 			rw_lock_x_unlock((rw_lock_t*)object);
 		}
@@ -313,44 +312,6 @@ mtr_commit(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Releases the latches stored in an mtr memo down to a savepoint.
-NOTE! The mtr must not have made changes to buffer pages after the
-savepoint, as these can be handled only by mtr_commit. */
-UNIV_INTERN
-void
-mtr_rollback_to_savepoint(
-/*======================*/
-	mtr_t*	mtr,		/*!< in: mtr */
-	ulint	savepoint)	/*!< in: savepoint */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_ACTIVE);
-
-	memo = &(mtr->memo);
-
-	offset = dyn_array_get_data_size(memo);
-	ut_ad(offset >= savepoint);
-
-	while (offset > savepoint) {
-		offset -= sizeof(mtr_memo_slot_t);
-
-		slot = dyn_array_get_element(memo, offset);
-
-		ut_ad(slot->type != MTR_MEMO_MODIFY);
-
-		/* We do not call mtr_memo_slot_note_modification()
-		because there MUST be no changes made to the buffer
-		pages after the savepoint */
-		mtr_memo_slot_release(mtr, slot);
-	}
-}
-
 /***************************************************//**
 Releases an object in the memo stack. */
 UNIV_INTERN

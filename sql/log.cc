@@ -239,9 +239,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
   const char *message() const { return m_message; }
 };
 
@@ -249,9 +249,9 @@ bool
 Silence_log_table_errors::handle_condition(THD *,
                                            uint,
                                            const char*,
-                                           MYSQL_ERROR::enum_warning_level,
+                                           Sql_condition::enum_warning_level,
                                            const char* msg,
-                                           MYSQL_ERROR ** cond_hdl)
+                                           Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   strmake(m_message, msg, sizeof(m_message)-1);
