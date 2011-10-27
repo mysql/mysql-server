@@ -7321,7 +7321,11 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
            ((*ref)->fix_fields(thd, ref)))
     return TRUE;
 
-  return Item_direct_ref::fix_fields(thd, reference);
+  if (Item_direct_ref::fix_fields(thd, reference))
+    return TRUE;
+  if (view->table && view->table->maybe_null)
+    maybe_null= TRUE;
+  return FALSE;
 }
 
 /*
