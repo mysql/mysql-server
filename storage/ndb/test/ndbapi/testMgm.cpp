@@ -736,8 +736,8 @@ get_nodeid_of_type(NdbMgmd& mgmd, ndb_mgm_node_type type, int *nodeId)
   int noOfNodes = cs->no_of_nodes;
   int randomnode = myRandom48(noOfNodes);
   ndb_mgm_node_state *ns = cs->node_states + randomnode;
-  assert(ns->node_type == (Uint32)type);
-  assert(ns->node_id);
+  assert((Uint32)ns->node_type == (Uint32)type);
+  assert(ns->node_id != 0);
 
   *nodeId = ns->node_id;
   g_info << "Got node id " << *nodeId << " of type " << type << endl;

@@ -3226,7 +3226,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   req->tableId = Ttableref;
   req->hashValue = TdistrHashValue;
   req->distr_key_indicator = regCachePtr->distributionKeyIndicator;
-  * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
+  req->jamBufferPtr = jamBuffer();
 
   /*-------------------------------------------------------------*/
   /* FOR EFFICIENCY REASONS WE AVOID THE SIGNAL SENDING HERE AND */
@@ -10926,7 +10926,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     req->tableId = tabPtr.i;
     req->hashValue = cachePtr.p->distributionKey;
     req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
-    * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
+    req->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
                    DiGetNodesReq::SignalLength, 0);
     UintR TerrorIndicator = signal->theData[0];
@@ -13343,17 +13343,12 @@ Dbtc::ndbinfo_write_trans(Ndbinfo::Row & row, ApiConnectRecordPtr transPtr)
     return false;
   }
 
-  char transid[64];
-  BaseString::snprintf(transid, sizeof(transid),
-                       "%.8x.%.8x",
-                       transPtr.p->transid[0],
-                       transPtr.p->transid[1]);
-
   row.write_uint32(getOwnNodeId());
   row.write_uint32(instance());   // block instance
   row.write_uint32(transPtr.i);
   row.write_uint32(transPtr.p->ndbapiBlockref);
-  row.write_string(transid);
+  row.write_uint32(transPtr.p->transid[0]);
+  row.write_uint32(transPtr.p->transid[1]);
   row.write_uint32(conState);
   row.write_uint32(transPtr.p->m_flags);
   row.write_uint32(transPtr.p->lqhkeyreqrec);

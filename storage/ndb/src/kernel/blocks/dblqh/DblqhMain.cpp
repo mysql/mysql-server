@@ -23447,12 +23447,8 @@ Dblqh::ndbinfo_write_op(Ndbinfo::Row & row, TcConnectionrecPtr tcPtr)
   row.write_uint32(tcPtr.p->tcBlockref); // tcref
   row.write_uint32(tcPtr.p->applRef);    // apiref
 
-  char transid[64];
-  BaseString::snprintf(transid, sizeof(transid),
-                       "%.8x.%.8x",
-                       tcPtr.p->transid[0],
-                       tcPtr.p->transid[1]);
-  row.write_string(transid);
+  row.write_uint32(tcPtr.p->transid[0]);
+  row.write_uint32(tcPtr.p->transid[1]);
   row.write_uint32(tcPtr.p->tableref);
   row.write_uint32(tcPtr.p->fragmentid);
 

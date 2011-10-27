@@ -2204,8 +2204,8 @@ Ndbcntr::execCREATE_HASH_MAP_CONF(Signal* signal)
   if (conf->senderData == 0)
   {
     jam();
-    c_hashMapId = conf->objectId;
-    c_hashMapVersion = conf->objectVersion;
+    c_objectId = conf->objectId;
+    c_objectVersion = conf->objectVersion;
   }
 
   createSystableLab(signal, 0);
@@ -2274,8 +2274,8 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     {
       jam();
       fg.TS_ExtentSize = Uint32(entry->size);
-      fg.TS_LogfileGroupId = RNIL;
-      fg.TS_LogfileGroupVersion = RNIL;
+      fg.TS_LogfileGroupId = c_objectId;
+      fg.TS_LogfileGroupVersion = c_objectVersion;
     }
 
     SimpleProperties::UnpackStatus s;
@@ -2310,8 +2310,8 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     DictFilegroupInfo::File f; f.init();
     BaseString::snprintf(f.FileName, sizeof(f.FileName), "%s", entry->name);
     f.FileType = entry->type;
-    f.FilegroupId = RNIL;
-    f.FilegroupVersion = RNIL;
+    f.FilegroupId = c_objectId;
+    f.FilegroupVersion = c_objectVersion;
     f.FileSizeHi = Uint32(entry->size >> 32);
     f.FileSizeLo = Uint32(entry->size);
 
@@ -2371,6 +2371,8 @@ Ndbcntr::execCREATE_FILEGROUP_CONF(Signal* signal)
 {
   jamEntry();
   CreateFilegroupConf* conf = (CreateFilegroupConf*)signal->getDataPtr();
+  c_objectId = conf->filegroupId;
+  c_objectVersion = conf->filegroupVersion;
   createDDObjects(signal, conf->senderData + 1);
 }
 
@@ -2433,8 +2435,8 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   //w.add(DictTabInfo::KeyLength, 1);
   w.add(DictTabInfo::TableTypeVal, (Uint32)table.tableType);
   w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
-  w.add(DictTabInfo::HashMapObjectId, c_hashMapId);
-  w.add(DictTabInfo::HashMapVersion, c_hashMapVersion);
+  w.add(DictTabInfo::HashMapObjectId, c_objectId);
+  w.add(DictTabInfo::HashMapVersion, c_objectVersion);
 
   for (unsigned i = 0; i < table.columnCount; i++) {
     const SysColumn& column = table.columnList[i];

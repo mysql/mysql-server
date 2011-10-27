@@ -54,6 +54,11 @@ public class PropertyImpl implements PredicateOperand {
         this.fmd = fmd;
     }
 
+    @Override
+    public String toString() {
+        return fmd.getName();
+    }
+
     public void setComplexParameter() {
         complexParameter = true;
     }

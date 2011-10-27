@@ -174,12 +174,9 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public <T> T find(Class<T> cls, Object key) {
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
-        T instance = (T) factory.newInstance(cls, dictionary);
         ValueHandler keyHandler = domainTypeHandler.createKeyValueHandler(key);
-        ValueHandler instanceHandler = domainTypeHandler.getValueHandler(instance);
         // initialize from the database using the key
-        return (T) initializeFromDatabase(
-                domainTypeHandler, instance, instanceHandler, keyHandler);
+        return initializeFromDatabase(domainTypeHandler, null, null, keyHandler);
     }
 
     /** Initialize fields from the database. The keyHandler must

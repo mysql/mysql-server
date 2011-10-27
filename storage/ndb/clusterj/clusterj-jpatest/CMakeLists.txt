@@ -42,3 +42,6 @@ CREATE_JAR(clusterj-jpatest ${JAVA_SOURCES}
   DEPENDENCIES clusterjpa.jar
   EXTRA_FILES src/main/resources/META-INF
   BROKEN_JAVAC ${BROKEN_JAVAC})
+
+INSTALL(FILES clusterj-jpatest-${MYSQL_CLUSTER_VERSION}.jar
+        DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)

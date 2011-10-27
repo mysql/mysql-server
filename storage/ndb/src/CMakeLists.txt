@@ -64,6 +64,22 @@ IF(HAVE_JDK AND HAVE_JAVA)
   SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/ndbjtie_lib.cpp)
 ENDIF()
 
+#
+# Version
+#
+INCLUDE("${NDB_SOURCE_DIR}/cmake/ndb_get_config_value.cmake")
+NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MAJOR major)
+NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MINOR minor)
+NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_BUILD build)
+SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
+
+#
+# libndbclient.so
+#
 ADD_LIBRARY(ndbclient_so SHARED ${EXTRA_SRC})
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
-SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES OUTPUT_NAME "ndbclient")
+SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+                      OUTPUT_NAME "ndbclient"
+                      SOVERSION ${NDB_SHARED_LIB_VERSION})
+MYSQL_INSTALL_TARGETS(ndbclient_so DESTINATION "${INSTALL_LIBDIR}" COMPONENT Developement)
+
