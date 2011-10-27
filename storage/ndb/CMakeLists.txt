@@ -82,6 +82,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_conflict_trans.cc
   ../../sql/ndb_anyvalue.cc
   ../../sql/ndb_ndbapi_util.cc
+  ../../sql/ndb_binlog_extra_row_info.cc
 )
 
 # Include directories used when building ha_ndbcluster

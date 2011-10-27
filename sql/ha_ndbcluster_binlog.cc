@@ -57,6 +57,7 @@ bool ndb_log_empty_epochs(void);
 
 #include "ndb_dist_priv_util.h"
 #include "ndb_anyvalue.h"
+#include "ndb_binlog_extra_row_info.h"
 
 /*
   Timeout for syncing schema events between
@@ -7587,122 +7588,6 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 ulong opt_server_id_mask = ~0;
 
 #endif
-
-Ndb_binlog_extra_row_info::
-Ndb_binlog_extra_row_info()
-{
-  flags = 0;
-  transactionId = InvalidTransactionId;
-  /* Prepare buffer with extra row info buffer bytes */
-  buff[ EXTRA_ROW_INFO_LEN_OFFSET ] = 0;
-  buff[ EXTRA_ROW_INFO_FORMAT_OFFSET ] = ERIF_NDB;
-}
-
-void
-Ndb_binlog_extra_row_info::
-setFlags(Uint16 _flags)
-{
-  flags = _flags;
-}
-
-void
-Ndb_binlog_extra_row_info::
-setTransactionId(Uint64 _transactionId)
-{
-  assert(_transactionId != InvalidTransactionId);
-  transactionId = _transactionId;
-};
-
-int
-Ndb_binlog_extra_row_info::
-loadFromBuffer(const uchar* extra_row_info)
-{
-  assert(extra_row_info);
-
-  Uint8 length = extra_row_info[ EXTRA_ROW_INFO_LEN_OFFSET ];
-  assert(length >= EXTRA_ROW_INFO_HDR_BYTES);
-  Uint8 payload_length = length - EXTRA_ROW_INFO_HDR_BYTES;
-  Uint8 format = extra_row_info[ EXTRA_ROW_INFO_FORMAT_OFFSET ];
-
-  if (likely(format == ERIF_NDB))
-  {
-    if (likely(payload_length >= FLAGS_SIZE))
-    {
-      const uchar* data = &extra_row_info[ EXTRA_ROW_INFO_HDR_BYTES ];
-      Uint8 nextPos = 0;
-
-      /* Have flags at least */
-      Uint16 netFlags;
-      memcpy(&netFlags, &data[ nextPos ], FLAGS_SIZE);
-      nextPos += FLAGS_SIZE;
-      flags = uint2korr((const char*) &netFlags);
-
-      if (flags & NDB_ERIF_TRANSID)
-      {
-        if (likely((nextPos + TRANSID_SIZE) <= payload_length))
-        {
-          /*
-            Correct length, retrieve transaction id, converting from
-            little endian if necessary.
-          */
-          Uint64 netTransId;
-          memcpy(&netTransId,
-                 &data[ nextPos ],
-                 TRANSID_SIZE);
-          nextPos += TRANSID_SIZE;
-          transactionId = uint8korr((const char*) &netTransId);
-        }
-        else
-        {
-          /*
-             Error - supposed to have transaction id, but
-             buffer too short
-          */
-          return -1;
-        }
-      }
-    }
-  }
-
-  /* We currently ignore other formats of extra binlog info, and
-   * different lengths.
-   */
-
-  return 0;
-}
-
-uchar*
-Ndb_binlog_extra_row_info::generateBuffer()
-{
-  /*
-    Here we write out the buffer in network format,
-    based on the current member settings.
-  */
-  Uint8 nextPos = EXTRA_ROW_INFO_HDR_BYTES;
-
-  if (flags)
-  {
-    /* Write current flags into buff */
-    Uint16 netFlags = uint2korr((const char*) &flags);
-    memcpy(&buff[ nextPos ], &netFlags, FLAGS_SIZE);
-    nextPos += FLAGS_SIZE;
-
-    if (flags & NDB_ERIF_TRANSID)
-    {
-      Uint64 netTransactionId = uint8korr((const char*) &transactionId);
-      memcpy(&buff[ nextPos ], &netTransactionId, TRANSID_SIZE);
-      nextPos += TRANSID_SIZE;
-    }
-
-    assert( nextPos <= MaxLen );
-    /* Set length */
-    assert( buff[ EXTRA_ROW_INFO_FORMAT_OFFSET ] == ERIF_NDB );
-    buff[ EXTRA_ROW_INFO_LEN_OFFSET ] = nextPos;
-
-    return buff;
-  }
-  return 0;
-}
 
 // #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #endif
