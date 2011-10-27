@@ -51,6 +51,8 @@
 #include <ndb_version.h>
 #include "ndb_mi.h"
 #include "ndb_conflict_trans.h"
+#include "ndb_anyvalue.h"
+#include "ndb_binlog_extra_row_info.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -1874,87 +1876,6 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
   } while (++blob_index != blob_index_end);
 
   DBUG_RETURN(res);
-}
-
-/*
-  This routine is shared by injector.  There is no common blobs buffer
-  so the buffer and length are passed by reference.  Injector also
-  passes a record pointer diff.
- */
-int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
-                        uchar*& buffer, uint& buffer_size,
-                        my_ptrdiff_t ptrdiff)
-{
-  DBUG_ENTER("get_ndb_blobs_value");
-
-  // Field has no field number so cannot use TABLE blob_field
-  // Loop twice, first only counting total buffer size
-  for (int loop= 0; loop <= 1; loop++)
-  {
-    uint32 offset= 0;
-    for (uint i= 0; i < table->s->fields; i++)
-    {
-      Field *field= table->field[i];
-      NdbValue value= value_array[i];
-      if (! (field->flags & BLOB_FLAG))
-        continue;
-      if (value.blob == NULL)
-      {
-        DBUG_PRINT("info",("[%u] skipped", i));
-        continue;
-      }
-      Field_blob *field_blob= (Field_blob *)field;
-      NdbBlob *ndb_blob= value.blob;
-      int isNull;
-      if (ndb_blob->getNull(isNull) != 0)
-        ERR_RETURN(ndb_blob->getNdbError());
-      if (isNull == 0) {
-        Uint64 len64= 0;
-        if (ndb_blob->getLength(len64) != 0)
-          ERR_RETURN(ndb_blob->getNdbError());
-        // Align to Uint64
-        uint32 size= Uint32(len64);
-        if (size % 8 != 0)
-          size+= 8 - size % 8;
-        if (loop == 1)
-        {
-          uchar *buf= buffer + offset;
-          uint32 len= 0xffffffff;  // Max uint32
-          if (ndb_blob->readData(buf, len) != 0)
-            ERR_RETURN(ndb_blob->getNdbError());
-          DBUG_PRINT("info", ("[%u] offset: %u  buf: 0x%lx  len=%u  [ptrdiff=%d]",
-                              i, offset, (long) buf, len, (int)ptrdiff));
-          DBUG_ASSERT(len == len64);
-          // Ugly hack assumes only ptr needs to be changed
-          field_blob->set_ptr_offset(ptrdiff, len, buf);
-        }
-        offset+= size;
-      }
-      else if (loop == 1) // undefined or null
-      {
-        // have to set length even in this case
-        uchar *buf= buffer + offset; // or maybe NULL
-        uint32 len= 0;
-	field_blob->set_ptr_offset(ptrdiff, len, buf);
-        DBUG_PRINT("info", ("[%u] isNull=%d", i, isNull));
-      }
-    }
-    if (loop == 0 && offset > buffer_size)
-    {
-      my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));
-      buffer_size= 0;
-      DBUG_PRINT("info", ("allocate blobs buffer size %u", offset));
-      buffer= (uchar*) my_malloc(offset, MYF(MY_WME));
-      if (buffer == NULL)
-      {
-        sql_print_error("ha_ndbcluster::get_ndb_blobs_value: "
-                        "my_malloc(%u) failed", offset);
-        DBUG_RETURN(-1);
-      }
-      buffer_size= offset;
-    }
-  }
-  DBUG_RETURN(0);
 }
 
 
@@ -4372,6 +4293,24 @@ ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
     bitmap_clear_bit(table->read_set, field->field_index);
   DBUG_RETURN(set_auto_inc_val(thd, next_val));
 }
+
+
+class Ndb_tuple_id_range_guard {
+  NDB_SHARE* m_share;
+public:
+  Ndb_tuple_id_range_guard(NDB_SHARE* share) :
+    m_share(share),
+    range(share->tuple_id_range)
+  {
+    pthread_mutex_lock(&m_share->mutex);
+  }
+  ~Ndb_tuple_id_range_guard()
+  {
+    pthread_mutex_unlock(&m_share->mutex);
+  }
+  Ndb::TupleIdRange& range;
+};
+
 
 inline
 int
@@ -12180,137 +12119,6 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
   int res= ha_create_table_from_engine(thd, db_buf, table_name_buf);
   thd->lex= old_lex;
   return res;
-}
-
-/*
-  find all tables in ndb and discover those needed
-*/
-int ndbcluster_find_all_files(THD *thd)
-{
-  Ndb* ndb;
-  char key[FN_REFLEN + 1];
-  NDBDICT *dict;
-  int unhandled, retries= 5, skipped;
-  DBUG_ENTER("ndbcluster_find_all_files");
-
-  if (!(ndb= check_ndb_in_thd(thd)))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
-
-  dict= ndb->getDictionary();
-
-  LINT_INIT(unhandled);
-  LINT_INIT(skipped);
-  do
-  {
-    NdbDictionary::Dictionary::List list;
-    if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
-      ERR_RETURN(dict->getNdbError());
-    unhandled= 0;
-    skipped= 0;
-    retries--;
-    for (uint i= 0 ; i < list.count ; i++)
-    {
-      NDBDICT::List::Element& elmt= list.elements[i];
-      if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
-      {
-        DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
-        continue;
-      }
-      DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
-      if (elmt.state != NDBOBJ::StateOnline &&
-          elmt.state != NDBOBJ::StateBackup &&
-          elmt.state != NDBOBJ::StateBuilding)
-      {
-        sql_print_information("NDB: skipping setup table %s.%s, in state %d",
-                              elmt.database, elmt.name, elmt.state);
-        skipped++;
-        continue;
-      }
-
-      ndb->setDatabaseName(elmt.database);
-      Ndb_table_guard ndbtab_g(dict, elmt.name);
-      const NDBTAB *ndbtab= ndbtab_g.get_table();
-      if (!ndbtab)
-      {
-        if (retries == 0)
-          sql_print_error("NDB: failed to setup table %s.%s, error: %d, %s",
-                          elmt.database, elmt.name,
-                          dict->getNdbError().code,
-                          dict->getNdbError().message);
-        unhandled++;
-        continue;
-      }
-
-      if (ndbtab->getFrmLength() == 0)
-        continue;
-    
-      /* check if database exists */
-      char *end= key +
-        build_table_filename(key, sizeof(key) - 1, elmt.database, "", "", 0);
-      if (my_access(key, F_OK))
-      {
-        /* no such database defined, skip table */
-        continue;
-      }
-      /* finalize construction of path */
-      end+= tablename_to_filename(elmt.name, end,
-                                  (uint)(sizeof(key)-(end-key)));
-      uchar *data= 0, *pack_data= 0;
-      size_t length, pack_length;
-      int discover= 0;
-      if (readfrm(key, &data, &length) ||
-          packfrm(data, length, &pack_data, &pack_length))
-      {
-        discover= 1;
-        sql_print_information("NDB: missing frm for %s.%s, discovering...",
-                              elmt.database, elmt.name);
-      }
-      else if (cmp_frm(ndbtab, pack_data, pack_length))
-      {
-        /* ndb_share reference temporary */
-        NDB_SHARE *share= get_share(key, 0, FALSE);
-        if (share)
-        {
-          DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                                   share->key, share->use_count));
-        }
-        if (!share || get_ndb_share_state(share) != NSS_ALTERED)
-        {
-          discover= 1;
-          sql_print_information("NDB: mismatch in frm for %s.%s, discovering...",
-                                elmt.database, elmt.name);
-        }
-        if (share)
-        {
-          /* ndb_share reference temporary free */
-          DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                   share->key, share->use_count));
-          free_share(&share);
-        }
-      }
-      my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
-      my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
-
-      if (discover)
-      {
-        /* ToDo 4.1 database needs to be created if missing */
-        if (ndb_create_table_from_engine(thd, elmt.database, elmt.name))
-        {
-          /* ToDo 4.1 handle error */
-        }
-      }
-      else
-      {
-        /* set up replication for this table */
-        ndbcluster_create_binlog_setup(thd, ndb, key, (uint)(end-key),
-                                       elmt.database, elmt.name,
-                                       0);
-      }
-    }
-  }
-  while (unhandled && retries);
-
-  DBUG_RETURN(-(skipped + unhandled));
 }
 
 
