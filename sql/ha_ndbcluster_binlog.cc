@@ -1389,29 +1389,6 @@ ndb_binlog_setup(THD *thd)
 #define SCHEMA_SIZE 9u
 #define SCHEMA_SLOCK_SIZE 32u
 
-/*
-  helper function to pack a ndb varchar
-*/
-char *ndb_pack_varchar(const NDBCOL *col, char *buf,
-                       const char *str, int sz)
-{
-  switch (col->getArrayType())
-  {
-    case NDBCOL::ArrayTypeFixed:
-      memcpy(buf, str, sz);
-      break;
-    case NDBCOL::ArrayTypeShortVar:
-      *(uchar*)buf= (uchar)sz;
-      memcpy(buf + 1, str, sz);
-      break;
-    case NDBCOL::ArrayTypeMediumVar:
-      int2store(buf, sz);
-      memcpy(buf + 2, str, sz);
-      break;
-  }
-  return buf;
-}
-
 
 /*
   log query in schema table
