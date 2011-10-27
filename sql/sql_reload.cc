@@ -141,7 +141,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     tmp_write_to_binlog= 0;
     if (mysql_bin_log.is_open())
     {
-      if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+      if (mysql_bin_log.rotate_and_purge(true))
         *write_to_binlog= -1;
     }
   }
