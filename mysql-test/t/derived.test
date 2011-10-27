@@ -978,3 +978,32 @@ DROP TABLE t1, t2;
 
 --echo #
 
+--echo #
+--echo # Bug#13107577: Derived table in a semi-join caused failed assertion. 
+--echo #
+CREATE TABLE t1 (
+  `col_int_key` int(11) NOT NULL,
+  `col_varchar_nokey` varchar(1) NOT NULL
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (8,'m'), (4,'b'), (4,'x'), (7,'g'), (4,'p');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT col_int_key
+FROM t1
+WHERE ( NOT EXISTS (
+  SELECT col_varchar_nokey
+  FROM t1 
+  WHERE ( 7 ) IN (
+      SELECT v1.col_int_key
+      FROM ( v1 JOIN ( SELECT * FROM t1 ) AS d1
+        ON ( d1.col_varchar_nokey = v1.col_varchar_nokey ) )
+    )
+) )
+;
+
+DROP VIEW v1;
+DROP TABLE t1;
+--echo #
+
