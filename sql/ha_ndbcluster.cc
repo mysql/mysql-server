@@ -4294,6 +4294,21 @@ ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
   DBUG_RETURN(set_auto_inc_val(thd, next_val));
 }
 
+
+struct Ndb_tuple_id_range_guard {
+  Ndb_tuple_id_range_guard(NDB_SHARE* _share) :
+    share(_share),
+    range(share->tuple_id_range) {
+    pthread_mutex_lock(&share->mutex);
+  }
+  ~Ndb_tuple_id_range_guard() {
+    pthread_mutex_unlock(&share->mutex);
+  }
+  NDB_SHARE* share;
+  Ndb::TupleIdRange& range;
+};
+
+
 inline
 int
 ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
