@@ -229,7 +229,6 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 --echo # Search for occurrences of slave_master_info in the output from mysqldump
 --let $MYSQLD_DATADIR= `select @@datadir`
 --exec $MYSQL_DUMP mysql slave_master_info slave_relay_log_info > $MYSQLTEST_VARDIR/tmp/accessing_repository.sql
---exec $MYSQL_DUMP mysql > accessing_repository.sql
 --let OUTF=$MYSQLTEST_VARDIR/tmp/accessing_repository.sql
 perl;
   use strict;
