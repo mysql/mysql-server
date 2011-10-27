@@ -1,3 +1,8 @@
+2011-10-27	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug #12884631 62146: TABLES ARE LOST FOR DDL
+
 2011-10-20	The InnoDB Team
 
 	* btr/brt0cur.c:
