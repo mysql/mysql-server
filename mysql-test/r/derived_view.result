@@ -1764,4 +1764,27 @@ x
 set optimizer_switch= @save_optimizer_switch;
 DROP VIEW v3;
 DROP TABLE t1,t2,t3;
+#
+# Bug #874035: view as an inner table of a materialized derived
+#
+CREATE TABLE t2 (a int NOT NULL);
+INSERT INTO t2 VALUES (7), (4);
+CREATE TABLE t1 (b int NOT NULL);
+INSERT INTO t1 VALUES (5), (7);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
+SET SESSION optimizer_switch='derived_merge=off';
+PREPARE st1 FROM
+'SELECT * FROM (SELECT * FROM t2 LEFT JOIN v1 ON t2.a = v1.b) AS t';
+EXECUTE st1;
+a	b
+7	7
+4	NULL
+EXECUTE st1;
+a	b
+7	7
+4	NULL
+DEALLOCATE PREPARE st1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
+SET SESSION optimizer_switch='derived_merge=on';
 set optimizer_switch=@exit_optimizer_switch;
