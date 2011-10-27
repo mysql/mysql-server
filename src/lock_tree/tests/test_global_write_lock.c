@@ -36,14 +36,10 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm,
-                       get_compare_fun_from_db,
-                       toku_malloc, toku_free, toku_realloc);
+    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
     CKERR(r);
     assert(lt);
     init_query();
@@ -106,45 +102,57 @@ static void lt_insert_write_range(int r_expect, char txn, int key_l, int key_r) 
     lt_verify();
 }
 
+static void lt_unlock(TXNID txnid) {
+    r = toku_lt_unlock(lt, txnid); CKERR(r);
+}
+
 static void runtest(void) {
     setup_tree();
     lt_insert_write_range(0, 'a', neg_infinite, infinite);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_read_range(0, 'a', 1, 2);
     lt_insert_write_range(0, 'a', neg_infinite, infinite);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', 1, 2);
     lt_insert_write_range(0, 'a', neg_infinite, infinite);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_read_range(0, 'b', 1, 2);
     lt_insert_write_range(DB_LOCK_NOTGRANTED, 'a', neg_infinite, infinite);
+    lt_unlock('b');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'b', 1, 2);
     lt_insert_write_range(DB_LOCK_NOTGRANTED, 'a', neg_infinite, infinite);
+    lt_unlock('b');
     close_tree();
    
     setup_tree();
     lt_insert_write_range(0, 'a', neg_infinite, infinite);
     lt_insert_write_range(0, 'a', neg_infinite, infinite);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', neg_infinite, infinite);
     lt_insert_write_range(DB_LOCK_NOTGRANTED, 'b', neg_infinite, infinite);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', neg_infinite, infinite);
     lt_insert_read_range(0, 'a', 1, 2);
     lt_insert_read_range(DB_LOCK_NOTGRANTED, 'b', 10, 20);
+    lt_unlock('a');
     close_tree();
 }
 

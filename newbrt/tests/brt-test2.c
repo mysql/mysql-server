@@ -8,13 +8,12 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static void test2 (int memcheck, int limit) {
+static void test2 (int limit) {
     BRT t;
     int r;
     int i;
     CACHETABLE ct;
     char fname[]= __FILE__ "2.brt";
-    toku_memory_check=memcheck;
     if (verbose) printf("%s:%d checking\n", __FILE__, __LINE__);
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -47,13 +46,11 @@ static void test2 (int memcheck, int limit) {
 int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
-//    if (verbose) printf("test2 checking memory\n");
-//    test2(1);
     if (verbose) printf("test2 faster\n");
-    test2(0, 2);
-    test2(0, 27);
-    test2(0, 212);
-    test2(0, 4096);
+    test2(2);
+    test2(27);
+    test2(212);
+    test2(4096);
     
     if (verbose) printf("test1 ok\n");
     return 0;

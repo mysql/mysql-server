@@ -32,7 +32,6 @@ found(ITEMLEN UU(keylen), bytevec key, ITEMLEN UU(vallen), bytevec UU(val), void
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
-    toku_memory_check = 1;
 
     CACHETABLE ct;
     BRT t;

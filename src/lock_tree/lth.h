@@ -12,7 +12,7 @@
   
 */
 
-//Defines BOOL data type.
+//Defines bool data type.
 #include <db.h>
 #include <brttypes.h>
 #include <locktree.h>
@@ -51,20 +51,11 @@ struct __toku_lth {
     uint32_t          num_keys;
     toku_lth_elt    iter_head;
     toku_lth_elt*   iter_curr;
-    BOOL            iter_is_valid;
-    /** The user malloc function */
-    void*         (*malloc) (size_t);
-    /** The user free function */
-    void          (*free)   (void*);
-    /** The user realloc function */
-    void*         (*realloc)(void*, size_t);
+    bool            iter_is_valid;
 };
 
 
-int  toku_lth_create(toku_lth** ptable,
-                     void* (*user_malloc) (size_t),
-                     void  (*user_free)   (void*),
-                     void* (*user_realloc)(void*, size_t));
+int  toku_lth_create(toku_lth** ptable);
 
 toku_lock_tree* toku_lth_find       (toku_lth* table, toku_lock_tree* key);
 

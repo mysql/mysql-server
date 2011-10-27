@@ -36,14 +36,10 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm,
-                       get_compare_fun_from_db,
-                       toku_malloc, toku_free, toku_realloc);
+    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
     CKERR(r);
     assert(lt);
     init_query();
@@ -75,7 +71,7 @@ static DBT* set_to_infty(DBT *dbt, int value) {
 }
 
 static void lt_insert(int r_expect, char txn, int key_l,
-		      int key_r, BOOL read_flag) {
+		      int key_r, bool read_flag) {
     DBT _key_left;
     DBT _key_right;
     DBT* key_left   = &_key_left;
@@ -102,12 +98,12 @@ static void lt_insert(int r_expect, char txn, int key_l,
 
 static void lt_insert_read(int r_expect, char txn, int key_l, int key_r) UU();
 static void lt_insert_read(int r_expect, char txn, int key_l, int key_r)  {
-    lt_insert(r_expect, txn, key_l, key_r, TRUE);
+    lt_insert(r_expect, txn, key_l, key_r, true);
 }
 
 static void lt_insert_write(int r_expect, char txn, int key_l) UU();
 static void lt_insert_write(int r_expect, char txn, int key_l) {
-    lt_insert(r_expect, txn, key_l, 0, FALSE);
+    lt_insert(r_expect, txn, key_l, 0, false);
 }
 
 static void lt_insert_write_range(int r_expect, char txn, int key_l, int key_r) {
@@ -141,30 +137,35 @@ static void runtest(void) {
     lt_insert_write_range(0, 'a', 30, 40);
     lt_insert_write(0, 'a', 25);
     lt_insert_write(0, 'a', 50);
+    lt_unlock('a');
     close_tree();
 
     // no overlaps (reverse)
     setup_tree();
     lt_insert_write_range(0, 'a', 30, 40);
     lt_insert_write_range(0, 'a', 10, 20);
+    lt_unlock('a');
     close_tree();
 
     // overlaps
     setup_tree();
     lt_insert_write_range(0, 'a', 5, 15);
     lt_insert_write_range(0, 'a', 10, 20);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', 5, 15);
     lt_insert_write_range(0, 'a', 30, 40);
     lt_insert_write_range(0, 'a', 10, 20);
+    lt_unlock('a');
     close_tree();
 
     // overlaps (reverse)
     setup_tree();
     lt_insert_write_range(0, 'a', 10, 20);
     lt_insert_write_range(0, 'a', 5, 15);
+    lt_unlock('a');
     close_tree();
 
     // test borderwrite split
@@ -173,6 +174,8 @@ static void runtest(void) {
     lt_insert_write_range(0, 'a', 5, 6);
     lt_insert_write_range(0, 'a', 20, 30);
     lt_insert_write_range(0, 'b', 10, 10);
+    lt_unlock('a');
+    lt_unlock('b');
     close_tree();
 
     // test borderwrite split
@@ -180,38 +183,46 @@ static void runtest(void) {
     lt_insert_write_range(0, 'a', 0, 5);
     lt_insert_write_range(0, 'a', 20, 30);
     lt_insert_write_range(0, 'b', 10, 10);
+    lt_unlock('a');
+    lt_unlock('b');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', 15, 20);
     lt_insert_write_range(0, 'a', 10, 30);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', 10, 30);
     lt_insert_write_range(0, 'a', 15, 20);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'b', 70, 80);
     lt_insert_write_range(0, 'b', 60, 70);
     lt_insert_write_range(0, 'b', 80, 90);
+    lt_unlock('b');
     close_tree();
 
     setup_tree();
     lt_insert_write(0, 'a', 5);
     lt_insert_write_range(0, 'a', 1, 20);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write(0, 'a', 5);
     lt_insert_write(0, 'a', 10);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write(0, 'a', 5);
     lt_insert_write(0, 'a', 10);
     lt_insert_write_range(0, 'a', 1, 20);
+    lt_unlock('a');
     close_tree();
 
 }

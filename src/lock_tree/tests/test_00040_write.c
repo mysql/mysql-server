@@ -36,14 +36,10 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm,
-                       get_compare_fun_from_db,
-                       toku_malloc, toku_free, toku_realloc);
+    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
     CKERR(r);
     assert(lt);
     init_query();
@@ -71,7 +67,7 @@ static DBT* set_to_infty(DBT *dbt, int value) {
 
 
 static void lt_insert(int r_expect, char txn, int key_l,
-		      int key_r, BOOL read_flag) {
+		      int key_r, bool read_flag) {
     DBT _key_left;
     DBT _key_right;
     DBT* key_left   = &_key_left;
@@ -96,11 +92,11 @@ static void lt_insert(int r_expect, char txn, int key_l,
 }
 
 static void lt_insert_read(int r_expect, char txn, int key_l, int key_r) {
-    lt_insert(r_expect, txn, key_l, key_r, TRUE);
+    lt_insert(r_expect, txn, key_l, key_r, true);
 }
 
 static void lt_insert_write(int r_expect, char txn, int key_l) {
-    lt_insert(r_expect, txn, key_l, 0, FALSE);
+    lt_insert(r_expect, txn, key_l, 0, false);
 }
 
 
@@ -120,37 +116,45 @@ static void runtest(void) {
     toku_lt_verify(lt, NULL);
     lt_insert_write(0, 'b', 10);
     toku_lt_verify(lt, NULL);
+    lt_unlock('a');
+    lt_unlock('b');
     close_tree();
     
     /* ********************* */
     setup_tree();
     lt_insert_write(0, 'a', 1);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
     lt_insert_write(0, 'a', 2);
     lt_insert_write(0, 'a', 1);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
     lt_insert_write(0, 'a', 1);
     lt_insert_write(0, 'a', 2);
     lt_insert_write(0, 'a', 1);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
     lt_insert_write(0, 'a', 1);
     lt_insert_read (0, 'a', 1, 1);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
     lt_insert_write(0, 'a', 1);
     lt_insert_read (DB_LOCK_NOTGRANTED, 'b', 1, 1);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
     lt_insert_read (0, 'b', 1, 1);
     lt_insert_write(DB_LOCK_NOTGRANTED, 'a', 1);
+    lt_unlock('b');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -160,6 +164,7 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 4);
     lt_insert_write(0, 'a', 5);
     lt_insert_read (DB_LOCK_NOTGRANTED, 'b', 2, 4);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -169,6 +174,7 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 4);
     lt_insert_write(0, 'a', 5);
     lt_insert_write (DB_LOCK_NOTGRANTED, 'b', 2);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -177,6 +183,8 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 4);
     lt_insert_write(0, 'a', 5);
     lt_insert_read (0, 'b', 3, 3);
+    lt_unlock('a');
+    lt_unlock('b');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -185,6 +193,8 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 4);
     lt_insert_write(0, 'a', 5);
     lt_insert_read (0, 'b', 3, 3);
+    lt_unlock('a');
+    lt_unlock('b');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -198,6 +208,8 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 8);
     lt_insert_write(0, 'a', 9);
     lt_insert_read (DB_LOCK_NOTGRANTED, 'a', 3, 7);
+    lt_unlock('a');
+    lt_unlock('b');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -211,6 +223,7 @@ static void runtest(void) {
     lt_insert_write(0, 'b', 8);
     lt_insert_write(0, 'b', 9);
     lt_insert_read (DB_LOCK_NOTGRANTED, 'a', 3, 7);
+    lt_unlock('b');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -219,6 +232,7 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 3);
     lt_insert_write(0, 'a', 4);
     lt_insert_read (0, 'a', 3, 7);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -227,6 +241,7 @@ static void runtest(void) {
     lt_insert_write(0, 'b', 3);
     lt_insert_write(0, 'b', 4);
     lt_insert_read (DB_LOCK_NOTGRANTED, 'a', 3, 7);
+    lt_unlock('b');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -235,6 +250,7 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 4);
     lt_insert_write(0, 'a', 5);
     lt_insert_write(0, 'a', 3);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -243,6 +259,8 @@ static void runtest(void) {
     lt_insert_write(0, 'b', 4);
     lt_insert_write(0, 'b', 5);
     lt_insert_write(0, 'a', 3);
+    lt_unlock('a');
+    lt_unlock('b');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -256,6 +274,7 @@ static void runtest(void) {
     lt_insert_read (DB_LOCK_NOTGRANTED, 'a', 3, 3);
     lt_unlock('b');
     lt_insert_read (0, 'a', 3, 3);
+    lt_unlock('a');
     close_tree();
     /* ********************* */
     setup_tree();
@@ -263,6 +282,7 @@ static void runtest(void) {
     lt_insert_write(0, 'a', 3);
     lt_insert_write(0, 'b', 2);
     lt_unlock('b');
+    lt_unlock('a');
     close_tree();
     /* ********************* */
 }

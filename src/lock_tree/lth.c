@@ -10,6 +10,7 @@
 */
 
 #include <toku_portability.h>
+#include "memory.h"
 #include "lth.h"
 #include <toku_assert.h>
 #include <errno.h>
@@ -27,23 +28,17 @@ static inline void toku__invalidate_scan(toku_lth* lth) {
     lth->iter_is_valid = FALSE;
 }
 
-int toku_lth_create(toku_lth** plth,
-                    void* (*user_malloc) (size_t),
-                    void  (*user_free)   (void*),
-                    void* (*user_realloc)(void*, size_t)) {
+int toku_lth_create(toku_lth** plth) {
     int r = ENOSYS;
-    assert(plth && user_malloc && user_free && user_realloc);
+    assert(plth);
     toku_lth* tmp = NULL;
-    tmp = (toku_lth*)user_malloc(sizeof(*tmp));
+    tmp = (toku_lth*) toku_malloc(sizeof(*tmp));
     if (!tmp) { r = ENOMEM; goto cleanup; }
 
     memset(tmp, 0, sizeof(*tmp));
-    tmp->malloc      = user_malloc;
-    tmp->free        = user_free;
-    tmp->realloc     = user_realloc;
     tmp->num_buckets = __toku_lth_init_size;
     tmp->buckets     = (toku_lth_elt*)
-                          tmp->malloc(tmp->num_buckets * sizeof(*tmp->buckets));
+                          toku_malloc(tmp->num_buckets * sizeof(*tmp->buckets));
     if (!tmp->buckets) { r = ENOMEM; goto cleanup; }
     memset(tmp->buckets, 0, tmp->num_buckets * sizeof(*tmp->buckets));
     toku__invalidate_scan(tmp);
@@ -55,8 +50,8 @@ int toku_lth_create(toku_lth** plth,
 cleanup:
     if (r != 0) {
         if (tmp) {
-            if (tmp->buckets) { user_free(tmp->buckets); }
-            user_free(tmp);
+            if (tmp->buckets) { toku_free(tmp->buckets); }
+            toku_free(tmp);
         }
     }
     return r;
@@ -86,7 +81,7 @@ static inline toku_lth_elt* toku__lth_next(toku_lth* lth) {
     assert(lth->iter_is_valid);
 
     lth->iter_curr     = lth->iter_curr->next_in_iteration;
-    lth->iter_is_valid = (BOOL)(lth->iter_curr != &lth->iter_head);
+    lth->iter_is_valid = (bool)(lth->iter_curr != &lth->iter_head);
     return lth->iter_curr;
 }
 
@@ -119,7 +114,7 @@ void toku_lth_delete(toku_lth* lth, toku_lock_tree* key) {
     current->prev_in_iteration->next_in_iteration = current->next_in_iteration;
     current->next_in_iteration->prev_in_iteration = current->prev_in_iteration;
     prev->next_in_bucket = current->next_in_bucket;
-    lth->free(current);
+    toku_free(current);
     lth->num_keys--;
     return;
 }
@@ -133,7 +128,7 @@ int toku_lth_insert(toku_lth* lth, toku_lock_tree* key) {
     uint32_t index = toku__lth_hash(lth, key);
 
     /* Allocate a new one. */
-    toku_lth_elt* element = (toku_lth_elt*)lth->malloc(sizeof(*element));
+    toku_lth_elt* element = (toku_lth_elt*) toku_malloc(sizeof(*element));
     if (!element) { r = ENOMEM; goto cleanup; }
     memset(element, 0, sizeof(*element));
     element->value.hash_key    = key;
@@ -162,9 +157,9 @@ void toku_lth_close(toku_lth* lth) {
     while (next != head) {
         element = next;
         next    = toku__lth_next(lth);
-        lth->free(element);
+        toku_free(element);
     }
 
-    lth->free(lth->buckets);
-    lth->free(lth);
+    toku_free(lth->buckets);
+    toku_free(lth);
 }

@@ -10,6 +10,7 @@
 */
 
 #include <toku_portability.h>
+#include "memory.h"
 #include "rth.h"
 #include <toku_assert.h>
 #include <errno.h>
@@ -27,23 +28,17 @@ static inline void toku__invalidate_scan(toku_rth* rth) {
     rth->iter_is_valid = FALSE;
 }
 
-int toku_rth_create(toku_rth** prth,
-                    void* (*user_malloc) (size_t),
-                    void  (*user_free)   (void*),
-                    void* (*user_realloc)(void*, size_t)) {
+int toku_rth_create(toku_rth** prth) {
     int r = ENOSYS;
-    assert(prth && user_malloc && user_free && user_realloc);
+    assert(prth);
     toku_rth* tmp = NULL;
-    tmp = (toku_rth*)user_malloc(sizeof(*tmp));
+    tmp = (toku_rth*) toku_malloc(sizeof(*tmp));
     if (!tmp) { r = ENOMEM; goto cleanup; }
 
     memset(tmp, 0, sizeof(*tmp));
-    tmp->malloc      = user_malloc;
-    tmp->free        = user_free;
-    tmp->realloc     = user_realloc;
     tmp->num_buckets = __toku_rth_init_size;
     tmp->buckets     = (toku_rth_elt*)
-                          tmp->malloc(tmp->num_buckets * sizeof(*tmp->buckets));
+                          toku_malloc(tmp->num_buckets * sizeof(*tmp->buckets));
     if (!tmp->buckets) { r = ENOMEM; goto cleanup; }
     memset(tmp->buckets, 0, tmp->num_buckets * sizeof(*tmp->buckets));
     toku__invalidate_scan(tmp);
@@ -55,8 +50,8 @@ int toku_rth_create(toku_rth** prth,
 cleanup:
     if (r != 0) {
         if (tmp) {
-            if (tmp->buckets) { user_free(tmp->buckets); }
-            user_free(tmp);
+            if (tmp->buckets) { toku_free(tmp->buckets); }
+            toku_free(tmp);
         }
     }
     return r;
@@ -86,7 +81,7 @@ static inline toku_rth_elt* toku__rth_next(toku_rth* rth) {
     assert(rth->iter_is_valid);
 
     rth->iter_curr     = rth->iter_curr->next_in_iteration;
-    rth->iter_is_valid = (BOOL)(rth->iter_curr != &rth->iter_head);
+    rth->iter_is_valid = (rth->iter_curr != &rth->iter_head);
     return rth->iter_curr;
 }
 
@@ -119,7 +114,7 @@ void toku_rth_delete(toku_rth* rth, TXNID key) {
     current->prev_in_iteration->next_in_iteration = current->next_in_iteration;
     current->next_in_iteration->prev_in_iteration = current->prev_in_iteration;
     prev->next_in_bucket = current->next_in_bucket;
-    rth->free(current);
+    toku_free(current);
     rth->num_keys--;
     return;
 }
@@ -133,7 +128,7 @@ int toku_rth_insert(toku_rth* rth, TXNID key) {
     uint32_t index = toku__rth_hash(rth, key);
 
     /* Allocate a new one. */
-    toku_rth_elt* element = (toku_rth_elt*)rth->malloc(sizeof(*element));
+    toku_rth_elt* element = (toku_rth_elt*) toku_malloc(sizeof(*element));
     if (!element) { r = ENOMEM; goto cleanup; }
     memset(element, 0, sizeof(*element));
     element->value.hash_key    = key;
@@ -151,7 +146,7 @@ cleanup:
     return r;    
 }
 
-static inline void toku__rth_clear(toku_rth* rth, BOOL clean) {
+static inline void toku__rth_clear(toku_rth* rth, bool clean) {
     assert(rth);
 
     toku_rth_elt* element;
@@ -162,7 +157,7 @@ static inline void toku__rth_clear(toku_rth* rth, BOOL clean) {
     while (next != head) {
         element = next;
         next    = toku__rth_next(rth);
-        rth->free(element);
+        toku_free(element);
     }
     /* If clean is true, then we want to restore it to 'just created' status.
        If we are closing the tree, we don't need to do that restoration. */
@@ -182,16 +177,16 @@ void toku_rth_close(toku_rth* rth) {
     assert(rth);
 
     toku__rth_clear(rth, FALSE);
-    rth->free(rth->buckets);
-    rth->free(rth);
+    toku_free(rth->buckets);
+    toku_free(rth);
 }
 
-BOOL toku_rth_is_empty(toku_rth* rth) {
+bool toku_rth_is_empty(toku_rth* rth) {
     assert(rth);
     /* Verify consistency. */
     assert((rth->num_keys == 0) ==
            (rth->iter_head.next_in_iteration == &rth->iter_head));
     assert((rth->num_keys == 0) ==
            (rth->iter_head.prev_in_iteration == &rth->iter_head));
-    return (BOOL)(rth->num_keys == 0);
+    return (rth->num_keys == 0);
 }

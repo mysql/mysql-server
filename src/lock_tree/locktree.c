@@ -9,6 +9,7 @@
 */
   
 #include <toku_portability.h>
+#include "memory.h"
 #include <locktree.h>
 #include <ydb-internal.h>
 #include <brt-internal.h>
@@ -78,7 +79,8 @@ toku_ltm_unlock_mutex(toku_ltm *ltm) {
     int r = toku_pthread_mutex_unlock(toku_ltm_get_mutex(ltm)); assert_zero(r);
 }
 
-char* toku_lt_strerror(TOKU_LT_ERROR r) {
+char* 
+toku_lt_strerror(TOKU_LT_ERROR r) {
     if (r >= 0) 
         return strerror(r);
     if (r == TOKU_LT_INCONSISTENT) {
@@ -87,7 +89,8 @@ char* toku_lt_strerror(TOKU_LT_ERROR r) {
     return "Unknown error in locking data structures.\n";
 }
 /* Compare two payloads assuming that at least one of them is infinite */ 
-static inline int infinite_compare(const DBT* a, const DBT* b) {
+static inline int 
+infinite_compare(const DBT* a, const DBT* b) {
     if (a == b)
         return  0;
     if (a == toku_lt_infinity)          
@@ -100,8 +103,9 @@ static inline int infinite_compare(const DBT* a, const DBT* b) {
     return  1;
 }
 
-static inline BOOL lt_is_infinite(const DBT* p) {
-    BOOL r;
+static inline bool 
+lt_is_infinite(const DBT* p) {
+    bool r;
     if (p == toku_lt_infinity || p == toku_lt_neg_infinity) {
         DBT* dbt = (DBT*)p;
         assert(!dbt->data && !dbt->size);
@@ -113,34 +117,40 @@ static inline BOOL lt_is_infinite(const DBT* p) {
 
 /* Verifies that NULL data and size are consistent.
    i.e. The size is 0 if and only if the data is NULL. */
-static inline int lt_verify_null_key(const DBT* key) {
+static inline int 
+lt_verify_null_key(const DBT* key) {
     if (key && key->size && !key->data) 
         return EINVAL;
     return 0;
 }
 
-static inline DBT* recreate_DBT(DBT* dbt, void* payload, uint32_t length) {
+static inline DBT* 
+recreate_DBT(DBT* dbt, void* payload, uint32_t length) {
     memset(dbt, 0, sizeof(DBT));
     dbt->data = payload;
     dbt->size = length;
     return dbt;
 }
 
-static inline int lt_txn_cmp(const TXNID a, const TXNID b) {
+static inline int 
+lt_txn_cmp(const TXNID a, const TXNID b) {
     return a < b ? -1 : (a != b);
 }
 
-static inline void toku_ltm_remove_lt(toku_ltm* mgr, toku_lock_tree* lt) {
+static inline void 
+toku_ltm_remove_lt(toku_ltm* mgr, toku_lock_tree* lt) {
     assert(mgr && lt);
     toku_lth_delete(mgr->lth, lt);
 }
 
-static inline int toku_ltm_add_lt(toku_ltm* mgr, toku_lock_tree* lt) {
+static inline int 
+toku_ltm_add_lt(toku_ltm* mgr, toku_lock_tree* lt) {
     assert(mgr && lt);
     return toku_lth_insert(mgr->lth, lt);
 }
 
-int toku_lt_point_cmp(const toku_point* x, const toku_point* y) {
+int 
+toku_lt_point_cmp(const toku_point* x, const toku_point* y) {
     DBT point_1;
     DBT point_2;
 
@@ -164,23 +174,21 @@ int toku_lt_point_cmp(const toku_point* x, const toku_point* y) {
 }
 
 /* Lock tree manager functions begin here */
-int toku_ltm_create(toku_ltm** pmgr,
-                    uint32_t max_locks,
-                    uint64_t max_lock_memory,
-                    int   (*panic)(DB*, int), 
-                    toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                    void* (*user_malloc) (size_t),
-                    void  (*user_free)   (void*),
-                    void* (*user_realloc)(void*, size_t)) {
+int 
+toku_ltm_create(toku_ltm** pmgr,
+                uint32_t max_locks,
+                uint64_t max_lock_memory,
+                int   (*panic)(DB*, int), 
+                toku_dbt_cmp (*get_compare_fun_from_db)(DB*)) {
     int r = ENOSYS;
     toku_ltm* tmp_mgr = NULL;
 
-    if (!pmgr || !max_locks || !user_malloc || !user_free || !user_realloc) {
+    if (!pmgr || !max_locks) {
         r = EINVAL; goto cleanup;
     }
     assert(panic && get_compare_fun_from_db);
 
-    tmp_mgr          = (toku_ltm*)user_malloc(sizeof(*tmp_mgr));
+    tmp_mgr          = (toku_ltm*) toku_malloc(sizeof(*tmp_mgr));
     if (!tmp_mgr) { 
         r = ENOMEM; goto cleanup; 
     }
@@ -193,19 +201,16 @@ int toku_ltm_create(toku_ltm** pmgr,
     if (r != 0) 
         goto cleanup;
     tmp_mgr->panic            = panic;
-    tmp_mgr->malloc           = user_malloc;
-    tmp_mgr->free             = user_free;
-    tmp_mgr->realloc          = user_realloc;
     tmp_mgr->get_compare_fun_from_db = get_compare_fun_from_db;
 
-    r = toku_lth_create(&tmp_mgr->lth, user_malloc, user_free, user_realloc);
+    r = toku_lth_create(&tmp_mgr->lth);
     if (r != 0) 
         goto cleanup;
     if (!tmp_mgr->lth) {
         r = ENOMEM; goto cleanup; 
     }
 
-    r = toku_idlth_create(&tmp_mgr->idlth, user_malloc, user_free, user_realloc);
+    r = toku_idlth_create(&tmp_mgr->idlth);
     if (r != 0) 
         goto cleanup;
     if (!tmp_mgr->idlth) { 
@@ -221,13 +226,14 @@ cleanup:
                 toku_lth_close(tmp_mgr->lth);
             if (tmp_mgr->idlth)
                 toku_idlth_close(tmp_mgr->idlth);
-            user_free(tmp_mgr);
+            toku_free(tmp_mgr);
         }
     }
     return r;
 }
 
-int toku_ltm_close(toku_ltm* mgr) {
+int 
+toku_ltm_close(toku_ltm* mgr) {
     int r           = ENOSYS;
     int first_error = 0;
 
@@ -245,16 +251,18 @@ int toku_ltm_close(toku_ltm* mgr) {
     toku_lth_close(mgr->lth);
     toku_idlth_close(mgr->idlth);
     toku_ltm_destroy_mutex(mgr);
-    mgr->free(mgr);
+    assert(mgr->curr_locks == 0 && mgr->curr_lock_memory == 0);
+    toku_free(mgr);
 
     r = first_error;
 cleanup:
     return r;
 }
 
-void toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, 
-                         uint64_t *max_lock_memory, uint64_t *curr_lock_memory,
-                         LTM_STATUS s) {
+void 
+toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, 
+                    uint64_t *max_lock_memory, uint64_t *curr_lock_memory,
+                    LTM_STATUS s) {
     *max_locks = mgr->max_locks;
     *curr_locks = mgr->curr_locks;
     *max_lock_memory = mgr->max_lock_memory;
@@ -262,14 +270,16 @@ void toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_lo
     *s = mgr->status;
 }
 
-int toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* max_locks) {
+int 
+toku_ltm_get_max_locks(toku_ltm* mgr, uint32_t* max_locks) {
     if (!mgr || !max_locks)
         return EINVAL;
     *max_locks = mgr->max_locks;
     return 0;
 }
 
-int toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t max_locks) {
+int 
+toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t max_locks) {
     if (!mgr || !max_locks)
         return EINVAL;
     if (max_locks < mgr->curr_locks) 
@@ -278,14 +288,16 @@ int toku_ltm_set_max_locks(toku_ltm* mgr, uint32_t max_locks) {
     return 0;
 }
 
-int toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* max_lock_memory) {
+int 
+toku_ltm_get_max_lock_memory(toku_ltm* mgr, uint64_t* max_lock_memory) {
     if (!mgr || !max_lock_memory)
         return EINVAL;
     *max_lock_memory = mgr->max_lock_memory;
     return 0;
 }
 
-int toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t max_lock_memory) {
+int 
+toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t max_lock_memory) {
     if (!mgr || !max_lock_memory)
         return EINVAL;
     if (max_lock_memory < mgr->curr_locks)
@@ -294,111 +306,107 @@ int toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t max_lock_memory) {
     return 0;
 }
 
-/* Functions to update the range count and compare it with the
-   maximum number of ranges */
-static inline BOOL ltm_lock_test_incr(toku_ltm* tree_mgr, uint32_t replace_locks) {
-    assert(tree_mgr);
+static inline void 
+ltm_incr_locks(toku_ltm* tree_mgr, uint32_t replace_locks) {
     assert(replace_locks <= tree_mgr->curr_locks);
-    return (BOOL)(tree_mgr->curr_locks - replace_locks < tree_mgr->max_locks);
-}
-
-static inline void ltm_lock_incr(toku_ltm* tree_mgr, uint32_t replace_locks) {
-    assert(ltm_lock_test_incr(tree_mgr, replace_locks));
     tree_mgr->curr_locks -= replace_locks;
     tree_mgr->curr_locks += 1;
 }
 
-static inline void ltm_lock_decr(toku_ltm* tree_mgr, uint32_t locks) {
+static inline void 
+ltm_decr_locks(toku_ltm* tree_mgr, uint32_t locks) {
     assert(tree_mgr);
     assert(tree_mgr->curr_locks >= locks);
     tree_mgr->curr_locks -= locks;
 }
 
-static inline void ltm_note_free_memory(toku_ltm *mgr, size_t mem) {
-    assert(mgr->curr_lock_memory >= mem);
-    mgr->curr_lock_memory -= mem;
-}
-
-static inline int ltm_note_allocate_memory(toku_ltm *mgr, size_t mem) {
-    int r = TOKUDB_OUT_OF_LOCKS;
-    if (mgr->curr_lock_memory + mem <= mgr->max_lock_memory) {
-        mgr->curr_lock_memory += mem;
-        r = 0;
-    }
+static int 
+ltm_out_of_locks(toku_ltm *mgr) {
+    int r = 0;
+    if (mgr->curr_locks >= mgr->max_locks || mgr->curr_lock_memory >= mgr->max_lock_memory)
+        r = TOKUDB_OUT_OF_LOCKS;
     return r;
 }
 
-static inline void p_free(toku_lock_tree* tree, toku_point* point) {
-    assert(point);
-    size_t freeing = sizeof(*point);
-    if (!lt_is_infinite(point->key_payload)) {
-        freeing += point->key_len;
-        tree->free(point->key_payload);
-    }
-    tree->free(point);
+static void
+ltm_incr_lock_memory(toku_ltm *mgr, size_t s) {
+    mgr->curr_lock_memory += s;
+}
 
-    ltm_note_free_memory(tree->mgr, freeing);
+void 
+toku_ltm_incr_lock_memory(void *extra, size_t s) {
+    toku_ltm *mgr = (toku_ltm *) extra;
+    ltm_incr_lock_memory(mgr, s);
+}
+
+static void 
+ltm_decr_lock_memory(toku_ltm *mgr, size_t s) {
+    assert(mgr->curr_lock_memory >= s);
+    mgr->curr_lock_memory -= s;
+}
+
+void 
+toku_ltm_decr_lock_memory(void *extra, size_t s) {
+    toku_ltm *mgr = (toku_ltm *) extra;
+    ltm_decr_lock_memory(mgr, s);
+}
+
+static inline void 
+p_free(toku_lock_tree* tree, toku_point* point) {
+    assert(point);
+    if (!lt_is_infinite(point->key_payload)) {
+        ltm_decr_lock_memory(tree->mgr, toku_malloc_usable_size(point->key_payload));
+        toku_free(point->key_payload);
+    }
+    ltm_decr_lock_memory(tree->mgr, toku_malloc_usable_size(point));
+    toku_free(point);
 }
 
 /*
    Allocate and copy the payload.
 */
-static inline int payload_copy(toku_lock_tree* tree,
-                               void** payload_out, uint32_t* len_out,
-                               void*  payload_in,  uint32_t  len_in) {
+static inline int 
+payload_copy(toku_lock_tree* tree,
+             void** payload_out, uint32_t* len_out,
+             void*  payload_in,  uint32_t  len_in) {
     int r = 0;
     assert(payload_out && len_out);
     if (!len_in) {
         assert(!payload_in || lt_is_infinite(payload_in));
         *payload_out = payload_in;
         *len_out     = len_in;
-    }
-    else {
-        r = ltm_note_allocate_memory(tree->mgr, len_in);
-        if (r == 0) {
-            assert(payload_in);
-            *payload_out = tree->malloc((size_t)len_in); //2808
-            resource_assert(*payload_out);
-            *len_out     = len_in;
-            memcpy(*payload_out, payload_in, (size_t)len_in);
-        }
+    } else {
+        assert(payload_in);
+        *payload_out = toku_xmalloc((size_t)len_in); //2808
+        ltm_incr_lock_memory(tree->mgr, toku_malloc_usable_size(*payload_out));
+        resource_assert(*payload_out);
+        *len_out     = len_in;
+        memcpy(*payload_out, payload_in, (size_t)len_in);
     }
     return r;
 }
 
-static inline int p_makecopy(toku_lock_tree* tree, toku_point** ppoint) {
+static inline int 
+p_makecopy(toku_lock_tree* tree, toku_point** ppoint) {
     assert(ppoint);
+    int r;
     toku_point*     point      = *ppoint;
     toku_point*     temp_point = NULL;
-    int r;
-
-    r = ltm_note_allocate_memory(tree->mgr, sizeof(toku_point));
-    if (r != 0) 
-        goto done;
-    temp_point = (toku_point*)tree->malloc(sizeof(toku_point)); //2808
-    resource_assert(temp_point);
-    if (0) {
-died1:
-        tree->free(temp_point);
-        ltm_note_free_memory(tree->mgr, sizeof(toku_point));
-        goto done;
-    }
-
+    temp_point = (toku_point*)toku_xmalloc(sizeof(toku_point)); //2808
+    ltm_incr_lock_memory(tree->mgr, toku_malloc_usable_size(temp_point));
     *temp_point = *point;
-
     r = payload_copy(tree,
                      &temp_point->key_payload, &temp_point->key_len,
                      point->key_payload,       point->key_len);
-    if (r != 0) 
-        goto died1;
+    assert_zero(r);
     *ppoint = temp_point;
-done:
     return r;
 }
 
 /* Provides access to a selfread tree for a particular transaction.
    Returns NULL if it does not exist yet. */
-toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn) {
+toku_range_tree* 
+toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn) {
     assert(tree);
     rt_forest* forest = toku_rth_find(tree->rth, txn);
     return forest ? forest->self_read : NULL;
@@ -406,15 +414,17 @@ toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn) {
 
 /* Provides access to a selfwrite tree for a particular transaction.
    Returns NULL if it does not exist yet. */
-toku_range_tree* toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn) {
+toku_range_tree* 
+toku_lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn) {
     assert(tree);
     rt_forest* forest = toku_rth_find(tree->rth, txn);
     return forest ? forest->self_write : NULL;
 }
 
-static inline int lt_add_locked_txn(toku_lock_tree* tree, TXNID txn) {
+static inline int 
+lt_add_locked_txn(toku_lock_tree* tree, TXNID txn) {
     int r = ENOSYS;
-    BOOL half_done = FALSE;
+    bool half_done = FALSE;
 
     /* Neither selfread nor selfwrite exist. */
     r = toku_rth_insert(tree->rth, txn);
@@ -433,8 +443,8 @@ cleanup:
 
 /* Provides access to a selfread tree for a particular transaction.
    Creates it if it does not exist. */
-static inline int lt_selfread(toku_lock_tree* tree, TXNID txn,
-                              toku_range_tree** pselfread) {
+static inline int 
+lt_selfread(toku_lock_tree* tree, TXNID txn, toku_range_tree** pselfread) {
     int r = ENOSYS;
     assert(tree && pselfread);
 
@@ -448,10 +458,8 @@ static inline int lt_selfread(toku_lock_tree* tree, TXNID txn,
     }
     assert(forest);
     if (!forest->self_read) {
-        r = toku_rt_create(&forest->self_read,
-                           toku_lt_point_cmp, lt_txn_cmp,
-                           FALSE,
-                           tree->malloc, tree->free, tree->realloc);
+        r = toku_rt_create(&forest->self_read, toku_lt_point_cmp, lt_txn_cmp, FALSE,
+                           toku_ltm_incr_lock_memory, toku_ltm_decr_lock_memory, tree->mgr);
         if (r != 0)
             goto cleanup;
         assert(forest->self_read);
@@ -464,8 +472,8 @@ cleanup:
 
 /* Provides access to a selfwrite tree for a particular transaction.
    Creates it if it does not exist. */
-static inline int lt_selfwrite(toku_lock_tree* tree, TXNID txn,
-                               toku_range_tree** pselfwrite) {
+static inline int 
+lt_selfwrite(toku_lock_tree* tree, TXNID txn, toku_range_tree** pselfwrite) {
     int r = ENOSYS;
     assert(tree && pselfwrite);
 
@@ -479,10 +487,8 @@ static inline int lt_selfwrite(toku_lock_tree* tree, TXNID txn,
     }
     assert(forest);
     if (!forest->self_write) {
-        r = toku_rt_create(&forest->self_write,
-                           toku_lt_point_cmp, lt_txn_cmp,
-                           FALSE,
-                           tree->malloc, tree->free, tree->realloc);
+        r = toku_rt_create(&forest->self_write, toku_lt_point_cmp, lt_txn_cmp, FALSE,
+                           toku_ltm_incr_lock_memory, toku_ltm_decr_lock_memory, tree->mgr);
         if (r != 0) 
             goto cleanup;
         assert(forest->self_write);
@@ -493,9 +499,10 @@ cleanup:
     return r;
 }
 
-static inline BOOL interval_dominated(toku_interval* query, toku_interval* by) {
+static inline bool 
+interval_dominated(toku_interval* query, toku_interval* by) {
     assert(query && by);
-    return (BOOL)(toku_lt_point_cmp(query->left,  by->left) >= 0 &&
+    return (bool)(toku_lt_point_cmp(query->left,  by->left) >= 0 &&
                   toku_lt_point_cmp(query->right, by->right) <= 0);
 }
 
@@ -504,15 +511,15 @@ static inline BOOL interval_dominated(toku_interval* query, toku_interval* by) {
     Uses the standard definition of dominated from the design document.
     Determines whether 'query' is dominated by 'rt'.
 */
-static inline int lt_rt_dominates(toku_lock_tree* tree, toku_interval* query,
-                                  toku_range_tree* rt, BOOL* dominated) {
+static inline int 
+lt_rt_dominates(toku_lock_tree* tree, toku_interval* query, toku_range_tree* rt, bool* dominated) {
     assert(tree && query && dominated);
     if (!rt) {
         *dominated = FALSE;
         return 0;
     }
     
-    BOOL            allow_overlaps;
+    bool            allow_overlaps;
     const uint32_t  query_size = 1;
     toku_range      buffer[query_size];
     uint32_t        buflen     = query_size;
@@ -550,9 +557,10 @@ typedef enum {TOKU_NO_CONFLICT, TOKU_MAYBE_CONFLICT, TOKU_YES_CONFLICT} toku_con
     If exactly one range overlaps and its data != self, there might be a
     conflict.  We need to check the 'peer'write table to verify.
 */
-static inline int lt_borderwrite_conflict(toku_lock_tree* tree, TXNID self,
-                                          toku_interval* query,
-                                          toku_conflict* conflict, TXNID* peer) {
+static inline int 
+lt_borderwrite_conflict(toku_lock_tree* tree, TXNID self,
+                        toku_interval* query,
+                        toku_conflict* conflict, TXNID* peer) {
     assert(tree && query && conflict && peer);
     toku_range_tree* rt = tree->borderwrite;
     assert(rt);
@@ -586,7 +594,8 @@ static inline int lt_borderwrite_conflict(toku_lock_tree* tree, TXNID self,
     Uses the standard definition of 'query' meets 'tree' at 'data' from the
     design document.
 */
-static inline int lt_meets(toku_lock_tree* tree, toku_interval* query, toku_range_tree* rt, BOOL* met) {
+static inline int 
+lt_meets(toku_lock_tree* tree, toku_interval* query, toku_range_tree* rt, bool* met) {
     assert(tree && query && rt && met);
     const uint32_t query_size = 1;
     toku_range   buffer[query_size];
@@ -594,7 +603,7 @@ static inline int lt_meets(toku_lock_tree* tree, toku_interval* query, toku_rang
     toku_range*  buf        = &buffer[0];
     uint32_t     numfound;
     int          r;
-    BOOL         allow_overlaps;
+    bool         allow_overlaps;
 
     /* Sanity check. (Function only supports non-overlap range trees.) */
     r = toku_rt_get_allow_overlaps(rt, &allow_overlaps);
@@ -606,7 +615,7 @@ static inline int lt_meets(toku_lock_tree* tree, toku_interval* query, toku_rang
     if (r != 0) 
         return r;
     assert(numfound <= query_size);
-    *met = (BOOL)(numfound != 0);
+    *met = (bool)(numfound != 0);
     return 0;
 }
 
@@ -617,9 +626,10 @@ static inline int lt_meets(toku_lock_tree* tree, toku_interval* query, toku_rang
     Uses the standard definition of 'query' meets 'tree' at 'data' from the
     design document.
 */
-static inline int lt_meets_peer(toku_lock_tree* tree, toku_interval* query, 
-                                toku_range_tree* rt, BOOL is_homogenous,
-                                TXNID self, BOOL* met) {
+static inline int 
+lt_meets_peer(toku_lock_tree* tree, toku_interval* query, 
+              toku_range_tree* rt, bool is_homogenous,
+              TXNID self, bool* met) {
     assert(tree && query && rt && met);
     assert(query->left == query->right || is_homogenous);
 
@@ -634,15 +644,16 @@ static inline int lt_meets_peer(toku_lock_tree* tree, toku_interval* query,
     if (r != 0) 
         return r;
     assert(numfound <= query_size);
-    *met = (BOOL) (numfound == 2 || (numfound == 1 && lt_txn_cmp(buf[0].data, self)));
+    *met = (bool) (numfound == 2 || (numfound == 1 && lt_txn_cmp(buf[0].data, self)));
     return 0;
 }
 
 /* Checks for if a write range conflicts with reads.
    Supports ranges. */
-static inline int lt_write_range_conflicts_reads(toku_lock_tree* tree, TXNID txn, toku_interval* query) {
+static inline int 
+lt_write_range_conflicts_reads(toku_lock_tree* tree, TXNID txn, toku_interval* query) {
     int r    = 0;
-    BOOL met = FALSE;
+    bool met = FALSE;
     toku_rth_start_scan(tree->rth);
     rt_forest* forest;
     
@@ -663,9 +674,10 @@ cleanup:
 
 #if !TOKU_LT_USE_BORDERWRITE
 
-static inline int lt_write_range_conflicts_writes(toku_lock_tree* tree, TXNID txn, toku_interval* query) {
+static inline int 
+lt_write_range_conflicts_writes(toku_lock_tree* tree, TXNID txn, toku_interval* query) {
     int r    = 0;
-    BOOL met = FALSE;
+    bool met = FALSE;
     toku_rth_start_scan(tree->rth);
     rt_forest* forest;
     
@@ -690,7 +702,8 @@ cleanup:
     Utility function to implement: (from design document)
     if K meets E at v'!=t and K meets W_v' then return failure.
 */
-static inline int lt_check_borderwrite_conflict(toku_lock_tree* tree, TXNID txn, toku_interval* query) {
+static inline int 
+lt_check_borderwrite_conflict(toku_lock_tree* tree, TXNID txn, toku_interval* query) {
 #if TOKU_LT_USE_BORDERWRITE
     assert(tree && query);
     toku_conflict conflict;
@@ -706,7 +719,7 @@ static inline int lt_check_borderwrite_conflict(toku_lock_tree* tree, TXNID txn,
         if (!peer_selfwrite) 
             return lt_panic(tree, TOKU_LT_INCONSISTENT);
 
-        BOOL met;
+        bool met;
         r = lt_meets(tree, query, peer_selfwrite, &met);
         if (r != 0)   
             return r;
@@ -722,7 +735,8 @@ static inline int lt_check_borderwrite_conflict(toku_lock_tree* tree, TXNID txn,
 #endif
 }
 
-static inline void payload_from_dbt(void** payload, uint32_t* len, const DBT* dbt) {
+static inline void 
+payload_from_dbt(void** payload, uint32_t* len, const DBT* dbt) {
     assert(payload && len && dbt);
     if (lt_is_infinite(dbt)) *payload = (void*)dbt;
     else if (!dbt->size) {
@@ -735,15 +749,16 @@ static inline void payload_from_dbt(void** payload, uint32_t* len, const DBT* db
     }
 }
 
-static inline void init_point(toku_point* point, toku_lock_tree* tree, const DBT* key) {
+static inline void 
+init_point(toku_point* point, toku_lock_tree* tree, const DBT* key) {
     assert(point && tree && key);
     memset(point, 0, sizeof(toku_point));
     point->lt = tree;
-
     payload_from_dbt(&point->key_payload, &point->key_len, key);
 }
 
-static inline void init_query(toku_interval* query, toku_point* left, toku_point* right) {
+static inline void 
+init_query(toku_interval* query, toku_point* left, toku_point* right) {
     query->left  = left;
     query->right = right;
 }
@@ -761,9 +776,8 @@ static inline void init_query(toku_interval* query, toku_point* left, toku_point
        we made copies from the DB at consolidation time 
 */
 
-static inline void init_insert(toku_range* to_insert,
-                               toku_point* left, toku_point* right,
-                               TXNID txn) {
+static inline void 
+init_insert(toku_range* to_insert, toku_point* left, toku_point* right, TXNID txn) {
     to_insert->ends.left  = left;
     to_insert->ends.right = right;
     to_insert->data  = txn;
@@ -771,16 +785,18 @@ static inline void init_insert(toku_range* to_insert,
 
 /* Returns whether the point already exists
    as an endpoint of the given range. */
-static inline BOOL lt_p_independent(toku_point* point, toku_interval* range) {
+static inline bool 
+lt_p_independent(toku_point* point, toku_interval* range) {
     assert(point && range);
-    return (BOOL)(point != range->left && point != range->right);
+    return (bool)(point != range->left && point != range->right);
 }
 
-static inline int lt_determine_extreme(toku_lock_tree* tree,
-                                             toku_range* to_insert,
-                                             BOOL* alloc_left, BOOL* alloc_right,
-                                             uint32_t numfound,
-                                             uint32_t start_at) {
+static inline int 
+lt_determine_extreme(toku_lock_tree* tree,
+                     toku_range* to_insert,
+                     bool* alloc_left, BOOL* alloc_right,
+                     uint32_t numfound,
+                     uint32_t start_at) {
     assert(to_insert && tree && alloc_left && alloc_right);
     uint32_t i;
     assert(numfound <= tree->buflen);
@@ -811,28 +827,25 @@ static inline int lt_determine_extreme(toku_lock_tree* tree,
 }
 
 /* Find extreme given a starting point. */
-static inline int lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
-                                          BOOL* alloc_left, BOOL* alloc_right,
-                                          uint32_t numfound) {
-    return lt_determine_extreme(tree, to_insert, alloc_left, alloc_right,
-                                      numfound, 0);
+static inline int 
+lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert, bool* alloc_left, BOOL* alloc_right, uint32_t numfound) {
+    return lt_determine_extreme(tree, to_insert, alloc_left, alloc_right, numfound, 0);
 }
 
 /* Has no starting point. */
-static inline int lt_find_extreme(toku_lock_tree* tree,
-                                  toku_range* to_insert,
-                                  uint32_t numfound) {
+static inline int 
+lt_find_extreme(toku_lock_tree* tree, toku_range* to_insert, uint32_t numfound) {
     assert(numfound > 0);
     *to_insert = tree->buf[0];
-    BOOL ignore_left = TRUE;
-    BOOL ignore_right = TRUE;
+    bool ignore_left = TRUE;
+    bool ignore_right = TRUE;
     return lt_determine_extreme(tree, to_insert, &ignore_left, &ignore_right, numfound, 1);
 }
 
-static inline int lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
-                                   BOOL alloc_left, BOOL* alloc_right) {
+static inline int 
+lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert, bool alloc_left, BOOL* alloc_right) {
     assert(to_insert && alloc_right);
-    BOOL copy_left = FALSE;
+    bool copy_left = FALSE;
     int r;
     
     /* The pointer comparison may speed up the evaluation in some cases, 
@@ -866,9 +879,8 @@ static inline int lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
     return 0;
 }
 
-static inline int lt_delete_overlapping_ranges(toku_lock_tree* tree,
-                                               toku_range_tree* rt,
-                                               uint32_t numfound) {
+static inline int 
+lt_delete_overlapping_ranges(toku_lock_tree* tree, toku_range_tree* rt, uint32_t numfound) {
     assert(tree && rt);
     int r;
     uint32_t i;
@@ -881,7 +893,8 @@ static inline int lt_delete_overlapping_ranges(toku_lock_tree* tree,
     return 0;
 }
 
-static inline int lt_free_points(toku_lock_tree* tree, toku_interval* to_insert, uint32_t numfound) {
+static inline int 
+lt_free_points(toku_lock_tree* tree, toku_interval* to_insert, uint32_t numfound) {
     assert(tree && to_insert);
     assert(numfound <= tree->buflen);
 
@@ -908,13 +921,13 @@ static inline int lt_borderwrite_insert(toku_lock_tree* tree, toku_interval* que
    If found_only is TRUE, we're only consolidating existing ranges in the interval
    specified inside of to_insert.
 */
-static inline int consolidate_range_tree(toku_lock_tree* tree, BOOL found_only, toku_range* to_insert, toku_range_tree *rt, 
-                                         BOOL do_borderwrite_insert) {
+static inline int 
+consolidate_range_tree(toku_lock_tree* tree, bool found_only, toku_range* to_insert, toku_range_tree *rt, bool do_borderwrite_insert) {
     assert(tree && to_insert);
 
     int r;
-    BOOL             alloc_left    = TRUE;
-    BOOL             alloc_right   = TRUE;
+    bool             alloc_left    = TRUE;
+    bool             alloc_right   = TRUE;
     toku_interval* query = &to_insert->ends;
 
     /* Find all overlapping ranges in the range tree */
@@ -938,8 +951,6 @@ static inline int consolidate_range_tree(toku_lock_tree* tree, BOOL found_only, 
         r = lt_extend_extreme(tree, to_insert, &alloc_left, &alloc_right, numfound);
         if (r != 0) 
             return r;
-        if (!ltm_lock_test_incr(tree->mgr, numfound))
-            return TOKUDB_OUT_OF_LOCKS;
     }
     /* Allocate the consolidated range */
     r = lt_alloc_extreme(tree, to_insert, alloc_left, &alloc_right);
@@ -950,6 +961,7 @@ static inline int consolidate_range_tree(toku_lock_tree* tree, BOOL found_only, 
     }
     if (r != 0)
         return r;
+
     /* From this point on we have to panic if we cannot finish. */
     /* Delete overlapping ranges from range tree ... */
     r = lt_delete_overlapping_ranges(tree, rt, numfound);
@@ -979,12 +991,13 @@ static inline int consolidate_range_tree(toku_lock_tree* tree, BOOL found_only, 
             return lt_panic(tree, TOKU_LT_INCONSISTENT);
         goto died1; 
     }
-
-    ltm_lock_incr(tree->mgr, numfound);
+    
+    ltm_incr_locks(tree->mgr, numfound);
     return 0;
 }
 
-static inline int consolidate_reads(toku_lock_tree* tree, BOOL found_only, toku_range* to_insert, TXNID txn) {
+static inline int 
+consolidate_reads(toku_lock_tree* tree, bool found_only, toku_range* to_insert, TXNID txn) {
     assert(tree && to_insert);
     toku_range_tree* selfread;
     int r = lt_selfread(tree, txn, &selfread);
@@ -994,7 +1007,8 @@ static inline int consolidate_reads(toku_lock_tree* tree, BOOL found_only, toku_
     return consolidate_range_tree(tree, found_only, to_insert, selfread, FALSE);
 }
 
-static inline int consolidate_writes(toku_lock_tree* tree, toku_range* to_insert, TXNID txn) {
+static inline int 
+consolidate_writes(toku_lock_tree* tree, toku_range* to_insert, TXNID txn) {
     assert(tree && to_insert);
     toku_range_tree* selfwrite;
     int r = lt_selfwrite(tree, txn, &selfwrite);
@@ -1004,8 +1018,8 @@ static inline int consolidate_writes(toku_lock_tree* tree, toku_range* to_insert
     return consolidate_range_tree(tree, FALSE, to_insert, selfwrite, TRUE);
 }
 
-static inline void lt_init_full_query(toku_lock_tree* tree, toku_interval* query,
-                                      toku_point* left, toku_point* right) {
+static inline void 
+lt_init_full_query(toku_lock_tree* tree, toku_interval* query, toku_point* left, toku_point* right) {
     init_point(left,  tree, (DBT*)toku_lt_neg_infinity);
     init_point(right, tree, (DBT*)toku_lt_infinity);
     init_query(query, left, right);
@@ -1017,7 +1031,8 @@ typedef struct {
     toku_range*      store_value;
 } free_contents_info;
 
-static int free_contents_helper(toku_range* value, void* extra) {
+static int 
+free_contents_helper(toku_range* value, void* extra) {
     free_contents_info* info = extra;
     int r               = ENOSYS;
 
@@ -1033,7 +1048,8 @@ static int free_contents_helper(toku_range* value, void* extra) {
     lt_free_points should be replaced (or supplanted) with a 
     lt_free_point (singular)
 */
-static inline int lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt, BOOL doclose) {
+static inline int 
+lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt) {
     assert(tree);
     if (!rt) 
         return 0;
@@ -1051,49 +1067,47 @@ static inline int lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt, BO
 
     if ((r = toku_rt_iterate(rt, free_contents_helper, &info))) 
         return r;
-    if (doclose) 
-        r = toku_rt_close(rt);
-    else {
-        r = 0;
-        toku_rt_clear(rt);
-    }
+    r = toku_rt_close(rt);
     assert_zero(r);
     return r;
 }
 
-static inline BOOL r_backwards(toku_interval* range) {
+static inline bool 
+r_backwards(toku_interval* range) {
     assert(range && range->left && range->right);
     toku_point* left  = (toku_point*)range->left;
     toku_point* right = (toku_point*)range->right;
 
     /* Optimization: if all the pointers are equal, clearly left == right. */
-    return (BOOL) ((left->key_payload  != right->key_payload) &&
+    return (bool) ((left->key_payload  != right->key_payload) &&
                    (toku_lt_point_cmp(left, right) > 0));
 }
 
 static inline int lt_unlock_deferred_txns(toku_lock_tree* tree);
 
-static inline void lt_set_comparison_functions(toku_lock_tree* tree,
-                                                     DB* db) {
+static inline void 
+lt_set_comparison_functions(toku_lock_tree* tree, DB* db) {
     assert(!tree->db && !tree->compare_fun);
     tree->db = db;
     tree->compare_fun = tree->get_compare_fun_from_db(tree->db);
     assert(tree->compare_fun);
 }
 
-static inline void lt_clear_comparison_functions(toku_lock_tree* tree) {
+static inline void 
+lt_clear_comparison_functions(toku_lock_tree* tree) {
     assert(tree);
     tree->db          = NULL;
     tree->compare_fun = NULL; 
 }
 
 /* Preprocess step for acquire functions. */
-static inline int lt_preprocess(toku_lock_tree* tree, DB* db,
-                                  __attribute__((unused)) TXNID txn,
-                                  const DBT* key_left,
-                                  const DBT* key_right,
-                                  toku_point* left, toku_point* right,
-                                  toku_interval* query) {
+static inline int 
+lt_preprocess(toku_lock_tree* tree, DB* db,
+              __attribute__((unused)) TXNID txn,
+              const DBT* key_left,
+              const DBT* key_right,
+              toku_point* left, toku_point* right,
+              toku_interval* query) {
     int r = ENOSYS;
 
     if (!tree || !db || !key_left || !key_right) {
@@ -1130,14 +1144,16 @@ cleanup:
 }
 
 /* Postprocess step for acquire functions. */
-static inline void lt_postprocess(toku_lock_tree* tree) {
+static inline void 
+lt_postprocess(toku_lock_tree* tree) {
     lt_clear_comparison_functions(tree);
 }
 
-static inline int lt_get_border_in_selfwrite(toku_lock_tree* tree,
-                                             toku_range* pred, toku_range* succ,
-                                             BOOL* found_p,    BOOL* found_s,
-                                             toku_range* to_insert) {
+static inline int 
+lt_get_border_in_selfwrite(toku_lock_tree* tree,
+                           toku_range* pred, toku_range* succ,
+                           bool* found_p,    BOOL* found_s,
+                           toku_range* to_insert) {
     assert(tree && pred && succ && found_p && found_s);                                    
     int r;
     toku_range_tree* rt = toku_lt_ifexist_selfwrite(tree, tree->bw_buf[0].data);
@@ -1152,10 +1168,11 @@ static inline int lt_get_border_in_selfwrite(toku_lock_tree* tree,
     return 0;
 }
 
-static inline int lt_get_border_in_borderwrite(toku_lock_tree* tree,
-                                               toku_range* pred, toku_range* succ,
-                                               BOOL* found_p,    BOOL* found_s,
-                                               toku_range* to_insert) {
+static inline int 
+lt_get_border_in_borderwrite(toku_lock_tree* tree,
+                             toku_range* pred, toku_range* succ,
+                             bool* found_p,    BOOL* found_s,
+                             toku_range* to_insert) {
     assert(tree && pred && succ && found_p && found_s);                                    
     int r;
     toku_range_tree* rt = tree->borderwrite;
@@ -1170,9 +1187,10 @@ static inline int lt_get_border_in_borderwrite(toku_lock_tree* tree,
     return 0;
 }
 
-static inline int lt_expand_border(toku_lock_tree* tree, toku_range* to_insert,
-                                   toku_range* pred, toku_range* succ,
-                                   BOOL  found_p,    BOOL  found_s) {
+static inline int 
+lt_expand_border(toku_lock_tree* tree, toku_range* to_insert,
+                 toku_range* pred, toku_range* succ,
+                 bool  found_p,    BOOL  found_s) {
     assert(tree && to_insert && pred && succ);
     int r;
     if (found_p && !lt_txn_cmp(pred->data, to_insert->data)) {
@@ -1190,9 +1208,10 @@ static inline int lt_expand_border(toku_lock_tree* tree, toku_range* to_insert,
     return 0;
 }
 
-static inline int lt_split_border(toku_lock_tree* tree, toku_range* to_insert,
-                                  toku_range* pred, toku_range* succ,
-                                  BOOL  found_p,    BOOL  found_s) {
+static inline int 
+lt_split_border(toku_lock_tree* tree, toku_range* to_insert,
+                toku_range* pred, toku_range* succ,
+                bool  found_p,    BOOL  found_s) {
     assert(tree && to_insert && pred && succ);
     int r;
     assert(lt_txn_cmp(tree->bw_buf[0].data, to_insert->data));
@@ -1220,9 +1239,8 @@ static inline int lt_split_border(toku_lock_tree* tree, toku_range* to_insert,
 /*
     NO MEMORY GETS FREED!!!!!!!!!!, it all is tied to selfwrites.
 */
-static inline int lt_borderwrite_insert(toku_lock_tree* tree,
-                                        toku_interval* query,
-                                        toku_range* to_insert) {
+static inline int 
+lt_borderwrite_insert(toku_lock_tree* tree, toku_interval* query, toku_range* to_insert) {
     assert(tree && query && to_insert);
     int r;
     toku_range_tree* borderwrite = tree->borderwrite;   
@@ -1240,8 +1258,8 @@ static inline int lt_borderwrite_insert(toku_lock_tree* tree,
         // Find the adjacent ranges in the borderwrite tree and expand them if they are owned by me
 
         // Find the predecessor and successor of the range to be inserted
-        toku_range pred; BOOL found_p = FALSE;
-        toku_range succ; BOOL found_s = FALSE;
+        toku_range pred; bool found_p = FALSE;
+        toku_range succ; bool found_s = FALSE;
         r = lt_get_border_in_borderwrite(tree, &pred, &succ, &found_p, &found_s, to_insert);
         if (r != 0) 
             return lt_panic(tree, r);
@@ -1276,8 +1294,8 @@ static inline int lt_borderwrite_insert(toku_lock_tree* tree,
             // Split the borderwrite range to remove the overlap with the range being inserted.
 
             // Find predecessor and successor of the range to be inserted
-            toku_range pred; BOOL found_p = FALSE;
-            toku_range succ; BOOL found_s = FALSE;
+            toku_range pred; bool found_p = FALSE;
+            toku_range succ; bool found_s = FALSE;
             r = lt_get_border_in_selfwrite(tree, &pred, &succ, &found_p, &found_s, to_insert);
             if (r != 0) 
                 return lt_panic(tree, r);
@@ -1294,52 +1312,46 @@ static inline int lt_borderwrite_insert(toku_lock_tree* tree,
 }
 
 /* TODO: Investigate better way of passing comparison functions. */
-int toku_lt_create(toku_lock_tree** ptree,
-                   int   (*panic)(DB*, int), 
-                   toku_ltm* mgr,
-                   toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
-                   void* (*user_malloc) (size_t),
-                   void  (*user_free)   (void*),
-                   void* (*user_realloc)(void*, size_t)) {
+int 
+toku_lt_create(toku_lock_tree** ptree,
+               int   (*panic)(DB*, int), 
+               toku_ltm* mgr,
+               toku_dbt_cmp (*get_compare_fun_from_db)(DB*)) {
     int r = ENOSYS;
     toku_lock_tree* tmp_tree = NULL;
     if (!ptree || !mgr ||
-        !get_compare_fun_from_db || !panic ||
-        !user_malloc || !user_free || !user_realloc) {
+        !get_compare_fun_from_db || !panic) {
         r = EINVAL; goto cleanup;
     }
 
-    tmp_tree = (toku_lock_tree*)user_malloc(sizeof(*tmp_tree));
+    tmp_tree = (toku_lock_tree*)toku_malloc(sizeof(*tmp_tree));
     if (!tmp_tree) { r = ENOMEM; goto cleanup; }
     memset(tmp_tree, 0, sizeof(toku_lock_tree));
     tmp_tree->panic            = panic;
     tmp_tree->mgr              = mgr;
-    tmp_tree->malloc           = user_malloc;
-    tmp_tree->free             = user_free;
-    tmp_tree->realloc          = user_realloc;
     tmp_tree->get_compare_fun_from_db = get_compare_fun_from_db;
     tmp_tree->lock_escalation_allowed = TRUE;
-    r = toku_rt_create(&tmp_tree->borderwrite,
-                       toku_lt_point_cmp, lt_txn_cmp, FALSE,
-                       user_malloc, user_free, user_realloc);
+    r = toku_rt_create(&tmp_tree->borderwrite, toku_lt_point_cmp, lt_txn_cmp, FALSE,
+                       toku_ltm_incr_lock_memory, toku_ltm_decr_lock_memory, mgr);
     if (r != 0)
         goto cleanup;
-    r = toku_rth_create(&tmp_tree->rth, user_malloc, user_free, user_realloc);
+
+    r = toku_rth_create(&tmp_tree->rth);
     if (r != 0)
         goto cleanup;
-    r = toku_rth_create(&tmp_tree->txns_to_unlock, user_malloc, user_free, user_realloc);
+    r = toku_rth_create(&tmp_tree->txns_to_unlock);
     if (r != 0) 
         goto cleanup; 
-    r = toku_rth_create(&tmp_tree->txns_still_locked, user_malloc, user_free, user_realloc);
+    r = toku_rth_create(&tmp_tree->txns_still_locked);
     if (r != 0)
         goto cleanup;
     tmp_tree->buflen = __toku_default_buflen;
     tmp_tree->buf    = (toku_range*)
-                        user_malloc(tmp_tree->buflen * sizeof(toku_range));
+                        toku_malloc(tmp_tree->buflen * sizeof(toku_range));
     if (!tmp_tree->buf) { r = ENOMEM; goto cleanup; }
     tmp_tree->bw_buflen = __toku_default_buflen;
     tmp_tree->bw_buf    = (toku_range*)
-                        user_malloc(tmp_tree->bw_buflen * sizeof(toku_range));
+                        toku_malloc(tmp_tree->bw_buflen * sizeof(toku_range));
     if (!tmp_tree->bw_buf) { r = ENOMEM; goto cleanup; }
     r = toku_omt_create(&tmp_tree->dbs);
     if (r != 0) 
@@ -1352,7 +1364,6 @@ int toku_lt_create(toku_lock_tree** ptree,
 cleanup:
     if (r != 0) {
         if (tmp_tree) {
-            assert(user_free);
             if (tmp_tree->borderwrite)
                 toku_rt_close(tmp_tree->borderwrite);
             if (tmp_tree->rth)
@@ -1360,18 +1371,19 @@ cleanup:
             if (tmp_tree->txns_to_unlock)
                 toku_rth_close(tmp_tree->txns_to_unlock);
             if (tmp_tree->buf)
-                user_free(tmp_tree->buf);
+                toku_free(tmp_tree->buf);
             if (tmp_tree->bw_buf)
-                user_free(tmp_tree->bw_buf);
+                toku_free(tmp_tree->bw_buf);
             if (tmp_tree->dbs)
                 toku_omt_destroy(&tmp_tree->dbs);
-            user_free(tmp_tree);
+            toku_free(tmp_tree);
         }
     }
     return r;
 }
 
-void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id) {
+void 
+toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id) {
     assert(mgr && dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     toku_lt_map* map = NULL;
     map = toku_idlth_find(mgr->idlth, dict_id);
@@ -1381,7 +1393,8 @@ void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id) {
 }
 
 
-static inline void toku_lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id) {
+static inline void 
+toku_lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id) {
     assert(lt && dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     lt->dict_id = dict_id;
 }
@@ -1389,16 +1402,17 @@ static inline void toku_lt_set_dict_id(toku_lock_tree* lt, DICTIONARY_ID dict_id
 static void lt_add_db(toku_lock_tree* tree, DB *db);
 static void lt_remove_db(toku_lock_tree* tree, DB *db);
 
-int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
-                    DICTIONARY_ID dict_id, DB *db) {
+int 
+toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
+                DICTIONARY_ID dict_id, DB *db) {
     /* first look in hash table to see if lock tree exists for that db,
        if so return it */
     int r = ENOSYS;
     toku_lt_map* map     = NULL;
     toku_lock_tree* tree = NULL;
-    BOOL added_to_ltm    = FALSE;
-    BOOL added_to_idlth  = FALSE;
-    BOOL added_extant_db  = FALSE;
+    bool added_to_ltm    = FALSE;
+    bool added_to_idlth  = FALSE;
+    bool added_extant_db  = FALSE;
     
     map = toku_idlth_find(mgr->idlth, dict_id);
     if (map != NULL) {
@@ -1412,9 +1426,7 @@ int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree,
         goto cleanup;
     }
     /* Must create new lock tree for this dict_id*/
-    r = toku_lt_create(&tree, mgr->panic, mgr,
-                       mgr->get_compare_fun_from_db,
-                       mgr->malloc, mgr->free, mgr->realloc);
+    r = toku_lt_create(&tree, mgr->panic, mgr, mgr->get_compare_fun_from_db);
     if (r != 0)
         goto cleanup;
     toku_lt_set_dict_id(tree, dict_id);
@@ -1455,7 +1467,8 @@ cleanup:
     return r;
 }
 
-int toku_lt_close(toku_lock_tree* tree) {
+int 
+toku_lt_close(toku_lock_tree* tree) {
     int r = ENOSYS;
     int first_error = 0;
     if (!tree) { 
@@ -1470,10 +1483,10 @@ int toku_lt_close(toku_lock_tree* tree) {
     rt_forest* forest;
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
-        r = lt_free_contents(tree, forest->self_read, TRUE);
+        r = lt_free_contents(tree, forest->self_read);
         if (!first_error && r != 0)
             first_error = r;
-        r = lt_free_contents(tree, forest->self_write, TRUE);
+        r = lt_free_contents(tree, forest->self_write);
         if (!first_error && r != 0) 
             first_error = r;
     }
@@ -1482,37 +1495,30 @@ int toku_lt_close(toku_lock_tree* tree) {
     toku_rth_close(tree->txns_still_locked);
     toku_omt_destroy(&tree->dbs);
 
-    tree->free(tree->buf);
-    tree->free(tree->bw_buf);
-    tree->free(tree);
+    toku_free(tree->buf);
+    toku_free(tree->bw_buf);
+    toku_free(tree);
     r = first_error;
 cleanup:
     return r;
 }
 
 // toku_lt_acquire_read_lock() used only by test programs
-int toku_lt_acquire_read_lock(toku_lock_tree* tree,
-                              DB* db, TXNID txn,
-                              const DBT* key) {
+int 
+toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
     return toku_lt_acquire_range_read_lock(tree, db, txn, key, key);
 }
 
 
-static int lt_try_acquire_range_read_lock(toku_lock_tree* tree,
-                                          DB* db, TXNID txn,
-                                          const DBT* key_left,
-                                          const DBT* key_right) {
+static int 
+lt_try_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
     int r;
     toku_point left;
     toku_point right;
     toku_interval query;
-    BOOL dominated;
+    bool dominated;
     
-    r = lt_preprocess(tree, db, txn, 
-                            key_left,
-                            key_right,
-                            &left, &right,
-                            &query);
+    r = lt_preprocess(tree, db, txn, key_left, key_right, &left, &right, &query);
     if (r != 0)
         goto cleanup;
 
@@ -1545,10 +1551,16 @@ static int lt_try_acquire_range_read_lock(toku_lock_tree* tree,
     r = lt_check_borderwrite_conflict(tree, txn, &query);
     if (r != 0) 
         goto cleanup;
-    /* Now need to merge, copy the memory and insert. */
+
+    // Check lock resource contraints
+    r = ltm_out_of_locks(tree->mgr);
+    if (r != 0)
+        goto cleanup;
+
+    // Now need to merge, copy the memory and insert
     toku_range  to_insert;
     init_insert(&to_insert, &left, &right, txn);
-    /* Consolidate the new range and all the overlapping ranges */
+    // Consolidate the new range and all the overlapping ranges
     r = consolidate_reads(tree, FALSE, &to_insert, txn);
     if (r != 0) 
         goto cleanup;
@@ -1564,9 +1576,8 @@ cleanup:
     Tests whether a range from BorderWrite is trivially escalatable.
     i.e. No read locks from other transactions overlap the range.
 */
-static inline int border_escalation_trivial(toku_lock_tree* tree, 
-                                            toku_range* border_range, 
-                                            BOOL* trivial) {
+static inline int 
+border_escalation_trivial(toku_lock_tree* tree, toku_range* border_range, bool* trivial) {
     assert(tree && border_range && trivial);
     int r = ENOSYS;
 
@@ -1585,9 +1596,8 @@ cleanup:
     return r;
 }
 
-/*  */
-static inline int escalate_writes_from_border_range(toku_lock_tree* tree, 
-                                                    toku_range* border_range) {
+static inline int 
+escalate_writes_from_border_range(toku_lock_tree* tree, toku_range* border_range) {
     int r = ENOSYS;
     if (!tree || !border_range) { 
         r = EINVAL; goto cleanup; 
@@ -1635,16 +1645,15 @@ static inline int escalate_writes_from_border_range(toku_lock_tree* tree,
     if (r != 0) { 
         r = lt_panic(tree, r); goto cleanup; 
     }
-    ltm_lock_incr(tree->mgr, numfound);
+    ltm_incr_locks(tree->mgr, numfound);
 
     r = 0;
 cleanup:
     return r;
 }
 
-static int lt_escalate_read_locks_in_interval(toku_lock_tree* tree,
-                                              toku_interval* query,
-                                              TXNID txn) {
+static int 
+lt_escalate_read_locks_in_interval(toku_lock_tree* tree, toku_interval* query, TXNID txn) {
     int r = ENOSYS;
     toku_range to_insert;
 
@@ -1660,7 +1669,8 @@ typedef struct {
     TXNID            txn;
 } escalate_info;
 
-static int escalate_read_locks_helper(toku_range* border_range, void* extra) {
+static int 
+escalate_read_locks_helper(toku_range* border_range, void* extra) {
     escalate_info* info = extra;
     int r               = ENOSYS;
 
@@ -1679,7 +1689,8 @@ cleanup:
 }
 
  //TODO: Whenever comparing TXNIDs use the comparison function INSTEAD of just '!= or =='
-static int lt_escalate_read_locks(toku_lock_tree* tree, TXNID txn) {
+static int 
+lt_escalate_read_locks(toku_lock_tree* tree, TXNID txn) {
     int r = ENOSYS;
     assert(tree);
     assert(tree->lock_escalation_allowed);
@@ -1705,10 +1716,11 @@ cleanup:
     return r;
 }
 
-static int escalate_write_locks_helper(toku_range* border_range, void* extra) {
+static int 
+escalate_write_locks_helper(toku_range* border_range, void* extra) {
     toku_lock_tree* tree = extra;
     int r                = ENOSYS;
-    BOOL trivial;
+    bool trivial;
     if ((r = border_escalation_trivial(tree, border_range, &trivial))) 
         goto cleanup;
     if (!trivial) { 
@@ -1733,7 +1745,8 @@ cleanup:
  *     Replaces all writes that overlap with range
  *     Deletes all reads dominated by range
  */
-static int lt_escalate_write_locks(toku_lock_tree* tree) {
+static int 
+lt_escalate_write_locks(toku_lock_tree* tree) {
     int r = ENOSYS;
     assert(tree);
     assert(tree->borderwrite);
@@ -1746,7 +1759,8 @@ cleanup:
 }
 
 // run escalation algorithm on a given locktree
-static int lt_do_escalation(toku_lock_tree* lt) {
+static int 
+lt_do_escalation(toku_lock_tree* lt) {
     assert(lt);
     int r = ENOSYS;
     DB* db;  // extract db from lt
@@ -1782,7 +1796,8 @@ cleanup:
 }
 
 // run escalation algorithm on all locktrees
-static int ltm_do_escalation(toku_ltm* mgr) {
+static int 
+ltm_do_escalation(toku_ltm* mgr) {
     assert(mgr);
     int r = ENOSYS;
     toku_lock_tree* lt = NULL;
@@ -1799,9 +1814,8 @@ cleanup:
     return r;
 }
 
-int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-				    const DBT* key_left,
-				    const DBT* key_right) {
+int 
+toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
     int r = ENOSYS;
 
     r = lt_try_acquire_range_read_lock(tree, db, txn, 
@@ -1834,24 +1848,19 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     return r;
 }
 
-static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
-                                           DB* db, TXNID txn,
-                                           const DBT* key_left,
-                                           const DBT* key_right) {
+static int 
+lt_try_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
     int r;
     toku_point left;
     toku_point right;
     toku_interval query;
 
-    r = lt_preprocess(tree, db,   txn, 
-                      key_left, key_right,
-                      &left,    &right,
-                      &query);
+    r = lt_preprocess(tree, db, txn, key_left, key_right, &left, &right, &query);
     if (r != 0)
         goto cleanup;
 
     // if query is dominated by selfwrite('txn') then return success
-    BOOL dominated;
+    bool dominated;
     r = lt_rt_dominates(tree, &query, toku_lt_ifexist_selfwrite(tree, txn), &dominated);
     if (r || dominated)
         goto cleanup;
@@ -1868,18 +1877,19 @@ static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
         // Need to copy the memory and insert. No merging required in selfwrite.
         // This is a point, and if merging was possible it would have been dominated by selfwrite.
 
+        r = ltm_out_of_locks(tree->mgr);
+        if (r != 0)
+            goto cleanup;
+
         // Insert into selfwrite
         toku_range to_insert;
         init_insert(&to_insert, &left, &right, txn);
-        if (!ltm_lock_test_incr(tree->mgr, 0)) { 
-            r = TOKUDB_OUT_OF_LOCKS; 
-            goto cleanup;
-        }
-        BOOL dummy = TRUE;
+
+        bool dummy = TRUE;
         r = lt_alloc_extreme(tree, &to_insert, TRUE, &dummy);
         if (r != 0)
             goto cleanup;
-        BOOL free_left = FALSE;
+        bool free_left = FALSE;
         toku_range_tree* selfwrite;
         r = lt_selfwrite(tree, txn, &selfwrite);
         if (r != 0) { 
@@ -1898,7 +1908,7 @@ static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
             r = lt_panic(tree, r); 
             goto cleanup_left; 
         }
-        ltm_lock_incr(tree->mgr, 0);
+        ltm_incr_locks(tree->mgr, 0);
         r = 0;
 
     cleanup_left:
@@ -1906,6 +1916,11 @@ static int lt_try_acquire_range_write_lock(toku_lock_tree* tree,
             if (free_left) 
                 p_free(tree, to_insert.ends.left);
     } else {
+        // Check lock resource contraints
+        r = ltm_out_of_locks(tree->mgr);
+        if (r != 0)
+            goto cleanup;
+
         // insert and consolidate into the local write set
         toku_range to_insert;
         init_insert(&to_insert, &left, &right, txn);
@@ -1919,9 +1934,8 @@ cleanup:
     return r;
 }
 
-int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
-				     const DBT* key_left,
-				     const DBT* key_right) {
+int 
+toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key_left, const DBT* key_right) {
     int r = ENOSYS;
 
     r = lt_try_acquire_range_write_lock(tree, db, txn, key_left, key_right);
@@ -1952,11 +1966,13 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
     return r;
 }
 
-int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
+int 
+toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn, const DBT* key) {
     return toku_lt_acquire_range_write_lock(tree, db, txn, key, key);
 }   
 
-static inline int sweep_border(toku_lock_tree* tree, toku_range* range) {
+static inline int 
+sweep_border(toku_lock_tree* tree, toku_range* range) {
     assert(tree && range);
     toku_range_tree* borderwrite = tree->borderwrite;
     assert(borderwrite);
@@ -1989,8 +2005,8 @@ static inline int sweep_border(toku_lock_tree* tree, toku_range* range) {
     /* Find pred(s.ends.left), and succ(s.ends.right) */
     toku_range pred;
     toku_range succ;
-    BOOL found_p = FALSE;
-    BOOL found_s = FALSE;
+    bool found_p = FALSE;
+    bool found_s = FALSE;
 
     r = lt_get_border_in_borderwrite(tree, &pred, &succ, &found_p, &found_s, &buf[0]);
     if (r != 0) 
@@ -2030,7 +2046,8 @@ static inline int sweep_border(toku_lock_tree* tree, toku_range* range) {
       If both found and pred.data=succ.data, merge pred and succ (expand?)
     free_points
 */
-static inline int lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
+static inline int 
+lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
     int r;
     assert(tree);
     if (!rt) 
@@ -2058,7 +2075,8 @@ static inline int lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
     return 0;
 }
 
-static inline int lt_defer_unlocking_txn(toku_lock_tree* tree, TXNID txnid) {
+static inline int 
+lt_defer_unlocking_txn(toku_lock_tree* tree, TXNID txnid) {
     int r = ENOSYS;
 
     rt_forest* forest = toku_rth_find(tree->txns_to_unlock, txnid);
@@ -2075,7 +2093,8 @@ cleanup:
     return r;
 }
 
-static inline int lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
+static inline int 
+lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
     if (!tree) 
         return EINVAL;
     int r;
@@ -2085,24 +2104,20 @@ static inline int lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
     uint32_t ranges = 0;
 
     if (selfread) {
-        uint32_t size;
-        r = toku_rt_get_size(selfread, &size);
-        assert_zero(r);
+        uint32_t size = toku_rt_get_size(selfread);
         ranges += size;
-        r = lt_free_contents(tree, selfread, TRUE);
+        r = lt_free_contents(tree, selfread);
         if (r != 0) 
             return lt_panic(tree, r);
     }
 
     if (selfwrite) {
-        uint32_t size;
-        r = toku_rt_get_size(selfwrite, &size);
-        assert_zero(r);
+        uint32_t size = toku_rt_get_size(selfwrite);
         ranges += size;
         r = lt_border_delete(tree, selfwrite);
         if (r != 0) 
             return lt_panic(tree, r);
-        r = lt_free_contents(tree, selfwrite, TRUE);
+        r = lt_free_contents(tree, selfwrite);
         if (r != 0) 
             return lt_panic(tree, r);
     }
@@ -2110,12 +2125,13 @@ static inline int lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
     if (selfread || selfwrite) 
         toku_rth_delete(tree->rth, txn);
     
-    ltm_lock_decr(tree->mgr, ranges);
+    ltm_decr_locks(tree->mgr, ranges);
 
     return 0;
 }
 
-static inline int lt_unlock_deferred_txns(toku_lock_tree* tree) {
+static inline int 
+lt_unlock_deferred_txns(toku_lock_tree* tree) {
     int r = ENOSYS;
     toku_rth_start_scan(tree->txns_to_unlock);
     rt_forest* forest = NULL;
@@ -2131,8 +2147,10 @@ cleanup:
     return r;
 }
 
-static inline void lt_clear(toku_lock_tree* tree) {
+static inline void 
+lt_clear(toku_lock_tree* tree) {
     int r;
+
     assert(tree);
     toku_rt_clear(tree->borderwrite);
 
@@ -2140,19 +2158,14 @@ static inline void lt_clear(toku_lock_tree* tree) {
     rt_forest* forest;
     uint32_t ranges = 0;
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
-        uint32_t size;
         if (forest->self_read) {
-            r = toku_rt_get_size(forest->self_read, &size);
-            assert_zero(r);
-            ranges += size;
-            r = lt_free_contents(tree, forest->self_read, TRUE);
+            ranges += toku_rt_get_size(forest->self_read);
+            r = lt_free_contents(tree, forest->self_read);
             assert_zero(r);
         }
         if (forest->self_write) {
-            r = toku_rt_get_size(forest->self_write, &size);
-            assert_zero(r);
-            ranges += size;
-            r = lt_free_contents(tree, forest->self_write, TRUE);
+            ranges += toku_rt_get_size(forest->self_write);
+            r = lt_free_contents(tree, forest->self_write);
             assert_zero(r);
         }
         
@@ -2160,10 +2173,11 @@ static inline void lt_clear(toku_lock_tree* tree) {
     toku_rth_clear(tree->rth);
     toku_rth_clear(tree->txns_to_unlock);
     /* tree->txns_still_locked is already empty, so we do not clear it. */
-    ltm_lock_decr(tree->mgr, ranges);
+    ltm_decr_locks(tree->mgr, ranges);
 }
 
-int toku_lt_unlock(toku_lock_tree* tree, TXNID txn) {
+int 
+toku_lt_unlock(toku_lock_tree* tree, TXNID txn) {
     int r = ENOSYS;
     if (!tree) { 
         r = EINVAL; goto cleanup;
@@ -2183,13 +2197,15 @@ cleanup:
     return r;
 }
 
-void toku_lt_add_ref(toku_lock_tree* tree) {
+void 
+toku_lt_add_ref(toku_lock_tree* tree) {
     assert(tree);
     assert(tree->ref_count > 0);
     tree->ref_count++;
 }
 
-static void toku_ltm_stop_managing_lt(toku_ltm* mgr, toku_lock_tree* tree) {
+static void 
+toku_ltm_stop_managing_lt(toku_ltm* mgr, toku_lock_tree* tree) {
     toku_ltm_remove_lt(mgr, tree);
     toku_lt_map* map = toku_idlth_find(mgr->idlth, tree->dict_id);
     if (map && map->tree == tree) {
@@ -2197,7 +2213,8 @@ static void toku_ltm_stop_managing_lt(toku_ltm* mgr, toku_lock_tree* tree) {
     }
 }
 
-int toku_lt_remove_ref(toku_lock_tree* tree) {
+int 
+toku_lt_remove_ref(toku_lock_tree* tree) {
     int r = ENOSYS;
     assert(tree);
     assert(tree->ref_count > 0);
@@ -2217,7 +2234,8 @@ cleanup:
 }
 
 //Heaviside function to find a DB by DB (used to find the index) (just sort by pointer addr)
-static int find_db (OMTVALUE v, void *dbv) {
+static int 
+find_db (OMTVALUE v, void *dbv) {
     DB *db = v;
     DB *dbfind = dbv;
     if (db < dbfind) 
@@ -2227,7 +2245,8 @@ static int find_db (OMTVALUE v, void *dbv) {
     return 0;
 }
 
-static void lt_add_db(toku_lock_tree* tree, DB *db) {
+static void 
+lt_add_db(toku_lock_tree* tree, DB *db) {
     if (db != NULL) {
         int r;
         OMTVALUE get_dbv = NULL;
@@ -2239,7 +2258,8 @@ static void lt_add_db(toku_lock_tree* tree, DB *db) {
     }
 }
 
-static void lt_remove_db(toku_lock_tree* tree, DB *db) {
+static void 
+lt_remove_db(toku_lock_tree* tree, DB *db) {
     if (db != NULL) {
         int r;
         OMTVALUE get_dbv = NULL;
@@ -2252,7 +2272,8 @@ static void lt_remove_db(toku_lock_tree* tree, DB *db) {
     }
 }
 
-void toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db) {
+void 
+toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db) {
     int r;
     lt_remove_db(tree, db);
     r = toku_lt_remove_ref(tree);
@@ -2683,7 +2704,7 @@ toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock
     }
 
     if (ranges) 
-        tree->free(ranges);
+        toku_free(ranges);
 
     lt_clear_comparison_functions(tree);
     return r;

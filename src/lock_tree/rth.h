@@ -11,7 +11,6 @@
   
 */
 
-//Defines BOOL data type.
 #include <db.h>
 #include <brttypes.h>
 #include <rangetree.h>
@@ -42,19 +41,10 @@ struct __toku_rth {
     uint32_t       num_keys;
     toku_rth_elt    iter_head;
     toku_rth_elt*   iter_curr;
-    BOOL            iter_is_valid;
-    /** The user malloc function */
-    void*         (*malloc) (size_t);
-    /** The user free function */
-    void          (*free)   (void*);
-    /** The user realloc function */
-    void*         (*realloc)(void*, size_t);
+    bool            iter_is_valid;
 };
 
-int  toku_rth_create(toku_rth** ptable,
-                     void* (*user_malloc) (size_t),
-                     void  (*user_free)   (void*),
-                     void* (*user_realloc)(void*, size_t));
+int  toku_rth_create(toku_rth** ptable);
 
 rt_forest* toku_rth_find       (toku_rth* table, TXNID key);
 
@@ -70,7 +60,7 @@ int             toku_rth_insert     (toku_rth* table, TXNID key);
 
 void            toku_rth_clear      (toku_rth* rth);
 
-BOOL            toku_rth_is_empty   (toku_rth* rth);
+bool            toku_rth_is_empty   (toku_rth* rth);
 
 #if defined(__cplusplus)
 }

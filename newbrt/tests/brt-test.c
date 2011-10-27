@@ -14,7 +14,7 @@ static void test_dump_empty_db (void) {
     BRT t;
     CACHETABLE ct;
     int r;
-    toku_memory_check=1;
+
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
@@ -1219,7 +1219,7 @@ static void test_new_brt_cursors(void) {
 }
 
 static void brt_blackbox_test (void) {
-    toku_memory_check = 1;
+
     test_wrongendian_compare(0, 2);          
     test_wrongendian_compare(1, 2);          
     test_wrongendian_compare(1, 257);        
@@ -1235,8 +1235,6 @@ static void brt_blackbox_test (void) {
     
     if (verbose) printf("test_multiple_files\n");
     test_multiple_files();
-
-    toku_memory_check = 1;
 
     test_brt_limits();
 

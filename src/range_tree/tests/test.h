@@ -100,3 +100,10 @@ verify_all_overlap (toku_interval* query, toku_range* list, unsigned listlen) {
     }
 }
 
+static inline void
+test_incr_memory_size(void *extra UU(), size_t s UU()) {
+}
+
+static inline void
+test_decr_memory_size(void *extra UU(), size_t s UU()) {
+}

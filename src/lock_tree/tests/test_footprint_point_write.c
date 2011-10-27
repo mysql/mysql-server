@@ -3,7 +3,18 @@
 //
 // example: ./benchmark_point_write_locks.tlog --max_locks 1000000 --max_lock_memory 1000000000 --nrows 1000000
 
+#define TOKU_ALLOW_DEPRECATED
+#include <malloc.h>
 #include "test.h"
+#include <byteswap.h>
+
+static uint64_t htonl64(uint64_t x) {
+#if BYTE_ORDER == LITTLE_ENDIAN
+    return bswap_64(x);
+#else
+#error
+#endif
+}
 
 struct my_ltm_status {
     uint32_t max_locks, curr_locks;
@@ -15,12 +26,32 @@ static void my_ltm_get_status(toku_ltm *ltm, struct my_ltm_status *my_status) {
     toku_ltm_get_status(ltm, &my_status->max_locks, &my_status->curr_locks, &my_status->max_lock_memory, &my_status->curr_lock_memory, &my_status->status);
 }
 
+static void *my_malloc(size_t s) {
+    void * p = malloc(s);
+    if (verbose) 
+        printf("%s %lu %lu\n", __FUNCTION__, s, malloc_usable_size(p));
+    return p;
+}
+
+static void *my_realloc(void *p, size_t s) {
+    if (verbose)
+        printf("%s %p %lu\n", __FUNCTION__, p, s);
+    return realloc(p, s);
+}
+
+static void my_free(void *p) {
+    if (verbose) 
+        printf("%s %p %lu\n", __FUNCTION__, p, malloc_usable_size(p));
+    free(p);
+}
+
 int main(int argc, const char *argv[]) {
     int r;
 
     uint32_t max_locks = 2;
     uint64_t max_lock_memory = 4096;
     uint64_t nrows = 1;
+    bool do_malloc_trace = false;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
@@ -43,12 +74,22 @@ int main(int argc, const char *argv[]) {
             nrows = atoi(argv[++i]);
             continue;
         }
+        if (strcmp(argv[i], "--malloc") == 0) {
+            do_malloc_trace = true;
+            continue;
+        }
         assert(0);
+    }
+
+    if (do_malloc_trace) {
+        toku_set_func_malloc(my_malloc);
+        toku_set_func_free(my_free);
+        toku_set_func_realloc(my_realloc);
     }
 
     // setup
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db, toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     assert(r == 0 && ltm);
     
     struct my_ltm_status s;
@@ -59,14 +100,15 @@ int main(int argc, const char *argv[]) {
     assert(s.curr_lock_memory == 0);
 
     toku_lock_tree *lt = NULL;
-    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db, toku_malloc, toku_free, toku_realloc);
+    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
     assert(r == 0 && lt);
 
     DB *db_a = (DB *) 2;
     TXNID txn_a = 1;
 
     // acquire the locks on keys 1 .. nrows
-    for (uint64_t k = 1; k <= nrows; k++) {
+    for (uint64_t i = 1; i <= nrows; i++) {
+        uint64_t k = htonl64(i);
         DBT key = { .data = &k, .size = sizeof k };
         r = toku_lt_acquire_write_lock(lt, db_a, txn_a, &key);
         if (r != 0) {
@@ -77,12 +119,12 @@ int main(int argc, const char *argv[]) {
         struct my_ltm_status t;
         my_ltm_get_status(ltm, &t);
         assert(t.max_locks == max_locks);
-        assert(t.curr_locks == k);
+        assert(t.curr_locks == i);
         assert(t.max_lock_memory == max_lock_memory);
         assert(t.curr_lock_memory > s.curr_lock_memory);
         
         if (verbose)
-            printf("%"PRIu64" %"PRIu64"\n", k, t.curr_lock_memory);
+            printf("%"PRIu64" %"PRIu64"\n", i, t.curr_lock_memory - s.curr_lock_memory);
         
         s = t;
     }
@@ -90,6 +132,9 @@ int main(int argc, const char *argv[]) {
 
     // release the locks
     r = toku_lt_unlock(lt, txn_a);  assert(r == 0);
+
+    my_ltm_get_status(ltm, &s);
+    assert(s.curr_locks == 0);
 
     // shutdown 
     r = toku_lt_close(lt); assert(r == 0);

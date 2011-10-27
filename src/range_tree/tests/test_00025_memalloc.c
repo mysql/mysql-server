@@ -3,20 +3,8 @@
 
 #include "test.h"
 
-unsigned malloc_cnt;
-unsigned malloc_cntl;
-
-/* Controllable malloc failure: it fails only the ith time it is invoked */
-static void* malloc_fail(size_t size) {
-    if (malloc_cntl == ++malloc_cnt) {
-        errno = ENOMEM;
-        return NULL;
-    } else 
-        return toku_malloc(size);
-}
-
 static void
-RunTest (BOOL f_overlaps_allowed) {
+RunTest (bool f_overlaps_allowed) {
     int i, j;
     int r;
     toku_range_tree *tree;
@@ -30,7 +18,7 @@ RunTest (BOOL f_overlaps_allowed) {
 
     /* Insert and delete lots of ranges to force memory increase and decrease */
 
-    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, toku_malloc, toku_free, toku_realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, test_incr_memory_size, test_decr_memory_size, NULL);
     CKERR(r);
 
     /* Insert lots of ranges */
@@ -52,28 +40,16 @@ RunTest (BOOL f_overlaps_allowed) {
     }
 
     r = toku_rt_close(tree);            CKERR(r);
-
     tree = NULL;
-
-
-    /* Force malloc to fail */
-
-    /* Failure when allocating the tree */
-    malloc_cnt  = 0;
-    malloc_cntl = 1;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc_fail, toku_free, 
-                       toku_realloc);
-    CKERR2(r, ENOMEM);
-
 }
 
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
 #ifndef TOKU_RT_NOOVERLAPS
-    RunTest(TRUE);
+    RunTest(true);
 #endif
-    RunTest(FALSE);
+    RunTest(false);
     
     return 0;
 }

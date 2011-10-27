@@ -2387,9 +2387,8 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
 
     r = toku_ltm_create(&result->i->ltm,
                         __toku_env_default_max_locks, __toku_env_default_max_lock_memory,
-                         toku_db_lt_panic, 
-                         toku_db_get_compare_fun,
-                         toku_malloc, toku_free, toku_realloc);
+                        toku_db_lt_panic, 
+                        toku_db_get_compare_fun);
     if (r!=0) { goto cleanup; }
     toku_ltm_set_mutex(result->i->ltm, toku_ydb_mutex());
 
@@ -2779,8 +2778,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, int i
 
     int r;
     if (env->i->open_flags & DB_INIT_LOCK && !stxn) {
-        r = toku_lth_create(&db_txn_struct_i(result)->lth,
-                            toku_malloc, toku_free, toku_realloc);
+        r = toku_lth_create(&db_txn_struct_i(result)->lth);
         if (r!=0) {
 #if !TOKUDB_NATIVE_H
             toku_free(db_txn_struct_i(result));

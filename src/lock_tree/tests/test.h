@@ -17,7 +17,7 @@ int verbose=0;
 #include <key.h>
 
 
-BOOL want_panic = FALSE;
+bool want_panic = false;
 
 static inline int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
     int x = *(int*)a->data;
@@ -39,11 +39,11 @@ static inline toku_dbt_cmp get_compare_fun_from_db(__attribute__((unused)) DB* d
     return compare_fun;
 }
 
-BOOL panicked = FALSE;
+bool panicked = false;
 
 static inline int dbpanic(DB* db, int r) {
     if (verbose) printf("AHH!!!! %d is rampaging! Run away %p!!!\n", r, db);
-    panicked = TRUE;
+    panicked = true;
     assert(want_panic);
     return EINVAL;
 }
@@ -107,13 +107,3 @@ static inline void init_point(toku_point* point, toku_lock_tree* tree) {
     point->lt = tree;
 }
 
-int mallocced = 0;
-int failon    = -1;
-
-static inline void* fail_malloc(size_t size) {
-    if (++mallocced == failon) {
-        errno = ENOMEM;
-        return NULL;
-    }
-    return toku_malloc(size);
-}

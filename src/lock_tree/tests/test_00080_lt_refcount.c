@@ -20,9 +20,7 @@ int  nums[10000];
 
 static void setup_ltm(void) {
     assert(!ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     assert(ltm);
 }

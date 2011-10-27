@@ -1262,8 +1262,6 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
-    toku_memory_check = 1;
-
     test_serialize_leaf(read_none);
     test_serialize_leaf(read_all);
     test_serialize_leaf(read_compressed);

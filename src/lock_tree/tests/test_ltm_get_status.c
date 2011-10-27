@@ -22,9 +22,7 @@ int main(int argc, const char *argv[]) {
     int r;
 
     toku_ltm *ltm = NULL;
-    r = toku_ltm_create(&ltm, MAX_LOCKS, MAX_LOCK_MEMORY, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, MAX_LOCKS, MAX_LOCK_MEMORY, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     do_ltm_status(ltm);
 #if 0

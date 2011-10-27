@@ -3,7 +3,7 @@
 #include "test.h"
 
 static void
-run_test (BOOL overlap_allowed) {
+run_test (bool overlap_allowed) {
     int r;
     toku_range_tree *tree;
     toku_range range;
@@ -17,15 +17,7 @@ run_test (BOOL overlap_allowed) {
         1   2   3   4   5   6   7
         |---A-----------|
     */
-    r = toku_rt_create(
-        &tree, 
-        int_cmp, 
-        char_cmp, 
-        overlap_allowed, 
-        toku_malloc, 
-        toku_free, 
-        toku_realloc
-        );
+    r = toku_rt_create(&tree, int_cmp, char_cmp, overlap_allowed, test_incr_memory_size, test_decr_memory_size, NULL);
     CKERR(r);
 
     range.ends.left = (toku_point*)&nums[1];
@@ -43,8 +35,8 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
 #ifndef TOKU_RT_NOOVERLAPS
-    run_test(TRUE);
+    run_test(true);
 #endif
-    run_test(FALSE);
+    run_test(false);
     return 0;
 }

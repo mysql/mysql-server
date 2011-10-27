@@ -75,3 +75,37 @@ clean:
 	rm -f $(ALL_TESTS)
 	rm -rf dir.*.lin dir.*.tlog dir.*.log
 
+check_footprint.linrun: check_footprint_point.linrun check_footprint_range.linrun
+	true
+
+check_footprint_point.linrun: test_footprint_point_write.lin
+	$(VGRIND) ./$< -v --nrows 1 && \
+	$(VGRIND) ./$< -v --nrows 2 && \
+	$(VGRIND) ./$< -v --nrows 10 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 100 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 1000 --max_locks 1000 
+
+check_footprint_range.linrun: test_footprint_range_write.lin
+	$(VGRIND) ./$< -v --nrows 1 && \
+	$(VGRIND) ./$< -v --nrows 2 && \
+	$(VGRIND) ./$< -v --nrows 10 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 100 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 1000 --max_locks 1000 
+
+check_footprint.tlogrun: check_footprint_point.tlogrun check_footprint_range.tlogrun
+	true
+
+check_footprint_point.tlogrun: test_footprint_point_write.tlog
+	$(VGRIND) ./$< -v --nrows 1 && \
+	$(VGRIND) ./$< -v --nrows 2 && \
+	$(VGRIND) ./$< -v --nrows 10 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 100 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 1000 --max_locks 1000 
+
+check_footprint_range.tlogrun: test_footprint_range_write.tlog
+	$(VGRIND) ./$< -v --nrows 1 && \
+	$(VGRIND) ./$< -v --nrows 2 && \
+	$(VGRIND) ./$< -v --nrows 10 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 100 --max_locks 1000 && \
+	$(VGRIND) ./$< -v --nrows 1000 --max_locks 1000 
+

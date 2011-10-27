@@ -10,8 +10,6 @@
 #include "toku_assert.h"
 #include "toku_pthread.h"
 
-int toku_memory_check=0;
-
 static malloc_fun_t  t_malloc  = 0;
 static malloc_fun_t  t_xmalloc = 0;
 static free_fun_t    t_free    = 0;
@@ -166,6 +164,11 @@ toku_xrealloc(void *v, size_t size) {
     set_max(status.used, status.freed);
     memory_status_unlock();
     return p;
+}
+
+size_t 
+toku_malloc_usable_size(void *p) {
+    return malloc_usable_size(p);
 }
 
 void *

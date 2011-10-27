@@ -21,7 +21,7 @@ int main(int argc, const char *argv[]) {
             |-------B-------|
     */
 #ifndef TOKU_RT_NOOVERLAPS
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, toku_malloc, toku_free, toku_realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, true, test_incr_memory_size, test_decr_memory_size, NULL);
     CKERR(r);
 
     /* Verify we can insert a trivial range and lose it. */
@@ -29,8 +29,7 @@ int main(int argc, const char *argv[]) {
     range.ends.right = (toku_point*)&nums[1];
     range.data = (TXNID)letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
-    u_int32_t num_in_range;
-    r = toku_rt_get_size(tree, &num_in_range); CKERR(r);
+    size_t num_in_range = toku_rt_get_size(tree);
     assert(num_in_range == 1);
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
@@ -112,7 +111,7 @@ int main(int argc, const char *argv[]) {
         |---A---|
                     |---B---|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, toku_malloc, toku_free, toku_realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, false, test_incr_memory_size, test_decr_memory_size, NULL);
     CKERR(r);
 
     /* Verify we can insert a trivial range and lose it. */

@@ -11,7 +11,7 @@ static const char fname[]= __FILE__ ".brt";
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static void test4 (int nodesize, int count, int memcheck) {
+static void test4 (int nodesize, int count) {
     BRT t;
     int r;
     struct timeval t0,t1;
@@ -19,7 +19,6 @@ static void test4 (int nodesize, int count, int memcheck) {
     CACHETABLE ct;
     gettimeofday(&t0, 0);
     unlink(fname);
-    toku_memory_check=memcheck;
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
     r = toku_open_brt(fname, 1, &t, nodesize, nodesize / 8, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
@@ -44,21 +43,21 @@ static void test4 (int nodesize, int count, int memcheck) {
 }
 
 static void brt_blackbox_test (void) {
-    test4(2048, 1<<14, 1);
+    test4(2048, 1<<14);
 
     if (0) {
 
 	if (verbose) printf("test4 slow\n");
-	test4(2048, 1<<15, 1);
+	test4(2048, 1<<15);
 
 	//if (verbose) toku_pma_show_stats();
 
-	test4(1<<15, 1024, 1);
+	test4(1<<15, 1024);
 
-	test4(1<<18, 1<<20, 0);
+	test4(1<<18, 1<<20);
 
 	// Once upon a time srandom(8) caused this test to fail.
-	srandom(8); test4(2048, 1<<15, 1);
+	srandom(8); test4(2048, 1<<15);
     }
 }
 

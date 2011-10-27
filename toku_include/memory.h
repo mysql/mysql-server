@@ -10,7 +10,6 @@
 extern "C" {
 #endif
 
-
 /* Tokutek memory allocation functions and macros.
  * These are functions for malloc and free */
 
@@ -29,6 +28,8 @@ void toku_free(void*) __attribute__((__visibility__("default")));
 /* toku_free_n() should be used if the caller knows the size of the malloc'd object. */
 void toku_free_n(void*, size_t size);
 void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default")));
+
+size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")));
 
 /* MALLOC is a macro that helps avoid a common error:
  * Suppose I write
@@ -80,20 +81,6 @@ void toku_malloc_cleanup (void); /* Before exiting, call this function to free u
 void toku_memory_check_all_free (void);
 /* Check to see if memory is "sane".  Might be a no-op.  Probably better to simply use valgrind. */
 void toku_do_memory_check(void);
-
-extern int toku_memory_check; // Set to nonzero to get a (much) slower version of malloc that does (much) more checking.
-
-int toku_get_n_items_malloced(void); /* How many items are malloc'd but not free'd.  May return 0 depending on the configuration of memory.c */
-void toku_print_malloced_items(void); /* Try to print some malloced-but-not-freed items.  May be a noop. */
-void toku_malloc_report (void); /* report on statistics about number of mallocs.  Maybe a no-op. */ 
-
-// For memory-debug.c  Set this to an array of integers that say which mallocs should return NULL and ENOMEM.
-// The array is terminated by a -1.
-extern int *toku_dead_mallocs;
-extern int toku_malloc_counter; // so you can reset it
-extern int toku_realloc_counter;
-extern int toku_calloc_counter;
-extern int toku_free_counter;
 
 typedef void *(*malloc_fun_t)(size_t);
 typedef void  (*free_fun_t)(void*);

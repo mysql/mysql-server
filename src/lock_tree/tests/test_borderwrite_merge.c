@@ -36,14 +36,10 @@ static void init_query(void) {
 
 static void setup_tree(void) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic,
-                        get_compare_fun_from_db,
-                        toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic, get_compare_fun_from_db);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, dbpanic, ltm,
-                       get_compare_fun_from_db,
-                       toku_malloc, toku_free, toku_realloc);
+    r = toku_lt_create(&lt, dbpanic, ltm, get_compare_fun_from_db);
     CKERR(r);
     assert(lt);
     init_query();
@@ -90,6 +86,10 @@ static void lt_insert_write_range(int r_expect, char txn, int key_l, int key_r) 
     lt_verify();
 }
 
+static void lt_unlock(TXNID txnid) {
+    r= toku_lt_unlock(lt, txnid); CKERR(r);
+}
+
 static void runtest(void) {
     setup_tree();
     lt_insert_write_range(0, 'a', 5, 15);
@@ -98,6 +98,7 @@ static void runtest(void) {
         lt_insert_write_range(DB_LOCK_NOTGRANTED, 'b', k, k);
     for (int k = 5; k <= 20; k++)
         lt_insert_write_range(0, 'a', k, k);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
@@ -107,6 +108,7 @@ static void runtest(void) {
         lt_insert_write_range(DB_LOCK_NOTGRANTED, 'b', k, k);
     for (int k = 5; k <= 20; k++)
         lt_insert_write_range(0, 'a', k, k);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
@@ -115,18 +117,21 @@ static void runtest(void) {
         lt_insert_write_range(0, 'a', k, k);
     for (int k = 10; k <= 20; k++)
         lt_insert_write_range(DB_LOCK_NOTGRANTED, 'b', k, k);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', 5, 10);
     lt_insert_write_range(0, 'a', 20, 30);
     lt_insert_write_range(0, 'a', 1, 8);
+    lt_unlock('a');
     close_tree();
 
     setup_tree();
     lt_insert_write_range(0, 'a', 5, 10);
     lt_insert_write_range(0, 'a', 20, 30);
     lt_insert_write_range(0, 'a', 25, 35);
+    lt_unlock('a');
     close_tree();
 
 }

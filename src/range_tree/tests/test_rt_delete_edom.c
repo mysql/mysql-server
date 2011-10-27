@@ -14,7 +14,8 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     toku_range_tree *tree;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, toku_malloc, toku_free, toku_realloc); CKERR(r);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, false, test_incr_memory_size, test_decr_memory_size, NULL); 
+    CKERR(r);
 
     int insert_left = 10; int insert_right = 20;
     toku_range insert_range; my_init_range(&insert_range, &insert_left, &insert_right, 'a');

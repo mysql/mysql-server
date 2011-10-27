@@ -25,17 +25,12 @@ struct __toku_range_tree {
         with a range */
     int       (*data_cmp)(const TXNID,const TXNID);
     /** Whether this tree allows ranges to overlap */
-    BOOL        allow_overlaps;
-    /** The number of ranges in the range tree */
-    u_int32_t   numelements;
-    /** The user malloc function */
-    void*     (*malloc) (size_t);
-    /** The user free function */
-    void      (*free)   (void*);
-    /** The user realloc function */
-    void*     (*realloc)(void*, size_t);
-
+    bool        allow_overlaps;
     toku_range_tree_local i;
+    
+    void (*incr_memory_size)(void *extra_memory_size, size_t s);
+    void (*decr_memory_size)(void *extra_memory_size, size_t s);
+    void *extra_memory_size;
 };
 
 /*
@@ -53,7 +48,7 @@ static inline int toku__rt_p_cmp(toku_range_tree* tree,
     return 0;
 }
     
-static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** buf,
+static inline int toku__rt_increase_buffer(toku_range_tree* tree UU(), toku_range** buf,
                                      u_int32_t* buflen, u_int32_t num) {
     assert(buf);
     //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(buflen);
@@ -63,7 +58,7 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** b
             temp_len = 1;
         while (temp_len < num) 
             temp_len *= 2;
-        toku_range* temp_buf = tree->realloc(*buf, temp_len * sizeof(toku_range));
+        toku_range* temp_buf = toku_realloc(*buf, temp_len * sizeof(toku_range));
         if (!temp_buf) 
             return errno;
         *buf = temp_buf;
@@ -72,31 +67,31 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** b
     return 0;
 }
 
-static inline int toku_rt_super_create(toku_range_tree** upperptree,
-                   toku_range_tree** ptree,
-                   int (*end_cmp)(const toku_point*,const toku_point*),
-                   int (*data_cmp)(const TXNID,const TXNID),
-                   BOOL allow_overlaps,
-                   void* (*user_malloc) (size_t),
-                   void  (*user_free)   (void*),
-                   void* (*user_realloc)(void*, size_t)) {
+static inline int 
+toku_rt_super_create(toku_range_tree** upperptree,
+                     toku_range_tree** ptree,
+                     int (*end_cmp)(const toku_point*,const toku_point*),
+                     int (*data_cmp)(const TXNID,const TXNID),
+                     bool allow_overlaps,
+                     void (*incr_memory_size)(void *extra_memory_size, size_t s),
+                     void (*decr_memory_size)(void *extra_memory_size, size_t s),
+                     void *extra_memory_size) {
+
     toku_range_tree* temptree;
-    if (!upperptree || !ptree || !end_cmp || !data_cmp ||
-        !user_malloc || !user_free || !user_realloc)              
+    if (!upperptree || !ptree || !end_cmp || !data_cmp) 
         return EINVAL;
     
-    temptree = (toku_range_tree*)user_malloc(sizeof(toku_range_tree));
+    temptree = (toku_range_tree*) toku_malloc(sizeof(toku_range_tree));
     if (!temptree) 
         return ENOMEM;
     
     //Any initializers go here.
-    memset(temptree, 0, sizeof(*temptree));
     temptree->end_cmp        = end_cmp;
     temptree->data_cmp       = data_cmp;
     temptree->allow_overlaps = allow_overlaps;
-    temptree->malloc  = user_malloc;
-    temptree->free    = user_free;
-    temptree->realloc = user_realloc;
+    temptree->incr_memory_size = incr_memory_size;
+    temptree->decr_memory_size = decr_memory_size;
+    temptree->extra_memory_size = extra_memory_size;
     *ptree = temptree;
 
     return 0;

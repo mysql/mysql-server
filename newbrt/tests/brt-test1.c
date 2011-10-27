@@ -14,7 +14,6 @@ static void test1 (void) {
     CACHETABLE ct;
     char fname[]= __FILE__ "1.brt";
     DBT k,v;
-    toku_memory_check=1;
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);

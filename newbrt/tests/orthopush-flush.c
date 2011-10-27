@@ -1069,7 +1069,6 @@ parse_args(int argc, const char *argv[]) {
 
 int
 test_main (int argc, const char *argv[]) {
-    toku_memory_check = 1;
     parse_args(argc, argv);
 
     int r;
