@@ -212,7 +212,6 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 */
 int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
             size_t pack_length);
-int ndbcluster_find_all_files(THD *thd);
 
 /*
   Helper functions
