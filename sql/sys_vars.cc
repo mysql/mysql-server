@@ -2212,15 +2212,18 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
+  bool check_purge= false;
+
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
-    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
-      (binlog_checksum_options != (uint) var->save_result.ulonglong_value?
-       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
-    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+    bool alg_changed=
+      (binlog_checksum_options != (uint) var->save_result.ulonglong_value);
+    if (alg_changed)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
-    mysql_bin_log.rotate_and_purge(flags);
+    mysql_bin_log.rotate(true, &check_purge);
+    if (alg_changed)
+      mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   else
   {
@@ -2229,6 +2232,10 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
   DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  
+  if (check_purge)
+    mysql_bin_log.purge();
+
   return 0;
 }
 
