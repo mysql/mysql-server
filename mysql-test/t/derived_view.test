@@ -1190,5 +1190,36 @@ DROP TABLE t1,t2;
 
 SET SESSION optimizer_switch='derived_merge=on';
 
+--echo #
+--echo # LP bug #879939: assertion in ha_maria::enable_indexes 
+--echo #                 with derived_with_keys=on
+--echo #
+
+CREATE TABLE t2 (a varchar(3));
+INSERT INTO t2 VALUES ('USA'), ('USA'), ('USA'), ('USA'), ('USA');
+
+CREATE TABLE t1 (a varchar(3), b varchar(35));
+INSERT INTO t1 VALUES
+  ('USA','Lansing'), ('USA','Laredo'), ('USA','Las Vegas'), 
+  ('USA','Lexington-Fayett'), ('USA','Lincoln'), ('USA','Little Rock'),
+  ('USA','Livonia'), ('USA','Long Beach'), ('USA','Los Angeles'),
+  ('USA','Louisville'), ('USA','Lowell'), ('USA','Lubbock'),
+  ('USA','Macon'), ('USA','Madison'), ('USA','Manchester'),
+  ('USA','McAllen'), ('USA','Memphis'), ('USA','Mesa'), 
+  ('USA','Mesquite'), ('USA','Metairie'), ('USA','Miami');
+
+CREATE TABLE t3 (a varchar(35));
+INSERT INTO t3 VALUES ('Miami');
+
+SET optimizer_switch = 'derived_with_keys=on';
+SET @@tmp_table_size=1024*4;
+explain SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+SET @@tmp_table_size=1024*1024*16;
+SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+SET @@tmp_table_size=default;
+
+drop table t1,t2,t3;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;

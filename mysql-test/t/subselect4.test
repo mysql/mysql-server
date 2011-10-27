@@ -1736,26 +1736,5 @@ drop table t1, t2, t3;
 
 set optimizer_switch=@subselect4_tmp;
 
---echo #
---echo # LP bug #879939: assertion in ha_maria::enable_indexes with derived_with_keys=on
---echo #
-
-CREATE TABLE t2 ( a varchar(3)) ;
-INSERT INTO t2 VALUES ('USA'),('USA'),('USA'),('USA'),('USA');
-CREATE TABLE t1 ( a varchar(3), b varchar(35)) ENGINE=MyISAM;
-INSERT INTO t1 VALUES ('USA','Lansing'),('USA','Laredo'),('USA','Las Vegas'),('USA','Lexington-Fayett'),('USA','Lincoln'),('USA','Little Rock'),('USA','Livonia'),('USA','Long Beach'),('USA','Los Angeles'),('USA','Louisville'),('USA','Lowell'),('USA','Lubbock'),('USA','Macon'),('USA','Madison'),('USA','Manchester'),('USA','McAllen'),('USA','Memphis'),('USA','Mesa'),('USA','Mesquite'),('USA','Metairie'),('USA','Miami');
-
-CREATE TABLE t3 ( a varchar(35)) ENGINE=MyISAM;
-INSERT INTO t3 VALUES ('Miami');
-
-SET optimizer_switch = 'derived_with_keys=on';
-SET @@tmp_table_size=1024*4;
-
-explain SELECT * FROM (SELECT t1.* FROM t1, t2 ) AS alias1 JOIN t3 ON ( t3.a = alias1.b );
-SELECT * FROM (SELECT t1.* FROM t1, t2 ) AS alias1 JOIN t3 ON ( t3.a = alias1.b );
-SET @@tmp_table_size=1024*1024*16;
-SELECT * FROM (SELECT t1.* FROM t1, t2 ) AS alias1 JOIN t3 ON ( t3.a = alias1.b );
-
-drop table t1,t2,t3;
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;

@@ -1787,4 +1787,45 @@ DEALLOCATE PREPARE st1;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 SET SESSION optimizer_switch='derived_merge=on';
+#
+# LP bug #879939: assertion in ha_maria::enable_indexes 
+#                 with derived_with_keys=on
+#
+CREATE TABLE t2 (a varchar(3));
+INSERT INTO t2 VALUES ('USA'), ('USA'), ('USA'), ('USA'), ('USA');
+CREATE TABLE t1 (a varchar(3), b varchar(35));
+INSERT INTO t1 VALUES
+('USA','Lansing'), ('USA','Laredo'), ('USA','Las Vegas'), 
+('USA','Lexington-Fayett'), ('USA','Lincoln'), ('USA','Little Rock'),
+('USA','Livonia'), ('USA','Long Beach'), ('USA','Los Angeles'),
+('USA','Louisville'), ('USA','Lowell'), ('USA','Lubbock'),
+('USA','Macon'), ('USA','Madison'), ('USA','Manchester'),
+('USA','McAllen'), ('USA','Memphis'), ('USA','Mesa'), 
+('USA','Mesquite'), ('USA','Metairie'), ('USA','Miami');
+CREATE TABLE t3 (a varchar(35));
+INSERT INTO t3 VALUES ('Miami');
+SET optimizer_switch = 'derived_with_keys=on';
+SET @@tmp_table_size=1024*4;
+explain SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	21	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+a	b	a
+USA	Miami	Miami
+USA	Miami	Miami
+USA	Miami	Miami
+USA	Miami	Miami
+USA	Miami	Miami
+SET @@tmp_table_size=1024*1024*16;
+SELECT * FROM (SELECT t1.* FROM t1, t2) AS t JOIN t3 ON t3.a = t.b;
+a	b	a
+USA	Miami	Miami
+USA	Miami	Miami
+USA	Miami	Miami
+USA	Miami	Miami
+USA	Miami	Miami
+SET @@tmp_table_size=default;
+drop table t1,t2,t3;
 set optimizer_switch=@exit_optimizer_switch;
