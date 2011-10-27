@@ -1834,25 +1834,25 @@ fil_read_flushed_lsn_and_arch_log_no(
 						parameters below already
 						contain sensible data */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< in/out: */
-	ulint*		max_arch_log_no,	/*!< in/out: */
+	ulint*		min_arch_log_no,	/*!< out: */
+	ulint*		max_arch_log_no,	/*!< out: */
 #endif /* UNIV_LOG_ARCHIVE */
-	lsn_t*		min_flushed_lsn,	/*!< in/out: */
-	lsn_t*		max_flushed_lsn)	/*!< in/out: */
+	lsn_t*		min_flushed_lsn,	/*!< out: */
+	lsn_t*		max_flushed_lsn)	/*!< out: */
 {
 	byte*	buf;
-	byte*	buf2;
+	page_t*	page;
 	lsn_t	flushed_lsn;
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buf = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
-	buf = ut_align(buf2, UNIV_PAGE_SIZE);
+	page = ut_align(buf, UNIV_PAGE_SIZE);
 
-	os_file_read(data_file, buf, 0, UNIV_PAGE_SIZE);
+	os_file_read(data_file, page, 0, UNIV_PAGE_SIZE);
 
-	flushed_lsn = mach_read_from_8(buf + FIL_PAGE_FILE_FLUSH_LSN);
+	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
-	ut_free(buf2);
+	ut_free(buf);
 
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;

@@ -2916,11 +2916,16 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     /*
       Check whenever we have access to tables for this statement
       and open and lock them before executing instructions core function.
+      If we are not opening any tables, we don't need to check permissions
+      either.
     */
-    res= (open_temporary_tables(thd, m_lex->query_tables) ||
-          check_table_access(thd, SELECT_ACL, m_lex->query_tables, FALSE,
-                             UINT_MAX, FALSE) ||
-          open_and_lock_tables(thd, m_lex->query_tables, TRUE, 0));
+    if (m_lex->query_tables)
+      res= (open_temporary_tables(thd, m_lex->query_tables) ||
+            check_table_access(thd, SELECT_ACL, m_lex->query_tables, false,
+                               UINT_MAX, false));
+
+    if (!res)
+      res= open_and_lock_tables(thd, m_lex->query_tables, true, 0);
 
     if (!res)
     {

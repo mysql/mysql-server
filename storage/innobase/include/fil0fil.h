@@ -339,11 +339,11 @@ fil_read_flushed_lsn_and_arch_log_no(
 						parameters below already
 						contain sensible data */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< in/out: */
-	ulint*		max_arch_log_no,	/*!< in/out: */
+	ulint*		min_arch_log_no,	/*!< out: */
+	ulint*		max_arch_log_no,	/*!< out: */
 #endif /* UNIV_LOG_ARCHIVE */
-	lsn_t*		min_flushed_lsn,	/*!< in/out: */
-	lsn_t*		max_flushed_lsn);	/*!< in/out: */
+	lsn_t*		min_flushed_lsn,	/*!< out: */
+	lsn_t*		max_flushed_lsn);	/*!< out: */
 /*******************************************************************//**
 Increments the count of pending insert buffer page merges, if space is not
 being deleted.
