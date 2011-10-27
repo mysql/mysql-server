@@ -294,7 +294,7 @@ void QUERY_PROFILE::new_status(const char *status_arg,
   DBUG_ASSERT(status_arg != NULL);
 
   if ((function_arg != NULL) && (file_arg != NULL))
-    prof= new PROF_MEASUREMENT(this, status_arg, function_arg, file_arg, line_arg);
+    prof= new PROF_MEASUREMENT(this, status_arg, function_arg, base_name(file_arg), line_arg);
   else
     prof= new PROF_MEASUREMENT(this, status_arg);
 

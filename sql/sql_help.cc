@@ -19,6 +19,7 @@
 #include "sql_table.h"                          // primary_key_name
 #include "sql_base.h"               // REPORT_ALL_ERRORS, setup_tables
 #include "opt_range.h"              // SQL_SELECT
+#include "opt_trace.h"              // Opt_trace_object
 #include "records.h"          // init_read_record, end_read_record
 
 struct st_find_field
@@ -577,6 +578,9 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
   table->covering_keys.clear_all();
 
   SQL_SELECT *res= make_select(table, 0, 0, cond, 0, error);
+
+  // Wrapper for correct JSON in optimizer trace
+  Opt_trace_object wrapper(&thd->opt_trace);
   if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)) ||
       (res && res->quick && res->quick->reset()))
   {

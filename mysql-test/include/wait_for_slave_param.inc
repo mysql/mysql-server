@@ -29,8 +29,8 @@
 #     --let $slave_param_comparison= !=
 #
 # $slave_timeout
-#   The default timeout is 5 minutes. You can change the timeout by
-#   setting $slave_timeout. The unit is seconds.
+#   The default timeout is $default_timeout seconds. You can change the timeout by
+#   setting $slave_timeout. The unit is one second.
 #
 # $slave_error_param
 #   If set, this script will check if the column of the output from
@@ -45,11 +45,16 @@
 --let $include_filename= wait_for_slave_param.inc [$slave_param]
 --source include/begin_include_file.inc
 
+--let $default_timeout= 30
+--let $sleep_freq= 10
+--let $sleep_time= `select 1.0 / $sleep_freq`
+
+--let $start_to_wait=`select current_timestamp()`
 
 let $_slave_timeout= $slave_timeout;
 if (!$_slave_timeout)
 {
-  let $_slave_timeout= 300;
+  let $_slave_timeout= `select $default_timeout * $sleep_freq`;
 }
 
 if ($slave_error_param == '')
@@ -77,9 +82,7 @@ if ($_slave_check_configured == 'No such row')
   --die SHOW SLAVE STATUS returned empty result set. Slave not configured.
 }
 
-# mysqltest doesn't provide any better way to multiply by 10
---let $_wait_for_slave_param_zero= 0
---let $_slave_timeout_counter= $_slave_timeout$zero
+--let $_slave_timeout_counter= `select $_slave_timeout * $sleep_freq`
 --let $_slave_continue= 1
 while ($_slave_continue)
 {
@@ -106,11 +109,13 @@ while ($_slave_continue)
     --dec $_slave_timeout_counter
     if (!$_slave_timeout_counter)
     {
-      --echo **** ERROR: timeout after $_slave_timeout seconds while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
+      --let $end_to_wait=`select current_timestamp()`
+
+      --echo **** ERROR: timeout after $_slave_timeout ($end_to_wait - $start_to_wait) seconds while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
       --source include/show_rpl_debug_info.inc
       --die Timeout in include/wait_for_slave_param.inc
     }
-    --sleep  0.1
+    --sleep  $sleep_time
   }
 }
 

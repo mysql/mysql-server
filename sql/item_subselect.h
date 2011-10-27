@@ -42,6 +42,13 @@ class Item_subselect :public Item_result_field
 {
 private:
   bool value_assigned; /* value already assigned to subselect */
+  /**
+      Whether or not execution of this subselect has been traced by
+      optimizer tracing already. If optimizer trace option
+      REPEATED_SUBSELECT is disabled, this is used to disable tracing
+      after the first one.
+  */
+  bool traced_before;
 public:
   /* 
     Used inside Item_subselect::fix_fields() according to this scenario:
@@ -519,6 +526,7 @@ class subselect_single_select_engine: public subselect_engine
 private:
   bool prepared; /* simple subselect is prepared */
   bool executed; /* simple subselect is executed */
+  bool optimize_error; ///< simple subselect optimization failed
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
@@ -605,7 +613,6 @@ protected:
     expression is NULL.
   */
   bool empty_result_set;
-  bool null_keypart; /* TRUE <=> constructed search tuple has a NULL */
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
@@ -625,7 +632,7 @@ public:
                              select_result_interceptor *result);
   virtual bool no_tables() const;
   bool scan_table();
-  bool copy_ref_key();
+  void copy_ref_key(bool *require_scan, bool *convert_error);
   virtual bool no_rows() const { return empty_result_set; }
   virtual enum_engine_type engine_type() const { return UNIQUESUBQUERY_ENGINE; }
 };

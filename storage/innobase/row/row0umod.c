@@ -569,14 +569,14 @@ row_undo_mod_upd_del_sec(
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 
-	for (heap = mem_heap_create(1024);
-	     node->index != NULL;
-	     mem_heap_empty(heap),
-		     node->index = dict_table_get_next_index(node->index)) {
+	heap = mem_heap_create(1024);
+
+	while (node->index != NULL) {
 		dict_index_t*	index	= node->index;
 		dtuple_t*	entry;
 
 		if (index->type & DICT_FTS) {
+			dict_table_next_uncorrupted_index(node->index);
 			continue;
 		}
 
@@ -603,6 +603,9 @@ row_undo_mod_upd_del_sec(
 				break;
 			}
 		}
+
+		mem_heap_empty(heap);
+		dict_table_next_uncorrupted_index(node->index);
 	}
 
 	mem_heap_free(heap);
@@ -623,14 +626,14 @@ row_undo_mod_del_mark_sec(
 	mem_heap_t*	heap;
 	ulint		err	= DB_SUCCESS;
 
-	for (heap = mem_heap_create(1024);
-	     node->index != NULL;
-	     mem_heap_empty(heap),
-		     node->index = dict_table_get_next_index(node->index)) {
+	heap = mem_heap_create(1024);
+
+	while (node->index != NULL) {
 		dict_index_t*	index	= node->index;
 		dtuple_t*	entry;
 
 		if (index->type == DICT_FTS) {
+			dict_table_next_uncorrupted_index(node->index);
 			continue;
 		}
 
@@ -650,6 +653,9 @@ row_undo_mod_del_mark_sec(
 
 			break;
 		}
+
+		mem_heap_empty(heap);
+		dict_table_next_uncorrupted_index(node->index);
 	}
 
 	mem_heap_free(heap);
@@ -677,15 +683,16 @@ row_undo_mod_upd_exist_sec(
 		return(err);
 	}
 
-	for (heap = mem_heap_create(1024); node->index != NULL;
-	     mem_heap_empty(heap),
-		     node->index = dict_table_get_next_index(node->index)) {
+	heap = mem_heap_create(1024);
+
+	while (node->index != NULL) {
 		dict_index_t*	index	= node->index;
 		dtuple_t*	entry;
 
 		if (index->type == DICT_FTS
 		    || !row_upd_changes_ord_field_binary(
 			index, node->update, thr, node->row, node->ext)) {
+			dict_table_next_uncorrupted_index(node->index);
 			continue;
 		}
 
@@ -759,6 +766,9 @@ row_undo_mod_upd_exist_sec(
 		if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 			break;
 		}
+
+		mem_heap_empty(heap);
+	     	dict_table_next_uncorrupted_index(node->index);
 	}
 
 	mem_heap_free(heap);
@@ -868,6 +878,9 @@ row_undo_mod(
 
 	node->index = dict_table_get_next_index(
 		dict_table_get_first_index(node->table));
+
+	/* Skip all corrupted secondary index */
+	dict_table_skip_corrupt_index(node->index);
 
 	switch (node->rec_type) {
 	case TRX_UNDO_UPD_EXIST_REC:

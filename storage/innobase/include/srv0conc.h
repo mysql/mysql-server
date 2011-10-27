@@ -48,20 +48,9 @@ extern	ulint	srv_max_n_threads;
 
 /** The following controls how many threads we let inside InnoDB concurrently:
 threads waiting for locks are not counted into the number because otherwise
-we could get a deadlock. MySQL creates a thread for each user session, and
-semaphore contention and convoy problems can occur withput this restriction.
-Value 10 should be good if there are less than 4 processors + 4 disks in the
-computer. Bigger computers need bigger values. Value 0 will disable the
-concurrency check. */
+we could get a deadlock. Value of 0 will disable the concurrency check. */
 
 extern ulong	srv_thread_concurrency;
-
-/** Number of transactions that have declared_to_be_inside_innodb set.
-It used to be a non-error for this value to drop below zero temporarily.
-This is no longer true. We'll, however, keep the lint datatype to add
-assertions to catch any corner cases that we may have missed. */
-
-extern	lint	srv_conc_n_threads;
 
 /*********************************************************************//**
 Initialise the concurrency management data structures */
@@ -106,19 +95,17 @@ srv_conc_force_exit_innodb(
 				the thread */
 
 /*********************************************************************//**
-This must be called when a thread exits InnoDB. */
-UNIV_INTERN
-void
-srv_conc_exit_innodb(
-/*=================*/
-	trx_t*	trx);		/*!< in: transaction object associated with
-				the thread */
-
-/*********************************************************************//**
 Get the count of threads waiting inside InnoDB. */
 UNIV_INTERN
 ulint
 srv_conc_get_waiting_threads(void);
+/*==============================*/
+
+/*********************************************************************//**
+Get the count of threads active inside InnoDB. */
+UNIV_INTERN
+ulint
+srv_conc_get_active_threads(void);
 /*==============================*/
 
 #endif /* srv_conc_h */

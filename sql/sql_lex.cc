@@ -58,7 +58,13 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
   ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
   ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
-  ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
+  ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE,
+  ER_BINLOG_UNSAFE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
+  ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
+  ER_BINLOG_UNSAFE_UPDATE_IGNORE
 };
 
 
@@ -435,6 +441,8 @@ void lex_start(THD *thd)
   lex->server_options.port= -1;
 
   lex->is_lex_started= TRUE;
+  lex->used_tables= 0;
+  lex->reset_slave_info.all= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1219,8 +1227,12 @@ int lex_one_token(void *arg, void *yythd)
     {
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
-      while ((c=lip->yyGet()))
+      for(;;)
       {
+        c= lip->yyGet();
+        if (c == 0)
+          return ABORT_SYM;                     // Unmatched quotes
+
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)
 	{
@@ -1730,11 +1742,14 @@ void st_select_lex_unit::init_query()
   item_list.empty();
   describe= 0;
   found_rows_for_union= 0;
+  result= NULL;
 }
 
 void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
+  resolve_place= RESOLVE_NONE;
+  resolve_nest= NULL;
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
@@ -1771,6 +1786,7 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  select_list_tables= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
 }
@@ -2147,6 +2163,9 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num*= 2;
 
+  // find_order_in_list() may need some extra space, so multiply by two.
+  order_group_num*= 2;
+
   /*
     We have to create array in prepared statement memory if it is
     prepared statement
@@ -2168,6 +2187,15 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
                       order_group_num));
   if (!ref_pointer_array.is_null())
   {
+    /*
+      The Query may have been permanently transformed by removal of
+      ORDER BY or GROUP BY. Memory has already been allocated, but by
+      reducing the size of ref_pointer_array a tight bound is
+      maintained by Bounds_checked_array
+    */
+    if (ref_pointer_array.size() > n_elems)
+      ref_pointer_array.resize(n_elems);
+
     DBUG_ASSERT(ref_pointer_array.size() == n_elems);
     return false;
   }
@@ -3088,9 +3116,9 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    AND/OR trees.
     We also save the chain of ORDER::next in group_list, in case
     the list is modified by remove_const().
-    AND/OR trees.
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
 */
@@ -3199,6 +3227,35 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
                                             current_index_hint_clause,
                                             str, length));
 }
+
+
+/**
+  @brief Process all derived tables/views of the SELECT.
+
+  @param lex    LEX of this thread
+
+  @details
+  This function runs given processor on all derived tables from the
+  table_list of this select.
+
+  @return FALSE ok.
+  @return TRUE an error occur.
+*/
+
+bool st_select_lex::handle_derived(LEX *lex,
+                                   bool (*processor)(THD*, LEX*, TABLE_LIST*))
+{
+  for (TABLE_LIST *table_ref= get_table_list();
+       table_ref;
+       table_ref= table_ref->next_local)
+  {
+    if (table_ref->is_view_or_derived() &&
+        table_ref->handle_derived(lex, processor))
+      return TRUE;
+  }
+  return FALSE;
+}
+
 
 /**
   A routine used by the parser to decide whether we are specifying a full

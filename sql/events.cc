@@ -389,11 +389,14 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
         ret= true;
       }
       else
+      {
+        thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
         /*
           If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
           will be written into the binary log as the definer for the SQL thread.
         */
         ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      }
     }
   }
   /* Restore the state of binlog format */
@@ -508,6 +511,11 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                                   new_element);
       /* Binlog the alter event. */
       DBUG_ASSERT(thd->query() && thd->query_length());
+
+      thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
+      if (new_dbname)
+        thd->add_to_binlog_accessed_dbs(new_dbname->str);
+
       ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
   }
@@ -574,6 +582,8 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
     DBUG_ASSERT(thd->query() && thd->query_length());
+
+    thd->add_to_binlog_accessed_dbs(dbname.str);
     ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
   /* Restore the state of binlog format */
@@ -945,6 +955,19 @@ static PSI_thread_info all_events_threads[]=
   { &key_thread_event_scheduler, "event_scheduler", PSI_FLAG_GLOBAL},
   { &key_thread_event_worker, "event_worker", 0}
 };
+#endif /* HAVE_PSI_INTERFACE */
+
+PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0};
+PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0};
+PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0};
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_stage_info *all_events_stages[]=
+{
+  & stage_waiting_on_empty_queue,
+  & stage_waiting_for_next_activation,
+  & stage_waiting_for_scheduler_to_stop
+};
 
 static void init_events_psi_keys(void)
 {
@@ -959,6 +982,10 @@ static void init_events_psi_keys(void)
 
   count= array_elements(all_events_threads);
   mysql_thread_register(category, all_events_threads, count);
+
+  count= array_elements(all_events_stages);
+  mysql_stage_register(category, all_events_stages, count);
+
 }
 #endif /* HAVE_PSI_INTERFACE */
 

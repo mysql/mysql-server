@@ -79,8 +79,8 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) co
   /*
     currently temporary error set in ndbcluster
   */
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
+  List_iterator_fast<Sql_condition> it(thd->warning_info->warn_list());
+  Sql_condition *err;
   while ((err= it++))
   {
     DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
@@ -103,19 +103,26 @@ void
 Slave_reporting_capability::report(loglevel level, int err_code,
                                    const char *msg, ...) const
 {
+  va_list args;
+  va_start(args, msg);
+  do_report(level, err_code, msg, args);
+  va_end(args);
+}
+
+void
+Slave_reporting_capability::va_report(loglevel level, int err_code,
+                                      const char *msg, va_list args) const
+{
 #if !defined(EMBEDDED_LIBRARY)
   THD *thd= current_thd;
   void (*report_function)(const char *, ...);
   char buff[MAX_SLAVE_ERRMSG];
   char *pbuff= buff;
   uint pbuffsize= sizeof(buff);
-  va_list args;
 
-  if (level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
+  if (thd && level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
       !thd->transaction.all.cannot_safely_rollback())
     level= WARNING_LEVEL;
-
-  va_start(args, msg);
 
   mysql_mutex_lock(&err_lock);
   switch (level)
@@ -147,7 +154,6 @@ Slave_reporting_capability::report(loglevel level, int err_code,
   my_vsnprintf(pbuff, pbuffsize, msg, args);
 
   mysql_mutex_unlock(&err_lock);
-  va_end(args);
 
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
   if (report_function)

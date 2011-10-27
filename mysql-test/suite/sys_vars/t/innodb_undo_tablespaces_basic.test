@@ -1,0 +1,77 @@
+################## mysql-test/t/innodb_undo_tablespaces_basic.test ############
+#                                                                             #
+# Variable Name: innodb_undo_tablespaces                                      #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: string                                                           #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2011-07-05                                                   #
+# Author : Sunny Bains                                                        #
+#                                                                             #
+#                                                                             #
+# Description: Read-only config global variable innodb_undo_tablespaces       #
+#              * Value check                                                  #
+#              * Scope check                                                  #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+
+####################################################################
+#   Display default value                                          #
+####################################################################
+SELECT @@GLOBAL.innodb_undo_tablespaces;
+--echo 0 Expected
+
+
+####################################################################
+#   Check if value can be set                                      #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_undo_tablespaces=128;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
+--echo 1 Expected
+
+
+################################################################################
+# Check if the value in GLOBAL table matches value in variable                 #
+################################################################################
+
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_undo_tablespaces';
+--echo 0 Expected
+
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_undo_tablespaces = @@GLOBAL.innodb_undo_tablespaces;
+--echo 1 Expected
+
+
+################################################################################
+#   Check if innodb_undo_tablespaces can be accessed with and without @@ sign  #
+################################################################################
+
+SELECT COUNT(@@innodb_undo_tablespaces);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_undo_tablespaces);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_undo_tablespaces);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_undo_tablespaces = @@SESSION.innodb_undo_tablespaces;
+--echo Expected error 'Readonly variable'

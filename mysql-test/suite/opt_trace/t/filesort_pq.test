@@ -1,0 +1,3 @@
+
+# The main testing script
+--source suite/opt_trace/include/filesort_pq.inc

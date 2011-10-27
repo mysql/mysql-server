@@ -48,6 +48,7 @@
 /* Forward declarations */
 class String;
 typedef ulonglong sql_mode_t;
+typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
@@ -254,6 +255,21 @@ struct sql_ex_info
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
 #define IGNORABLE_HEADER_LEN   0
+
+/*
+   The maximum number of updated databases that a status of
+   Query-log-event can carry.  It can redefined within a range
+   [1.. OVER_MAX_DBS_IN_EVENT_MTS].
+*/
+#define MAX_DBS_IN_EVENT_MTS 16
+
+/*
+   When the actual number of databases exceeds MAX_DBS_IN_EVENT_MTS
+   the value of OVER_MAX_DBS_IN_EVENT_MTS is is put into the
+   mts_accessed_dbs status.
+*/
+#define OVER_MAX_DBS_IN_EVENT_MTS 254
+
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -269,6 +285,8 @@ struct sql_ex_info
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
                                    1 + 4          /* type, master_data_written */ + \
+                                                  /* type, db_1, db_2, ... */  \
+                                   1 + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -339,6 +357,13 @@ struct sql_ex_info
 #define Q_MASTER_DATA_WRITTEN_CODE 10
 
 #define Q_INVOKER 11
+
+/*
+  Q_UPDATED_DB_NAMES status variable collects of the updated databases
+  total number and their names to be propagated to the slave in order
+  to facilitate the parallel applying of the Query events.
+*/
+#define Q_UPDATED_DB_NAMES 12
 
 /* Intvar event post-header */
 
@@ -514,6 +539,17 @@ struct sql_ex_info
 */
 #define LOG_EVENT_NO_FILTER_F 0x100
 
+/**
+   MTS: group of events can be marked to force its execution
+   in isolation from any other Workers.
+   So it's a marker for Coordinator to memorize and perform necessary
+   operations in order to guarantee no interference from other Workers.
+   The flag can be set ON only for an event that terminates its group.
+   Typically that is done for a transaction that contains 
+   a query accessing more than OVER_MAX_DBS_IN_EVENT_MTS databases.
+*/
+#define LOG_EVENT_MTS_ISOLATE_F 0x200
+
 
 /**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
@@ -667,6 +703,8 @@ class THD;
 
 class Format_description_log_event;
 class Relay_log_info;
+class Slave_worker;
+class Slave_committed_queue;
 
 #ifdef MYSQL_CLIENT
 enum enum_base64_output_mode {
@@ -761,11 +799,11 @@ typedef struct st_print_event_info
   Such identifier is not yet unique generally as the event originating master
   is resetable. Also the crashed master can be replaced with some other.
 */
-struct event_coordinates
+typedef struct event_coordinates
 {
   char * file_name; // binlog file name (directories stripped)
   my_off_t  pos;       // event's position in the binlog file
-};
+} LOG_POS_COORD;
 
 /**
   @class Log_event
@@ -1040,12 +1078,36 @@ public:
     to disk.
   */
   enum_event_logging_type event_logging_type;
+
   /**
     Placeholder for event checksum while writing to binlog.
-   */
+  */
   ha_checksum crc;
+
+  /**
+    Index in @c rli->gaq array to indicate a group that this event is
+    purging. The index is set by Coordinator to a group terminator
+    event is checked by Worker at the event execution. The indexed
+    data represent the Worker progress status.
+  */
+  ulong mts_group_idx;
+
+  /**
+    MTS: associating the event with either an assigned Worker or Coordinator.
+  */
+  Relay_log_info *worker;
+
+  /** 
+    A copy of the main rli value stored into event to pass to MTS worker rli
+  */
+  ulonglong future_event_relay_log_pos;
+
 #ifdef MYSQL_SERVER
   THD* thd;
+  /**
+     Partition info associate with event to deliver to MTS event applier 
+  */
+  db_worker_hash_entry *mts_assigned_partitions[MAX_DBS_IN_EVENT_MTS];
 
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING);
@@ -1214,7 +1276,166 @@ public:
   /* Return start of query time or current time */
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+
+private:
+
+  /*
+    possible decisions by get_mts_execution_mode().
+    The execution mode can be PARALLEL or not (thereby sequential
+    unless impossible at all). When it's sequential it further  breaks into
+    ASYNChronous and SYNChronous.
+  */
+  enum enum_mts_event_exec_mode
+  {
+    /*
+      Event is run by a Worker.
+    */
+    EVENT_EXEC_PARALLEL,
+    /*
+      Event is run by Coordinator.
+    */
+    EVENT_EXEC_ASYNC,
+    /*
+      Event is run by Coordinator and requires synchronization with Workers.
+    */
+    EVENT_EXEC_SYNC,
+    /*
+      Event can't be executed neither by Workers nor Coordinator.
+    */
+    EVENT_EXEC_CAN_NOT
+  };
+
+  /**
+     Is called from get_mts_execution_mode() to
+
+     @return TRUE  if the event needs applying with synchronization
+                   agaist Workers, otherwise
+             FALSE
+
+     @note There are incompatile combinations such as referred further events
+           are wrapped with BEGIN/COMMIT. Such cases should be identified
+           by the caller and treats correspondingly.
+
+           todo: to mts-support Old master Load-data related events
+  */
+  bool is_mts_sequential_exec()
+  {
+    return
+      get_type_code() == START_EVENT_V3          ||
+      get_type_code() == STOP_EVENT              ||
+      get_type_code() == ROTATE_EVENT            ||
+      get_type_code() == LOAD_EVENT              ||
+      get_type_code() == SLAVE_EVENT             ||
+      get_type_code() == CREATE_FILE_EVENT       ||
+      get_type_code() == DELETE_FILE_EVENT       ||
+      get_type_code() == NEW_LOAD_EVENT          ||
+      get_type_code() == EXEC_LOAD_EVENT         ||
+      get_type_code() == FORMAT_DESCRIPTION_EVENT||
+
+      get_type_code() == INCIDENT_EVENT;
+  }
+
+  /**
+     MTS Coordinator finds out a way how to execute the current event.
+
+     Besides the parallelizable case, some events have to be applied by
+     Coordinator concurrently with Workers and some to require synchronization
+     with Workers (@c see wait_for_workers_to_finish) before to apply them.
+
+     @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
+     @retval EVENT_EXEC_ASYNC     if event is executed by Coordinator
+     @retval EVENT_EXEC_SYNC      if event is executed by Coordinator
+                                  with synchronization against the Workers
+  */
+  enum enum_mts_event_exec_mode get_mts_execution_mode(ulong slave_server_id,
+                                                   bool mts_in_group)
+  {
+    if ((get_type_code() == FORMAT_DESCRIPTION_EVENT &&
+         ((server_id == (uint32) ::server_id) || (log_pos == 0))) ||
+        (get_type_code() == ROTATE_EVENT &&
+         ((server_id == (uint32) ::server_id) ||
+          (log_pos == 0    /* very first fake Rotate (R_f) */
+           && mts_in_group /* ignored event turned into R_f at slave stop */))))
+      return EVENT_EXEC_ASYNC;
+    else if (is_mts_sequential_exec())
+      return EVENT_EXEC_SYNC;
+    else
+      return EVENT_EXEC_PARALLEL;
+  }
+
+  /**
+     @return index  in \in [0, M] range to indicate
+             to be assigned worker;
+             M is the max index of the worker pool.
+  */
+  Slave_worker *get_slave_worker(Relay_log_info *rli);
+
+  /*
+    The method returns a list of updated by the event databases.
+    Other than in the case of Query-log-event the list is just one item.
+  */
+  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  {
+    List<char> *res= new List<char>;
+    res->push_back(strdup_root(mem_root, get_db()));
+    return res;
+  }
+
+  /*
+    Group of events can be marked to force its execution
+    in isolation from any other Workers.
+    Typically that is done for a transaction that contains 
+    a query accessing more than OVER_MAX_DBS_IN_EVENT_MTS databases.
+    Factually that's a sequential mode where a Worker remains to
+    be the applier.
+  */
+  virtual void set_mts_isolate_group()
+  { 
+    DBUG_ASSERT(ends_group() ||
+                get_type_code() == QUERY_EVENT ||
+                get_type_code() == EXEC_LOAD_EVENT ||
+                get_type_code() == EXECUTE_LOAD_QUERY_EVENT);
+    flags |= LOG_EVENT_MTS_ISOLATE_F;
+  }
+
+
 public:
+
+  /**
+     @return TRUE  if events carries partitioning data (database names).
+  */
+  bool contains_partition_info();
+
+  /*
+    @return  the number of updated by the event databases.
+
+    @note In other than Query-log-event case that's one.
+  */
+  virtual uint8 mts_number_dbs() { return 1; }
+
+  /**
+    @return TRUE  if the terminal event of a group is marked to
+                  execute in isolation from other Workers,
+            FASE  otherwise
+  */
+  bool is_mts_group_isolated() { return flags & LOG_EVENT_MTS_ISOLATE_F; }
+
+  /**
+     Events of a certain type can start or end a group of events treated
+     transactionally wrt binlog.
+
+     Public access is required by implementation of recovery + skip.
+
+     @return TRUE  if the event starts a group (transaction)
+             FASE  otherwise
+  */
+  virtual bool starts_group() { return FALSE; }
+
+  /**
+     @return TRUE  if the event ends a group (transaction)
+             FASE  otherwise
+  */
+  virtual bool ends_group()   { return FALSE; }
 
   /**
      Apply the event to the database.
@@ -1224,11 +1445,7 @@ public:
 
      @see do_apply_event
    */
-  int apply_event(Relay_log_info const *rli)
-  {
-    return do_apply_event(rli);
-  }
-
+  int apply_event(Relay_log_info *rli);
 
   /**
      Update the relay log position.
@@ -1254,27 +1471,6 @@ public:
     return do_shall_skip(rli);
   }
 
-protected:
-
-  /**
-     Helper function to ignore an event w.r.t. the slave skip counter.
-
-     This function can be used inside do_shall_skip() for functions
-     that cannot end a group. If the slave skip counter is 1 when
-     seeing such an event, the event shall be ignored, the counter
-     left intact, and processing continue with the next event.
-
-     A typical usage is:
-     @code
-     enum_skip_reason do_shall_skip(Relay_log_info *rli) {
-       return continue_group(rli);
-     }
-     @endcode
-
-     @return Skip reason
-   */
-  enum_skip_reason continue_group(Relay_log_info *rli);
-
   /**
     Primitive to apply an event to the database.
 
@@ -1295,6 +1491,28 @@ protected:
     return 0;                /* Default implementation does nothing */
   }
 
+  virtual int do_apply_event_worker(Slave_worker *w);
+
+protected:
+
+  /**
+     Helper function to ignore an event w.r.t. the slave skip counter.
+
+     This function can be used inside do_shall_skip() for functions
+     that cannot end a group. If the slave skip counter is 1 when
+     seeing such an event, the event shall be ignored, the counter
+     left intact, and processing continue with the next event.
+
+     A typical usage is:
+     @code
+     enum_skip_reason do_shall_skip(Relay_log_info *rli) {
+       return continue_group(rli);
+     }
+     @endcode
+
+     @return Skip reason
+   */
+  enum_skip_reason continue_group(Relay_log_info *rli);
 
   /**
      Advance relay log coordinates.
@@ -1802,6 +2020,12 @@ public:
     Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
   */
   uint32 master_data_written;
+  /*
+    number of updated databases by the query and their names. This info
+    is requested by both Coordinator and Worker.
+  */
+  uchar mts_accessed_dbs;
+  char mts_accessed_db_names[MAX_DBS_IN_EVENT_MTS][NAME_LEN];
 
 #ifdef MYSQL_SERVER
 
@@ -1809,6 +2033,33 @@ public:
                   bool using_trans, bool immediate, bool suppress_use,
                   int error, bool ignore_command= FALSE);
   const char* get_db() { return db; }
+
+  /**
+     Returns a list of updated databases or the default db single item list
+     in case of the number of databases exceeds MAX_DBS_IN_EVENT_MTS.
+  */
+  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  {
+    List<char> *res= new (mem_root) List<char>;
+    if (mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
+    {
+      // the empty string db name is special to indicate sequential applying
+      mts_accessed_db_names[0][0]= 0;
+      res->push_back((char*) mts_accessed_db_names[0]);
+    }
+    else
+    {
+      for (uchar i= 0; i < mts_accessed_dbs; i++)
+        res->push_back(mts_accessed_db_names[i]);
+    }
+    return res;
+  }
+
+  void attach_temp_tables_worker(THD*);
+  void detach_temp_tables_worker(THD*);
+
+  virtual uchar mts_number_dbs() { return mts_accessed_dbs; }
+
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -1871,6 +2122,19 @@ public:        /* !!! Public in this patch to allow old usage */
       !strncmp(query, "COMMIT", q_len) ||
       !strncasecmp(query, "SAVEPOINT", 9) ||
       !strncasecmp(query, "ROLLBACK", 8);
+  }
+  /**
+     Notice, DDL queries are logged without BEGIN/COMMIT parentheses
+     and identification of such single-query group
+     occures within logics of @c get_slave_worker().
+  */
+  bool starts_group() { return !strncmp(query, "BEGIN", q_len); }
+  virtual bool ends_group()
+  {  
+    return
+      !strncmp(query, "COMMIT", q_len) ||
+      (!strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
+       && strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
   }
 };
 
@@ -2545,10 +2809,11 @@ class Xid_log_event: public Log_event
   bool write(IO_CACHE* file);
 #endif
   bool is_valid() const { return 1; }
-
+  virtual bool ends_group() { return TRUE; }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
+  virtual int do_apply_event_worker(Slave_worker *rli);
   enum_skip_reason do_shall_skip(Relay_log_info *rli);
 #endif
 };
@@ -2951,6 +3216,15 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
+#endif
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  virtual uint8 mts_number_dbs() { return OVER_MAX_DBS_IN_EVENT_MTS; }
+  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  {
+    List<char> *res= new List<char>;
+    res->push_back(strdup_root(mem_root, ""));
+    return res;
+  }
 #endif
 
 private:
@@ -4197,11 +4471,11 @@ public:
   {
     return IGNORABLE_HEADER_LEN + 1 + (uint) strlen(m_rows_query);
   }
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  virtual int do_apply_event(Relay_log_info const *rli);
+#endif
 
 private:
-#if !defined(MYSQL_CLIENT)
-  virtual int do_apply_event(Relay_log_info const* rli);
-#endif
 
   char * m_rows_query;
 };
@@ -4255,8 +4529,6 @@ private:
 int append_query_string(const CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool sqlcom_can_generate_row_events(const THD *thd);
-void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli);
-
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;

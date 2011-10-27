@@ -293,26 +293,28 @@ int opt_sum_query(THD *thd,
       statistics (cheap), compute the total number of rows. If there are
       no outer table dependencies, this count may be used as the real count.
       Schema tables are filled after this function is invoked, so we can't
-      get row count 
+      get row count.
+      Derived tables aren't filled yet, their number of rows are estimates.
     */
-    if (!(tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) ||
-        tl->schema_table)
+    bool table_filled= !(tl->schema_table || tl->uses_materialization());
+    if ((tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
+        table_filled)
     {
-      maybe_exact_count&= test(!tl->schema_table &&
-                               (tl->table->file->ha_table_flags() &
-                                HA_HAS_RECORDS));
-      is_exact_count= FALSE;
-      count= 1;                                 // ensure count != 0
-    }
-    else
-    {
-      error= tl->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+      error= tl->fetch_number_of_rows();
       if(error)
       {
         tl->table->file->print_error(error, MYF(ME_FATALERROR));
         DBUG_RETURN(error);
       }
       count*= tl->table->file->stats.records;
+    }
+    else
+    {
+      maybe_exact_count&= test(table_filled &&
+                               (tl->table->file->ha_table_flags() &
+                                HA_HAS_RECORDS));
+      is_exact_count= FALSE;
+      count= 1;                                 // ensure count != 0
     }
   }
 

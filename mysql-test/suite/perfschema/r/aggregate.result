@@ -4,6 +4,8 @@ update performance_schema.setup_instruments set enabled = 'NO';
 update performance_schema.setup_consumers set enabled = 'NO';
 truncate table performance_schema.file_summary_by_event_name;
 truncate table performance_schema.file_summary_by_instance;
+truncate table performance_schema.socket_summary_by_event_name;
+truncate table performance_schema.socket_summary_by_instance;
 truncate table performance_schema.events_waits_summary_global_by_event_name;
 truncate table performance_schema.events_waits_summary_by_instance;
 truncate table performance_schema.events_waits_summary_by_thread_by_event_name;
@@ -29,6 +31,20 @@ EVENT_NAME	COUNT_READ	SUM(i.COUNT_READ)
 SELECT EVENT_NAME, e.COUNT_WRITE, SUM(i.COUNT_WRITE)
 FROM performance_schema.file_summary_by_event_name AS e
 JOIN performance_schema.file_summary_by_instance AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_WRITE <> SUM(i.COUNT_WRITE))
+OR @dump_all;
+EVENT_NAME	COUNT_WRITE	SUM(i.COUNT_WRITE)
+SELECT EVENT_NAME, e.COUNT_READ, SUM(i.COUNT_READ)
+FROM performance_schema.socket_summary_by_event_name AS e
+JOIN performance_schema.socket_summary_by_instance AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_READ <> SUM(i.COUNT_READ))
+OR @dump_all;
+EVENT_NAME	COUNT_READ	SUM(i.COUNT_READ)
+SELECT EVENT_NAME, e.COUNT_WRITE, SUM(i.COUNT_WRITE)
+FROM performance_schema.socket_summary_by_event_name AS e
+JOIN performance_schema.socket_summary_by_instance AS i USING (EVENT_NAME)
 GROUP BY EVENT_NAME
 HAVING (e.COUNT_WRITE <> SUM(i.COUNT_WRITE))
 OR @dump_all;

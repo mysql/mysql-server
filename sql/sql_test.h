@@ -26,14 +26,14 @@ typedef struct st_sort_field SORT_FIELD;
 
 #ifndef DBUG_OFF
 void print_where(Item *cond,const char *info, enum_query_type query_type);
-void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void TEST_join(JOIN *join);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
 void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl);
 void print_sjm(TABLE_LIST *emb_sj_nest);
-void print_keyuse_array(const Key_use_array *keyuse_array);
 #endif
 void mysql_print_status();
-
+class Opt_trace_context;
+void print_keyuse_array(Opt_trace_context *trace,
+                        const Key_use_array *keyuse_array);
 #endif /* SQL_TEST_INCLUDED */

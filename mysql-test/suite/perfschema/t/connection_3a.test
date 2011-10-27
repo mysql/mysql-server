@@ -1,0 +1,7 @@
+# Tests for the performance schema
+#
+
+--source ../include/connection_setup.inc
+--source ../include/connection_load.inc
+--source ../include/connection_cleanup.inc
+

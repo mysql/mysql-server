@@ -1,0 +1,41 @@
+--source include/have_optimizer_trace.inc
+
+SET @start_global_value = @@global.optimizer_trace_features;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.optimizer_trace_features;
+select @@session.optimizer_trace_features;
+show global variables like 'optimizer_trace_features';
+show session variables like 'optimizer_trace_features';
+select * from information_schema.global_variables where variable_name='optimizer_trace_features';
+select * from information_schema.session_variables where variable_name='optimizer_trace_features';
+
+#
+# show that it's writable
+#
+set global optimizer_trace_features=2;
+select @@global.optimizer_trace_features;
+set session optimizer_trace_features=2;
+select @@session.optimizer_trace_features;
+set global optimizer_trace_features=0;
+select @@global.optimizer_trace_features;
+set session optimizer_trace_features=0;
+select @@session.optimizer_trace_features;
+set session optimizer_trace_features=default;
+select @@session.optimizer_trace_features;
+
+#
+# incorrect assignments
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global optimizer_trace_features=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global optimizer_trace_features=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set session optimizer_trace_features="foobar";
+
+SET @@global.optimizer_trace_features = @start_global_value;
+SELECT @@global.optimizer_trace_features;

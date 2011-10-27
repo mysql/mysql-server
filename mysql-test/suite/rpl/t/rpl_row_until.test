@@ -1,6 +1,7 @@
 -- source include/not_ndb_default.inc
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
+--source include/not_mts_slave_parallel_workers.inc
 
 # Note: The test is dependent on binlog positions
 

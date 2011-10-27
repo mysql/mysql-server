@@ -65,6 +65,8 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
+#include "ut0crc32.h"
+
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
@@ -95,6 +97,16 @@ UNIV_INTERN const char	srv_mysql50_table_name_prefix[9] = "#mysql50#";
 names, where the file name itself may also contain a path */
 
 UNIV_INTERN char*	srv_data_home	= NULL;
+
+/** Rollback files directory, can be absolute. */
+UNIV_INTERN char*	srv_undo_dir = NULL;
+
+/** The number of tablespaces to use for rollback segments. */
+UNIV_INTERN ulong	srv_undo_tablespaces = 8;
+
+/* The number of rollback segments to use */
+UNIV_INTERN ulong	srv_undo_logs = 1;
+
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN char*	srv_arch_dir	= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
@@ -194,6 +206,10 @@ UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
 /* number of locks to protect buf_pool->page_hash */
 UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
+/** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
+UNIV_INTERN ulong	srv_LRU_scan_depth	= 1024;
+/** whether or not to flush neighbors of a block */
+UNIV_INTERN my_bool	srv_flush_neighbors	= TRUE;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -208,6 +224,8 @@ UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
+/* Switch to enable random read ahead. */
+UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -250,9 +268,6 @@ UNIV_INTERN ulong srv_n_purge_threads = 0;
 
 /* the number of pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
-
-/* the number of rollback segments to use */
-UNIV_INTERN ulong srv_rollback_segments = TRX_SYS_N_RSEGS;
 
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
@@ -336,14 +351,17 @@ UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
-UNIV_INTERN ibool	srv_use_checksums = TRUE;
+
+/** doublewrite buffer is 1MB is size i.e.: it can hold 128 16K pages.
+The following parameter is the size of the buffer that is used for
+batch flushing i.e.: LRU flushing and flush_list flushing. The rest
+of the pages are used for single page flushing. */
+UNIV_INTERN ulong	srv_doublewrite_batch_size	= 120;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
-UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-UNIV_INTERN ulong	srv_thread_sleep_delay = 10000;
 UNIV_INTERN ulong	srv_spin_wait_delay	= 6;
 UNIV_INTERN ibool	srv_priority_boost	= TRUE;
 
@@ -926,6 +944,8 @@ srv_init(void)
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
 	trx_i_s_cache_init(trx_i_s_cache);
+
+	ut_crc32_init();
 }
 
 /*********************************************************************//**
@@ -1199,10 +1219,10 @@ srv_printf_innodb_monitor(
 	      "ROW OPERATIONS\n"
 	      "--------------\n", file);
 	fprintf(file, "%ld queries inside InnoDB, %lu queries in queue\n",
-		(long) srv_conc_n_threads,
+		(long) srv_conc_get_active_threads(),
 		srv_conc_get_waiting_threads());
 
-	/* This is a dirty read, without holding trx_sys->read_view_mutex. */
+	/* This is a dirty read, without holding trx_sys->mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -1293,6 +1313,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
+	export_vars.innodb_buffer_pool_read_ahead_rnd
+		= stat.n_ra_pages_read_rnd;
 	export_vars.innodb_buffer_pool_read_ahead
 		= stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted
@@ -1470,6 +1492,9 @@ loop:
 
 			last_table_monitor_time = ut_time();
 
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
+
 			fputs("===========================================\n",
 			      stderr);
 
@@ -1484,6 +1509,9 @@ loop:
 			      "END OF INNODB TABLE MONITOR OUTPUT\n"
 			      "==================================\n",
 			      stderr);
+
+			fprintf(stderr, "Warning: %s\n",
+				DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 		}
 	}
 

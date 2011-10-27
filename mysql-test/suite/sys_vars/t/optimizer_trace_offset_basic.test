@@ -1,0 +1,54 @@
+--source include/have_optimizer_trace.inc
+
+# Basic read/write test.
+# Functionality of this variable is covered in
+# main.optimizer_trace*.test
+
+SELECT @@global.optimizer_trace_offset;
+SET @@global.optimizer_trace_offset=5;
+show global variables like 'optimizer_trace_offset';
+select * from information_schema.global_variables where variable_name='optimizer_trace_offset';
+
+select @@session.optimizer_trace_offset;
+show session variables like 'optimizer_trace_offset';
+select * from information_schema.session_variables where variable_name='optimizer_trace_offset';
+
+#
+# show that it's writable
+#
+set session optimizer_trace_offset=10;
+select @@session.optimizer_trace_offset;
+show session variables like 'optimizer_trace_offset';
+
+set session optimizer_trace_offset=0;
+select @@session.optimizer_trace_offset;
+show session variables like 'optimizer_trace_offset';
+
+set session optimizer_trace_offset=-100;
+select @@session.optimizer_trace_offset;
+show session variables like 'optimizer_trace_offset';
+
+# 32-bit big values should be accepted on all platforms
+set session optimizer_trace_offset=2000000000;
+select @@session.optimizer_trace_offset;
+show session variables like 'optimizer_trace_offset';
+
+set session optimizer_trace_offset=-2000000000;
+select @@session.optimizer_trace_offset;
+show session variables like 'optimizer_trace_offset';
+
+set session optimizer_trace_offset=default;
+select @@session.optimizer_trace_offset;
+show session variables like 'optimizer_trace_offset';
+
+set global optimizer_trace_offset=default;
+select @@global.optimizer_trace_offset;
+show global variables like 'optimizer_trace_offset';
+
+#
+# incorrect assignments
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set optimizer_trace_offset=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set optimizer_trace_offset="foobar";

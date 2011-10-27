@@ -113,7 +113,7 @@ int vio_close_pipe(Vio *vio)
 
   vio->type= VIO_CLOSED;
   vio->hPipe= NULL;
-  vio->sd= -1;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
 
   DBUG_RETURN(ret);
 }

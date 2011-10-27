@@ -288,10 +288,12 @@ UNIV_INTERN time_t	os_last_printout;
 
 UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
 
-#ifndef UNIV_HOTBACKUP
+#if !defined(UNIV_HOTBACKUP)	\
+    && (!defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8)
 /** The mutex protecting the following counts of pending I/O operations */
 static os_mutex_t	os_file_count_mutex;
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP && (!HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8) */
+
 /** Number of pending os_file_pread() operations */
 UNIV_INTERN ulint	os_file_n_pending_preads  = 0;
 /** Number of pending os_file_pwrite() operations */
@@ -379,12 +381,14 @@ The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned.
 @return	error number, or OS error number + 100 */
-UNIV_INTERN
+static
 ulint
-os_file_get_last_error(
-/*===================*/
-	ibool	report_all_errors)	/*!< in: TRUE if we want an error message
-					printed of all errors */
+os_file_get_last_error_low(
+/*=======================*/
+	ibool	report_all_errors,	/*!< in: TRUE if we want an error
+					message printed of all errors */
+	ibool	on_error_silent)	/*!< in: TRUE then don't print any
+					diagnostic to the log */
 {
 	ulint	err;
 
@@ -393,7 +397,9 @@ os_file_get_last_error(
 	err = (ulint) GetLastError();
 
 	if (report_all_errors
-	    || (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS)) {
+	    || (!on_error_silent
+		&& err != ERROR_DISK_FULL
+		&& err != ERROR_FILE_EXISTS)) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -474,7 +480,7 @@ os_file_get_last_error(
 	err = (ulint) errno;
 
 	if (report_all_errors
-	    || (err != ENOSPC && err != EEXIST)) {
+	    || (err != ENOSPC && err != EEXIST && !on_error_silent)) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -544,10 +550,26 @@ os_file_get_last_error(
 #endif
 }
 
+/***********************************************************************//**
+Retrieves the last error number if an error occurs in a file io function.
+The number should be retrieved before any other OS calls (because they may
+overwrite the error number). If the number is not known to this program,
+the OS error number + 100 is returned.
+@return	error number, or OS error number + 100 */
+UNIV_INTERN
+ulint
+os_file_get_last_error(
+/*===================*/
+	ibool	report_all_errors)	/*!< in: TRUE if we want an error
+					message printed of all errors */
+{
+	return(os_file_get_last_error_low(report_all_errors, FALSE));
+}
+
 /****************************************************************//**
 Does error handling when a file operation fails.
 Conditionally exits (calling exit(3)) based on should_exit value and the
-error type
+error type, if should_exit is TRUE then on_error_silent is ignored.
 @return	TRUE if we should retry the operation */
 static
 ibool
@@ -555,20 +577,27 @@ os_file_handle_error_cond_exit(
 /*===========================*/
 	const char*	name,		/*!< in: name of a file or NULL */
 	const char*	operation,	/*!< in: operation */
-	ibool		should_exit)	/*!< in: call exit(3) if unknown error
+	ibool		should_exit,	/*!< in: call exit(3) if unknown error
 					and this parameter is TRUE */
+	ibool		on_error_silent)/*!< in: if TRUE then don't print
+					any message to the log iff it is
+					an unknown non-fatal error */
 {
 	ulint	err;
 
-	err = os_file_get_last_error(FALSE);
+	err = os_file_get_last_error_low(FALSE, on_error_silent);
 
-	if (err == OS_FILE_DISK_FULL) {
+	switch(err) {
+	case OS_FILE_DISK_FULL:
 		/* We only print a warning about disk full once */
 
 		if (os_has_said_disk_full) {
 
 			return(FALSE);
 		}
+
+		/* Disk full error is reported irrespective of the
+		on_error_silent setting. */
 
 		if (name) {
 			ut_print_timestamp(stderr);
@@ -587,42 +616,53 @@ os_file_handle_error_cond_exit(
 		fflush(stderr);
 
 		return(FALSE);
-	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
+
+	case OS_FILE_AIO_RESOURCES_RESERVED:
+	case OS_FILE_AIO_INTERRUPTED:
 
 		return(TRUE);
-	} else if (err == OS_FILE_AIO_INTERRUPTED) {
 
-		return(TRUE);
-	} else if (err == OS_FILE_ALREADY_EXISTS
-		   || err == OS_FILE_PATH_ERROR) {
+	case OS_FILE_PATH_ERROR:
+	case OS_FILE_ALREADY_EXISTS:
 
 		return(FALSE);
-	} else if (err == OS_FILE_SHARING_VIOLATION) {
+
+	case OS_FILE_SHARING_VIOLATION:
 
 		os_thread_sleep(10000000);  /* 10 sec */
 		return(TRUE);
-	} else if (err == OS_FILE_INSUFFICIENT_RESOURCE) {
+
+	case OS_FILE_OPERATION_ABORTED:
+	case OS_FILE_INSUFFICIENT_RESOURCE:
 
 		os_thread_sleep(100000);	/* 100 ms */
 		return(TRUE);
-	} else if (err == OS_FILE_OPERATION_ABORTED) {
 
-		os_thread_sleep(100000);	/* 100 ms */
-		return(TRUE);
-	} else {
-		if (name) {
-			fprintf(stderr, "InnoDB: File name %s\n", name);
+	default:
+
+		/* If it is an operation that can crash on error then it
+		is better to ignore on_error_silent and print an error message
+		to the log. */
+
+		if (should_exit || !on_error_silent) {
+			if (name) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: File name %s\n", name);
+			}
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: File operation call: "
+				"'%s'.\n", operation);
 		}
 
-		fprintf(stderr, "InnoDB: File operation call: '%s'.\n",
-			operation);
-
 		if (should_exit) {
-			fprintf(stderr, "InnoDB: Cannot continue operation.\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Cannot continue "
+				"operation.\n");
 
 			fflush(stderr);
-
-			exit(1);
+			ut_error;
 		}
 	}
 
@@ -636,11 +676,11 @@ static
 ibool
 os_file_handle_error(
 /*=================*/
-	const char*	name,	/*!< in: name of a file or NULL */
-	const char*	operation)/*!< in: operation */
+	const char*	name,		/*!< in: name of a file or NULL */
+	const char*	operation)	/*!< in: operation */
 {
 	/* exit in case of unknown error */
-	return(os_file_handle_error_cond_exit(name, operation, TRUE));
+	return(os_file_handle_error_cond_exit(name, operation, TRUE, FALSE));
 }
 
 /****************************************************************//**
@@ -650,11 +690,14 @@ static
 ibool
 os_file_handle_error_no_exit(
 /*=========================*/
-	const char*	name,	/*!< in: name of a file or NULL */
-	const char*	operation)/*!< in: operation */
+	const char*	name,		/*!< in: name of a file or NULL */
+	const char*	operation,	/*!< in: operation */
+	ibool		on_error_silent)/*!< in: if TRUE then don't print
+					any message to the log. */
 {
 	/* don't exit in case of unknown error */
-	return(os_file_handle_error_cond_exit(name, operation, FALSE));
+	return(os_file_handle_error_cond_exit(
+			name, operation, FALSE, on_error_silent));
 }
 
 #undef USE_FILE_LOCK
@@ -709,7 +752,9 @@ os_io_init_simple(void)
 {
 	ulint	i;
 
+#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_file_count_mutex = os_mutex_create();
+#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8 */
 
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = os_mutex_create();
@@ -820,7 +865,7 @@ os_file_closedir(
 	ret = FindClose(dir);
 
 	if (!ret) {
-		os_file_handle_error_no_exit(NULL, "closedir");
+		os_file_handle_error_no_exit(NULL, "closedir", FALSE);
 
 		return(-1);
 	}
@@ -832,7 +877,7 @@ os_file_closedir(
 	ret = closedir(dir);
 
 	if (ret) {
-		os_file_handle_error_no_exit(NULL, "closedir");
+		os_file_handle_error_no_exit(NULL, "closedir", FALSE);
 	}
 
 	return(ret);
@@ -903,8 +948,7 @@ next_file:
 
 		return(1);
 	} else {
-		os_file_handle_error_no_exit(dirname,
-					     "readdir_next_file");
+		os_file_handle_error_no_exit(NULL, "readdir_next_file", FALSE);
 		return(-1);
 	}
 #else
@@ -989,7 +1033,7 @@ next_file:
 			goto next_file;
 		}
 
-		os_file_handle_error_no_exit(full_path, "stat");
+		os_file_handle_error_no_exit(full_path, "stat", FALSE);
 
 		ut_free(full_path);
 
@@ -1071,13 +1115,8 @@ os_file_create_simple_func(
 /*=======================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file is
-				opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error), or
-				OS_FILE_CREATE_PATH if new file
-				(if exists, error) and subdirectories along
-				its path are created (if needed)*/
+	os_file_create_t
+			create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
@@ -1089,6 +1128,8 @@ os_file_create_simple_func(
 	DWORD		attributes	= 0;
 	ibool		retry;
 
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 try_again:
 	ut_a(name);
 
@@ -1146,6 +1187,9 @@ try_again:
 	os_file_t	file;
 	int		create_flag;
 	ibool		retry;
+
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 
 try_again:
 	ut_a(name);
@@ -1214,10 +1258,8 @@ os_file_create_simple_no_error_handling_func(
 /*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
-				is opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error) */
+	os_file_create_t
+			create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
@@ -1232,6 +1274,9 @@ os_file_create_simple_no_error_handling_func(
 	DWORD		share_mode	= FILE_SHARE_READ | FILE_SHARE_WRITE;
 
 	ut_a(name);
+
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 
 	if (create_mode == OS_FILE_OPEN) {
 		create_flag = OPEN_EXISTING;
@@ -1278,6 +1323,9 @@ os_file_create_simple_no_error_handling_func(
 	int		create_flag;
 
 	ut_a(name);
+
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
+	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 
 	if (create_mode == OS_FILE_OPEN) {
 		if (access_type == OS_FILE_READ_ONLY) {
@@ -1373,14 +1421,8 @@ os_file_create_func(
 /*================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
-	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
-				is opened (if does not exist, error), or
-				OS_FILE_CREATE if a new file is created
-				(if exists, error),
-				OS_FILE_OVERWRITE if a new file is created
-				or an old overwritten;
-				OS_FILE_OPEN_RAW, if a raw device or disk
-				partition should be opened */
+	os_file_create_t
+			create_mode,/*!< in: create mode */
 	ulint		purpose,/*!< in: OS_FILE_AIO, if asynchronous,
 				non-buffered i/o is desired,
 				OS_FILE_NORMAL, if any normal file;
@@ -1391,12 +1433,24 @@ os_file_create_func(
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
+	ibool		on_error_no_exit;
+	ibool		on_error_silent;
+
 #ifdef __WIN__
 	os_file_t	file;
 	DWORD		share_mode	= FILE_SHARE_READ;
 	DWORD		create_flag;
 	DWORD		attributes;
 	ibool		retry;
+
+	on_error_no_exit = create_mode & OS_FILE_ON_ERROR_NO_EXIT
+		? TRUE : FALSE;
+	on_error_silent = create_mode & OS_FILE_ON_ERROR_SILENT
+		? TRUE : FALSE;
+
+	create_mode &= ~OS_FILE_ON_ERROR_NO_EXIT;
+	create_mode &= ~OS_FILE_ON_ERROR_SILENT;
+
 try_again:
 	ut_a(name);
 
@@ -1479,23 +1533,17 @@ try_again:
 			  NULL);	/*!< no template file */
 
 	if (file == INVALID_HANDLE_VALUE) {
+		const char*	operation;
+
+		operation = create_mode == OS_FILE_CREATE ? "create" : "open";
+
 		*success = FALSE;
 
-		/* When srv_file_per_table is on, file creation failure may not
-		be critical to the whole instance. Do not crash the server in
-		case of unknown errors.
-		Please note "srv_file_per_table" is a global variable with
-		no explicit synchronization protection. It could be
-		changed during this execution path. It might not have the
-		same value as the one when building the table definition */
-		if (srv_file_per_table) {
-			retry = os_file_handle_error_no_exit(name,
-						create_mode == OS_FILE_CREATE ?
-						"create" : "open");
+		if (on_error_no_exit) {
+			retry = os_file_handle_error_no_exit(
+				name, operation, on_error_silent);
 		} else {
-			retry = os_file_handle_error(name,
-						create_mode == OS_FILE_CREATE ?
-						"create" : "open");
+			retry = os_file_handle_error(name, operation);
 		}
 
 		if (retry) {
@@ -1511,6 +1559,14 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
+
+	on_error_no_exit = create_mode & OS_FILE_ON_ERROR_NO_EXIT
+		? TRUE : FALSE;
+	on_error_silent = create_mode & OS_FILE_ON_ERROR_SILENT
+		? TRUE : FALSE;
+
+	create_mode &= ~OS_FILE_ON_ERROR_NO_EXIT;
+	create_mode &= ~OS_FILE_ON_ERROR_SILENT;
 
 try_again:
 	ut_a(name);
@@ -1551,23 +1607,17 @@ try_again:
 	file = open(name, create_flag, os_innodb_umask);
 
 	if (file == -1) {
+		const char*	operation;
+
+		operation = create_mode == OS_FILE_CREATE ? "create" : "open";
+
 		*success = FALSE;
 
-		/* When srv_file_per_table is on, file creation failure may not
-		be critical to the whole instance. Do not crash the server in
-		case of unknown errors.
-		Please note "srv_file_per_table" is a global variable with
-		no explicit synchronization protection. It could be
-		changed during this execution path. It might not have the
-		same value as the one when building the table definition */
-		if (srv_file_per_table) {
-			retry = os_file_handle_error_no_exit(name,
-						create_mode == OS_FILE_CREATE ?
-						"create" : "open");
+		if (on_error_no_exit) {
+			retry = os_file_handle_error_no_exit(
+				name, operation, on_error_silent);
 		} else {
-			retry = os_file_handle_error(name,
-						create_mode == OS_FILE_CREATE ?
-						"create" : "open");
+			retry = os_file_handle_error(name, operation);
 		}
 
 		if (retry) {
@@ -1625,7 +1675,8 @@ UNIV_INTERN
 ibool
 os_file_delete_if_exists(
 /*=====================*/
-	const char*	name)	/*!< in: file path as a null-terminated string */
+	const char*	name)	/*!< in: file path as a null-terminated
+				string */
 {
 #ifdef __WIN__
 	BOOL	ret;
@@ -1671,7 +1722,7 @@ loop:
 	ret = unlink(name);
 
 	if (ret != 0 && errno != ENOENT) {
-		os_file_handle_error_no_exit(name, "delete");
+		os_file_handle_error_no_exit(name, "delete", FALSE);
 
 		return(FALSE);
 	}
@@ -1687,7 +1738,8 @@ UNIV_INTERN
 ibool
 os_file_delete(
 /*===========*/
-	const char*	name)	/*!< in: file path as a null-terminated string */
+	const char*	name)	/*!< in: file path as a null-terminated
+				string */
 {
 #ifdef __WIN__
 	BOOL	ret;
@@ -1734,7 +1786,7 @@ loop:
 	ret = unlink(name);
 
 	if (ret != 0) {
-		os_file_handle_error_no_exit(name, "delete");
+		os_file_handle_error_no_exit(name, "delete", FALSE);
 
 		return(FALSE);
 	}
@@ -1765,7 +1817,7 @@ os_file_rename_func(
 		return(TRUE);
 	}
 
-	os_file_handle_error_no_exit(oldpath, "rename");
+	os_file_handle_error_no_exit(oldpath, "rename", FALSE);
 
 	return(FALSE);
 #else
@@ -1774,7 +1826,7 @@ os_file_rename_func(
 	ret = rename(oldpath, newpath);
 
 	if (ret != 0) {
-		os_file_handle_error_no_exit(oldpath, "rename");
+		os_file_handle_error_no_exit(oldpath, "rename", FALSE);
 
 		return(FALSE);
 	}
@@ -2167,19 +2219,31 @@ os_file_pread(
 	os_n_file_reads++;
 
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
+#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
+	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
 	os_n_pending_reads++;
 	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
 
-	n_bytes = pread(file, buf, (ssize_t)n, offs);
+	n_bytes = pread(file, buf, n, offs);
 
+#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+	(void) os_atomic_decrement_ulint(&os_file_n_pending_preads, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
+#else
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
 	os_n_pending_reads--;
 	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
+#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD == 8 */
 
 	return(n_bytes);
 #else
@@ -2190,11 +2254,15 @@ os_file_pread(
 		ulint	i;
 #endif /* !UNIV_HOTBACKUP */
 
+#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+		(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
+		MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
+#else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads++;
 		MONITOR_INC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
-
+#endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
 #ifndef UNIV_HOTBACKUP
 		/* Protect the seek / read operation with a mutex */
 		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
@@ -2214,10 +2282,15 @@ os_file_pread(
 		os_mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
+#if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
+		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+		MONITOR_ATOIC_DEC(MONITOR_OS_PENDING_READS);
+#else
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
+#endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD_SIZE == 8 */
 
 		return(ret);
 	}
@@ -2256,19 +2329,31 @@ os_file_pwrite(
 	os_n_file_writes++;
 
 #if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
+#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
 	os_n_pending_writes++;
 	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
+#else
+	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
+	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
+	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
+#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
 	ret = pwrite(file, buf, (ssize_t)n, offs);
 
+#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
 	os_n_pending_writes--;
 	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
+#else
+	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
+	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
+	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
+#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
 # ifdef UNIV_DO_FLUSH
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
@@ -2568,7 +2653,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error_no_exit(NULL, "read");
+	retry = os_file_handle_error_no_exit(NULL, "read", FALSE);
 
 	if (retry) {
 		goto try_again;
@@ -2823,7 +2908,7 @@ os_file_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
-		os_file_handle_error_no_exit(path, "stat");
+		os_file_handle_error_no_exit(path, "stat", FALSE);
 
 		return(FALSE);
 	}
@@ -2851,7 +2936,7 @@ os_file_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
-		os_file_handle_error_no_exit(path, "stat");
+		os_file_handle_error_no_exit(path, "stat", FALSE);
 
 		return(FALSE);
 	}
@@ -2895,7 +2980,7 @@ os_file_get_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
-		os_file_handle_error_no_exit(path, "stat");
+		os_file_handle_error_no_exit(path, "stat", FALSE);
 
 		return(FALSE);
 	}
@@ -2926,7 +3011,7 @@ os_file_get_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
-		os_file_handle_error_no_exit(path, "stat");
+		os_file_handle_error_no_exit(path, "stat", FALSE);
 
 		return(FALSE);
 	}

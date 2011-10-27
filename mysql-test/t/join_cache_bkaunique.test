@@ -1,0 +1,9 @@
+--source include/have_debug.inc
+SET debug= '+d,test_bka_unique';
+
+set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
+
+--source include/join_cache.inc
+
+set optimizer_switch = default;
+

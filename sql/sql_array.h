@@ -40,6 +40,23 @@ public:
   {}
 
   void reset() { m_array= NULL; m_size= 0; }
+ 
+  void reset(Element_type *array, size_t size)
+  {
+    m_array= array;
+    m_size= size;
+  }
+
+  /**
+    Set a new bound on the array. Does not resize the underlying
+    array, so the new size must be smaller than or equal to the
+    current size.
+   */
+  void resize(size_t new_size)
+  {
+    DBUG_ASSERT(new_size <= m_size);
+    m_size= new_size;
+  }
 
   Element_type &operator[](size_t n)
   {
@@ -90,27 +107,69 @@ public:
     my_init_dynamic_array(&array, sizeof(Elem), prealloc, increment);
   }
 
+  /**
+     @note Though formally this could be declared "const" it would be
+     misleading at it returns a non-const pointer to array's data.
+  */
   Elem& at(int idx)
   {
     return *(((Elem*)array.buffer) + idx);
   }
+  /// Const variant of at(), which cannot change data
+  const Elem& at(int idx) const
+  {
+    return *(((Elem*)array.buffer) + idx);
+  }
 
+  /// @returns pointer to first element; undefined behaviour if array is empty
   Elem *front()
   {
+    DBUG_ASSERT(array.elements >= 1);
     return (Elem*)array.buffer;
   }
 
+  /// @returns pointer to first element; undefined behaviour if array is empty
+  const Elem *front() const
+  {
+    DBUG_ASSERT(array.elements >= 1);
+    return (const Elem*)array.buffer;
+  }
+
+  /// @returns pointer to last element; undefined behaviour if array is empty.
   Elem *back()
   {
-    return ((Elem*)array.buffer) + array.elements;
+    DBUG_ASSERT(array.elements >= 1);
+    return ((Elem*)array.buffer) + (array.elements - 1);
   }
 
-  bool append(Elem &el)
+  /// @returns pointer to last element; undefined behaviour if array is empty.
+  const Elem *back() const
   {
-    return (insert_dynamic(&array, &el));
+    DBUG_ASSERT(array.elements >= 1);
+    return ((const Elem*)array.buffer) + (array.elements - 1);
   }
 
-  int elements()
+  /**
+     @retval false ok
+     @retval true  OOM, @c my_error() has been called.
+  */
+  bool append(const Elem &el)
+  {
+    return insert_dynamic(&array, &el);
+  }
+
+  /// Pops the last element. Does nothing if array is empty.
+  Elem& pop()
+  {
+    return *((Elem*)pop_dynamic(&array));
+  }
+
+  void del(uint idx)
+  {
+    delete_dynamic_element(&array, idx);
+  }
+
+  int elements() const
   {
     return array.elements;
   }

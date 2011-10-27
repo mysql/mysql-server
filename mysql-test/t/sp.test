@@ -1661,31 +1661,27 @@ drop function getcount|
 # Test cases for different combinations of condition handlers in nested
 # begin-end blocks in stored procedures.
 #
-# Note that the standard specifies that the most specific handler should
-# be triggered even if it's an outer handler masked by a less specific
-# handler in an inner block.
+# The SQL standard document says:
+# "8) If there is a general <handler declaration> and a specific
+# <handler declaration> for the same <condition value> in the same scope, then
+# only the specific <handler declaration> is associated with that
+# <condition value>."
+
+# A general handler declaration has SQLWARNING + SQLEXCEPTION + NOT FOUND.
+# A specific handler declaration has SQLSTATE, condition name, or (for MySQL)
+# an errno.
+#
+# So when there are multiple handlers in the same scope, they're all
+# applicable, but the most specific handler should be activated. Notice the
+# standard's exact words: "in the same scope". A specific handler declaration
+# in an outer scope must not be activated instead of a general handler
+# declaration in the inner scope. Previously that was not the case in MySQL.
+#
 # Note also that '02000' is more specific than NOT FOUND; there might be
 # other '02xxx' states, even if we currently do not issue them in any
 # situation (e.g. '02001').
 #
-# The combinations we test are these:
-#
-#                                         Inner
-#              errcode      sqlstate     not found    sqlwarning   sqlexception
-#  Outer      +------------+------------+------------+------------+------------+
-#errcode      | h_ee (i)   | h_es (o)   | h_en (o)   | h_ew (o)   | h_ex (o)   |
-#sqlstate     | h_se (i)   | h_ss (i)   | h_sn (o)   | h_sw (o)   | h_sx (o)   |
-#not found    | h_ne (i)   | h_ns (i)   | h_nn (i)   |            |            |
-#sqlwarning   | h_we (i)   | h_ws (i)   |            | h_ww (i)   |            |
-#sqlexception | h_xe (i)   | h_xs (i)   |            |            | h_xx (i)   |
-#             +------------+---------------------------------------------------+
-#
-# (i) means that the inner handler is the one that should be invoked,
-# (o) means that the outer handler should be invoked.
-#
-# ('not found', 'sqlwarning' and 'sqlexception' are mutually exclusive, hence
-#  no tests for those combinations.)
-#
+# Thus, in all combinations below an inner handler should be activated.
 
 --disable_warnings
 drop table if exists t3|
@@ -1734,12 +1730,12 @@ create procedure h_es()
     deterministic
 begin
   declare continue handler for 1062 -- ER_DUP_ENTRY
-    select 'Outer (good)' as 'h_es';
+    select 'Outer (bad)' as 'h_es';
 
   begin
     -- integrity constraint violation
     declare continue handler for sqlstate '23000'
-      select 'Inner (bad)' as 'h_es';
+      select 'Inner (good)' as 'h_es';
 
     insert into t3 values (1);
   end;
@@ -1749,12 +1745,12 @@ create procedure h_en()
     deterministic
 begin
   declare continue handler for 1329 -- ER_SP_FETCH_NO_DATA
-    select 'Outer (good)' as 'h_en';
+    select 'Outer (bad)' as 'h_en';
 
   begin
     declare x int;
     declare continue handler for sqlstate '02000' -- no data
-      select 'Inner (bad)' as 'h_en';
+      select 'Inner (good)' as 'h_en';
 
     select a into x from t3 where a = 42;
   end;
@@ -1764,11 +1760,11 @@ create procedure h_ew()
     deterministic
 begin
   declare continue handler for 1264 -- ER_WARN_DATA_OUT_OF_RANGE
-    select 'Outer (good)' as 'h_ew';
+    select 'Outer (bad)' as 'h_ew';
 
   begin
     declare continue handler for sqlwarning
-      select 'Inner (bad)' as 'h_ew';
+      select 'Inner (good)' as 'h_ew';
 
     insert into t3 values (123456789012);
   end;
@@ -1780,11 +1776,11 @@ create procedure h_ex()
     deterministic
 begin
   declare continue handler for 1062 -- ER_DUP_ENTRY
-    select 'Outer (good)' as 'h_ex';
+    select 'Outer (bad)' as 'h_ex';
 
   begin
     declare continue handler for sqlexception
-      select 'Inner (bad)' as 'h_ex';
+      select 'Inner (good)' as 'h_ex';
 
     insert into t3 values (1);
   end;
@@ -1827,12 +1823,12 @@ begin
   -- Note: '02000' is more specific than NOT FOUND ;
   --       there might be other not found states 
   declare continue handler for sqlstate '02000' -- no data
-    select 'Outer (good)' as 'h_sn';
+    select 'Outer (bad)' as 'h_sn';
 
   begin
     declare x int;
     declare continue handler for not found
-      select 'Inner (bad)' as 'h_sn';
+      select 'Inner (good)' as 'h_sn';
 
     select a into x from t3 where a = 42;
   end;
@@ -1843,11 +1839,11 @@ create procedure h_sw()
 begin
   -- data exception - numeric value out of range
   declare continue handler for sqlstate '22003'
-    select 'Outer (good)' as 'h_sw';
+    select 'Outer (bad)' as 'h_sw';
 
   begin
     declare continue handler for sqlwarning
-      select 'Inner (bad)' as 'h_sw';
+      select 'Inner (good)' as 'h_sw';
 
     insert into t3 values (123456789012);
   end;
@@ -1860,11 +1856,11 @@ create procedure h_sx()
 begin
   -- integrity constraint violation
   declare continue handler for sqlstate '23000' 
-    select 'Outer (good)' as 'h_sx';
+    select 'Outer (bad)' as 'h_sx';
 
   begin
     declare continue handler for sqlexception
-      select 'Inner (bad)' as 'h_sx';
+      select 'Inner (good)' as 'h_sx';
 
     insert into t3 values (1);
   end;
@@ -8376,6 +8372,53 @@ SET @@GLOBAL.init_connect= @old_init_connect;
 DROP PROCEDURE p2;
 DROP PROCEDURE p5;
 
+
+--echo #
+--echo # Bug#11840395 (formerly known as bug#60347):
+--echo # The string "versiondata" seems
+--echo # to be 'leaking' into the schema name space
+--echo #
+--disable_warnings
+DROP DATABASE IF EXISTS mixedCaseDbName;
+--enable_warnings
+CREATE DATABASE mixedCaseDbName;
+DELIMITER |;
+CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
+CREATE FUNCTION mixedCaseDbName.tryMyFunc() returns text begin return 'IT WORKS'; end
+|
+DELIMITER ;|
+call mixedCaseDbName.tryMyProc();
+select mixedCaseDbName.tryMyFunc();
+DROP DATABASE mixedCaseDbName;
+
+
+--echo #
+--echo # Bug#11766594  59736: SELECT DISTINCT.. INCORRECT RESULT WITH DETERMINISTIC FUNCTION IN WHERE C
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, KEY(b));
+CREATE TABLE t2 (c INT, d INT, KEY(c));
+INSERT INTO t1 VALUES (1,1),(1,1),(1,2);
+INSERT INTO t2 VALUES (1,1),(1,2);
+
+DELIMITER $;
+
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
+BEGIN
+  DECLARE a int;
+  -- SQL statement inside
+  SELECT 1 INTO a;
+  RETURN a;
+END $
+
+DELIMITER ;$
+
+SELECT COUNT(DISTINCT d) FROM t1, t2  WHERE a = c AND b = f1();
+
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
@@ -8834,4 +8877,62 @@ DROP TABLE t1;
 DROP PROCEDURE p1;
 --echo
 
---echo # End of 5.5 test
+--echo # End of 5.5 tests
+
+
+--echo #
+--echo # Bug#12663165 SP DEAD CODE REMOVAL DOESN'T UNDERSTAND CONTINUE HANDLERS
+--echo #
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+delimiter $;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION RETURN f1();
+    BEGIN
+     DECLARE CONTINUE HANDLER FOR SQLEXCEPTION RETURN f1();
+     RETURN f1();
+    END;
+  END;
+RETURN 1;
+END $ 
+delimiter ;$
+
+# This used to cause an assertion.
+SELECT f1();
+
+DROP FUNCTION f1;
+
+--echo #
+--echo # WL#2111: Add non-reserved ROW_COUNT keyword.
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+DELIMITER |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE row_count INT DEFAULT 1;
+  SELECT row_count;
+  SELECT row_count();
+  ROW_COUNT: WHILE row_count > 0 DO
+    SET row_count = row_count - 1;
+  END WHILE ROW_COUNT;
+  SELECT ROW_COUNT;
+END|
+
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo # End of 5.6 tests

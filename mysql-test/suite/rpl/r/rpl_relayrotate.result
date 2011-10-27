@@ -8,6 +8,6 @@ stop slave;
 start slave;
 select max(a) from t1;
 max(a)
-8000
+loop_max
 drop table t1;
 include/rpl_end.inc

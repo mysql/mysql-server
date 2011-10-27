@@ -28,9 +28,6 @@ Created 7/19/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "buf0lru.h"
 
-/** Counter for ibuf_should_try() */
-extern ulint	ibuf_flush_count;
-
 /** An index page must contain at least UNIV_PAGE_SIZE /
 IBUF_PAGE_SIZE_PER_FREE_SPACE bytes of free space for ibuf to try to
 buffer inserts to this page.  If there is this much of free space, the
@@ -127,22 +124,10 @@ ibuf_should_try(
 						a secondary index when we
 						decide */
 {
-	if (ibuf_use != IBUF_USE_NONE
-	    && ibuf->max_size != 0
-	    && !dict_index_is_clust(index)
-	    && (ignore_sec_unique || !dict_index_is_unique(index))) {
-
-		ibuf_flush_count++;
-
-		if (ibuf_flush_count % 4 == 0) {
-
-			buf_LRU_try_free_flushed_blocks(NULL);
-		}
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(ibuf_use != IBUF_USE_NONE
+	       && ibuf->max_size != 0
+	       && !dict_index_is_clust(index)
+	       && (ignore_sec_unique || !dict_index_is_unique(index)));
 }
 
 /******************************************************************//**

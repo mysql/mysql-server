@@ -1,18 +1,3 @@
-# Copyright (C) 2009-2010 Sun Microsystems, Inc.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
 --source include/not_embedded.inc
 --source include/not_threadpool.inc
 
@@ -70,6 +55,7 @@ insert into t2 select variable_name from information_schema.session_variables;
 # These are only present in debug builds.
 delete from t2 where variable_name='innodb_change_buffering_debug';
 delete from t2 where variable_name='innodb_page_hash_locks';
+delete from t2 where variable_name='innodb_doublewrite_batch_size';
 
 # Performance schema variables are too long for files named
 # 'mysql-test/suite/sys_vars/t/' ...
@@ -79,9 +65,11 @@ delete from t2 where variable_name='innodb_page_hash_locks';
 
 update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
 
+--sorted_result
 select variable_name as `There should be *no* long test name listed below:` from t2
   where length(variable_name) > 50;
 
+--sorted_result
 select variable_name as `There should be *no* variables listed below:` from t2
   left join t1 on variable_name=test_name where test_name is null ORDER BY variable_name;
 

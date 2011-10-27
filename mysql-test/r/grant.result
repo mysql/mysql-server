@@ -2559,3 +2559,29 @@ Grants for mysqltest_u1@%
 GRANT USAGE ON *.* TO 'mysqltest_u1'@'%'
 drop database mysqltest_db1;
 drop user mysqltest_u1;
+#
+# Bug#11756966 - 48958: STORED PROCEDURES CAN BE LEVERAGED TO BYPASS
+#                DATABASE SECURITY
+#
+DROP DATABASE IF EXISTS secret;
+DROP DATABASE IF EXISTS no_such_db;
+CREATE DATABASE secret;
+GRANT USAGE ON *.* TO 'untrusted'@localhost;
+# Connection con1
+SHOW GRANTS;
+Grants for untrusted@localhost
+GRANT USAGE ON *.* TO 'untrusted'@'localhost'
+SHOW DATABASES;
+Database
+information_schema
+test
+# Both statements below should fail with the same error.
+# They used to give different errors, thereby
+# hinting that the secret database exists.
+CREATE PROCEDURE no_such_db.foo() BEGIN END;
+ERROR 42000: Access denied for user 'untrusted'@'localhost' to database 'no_such_db'
+CREATE PROCEDURE secret.peek_at_secret() BEGIN END;
+ERROR 42000: Access denied for user 'untrusted'@'localhost' to database 'secret'
+# Connection default
+DROP USER 'untrusted'@localhost;
+DROP DATABASE secret;

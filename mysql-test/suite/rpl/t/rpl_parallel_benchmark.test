@@ -1,0 +1,29 @@
+#
+# WL#5569 MTS
+#
+# The test is similar to rpl_parallel but focuses more to
+# provide benchmarking data.
+# See rpl_parallel.test comments and rpl_parallel_benchmark_load for
+# how to vary running configuration.
+#
+
+--source include/master-slave.inc
+
+connection slave;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+###select @@global.slave_parallel_workers as 'non-zero means parallel';
+
+let $workers = `select @@global.slave_parallel_workers`;
+###let $databases= $workers;
+# workers vary db:s do not
+let $databases= 16;
+
+connection master;
+source extra/rpl_tests/rpl_parallel_benchmark_load.test;
+
+connection slave;
+--disable_query_log
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+--enable_result_log
+
+--source include/rpl_end.inc

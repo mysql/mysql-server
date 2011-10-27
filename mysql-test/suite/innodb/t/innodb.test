@@ -32,6 +32,8 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # the test to be run multiple times without restarting the mysqld server.
 # See Bug#43309 Test main.innodb can't be run twice
 -- disable_query_log
+SET @innodb_thread_sleep_delay_orig = @@innodb_thread_sleep_delay;
+
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 
 SET @innodb_rows_deleted_orig = (SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted');
@@ -2551,6 +2553,7 @@ DROP TABLE bug35537;
 DISCONNECT c1;
 CONNECTION default;
 
+SET GLOBAL innodb_thread_sleep_delay = @innodb_thread_sleep_delay_orig;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log

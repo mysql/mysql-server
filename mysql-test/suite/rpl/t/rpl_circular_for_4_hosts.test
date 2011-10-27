@@ -31,6 +31,8 @@ CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, 
 --source include/rpl_sync.inc
 --connection server_4
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Slave SQL: Coordinator thread of multi-threaded slave is exiting seeing a failed Worker to apply an event");
 --echo
 
 #
@@ -81,17 +83,34 @@ source include/start_slave.inc;
 INSERT INTO t1 VALUES(6,'C',2);
 --sync_slave_with_master server_4
 
+#
+# MTS part of the test makes sure that server B will have received
+# the being failed C's `call mtr.add_suppression' and it will send it
+# to D after its own INSERT INTO t1 VALUES(6,'C',2).
+#
+--connection server_3
+
+  lock table t1 write  /* must block B_2^6 coming */;
+
 --connection server_2
 INSERT INTO t1(b,c) VALUES('B',2);
+
+--connection server_3_1
+  call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
+
+# MTS: catching failure
+--connection server_3
+  unlock tables;
+
 # Wait while C will stop.
 --connection server_3
 # 1062 = ER_DUP_ENTRY
-call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 --connection server_1
 INSERT INTO t1(b,c) VALUES('A',2);
 --connection server_4
+
 INSERT INTO t1(b,c) VALUES('D',2);
 
 

@@ -1,0 +1,120 @@
+################################################################################
+# This test case aims to check if the recovery routine develop as part of the
+# WL#5599 works correctly. To do so, we generate a set of changes, i.e. a set
+# of transactions, as follows:
+#
+#   DB_1 ... DB_1 DB_2 ... DB_2 ... DB_w ... DB_w
+#   |         |   |         |       |         |
+#   ---- a ----   ---- a ----       ---- a ----
+#   |         |   |         |       |         |
+#   ---- p ----   ---- p ----       ---- p ----
+#   |         |
+#   ---- c ----   
+#
+#  DB_w is a transaction on database "w" that is assigned to worker "w" and
+#  may be generated "a" times. Within each "a" group, "p" transactions are
+#  processed by their assigned workers and within the first group, only "c"
+#  transactions are processed by the checkpoint routine.
+#
+#  The following properties hold:
+#
+#  . 0 <= p <= a
+#  . 0 <= c <= p
+#
+#  So after assigning "a" transactions to each worker, waiting that "p"
+#  transactions are processed by each worker and "c" are processed by the
+#  checkpoint routine, the slave is rebooted thus executing the recovery
+#  routine with a mix of processed and unprocessed transactions.
+#
+#  Along with this, the relay log is rotated and during startup the relay
+#  log files are delete based on the option relay-log-recovery.
+#
+#  At the end, master and slave cannot diverge.
+################################################################################
+
+
+################################################################################
+#                                      SET UP
+################################################################################
+let $max_groups=3;
+let $max_workers=3;
+
+--connection master
+SET @commands= 'configure';
+--let $engine_type="Innodb"
+--source extra/rpl_tests/rpl_mts_crash_safe.inc
+
+
+################################################################################
+#                                      TEST 
+################################################################################
+let $count_debug_groups=1;
+while ($count_debug_groups <= $max_groups)
+{
+  let $count_workers=1;
+  while ($count_workers <= $max_workers)
+  {
+    let $count_checkpoint=0;
+    while ($count_checkpoint <= $count_debug_groups)
+    {
+      let $count_groups=$count_debug_groups;
+      while ($count_groups <= $max_groups)
+      {
+        --connection slave
+        --eval SET @@global.slave_parallel_workers= $count_workers
+        --eval SET @@global.slave_checkpoint_period= $count_checkpoint
+        let $count_transactions=1;
+        while ($count_transactions <= $count_groups)
+        {
+          let $count_database=1;
+          while ($count_database <= $count_workers)
+          {
+            --connection master
+            --let $database_name=test_$count_database
+            --echo Generating Number of Workers $count_workers --- Number of Groups per worker $count_groups --- Debugging Groups $count_debug_groups --- Database $database_name
+            SET @commands='B T T C';
+            --source extra/rpl_tests/rpl_mts_crash_safe.inc
+            inc $count_database;
+          }
+          inc $count_transactions;
+        }
+        --echo ----Executing----
+        SET @commands='recovery';
+        --source extra/rpl_tests/rpl_mts_crash_safe.inc
+        inc $count_groups;
+      }
+      inc $count_checkpoint;
+    }
+    inc $count_workers;
+  }
+  inc $count_debug_groups;
+}
+
+
+################################################################################
+#                                CHECK CONSISTENCY
+################################################################################
+--connection slave
+--source include/start_slave.inc
+
+--connection master
+--sync_slave_with_master
+
+--connection master
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-mts-crash-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-mts-crash-slave.sql
+--diff_files $MYSQLD_DATADIR/test-mts-crash-master.sql $MYSQLD_DATADIR/test-mts-crash-slave.sql
+
+
+################################################################################
+#                                   CLEAN UP
+################################################################################
+--connection master
+SET @commands= 'clean';
+--source extra/rpl_tests/rpl_mts_crash_safe.inc
+
+--connection master
+--source include/rpl_end.inc

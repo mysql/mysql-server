@@ -1,18 +1,3 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
-
 # Tests for PERFORMANCE_SCHEMA
 # Verify that statistics aggregated by different criteria are consistent.
 
@@ -31,6 +16,8 @@ update performance_schema.setup_consumers set enabled = 'NO';
 # Cleanup statistics
 truncate table performance_schema.file_summary_by_event_name;
 truncate table performance_schema.file_summary_by_instance;
+truncate table performance_schema.socket_summary_by_event_name;
+truncate table performance_schema.socket_summary_by_instance;
 truncate table performance_schema.events_waits_summary_global_by_event_name;
 truncate table performance_schema.events_waits_summary_by_instance;
 truncate table performance_schema.events_waits_summary_by_thread_by_event_name;
@@ -110,6 +97,20 @@ OR @dump_all;
 SELECT EVENT_NAME, e.COUNT_WRITE, SUM(i.COUNT_WRITE)
 FROM performance_schema.file_summary_by_event_name AS e
 JOIN performance_schema.file_summary_by_instance AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_WRITE <> SUM(i.COUNT_WRITE))
+OR @dump_all;
+
+SELECT EVENT_NAME, e.COUNT_READ, SUM(i.COUNT_READ)
+FROM performance_schema.socket_summary_by_event_name AS e
+JOIN performance_schema.socket_summary_by_instance AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_READ <> SUM(i.COUNT_READ))
+OR @dump_all;
+
+SELECT EVENT_NAME, e.COUNT_WRITE, SUM(i.COUNT_WRITE)
+FROM performance_schema.socket_summary_by_event_name AS e
+JOIN performance_schema.socket_summary_by_instance AS i USING (EVENT_NAME)
 GROUP BY EVENT_NAME
 HAVING (e.COUNT_WRITE <> SUM(i.COUNT_WRITE))
 OR @dump_all;

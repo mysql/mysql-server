@@ -70,7 +70,7 @@ dict_mem_table_create(
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	dict_tf_validate(flags);
 	ut_a(!(flags2 & ~DICT_TF2_BIT_MASK));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);

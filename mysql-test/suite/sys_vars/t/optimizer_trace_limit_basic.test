@@ -1,0 +1,45 @@
+--source include/have_optimizer_trace.inc
+
+# Basic read/write test.
+# Functionality of this variable is covered in
+# main.optimizer_trace*.test
+
+SELECT @@global.optimizer_trace_limit;
+SET @@global.optimizer_trace_limit=5;
+show global variables like 'optimizer_trace_limit';
+select * from information_schema.global_variables where variable_name='optimizer_trace_limit';
+
+select @@session.optimizer_trace_limit;
+show session variables like 'optimizer_trace_limit';
+select * from information_schema.session_variables where variable_name='optimizer_trace_limit';
+
+#
+# show that it's writable
+#
+set session optimizer_trace_limit=10;
+select @@session.optimizer_trace_limit;
+show session variables like 'optimizer_trace_limit';
+
+set session optimizer_trace_limit=0;
+select @@session.optimizer_trace_limit;
+show session variables like 'optimizer_trace_limit';
+
+set session optimizer_trace_limit=-100;
+select @@session.optimizer_trace_limit;
+show session variables like 'optimizer_trace_limit';
+
+set session optimizer_trace_limit=default;
+select @@session.optimizer_trace_limit;
+show session variables like 'optimizer_trace_limit';
+
+set global optimizer_trace_limit=default;
+select @@global.optimizer_trace_limit;
+show global variables like 'optimizer_trace_limit';
+
+#
+# incorrect assignments
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set optimizer_trace_limit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set optimizer_trace_limit="foobar";

@@ -1,0 +1,33 @@
+# Continuation of tests for optimizer trace.
+# Those need DBUG_EXECUTE_IF.
+
+--source include/have_optimizer_trace.inc
+--source include/have_debug.inc
+
+--echo # We want to make sure that the common case of
+--echo # a connection which has not enabled tracing,
+--echo # is optimized, i.e. neither Opt_trace_context_impl nor
+--echo # Opt_trace_context_stmt is created.
+
+# make server crash if it creates Opt_trace_stmt
+set debug="d,no_new_opt_trace_stmt";
+
+# tracable but tracing is off
+select 1;
+# non-tracable
+select * from information_schema.OPTIMIZER_TRACE;
+# non-tracable
+set @a=25;
+
+# Force creation of Opt_trace_context_impl and Opt_trace_stmt
+set debug="default";
+set optimizer_trace="enabled=on";
+select 2;
+select * from information_schema.OPTIMIZER_TRACE;
+set optimizer_trace="enabled=off";
+set debug="d,no_new_opt_trace_stmt";
+
+# tracable, but tracing is off again (thd->opt_trace->is_started() is false)
+select 3;
+# should see only trace of "select 2"
+select * from information_schema.OPTIMIZER_TRACE;

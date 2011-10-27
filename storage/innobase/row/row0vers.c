@@ -273,11 +273,8 @@ row_vers_impl_x_locked(
 	trx_id_t	trx_id;
 	mtr_t		mtr;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!lock_mutex_own());
+	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -676,17 +673,17 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		rw_lock_s_lock(&trx_sys->lock);
+		mutex_enter(&trx_sys->mutex);
 		version_trx = trx_get_on_id(version_trx_id);
 		/* version_trx->state cannot change from or to
-		NOT_STARTED while we are holding the trx_sys->lock.
+		NOT_STARTED while we are holding the trx_sys->mutex.
 		It may change from ACTIVE to PREPARED or COMMITTED. */
 		if (version_trx
 		    && trx_state_eq(version_trx,
 				    TRX_STATE_COMMITTED_IN_MEMORY)) {
 			version_trx = NULL;
 		}
-		rw_lock_s_unlock(&trx_sys->lock);
+		mutex_exit(&trx_sys->mutex);
 
 		if (!version_trx) {
 

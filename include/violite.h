@@ -21,7 +21,8 @@
 #ifndef vio_violite_h_
 #define	vio_violite_h_
 
-#include "my_net.h"			/* needed because of struct in_addr */
+#include "my_net.h"   /* needed because of struct in_addr */
+#include <mysql/psi/mysql_socket.h>
 
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
@@ -54,7 +55,8 @@ enum enum_vio_io_event
 #define VIO_BUFFERED_READ 2                     /* use buffered read */
 #define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
 
-Vio*	vio_new(my_socket sd, enum enum_vio_type type, uint flags);
+Vio* vio_new(my_socket sd, enum enum_vio_type type, uint flags);
+Vio*  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
 #ifdef __WIN__
 Vio* vio_new_win32pipe(HANDLE hPipe);
 Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
@@ -123,6 +125,10 @@ int vio_getnameinfo(const struct sockaddr *sa,
 #define DES_set_key_unchecked(k,ks) des_set_key_unchecked((k),*(ks))
 #define DES_ede3_cbc_encrypt(i,o,l,k1,k2,k3,iv,e) des_ede3_cbc_encrypt((i),(o),(l),*(k1),*(k2),*(k3),(iv),(e))
 #endif
+/* apple deprecated openssl in MacOSX Lion */
+#ifdef __APPLE__
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 #define HEADER_DES_LOCL_H dummy_something
 #define YASSL_MYSQL_COMPATIBLE
@@ -155,11 +161,13 @@ int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
 		       const char *ca_file,  const char *ca_path,
-		       const char *cipher, enum enum_ssl_init_error* error);
+		       const char *cipher, enum enum_ssl_init_error *error,
+                       const char *crl_file, const char *crl_path);
 struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
 		      const char *ca_file,const char *ca_path,
-		      const char *cipher, enum enum_ssl_init_error* error);
+		      const char *cipher, enum enum_ssl_init_error *error,
+                      const char *crl_file, const char *crl_path);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
@@ -200,7 +208,7 @@ enum SSL_type
 /* This structure is for every connection on both sides */
 struct st_vio
 {
-  my_socket		sd;		/* my_socket - real or imaginary */
+  MYSQL_SOCKET  mysql_socket;     /* Instrumented socket */
   my_bool		localhost;	/* Are we from localhost? */
   struct sockaddr_storage	local;		/* Local internet address */
   struct sockaddr_storage	remote;		/* Remote internet address */

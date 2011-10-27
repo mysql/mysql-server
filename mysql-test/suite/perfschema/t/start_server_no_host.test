@@ -1,0 +1,16 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+# Expect no records
+show variables like "performance_schema_hosts_size";
+
+select count(*) from performance_schema.hosts;
+
+# We lost all the data
+select variable_value > 0 from information_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_HOSTS_LOST';
+

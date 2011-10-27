@@ -1,0 +1,181 @@
+#
+# WL#5569 MTS
+#
+# The test verifies correctness of Query events parallelization.
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table.*');
+
+let $temp_tables= 16;
+let $workers= 4;
+
+connection slave;
+
+flush status; # to nullify Slave_open_temp_tables
+
+# restart in Parallel
+source include/stop_slave.inc;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+eval set @@global.slave_parallel_workers= $workers;
+
+source include/start_slave.inc;
+
+# Two connections each create 2 db:s a regular table and a set of temp tables.
+# The temp tables contribute content to the regular tables.
+# In the end there must be consistent data on both sides.
+
+connection master;
+
+let $n= `select round($workers/2)`;
+let $n1= `select $n`;
+while ($n)
+{
+  eval create database d$n1;
+  eval use d$n1;
+  eval create table d$n1.t1 (a int auto_increment primary key, b int) engine=innodb;
+  let $i= $temp_tables;
+
+--disable_query_log
+  while($i)
+  {
+    let $temp_rows= `select round(rand()*$temp_tables) + 1`;
+    let $k= $temp_rows;
+    # create makes a table in explicit db
+    eval create temporary table d$n1.tt_$i (a int auto_increment primary key);
+    while($k)
+    {
+	eval insert into tt_$i values (null);
+	dec $k;
+    }
+    dec $i;
+  }
+--enable_query_log
+
+  let $j= `select floor(rand()*$temp_tables) + 1`;
+--replace_regex /tt_.*/tt_##/
+  eval insert into d$n1.t1 (b) select count(*) from tt_$j;
+  dec $n;
+  dec $n1;
+}
+
+connection master1;
+
+let $n= `select round($workers/2)`;
+let $n1= `select 2*$n`;
+while ($n)
+{
+  eval create database d$n1;
+  eval use d$n1;
+  eval create table d$n1.t1 (a int auto_increment primary key, b int) engine=innodb;
+  let $i= $temp_tables;
+
+--disable_query_log
+  while($i)
+  {
+    let $temp_rows= `select round(rand()*$temp_tables) + 1`;
+    let $k= $temp_rows;
+    # create makes a table in the default db
+    eval create temporary table tt_$i (a int auto_increment primary key);
+    while($k)
+    {
+	eval insert into tt_$i values (null);
+	dec $k;
+    }
+    dec $i;
+  }
+--enable_query_log
+
+  let $j= `select floor(rand()*$temp_tables) + 1`;
+--replace_regex /tt_.*/tt_##/
+  eval insert into d$n1.t1 (b) select count(*) from tt_$j;
+  dec $n;
+  dec $n1;
+}
+
+sync_slave_with_master;
+
+if (`select variable_value - $workers*$temp_tables as must_be_zero from information_schema.global_status where variable_name like 'Slave_open_temp_tables'`)
+{
+   --let $actual_temps= `select variable_value from information_schema.global_status where variable_name like 'Slave_open_temp_tables'`
+   --let $exected= `select  $workers*$temp_tables`
+   --echo *** Wrong value of Slave_open_temp_tables: got $actual_temps, expected $expected ***
+   --die
+}
+
+#
+# Consistency check
+#
+
+let $n = $workers;
+while($n)
+{
+  let $diff_tables=master:d$n.t1, slave:d$n.t1;
+  source include/diff_tables.inc;
+
+  dec $n;
+}
+
+#
+# cleanup
+#
+# Temp tables are removed two ways explicitly and implicitly by disconnecting.
+#
+
+connection master;
+
+let $i= `select round($temp_tables/2)`;
+while($i)
+{
+  eval drop temporary table tt_$i;
+  dec $i;
+}
+
+let $n= `select round($workers/2)`;
+let $n1= `select $n`;
+while ($n)
+{
+  eval drop database d$n1;
+  dec $n;
+  dec $n1;
+}
+
+
+connection master1;
+
+let $i= `select round($temp_tables/2)`;
+while($i)
+{
+  eval drop temporary table tt_$i;
+  dec $i;
+}
+
+sync_slave_with_master;
+#connection slave;
+
+connection master1;
+disconnect master1;
+
+#
+# Clean-up
+#
+
+connection master;
+
+let $n= `select round($workers/2)`;
+let $n1= `select 2*$n`;
+while ($n)
+{
+  eval drop database d$n1;
+  dec $n;
+  dec $n1;
+}
+
+sync_slave_with_master;
+source include/stop_slave.inc;
+
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+### TODO: --source include/rpl_end.inc

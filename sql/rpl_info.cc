@@ -66,15 +66,14 @@ Rpl_info::Rpl_info(const char* type
 
 Rpl_info::~Rpl_info()
 {
-  DBUG_ENTER("Rpl_info::~Rpl_info");
+  delete []uidx;
+  delete handler;
 
   mysql_mutex_destroy(&run_lock);
   mysql_mutex_destroy(&data_lock);
+  mysql_mutex_destroy(&sleep_lock);
   mysql_cond_destroy(&data_cond);
   mysql_cond_destroy(&start_cond);
   mysql_cond_destroy(&stop_cond);
-
-  delete handler;
-
-  DBUG_VOID_RETURN;
+  mysql_cond_destroy(&sleep_cond);
 }
