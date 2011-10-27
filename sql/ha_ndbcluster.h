@@ -813,8 +813,6 @@ private:
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
 };
 
-int ndbcluster_table_exists_in_engine(THD* thd,
-                                      const char *db, const char *name);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
 
 static const char ndbcluster_hton_name[]= "ndbcluster";

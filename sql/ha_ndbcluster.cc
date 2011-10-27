@@ -11962,7 +11962,7 @@ err:
 /**
   Check if a table exists in NDB.
 */
-
+static
 int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd, 
                                       const char *db,
                                       const char *name)
