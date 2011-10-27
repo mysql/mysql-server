@@ -16,7 +16,7 @@ drop function if exists f2;
 
 use INFORMATION_SCHEMA;
 --replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
-show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'Innodb%';
+show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'Innodb%' and Tables_in_INFORMATION_SCHEMA NOT LIKE 'ndb%';
 --replace_result 'Tables_in_INFORMATION_SCHEMA (T%)' 'Tables_in_information_schema (T%)'
 show tables from INFORMATION_SCHEMA like 'T%';
 create database `inf%`;

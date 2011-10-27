@@ -177,16 +177,22 @@ mysql_exe="$EXE_MYSQL --show-warnings --user=${user} --host=${host} --port=${por
 mysqltest_exe="$EXE_MYSQLTEST --user=${user} --host=${host} --port=${port}"
 export RQG_HOME
 
-md5sum="md5sum"
 getepochtime="date +%s"
 if [ `uname` = "SunOS" ]
 then
     getepochtime="nawk 'BEGIN{print srand();}'"
 fi
 
+md5sum="md5sum"
 if [ `uname` = "SunOS" ]
 then
     md5sum="digest -a md5"
+fi
+
+awk_exe=awk
+if [ `uname` = "SunOS" ]
+then
+    awk_exe=gawk
 fi
 
 pre="spj"

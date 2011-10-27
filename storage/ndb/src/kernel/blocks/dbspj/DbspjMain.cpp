@@ -3601,6 +3601,7 @@ Dbspj::computeHash(Signal* signal,
     (MAX_KEY_SIZE_IN_WORDS + 1) / 2;
   Uint64 tmp64[MAX_KEY_SIZE_IN_LONG_WORDS];
   Uint32 *tmp32 = (Uint32*)tmp64;
+  ndbassert(ptr.sz <= MAX_KEY_SIZE_IN_WORDS);
   copy(tmp32, ptr);
 
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
@@ -3639,6 +3640,7 @@ Dbspj::computePartitionHash(Signal* signal,
   Uint64 *tmp64 = _space;
   Uint32 *tmp32 = (Uint32*)tmp64;
   Uint32 sz = ptr.sz;
+  ndbassert(ptr.sz <= MAX_KEY_SIZE_IN_WORDS);
   copy(tmp32, ptr);
 
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
@@ -3681,7 +3683,7 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   req->tableId = tableId;
   req->hashValue = dst.hashInfo[1];
   req->distr_key_indicator = 0; // userDefinedPartitioning not supported!
-  * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
+  req->jamBufferPtr = jamBuffer();
 
 #if 1
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
@@ -4456,6 +4458,12 @@ Dbspj::parseScanIndex(Build_context& ctx,
     data.m_firstExecution = true;
     data.m_batch_chunks = 0;
 
+    /**
+     * We will need to look at the parameters again if the scan is pruned and the prune
+     * key uses parameter values. Therefore, we keep a reference to the start of the
+     * parameter buffer.
+     */
+    DABuffer origParam = param;
     err = parseDA(ctx, requestPtr, treeNodePtr,
                   tree, treeBits, param, paramBits);
     if (unlikely(err != 0))
@@ -4482,7 +4490,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
         /**
          * Expand pattern into a new pattern (with linked values)
          */
-        err = expand(pattern, treeNodePtr, tree, len, param, cnt);
+        err = expand(pattern, treeNodePtr, tree, len, origParam, cnt);
         if (unlikely(err != 0))
           break;
 
@@ -4501,7 +4509,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
          */
         Uint32 prunePtrI = RNIL;
         bool hasNull;
-        err = expand(prunePtrI, tree, len, param, cnt, hasNull);
+        err = expand(prunePtrI, tree, len, origParam, cnt, hasNull);
         if (unlikely(err != 0))
           break;
 
@@ -5078,7 +5086,8 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
       parallelism = (data.m_fragCount - data.m_frags_complete) / roundTrips;
     }
 
-    ndbassert(parallelism <= data.m_fragCount - data.m_frags_complete);
+    ndbassert(parallelism >= 1);
+    ndbassert((Uint32)parallelism + data.m_frags_complete <= data.m_fragCount);
     data.m_parallelism = static_cast<Uint32>(parallelism);
 
 #ifdef DEBUG_SCAN_FRAGREQ
@@ -6189,6 +6198,7 @@ Uint32
 Dbspj::appendToPattern(Local_pattern_store & pattern,
                        DABuffer & tree, Uint32 len)
 {
+  jam();
   if (unlikely(tree.ptr + len > tree.end))
     return DbspjErr::InvalidTreeNodeSpecification;
 
@@ -6203,6 +6213,7 @@ Uint32
 Dbspj::appendParamToPattern(Local_pattern_store& dst,
                             const RowPtr::Linear & row, Uint32 col)
 {
+  jam();
   /**
    * TODO handle errors
    */
@@ -6218,6 +6229,7 @@ Uint32
 Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
                                 const RowPtr::Linear & row, Uint32 col)
 {
+  jam();
   /**
    * TODO handle errors
    */
@@ -6235,6 +6247,7 @@ Dbspj::appendTreeToSection(Uint32 & ptrI, SectionReader & tree, Uint32 len)
   /**
    * TODO handle errors
    */
+  jam();
   Uint32 SZ = 16;
   Uint32 tmp[16];
   while (len > SZ)
@@ -6293,6 +6306,7 @@ Uint32
 Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Section & row,
                           Uint32 col, bool& hasNull)
 {
+  jam();
   /**
    * TODO handle errors
    */
@@ -6316,6 +6330,7 @@ Uint32
 Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row,
                           Uint32 col, bool& hasNull)
 {
+  jam();
   /**
    * TODO handle errors
    */
@@ -6335,6 +6350,7 @@ Uint32
 Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Linear & row,
                                Uint32 col, bool& hasNull)
 {
+  jam();
   /**
    * TODO handle errors
    */
@@ -6353,6 +6369,7 @@ Uint32
 Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Section & row,
                                Uint32 col, bool& hasNull)
 {
+  jam();
   /**
    * TODO handle errors
    */
@@ -6378,6 +6395,7 @@ Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Section & row,
 Uint32
 Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 col)
 {
+  jam();
   /**
    * TODO handle errors
    */
@@ -6400,6 +6418,7 @@ Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 co
 Uint32
 Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Linear & row, Uint32 col)
 {
+  jam();
   Uint32 offset = row.m_header->m_offset[col];
   Uint32 tmp = row.m_data[offset];
   Uint32 len = AttributeHeader::getDataSize(tmp);
@@ -6413,6 +6432,7 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
                         Uint32 levels, const RowPtr & rowptr,
                         bool& hasNull)
 {
+  jam();
   Ptr<TreeNode> treeNodePtr;
   m_treenode_pool.getPtr(treeNodePtr, rowptr.m_src_node_ptrI);
   Uint32 corrVal = rowptr.m_src_correlation;
@@ -6527,6 +6547,7 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
                            Local_pattern_store::ConstDataBufferIterator& it,
                            Uint32 len, bool& hasNull)
 {
+  jam();
   if (unlikely(len==0))
   {
     jam();
@@ -6732,6 +6753,7 @@ Uint32
 Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
               DABuffer& param, Uint32 paramCnt, bool& hasNull)
 {
+  jam();
   /**
    * TODO handle error
    */
@@ -6816,6 +6838,7 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
               DABuffer& pattern, Uint32 len,
               DABuffer& param, Uint32 paramCnt)
 {
+  jam();
   /**
    * TODO handle error
    */

@@ -11,7 +11,7 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 ORDER BY table_schema,table_name;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema
@@ -718,7 +718,7 @@ AS "user_comment",
 '-----------------------------------------------------' AS "Separator"
 FROM information_schema.tables
 WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 ORDER BY table_schema,table_name;
 TABLE_CATALOG	def
 TABLE_SCHEMA	information_schema

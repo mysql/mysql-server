@@ -4562,6 +4562,10 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     {
       requestInfo |= QN_ScanIndexParameters::SIP_PARALLEL;
     }
+    if (def.hasParamInPruneKey())
+    {
+      requestInfo |= QN_ScanIndexParameters::SIP_PRUNE_PARAMS;
+    }
     param->requestInfo = requestInfo;
     // Check that both values fit in param->batchSize.
     assert(getMaxBatchRows() < (1<<QN_ScanIndexParameters::BatchRowBits));
@@ -4970,7 +4974,7 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
     if (aSignal->getLength() == TcKeyRef::SignalLength)
     {
       // Signal may contain additional error data
-      getQuery().m_error.details = (char *)ref->errorData;
+      getQuery().m_error.details = (char *)UintPtr(ref->errorData);
     }
   }
 

@@ -4726,17 +4726,23 @@ int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
   /**
    * Now wait for half of cluster to die...
    */
-  ndbout_c("Waiting for half of cluster to die");
-  int not_started = 0;
   const int node_count = restarter.getNumDbNodes();
+  ndbout_c("Waiting for half of cluster (%u/%u) to die", node_count/2, node_count);
+  int not_started = 0;
   do
   {
     not_started = 0;
     for (int i = 0; i < node_count; i++)
     {
-      if (restarter.getNodeStatus(restarter.getDbNodeId(i)) == NDB_MGM_NODE_STATUS_NOT_STARTED)
+      int nodeId = restarter.getDbNodeId(i);
+      int status = restarter.getNodeStatus(nodeId);
+      ndbout_c("Node %u status %u", nodeId, status);
+      if (status == NDB_MGM_NODE_STATUS_NOT_STARTED)
         not_started++;
     }
+    NdbSleep_MilliSleep(2000);
+    ndbout_c("%u / %u in state NDB_MGM_NODE_STATUS_NOT_STARTED(%u)",
+             not_started, node_count, NDB_MGM_NODE_STATUS_NOT_STARTED);
   } while (2 * not_started != node_count);
 
   ndbout_c("Restarting cluster");

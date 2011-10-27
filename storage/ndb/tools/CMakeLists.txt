@@ -100,3 +100,11 @@ IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+
   ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
 ENDIF()
+
+# Install the ndb_dist_priv.sql script
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql
+        DESTINATION ${INSTALL_MYSQLSHAREDIR})
+
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter
+              ${CMAKE_CURRENT_SOURCE_DIR}/ndb_size.pl
+        DESTINATION ${INSTALL_BINDIR})

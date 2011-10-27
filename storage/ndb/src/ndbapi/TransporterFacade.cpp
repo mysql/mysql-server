@@ -548,11 +548,11 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   currentSendLimit(1),
   dozer(NULL),
   theStopReceive(0),
+  sendThreadWaitMillisec(10),
   theSendThread(NULL),
   theReceiveThread(NULL),
   m_fragmented_signal_id(0),
-  m_globalDictCache(cache),
-  sendThreadWaitMillisec(10)
+  m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   theMutexPtr = NdbMutex_CreateWithName("TTFM");

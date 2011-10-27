@@ -86,6 +86,7 @@ const char * g_ndbd_bin_path = 0;
 const char * g_ndbmtd_bin_path = 0;
 const char * g_mysqld_bin_path = 0;
 const char * g_mysql_install_db_bin_path = 0;
+const char * g_libmysqlclient_so_path = 0;
 
 static struct
 {
@@ -93,11 +94,12 @@ static struct
   const char * exe;
   const char ** var;
 } g_binaries[] = {
-  { true,  "ndb_mgmd",         &g_ndb_mgmd_bin_path},
-  { true,  "ndbd",             &g_ndbd_bin_path },
-  { false, "ndbmtd",           &g_ndbmtd_bin_path },
-  { true,  "mysqld",           &g_mysqld_bin_path },
-  { true,  "mysql_install_db", &g_mysql_install_db_bin_path },
+  { true,  "ndb_mgmd",          &g_ndb_mgmd_bin_path},
+  { true,  "ndbd",              &g_ndbd_bin_path },
+  { false, "ndbmtd",            &g_ndbmtd_bin_path },
+  { true,  "mysqld",            &g_mysqld_bin_path },
+  { true,  "mysql_install_db",  &g_mysql_install_db_bin_path },
+  { true,  "libmysqlclient.so", &g_libmysqlclient_so_path },
   { true, 0, 0 }
 };
 
@@ -108,6 +110,8 @@ g_search_path[] =
   "libexec",
   "sbin",
   "scripts",
+  "lib",
+  "lib/mysql",
   0
 };
 static bool find_binaries();

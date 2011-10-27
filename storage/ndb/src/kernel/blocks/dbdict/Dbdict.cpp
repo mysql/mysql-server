@@ -15406,7 +15406,7 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal,
   }
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
-    int len = strlen(evntRecPtr.p->m_eventRec.NAME);
+    int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
     memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
 #ifdef EVENT_DEBUG
     printf("CreateEvntReq::RT_USER_CREATE; EventName %s, len %u\n",
@@ -15434,7 +15434,7 @@ sendref:
   }
   r0.getString(evntRecPtr.p->m_eventRec.TABLE_NAME);
   {
-    int len = strlen(evntRecPtr.p->m_eventRec.TABLE_NAME);
+    int len = (int)strlen(evntRecPtr.p->m_eventRec.TABLE_NAME);
     memset(evntRecPtr.p->m_eventRec.TABLE_NAME+len, 0, MAX_TAB_NAME_SIZE-len);
   }
 
@@ -16059,7 +16059,7 @@ Dbdict::createEvent_RT_USER_GET(Signal* signal,
   }
 
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
-  int len = strlen(evntRecPtr.p->m_eventRec.NAME);
+  int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
   memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
   
   releaseSections(handle);
@@ -17122,7 +17122,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
   }
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
-    int len = strlen(evntRecPtr.p->m_eventRec.NAME);
+    int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
     memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
 #ifdef EVENT_DEBUG
     printf("DropEvntReq; EventName %s, len %u\n",
@@ -20680,31 +20680,6 @@ Dbdict::createFile_parse(Signal* signal, bool master,
     return;
   }
 
-  /**
-   * auto-connect
-   */
-  if (f.FilegroupId == RNIL && f.FilegroupVersion == RNIL)
-  {
-    jam();
-    Filegroup_hash::Iterator it;
-    c_filegroup_hash.first(it);
-    while (!it.isNull())
-    {
-      jam();
-      if ((f.FileType == DictTabInfo::Undofile &&
-           it.curr.p->m_type == DictTabInfo::LogfileGroup) ||
-          (f.FileType == DictTabInfo::Datafile &&
-           it.curr.p->m_type == DictTabInfo::Tablespace))
-      {
-        jam();
-        f.FilegroupId = it.curr.p->key;
-        f.FilegroupVersion = it.curr.p->m_version;
-        break;
-      }
-      c_filegroup_hash.next(it);
-    }
-  }
-
   // Get Filegroup
   FilegroupPtr fg_ptr;
   if(!c_filegroup_hash.find(fg_ptr, f.FilegroupId))
@@ -21432,21 +21407,6 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
       jam();
       setError(error, CreateFilegroupRef::InvalidExtentSize, __LINE__);
       return;
-    }
-
-    /**
-     * auto-connect
-     */
-    if (fg.TS_LogfileGroupId == RNIL && fg.TS_LogfileGroupVersion == RNIL)
-    {
-      jam();
-      Filegroup_hash::Iterator it;
-      if (c_filegroup_hash.first(it))
-      {
-        jam();
-        fg.TS_LogfileGroupId = it.curr.p->key;
-        fg.TS_LogfileGroupVersion = it.curr.p->m_version;
-      }
     }
   }
   else if(fg.FilegroupType == DictTabInfo::LogfileGroup)

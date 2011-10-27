@@ -227,7 +227,7 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
     const Ndb_index_stat_opt::Val& v= opt.val[i];
     ptr+= strlen(ptr);
     const char* sep= (ptr == buf ? "" : ",");
-    const uint sz= ptr < end ? end - ptr : 0;
+    const uint sz= ptr < end ? (uint)(end - ptr) : 0;
 
     switch (v.unit) {
     case Ndb_index_stat_opt::Ubool:

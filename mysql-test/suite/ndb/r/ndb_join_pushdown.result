@@ -2096,6 +2096,7 @@ insert into t1 values (1, 2);
 insert into t1 values (2, 3);
 insert into t1 values (3, 1);
 set ndb_join_pushdown=true;
+set autocommit=off;
 explain extended
 select *
 from t1, t1 as t2
@@ -2113,12 +2114,17 @@ and t2.a = t1.b;
 a	b	a	b
 1	2	2	3
 3	1	1	2
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+3
+This should yield 3 executes (for now...buh)
+set autocommit=on;
 drop table t1;
 create table t1 (a int, b int, primary key(a)) engine = ndb;
 insert into t1 values (1, 2);
 insert into t1 values (2, 3);
 insert into t1 values (3, 1);
 set ndb_join_pushdown=true;
+set autocommit=off;
 explain extended
 select *
 from t1, t1 as t2
@@ -2136,6 +2142,10 @@ and t2.a = t1.b;
 a	b	a	b
 1	2	2	3
 3	1	1	2
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+This should yield 1 execute (but inefficient since it's based on scan)
+set autocommit=on;
 explain extended
 select *
 from t1, t1 as t2
@@ -5468,6 +5478,38 @@ select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
 count(*)
 3
 drop table t1;
+create table t1 
+(a int not null,
+b int not null, 
+c int not null,
+d int not null,
+primary key(a,b,c,d)) engine=ndb partition by key (b,c);
+insert into t1 values (0x4f, 0x4f, 0x4f, 0x4f);
+explain select * from t1 as x1 
+join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=x2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	2	Using where with pushed condition
+1	SIMPLE	x2	ref	PRIMARY	PRIMARY	8	func,test.x1.b	1	Parent of 2 pushed join@1; Using where
+1	SIMPLE	x3	ref	PRIMARY	PRIMARY	12	test.x2.d,test.x1.d,test.x2.c	1	Child of 'x2' in pushed join@1
+select * from t1 as x1 
+join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=x2.c;
+a	b	c	d	a	b	c	d	a	b	c	d
+79	79	79	79	79	79	79	79	79	79	79	79
+explain select * from t1 as x1 
+join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=0x4f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	2	Using where with pushed condition
+1	SIMPLE	x2	ref	PRIMARY	PRIMARY	8	func,test.x1.b	1	Parent of 2 pushed join@1; Using where
+1	SIMPLE	x3	ref	PRIMARY	PRIMARY	12	test.x2.d,test.x1.d,const	1	Child of 'x2' in pushed join@1
+select * from t1 as x1 
+join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
+join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=0x4f;
+a	b	c	d	a	b	c	d	a	b	c	d
+79	79	79	79	79	79	79	79	79	79	79	79
+drop table t1;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
 from ndbinfo.counters 
@@ -5484,10 +5526,10 @@ and spj_counts_at_end.counter_name <> 'READS_NOT_FOUND'
        and spj_counts_at_end.counter_name <> 'SCAN_ROWS_RETURNED'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
-CONST_PRUNED_RANGE_SCANS_RECEIVED	6
+CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	250
-PRUNED_RANGE_SCANS_RECEIVED	25
-RANGE_SCANS_RECEIVED	726
+PRUNED_RANGE_SCANS_RECEIVED	27
+RANGE_SCANS_RECEIVED	730
 READS_RECEIVED	58
 TABLE_SCANS_RECEIVED	250
 drop table spj_counts_at_startup;
@@ -5499,9 +5541,9 @@ pruned_scan_count
 sorted_scan_count
 35
 pushed_queries_defined
-401
+405
 pushed_queries_dropped
 9
 pushed_queries_executed
-547
+549
 set ndb_join_pushdown = @save_ndb_join_pushdown;

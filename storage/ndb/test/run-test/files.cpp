@@ -122,6 +122,24 @@ printfile(FILE* out, Properties& props, const char * section, ...)
   fflush(out);
 }
 
+static
+char *
+dirname(const char * path)
+{
+  char * s = strdup(path);
+  size_t len = strlen(s);
+  for (size_t i = 1; i<len; i++)
+  {
+    if (s[len - i] == '/')
+    {
+      s[len - i] = 0;
+      return s;
+    }
+  }
+  free(s);
+  return 0;
+}
+
 bool
 setup_files(atrt_config& config, int setup, int sshx)
 {
@@ -313,8 +331,23 @@ setup_files(atrt_config& config, int setup, int sshx)
         }
         fprintf(fenv, "$PATH\n");
 	keys.push_back("PATH");
+
+        {
+          /**
+           * In 5.5...binaries aren't compiled with rpath
+           * So we need an explicit LD_LIBRARY_PATH
+           *
+           * Use path from libmysqlclient.so
+           */
+          char * dir = dirname(g_libmysqlclient_so_path);
+          fprintf(fenv, "LD_LIBRARY_PATH=%s:$LD_LIBRARY_PATH\n", dir);
+          free(dir);
+          keys.push_back("LD_LIBRARY_PATH");
+        }
+
 	for (size_t k = 0; k<keys.size(); k++)
 	  fprintf(fenv, "export %s\n", keys[k].c_str());
+
 	fflush(fenv);
 	fclose(fenv);
       }
