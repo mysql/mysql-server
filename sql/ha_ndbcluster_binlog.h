@@ -244,8 +244,6 @@ inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
   ndbcluster_free_share(share, have_lock);
 }
 
-void set_binlog_flags(NDB_SHARE *share);
-
 /*
   Helper functions
 */
