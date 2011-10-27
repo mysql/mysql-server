@@ -5342,7 +5342,6 @@ int _ma_scan_block_record(MARIA_HA *info, uchar *record,
                           my_bool skip_deleted __attribute__ ((unused)))
 {
   uint block_size;
-  my_off_t filepos;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_scan_block_record");
 
@@ -5472,7 +5471,6 @@ restart_bitmap_scan:
 
   /* Read next bitmap */
   info->scan.bitmap_page+= share->bitmap.pages_covered;
-  filepos= (my_off_t) info->scan.bitmap_page * block_size;
   if (unlikely(info->scan.bitmap_page >= info->scan.max_page))
   {
     DBUG_PRINT("info", ("Found end of file"));

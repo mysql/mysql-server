@@ -1741,14 +1741,20 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
                                 MARIA_RECORD_POS filepos,
 				my_bool skip_deleted_blocks)
 {
-  int block_of_record, info_read;
+  int block_of_record;
+#ifdef MARIA_EXTERNAL_LOCKING
+  int info_read;
+#endif
+
   uint left_len,b_type;
   uchar *to;
   MARIA_BLOCK_INFO block_info;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_read_rnd_dynamic_record");
 
+#ifdef MARIA_EXTERNAL_LOCKING
   info_read=0;
+#endif
   LINT_INIT(to);
 
   if (info->lock_type == F_UNLCK)
@@ -1758,8 +1764,10 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
     info->tmp_lock_type=F_RDLCK;
 #endif
   }
+#ifdef MARIA_EXTERNAL_LOCKING
   else
     info_read=1;				/* memory-keyinfoblock is ok */
+#endif
 
   block_of_record= 0;   /* First block of record is numbered as zero. */
   block_info.second_read= 0;
