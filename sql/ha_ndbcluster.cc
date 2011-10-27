@@ -4295,16 +4295,19 @@ ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
 }
 
 
-struct Ndb_tuple_id_range_guard {
-  Ndb_tuple_id_range_guard(NDB_SHARE* _share) :
-    share(_share),
-    range(share->tuple_id_range) {
-    pthread_mutex_lock(&share->mutex);
+class Ndb_tuple_id_range_guard {
+  NDB_SHARE* m_share;
+public:
+  Ndb_tuple_id_range_guard(NDB_SHARE* share) :
+    m_share(share),
+    range(share->tuple_id_range)
+  {
+    pthread_mutex_lock(&m_share->mutex);
   }
-  ~Ndb_tuple_id_range_guard() {
-    pthread_mutex_unlock(&share->mutex);
+  ~Ndb_tuple_id_range_guard()
+  {
+    pthread_mutex_unlock(&m_share->mutex);
   }
-  NDB_SHARE* share;
   Ndb::TupleIdRange& range;
 };
 
