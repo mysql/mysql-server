@@ -56,6 +56,8 @@ bool ndb_log_empty_epochs(void);
 #include "ha_ndbcluster_tables.h"
 
 #include "ndb_dist_priv_util.h"
+#include "ndb_anyvalue.h"
+#include "ndb_binlog_extra_row_info.h"
 
 /*
   Timeout for syncing schema events between
@@ -1310,6 +1312,141 @@ static int ndbcluster_find_all_databases(THD *thd)
   }
 }
 
+
+/*
+  find all tables in ndb and discover those needed
+*/
+static
+int ndbcluster_find_all_files(THD *thd)
+{
+  Ndb* ndb;
+  char key[FN_REFLEN + 1];
+  NDBDICT *dict;
+  int unhandled, retries= 5, skipped;
+  DBUG_ENTER("ndbcluster_find_all_files");
+
+  if (!(ndb= check_ndb_in_thd(thd)))
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
+  dict= ndb->getDictionary();
+
+  LINT_INIT(unhandled);
+  LINT_INIT(skipped);
+  do
+  {
+    NdbDictionary::Dictionary::List list;
+    if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+      DBUG_RETURN(1);
+    unhandled= 0;
+    skipped= 0;
+    retries--;
+    for (uint i= 0 ; i < list.count ; i++)
+    {
+      NDBDICT::List::Element& elmt= list.elements[i];
+      if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
+      {
+        DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
+        continue;
+      }
+      DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
+      if (elmt.state != NDBOBJ::StateOnline &&
+          elmt.state != NDBOBJ::StateBackup &&
+          elmt.state != NDBOBJ::StateBuilding)
+      {
+        sql_print_information("NDB: skipping setup table %s.%s, in state %d",
+                              elmt.database, elmt.name, elmt.state);
+        skipped++;
+        continue;
+      }
+
+      ndb->setDatabaseName(elmt.database);
+      Ndb_table_guard ndbtab_g(dict, elmt.name);
+      const NDBTAB *ndbtab= ndbtab_g.get_table();
+      if (!ndbtab)
+      {
+        if (retries == 0)
+          sql_print_error("NDB: failed to setup table %s.%s, error: %d, %s",
+                          elmt.database, elmt.name,
+                          dict->getNdbError().code,
+                          dict->getNdbError().message);
+        unhandled++;
+        continue;
+      }
+
+      if (ndbtab->getFrmLength() == 0)
+        continue;
+
+      /* check if database exists */
+      char *end= key +
+        build_table_filename(key, sizeof(key) - 1, elmt.database, "", "", 0);
+      if (my_access(key, F_OK))
+      {
+        /* no such database defined, skip table */
+        continue;
+      }
+      /* finalize construction of path */
+      end+= tablename_to_filename(elmt.name, end,
+                                  (uint)(sizeof(key)-(end-key)));
+      uchar *data= 0, *pack_data= 0;
+      size_t length, pack_length;
+      int discover= 0;
+      if (readfrm(key, &data, &length) ||
+          packfrm(data, length, &pack_data, &pack_length))
+      {
+        discover= 1;
+        sql_print_information("NDB: missing frm for %s.%s, discovering...",
+                              elmt.database, elmt.name);
+      }
+      else if (cmp_frm(ndbtab, pack_data, pack_length))
+      {
+        /* ndb_share reference temporary */
+        NDB_SHARE *share= get_share(key, 0, FALSE);
+        if (share)
+        {
+          DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
+                                   share->key, share->use_count));
+        }
+        if (!share || get_ndb_share_state(share) != NSS_ALTERED)
+        {
+          discover= 1;
+          sql_print_information("NDB: mismatch in frm for %s.%s,"
+                                " discovering...",
+                                elmt.database, elmt.name);
+        }
+        if (share)
+        {
+          /* ndb_share reference temporary free */
+          DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
+                                   share->key, share->use_count));
+          free_share(&share);
+        }
+      }
+      my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
+
+      if (discover)
+      {
+        /* ToDo 4.1 database needs to be created if missing */
+        if (ndb_create_table_from_engine(thd, elmt.database, elmt.name))
+        {
+          /* ToDo 4.1 handle error */
+        }
+      }
+      else
+      {
+        /* set up replication for this table */
+        ndbcluster_create_binlog_setup(thd, ndb, key, (uint)(end-key),
+                                       elmt.database, elmt.name,
+                                       0);
+      }
+    }
+  }
+  while (unhandled && retries);
+
+  DBUG_RETURN(-(skipped + unhandled));
+}
+
+
 bool
 ndb_binlog_setup(THD *thd)
 {
@@ -1387,307 +1524,6 @@ ndb_binlog_setup(THD *thd)
 #define SCHEMA_TYPE_I 8u
 #define SCHEMA_SIZE 9u
 #define SCHEMA_SLOCK_SIZE 32u
-
-struct Cluster_schema
-{
-  uchar db_length;
-  char db[64];
-  uchar name_length;
-  char name[64];
-  uchar slock_length;
-  uint32 slock[SCHEMA_SLOCK_SIZE/4];
-  unsigned short query_length;
-  char *query;
-  Uint64 epoch;
-  uint32 node_id;
-  uint32 id;
-  uint32 version;
-  uint32 type;
-  uint32 any_value;
-};
-
-static void
-print_could_not_discover_error(THD *thd,
-                               const Cluster_schema *schema)
-{
-  sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
-                  "binlog schema event '%s' from node %d. "
-                  "my_errno: %d",
-                   schema->db, schema->name, schema->query,
-                   schema->node_id, my_errno);
-  print_warning_list("NDB Binlog", thd_warn_list(thd));
-}
-
-
-/*
-  Transfer schema table data into corresponding struct
-*/
-static void ndbcluster_get_schema(Ndb_event_data *event_data,
-                                  Cluster_schema *s)
-{
-  TABLE *table= event_data->shadow_table;
-  Field **field;
-  /* unpack blob values */
-  uchar* blobs_buffer= 0;
-  uint blobs_buffer_size= 0;
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-  {
-    ptrdiff_t ptrdiff= 0;
-    int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
-                                 blobs_buffer, blobs_buffer_size,
-                                 ptrdiff);
-    if (ret != 0)
-    {
-      my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-      DBUG_PRINT("info", ("blob read error"));
-      DBUG_ASSERT(FALSE);
-    }
-  }
-  /* db varchar 1 length uchar */
-  field= table->field;
-  s->db_length= *(uint8*)(*field)->ptr;
-  DBUG_ASSERT(s->db_length <= (*field)->field_length);
-  DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->db));
-  memcpy(s->db, (*field)->ptr + 1, s->db_length);
-  s->db[s->db_length]= 0;
-  /* name varchar 1 length uchar */
-  field++;
-  s->name_length= *(uint8*)(*field)->ptr;
-  DBUG_ASSERT(s->name_length <= (*field)->field_length);
-  DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->name));
-  memcpy(s->name, (*field)->ptr + 1, s->name_length);
-  s->name[s->name_length]= 0;
-  /* slock fixed length */
-  field++;
-  s->slock_length= (*field)->field_length;
-  DBUG_ASSERT((*field)->field_length == sizeof(s->slock));
-  memcpy(s->slock, (*field)->ptr, s->slock_length);
-  /* query blob */
-  field++;
-  {
-    Field_blob *field_blob= (Field_blob*)(*field);
-    uint blob_len= field_blob->get_length((*field)->ptr);
-    uchar *blob_ptr= 0;
-    field_blob->get_ptr(&blob_ptr);
-    DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
-    s->query_length= blob_len;
-    s->query= sql_strmake((char*) blob_ptr, blob_len);
-  }
-  /* node_id */
-  field++;
-  s->node_id= (Uint32)((Field_long *)*field)->val_int();
-  /* epoch */
-  field++;
-  s->epoch= ((Field_long *)*field)->val_int();
-  /* id */
-  field++;
-  s->id= (Uint32)((Field_long *)*field)->val_int();
-  /* version */
-  field++;
-  s->version= (Uint32)((Field_long *)*field)->val_int();
-  /* type */
-  field++;
-  s->type= (Uint32)((Field_long *)*field)->val_int();
-  /* free blobs buffer */
-  my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  dbug_tmp_restore_column_map(table->read_set, old_map);
-}
-
-/*
-  helper function to pack a ndb varchar
-*/
-char *ndb_pack_varchar(const NDBCOL *col, char *buf,
-                       const char *str, int sz)
-{
-  switch (col->getArrayType())
-  {
-    case NDBCOL::ArrayTypeFixed:
-      memcpy(buf, str, sz);
-      break;
-    case NDBCOL::ArrayTypeShortVar:
-      *(uchar*)buf= (uchar)sz;
-      memcpy(buf + 1, str, sz);
-      break;
-    case NDBCOL::ArrayTypeMediumVar:
-      int2store(buf, sz);
-      memcpy(buf + 2, str, sz);
-      break;
-  }
-  return buf;
-}
-
-/*
-  acknowledge handling of schema operation
-*/
-static int
-ndbcluster_update_slock(THD *thd,
-                        const char *db,
-                        const char *table_name,
-                        uint32 table_id,
-                        uint32 table_version)
-{
-  DBUG_ENTER("ndbcluster_update_slock");
-  if (!ndb_schema_share)
-  {
-    DBUG_RETURN(0);
-  }
-
-  const NdbError *ndb_error= 0;
-  uint32 node_id= g_ndb_cluster_connection->node_id();
-  Ndb *ndb= check_ndb_in_thd(thd);
-  char save_db[FN_HEADLEN];
-  strcpy(save_db, ndb->getDatabaseName());
-
-  char tmp_buf[FN_REFLEN];
-  NDBDICT *dict= ndb->getDictionary();
-  ndb->setDatabaseName(NDB_REP_DB);
-  Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
-  const NDBTAB *ndbtab= ndbtab_g.get_table();
-  NdbTransaction *trans= 0;
-  int retries= 100;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
-  const NDBCOL *col[SCHEMA_SIZE];
-  unsigned sz[SCHEMA_SIZE];
-
-  MY_BITMAP slock;
-  uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
-  bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, false);
-
-  if (ndbtab == 0)
-  {
-    if (dict->getNdbError().code != 4009)
-      abort();
-    DBUG_RETURN(0);
-  }
-
-  {
-    uint i;
-    for (i= 0; i < SCHEMA_SIZE; i++)
-    {
-      col[i]= ndbtab->getColumn(i);
-      if (i != SCHEMA_QUERY_I)
-      {
-        sz[i]= col[i]->getLength();
-        DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
-      }
-    }
-  }
-
-  while (1)
-  {
-    if ((trans= ndb->startTransaction()) == 0)
-      goto err;
-    {
-      NdbOperation *op= 0;
-      int r= 0;
-
-      /* read the bitmap exlusive */
-      r|= (op= trans->getNdbOperation(ndbtab)) == 0;
-      DBUG_ASSERT(r == 0);
-      r|= op->readTupleExclusive();
-      DBUG_ASSERT(r == 0);
-    
-      /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
-      r|= op->equal(SCHEMA_DB_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* name */
-      ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                       (int)strlen(table_name));
-      r|= op->equal(SCHEMA_NAME_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* slock */
-      r|= op->getValue(SCHEMA_SLOCK_I, (char*)slock.bitmap) == 0;
-      DBUG_ASSERT(r == 0);
-    }
-    if (trans->execute(NdbTransaction::NoCommit))
-      goto err;
-
-    if (opt_ndb_extra_logging > 19)
-    {
-      uint32 copy[SCHEMA_SLOCK_SIZE/4];
-      memcpy(copy, bitbuf, sizeof(copy));
-      bitmap_clear_bit(&slock, node_id);
-      sql_print_information("NDB: reply to %s.%s(%u/%u) from %x%x to %x%x",
-                            db, table_name,
-                            table_id, table_version,
-                            copy[0], copy[1],
-                            slock.bitmap[0],
-                            slock.bitmap[1]);
-    }
-    else
-    {
-      bitmap_clear_bit(&slock, node_id);
-    }
-
-    {
-      NdbOperation *op= 0;
-      int r= 0;
-
-      /* now update the tuple */
-      r|= (op= trans->getNdbOperation(ndbtab)) == 0;
-      DBUG_ASSERT(r == 0);
-      r|= op->updateTuple();
-      DBUG_ASSERT(r == 0);
-
-      /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
-      r|= op->equal(SCHEMA_DB_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* name */
-      ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                       (int)strlen(table_name));
-      r|= op->equal(SCHEMA_NAME_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* slock */
-      r|= op->setValue(SCHEMA_SLOCK_I, (char*)slock.bitmap);
-      DBUG_ASSERT(r == 0);
-      /* node_id */
-      r|= op->setValue(SCHEMA_NODE_ID_I, node_id);
-      DBUG_ASSERT(r == 0);
-      /* type */
-      r|= op->setValue(SCHEMA_TYPE_I, (uint32)SOT_CLEAR_SLOCK);
-      DBUG_ASSERT(r == 0);
-    }
-    if (trans->execute(NdbTransaction::Commit, 
-                       NdbOperation::DefaultAbortOption, 1 /*force send*/) == 0)
-    {
-      DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
-                          node_id, db, table_name));
-      dict->forceGCPWait(1);
-      break;
-    }
-  err:
-    const NdbError *this_error= trans ?
-      &trans->getNdbError() : &ndb->getNdbError();
-    if (this_error->status == NdbError::TemporaryError && !thd->killed)
-    {
-      if (retries--)
-      {
-        if (trans)
-          ndb->closeTransaction(trans);
-        do_retry_sleep(retry_sleep);
-        continue; // retry
-      }
-    }
-    ndb_error= this_error;
-    break;
-  }
-
-  if (ndb_error)
-  {
-    char buf[1024];
-    my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
-                db, table_name);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                        ndb_error->code, ndb_error->message, buf);
-  }
-  if (trans)
-    ndb->closeTransaction(trans);
-  ndb->setDatabaseName(save_db);
-  DBUG_RETURN(0);
-}
 
 
 /*
@@ -2352,68 +2188,6 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   DBUG_RETURN(0);
 }
 
-static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
-{
-  /* any_value == 0 means local cluster sourced change that
-   * should be logged
-   */
-  if (ndbcluster_anyvalue_is_reserved(schema->any_value))
-  {
-    /* Originating SQL node did not want this query logged */
-    if (!ndbcluster_anyvalue_is_nologging(schema->any_value))
-      sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
-                        "query not logged",
-                        schema->any_value);
-    return;
-  }
-  
-  Uint32 queryServerId = ndbcluster_anyvalue_get_serverid(schema->any_value);
-  /* 
-     Start with serverId as received AnyValue, in case it's a composite
-     (server_id_bits < 31).
-     This is for 'future', as currently schema ops do not have composite
-     AnyValues.
-     In future it may be useful to support *not* mapping composite
-     AnyValues to/from Binlogged server-ids.
-  */
-  Uint32 loggedServerId = schema->any_value;
-
-  if (queryServerId)
-  {
-    /* 
-       AnyValue has non-zero serverId, must be a query applied by a slave 
-       mysqld.
-       TODO : Assert that we are running in the Binlog injector thread?
-    */
-    if (! g_ndb_log_slave_updates)
-    {
-      /* This MySQLD does not log slave updates */
-      return;
-    }
-  }
-  else
-  {
-    /* No ServerId associated with this query, mark it as ours */
-    ndbcluster_anyvalue_set_serverid(loggedServerId, ::server_id);
-  }
-
-  uint32 thd_server_id_save= thd->server_id;
-  DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
-  char *thd_db_save= thd->db;
-  thd->server_id = loggedServerId;
-  thd->db= schema->db;
-  int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
-  thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
-                    schema->query_length, FALSE,
-#ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
-                    TRUE,
-#endif
-                    schema->name[0] == 0 || thd->db[0] == 0,
-                    errcode);
-  thd->server_id= thd_server_id_save;
-  thd->db= thd_db_save;
-}
-
 
 class Mutex_guard
 {
@@ -2431,16 +2205,361 @@ private:
 };
 
 
+class Ndb_schema_event_handler {
+
+  struct Cluster_schema
+  {
+    uchar db_length;
+    char db[64];
+    uchar name_length;
+    char name[64];
+    uchar slock_length;
+    uint32 slock[SCHEMA_SLOCK_SIZE/4];
+    unsigned short query_length;
+    char *query;
+    Uint64 epoch;
+    uint32 node_id;
+    uint32 id;
+    uint32 version;
+    uint32 type;
+    uint32 any_value;
+  };
+
+
+  static void
+  print_could_not_discover_error(THD *thd,
+                                 const Cluster_schema *schema)
+  {
+    sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
+                    "binlog schema event '%s' from node %d. "
+                    "my_errno: %d",
+                     schema->db, schema->name, schema->query,
+                     schema->node_id, my_errno);
+    print_warning_list("NDB Binlog", thd_warn_list(thd));
+  }
+
+
+  /*
+    Transfer schema table event data into Cluster_schema struct
+  */
+  static void ndbcluster_get_schema(const Ndb_event_data *event_data,
+                                    Cluster_schema *s)
+  {
+    TABLE *table= event_data->shadow_table;
+    Field **field;
+    /* unpack blob values */
+    uchar* blobs_buffer= 0;
+    uint blobs_buffer_size= 0;
+    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+    {
+      ptrdiff_t ptrdiff= 0;
+      int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
+                                   blobs_buffer, blobs_buffer_size,
+                                   ptrdiff);
+      if (ret != 0)
+      {
+        my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+        DBUG_PRINT("info", ("blob read error"));
+        DBUG_ASSERT(FALSE);
+      }
+    }
+    /* db varchar 1 length uchar */
+    field= table->field;
+    s->db_length= *(uint8*)(*field)->ptr;
+    DBUG_ASSERT(s->db_length <= (*field)->field_length);
+    DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->db));
+    memcpy(s->db, (*field)->ptr + 1, s->db_length);
+    s->db[s->db_length]= 0;
+    /* name varchar 1 length uchar */
+    field++;
+    s->name_length= *(uint8*)(*field)->ptr;
+    DBUG_ASSERT(s->name_length <= (*field)->field_length);
+    DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->name));
+    memcpy(s->name, (*field)->ptr + 1, s->name_length);
+    s->name[s->name_length]= 0;
+    /* slock fixed length */
+    field++;
+    s->slock_length= (*field)->field_length;
+    DBUG_ASSERT((*field)->field_length == sizeof(s->slock));
+    memcpy(s->slock, (*field)->ptr, s->slock_length);
+    /* query blob */
+    field++;
+    {
+      Field_blob *field_blob= (Field_blob*)(*field);
+      uint blob_len= field_blob->get_length((*field)->ptr);
+      uchar *blob_ptr= 0;
+      field_blob->get_ptr(&blob_ptr);
+      DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
+      s->query_length= blob_len;
+      s->query= sql_strmake((char*) blob_ptr, blob_len);
+    }
+    /* node_id */
+    field++;
+    s->node_id= (Uint32)((Field_long *)*field)->val_int();
+    /* epoch */
+    field++;
+    s->epoch= ((Field_long *)*field)->val_int();
+    /* id */
+    field++;
+    s->id= (Uint32)((Field_long *)*field)->val_int();
+    /* version */
+    field++;
+    s->version= (Uint32)((Field_long *)*field)->val_int();
+    /* type */
+    field++;
+    s->type= (Uint32)((Field_long *)*field)->val_int();
+    /* free blobs buffer */
+    my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+    dbug_tmp_restore_column_map(table->read_set, old_map);
+  }
+
+
+  static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
+  {
+    /* any_value == 0 means local cluster sourced change that
+     * should be logged
+     */
+    if (ndbcluster_anyvalue_is_reserved(schema->any_value))
+    {
+      /* Originating SQL node did not want this query logged */
+      if (!ndbcluster_anyvalue_is_nologging(schema->any_value))
+        sql_print_warning("NDB: unknown value for binlog signalling 0x%X, "
+                          "query not logged",
+                          schema->any_value);
+      return;
+    }
+
+    Uint32 queryServerId = ndbcluster_anyvalue_get_serverid(schema->any_value);
+    /*
+       Start with serverId as received AnyValue, in case it's a composite
+       (server_id_bits < 31).
+       This is for 'future', as currently schema ops do not have composite
+       AnyValues.
+       In future it may be useful to support *not* mapping composite
+       AnyValues to/from Binlogged server-ids.
+    */
+    Uint32 loggedServerId = schema->any_value;
+
+    if (queryServerId)
+    {
+      /*
+         AnyValue has non-zero serverId, must be a query applied by a slave
+         mysqld.
+         TODO : Assert that we are running in the Binlog injector thread?
+      */
+      if (! g_ndb_log_slave_updates)
+      {
+        /* This MySQLD does not log slave updates */
+        return;
+      }
+    }
+    else
+    {
+      /* No ServerId associated with this query, mark it as ours */
+      ndbcluster_anyvalue_set_serverid(loggedServerId, ::server_id);
+    }
+
+    uint32 thd_server_id_save= thd->server_id;
+    DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
+    char *thd_db_save= thd->db;
+    thd->server_id = loggedServerId;
+    thd->db= schema->db;
+    int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+    thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
+                      schema->query_length, FALSE,
+  #ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
+                      TRUE,
+  #endif
+                      schema->name[0] == 0 || thd->db[0] == 0,
+                      errcode);
+    thd->server_id= thd_server_id_save;
+    thd->db= thd_db_save;
+  }
+
+
+
+  /*
+    acknowledge handling of schema operation
+  */
+  static int
+  ndbcluster_update_slock(THD *thd,
+                          const char *db,
+                          const char *table_name,
+                          uint32 table_id,
+                          uint32 table_version)
+  {
+    DBUG_ENTER("ndbcluster_update_slock");
+    if (!ndb_schema_share)
+    {
+      DBUG_RETURN(0);
+    }
+
+    const NdbError *ndb_error= 0;
+    uint32 node_id= g_ndb_cluster_connection->node_id();
+    Ndb *ndb= check_ndb_in_thd(thd);
+    char save_db[FN_HEADLEN];
+    strcpy(save_db, ndb->getDatabaseName());
+
+    char tmp_buf[FN_REFLEN];
+    NDBDICT *dict= ndb->getDictionary();
+    ndb->setDatabaseName(NDB_REP_DB);
+    Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+    NdbTransaction *trans= 0;
+    int retries= 100;
+    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    const NDBCOL *col[SCHEMA_SIZE];
+    unsigned sz[SCHEMA_SIZE];
+
+    MY_BITMAP slock;
+    uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
+    bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, false);
+
+    if (ndbtab == 0)
+    {
+      if (dict->getNdbError().code != 4009)
+        abort();
+      DBUG_RETURN(0);
+    }
+
+    {
+      uint i;
+      for (i= 0; i < SCHEMA_SIZE; i++)
+      {
+        col[i]= ndbtab->getColumn(i);
+        if (i != SCHEMA_QUERY_I)
+        {
+          sz[i]= col[i]->getLength();
+          DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
+        }
+      }
+    }
+
+    while (1)
+    {
+      if ((trans= ndb->startTransaction()) == 0)
+        goto err;
+      {
+        NdbOperation *op= 0;
+        int r= 0;
+
+        /* read the bitmap exlusive */
+        r|= (op= trans->getNdbOperation(ndbtab)) == 0;
+        DBUG_ASSERT(r == 0);
+        r|= op->readTupleExclusive();
+        DBUG_ASSERT(r == 0);
+
+        /* db */
+        ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
+        r|= op->equal(SCHEMA_DB_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* name */
+        ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
+                         (int)strlen(table_name));
+        r|= op->equal(SCHEMA_NAME_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* slock */
+        r|= op->getValue(SCHEMA_SLOCK_I, (char*)slock.bitmap) == 0;
+        DBUG_ASSERT(r == 0);
+      }
+      if (trans->execute(NdbTransaction::NoCommit))
+        goto err;
+
+      if (opt_ndb_extra_logging > 19)
+      {
+        uint32 copy[SCHEMA_SLOCK_SIZE/4];
+        memcpy(copy, bitbuf, sizeof(copy));
+        bitmap_clear_bit(&slock, node_id);
+        sql_print_information("NDB: reply to %s.%s(%u/%u) from %x%x to %x%x",
+                              db, table_name,
+                              table_id, table_version,
+                              copy[0], copy[1],
+                              slock.bitmap[0],
+                              slock.bitmap[1]);
+      }
+      else
+      {
+        bitmap_clear_bit(&slock, node_id);
+      }
+
+      {
+        NdbOperation *op= 0;
+        int r= 0;
+
+        /* now update the tuple */
+        r|= (op= trans->getNdbOperation(ndbtab)) == 0;
+        DBUG_ASSERT(r == 0);
+        r|= op->updateTuple();
+        DBUG_ASSERT(r == 0);
+
+        /* db */
+        ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
+        r|= op->equal(SCHEMA_DB_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* name */
+        ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
+                         (int)strlen(table_name));
+        r|= op->equal(SCHEMA_NAME_I, tmp_buf);
+        DBUG_ASSERT(r == 0);
+        /* slock */
+        r|= op->setValue(SCHEMA_SLOCK_I, (char*)slock.bitmap);
+        DBUG_ASSERT(r == 0);
+        /* node_id */
+        r|= op->setValue(SCHEMA_NODE_ID_I, node_id);
+        DBUG_ASSERT(r == 0);
+        /* type */
+        r|= op->setValue(SCHEMA_TYPE_I, (uint32)SOT_CLEAR_SLOCK);
+        DBUG_ASSERT(r == 0);
+      }
+      if (trans->execute(NdbTransaction::Commit,
+                         NdbOperation::DefaultAbortOption, 1 /*force send*/) == 0)
+      {
+        DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
+                            node_id, db, table_name));
+        dict->forceGCPWait(1);
+        break;
+      }
+    err:
+      const NdbError *this_error= trans ?
+        &trans->getNdbError() : &ndb->getNdbError();
+      if (this_error->status == NdbError::TemporaryError && !thd->killed)
+      {
+        if (retries--)
+        {
+          if (trans)
+            ndb->closeTransaction(trans);
+          do_retry_sleep(retry_sleep);
+          continue; // retry
+        }
+      }
+      ndb_error= this_error;
+      break;
+    }
+
+    if (ndb_error)
+    {
+      char buf[1024];
+      my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
+                  db, table_name);
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ndb_error->code, ndb_error->message, buf);
+    }
+    if (trans)
+      ndb->closeTransaction(trans);
+    ndb->setDatabaseName(save_db);
+    DBUG_RETURN(0);
+  }
+
+
 static int
-ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
-                                      NdbEventOperation *pOp,
-                                      List<Cluster_schema> 
-                                      *post_epoch_log_list,
-                                      List<Cluster_schema> 
-                                      *post_epoch_unlock_list,
-                                      MEM_ROOT *mem_root)
+handle_schema_event(THD *thd, Ndb *s_ndb,
+                    NdbEventOperation *pOp,
+                    List<Cluster_schema> *post_epoch_log_list,
+                    List<Cluster_schema> *post_epoch_unlock_list,
+                    MEM_ROOT *mem_root)
 {
-  DBUG_ENTER("ndb_binlog_thread_handle_schema_event");
+  DBUG_ENTER("handle_schema_event");
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *tmp_share= event_data->share;
   if (tmp_share && ndb_schema_share == tmp_share)
@@ -2808,20 +2927,17 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
   the epoch is complete
 */
 static void
-ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
-                                                 List<Cluster_schema>
-                                                 *post_epoch_log_list,
-                                                 List<Cluster_schema>
-                                                 *post_epoch_unlock_list)
+handle_schema_log_post_epoch(THD *thd,
+                             List<Cluster_schema> *log_list)
 {
-  if (post_epoch_log_list->elements == 0)
-    return;
-  DBUG_ENTER("ndb_binlog_thread_handle_schema_event_post_epoch");
-  Cluster_schema *schema;
+  DBUG_ENTER("handle_schema_log_post_epoch");
+
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
-  while ((schema= post_epoch_log_list->pop()))
+
+  Cluster_schema *schema;
+  while ((schema= log_list->pop()))
   {
     Thd_ndb_options_guard thd_ndb_options(thd_ndb);
     DBUG_PRINT("info",
@@ -3178,7 +3294,18 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
     if (ndb_binlog_running && log_query)
       ndb_binlog_query(thd, schema);
   }
-  while ((schema= post_epoch_unlock_list->pop()))
+  DBUG_VOID_RETURN;
+}
+
+
+static void
+handle_schema_unlock_post_epoch(THD *thd,
+                                List<Cluster_schema> *unlock_list)
+{
+  DBUG_ENTER("handle_schema_unlock_post_epoch");
+
+  Cluster_schema *schema;
+  while ((schema= unlock_list->pop()))
   {
     ndbcluster_update_slock(thd, schema->db, schema->name,
                             schema->id, schema->version);
@@ -3186,9 +3313,49 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
   DBUG_VOID_RETURN;
 }
 
-/*
-  Timer class for doing performance measurements
-*/
+  THD* m_thd;
+  MEM_ROOT* m_mem_root;
+
+  List<Cluster_schema> m_post_epoch_log_list;
+  List<Cluster_schema> m_post_epoch_unlock_list;
+
+public:
+  Ndb_schema_event_handler(); // Not implemented
+  Ndb_schema_event_handler(const Ndb_schema_event_handler&); // Not implemented
+
+  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root):
+    m_thd(thd), m_mem_root(mem_root)
+  {
+  }
+
+  ~Ndb_schema_event_handler()
+  {
+    // There should be no work left todo...
+    DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_unlock_list.elements == 0);
+  }
+
+  void handle_event(Ndb* s_ndb, NdbEventOperation *pOp)
+  {
+    handle_schema_event(m_thd, s_ndb, pOp,
+                        &m_post_epoch_log_list,
+                        &m_post_epoch_unlock_list,
+                        m_mem_root);
+  }
+
+  void post_epoch()
+  {
+    if (m_post_epoch_log_list.elements > 0)
+    {
+      handle_schema_log_post_epoch(m_thd, &m_post_epoch_log_list);
+      // NOTE post_epoch_unlock_list may not be handled!
+      handle_schema_unlock_post_epoch(m_thd, &m_post_epoch_unlock_list);
+    }
+    // There should be no work left todo...
+    DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
+    DBUG_ASSERT(m_post_epoch_unlock_list.elements == 0);
+  }
+};
 
 /*********************************************************************
   Internal helper functions for handeling of the cluster replication tables
@@ -5718,11 +5885,11 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
   Handle error states on events from the storage nodes
 */
 static int
-ndb_binlog_thread_handle_error(NdbEventOperation *pOp)
+handle_error(NdbEventOperation *pOp)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *share= event_data->share;
-  DBUG_ENTER("ndb_binlog_thread_handle_error");
+  DBUG_ENTER("handle_error");
 
   int overrun= pOp->isOverrun();
   if (overrun)
@@ -5759,9 +5926,9 @@ ndb_binlog_thread_handle_error(NdbEventOperation *pOp)
 }
 
 static int
-ndb_binlog_thread_handle_non_data_event(THD *thd,
-                                        NdbEventOperation *pOp,
-                                        ndb_binlog_index_row &row)
+handle_non_data_event(THD *thd,
+                      NdbEventOperation *pOp,
+                      ndb_binlog_index_row &row)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *share= event_data->share;
@@ -5894,11 +6061,11 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
 
 
 static int
-ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
-                                    ndb_binlog_index_row **rows,
-                                    injector::transaction &trans,
-                                    unsigned &trans_row_count,
-                                    unsigned &trans_slave_row_count)
+handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
+                  ndb_binlog_index_row **rows,
+                  injector::transaction &trans,
+                  unsigned &trans_row_count,
+                  unsigned &trans_slave_row_count)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   TABLE *table= event_data->shadow_table;
@@ -6240,25 +6407,6 @@ ndb_binlog_thread_handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   return 0;
 }
 
-//#define RUN_NDB_BINLOG_TIMER
-#ifdef RUN_NDB_BINLOG_TIMER
-class Timer
-{
-public:
-  Timer() { start(); }
-  void start() { gettimeofday(&m_start, 0); }
-  void stop() { gettimeofday(&m_stop, 0); }
-  ulong elapsed_ms()
-  {
-    return (ulong)
-      (((longlong) m_stop.tv_sec - (longlong) m_start.tv_sec) * 1000 +
-       ((longlong) m_stop.tv_usec -
-        (longlong) m_start.tv_usec + 999) / 1000);
-  }
-private:
-  struct timeval m_start,m_stop;
-};
-#endif
 
 /****************************************************************
   Injector thread main loop
@@ -6406,12 +6554,6 @@ void updateInjectorStats(Ndb* schemaNdb, Ndb* dataNdb)
     dataNdb->getClientStat(Ndb::EventBytesRecvdCount);
 }
 
-enum Binlog_thread_state
-{
-  BCCC_running= 0,
-  BCCC_exit= 1,
-  BCCC_restart= 2
-};
 
 extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
 extern ulong opt_ndb_report_thresh_binlog_mem_usage;
@@ -6425,7 +6567,8 @@ ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   injector *inj= injector::instance();
   uint incident_id= 0;
-  Binlog_thread_state do_ndbcluster_binlog_close_connection;
+
+  enum { BCCC_running, BCCC_exit, BCCC_restart } binlog_thread_state;
 
   /**
    * If we get error after having reported incident
@@ -6433,10 +6576,6 @@ ndb_binlog_thread_func(void *arg)
    *   in that case, don't report incident again
    */
   bool do_incident = true;
-
-#ifdef RUN_NDB_BINLOG_TIMER
-  Timer main_timer;
-#endif
 
   pthread_mutex_lock(&injector_mutex);
   /*
@@ -6499,7 +6638,7 @@ ndb_binlog_thread_func(void *arg)
 
 restart_cluster_failure:
   int have_injector_mutex_lock= 0;
-  do_ndbcluster_binlog_close_connection= BCCC_exit;
+  binlog_thread_state= BCCC_exit;
 
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
@@ -6630,7 +6769,7 @@ restart_cluster_failure:
           thread to get rid of any garbage on the ndb objects
         */
         have_injector_mutex_lock= 1;
-        do_ndbcluster_binlog_close_connection= BCCC_restart;
+        binlog_thread_state= BCCC_restart;
         goto err;
       }
       /* ndb not connected yet */
@@ -6736,29 +6875,24 @@ restart_cluster_failure:
     thd->db= db;
   }
   do_incident = true; // If we get disconnected again...do incident report
-  do_ndbcluster_binlog_close_connection= BCCC_running;
+  binlog_thread_state= BCCC_running;
   for ( ; !((ndbcluster_binlog_terminating ||
-             do_ndbcluster_binlog_close_connection) &&
+             binlog_thread_state) &&
             ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci()) &&
-          do_ndbcluster_binlog_close_connection != BCCC_restart; )
+          binlog_thread_state != BCCC_restart; )
   {
 #ifndef DBUG_OFF
-    if (do_ndbcluster_binlog_close_connection)
+    if (binlog_thread_state)
     {
-      DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection: %d, "
+      DBUG_PRINT("info", ("binlog_thread_state: %d, "
                           "ndb_latest_handled_binlog_epoch: %u/%u, "
                           "*get_latest_trans_gci(): %u/%u",
-                          do_ndbcluster_binlog_close_connection,
+                          binlog_thread_state,
                           (uint)(ndb_latest_handled_binlog_epoch >> 32),
                           (uint)(ndb_latest_handled_binlog_epoch),
                           (uint)(ndb_get_latest_trans_gci() >> 32),
                           (uint)(ndb_get_latest_trans_gci())));
     }
-#endif
-#ifdef RUN_NDB_BINLOG_TIMER
-    main_timer.stop();
-    sql_print_information("main_timer %ld ms",  main_timer.elapsed_ms());
-    main_timer.start();
 #endif
 
     /*
@@ -6792,7 +6926,7 @@ restart_cluster_failure:
     }
 
     if ((ndbcluster_binlog_terminating ||
-         do_ndbcluster_binlog_close_connection) &&
+         binlog_thread_state) &&
         (ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci() ||
          !ndb_binlog_running))
       break; /* Shutting down server */
@@ -6802,8 +6936,11 @@ restart_cluster_failure:
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
     init_sql_alloc(&mem_root, 4096, 0);
-    List<Cluster_schema> post_epoch_log_list;
-    List<Cluster_schema> post_epoch_unlock_list;
+
+    // The Ndb_schema_event_handler does not necessarily need
+    // to use the same memroot(or vice versa)
+    Ndb_schema_event_handler schema_event_handler(thd, &mem_root);
+
     *root_ptr= &mem_root;
 
     if (unlikely(schema_res > 0))
@@ -6819,10 +6956,8 @@ restart_cluster_failure:
       {
         if (!pOp->hasError())
         {
-          ndb_binlog_thread_handle_schema_event(thd, s_ndb, pOp,
-                                                &post_epoch_log_list,
-                                                &post_epoch_unlock_list,
-                                                &mem_root);
+          schema_event_handler.handle_event(s_ndb, pOp);
+
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                               "<empty>"));
@@ -6831,10 +6966,10 @@ restart_cluster_failure:
                               "<empty>"));
           if (i_ndb->getEventOperation() == NULL &&
               s_ndb->getEventOperation() == NULL &&
-              do_ndbcluster_binlog_close_connection == BCCC_running)
+              binlog_thread_state == BCCC_running)
           {
-            DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
-            do_ndbcluster_binlog_close_connection= BCCC_restart;
+            DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
+            binlog_thread_state= BCCC_restart;
             if (ndb_latest_received_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
             {
               sql_print_error("NDB Binlog: latest transaction in epoch %u/%u not in binlog "
@@ -6872,15 +7007,15 @@ restart_cluster_failure:
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
           {
             ndb_binlog_index_row row;
-            ndb_binlog_thread_handle_non_data_event(thd, pOp, row);
+            handle_non_data_event(thd, pOp, row);
           }
         }
         if (i_ndb->getEventOperation() == NULL &&
             s_ndb->getEventOperation() == NULL &&
-            do_ndbcluster_binlog_close_connection == BCCC_running)
+            binlog_thread_state == BCCC_running)
         {
-          DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
-          do_ndbcluster_binlog_close_connection= BCCC_restart;
+          DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
+          binlog_thread_state= BCCC_restart;
         }
       }
       updateInjectorStats(s_ndb, i_ndb);
@@ -6955,11 +7090,6 @@ restart_cluster_failure:
       while (pOp != NULL)
       {
         rows= &_row;
-#ifdef RUN_NDB_BINLOG_TIMER
-        Timer gci_timer, write_timer;
-        int event_count= 0;
-        gci_timer.start();
-#endif
         gci= pOp->getGCI();
         DBUG_PRINT("info", ("Handling gci: %u/%u",
                             (uint)(gci >> 32),
@@ -7087,16 +7217,11 @@ restart_cluster_failure:
             sql_print_error("NDB: Could not get apply status share");
           }
         }
-#ifdef RUN_NDB_BINLOG_TIMER
-        write_timer.start();
-#endif
+
         do
         {
-#ifdef RUN_NDB_BINLOG_TIMER
-          event_count++;
-#endif
           if (pOp->hasError() &&
-              ndb_binlog_thread_handle_error(pOp) < 0)
+              handle_error(pOp) < 0)
             goto err;
 
 #ifndef DBUG_OFF
@@ -7134,11 +7259,11 @@ restart_cluster_failure:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(thd, i_ndb, pOp, &rows, trans,
-                                                trans_row_count, trans_slave_row_count);
+            handle_data_event(thd, i_ndb, pOp, &rows, trans,
+                              trans_row_count, trans_slave_row_count);
           else
           {
-            ndb_binlog_thread_handle_non_data_event(thd, pOp, *rows);
+            handle_non_data_event(thd, pOp, *rows);
             DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                                 s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
                                 "<empty>"));
@@ -7147,10 +7272,10 @@ restart_cluster_failure:
                                 "<empty>"));
             if (i_ndb->getEventOperation() == NULL &&
                 s_ndb->getEventOperation() == NULL &&
-                do_ndbcluster_binlog_close_connection == BCCC_running)
+                binlog_thread_state == BCCC_running)
             {
-              DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
-              do_ndbcluster_binlog_close_connection= BCCC_restart;
+              DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
+              binlog_thread_state= BCCC_restart;
               if (ndb_latest_received_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
               {
                 sql_print_error("NDB Binlog: latest transaction in epoch %lu not in binlog "
@@ -7170,9 +7295,6 @@ restart_cluster_failure:
           note! pOp is not referring to an event in the next epoch
           or is == 0
         */
-#ifdef RUN_NDB_BINLOG_TIMER
-        write_timer.stop();
-#endif
 
         while (trans.good())
         {
@@ -7247,18 +7369,8 @@ restart_cluster_failure:
           break;
         }
         ndb_latest_handled_binlog_epoch= gci;
-
-#ifdef RUN_NDB_BINLOG_TIMER
-        gci_timer.stop();
-        sql_print_information("gci %ld event_count %d write time "
-                              "%ld(%d e/s), total time %ld(%d e/s)",
-                              (ulong)gci, event_count,
-                              write_timer.elapsed_ms(),
-                              (1000*event_count) / write_timer.elapsed_ms(),
-                              gci_timer.elapsed_ms(),
-                              (1000*event_count) / gci_timer.elapsed_ms());
-#endif
       }
+
       if(!i_ndb->isConsistent(gci))
       {
         char errmsg[64];
@@ -7274,15 +7386,16 @@ restart_cluster_failure:
       }
     }
 
-    ndb_binlog_thread_handle_schema_event_post_epoch(thd,
-                                                     &post_epoch_log_list,
-                                                     &post_epoch_unlock_list);
+    // Notify the schema event handler about post_epoch so it may finish
+    // any outstanding business
+    schema_event_handler.post_epoch();
+
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
     ndb_latest_handled_binlog_epoch= ndb_latest_received_binlog_epoch;
   }
  err:
-  if (do_ndbcluster_binlog_close_connection != BCCC_restart)
+  if (binlog_thread_state != BCCC_restart)
   {
     sql_print_information("Stopping Cluster Binlog");
     DBUG_PRINT("info",("Shutting down cluster binlog thread"));
@@ -7408,7 +7521,7 @@ restart_cluster_failure:
     }
   }
 
-  if (do_ndbcluster_binlog_close_connection == BCCC_restart)
+  if (binlog_thread_state == BCCC_restart)
   {
     pthread_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
@@ -7468,88 +7581,6 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
   DBUG_RETURN(FALSE);
 }
 
-/*
-   AnyValue carries ServerId or Reserved codes
-   Bits from opt_server_id_bits to 30 may carry other data
-   so we ignore them when reading/setting AnyValue.
- 
-   332        21        10        0
-   10987654321098765432109876543210
-   roooooooooooooooooooooooosssssss
- 
-   r = Reserved bit indicates whether
-   bits 0-7+ have ServerId (0) or
-   some special reserved code (1).
-   o = Optional bits, depending on value
-       of server-id-bits will be 
-       serverid bits or user-specific 
-       data
-   s = Serverid bits or reserved codes
-       At least 7 bits will be available
-       for serverid or reserved codes
-  
-*/
-
-#define NDB_ANYVALUE_RESERVED_BIT   0x80000000
-#define NDB_ANYVALUE_RESERVED_MASK  0x8000007f
-
-#define NDB_ANYVALUE_NOLOGGING_CODE 0x8000007f
-
-#ifndef DBUG_OFF
-void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue)
-{
-  /* 
-     Set userData part of AnyValue (if there is one) to
-     all 1s to test that it is ignored
-  */
-  const Uint32 userDataMask = ~(opt_server_id_mask | 
-                                NDB_ANYVALUE_RESERVED_BIT);
-
-  anyValue |= userDataMask;
-}
-#endif
-
-bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue)
-{
-  return ((anyValue & NDB_ANYVALUE_RESERVED_BIT) != 0);
-}
-
-bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue)
-{
-  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
-          NDB_ANYVALUE_NOLOGGING_CODE);
-}
-
-void ndbcluster_anyvalue_set_nologging(Uint32& anyValue)
-{
-  anyValue |= NDB_ANYVALUE_NOLOGGING_CODE;
-}
-
-void ndbcluster_anyvalue_set_normal(Uint32& anyValue)
-{
-  /* Clear reserved bit and serverid bits */
-  anyValue &= ~(NDB_ANYVALUE_RESERVED_BIT);
-  anyValue &= ~(opt_server_id_mask);
-}
-
-bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId)
-{
-  return ((serverId & ~opt_server_id_mask) == 0);
-}
-
-Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue)
-{
-  assert(! (anyValue & NDB_ANYVALUE_RESERVED_BIT) );
-
-  return (anyValue & opt_server_id_mask);
-}
-
-void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId)
-{
-  assert(! (anyValue & NDB_ANYVALUE_RESERVED_BIT) );
-  anyValue &= ~(opt_server_id_mask);
-  anyValue |= (serverId & opt_server_id_mask); 
-}
 
 #ifdef NDB_WITHOUT_SERVER_ID_BITS
 
@@ -7557,122 +7588,6 @@ void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId)
 ulong opt_server_id_mask = ~0;
 
 #endif
-
-Ndb_binlog_extra_row_info::
-Ndb_binlog_extra_row_info()
-{
-  flags = 0;
-  transactionId = InvalidTransactionId;
-  /* Prepare buffer with extra row info buffer bytes */
-  buff[ EXTRA_ROW_INFO_LEN_OFFSET ] = 0;
-  buff[ EXTRA_ROW_INFO_FORMAT_OFFSET ] = ERIF_NDB;
-}
-
-void
-Ndb_binlog_extra_row_info::
-setFlags(Uint16 _flags)
-{
-  flags = _flags;
-}
-
-void
-Ndb_binlog_extra_row_info::
-setTransactionId(Uint64 _transactionId)
-{
-  assert(_transactionId != InvalidTransactionId);
-  transactionId = _transactionId;
-};
-
-int
-Ndb_binlog_extra_row_info::
-loadFromBuffer(const uchar* extra_row_info)
-{
-  assert(extra_row_info);
-
-  Uint8 length = extra_row_info[ EXTRA_ROW_INFO_LEN_OFFSET ];
-  assert(length >= EXTRA_ROW_INFO_HDR_BYTES);
-  Uint8 payload_length = length - EXTRA_ROW_INFO_HDR_BYTES;
-  Uint8 format = extra_row_info[ EXTRA_ROW_INFO_FORMAT_OFFSET ];
-
-  if (likely(format == ERIF_NDB))
-  {
-    if (likely(payload_length >= FLAGS_SIZE))
-    {
-      const uchar* data = &extra_row_info[ EXTRA_ROW_INFO_HDR_BYTES ];
-      Uint8 nextPos = 0;
-
-      /* Have flags at least */
-      Uint16 netFlags;
-      memcpy(&netFlags, &data[ nextPos ], FLAGS_SIZE);
-      nextPos += FLAGS_SIZE;
-      flags = uint2korr((const char*) &netFlags);
-
-      if (flags & NDB_ERIF_TRANSID)
-      {
-        if (likely((nextPos + TRANSID_SIZE) <= payload_length))
-        {
-          /*
-            Correct length, retrieve transaction id, converting from
-            little endian if necessary.
-          */
-          Uint64 netTransId;
-          memcpy(&netTransId,
-                 &data[ nextPos ],
-                 TRANSID_SIZE);
-          nextPos += TRANSID_SIZE;
-          transactionId = uint8korr((const char*) &netTransId);
-        }
-        else
-        {
-          /*
-             Error - supposed to have transaction id, but
-             buffer too short
-          */
-          return -1;
-        }
-      }
-    }
-  }
-
-  /* We currently ignore other formats of extra binlog info, and
-   * different lengths.
-   */
-
-  return 0;
-}
-
-uchar*
-Ndb_binlog_extra_row_info::generateBuffer()
-{
-  /*
-    Here we write out the buffer in network format,
-    based on the current member settings.
-  */
-  Uint8 nextPos = EXTRA_ROW_INFO_HDR_BYTES;
-
-  if (flags)
-  {
-    /* Write current flags into buff */
-    Uint16 netFlags = uint2korr((const char*) &flags);
-    memcpy(&buff[ nextPos ], &netFlags, FLAGS_SIZE);
-    nextPos += FLAGS_SIZE;
-
-    if (flags & NDB_ERIF_TRANSID)
-    {
-      Uint64 netTransactionId = uint8korr((const char*) &transactionId);
-      memcpy(&buff[ nextPos ], &netTransactionId, TRANSID_SIZE);
-      nextPos += TRANSID_SIZE;
-    }
-
-    assert( nextPos <= MaxLen );
-    /* Set length */
-    assert( buff[ EXTRA_ROW_INFO_FORMAT_OFFSET ] == ERIF_NDB );
-    buff[ EXTRA_ROW_INFO_LEN_OFFSET ] = nextPos;
-
-    return buff;
-  }
-  return 0;
-}
 
 // #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #endif
