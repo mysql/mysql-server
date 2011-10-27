@@ -489,4 +489,19 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         return result;
     }
 
+    public String unloadSchema(Class<?> cls, Dictionary dictionary) {
+        synchronized(typeToHandlerMap) {
+            String tableName = null;
+            DomainTypeHandler<?> domainTypeHandler = typeToHandlerMap.remove(cls);
+            if (domainTypeHandler != null) {
+                // remove the ndb dictionary cached table definition
+                tableName = domainTypeHandler.getTableName();
+                if (tableName != null) {
+                    dictionary.removeCachedTable(tableName);
+                }
+            }
+            return tableName;
+        }
+    }
+
 }

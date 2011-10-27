@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
     }
 
     public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary) {
-        DomainTypeHandler<T> handler;
+        DomainTypeHandler<T> handler = null;
         StringBuffer errorMessages = new StringBuffer();
         for (DomainTypeHandlerFactory factory: domainTypeHandlerFactories) {
             try {
@@ -82,6 +82,15 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
         } catch (Exception e) {
             errorMessages.append(e.toString());
             throw new ClusterJUserException(errorMessages.toString(), e);
+        } finally {
+            // if handler is null, there may be a problem with the schema, so remove it from the local dictionary
+            if (handler == null) {
+                String tableName = DomainTypeHandlerImpl.getTableName(domainClass);
+                if (tableName != null) {
+                    logger.info(local.message("MSG_Removing_Schema", tableName, domainClass.getName()));
+                    dictionary.removeCachedTable(tableName);                    
+                }
+            }
         }
     }
 
