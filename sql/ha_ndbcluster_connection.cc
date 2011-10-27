@@ -341,7 +341,8 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] =
 
 static
 int
-ndb_transid_mysql_connection_map_fill_table(THD* thd, TABLE_LIST* tables, Item* cond)
+ndb_transid_mysql_connection_map_fill_table(THD* thd, TABLE_LIST* tables,
+                                            Item*)
 {
   DBUG_ENTER("ndb_transid_mysql_connection_map_fill_table");
 
