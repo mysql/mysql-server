@@ -11841,7 +11841,7 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
 /**
   Try to discover one table from NDB.
 */
-
+static
 int ndbcluster_discover(handlerton *hton, THD* thd, const char *db, 
                         const char *name,
                         uchar **frmblob, 
