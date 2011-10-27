@@ -74,6 +74,7 @@ Table	Create Table
 events_stages_current	CREATE TABLE `events_stages_current` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -87,6 +88,7 @@ Table	Create Table
 events_stages_history	CREATE TABLE `events_stages_history` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -100,6 +102,7 @@ Table	Create Table
 events_stages_history_long	CREATE TABLE `events_stages_history_long` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -168,6 +171,7 @@ Table	Create Table
 events_statements_current	CREATE TABLE `events_statements_current` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -209,6 +213,7 @@ Table	Create Table
 events_statements_history	CREATE TABLE `events_statements_history` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -250,6 +255,7 @@ Table	Create Table
 events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -441,6 +447,7 @@ Table	Create Table
 events_waits_current	CREATE TABLE `events_waits_current` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -463,6 +470,7 @@ Table	Create Table
 events_waits_history	CREATE TABLE `events_waits_history` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
@@ -485,6 +493,7 @@ Table	Create Table
 events_waits_history_long	CREATE TABLE `events_waits_history_long` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
