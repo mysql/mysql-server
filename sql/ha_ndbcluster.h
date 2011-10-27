@@ -108,12 +108,7 @@ public:
   Uint32 old_table_version;
 };
 
-typedef union { const NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
-
-int get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
-                        uchar*& buffer, uint& buffer_size,
-                        my_ptrdiff_t ptrdiff);
-
+#include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
 
 struct Ndb_tuple_id_range_guard {

@@ -214,9 +214,6 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
             size_t pack_length);
 int ndbcluster_find_all_files(THD *thd);
 
-char *ndb_pack_varchar(const NDBCOL *col, char *buf,
-                       const char *str, int sz);
-
 NDB_SHARE *ndbcluster_get_share(const char *key,
                                 TABLE *table,
                                 bool create_if_not_exists,
