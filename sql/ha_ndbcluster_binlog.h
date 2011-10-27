@@ -257,18 +257,6 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
 
-bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue);
-bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue);
-void ndbcluster_anyvalue_set_nologging(Uint32& anyValue);
-bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId);
-void ndbcluster_anyvalue_set_normal(Uint32& anyValue);
-Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue);
-void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId);
-
-#ifndef DBUG_OFF
-void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue);
-#endif
-
 /*
    Helper for reading/writing Binlog extra row info
    in Ndb format.

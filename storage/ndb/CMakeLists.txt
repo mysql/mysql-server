@@ -80,6 +80,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_global_schema_lock.cc
   ../../sql/ndb_mi.cc
   ../../sql/ndb_conflict_trans.cc
+  ../../sql/ndb_anyvalue.cc
 )
 
 # Include directories used when building ha_ndbcluster

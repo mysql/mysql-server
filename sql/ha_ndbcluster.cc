@@ -51,6 +51,7 @@
 #include <ndb_version.h>
 #include "ndb_mi.h"
 #include "ndb_conflict_trans.h"
+#include "ndb_anyvalue.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
