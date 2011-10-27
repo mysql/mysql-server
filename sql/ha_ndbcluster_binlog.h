@@ -212,42 +212,6 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 */
 int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
             size_t pack_length);
-int ndbcluster_find_all_files(THD *thd);
-
-char *ndb_pack_varchar(const NDBCOL *col, char *buf,
-                       const char *str, int sz);
-
-NDB_SHARE *ndbcluster_get_share(const char *key,
-                                TABLE *table,
-                                bool create_if_not_exists,
-                                bool have_lock);
-NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
-void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
-void ndbcluster_real_free_share(NDB_SHARE **share);
-int handle_trailing_share(THD *thd, NDB_SHARE *share);
-int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
-int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
-void ndbcluster_mark_share_dropped(NDB_SHARE*);
-inline NDB_SHARE *get_share(const char *key,
-                            TABLE *table,
-                            bool create_if_not_exists= TRUE,
-                            bool have_lock= FALSE)
-{
-  return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
-}
-
-inline NDB_SHARE *get_share(NDB_SHARE *share)
-{
-  return ndbcluster_get_share(share);
-}
-
-inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
-{
-  ndbcluster_free_share(share, have_lock);
-}
-
-void set_binlog_flags(NDB_SHARE *share);
 
 /*
   Helper functions
@@ -256,61 +220,4 @@ bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
-bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue);
-bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue);
-void ndbcluster_anyvalue_set_nologging(Uint32& anyValue);
-bool ndbcluster_anyvalue_is_serverid_in_range(Uint32 serverId);
-void ndbcluster_anyvalue_set_normal(Uint32& anyValue);
-Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue);
-void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId);
-
-#ifndef DBUG_OFF
-void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue);
-#endif
-
-/*
-   Helper for reading/writing Binlog extra row info
-   in Ndb format.
-   It contains an internal buffer, which can be passed
-   in the thd variable when writing binlog entries if
-   the object stays in scope around the write.
-*/
-class Ndb_binlog_extra_row_info
-{
-public:
-  static const Uint32 FLAGS_SIZE = sizeof(Uint16);
-  static const Uint32 TRANSID_SIZE = sizeof(Uint64);
-  static const Uint32 MaxLen =
-    EXTRA_ROW_INFO_HDR_BYTES +
-    FLAGS_SIZE +
-    TRANSID_SIZE;
-
-  static const Uint64 InvalidTransactionId = ~Uint64(0);
-
-  enum Flags
-  {
-    NDB_ERIF_TRANSID = 0x1
-  };
-
-  Ndb_binlog_extra_row_info();
-
-  int loadFromBuffer(const uchar* extra_row_info_ptr);
-
-  Uint16 getFlags() const
-  {
-    return flags;
-  }
-  void setFlags(Uint16 _flags);
-  Uint64 getTransactionId() const
-  { return transactionId; };
-  void setTransactionId(Uint64 _transactionId);
-  uchar* getBuffPtr()
-  { return buff; };
-  uchar* generateBuffer();
-private:
-  uchar buff[MaxLen];
-  Uint16 flags;
-  Uint64 transactionId;
-};
 
