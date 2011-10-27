@@ -1384,4 +1384,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         }
     }
 
+    public String unloadSchema(Class<?> cls) {
+        return factory.unloadSchema(cls, dictionary);
+    }
+
 }

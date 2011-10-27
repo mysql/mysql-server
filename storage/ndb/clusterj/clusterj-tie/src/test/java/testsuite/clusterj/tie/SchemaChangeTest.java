@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-package com.mysql.clusterj.core.store;
+package testsuite.clusterj.tie;
 
-/**
- *
- */
-public interface Dictionary {
-
-    public Index getIndex(String indexName, String tableName, String indexAlias);
-
-    public Table getTable(String tableName);
-
-    public void removeCachedTable(String tableName);
+public class SchemaChangeTest extends testsuite.clusterj.SchemaChangeTest {
 
 }
