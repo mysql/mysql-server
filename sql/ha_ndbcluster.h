@@ -111,19 +111,6 @@ public:
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
 
-struct Ndb_tuple_id_range_guard {
-  Ndb_tuple_id_range_guard(NDB_SHARE* _share) :
-    share(_share),
-    range(share->tuple_id_range) {
-    pthread_mutex_lock(&share->mutex);
-  }
-  ~Ndb_tuple_id_range_guard() {
-    pthread_mutex_unlock(&share->mutex);
-  }
-  NDB_SHARE* share;
-  Ndb::TupleIdRange& range;
-};
-
 enum enum_slave_trans_conflict_apply_state
 {
   /* Normal with optional row-level conflict detection */
