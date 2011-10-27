@@ -860,6 +860,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
           child_wait= & pfs->m_events_waits_stack[index];
           child_wait->m_thread_internal_id= pfs->m_thread_internal_id;
           child_wait->m_event_id= 0;
+          child_wait->m_end_event_id= 0;
           child_wait->m_event_type= EVENT_TYPE_STATEMENT;
           child_wait->m_wait_class= NO_WAIT_CLASS;
         }
@@ -867,6 +868,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         PFS_events_stages *child_stage= & pfs->m_stage_current;
         child_stage->m_thread_internal_id= pfs->m_thread_internal_id;
         child_stage->m_event_id= 0;
+        child_stage->m_end_event_id= 0;
         child_stage->m_event_type= EVENT_TYPE_STATEMENT;
         child_stage->m_class= NULL;
         child_stage->m_timer_start= 0;
@@ -880,6 +882,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
           child_statement= & pfs->m_statement_stack[index];
           child_statement->m_thread_internal_id= pfs->m_thread_internal_id;
           child_statement->m_event_id= 0;
+          child_statement->m_end_event_id= 0;
           child_statement->m_event_type= EVENT_TYPE_STATEMENT;
           child_statement->m_class= NULL;
           child_statement->m_timer_start= 0;
