@@ -8018,7 +8018,10 @@ best_access_path(JOIN      *join,
     Don't do a table scan on InnoDB tables, if we can read the used
     parts of the row from any of the used index.
     This is because table scans uses index and we would not win
-    anything by using a table scan.
+    anything by using a table scan. The only exception is INDEX_MERGE
+    quick select. We can not say for sure that INDEX_MERGE quick select
+    is always faster than ref access. So it's necessary to check if
+    ref access is more expensive.
 
     A word for word translation of the below if-statement in sergefp's
     understanding: we check if we should use table scan if:
@@ -8058,8 +8061,11 @@ best_access_path(JOIN      *join,
     goto skip_table_scan;
   }
 
-  if (((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
-       !s->table->covering_keys.is_clear_all() && best_key && !s->quick))//(3)
+  if ((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
+      !s->table->covering_keys.is_clear_all() && best_key &&            //(3)
+      (!s->quick ||                                                     //(3)
+       !(s->quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE && //(3)
+         best > s->quick->read_time)))                                  //(3)
   {
     trace_access_scan.add_alnum("access_type", s->quick ? "range" : "scan").
       add_alnum("cause", "covering_index_better_than_full_scan");
