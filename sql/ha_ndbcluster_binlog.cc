@@ -2207,14 +2207,87 @@ private:
 
 class Ndb_schema_event_handler {
 
-  struct Ndb_schema_op
+  class Ndb_schema_op
   {
+    // Unpack Ndb_schema_op from event_data pointer
+    void unpack_event(const Ndb_event_data *event_data)
+    {
+      TABLE *table= event_data->shadow_table;
+      Field **field;
+      /* unpack blob values */
+      uchar* blobs_buffer= 0;
+      uint blobs_buffer_size= 0;
+      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+      {
+        ptrdiff_t ptrdiff= 0;
+        int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
+                                     blobs_buffer, blobs_buffer_size,
+                                     ptrdiff);
+        if (ret != 0)
+        {
+          my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+          DBUG_PRINT("info", ("blob read error"));
+          DBUG_ASSERT(FALSE);
+        }
+      }
+      /* db varchar 1 length uchar */
+      field= table->field;
+      db_length= *(uint8*)(*field)->ptr;
+      DBUG_ASSERT(db_length <= (*field)->field_length);
+      DBUG_ASSERT((*field)->field_length + 1 == sizeof(db));
+      memcpy(db, (*field)->ptr + 1, db_length);
+      db[db_length]= 0;
+      /* name varchar 1 length uchar */
+      field++;
+      name_length= *(uint8*)(*field)->ptr;
+      DBUG_ASSERT(name_length <= (*field)->field_length);
+      DBUG_ASSERT((*field)->field_length + 1 == sizeof(name));
+      memcpy(name, (*field)->ptr + 1, name_length);
+      name[name_length]= 0;
+      /* slock fixed length */
+      field++;
+      slock_length= (*field)->field_length;
+      DBUG_ASSERT((*field)->field_length == sizeof(slock_buf));
+      memcpy(slock_buf, (*field)->ptr, slock_length);
+      /* query blob */
+      field++;
+      {
+        Field_blob *field_blob= (Field_blob*)(*field);
+        uint blob_len= field_blob->get_length((*field)->ptr);
+        uchar *blob_ptr= 0;
+        field_blob->get_ptr(&blob_ptr);
+        DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
+        query_length= blob_len;
+        query= sql_strmake((char*) blob_ptr, blob_len);
+      }
+      /* node_id */
+      field++;
+      node_id= (Uint32)((Field_long *)*field)->val_int();
+      /* epoch */
+      field++;
+      epoch= ((Field_long *)*field)->val_int();
+      /* id */
+      field++;
+      id= (Uint32)((Field_long *)*field)->val_int();
+      /* version */
+      field++;
+      version= (Uint32)((Field_long *)*field)->val_int();
+      /* type */
+      field++;
+      type= (Uint32)((Field_long *)*field)->val_int();
+      /* free blobs buffer */
+      my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+      dbug_tmp_restore_column_map(table->read_set, old_map);
+    }
+
+  public:
     uchar db_length;
     char db[64];
     uchar name_length;
     char name[64];
     uchar slock_length;
     uint32 slock_buf[SCHEMA_SLOCK_SIZE/4];
+    MY_BITMAP slock;
     unsigned short query_length;
     char *query;
     Uint64 epoch;
@@ -2223,6 +2296,27 @@ class Ndb_schema_event_handler {
     uint32 version;
     uint32 type;
     uint32 any_value;
+
+    /**
+      Create a Ndb_schema_op from event_data
+    */
+    static Ndb_schema_op*
+    create(const Ndb_event_data* event_data,
+           Uint32 any_value)
+    {
+      DBUG_ENTER("Ndb_schema_op::create");
+      Ndb_schema_op* schema_op=
+        (Ndb_schema_op*)sql_alloc(sizeof(Ndb_schema_op));
+      bitmap_init(&schema_op->slock,
+                  schema_op->slock_buf, 8*SCHEMA_SLOCK_SIZE, FALSE);
+      schema_op->unpack_event(event_data);
+      schema_op->any_value= any_value;
+      DBUG_PRINT("exit", ("%s.%s: query: '%s'  type: %d",
+                          schema_op->db, schema_op->name,
+                          schema_op->query,
+                          schema_op->type));
+      DBUG_RETURN(schema_op);
+    }
   };
   typedef Ndb_schema_op Cluster_schema; // Old name
 
@@ -2237,81 +2331,6 @@ class Ndb_schema_event_handler {
                      schema->db, schema->name, schema->query,
                      schema->node_id, my_errno);
     print_warning_list("NDB Binlog", thd_warn_list(thd));
-  }
-
-
-  /*
-    Transfer schema table event data into Cluster_schema struct
-  */
-  static void ndbcluster_get_schema(const Ndb_event_data *event_data,
-                                    Cluster_schema *s)
-  {
-    TABLE *table= event_data->shadow_table;
-    Field **field;
-    /* unpack blob values */
-    uchar* blobs_buffer= 0;
-    uint blobs_buffer_size= 0;
-    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    {
-      ptrdiff_t ptrdiff= 0;
-      int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
-                                   blobs_buffer, blobs_buffer_size,
-                                   ptrdiff);
-      if (ret != 0)
-      {
-        my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-        DBUG_PRINT("info", ("blob read error"));
-        DBUG_ASSERT(FALSE);
-      }
-    }
-    /* db varchar 1 length uchar */
-    field= table->field;
-    s->db_length= *(uint8*)(*field)->ptr;
-    DBUG_ASSERT(s->db_length <= (*field)->field_length);
-    DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->db));
-    memcpy(s->db, (*field)->ptr + 1, s->db_length);
-    s->db[s->db_length]= 0;
-    /* name varchar 1 length uchar */
-    field++;
-    s->name_length= *(uint8*)(*field)->ptr;
-    DBUG_ASSERT(s->name_length <= (*field)->field_length);
-    DBUG_ASSERT((*field)->field_length + 1 == sizeof(s->name));
-    memcpy(s->name, (*field)->ptr + 1, s->name_length);
-    s->name[s->name_length]= 0;
-    /* slock fixed length */
-    field++;
-    s->slock_length= (*field)->field_length;
-    DBUG_ASSERT((*field)->field_length == sizeof(s->slock_buf));
-    memcpy(s->slock_buf, (*field)->ptr, s->slock_length);
-    /* query blob */
-    field++;
-    {
-      Field_blob *field_blob= (Field_blob*)(*field);
-      uint blob_len= field_blob->get_length((*field)->ptr);
-      uchar *blob_ptr= 0;
-      field_blob->get_ptr(&blob_ptr);
-      DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
-      s->query_length= blob_len;
-      s->query= sql_strmake((char*) blob_ptr, blob_len);
-    }
-    /* node_id */
-    field++;
-    s->node_id= (Uint32)((Field_long *)*field)->val_int();
-    /* epoch */
-    field++;
-    s->epoch= ((Field_long *)*field)->val_int();
-    /* id */
-    field++;
-    s->id= (Uint32)((Field_long *)*field)->val_int();
-    /* version */
-    field++;
-    s->version= (Uint32)((Field_long *)*field)->val_int();
-    /* type */
-    field++;
-    s->type= (Uint32)((Field_long *)*field)->val_int();
-    /* free blobs buffer */
-    my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
-    dbug_tmp_restore_column_map(table->read_set, old_map);
   }
 
 
@@ -2618,21 +2637,12 @@ class Ndb_schema_event_handler {
       Ndb *ndb= thd_ndb->ndb;
       NDBDICT *dict= ndb->getDictionary();
       Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-      Cluster_schema *schema= (Cluster_schema *)
-        sql_alloc(sizeof(Cluster_schema));
-      MY_BITMAP slock;
-      bitmap_init(&slock, schema->slock_buf, 8*SCHEMA_SLOCK_SIZE, FALSE);
       uint node_id= g_ndb_cluster_connection->node_id();
-      {
-        ndbcluster_get_schema(event_data, schema);
-        schema->any_value= pOp->getAnyValue();
-      }
+
+      Ndb_schema_op* schema=
+        Ndb_schema_op::create(event_data, pOp->getAnyValue());
+
       enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
-      DBUG_PRINT("info",
-                 ("%s.%s: log query_length: %d  query: '%s'  type: %d",
-                  schema->db, schema->name,
-                  schema->query_length, schema->query,
-                  schema_type));
 
       if (opt_ndb_extra_logging > 19)
       {
@@ -2643,7 +2653,8 @@ class Ndb_schema_event_handler {
                               get_schema_type_name(schema_type),
                               schema_type,
                               schema->node_id,
-                              slock.bitmap[0], slock.bitmap[1]);
+                              schema->slock.bitmap[0],
+                              schema->slock.bitmap[1]);
       }
 
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
@@ -2847,7 +2858,7 @@ class Ndb_schema_event_handler {
           write_schema_op_to_binlog(thd, schema);
         /* signal that schema operation has been handled */
         DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
-        if (bitmap_is_set(&slock, node_id))
+        if (bitmap_is_set(&schema->slock, node_id))
         {
           if (post_epoch_unlock)
             post_epoch_unlock_list->push_back(schema, mem_root);
