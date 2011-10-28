@@ -496,9 +496,6 @@ private:
                                     const uchar *record,
                                     bool use_active_index);
   friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
-  friend int ndb_handle_schema_change(THD *thd, 
-                                      Ndb *ndb, NdbEventOperation *pOp,
-                                      NDB_SHARE *share);
 
   void check_read_before_write_removal();
   static int drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
