@@ -4246,6 +4246,16 @@ void Item_func_in::fix_length_and_dec()
       }
     }
   }
+  /*
+    Set cmp_context of all arguments. This prevents
+    Item_field::equal_fields_propagator() from transforming a zerofill integer
+    argument into a string constant. Such a change would require rebuilding
+    cmp_itmes.
+   */
+  for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
+  {
+    arg[0]->cmp_context= item_cmp_type(left_result_type, arg[0]->result_type());
+  }
   max_length= 1;
 }
 
@@ -4384,7 +4394,7 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 {
   List_iterator_fast<Item> li(item->list);
   while (Item *it= li++)
-    list.push_back(it->copy_andor_structure(thd));
+    list.push_back(it->real_item()->copy_andor_structure(thd));
 }
 
 

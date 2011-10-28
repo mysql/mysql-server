@@ -1867,18 +1867,19 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 
   DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
 
+#ifndef DBUG_OFF
   {
     /*
-      IN/SOME/ALL/ANY subqueries aren't support LIMIT clause. Without it
-      ORDER BY clause becomes meaningless thus we drop it here.
+      IN/SOME/ALL/ANY subqueries don't support LIMIT clause. Without
+      it, ORDER BY becomes meaningless and should already have been
+      removed in resolve_subquery()
     */
     SELECT_LEX *sl= current->master_unit()->first_select();
     for (; sl; sl= sl->next_select())
-    {
       if (sl->join)
-        sl->join->order= 0;
-    }
+        DBUG_ASSERT(!sl->join->order);
   }
+#endif
 
   if (changed)
     DBUG_RETURN(RES_OK);
