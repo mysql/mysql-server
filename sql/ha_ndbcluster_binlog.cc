@@ -2892,7 +2892,7 @@ class Ndb_schema_event_handler {
                 schema->db, schema->name,
                 schema->query_length, schema->query,
                 schema->type));
-    int log_query= 0;
+
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
       char key[FN_REFLEN + 1];
@@ -2959,13 +2959,13 @@ class Ndb_schema_event_handler {
       switch (schema_type)
       {
       case SOT_DROP_DB:
-        log_query= 1;
+        write_schema_op_to_binlog(thd, schema);
         break;
 
       case SOT_DROP_TABLE:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_DROP_TABLE %s.%s", schema->db, schema->name);
-        log_query= 1;
+        write_schema_op_to_binlog(thd, schema);
         {
           ndb->setDatabaseName(schema->db);
           Ndb_table_guard ndbtab_g(dict, schema->name);
@@ -2983,7 +2983,7 @@ class Ndb_schema_event_handler {
       case SOT_RENAME_TABLE:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE %s.%s", schema->db, schema->name);
-        log_query= 1;
+        write_schema_op_to_binlog(thd, schema);
         if (share)
         {
           ndbcluster_rename_share(thd, share);
@@ -3004,7 +3004,7 @@ class Ndb_schema_event_handler {
           sql_print_information("SOT_ALTER_TABLE_COMMIT %s.%s", schema->db, schema->name);
         if (schema->node_id == g_ndb_cluster_connection->node_id())
           break;
-        log_query= 1;
+        write_schema_op_to_binlog(thd, schema);
         {
           ndb->setDatabaseName(schema->db);
           Ndb_table_guard ndbtab_g(dict, schema->name);
@@ -3094,7 +3094,7 @@ class Ndb_schema_event_handler {
  
           DBUG_PRINT("info", ("Detected frm change of table %s.%s",
                               schema->db, schema->name));
-          log_query= 1;
+          write_schema_op_to_binlog(thd, schema);
           build_table_filename(key, FN_LEN-1, schema->db, schema->name, NullS, 0);
           /*
             If the there is no local table shadowing the altered table and 
@@ -3203,7 +3203,7 @@ class Ndb_schema_event_handler {
       case SOT_RENAME_TABLE_NEW:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE_NEW %s.%s", schema->db, schema->name);
-        log_query= 1;
+        write_schema_op_to_binlog(thd, schema);
         if (ndb_binlog_running && (!share || !share->op))
         {
           /*
@@ -3248,9 +3248,6 @@ class Ndb_schema_event_handler {
         share= 0;
       }
     }
-
-    if (log_query)
-      write_schema_op_to_binlog(thd, schema);
 
     DBUG_VOID_RETURN;
   }
