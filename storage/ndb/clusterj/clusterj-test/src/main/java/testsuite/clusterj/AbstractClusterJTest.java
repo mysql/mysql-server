@@ -37,6 +37,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.sql.Statement;
 
 import java.util.ArrayList;
@@ -317,6 +318,77 @@ public abstract class AbstractClusterJTest extends TestCase {
         } catch (SQLException e) {
             throw new RuntimeException("setAutoCommit failed", e);
         }
+    }
+
+    /** Execute the sql in its own statement. If the connection is not
+     * currently autocommit, set autocommit to true and restore it after
+     * the statement is executed.
+     * @param sql the sql to execute
+     */
+    protected void executeSQL(String sql) {
+        Statement statement = null;
+        try {
+            boolean autoCommit = connection.getAutoCommit();
+            if (!autoCommit) {
+                connection.setAutoCommit(true);
+            }
+            statement = connection.createStatement();
+            statement.execute(sql);
+            if (!autoCommit) {
+                connection.setAutoCommit(autoCommit);
+            }
+        } catch (SQLException e) {
+            error("Caught " + e.getClass() + " trying: " + sql);
+            if (statement == null) {
+                error(analyzeWarnings(connection));
+            } else {
+                error(analyzeWarnings(statement));
+            }
+        } finally {
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    // nothing can be done here
+                    error("Error closing statement " + sql);
+                }
+            }
+        }
+    }
+
+    protected String analyzeWarnings(Connection connection) {
+        SQLWarning warning = null;
+        StringBuilder builder = new StringBuilder();
+        try {
+            warning = connection.getWarnings();
+            analyzeWarnings(warning, builder);
+        } catch (SQLException e) {
+            builder.append("Error getting warnings from connection:\n");
+            builder.append(e.getMessage());
+        }
+        return builder.toString();
+    }
+
+    protected String analyzeWarnings(Statement statement) {
+        SQLWarning warning = null;
+        StringBuilder builder = new StringBuilder();
+        try {
+            warning = statement.getWarnings();
+            analyzeWarnings(warning, builder);
+        } catch (SQLException e) {
+            builder.append("Error getting warnings from statement:\n");
+            builder.append(e.getMessage());
+        }
+        return builder.toString();
+    }
+
+    protected StringBuilder analyzeWarnings(SQLWarning warning, StringBuilder builder) {
+        if (warning != null) {
+            builder.append(warning.getMessage());
+            builder.append("\n");
+            analyzeWarnings(warning.getNextWarning(), builder);
+        }
+        return builder;
     }
 
     Properties getProperties(String fileName) {
