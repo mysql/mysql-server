@@ -73,7 +73,11 @@ MYSQL_ADD_EXECUTABLE(ndb_config
 TARGET_LINK_LIBRARIES(ndb_config ndbmgmclient ndbconf)
 
 # Build ndbinfo_sql and run it to create ndbinfo.sql
-ADD_EXECUTABLE(ndbinfo_sql ndbinfo_sql.cpp)
+ADD_EXECUTABLE(ndbinfo_sql
+  ndbinfo_sql.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
+)
 TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient)
 GET_TARGET_PROPERTY(NDBINFO_SQL_EXE ndbinfo_sql LOCATION)
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql

@@ -219,11 +219,51 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       pTrans->close();
       return NDBT_FAILED;
     }
+#if 0
+    // Disabled, as this is incorrectly handled in SPJ API, will fix soon
+    else
+    {
+      /**
+       * If ::execute() didn't fail, there should not be an error on
+       * its NdbError object either:
+       */
+      const NdbError err = pTrans->getNdbError();
+      if (err.code)
+      {
+        ERR(err);
+        ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
+        pTrans->close();
+        return NDBT_FAILED;
+      }
+    }
+#endif
 
+    bool retry = false;
     for (int b = 0; b<batch; b++)
     {
       NdbQuery * query = queries[b];
-      if (query->nextResult() == NdbQuery::NextResult_gotRow)
+
+      /**
+       * As NdbQuery is always 'dirty read' (impl. limitations), 'AbortOnError'
+       * is ignored and handled as 'IgnoreError'. We will therefore not get
+       * errors returned from ::execute() or set into 'pTrans->getNdbError()':
+       * Has to check for errors on the NdbQuery object instead:
+       */
+      const NdbError& err = query->getNdbError();
+      if (err.code)
+      {
+        ERR(err);
+        if (err.status == NdbError::TemporaryError){
+          pTrans->close();
+          retry = true;
+          break;
+        }
+        pTrans->close();
+        return NDBT_FAILED;
+      }
+
+      const NdbQuery::NextResultOutcome stat = query->nextResult();
+      if (stat == NdbQuery::NextResult_gotRow)
       {
         for (unsigned o = 0; o<m_ops.size(); o++)
         {
@@ -239,7 +279,26 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
           }
         }
       }
+      else if (stat == NdbQuery::NextResult_error)
+      {
+        const NdbError& err = query->getNdbError();
+        ERR(err);
+        if (err.status == NdbError::TemporaryError){
+          pTrans->close();
+          retry = true;
+          break;
+        }
+        pTrans->close();
+        return NDBT_FAILED;
+      }
     }
+    if (retry)
+    {
+      NdbSleep_MilliSleep(50);
+      retryAttempt++;
+      continue;
+    }
+
     pTrans->close();
     r += batch;
 
@@ -311,6 +370,44 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       }
       pTrans->close();
       return NDBT_FAILED;
+    }
+    else
+    {
+      // Disabled, as this is incorrectly handled in SPJ API, will fix soon
+#if 0
+      /**
+       * If ::execute() didn't fail, there should not be an error on
+       * its NdbError object either:
+       */
+      const NdbError err = pTrans->getNdbError();
+      if (err.code)
+      {
+        ERR(err);
+        ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
+        pTrans->close();
+        return NDBT_FAILED;
+      }
+#endif
+
+      /**
+       * As NdbQuery is always 'dirty read' (impl. limitations), 'AbortOnError'
+       * is ignored and handled as 'IgnoreError'. We will therefore not get
+       * errors returned from ::execute() or set into 'pTrans->getNdbError()':
+       * Has to check for errors on the NdbQuery object instead:
+       */
+      NdbError err = query->getNdbError();
+      if (err.code)
+      {
+        ERR(err);
+        if (err.status == NdbError::TemporaryError){
+          pTrans->close();
+          NdbSleep_MilliSleep(50);
+          retryAttempt++;
+          continue;
+        }
+        pTrans->close();
+        return NDBT_FAILED;
+      }
     }
 
     int r = rand() % 100;
