@@ -1,0 +1,21 @@
+# bool readonly
+
+#
+# show values;
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@global.in_transaction;
+select @@session.in_transaction;
+show global variables like 'in_transaction';
+show session variables like 'in_transaction';
+select * from information_schema.global_variables where variable_name='in_transaction';
+select * from information_schema.session_variables where variable_name='in_transaction';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global in_transaction=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session in_transaction=1;
+

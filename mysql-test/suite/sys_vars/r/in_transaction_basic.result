@@ -1,0 +1,19 @@
+select @@global.in_transaction;
+ERROR HY000: Variable 'in_transaction' is a SESSION variable
+select @@session.in_transaction;
+@@session.in_transaction
+0
+show global variables like 'in_transaction';
+Variable_name	Value
+show session variables like 'in_transaction';
+Variable_name	Value
+in_transaction	0
+select * from information_schema.global_variables where variable_name='in_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+select * from information_schema.session_variables where variable_name='in_transaction';
+VARIABLE_NAME	VARIABLE_VALUE
+IN_TRANSACTION	0
+set global in_transaction=1;
+ERROR HY000: Variable 'in_transaction' is a read only variable
+set session in_transaction=1;
+ERROR HY000: Variable 'in_transaction' is a read only variable

@@ -1,0 +1,44 @@
+# ulonglong session
+
+SET @start_global_value = @@global.join_buffer_space_limit;
+
+#
+# exists as global and session
+#
+select @@global.join_buffer_space_limit;
+select @@session.join_buffer_space_limit;
+show global variables like 'join_buffer_space_limit';
+show session variables like 'join_buffer_space_limit';
+select * from information_schema.global_variables where variable_name='join_buffer_space_limit';
+select * from information_schema.session_variables where variable_name='join_buffer_space_limit';
+
+#
+# show that it's writable
+#
+set global join_buffer_space_limit=10;
+select @@global.join_buffer_space_limit;
+set session join_buffer_space_limit=10;
+select @@session.join_buffer_space_limit;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global join_buffer_space_limit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session join_buffer_space_limit=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global join_buffer_space_limit="foo";
+
+#
+# min/max values, block size
+#
+set global join_buffer_space_limit=0;
+select @@global.join_buffer_space_limit;
+set global join_buffer_space_limit=4095;
+select @@global.join_buffer_space_limit;
+set session join_buffer_space_limit=cast(-1 as unsigned int);
+select @@session.join_buffer_space_limit;
+
+SET @@global.join_buffer_space_limit = @start_global_value;
+

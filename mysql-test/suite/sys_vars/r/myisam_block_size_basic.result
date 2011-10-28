@@ -1,0 +1,21 @@
+select @@global.myisam_block_size;
+@@global.myisam_block_size
+1024
+select @@session.myisam_block_size;
+ERROR HY000: Variable 'myisam_block_size' is a GLOBAL variable
+show global variables like 'myisam_block_size';
+Variable_name	Value
+myisam_block_size	1024
+show session variables like 'myisam_block_size';
+Variable_name	Value
+myisam_block_size	1024
+select * from information_schema.global_variables where variable_name='myisam_block_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MYISAM_BLOCK_SIZE	1024
+select * from information_schema.session_variables where variable_name='myisam_block_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MYISAM_BLOCK_SIZE	1024
+set global myisam_block_size=1;
+ERROR HY000: Variable 'myisam_block_size' is a read only variable
+set session myisam_block_size=1;
+ERROR HY000: Variable 'myisam_block_size' is a read only variable

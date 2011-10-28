@@ -3385,6 +3385,7 @@ static Sys_var_mybool Sys_thread_alarm(
        READ_ONLY GLOBAL_VAR(opt_thread_alarm), CMD_LINE(OPT_ARG),
        DEFAULT(TRUE));
 
+#if 0
 static Sys_var_charptr Sys_log_basename(
        "log_basename",
        "Basename for all log files and the .pid file. This sets all log file "
@@ -3397,6 +3398,7 @@ static Sys_var_charptr Sys_log_basename(
        READ_ONLY GLOBAL_VAR(opt_log_basename),
        CMD_LINE(REQUIRED_ARG, OPT_LOG_BASENAME),
        IN_FS_CHARSET, DEFAULT(0));
+#endif
 
 static Sys_var_mybool Sys_query_cache_strip_comments(
        "query_cache_strip_comments",

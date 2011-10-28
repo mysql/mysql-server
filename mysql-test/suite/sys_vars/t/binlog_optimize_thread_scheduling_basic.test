@@ -1,0 +1,21 @@
+# bool readonly
+
+#
+# show values;
+#
+select @@global.binlog_optimize_thread_scheduling;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.binlog_optimize_thread_scheduling;
+show global variables like 'binlog_optimize_thread_scheduling';
+show session variables like 'binlog_optimize_thread_scheduling';
+select * from information_schema.global_variables where variable_name='binlog_optimize_thread_scheduling';
+select * from information_schema.session_variables where variable_name='binlog_optimize_thread_scheduling';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global binlog_optimize_thread_scheduling=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session binlog_optimize_thread_scheduling=1;
+

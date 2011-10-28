@@ -6287,7 +6287,6 @@ struct my_option my_long_options[]=
   {"log", 'l', "Log connections and queries to file (deprecated option, use "
    "--general-log/--general-log-file instead).", &opt_logname, &opt_logname,
    0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#if 0
   {"log-basename", OPT_LOG_BASENAME,
    "Basename for all log files and the .pid file. This sets all log file "
    "names at once (in 'datadir') and is normally the only option you need "
@@ -6296,7 +6295,6 @@ struct my_option my_long_options[]=
    "--log-slow-query-log-file, --log-error-file, and --pid-file",
    &opt_log_basename, &opt_log_basename, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-#endif
   {"log-bin", OPT_BIN_LOG,
    "Log update queries in binary format. Optional argument should be name for "
    "binary log. If not given "

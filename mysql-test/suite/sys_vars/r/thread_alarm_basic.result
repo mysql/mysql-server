@@ -1,0 +1,21 @@
+select @@global.thread_alarm;
+@@global.thread_alarm
+1
+select @@session.thread_alarm;
+ERROR HY000: Variable 'thread_alarm' is a GLOBAL variable
+show global variables like 'thread_alarm';
+Variable_name	Value
+thread_alarm	ON
+show session variables like 'thread_alarm';
+Variable_name	Value
+thread_alarm	ON
+select * from information_schema.global_variables where variable_name='thread_alarm';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_ALARM	ON
+select * from information_schema.session_variables where variable_name='thread_alarm';
+VARIABLE_NAME	VARIABLE_VALUE
+THREAD_ALARM	ON
+set global thread_alarm=1;
+ERROR HY000: Variable 'thread_alarm' is a read only variable
+set session thread_alarm=1;
+ERROR HY000: Variable 'thread_alarm' is a read only variable

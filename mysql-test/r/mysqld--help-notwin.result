@@ -266,13 +266,10 @@ The following options may be given as the first argument:
  use --general-log/--general-log-file instead).
  --log-basename=name Basename for all log files and the .pid file. This sets
  all log file names at once (in 'datadir') and is normally
- the only option you need for specifying log files. This
- is especially recommend to be set if you are using
- replication as it ensures that your log file names are
- not depending on your host name. Sets names for
- --log-bin, --log-bin-index, --relay-log,
+ the only option you need for specifying log files. Sets
+ names for --log-bin, --log-bin-index, --relay-log,
  --relay-log-index, --general-log-file,
- --log-slow-query-log-file, --log-error-file and
+ --log-slow-query-log-file, --log-error-file, and
  --pid-file
  --log-bin[=name]    Log update queries in binary format. Optional argument
  should be name for binary log. If not given

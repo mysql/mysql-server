@@ -1,0 +1,21 @@
+select @@global.binlog_optimize_thread_scheduling;
+@@global.binlog_optimize_thread_scheduling
+1
+select @@session.binlog_optimize_thread_scheduling;
+ERROR HY000: Variable 'binlog_optimize_thread_scheduling' is a GLOBAL variable
+show global variables like 'binlog_optimize_thread_scheduling';
+Variable_name	Value
+binlog_optimize_thread_scheduling	ON
+show session variables like 'binlog_optimize_thread_scheduling';
+Variable_name	Value
+binlog_optimize_thread_scheduling	ON
+select * from information_schema.global_variables where variable_name='binlog_optimize_thread_scheduling';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_OPTIMIZE_THREAD_SCHEDULING	ON
+select * from information_schema.session_variables where variable_name='binlog_optimize_thread_scheduling';
+VARIABLE_NAME	VARIABLE_VALUE
+BINLOG_OPTIMIZE_THREAD_SCHEDULING	ON
+set global binlog_optimize_thread_scheduling=1;
+ERROR HY000: Variable 'binlog_optimize_thread_scheduling' is a read only variable
+set session binlog_optimize_thread_scheduling=1;
+ERROR HY000: Variable 'binlog_optimize_thread_scheduling' is a read only variable

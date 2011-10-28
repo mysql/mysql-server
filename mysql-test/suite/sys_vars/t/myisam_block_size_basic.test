@@ -1,0 +1,21 @@
+# ulong readonly
+
+#
+# show the global and session values;
+#
+select @@global.myisam_block_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.myisam_block_size;
+show global variables like 'myisam_block_size';
+show session variables like 'myisam_block_size';
+select * from information_schema.global_variables where variable_name='myisam_block_size';
+select * from information_schema.session_variables where variable_name='myisam_block_size';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global myisam_block_size=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session myisam_block_size=1;
+
