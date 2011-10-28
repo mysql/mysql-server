@@ -2641,16 +2641,10 @@ class Ndb_schema_event_handler {
     const Ndb_event_data* event_data=
       static_cast<const Ndb_event_data*>(pOp->getCustomData());
     {
-      Thd_ndb *thd_ndb= get_thd_ndb(thd);
-      Ndb *ndb= thd_ndb->ndb;
-      NDBDICT *dict= ndb->getDictionary();
-      Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-      uint node_id= g_ndb_cluster_connection->node_id();
-
       Ndb_schema_op* schema=
         Ndb_schema_op::create(event_data, pOp->getAnyValue());
 
-      enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
+      const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
 
       if (opt_ndb_extra_logging > 19)
       {
@@ -2674,6 +2668,7 @@ class Ndb_schema_event_handler {
          */
         DBUG_RETURN(0);
       }
+
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
@@ -2697,8 +2692,13 @@ class Ndb_schema_event_handler {
         break;
       }
 
+      const uint node_id= g_ndb_cluster_connection->node_id();
       if (schema->node_id != node_id)
       {
+        Thd_ndb *thd_ndb= get_thd_ndb(thd);
+        Ndb *ndb= thd_ndb->ndb;
+        Thd_ndb_options_guard thd_ndb_options(thd_ndb);
+
         int log_query= 0, post_epoch_unlock= 0;
  
         switch (schema_type)
@@ -2750,7 +2750,7 @@ class Ndb_schema_event_handler {
           {
             {
               ndb->setDatabaseName(schema->db);
-              Ndb_table_guard ndbtab_g(dict, schema->name);
+              Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
               ndbtab_g.invalidate();
             }
             TABLE_LIST table_list;
