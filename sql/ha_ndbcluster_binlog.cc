@@ -2552,19 +2552,53 @@ class Ndb_schema_event_handler {
   }
 
 
-static int
-handle_schema_event(THD *thd, Ndb *s_ndb,
-                    NdbEventOperation *pOp,
-                    List<Cluster_schema> *post_epoch_log_list,
-                    List<Cluster_schema> *post_epoch_unlock_list,
-                    MEM_ROOT *mem_root)
-{
-  DBUG_ENTER("handle_schema_event");
-  const Ndb_event_data* event_data=
-    static_cast<const Ndb_event_data*>(pOp->getCustomData());
-  NDB_SHARE *tmp_share= event_data->share;
-  if (tmp_share && ndb_schema_share == tmp_share)
+  bool check_is_ndb_schema_event(const Ndb_event_data* event_data) const
   {
+    if (!event_data)
+    {
+      // Received event without event data pointer
+      assert(false);
+      return false;
+    }
+
+    NDB_SHARE *share= event_data->share;
+    if (!share)
+    {
+      // Received event where the event_data is not properly initialized
+      assert(false);
+      return false;
+    }
+    assert(event_data->shadow_table);
+    assert(event_data->ndb_value[0]);
+    assert(event_data->ndb_value[1]);
+
+    pthread_mutex_lock(&ndb_schema_share_mutex);
+    if (share != ndb_schema_share)
+    {
+      // Received event from s_ndb not pointing at the ndb_schema_share
+      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      assert(false);
+      return false;
+    }
+    assert(!strncmp(share->db, STRING_WITH_LEN(NDB_REP_DB)));
+    assert(!strncmp(share->table_name, STRING_WITH_LEN(NDB_SCHEMA_TABLE)));
+    pthread_mutex_unlock(&ndb_schema_share_mutex);
+    return true;
+  }
+
+
+  static int
+  handle_schema_event(THD *thd, Ndb *s_ndb,
+                      NdbEventOperation *pOp,
+                      List<Cluster_schema> *post_epoch_log_list,
+                      List<Cluster_schema> *post_epoch_unlock_list,
+                      MEM_ROOT *mem_root)
+  {
+    DBUG_ENTER("handle_schema_event");
+    const Ndb_event_data* event_data=
+      static_cast<const Ndb_event_data*>(pOp->getCustomData());
+    NDB_SHARE *tmp_share= event_data->share;
+
     NDBEVENT::TableEvent ev_type= pOp->getEventType();
     DBUG_PRINT("enter", ("%s.%s  ev_type: %d",
                          tmp_share->db, tmp_share->table_name, ev_type));
@@ -2919,9 +2953,9 @@ handle_schema_event(THD *thd, Ndb *s_ndb,
       sql_print_error("NDB Binlog: unknown non data event %d for %s. "
                       "Ignoring...", (unsigned) ev_type, tmp_share->key);
     }
+    DBUG_RETURN(0);
   }
-  DBUG_RETURN(0);
-}
+
 
 /*
   process any operations that should be done after
@@ -3338,6 +3372,14 @@ public:
 
   void handle_event(Ndb* s_ndb, NdbEventOperation *pOp)
   {
+    DBUG_ENTER("handle_event");
+
+    const Ndb_event_data *event_data=
+      static_cast<const Ndb_event_data*>(pOp->getCustomData());
+
+    if (!check_is_ndb_schema_event(event_data))
+      DBUG_VOID_RETURN;
+
     handle_schema_event(m_thd, s_ndb, pOp,
                         &m_post_epoch_log_list,
                         &m_post_epoch_unlock_list,
