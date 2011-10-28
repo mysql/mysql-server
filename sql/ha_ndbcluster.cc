@@ -1450,8 +1450,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans,
       {
         const NDBINDEX *unique_index=
           (const NDBINDEX *) m_index[i].unique_index;
-        if (unique_index &&
-            (char *) unique_index->getObjectId() == error_data)
+        if (unique_index && UintPtr(unique_index->getObjectId()) == UintPtr(error_data))
         {
           dupkey= i;
           break;
@@ -1494,7 +1493,7 @@ bool ha_ndbcluster::get_error_message(int error,
 
   const NdbError err= ndb->getNdbError(error);
   bool temporary= err.status==NdbError::TemporaryError;
-  buf->set(err.message, strlen(err.message), &my_charset_bin);
+  buf->set(err.message, (uint32)strlen(err.message), &my_charset_bin);
   DBUG_PRINT("exit", ("message: %s, temporary: %d", buf->ptr(), temporary));
   DBUG_RETURN(temporary);
 }
@@ -2046,7 +2045,7 @@ void ha_ndbcluster::release_blobs_buffer()
 */
 
 int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
-            uint pack_length)
+            size_t pack_length)
 {
   DBUG_ENTER("cmp_frm");
   /*
@@ -3961,7 +3960,7 @@ count_key_columns(const KEY *key_info, const key_range *key)
       break;
     length+= key_part->store_length;
   }
-  return key_part - first_key_part;
+  return (uint)(key_part - first_key_part);
 }
 
 /* Helper method to compute NDB index bounds. Note: does not set range_no. */
@@ -6535,7 +6534,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   uint blob_count= 0;
   if (uses_blob_value(table->write_set))
   {
-    int row_offset= new_data - table->record[0];
+    int row_offset= (int)(new_data - table->record[0]);
     int res= set_blob_values(op, row_offset, table->write_set, &blob_count,
                              (batch_allowed && !need_flush));
     if (res != 0)
@@ -8292,7 +8291,7 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
   // log_name
   char tmp_buf[FN_REFLEN];
   ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,
-                   group_master_log_name, strlen(group_master_log_name));
+                   group_master_log_name, (int)strlen(group_master_log_name));
   r|= op->setValue(2u, tmp_buf);
   DBUG_ASSERT(r == 0);
   // start_pos
@@ -9886,7 +9885,7 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
            goto err;
 	 const char *tablespace= ts.getName();
          DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
-         uint tablespace_len= strlen(tablespace);
+         uint tablespace_len= (uint)strlen(tablespace);
          if (tablespace_len != 0) 
          {
            share->tablespace= (char *) alloc_root(&share->mem_root,
@@ -10055,7 +10054,7 @@ int ha_ndbcluster::create(const char *name,
     */
     if ((my_errno= write_ndb_file(name)))
       DBUG_RETURN(my_errno);
-    ndbcluster_create_binlog_setup(thd, ndb, name, strlen(name),
+    ndbcluster_create_binlog_setup(thd, ndb, name, (uint)strlen(name),
                                    m_dbname, m_tabname, FALSE);
     DBUG_RETURN(my_errno);
   }
@@ -10967,7 +10966,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
       this is a "real" rename table, i.e. not tied to an offline alter table
       - send new name == "to" in query field
     */
-    ndbcluster_log_schema_op(thd, to, strlen(to),
+    ndbcluster_log_schema_op(thd, to, (int)strlen(to),
                              old_dbname, m_tabname,
                              ndb_table_id, ndb_table_version,
                              SOT_RENAME_TABLE_PREPARE,
@@ -11643,7 +11642,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
                             name);
     }
     Ndb* ndb= check_ndb_in_thd(thd);
-    ndbcluster_create_binlog_setup(thd, ndb, name, strlen(name),
+    ndbcluster_create_binlog_setup(thd, ndb, name, (uint)strlen(name),
                                    m_dbname, m_tabname, FALSE);
     if ((m_share=get_share(name, table, FALSE)) == 0)
     {
@@ -12299,7 +12298,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   List_iterator_fast<char> it(drop_list);
   while ((tabname=it++))
   {
-    tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
+    tablename_to_filename(tabname, tmp, (uint)(FN_REFLEN - (tmp - full_path)-1));
     mysql_mutex_lock(&LOCK_open);
     if (ha_ndbcluster::drop_table(thd, 0, ndb, full_path, dbname, tabname))
     {
@@ -12441,7 +12440,7 @@ int ndbcluster_find_all_files(THD *thd)
       }
       /* finalize construction of path */
       end+= tablename_to_filename(elmt.name, end,
-                                  sizeof(key)-(end-key));
+                                  (uint)(sizeof(key)-(end-key)));
       uchar *data= 0, *pack_data= 0;
       size_t length, pack_length;
       int discover= 0;
@@ -12490,7 +12489,7 @@ int ndbcluster_find_all_files(THD *thd)
       else
       {
         /* set up replication for this table */
-        ndbcluster_create_binlog_setup(thd, ndb, key, end-key,
+        ndbcluster_create_binlog_setup(thd, ndb, key, (uint)(end-key),
                                        elmt.database, elmt.name,
                                        TRUE);
       }
@@ -12662,9 +12661,9 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     {
       file_name_str= (char*)my_hash_element(&ok_tables, i);
       end= end1 +
-        tablename_to_filename(file_name_str, end1, sizeof(name) - (end1 - name));
+        tablename_to_filename(file_name_str, end1, (uint)(sizeof(name) - (end1 - name)));
       mysql_mutex_lock(&LOCK_open);
-      ndbcluster_create_binlog_setup(thd, ndb, name, end-name,
+      ndbcluster_create_binlog_setup(thd, ndb, name, (uint)(end-name),
                                      db, file_name_str, TRUE);
       mysql_mutex_unlock(&LOCK_open);
     }
@@ -12729,7 +12728,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     {
       LEX_STRING *tmp_file_name= 0;
       tmp_file_name= thd->make_lex_string(tmp_file_name, file_name_str,
-                                          strlen(file_name_str), TRUE);
+                                          (uint)strlen(file_name_str), TRUE);
       files->push_back(tmp_file_name); 
     }
   }
@@ -13137,7 +13136,7 @@ void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
   while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
     ptr--;
   }
-  uint name_len= end - ptr;
+  uint name_len= (uint)(end - ptr);
   memcpy(tmp_name, ptr + 1, name_len);
   tmp_name[name_len]= '\0';
   filename_to_tablename(tmp_name, dbname, sizeof(tmp_buff) - 1);
@@ -13169,7 +13168,7 @@ ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
   while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
     ptr--;
   }
-  uint name_len= end - ptr;
+  uint name_len= (uint)(end - ptr);
   memcpy(tmp_name, ptr + 1, end - ptr);
   tmp_name[name_len]= '\0';
   filename_to_tablename(tmp_name, tabname, sizeof(tmp_buff) - 1);
@@ -13944,7 +13943,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
       share->key_length= min_key_length;
     }
     share->key_length=
-      my_snprintf(share->key, min_key_length + 1, "#leak%lu",
+      (uint)my_snprintf(share->key, min_key_length + 1, "#leak%lu",
                   trailing_share_id++);
   }
   /* Keep it for possible the future trailing free */
@@ -15231,7 +15230,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
           need to process all index scan ranges together.
         */
         if (!multi_range_sorted ||
-            (expected_range_no= multi_range_curr - m_multi_ranges)
+            (expected_range_no= (int)(multi_range_curr - m_multi_ranges))
                 == current_range_no)
         {
           *multi_range_found_p= m_multi_ranges + current_range_no;
@@ -15280,7 +15279,7 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
   */
   DBUG_RETURN(read_multi_range_first(multi_range_found_p, 
                                      multi_range_curr,
-                                     multi_range_end - multi_range_curr, 
+                                     (uint)(multi_range_end - multi_range_curr), 
                                      multi_range_sorted,
                                      multi_range_buffer));
 }
@@ -15711,7 +15710,7 @@ ha_ndbcluster::update_table_comment(
         const char*     comment)/* in:  table comment defined by user */
 {
   THD *thd= current_thd;
-  uint length= strlen(comment);
+  uint length= (uint)strlen(comment);
   if (length > 64000 - 3)
   {
     return((char*)comment); /* string too long */
@@ -15732,7 +15731,7 @@ ha_ndbcluster::update_table_comment(
 
   char *str;
   const char *fmt="%s%snumber_of_replicas: %d";
-  const unsigned fmt_len_plus_extra= length + strlen(fmt);
+  const unsigned fmt_len_plus_extra= length + (uint)strlen(fmt);
   if ((str= (char*) my_malloc(fmt_len_plus_extra, MYF(0))) == NULL)
   {
     sql_print_error("ha_ndbcluster::update_table_comment: "
@@ -16118,7 +16117,7 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
   else
     update_status_variables(NULL, &ns, g_ndb_cluster_connection);
 
-  buflen=
+  buflen= (uint)
     my_snprintf(buf, sizeof(buf),
                 "cluster_node_id=%ld, "
                 "connected_host=%s, "
@@ -16141,8 +16140,8 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
     if (ns.transaction_hint_count[i] > 0 ||
         ns.transaction_no_hint_count[i] > 0)
     {
-      uint namelen= my_snprintf(name, sizeof(name), "node[%d]", i);
-      buflen= my_snprintf(buf, sizeof(buf),
+      uint namelen= (uint)my_snprintf(name, sizeof(name), "node[%d]", i);
+      buflen= (uint)my_snprintf(buf, sizeof(buf),
                           "transaction_hint=%ld, transaction_no_hint=%ld",
                           ns.transaction_hint_count[i],
                           ns.transaction_no_hint_count[i]);
@@ -16158,12 +16157,12 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
     tmp.m_name= 0;
     while (ndb->get_free_list_usage(&tmp))
     {
-      buflen=
+      buflen= (uint)
         my_snprintf(buf, sizeof(buf),
                   "created=%u, free=%u, sizeof=%u",
                   tmp.m_created, tmp.m_free, tmp.m_sizeof);
       if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
-                     tmp.m_name, strlen(tmp.m_name), buf, buflen))
+                     tmp.m_name, (uint)strlen(tmp.m_name), buf, buflen))
         DBUG_RETURN(TRUE);
     }
   }
@@ -17659,19 +17658,19 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       }
 
       table->field[IS_FILES_FILE_NAME]->set_notnull();
-      table->field[IS_FILES_FILE_NAME]->store(elt.name, strlen(elt.name),
+      table->field[IS_FILES_FILE_NAME]->store(elt.name, (uint)strlen(elt.name),
                                               system_charset_info);
       table->field[IS_FILES_FILE_TYPE]->set_notnull();
       table->field[IS_FILES_FILE_TYPE]->store("DATAFILE",8,
                                               system_charset_info);
       table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
       table->field[IS_FILES_TABLESPACE_NAME]->store(df.getTablespace(),
-                                                    strlen(df.getTablespace()),
+                                                    (uint)strlen(df.getTablespace()),
                                                     system_charset_info);
       table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
       table->field[IS_FILES_LOGFILE_GROUP_NAME]->
         store(ts.getDefaultLogfileGroup(),
-              strlen(ts.getDefaultLogfileGroup()),
+              (uint)strlen(ts.getDefaultLogfileGroup()),
               system_charset_info);
       table->field[IS_FILES_ENGINE]->set_notnull();
       table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
@@ -17697,7 +17696,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_ROW_FORMAT]->store("FIXED", 5, system_charset_info);
 
       char extra[30];
-      int len= my_snprintf(extra, sizeof(extra), "CLUSTER_NODE=%u", id);
+      int len= (int)my_snprintf(extra, sizeof(extra), "CLUSTER_NODE=%u", id);
       table->field[IS_FILES_EXTRA]->set_notnull();
       table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
@@ -17730,12 +17729,12 @@ static int ndbcluster_fill_files_table(handlerton *hton,
 
     table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
     table->field[IS_FILES_TABLESPACE_NAME]->store(elt.name,
-                                                     strlen(elt.name),
+                                                     (uint)strlen(elt.name),
                                                      system_charset_info);
     table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
     table->field[IS_FILES_LOGFILE_GROUP_NAME]->
       store(ts.getDefaultLogfileGroup(),
-           strlen(ts.getDefaultLogfileGroup()),
+           (uint)strlen(ts.getDefaultLogfileGroup()),
            system_charset_info);
 
     table->field[IS_FILES_ENGINE]->set_notnull();
@@ -17790,7 +17789,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
 
       init_fill_schema_files_row(table);
       table->field[IS_FILES_FILE_NAME]->set_notnull();
-      table->field[IS_FILES_FILE_NAME]->store(elt.name, strlen(elt.name),
+      table->field[IS_FILES_FILE_NAME]->store(elt.name, (uint)strlen(elt.name),
                                               system_charset_info);
       table->field[IS_FILES_FILE_TYPE]->set_notnull();
       table->field[IS_FILES_FILE_TYPE]->store("UNDO LOG", 8,
@@ -17799,7 +17798,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       uf.getLogfileGroupId(&objid);
       table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
       table->field[IS_FILES_LOGFILE_GROUP_NAME]->store(uf.getLogfileGroup(),
-                                                  strlen(uf.getLogfileGroup()),
+                                                  (uint)strlen(uf.getLogfileGroup()),
                                                        system_charset_info);
       table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
       table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(objid.getObjectId(), true);
@@ -17822,7 +17821,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[IS_FILES_VERSION]->store(uf.getObjectVersion(), true);
 
       char extra[100];
-      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",
+      int len= (int)my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",
                            id, (ulong) lfg.getUndoBufferSize());
       table->field[IS_FILES_EXTRA]->set_notnull();
       table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
@@ -17857,7 +17856,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
 
     table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
     table->field[IS_FILES_LOGFILE_GROUP_NAME]->store(elt.name,
-                                                     strlen(elt.name),
+                                                     (uint)strlen(elt.name),
                                                      system_charset_info);
     table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
     table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(lfg.getObjectId(), true);
@@ -17875,7 +17874,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
     table->field[IS_FILES_VERSION]->store(lfg.getObjectVersion(), true);
 
     char extra[100];
-    int len= my_snprintf(extra,sizeof(extra),
+    int len= (int)my_snprintf(extra,sizeof(extra),
                          "UNDO_BUFFER_SIZE=%lu",
                          (ulong) lfg.getUndoBufferSize());
     table->field[IS_FILES_EXTRA]->set_notnull();

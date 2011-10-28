@@ -212,13 +212,12 @@ Logger::addHandler(LogHandler* pHandler)
 
 bool
 Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr) {
-  size_t i;
   Vector<BaseString> logdest;
   DBUG_ENTER("Logger::addHandler");
 
   logstring.split(logdest, ";");
 
-  for(i = 0; i < logdest.size(); i++) {
+  for(unsigned i = 0; i < logdest.size(); i++) {
     DBUG_PRINT("info",("adding: %s",logdest[i].c_str()));
 
     Vector<BaseString> v_type_args;

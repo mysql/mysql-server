@@ -1549,7 +1549,7 @@ static int ndbcluster_find_all_databases(THD *thd)
             /* create missing database */
             sql_print_information("NDB: Discovered missing database '%s'", db);
             const int no_print_error[1]= {0};
-            name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
+            name_len= (unsigned)my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
             run_query(thd, name, name + name_len,
                       no_print_error,    /* print error */
                       TRUE,   /* don't binlog the query */
@@ -1891,12 +1891,12 @@ ndbcluster_update_slock(THD *thd,
       DBUG_ASSERT(r == 0);
     
       /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, strlen(db));
+      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
       r|= op->equal(SCHEMA_DB_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* name */
       ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                       strlen(table_name));
+                       (int)strlen(table_name));
       r|= op->equal(SCHEMA_NAME_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* slock */
@@ -1934,12 +1934,12 @@ ndbcluster_update_slock(THD *thd,
       DBUG_ASSERT(r == 0);
 
       /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, strlen(db));
+      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, db, (int)strlen(db));
       r|= op->equal(SCHEMA_DB_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* name */
       ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, table_name,
-                       strlen(table_name));
+                       (int)strlen(table_name));
       r|= op->equal(SCHEMA_NAME_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* slock */
@@ -2284,12 +2284,12 @@ int ndbcluster_log_schema_op(THD *thd,
       DBUG_ASSERT(r == 0);
       
       /* db */
-      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, log_db, strlen(log_db));
+      ndb_pack_varchar(col[SCHEMA_DB_I], tmp_buf, log_db, (int)strlen(log_db));
       r|= op->equal(SCHEMA_DB_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* name */
       ndb_pack_varchar(col[SCHEMA_NAME_I], tmp_buf, log_tab,
-                       strlen(log_tab));
+                       (int)strlen(log_tab));
       r|= op->equal(SCHEMA_NAME_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* slock */
@@ -2789,7 +2789,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           // fall through
         case SOT_RENAME_TABLE_NEW:
         {
-          uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+          uint end= (uint)my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
                                 "NDB Binlog: Skipping renaming locally "
                                 "defined table '%s.%s' from binlog schema "
                                 "event '%s' from node %d. ",
@@ -2801,7 +2801,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
         case SOT_DROP_TABLE:
           if (schema_type == SOT_DROP_TABLE)
           {
-            uint end= my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
+            uint end= (uint)my_snprintf(&errmsg[0], MYSQL_ERRMSG_SIZE,
                                   "NDB Binlog: Skipping dropping locally "
                                   "defined table '%s.%s' from binlog schema "
                                   "event '%s' from node %d. ",
@@ -3562,7 +3562,7 @@ ndb_binlog_index_table__write_rows(THD *thd,
 
     ndb_binlog_index->field[0]->store(first->master_log_pos, true);
     ndb_binlog_index->field[1]->store(first->master_log_file,
-                                      strlen(first->master_log_file),
+                                      (uint)strlen(first->master_log_file),
                                       &my_charset_bin);
     ndb_binlog_index->field[2]->store(epoch= first->epoch, true);
     if (ndb_binlog_index->s->fields > 7)
@@ -4300,7 +4300,7 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
   {
     const st_conflict_fn_def &fn= conflict_fns[i];
 
-    uint len= strlen(fn.name);
+    uint len= (uint)strlen(fn.name);
     if (strncmp(ptr, fn.name, len))
       continue;
 
@@ -4372,7 +4372,7 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
         }
       }
 
-      uint len= end_arg - start_arg;
+      uint len= (uint)(end_arg - start_arg);
       args[no_args].type=    type;
       args[no_args].ptr=     start_arg;
       args[no_args].len=     len;
@@ -4701,9 +4701,9 @@ ndbcluster_read_replication_table(THD *thd, Ndb *ndb,
       DBUG_PRINT("info", ("reading[%u]: %s,%s,%u", i, db, table_name, id));
       if ((_op= trans->getNdbOperation(reptab)) == NULL) abort();
       if (_op->readTuple(NdbOperation::LM_CommittedRead)) abort();
-      ndb_pack_varchar(col_db, tmp_buf, db, strlen(db));
+      ndb_pack_varchar(col_db, tmp_buf, db, (int)strlen(db));
       if (_op->equal(col_db->getColumnNo(), tmp_buf)) abort();
-      ndb_pack_varchar(col_table_name, tmp_buf, table_name, strlen(table_name));
+      ndb_pack_varchar(col_table_name, tmp_buf, table_name, (int)strlen(table_name));
       if (_op->equal(col_table_name->getColumnNo(), tmp_buf)) abort();
       if (_op->equal(col_server_id->getColumnNo(), id)) abort();
       if ((col_binlog_type_rec_attr[i]=
@@ -5478,7 +5478,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   Ndb_event_data *event_data= share->event_data;
   int do_ndb_schema_share= 0, do_ndb_apply_status_share= 0;
 #ifdef HAVE_NDB_BINLOG
-  uint len= strlen(share->table_name);
+  uint len= (int)strlen(share->table_name);
 #endif
   if (!ndb_schema_share && strcmp(share->db, NDB_REP_DB) == 0 &&
       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
@@ -6851,7 +6851,7 @@ restart_cluster_failure:
     {
       LOG_INFO log_info;
       mysql_bin_log.get_current_log(&log_info);
-      int len=  strlen(log_info.log_file_name);
+      int len=  (uint)strlen(log_info.log_file_name);
       uint no= 0;
       if ((sscanf(log_info.log_file_name + len - 6, "%u", &no) == 1) &&
           no == 1)
@@ -7710,7 +7710,7 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
     ndb_latest_epoch= injector_ndb->getLatestGCI();
     pthread_mutex_unlock(&injector_mutex);
 
-    buflen=
+    buflen= (uint)
       my_snprintf(buf, sizeof(buf),
                   "latest_epoch=%s, "
                   "latest_trans_epoch=%s, "
@@ -7723,7 +7723,7 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
                   llstr(ndb_latest_handled_binlog_epoch, buff4),
                   llstr(ndb_latest_applied_binlog_epoch, buff5));
     if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
-                   "binlog", strlen("binlog"),
+                   "binlog", (uint)strlen("binlog"),
                    buf, buflen))
       DBUG_RETURN(TRUE);
   }

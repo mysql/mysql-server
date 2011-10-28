@@ -175,7 +175,7 @@ LogHandler::parseParams(const BaseString &_params) {
   bool ret = true;
 
   _params.split(v_args, ",");
-  for(size_t i=0; i < v_args.size(); i++) {
+  for(unsigned i=0; i < v_args.size(); i++) {
     Vector<BaseString> v_param_value;
     if(v_args[i].split(v_param_value, "=", 2) != 2)
     {

@@ -43,6 +43,12 @@ FileOutputStream::println(const char * fmt, ...){
   return ret + fprintf(f, "\n");
 }
 
+int
+FileOutputStream::write(const void * buf, size_t len)
+{
+  return (int)fwrite(buf, len, 1, f);
+}
+
 SocketOutputStream::SocketOutputStream(NDB_SOCKET_TYPE socket,
 				       unsigned write_timeout_ms) :
   m_socket(socket),
@@ -94,6 +100,28 @@ SocketOutputStream::println(const char * fmt, ...){
     ret= -1;
   }
 
+  return ret;
+}
+
+int
+SocketOutputStream::write(const void * buf, size_t len)
+{
+  if (timedout())
+    return -1;
+
+  int time = 0;
+  int ret = write_socket(m_socket, m_timeout_ms, &time,
+                         (const char*)buf, (int)len);
+  if (ret >= 0)
+  {
+    m_timeout_remain -= time;
+  }
+
+  if ((ret < 0 && errno == SOCKET_ETIMEDOUT) || m_timeout_remain <= 0)
+  {
+    m_timedout = true;
+    ret= -1;
+  }
   return ret;
 }
 
@@ -170,6 +198,12 @@ BufferedSockOutputStream::println(const char * fmt, ...){
   *pos= '\n';
 
   return 0;
+}
+
+int
+BufferedSockOutputStream::write(const void * buf, size_t len)
+{
+  return m_buffer.append(buf, len);
 }
 
 void BufferedSockOutputStream::flush(){
