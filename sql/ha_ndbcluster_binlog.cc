@@ -2878,24 +2878,14 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(0);
   }
 
-
-/*
-  process any operations that should be done after
-  the epoch is complete
-*/
-static void
-handle_schema_log_post_epoch(THD *thd,
-                             List<Cluster_schema> *log_list)
-{
-  DBUG_ENTER("handle_schema_log_post_epoch");
-
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Ndb *ndb= thd_ndb->ndb;
-  NDBDICT *dict= ndb->getDictionary();
-
-  Cluster_schema *schema;
-  while ((schema= log_list->pop()))
+  void
+  handle_schema_op_post_epoch(Ndb_schema_op* schema)
   {
+    DBUG_ENTER("handle_schema_op_post_epoch");
+    THD* thd = m_thd; // Code compatibility
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    Ndb *ndb= thd_ndb->ndb;
+    NDBDICT *dict= ndb->getDictionary();
     Thd_ndb_options_guard thd_ndb_options(thd_ndb);
     DBUG_PRINT("info",
                ("%s.%s: log query_length: %d  query: '%s'  type: %d",
@@ -2955,7 +2945,7 @@ handle_schema_log_post_epoch(THD *thd,
           }
         }
         pthread_mutex_unlock(&ndbcluster_mutex);
-        continue;
+        DBUG_VOID_RETURN;
       }
       /* ndb_share reference temporary, free below */
       NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
@@ -3250,9 +3240,27 @@ handle_schema_log_post_epoch(THD *thd,
     }
     if (log_query)
       write_schema_op_to_binlog(thd, schema);
+
+    DBUG_VOID_RETURN;
   }
-  DBUG_VOID_RETURN;
-}
+
+  /*
+    process any operations that should be done after
+    the epoch is complete
+  */
+  void
+  handle_schema_log_post_epoch(THD *thd,
+                               List<Cluster_schema> *log_list)
+  {
+    DBUG_ENTER("handle_schema_log_post_epoch");
+
+    Ndb_schema_op* schema;
+    while ((schema= log_list->pop()))
+    {
+      handle_schema_op_post_epoch(schema);
+    }
+    DBUG_VOID_RETURN;
+  }
 
 
 static void
