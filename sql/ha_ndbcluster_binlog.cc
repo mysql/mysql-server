@@ -2625,13 +2625,6 @@ class Ndb_schema_event_handler {
     DBUG_ENTER("handle_schema_event");
     const Ndb_event_data* event_data=
       static_cast<const Ndb_event_data*>(pOp->getCustomData());
-    NDB_SHARE *tmp_share= event_data->share;
-
-    NDBEVENT::TableEvent ev_type= pOp->getEventType();
-    DBUG_PRINT("enter", ("%s.%s  ev_type: %d",
-                         tmp_share->db, tmp_share->table_name, ev_type));
-    if (ev_type == NDBEVENT::TE_UPDATE ||
-        ev_type == NDBEVENT::TE_INSERT)
     {
       Thd_ndb *thd_ndb= get_thd_ndb(thd);
       Ndb *ndb= thd_ndb->ndb;
@@ -2867,111 +2860,6 @@ class Ndb_schema_event_handler {
                                     schema->id, schema->version);
         }
       }
-      DBUG_RETURN(0);
-    }
-    /*
-      the normal case of UPDATE/INSERT has already been handled
-    */
-    switch (ev_type)
-    {
-    case NDBEVENT::TE_DELETE:
-      // skip
-      break;
-    case NDBEVENT::TE_CLUSTER_FAILURE:
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: cluster failure for %s at epoch %u/%u.",
-                              ndb_schema_share->key,
-                              (uint)(pOp->getGCI() >> 32),
-                              (uint)(pOp->getGCI()));
-      // fall through
-    case NDBEVENT::TE_DROP:
-      if (opt_ndb_extra_logging &&
-          ndb_binlog_tables_inited && ndb_binlog_running)
-        sql_print_information("NDB Binlog: ndb tables initially "
-                              "read only on reconnect.");
-
-      /* begin protect ndb_schema_share */
-      pthread_mutex_lock(&ndb_schema_share_mutex);
-      /* ndb_share reference binlog extra free */
-      DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                               ndb_schema_share->key,
-                               ndb_schema_share->use_count));
-      free_share(&ndb_schema_share);
-      ndb_schema_share= 0;
-      ndb_binlog_tables_inited= FALSE;
-      ndb_binlog_is_ready= FALSE;
-      pthread_mutex_unlock(&ndb_schema_share_mutex);
-      /* end protect ndb_schema_share */
-
-      close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
-      // fall through
-    case NDBEVENT::TE_ALTER:
-      ndb_handle_schema_change(thd, s_ndb, pOp, event_data);
-      break;
-    case NDBEVENT::TE_NODE_FAILURE:
-    {
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
-      DBUG_ASSERT(node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
-      bitmap_clear_all(&tmp_share->subscriber_bitmap[node_id]);
-      DBUG_PRINT("info",("NODE_FAILURE UNSUBSCRIBE[%d]", node_id));
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("NDB Binlog: Node: %d, down,"
-                              " Subscriber bitmask %x%x",
-                              pOp->getNdbdNodeId(),
-                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
-                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
-      }
-      pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
-      break;
-    }
-    case NDBEVENT::TE_SUBSCRIBE:
-    {
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
-      uint8 req_id= pOp->getReqNodeId();
-      DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
-      bitmap_set_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
-      DBUG_PRINT("info",("SUBSCRIBE[%d] %d", node_id, req_id));
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("NDB Binlog: Node: %d, subscribe from node %d,"
-                              " Subscriber bitmask %x%x",
-                              pOp->getNdbdNodeId(),
-                              req_id,
-                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
-                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
-      }
-      pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
-      break;
-    }
-    case NDBEVENT::TE_UNSUBSCRIBE:
-    {
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
-      uint8 req_id= pOp->getReqNodeId();
-      DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
-      bitmap_clear_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
-      DBUG_PRINT("info",("UNSUBSCRIBE[%d] %d", node_id, req_id));
-      if (opt_ndb_extra_logging)
-      {
-        sql_print_information("NDB Binlog: Node: %d, unsubscribe from node %d,"
-                              " Subscriber bitmask %x%x",
-                              pOp->getNdbdNodeId(),
-                              req_id,
-                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
-                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
-      }
-      pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
-      break;
-    }
-    default:
-      sql_print_error("NDB Binlog: unknown non data event %d for %s. "
-                      "Ignoring...", (unsigned) ev_type, tmp_share->key);
     }
     DBUG_RETURN(0);
   }
@@ -3400,10 +3288,131 @@ public:
     if (!check_is_ndb_schema_event(event_data))
       DBUG_VOID_RETURN;
 
-    handle_schema_event(m_thd, s_ndb, pOp,
-                        &m_post_epoch_log_list,
-                        &m_post_epoch_unlock_list,
-                        m_mem_root);
+    const NDBEVENT::TableEvent ev_type= pOp->getEventType();
+    switch (ev_type)
+    {
+    case NDBEVENT::TE_INSERT:
+    case NDBEVENT::TE_UPDATE:
+      /* ndb_schema table, row INSERTed or UPDATEed*/
+      handle_schema_event(m_thd, s_ndb, pOp,
+                          &m_post_epoch_log_list,
+                          &m_post_epoch_unlock_list,
+                          m_mem_root);
+      break;
+
+    case NDBEVENT::TE_DELETE:
+      /* ndb_schema table, row delete */
+      break;
+
+    case NDBEVENT::TE_CLUSTER_FAILURE:
+      if (opt_ndb_extra_logging)
+        sql_print_information("NDB Binlog: cluster failure for %s at epoch %u/%u.",
+                              ndb_schema_share->key,
+                              (uint)(pOp->getGCI() >> 32),
+                              (uint)(pOp->getGCI()));
+      // fall through
+    case NDBEVENT::TE_DROP:
+      /* ndb_schema table DROPped */
+      if (opt_ndb_extra_logging &&
+          ndb_binlog_tables_inited && ndb_binlog_running)
+        sql_print_information("NDB Binlog: ndb tables initially "
+                              "read only on reconnect.");
+
+      /* begin protect ndb_schema_share */
+      pthread_mutex_lock(&ndb_schema_share_mutex);
+      /* ndb_share reference binlog extra free */
+      DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
+                               ndb_schema_share->key,
+                               ndb_schema_share->use_count));
+      free_share(&ndb_schema_share);
+      ndb_schema_share= 0;
+      ndb_binlog_tables_inited= FALSE;
+      ndb_binlog_is_ready= FALSE;
+      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      /* end protect ndb_schema_share */
+
+      close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
+      // fall through
+    case NDBEVENT::TE_ALTER:
+      /* ndb_schema table ALTERed */
+      ndb_handle_schema_change(m_thd, s_ndb, pOp, event_data);
+      break;
+
+    case NDBEVENT::TE_NODE_FAILURE:
+    {
+      NDB_SHARE *tmp_share= event_data->share;
+      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
+      DBUG_ASSERT(node_id != 0xFF);
+      pthread_mutex_lock(&tmp_share->mutex);
+      bitmap_clear_all(&tmp_share->subscriber_bitmap[node_id]);
+      DBUG_PRINT("info",("NODE_FAILURE UNSUBSCRIBE[%d]", node_id));
+      if (opt_ndb_extra_logging)
+      {
+        sql_print_information("NDB Binlog: Node: %d, down,"
+                              " Subscriber bitmask %x%x",
+                              pOp->getNdbdNodeId(),
+                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
+                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
+      }
+      pthread_mutex_unlock(&tmp_share->mutex);
+      (void) pthread_cond_signal(&injector_cond);
+      break;
+    }
+
+    case NDBEVENT::TE_SUBSCRIBE:
+    {
+      NDB_SHARE *tmp_share= event_data->share;
+      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
+      uint8 req_id= pOp->getReqNodeId();
+      DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
+      pthread_mutex_lock(&tmp_share->mutex);
+      bitmap_set_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
+      DBUG_PRINT("info",("SUBSCRIBE[%d] %d", node_id, req_id));
+      if (opt_ndb_extra_logging)
+      {
+        sql_print_information("NDB Binlog: Node: %d, subscribe from node %d,"
+                              " Subscriber bitmask %x%x",
+                              pOp->getNdbdNodeId(),
+                              req_id,
+                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
+                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
+      }
+      pthread_mutex_unlock(&tmp_share->mutex);
+      (void) pthread_cond_signal(&injector_cond);
+      break;
+    }
+
+    case NDBEVENT::TE_UNSUBSCRIBE:
+    {
+      NDB_SHARE *tmp_share= event_data->share;
+      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
+      uint8 req_id= pOp->getReqNodeId();
+      DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
+      pthread_mutex_lock(&tmp_share->mutex);
+      bitmap_clear_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
+      DBUG_PRINT("info",("UNSUBSCRIBE[%d] %d", node_id, req_id));
+      if (opt_ndb_extra_logging)
+      {
+        sql_print_information("NDB Binlog: Node: %d, unsubscribe from node %d,"
+                              " Subscriber bitmask %x%x",
+                              pOp->getNdbdNodeId(),
+                              req_id,
+                              tmp_share->subscriber_bitmap[node_id].bitmap[1],
+                              tmp_share->subscriber_bitmap[node_id].bitmap[0]);
+      }
+      pthread_mutex_unlock(&tmp_share->mutex);
+      (void) pthread_cond_signal(&injector_cond);
+      break;
+    }
+
+    default:
+    {
+      NDB_SHARE *tmp_share= event_data->share;
+      sql_print_error("NDB Binlog: unknown non data event %d for %s. "
+                      "Ignoring...", (unsigned) ev_type, tmp_share->key);
+    }
+    }
+
     DBUG_VOID_RETURN;
   }
 
