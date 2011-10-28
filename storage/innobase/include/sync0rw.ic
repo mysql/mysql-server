@@ -131,7 +131,7 @@ rw_lock_get_writer(
 	} else if (((-lock_word) % X_LOCK_DECR) == 0) {
 		return(RW_LOCK_EX);
 	} else {
-                ut_ad(lock_word > -X_LOCK_DECR);
+		ut_ad(lock_word > -X_LOCK_DECR);
 		return(RW_LOCK_WAIT_EX);
 	}
 }
@@ -200,7 +200,7 @@ rw_lock_lock_word_decr(
 	ulint		amount)		/*!< in: amount to decrement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-        lint local_lock_word = lock->lock_word;
+	lint local_lock_word = lock->lock_word;
 	while (local_lock_word > 0) {
 		if (os_compare_and_swap_lint(&lock->lock_word,
 					     local_lock_word,
@@ -244,7 +244,7 @@ rw_lock_lock_word_incr(
 
 	mutex_exit(&(lock->mutex));
 
-        return(local_lock_word);
+	return(local_lock_word);
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
@@ -318,7 +318,7 @@ rw_lock_s_lock_low(
 	rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name, line);
 #endif
 	/* These debugging values are not set safely: they may be incorrect
-        or even refer to a line that is invalid for the file name. */
+	or even refer to a line that is invalid for the file name. */
 	lock->last_s_file_name = file_name;
 	lock->last_s_line = line;
 
@@ -462,7 +462,11 @@ rw_lock_x_lock_func_nowait(
 		there is an exclusive writer and this is the writer thread. */
 		lock->lock_word -= X_LOCK_DECR;
 
+		/* Recursive x-locks must be multiples of X_LOCK_DECR. */
 		ut_ad(((-lock->lock_word) % X_LOCK_DECR) == 0);
+
+		/* Watch for too many recursive locks */
+		ut_ad(lock->lock_word < 0);
 
 	} else {
 		/* Failure */
@@ -502,8 +506,8 @@ rw_lock_s_unlock_func(
 	if (rw_lock_lock_word_incr(lock, 1) == 0) {
 
 		/* wait_ex waiter exists. It may not be asleep, but we signal
-                anyway. We do not wake other waiters, because they can't
-                exist without wait_ex waiter and wait_ex waiter goes first.*/
+		anyway. We do not wake other waiters, because they can't
+		exist without wait_ex waiter and wait_ex waiter goes first.*/
 		os_event_set(lock->wait_ex_event);
 		sync_array_object_signalled();
 
@@ -574,8 +578,8 @@ rw_lock_x_unlock_func(
 
 	if (rw_lock_lock_word_incr(lock, X_LOCK_DECR) == X_LOCK_DECR) {
 		/* Lock is now free. May have to signal read/write waiters.
-                We do not need to signal wait_ex waiters, since they cannot
-                exist when there is a writer. */
+		We do not need to signal wait_ex waiters, since they cannot
+		exist when there is a writer. */
 		if (lock->waiters) {
 			rw_lock_reset_waiter_flag(lock);
 			os_event_set(lock->event);
@@ -658,7 +662,7 @@ pfs_rw_lock_create_func(
 			    cmutex_name,
 # endif /* UNIV_DEBUG */
 			    cfile_name,
-		            cline);
+			    cline);
 }
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_x_lock_func()

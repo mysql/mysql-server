@@ -839,9 +839,22 @@ dict_table_open_on_name_low(
 	ut_ad(!table || table->cached);
 
 	if (table != NULL) {
+		/* If table is corrupted, return NULL */
+		if (ignore_err == DICT_ERR_IGNORE_NONE
+		    && table->corrupted) {
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
 
-		ut_ad(ignore_err != DICT_ERR_IGNORE_NONE
-		      || table->corrupted == FALSE);
+			ut_print_timestamp(stderr);
+
+			fprintf(stderr, "  InnoDB: table ");
+			ut_print_name(stderr, NULL, TRUE, table->name);
+			fprintf(stderr, "is corrupted. Please drop the table "
+				"and recreate\n");
+
+			return(NULL);
+		}
 
 		if (table->can_be_evicted) {
 			dict_move_to_mru(table);
@@ -5219,9 +5232,9 @@ dict_set_corrupted(
 		index->table->corrupted = TRUE;
 	}
 
-	if (UNIV_UNLIKELY(dict_index_is_corrupted(index))) {
+	if (index->type & DICT_CORRUPT) {
 		/* The index was already flagged corrupted. */
-		ut_ad(index->table->corrupted);
+		ut_ad(!dict_index_is_clust(index) || index->table->corrupted);
 		return;
 	}
 

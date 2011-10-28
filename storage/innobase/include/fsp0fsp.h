@@ -170,16 +170,16 @@ fsp_header_init(
 /*============*/
 	ulint	space,		/*!< in: space id */
 	ulint	size,		/*!< in: current size in blocks */
-	mtr_t*	mtr);		/*!< in: mini-transaction handle */
+	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Increases the space size field of a space. */
 UNIV_INTERN
 void
 fsp_header_inc_size(
 /*================*/
-	ulint	space,	/*!< in: space id */
-	ulint	size_inc,/*!< in: size increment in pages */
-	mtr_t*	mtr);	/*!< in: mini-transaction handle */
+	ulint	space,		/*!< in: space id */
+	ulint	size_inc,	/*!< in: size increment in pages */
+	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
@@ -195,7 +195,7 @@ fseg_create(
 			will belong to the created segment */
 	ulint	byte_offset, /*!< in: byte offset of the created segment header
 			on the page */
-	mtr_t*	mtr);	/*!< in: mtr */
+	mtr_t*	mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Creates a new segment.
 @return the block where the segment header is placed, x-latched, NULL
@@ -217,7 +217,7 @@ fseg_create_general(
 			the inode and the other for the segment) then there is
 			no need to do the check for this individual
 			operation */
-	mtr_t*	mtr);	/*!< in: mtr */
+	mtr_t*	mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Calculates the number of pages reserved by a segment, and how many pages are
 currently used.
@@ -228,7 +228,7 @@ fseg_n_reserved_pages(
 /*==================*/
 	fseg_header_t*	header,	/*!< in: segment header */
 	ulint*		used,	/*!< out: number of pages used (<= reserved) */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Allocates a single free page from a segment. This function implements
 the intelligent allocation strategy which tries to minimize
@@ -308,7 +308,7 @@ fsp_reserve_free_extents(
 	ulint	space,	/*!< in: space id */
 	ulint	n_ext,	/*!< in: number of extents to reserve */
 	ulint	alloc_type,/*!< in: FSP_NORMAL, FSP_UNDO, or FSP_CLEANING */
-	mtr_t*	mtr);	/*!< in: mtr */
+	mtr_t*	mtr);	/*!< in: mini-transaction */
 /**********************************************************************//**
 This function should be used to get information on how much we still
 will be able to insert new data to the database without running out the
@@ -329,7 +329,7 @@ fseg_free_page(
 	fseg_header_t*	seg_header, /*!< in: segment header */
 	ulint		space,	/*!< in: space id */
 	ulint		page,	/*!< in: page offset */
-	mtr_t*		mtr);	/*!< in: mtr handle */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Frees part of a segment. This function can be used to free a segment
 by repeatedly calling this function in different mini-transactions.
@@ -344,7 +344,7 @@ fseg_free_step(
 				resides on the first page of the frag list
 				of the segment, this pointer becomes obsolete
 				after the last freeing step */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
@@ -355,7 +355,7 @@ fseg_free_step_not_header(
 /*======================*/
 	fseg_header_t*	header,	/*!< in: segment header which must reside on
 				the first fragment page of the segment */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /***********************************************************************//**
 Checks if a page address is an extent descriptor page address.
 @return	TRUE if a descriptor page */
@@ -400,7 +400,7 @@ ibool
 fseg_validate(
 /*==========*/
 	fseg_header_t*	header, /*!< in: segment header */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
@@ -410,7 +410,7 @@ void
 fseg_print(
 /*=======*/
 	fseg_header_t*	header, /*!< in: segment header */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
 /********************************************************************//**
