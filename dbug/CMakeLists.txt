@@ -53,13 +53,13 @@ IF(NOT WIN32)
   IF(GROFF)
     ADD_CUSTOM_COMMAND(OUTPUT user.ps
                        DEPENDS user.r ${OUTPUT_INC} ${SOURCE_INC}
-                       COMMAND ${GROFF} -mm ${CMAKE_CURRENT_SOURCE_DIR}/user.r > user.ps)
+                       COMMAND ${GROFF} -mm ${CMAKE_CURRENT_SOURCE_DIR}/user.r > user.ps || touch user.ps)
     ADD_CUSTOM_TARGET(ps ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/user.ps)
   ENDIF(GROFF)
   IF(NROFF)
     ADD_CUSTOM_COMMAND(OUTPUT user.t
                        DEPENDS user.r ${OUTPUT_INC} ${SOURCE_INC}
-                       COMMAND ${NROFF} -mm ${CMAKE_CURRENT_SOURCE_DIR}/user.r > user.t)
+                       COMMAND ${NROFF} -mm ${CMAKE_CURRENT_SOURCE_DIR}/user.r > user.t || touch user.t)
     ADD_CUSTOM_TARGET(t ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/user.t)
   ENDIF(NROFF)
 
