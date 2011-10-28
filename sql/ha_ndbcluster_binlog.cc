@@ -3318,18 +3318,13 @@ public:
         sql_print_information("NDB Binlog: ndb tables initially "
                               "read only on reconnect.");
 
-      /* begin protect ndb_schema_share */
+      /* release the ndb_schema_share */
       pthread_mutex_lock(&ndb_schema_share_mutex);
-      /* ndb_share reference binlog extra free */
-      DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                               ndb_schema_share->key,
-                               ndb_schema_share->use_count));
       free_share(&ndb_schema_share);
       ndb_schema_share= 0;
       ndb_binlog_tables_inited= FALSE;
       ndb_binlog_is_ready= FALSE;
       pthread_mutex_unlock(&ndb_schema_share_mutex);
-      /* end protect ndb_schema_share */
 
       close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
       // fall through
@@ -3340,6 +3335,7 @@ public:
 
     case NDBEVENT::TE_NODE_FAILURE:
     {
+      /* Remove all subscribers for node from bitmap in ndb_schema_share */
       NDB_SHARE *tmp_share= event_data->share;
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       DBUG_ASSERT(node_id != 0xFF);
@@ -3361,6 +3357,7 @@ public:
 
     case NDBEVENT::TE_SUBSCRIBE:
     {
+      /* Add node as subscriber from bitmap in ndb_schema_share */
       NDB_SHARE *tmp_share= event_data->share;
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       uint8 req_id= pOp->getReqNodeId();
@@ -3384,6 +3381,7 @@ public:
 
     case NDBEVENT::TE_UNSUBSCRIBE:
     {
+      /* Remove node as subscriber from bitmap in ndb_schema_share */
       NDB_SHARE *tmp_share= event_data->share;
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       uint8 req_id= pOp->getReqNodeId();
