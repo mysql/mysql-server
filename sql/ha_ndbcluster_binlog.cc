@@ -2633,6 +2633,12 @@ class Ndb_schema_event_handler {
   }
 
 
+  uint own_nodeid(void) const
+  {
+    return m_own_nodeid;
+  }
+
+
   int
   handle_schema_op(Ndb_schema_op* schema)
   {
@@ -2686,8 +2692,7 @@ class Ndb_schema_event_handler {
         break;
       }
 
-      const uint node_id= g_ndb_cluster_connection->node_id();
-      if (schema->node_id != node_id)
+      if (schema->node_id != own_nodeid())
       {
         THD* thd= m_thd; // Code compatibility
         Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -2860,7 +2865,7 @@ class Ndb_schema_event_handler {
 
         /* signal that schema operation has been handled */
         DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
-        if (bitmap_is_set(&schema->slock, node_id))
+        if (bitmap_is_set(&schema->slock, own_nodeid()))
         {
           if (post_epoch_unlock)
             unlock_after_epoch(schema);
@@ -3267,6 +3272,7 @@ handle_schema_unlock_post_epoch(THD *thd,
 
   THD* m_thd;
   MEM_ROOT* m_mem_root;
+  uint m_own_nodeid;
 
   List<Cluster_schema> m_post_epoch_log_list;
   List<Cluster_schema> m_post_epoch_unlock_list;
@@ -3275,8 +3281,8 @@ public:
   Ndb_schema_event_handler(); // Not implemented
   Ndb_schema_event_handler(const Ndb_schema_event_handler&); // Not implemented
 
-  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root):
-    m_thd(thd), m_mem_root(mem_root)
+  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid):
+    m_thd(thd), m_mem_root(mem_root), m_own_nodeid(own_nodeid)
   {
   }
 
@@ -7021,7 +7027,9 @@ restart_cluster_failure:
 
     // The Ndb_schema_event_handler does not necessarily need
     // to use the same memroot(or vice versa)
-    Ndb_schema_event_handler schema_event_handler(thd, &mem_root);
+    Ndb_schema_event_handler
+      schema_event_handler(thd, &mem_root,
+                           g_ndb_cluster_connection->node_id());
 
     *root_ptr= &mem_root;
 
