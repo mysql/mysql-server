@@ -885,7 +885,7 @@ static inline int mysql_mutex_lock(...)
         | [2]
         |
         |-> pfs_socket_class(F.class)           =====>> [C], [D]
-        |   
+        |
         |-> pfs_thread(T).event_name(F)         =====>> [A]
         |
         ...
@@ -2655,7 +2655,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   DBUG_ASSERT(state != NULL);
 
   if (unlikely(pfs_file == NULL))
-    return NULL; 
+    return NULL;
   DBUG_ASSERT(pfs_file->m_class != NULL);
 
   if (! pfs_file->m_enabled)
@@ -3910,30 +3910,66 @@ static void start_file_wait_v1(PSI_file_locker *locker,
   @sa PSI_v1::end_file_wait.
 */
 static void end_file_wait_v1(PSI_file_locker *locker,
-                             size_t count)
+                             size_t byte_count)
 {
   PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
-  ulonglong timer_end= 0;
-  ulonglong wait_time= 0;
-
   PFS_file *file= reinterpret_cast<PFS_file *> (state->m_file);
   DBUG_ASSERT(file != NULL);
   PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
 
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+  PFS_byte_stat *byte_stat;
   register uint flags= state->m_flags;
+  size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
 
+  switch (state->m_operation)
+  {
+    /* Group read operations */
+    case PSI_FILE_READ:
+      byte_stat= &file->m_file_stat.m_io_stat.m_read;
+      break;
+    /* Group write operations */
+    case PSI_FILE_WRITE:
+      byte_stat= &file->m_file_stat.m_io_stat.m_write;
+      break;
+    /* Group remaining operations as miscellaneous */
+    case PSI_FILE_CREATE:
+    case PSI_FILE_CREATE_TMP:
+    case PSI_FILE_OPEN:
+    case PSI_FILE_STREAM_OPEN:
+    case PSI_FILE_STREAM_CLOSE:
+    case PSI_FILE_SEEK:
+    case PSI_FILE_TELL:
+    case PSI_FILE_FLUSH:
+    case PSI_FILE_FSTAT:
+    case PSI_FILE_CHSIZE:
+    case PSI_FILE_DELETE:
+    case PSI_FILE_RENAME:
+    case PSI_FILE_SYNC:
+    case PSI_FILE_STAT:
+    case PSI_FILE_CLOSE:
+      byte_stat= &file->m_file_stat.m_io_stat.m_misc;
+      break;
+    default:
+      DBUG_ASSERT(false);
+      byte_stat= NULL;
+      break;
+  }
+
+  /* Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    file->m_wait_stat.aggregate_value(wait_time);
+    byte_stat->aggregate(wait_time, bytes);
   }
   else
   {
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-    file->m_wait_stat.aggregate_counted();
+    byte_stat->aggregate_counted(bytes);
   }
 
   if (flags & STATE_FLAG_THREAD)
@@ -3961,8 +3997,9 @@ static void end_file_wait_v1(PSI_file_locker *locker,
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_number_of_bytes= bytes;
       wait->m_end_event_id= thread->m_event_id;
-      wait->m_number_of_bytes= count;
+
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -3971,15 +4008,9 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     }
   }
 
-  /* FIXME: Have file aggregates for every operation */
+  /* Release or destroy the file if necessary */
   switch(state->m_operation)
   {
-  case PSI_FILE_READ:
-    file->m_file_stat.m_io_stat.aggregate_read(count);
-    break;
-  case PSI_FILE_WRITE:
-    file->m_file_stat.m_io_stat.aggregate_write(count);
-    break;
   case PSI_FILE_CLOSE:
   case PSI_FILE_STREAM_CLOSE:
   case PSI_FILE_STAT:
@@ -4219,7 +4250,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs->m_sort_scan= 0;
       pfs->m_no_index_used= 0;
       pfs->m_no_good_index_used= 0;
-      
+
       /* New stages will have this statement as parent */
       PFS_events_stages *child_stage= & pfs_thread->m_stage_current;
       child_stage->m_nesting_event_id= event_id;
@@ -4783,11 +4814,11 @@ static void set_socket_info_v1(PSI_socket *socket,
   if (likely(addr != NULL && addr_len > 0))
   {
     pfs->m_addr_len= addr_len;
-  
+
     /** Restrict address length to size of struct */
     if (unlikely(pfs->m_addr_len > sizeof(sockaddr_storage)))
       pfs->m_addr_len= sizeof(struct sockaddr_storage);
-  
+
     memcpy(&pfs->m_sock_addr, addr, pfs->m_addr_len);
   }
 }
@@ -4902,7 +4933,7 @@ PSI_v1 PFS_v1=
   inc_statement_sort_scan_v1,
   set_statement_no_index_used_v1,
   set_statement_no_good_index_used_v1,
-  end_statement_v1, 
+  end_statement_v1,
   start_socket_wait_v1,
   end_socket_wait_v1,
   set_socket_state_v1,
