@@ -1667,3 +1667,19 @@ col_int_key
 DROP VIEW v1;
 DROP TABLE t1;
 #
+#
+#  Bug#13105833: Crash when using LooseScan sj-strategy for a view
+#
+CREATE TABLE t1 (pk int(11)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (pk int(11)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE VIEW v1 AS SELECT DISTINCT pk FROM t1;
+SELECT pk 
+FROM t2
+WHERE pk IN ( SELECT * FROM v1 ) ;
+pk
+1
+DROP TABLE t1,t2;
+DROP VIEW v1;
+#

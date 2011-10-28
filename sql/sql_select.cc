@@ -7372,6 +7372,7 @@ public:
            bound
         5. But some of the IN-equalities aren't (so this can't be handled by 
            FirstMatch strategy)
+        6. Not a derived table/view. (a temporary restriction)
     */
     best_loose_scan_cost= DBL_MAX;
     if (s->emb_sj_nest && complete_query &&                             // (1)
@@ -7382,7 +7383,8 @@ public:
         !(remaining_tables & 
           s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (4)
         (remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on) &&// (5)
-        s->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN))
+        s->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN) &&
+        !s->table->pos_in_table_list->uses_materialization())
     {
       /* This table is an LooseScan scan candidate */
       bound_sj_equalities= get_bound_sj_equalities(s->emb_sj_nest, 
