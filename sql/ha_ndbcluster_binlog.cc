@@ -2959,6 +2959,7 @@ class Ndb_schema_event_handler {
       case SOT_DROP_DB:
         log_query= 1;
         break;
+
       case SOT_DROP_TABLE:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_DROP_TABLE %s.%s", schema->db, schema->name);
@@ -2976,6 +2977,7 @@ class Ndb_schema_event_handler {
           close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
         }
         break;
+
       case SOT_RENAME_TABLE:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE %s.%s", schema->db, schema->name);
@@ -2985,6 +2987,7 @@ class Ndb_schema_event_handler {
           ndbcluster_rename_share(thd, share);
         }
         break;
+
       case SOT_RENAME_TABLE_PREPARE:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE_PREPARE %s.%s -> %s",
@@ -2993,6 +2996,7 @@ class Ndb_schema_event_handler {
             schema->node_id != g_ndb_cluster_connection->node_id())
           ndbcluster_prepare_rename_share(share, schema->query);
         break;
+
       case SOT_ALTER_TABLE_COMMIT:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_ALTER_TABLE_COMMIT %s.%s", schema->db, schema->name);
@@ -3167,6 +3171,7 @@ class Ndb_schema_event_handler {
         }
         break;
       }
+
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
       {
         if (opt_ndb_extra_logging > 9)
@@ -3192,6 +3197,7 @@ class Ndb_schema_event_handler {
         }
         break;
       }
+
       case SOT_RENAME_TABLE_NEW:
         if (opt_ndb_extra_logging > 9)
           sql_print_information("SOT_RENAME_TABLE_NEW %s.%s", schema->db, schema->name);
@@ -3226,9 +3232,11 @@ class Ndb_schema_event_handler {
           }
         }
         break;
+
       default:
         DBUG_ASSERT(FALSE);
       }
+
       if (share)
       {
         /* ndb_share reference temporary free */
@@ -3238,6 +3246,7 @@ class Ndb_schema_event_handler {
         share= 0;
       }
     }
+
     if (log_query)
       write_schema_op_to_binlog(thd, schema);
 
