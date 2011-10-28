@@ -3798,16 +3798,14 @@ fts_sync_write_words(
 		ut_free(rbt_remove_node(index_cache->words, rbt_node));
 	}
 
-	if (error == DB_SUCCESS) {
+	if (error == DB_SUCCESS && n_new_words > 0) {
 		fts_table_t	fts_table;
 
 		FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
 		/* Increment the total number of words in the FTS index */
-		error = fts_config_increment_index_value(
-			trx,
-			index_cache->index,
-			FTS_TOTAL_WORD_COUNT,
+		fts_config_increment_index_value(
+			trx, index_cache->index, FTS_TOTAL_WORD_COUNT,
 			n_new_words);
 	}
 
@@ -3900,20 +3898,28 @@ fts_sync_write_doc_stats(
 	const fts_index_cache_t*index_cache)	/*!< in: index cache */
 {
 	ulint		error = DB_SUCCESS;
-	ulint		i;
 	que_t*		graph = NULL;
+	fts_doc_stats_t*  doc_stat;
 
-	for (i = 0; i < ib_vector_size(index_cache->doc_stats); ++i) {
-		const fts_doc_stats_t*	doc_stat;
+	if (ib_vector_is_empty(index_cache->doc_stats)) {
+		return(DB_SUCCESS);
+	}
 
-		doc_stat = ib_vector_get(index_cache->doc_stats, i);
+	doc_stat = ib_vector_pop(index_cache->doc_stats);
 
+	while (doc_stat) {
 		error = fts_sync_write_doc_stat(
 			trx, index_cache->index, &graph, doc_stat);
 
 		if (error != DB_SUCCESS) {
 			break;
 		}
+
+		if (ib_vector_is_empty(index_cache->doc_stats)) {
+			break;
+		}
+
+		doc_stat = ib_vector_pop(index_cache->doc_stats);
 	}
 
 	if (graph != NULL) {
@@ -4049,10 +4055,6 @@ fts_sync_begin(
 
 	sync->trx = trx_allocate_for_background();
 
-	/* TODO: use upgrade-lock mode when we have such a lock implemented
-	rwu_lock_u_lock(&cache->lock); */
-	rw_lock_x_lock(&sync->table->fts->cache->lock);
-
 	ut_print_timestamp(stderr);
 	fprintf(stderr, "  SYNC deleted count: %ld size: %lu bytes\n",
 		ib_vector_size(cache->deleted_doc_ids), cache->total_size);
@@ -4149,8 +4151,6 @@ fts_sync_commit(
 	trx_free_for_background(trx);
 	sync->trx = NULL;
 
-	rw_lock_x_unlock(&cache->lock);
-
 	return(error);
 }
 
@@ -4167,6 +4167,8 @@ fts_sync(
 	ulint		i;
 	ulint		error = DB_SUCCESS;
 	fts_cache_t*	cache = sync->table->fts->cache;
+
+	rw_lock_x_lock(&cache->lock);
 
 	fts_sync_begin(sync);
 
@@ -4186,6 +4188,8 @@ fts_sync(
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
 	}
+
+	rw_lock_x_unlock(&cache->lock);
 
 	/* We need to check whether an optimize is required, for that
 	we make copies of the two variables that control the trigger. These
