@@ -318,6 +318,147 @@ node_id
 1
 2
 
+desc threadblocks;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+block_name	varchar(512)	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+select distinct block_name from threadblocks order by 1;
+block_name
+BACKUP
+CMVMI
+DBACC
+DBDICT
+DBDIH
+DBINFO
+DBLQH
+DBSPJ
+DBTC
+DBTUP
+DBTUX
+DBUTIL
+LGMAN
+NDBCNTR
+NDBFS
+PGMAN
+QMGR
+RESTORE
+SUMA
+THRMAN
+TRIX
+TSMAN
+desc threadstat;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+thr_nm	varchar(512)	YES		NULL	
+c_loop	bigint(20) unsigned	YES		NULL	
+c_exec	bigint(20) unsigned	YES		NULL	
+c_wait	bigint(20) unsigned	YES		NULL	
+c_l_sent_prioa	bigint(20) unsigned	YES		NULL	
+c_l_sent_priob	bigint(20) unsigned	YES		NULL	
+c_r_sent_prioa	bigint(20) unsigned	YES		NULL	
+c_r_sent_priob	bigint(20) unsigned	YES		NULL	
+os_tid	bigint(20) unsigned	YES		NULL	
+os_now	bigint(20) unsigned	YES		NULL	
+os_ru_utime	bigint(20) unsigned	YES		NULL	
+os_ru_stime	bigint(20) unsigned	YES		NULL	
+os_ru_minflt	bigint(20) unsigned	YES		NULL	
+os_ru_majflt	bigint(20) unsigned	YES		NULL	
+os_ru_nvcsw	bigint(20) unsigned	YES		NULL	
+os_ru_nivcsw	bigint(20) unsigned	YES		NULL	
+select count(*) > 0 block_name from threadstat;
+block_name
+1
+
+desc cluster_transactions;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+state	varchar(256)	YES		NULL	
+count_operations	int(10) unsigned	YES		NULL	
+outstanding_operations	int(10) unsigned	YES		NULL	
+inactive_seconds	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+desc server_transactions;
+Field	Type	Null	Key	Default	Extra
+mysql_connection_id	bigint(21) unsigned	NO		0	
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+state	varchar(256)	YES		NULL	
+count_operations	int(10) unsigned	YES		NULL	
+outstanding_operations	int(10) unsigned	YES		NULL	
+inactive_seconds	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+desc cluster_operations;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+operation_type	varchar(9)	YES		NULL	
+state	varchar(256)	YES		NULL	
+tableid	int(10) unsigned	YES		NULL	
+fragmentid	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+tc_node_id	bigint(21) unsigned	YES		NULL	
+tc_block_no	bigint(21) unsigned	YES		NULL	
+tc_block_instance	bigint(21) unsigned	YES		NULL	
+desc server_operations;
+Field	Type	Null	Key	Default	Extra
+mysql_connection_id	bigint(21) unsigned	NO		0	
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+operation_type	varchar(9)	YES		NULL	
+state	varchar(256)	YES		NULL	
+tableid	int(10) unsigned	YES		NULL	
+fragmentid	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+tc_node_id	bigint(21) unsigned	YES		NULL	
+tc_block_no	bigint(21) unsigned	YES		NULL	
+tc_block_instance	bigint(21) unsigned	YES		NULL	
+
+create table t1 (a int primary key) engine = ndb;
+begin;
+insert into t1 values (1);
+select state, count_operations, outstanding_operations,
+IF(client_node_id <= 255, "<client_node_id>", "<incorrect node id>") 
+  client_node_id
+from server_transactions;
+state	count_operations	outstanding_operations	client_node_id
+Started	1	0	<client_node_id>
+select node_id, operation_type, state,
+IF(tc_node_id <= 48, "<tc_node_id>", "<incorrect nodeid>") tc_node_id,
+IF(client_node_id <= 255, "<client_node_id>", "<incorrect node id>") 
+  client_node_id
+from server_operations
+order by 1;
+node_id	operation_type	state	tc_node_id	client_node_id
+1	INSERT	Prepared	<tc_node_id>	<client_node_id>
+2	INSERT	Prepared	<tc_node_id>	<client_node_id>
+
+select st.state, st.count_operations, st.outstanding_operations,
+       so.node_id, so.state, so.operation_type
+from server_transactions st,
+     server_operations so
+where st.transid = so.transid
+  and so.tc_node_id = st.node_id
+  and so.tc_block_instance = st.block_instance
+  and so.client_node_id = st.client_node_id
+  and so.client_block_ref = st.client_block_ref;
+state	count_operations	outstanding_operations	node_id	state	operation_type
+Started	1	0	1	Prepared	INSERT
+Started	1	0	2	Prepared	INSERT
+rollback;
+drop table t1;
+
 set @@global.ndbinfo_offline=TRUE;
 select @@ndbinfo_offline;
 @@ndbinfo_offline
