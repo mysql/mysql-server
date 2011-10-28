@@ -50,11 +50,11 @@ static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 #include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
-#ifdef HAVE_VIS_H
-#include <vis.h>
-#else
+/*
+  XXXMYSQL : Due to different versions of vis.h available,
+             use the one bundled with libedit.
+*/
 #include "np/vis.h"
-#endif
 
 #ifdef __weak_alias
 __weak_alias(strnunvisx,_strnunvisx)
