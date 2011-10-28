@@ -1723,6 +1723,7 @@ public:
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
     inited= (result= rnd_init(scan)) ? NONE: RND;
+    end_range= NULL;
     DBUG_RETURN(result);
   }
   int ha_rnd_end()
@@ -1730,6 +1731,7 @@ public:
     DBUG_ENTER("ha_rnd_end");
     DBUG_ASSERT(inited==RND);
     inited=NONE;
+    end_range= NULL;
     DBUG_RETURN(rnd_end());
   }
   int ha_rnd_init_with_error(bool scan) __attribute__ ((warn_unused_result));

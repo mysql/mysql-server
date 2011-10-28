@@ -839,6 +839,18 @@ dict_index_get_nth_col_pos(
 	const dict_index_t*	index,	/*!< in: index */
 	ulint			n);	/*!< in: column number */
 /********************************************************************//**
+Looks for column n in an index.
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
+UNIV_INTERN
+ulint
+dict_index_get_nth_col_or_prefix_pos(
+/*=================================*/
+	const dict_index_t*	index,		/*!< in: index */
+	ulint			n,		/*!< in: column number */
+	ibool			inc_prefix);	/*!< in: TRUE=consider
+						column prefixes too */
+/********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
 @return	TRUE if contains the column or its prefix */
 UNIV_INTERN
