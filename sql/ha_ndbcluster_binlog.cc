@@ -2207,7 +2207,7 @@ private:
 
 class Ndb_schema_event_handler {
 
-  struct Cluster_schema
+  struct Ndb_schema_op
   {
     uchar db_length;
     char db[64];
@@ -2224,6 +2224,7 @@ class Ndb_schema_event_handler {
     uint32 type;
     uint32 any_value;
   };
+  typedef Ndb_schema_op Cluster_schema; // Old name
 
 
   static void
