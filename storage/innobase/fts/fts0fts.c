@@ -1286,10 +1286,6 @@ fts_cache_add_doc(
 	if (doc_id > cache->sync->max_doc_id) {
 		cache->sync->max_doc_id = doc_id;
 	}
-
-	if (cache->total_size > fts_max_cache_size) {
-		fts_sync(cache->sync);
-	}
 }
 
 /****************************************************************//**
@@ -2432,6 +2428,8 @@ retry:
 	}
 
 	mutex_enter(&cache->doc_id_lock);
+	/* For each sync operation, we will add next_doc_id by 1,
+	so to mark a sync operation */
 	if (cache->next_doc_id < cache->synced_doc_id + 1) {
 		cache->next_doc_id = cache->synced_doc_id + 1;
 	}
@@ -3313,6 +3311,10 @@ fts_add_doc_by_id(
 					doc_id, doc.tokens);
 				rw_lock_x_unlock(&table->fts->cache->lock);
 
+				if (cache->total_size > fts_max_cache_size) {
+					fts_sync(cache->sync);
+				}
+
 				mtr_start(&mtr);
 
 				if (i < num_idx - 1) {
@@ -4093,8 +4095,7 @@ fts_sync_index(
 }
 
 /*********************************************************************//**
-Commit the SYNC, release the locks, change state of processed doc
-ids etc.
+Commit the SYNC, change state of processed doc ids etc.
 @return DB_SUCCESS if all OK */
 static
 ulint
@@ -4130,6 +4131,7 @@ fts_sync_commit(
 	all resources. */
 	fts_cache_clear(cache, FALSE);
 	fts_cache_init(cache);
+	rw_lock_x_unlock(&cache->lock);
 
 	if (error == DB_SUCCESS) {
 
@@ -4152,6 +4154,23 @@ fts_sync_commit(
 	sync->trx = NULL;
 
 	return(error);
+}
+
+/*********************************************************************//**
+Rollback a sync operation */
+static
+void
+fts_sync_rollback(
+/*==============*/
+	fts_sync_t*	sync)			/*!< in: sync state */
+{
+	trx_t*		trx = sync->trx;
+	fts_cache_t*	cache = sync->table->fts->cache;
+
+	rw_lock_x_unlock(&cache->lock);
+	fts_sql_rollback(trx);
+	trx_free_for_background(trx);
+	sync->trx = NULL;
 }
 
 /****************************************************************//**
@@ -4187,9 +4206,9 @@ fts_sync(
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
+	}  else {
+		fts_sync_rollback(sync);
 	}
-
-	rw_lock_x_unlock(&cache->lock);
 
 	/* We need to check whether an optimize is required, for that
 	we make copies of the two variables that control the trigger. These
