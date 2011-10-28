@@ -1,3 +1,5 @@
+set @myisam_icp_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 #
 # Bug#36981 - "innodb crash when selecting for update"
 #
@@ -221,8 +223,6 @@ FROM t3 JOIN t4 ON t4.f11 = t3.f10
 f11	f10
 DROP TABLE t1,t2,t3,t4;
 set optimizer_switch= @tmp_778434;
-set @myisam_icp_tmp=@@optimizer_switch;
-set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t0, t1, t1i, t1m;
 #
 # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
