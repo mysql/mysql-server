@@ -2699,7 +2699,7 @@ class Ndb_schema_event_handler {
         Ndb *ndb= thd_ndb->ndb;
         Thd_ndb_options_guard thd_ndb_options(thd_ndb);
 
-        int log_query= 0, post_epoch_unlock= 0;
+        int post_epoch_unlock= 0;
  
         switch (schema_type)
         {
@@ -2730,7 +2730,7 @@ class Ndb_schema_event_handler {
                             (schema_type == SOT_DROP_TABLE ? "dropp" : "renam"),
                             schema->db, schema->name, schema->query,
                             schema->node_id);
-            log_query= 1;
+            write_schema_op_to_binlog(thd, schema);
           }
           // Fall through
 	case SOT_TRUNCATE_TABLE:
@@ -2785,7 +2785,7 @@ class Ndb_schema_event_handler {
           {
             print_could_not_discover_error(thd, schema);
           }
-          log_query= 1;
+          write_schema_op_to_binlog(thd, schema);
           break;
 
         case SOT_DROP_DB:
@@ -2809,7 +2809,7 @@ class Ndb_schema_event_handler {
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->query,
                             schema->node_id);
-            log_query= 1;
+            write_schema_op_to_binlog(thd, schema);
           }
           break;
 
@@ -2821,7 +2821,7 @@ class Ndb_schema_event_handler {
           run_query(thd, schema->query,
                     schema->query + schema->query_length,
                     no_print_error);
-          log_query= 1;
+          write_schema_op_to_binlog(thd, schema);
           break;
         }
 
@@ -2842,13 +2842,13 @@ class Ndb_schema_event_handler {
           run_query(thd, cmd,
                     cmd + strlen(cmd),
                     no_print_error);
-          log_query= 1;
+          write_schema_op_to_binlog(thd, schema);
 	  break;
         }
 
         case SOT_TABLESPACE:
         case SOT_LOGFILE_GROUP:
-          log_query= 1;
+          write_schema_op_to_binlog(thd, schema);
           break;
 
         case SOT_ALTER_TABLE_COMMIT:
@@ -2862,8 +2862,7 @@ class Ndb_schema_event_handler {
           break;
 
         }
-        if (log_query)
-          write_schema_op_to_binlog(thd, schema);
+
         /* signal that schema operation has been handled */
         DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
         if (bitmap_is_set(&schema->slock, node_id))
