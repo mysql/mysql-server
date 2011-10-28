@@ -1,3 +1,5 @@
+set @myisam_icp_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 #
 # Bug#36981 - "innodb crash when selecting for update"
 #
@@ -163,7 +165,7 @@ WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00'
 ORDER BY ts DESC
 LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using index condition
 
 DROP TABLE t1;
 #
@@ -209,7 +211,7 @@ c-1006=w
 EXPLAIN
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	c1	c1	12	NULL	2	Using where
+1	SIMPLE	t3	range	c1	c1	12	NULL	2	Using index condition; Using where
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 c1
 EXPLAIN
@@ -433,7 +435,7 @@ WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	DEPENDENT SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	3	Using index
-2	DEPENDENT SUBQUERY	it	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where
+2	DEPENDENT SUBQUERY	it	eq_ref	PRIMARY	PRIMARY	4	func	1	Using index condition
 SELECT * FROM t1
 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10);
 pk	i
@@ -463,8 +465,6 @@ FROM t3 JOIN t4 ON t4.f11 = t3.f10
 f11	f10
 DROP TABLE t1,t2,t3,t4;
 set optimizer_switch= @tmp_778434;
-set @myisam_icp_tmp=@@optimizer_switch;
-set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t0, t1, t1i, t1m;
 #
 # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
