@@ -17,9 +17,6 @@
 
 package testsuite.clusterj;
 
-import java.sql.SQLException;
-import java.sql.Statement;
-
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.ColumnMetadata;
@@ -48,7 +45,7 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
 
     public void testFind() {
         // change the schema (drop a column)
-        modifyTableDefinition();
+        executeSQL(modifyTableStatement);
         try {
             // find the row (with a different schema) which will fail
             session.find(StringTypes.class, 0);
@@ -77,37 +74,13 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
             } catch (ClusterJUserException uex) {
                 // StringTypes can't be loaded because of the missing column, but
                 // the cached dictionary table was removed when the domain type handler couldn't be created
-                restoreTableDefinition();
+                executeSQL(restoreTableStatement);
                 // after restoreTableDefinition, string_not_null_none is defined again
                 // find the row (with a different schema) which will now work
                 session.find(StringTypes.class, 0);
             }
         }
         failOnError();
-    }
-
-    private void modifyTableDefinition() {
-        try {
-            boolean autoCommit = connection.getAutoCommit();
-            connection.setAutoCommit(true);
-            Statement statement = connection.createStatement();
-            statement.execute(modifyTableStatement);
-            connection.setAutoCommit(autoCommit);
-        } catch (SQLException e) {
-            error("Caught SQLException from modifyTableDefinition: ", e);
-        }
-    }
-
-    private void restoreTableDefinition() {
-        try {
-            boolean autoCommit = connection.getAutoCommit();
-            connection.setAutoCommit(true);
-            Statement statement = connection.createStatement();
-            statement.execute(restoreTableStatement);
-            connection.setAutoCommit(autoCommit);
-        } catch (SQLException e) {
-            error("Caught SQLException from restoreTableDefinition: ", e);
-        }
     }
 
     /** StringTypes dynamic class to map stringtypes after column string_not_null_none is removed.
