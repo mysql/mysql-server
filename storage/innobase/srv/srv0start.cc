@@ -134,7 +134,7 @@ static os_fast_mutex_t	srv_os_test_mutex;
 static char*	srv_monitor_file_name;
 #endif /* !UNIV_HOTBACKUP */
 
-/** Default undo  tablespace size in UNIV_PAGEs count (10MB). */
+/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 	((1024 * 1024) * 10) / UNIV_PAGE_SIZE;
 

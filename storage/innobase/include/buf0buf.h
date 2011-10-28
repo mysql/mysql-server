@@ -1882,7 +1882,7 @@ struct buf_pool_struct{
 	buf_page_t*			watch;
 					/*!< Sentinel records for buffer
 					pool watches. Protected by
-				       	buf_pool->mutex. */
+					buf_pool->mutex. */
 
 #if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
 # error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"

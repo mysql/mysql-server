@@ -2820,3 +2820,29 @@ H2
 
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+#
+# Bug#13113222 RQG_SIGNAL_RESIGNAL FAILED WITH ASSERTION.
+#
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SELECT 'triggered p1';
+# This will trigger an error.
+SIGNAL SQLSTATE 'HY000';
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING SELECT 'triggered p2';
+# This will trigger a warning.
+SIGNAL SQLSTATE '01000';
+END|
+SET @old_max_error_count=  @@session.max_error_count;
+SET SESSION max_error_count= 0;
+CALL p1();
+triggered p1
+triggered p1
+CALL p2();
+SET SESSION max_error_count= @old_max_error_count;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
