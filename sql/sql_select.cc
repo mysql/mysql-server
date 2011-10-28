@@ -8064,8 +8064,8 @@ best_access_path(JOIN      *join,
   if ((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
       !s->table->covering_keys.is_clear_all() && best_key &&            //(3)
       (!s->quick ||                                                     //(3)
-       !(s->quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE && //(3)
-         best > s->quick->read_time)))                                  //(3)
+       (s->quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
+        best < s->quick->read_time)))                                   //(3)
   {
     trace_access_scan.add_alnum("access_type", s->quick ? "range" : "scan").
       add_alnum("cause", "covering_index_better_than_full_scan");
