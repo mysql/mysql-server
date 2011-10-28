@@ -3384,6 +3384,7 @@ public:
                         &m_post_epoch_log_list,
                         &m_post_epoch_unlock_list,
                         m_mem_root);
+    DBUG_VOID_RETURN;
   }
 
   void post_epoch()
