@@ -2214,7 +2214,7 @@ class Ndb_schema_event_handler {
     uchar name_length;
     char name[64];
     uchar slock_length;
-    uint32 slock[SCHEMA_SLOCK_SIZE/4];
+    uint32 slock_buf[SCHEMA_SLOCK_SIZE/4];
     unsigned short query_length;
     char *query;
     Uint64 epoch;
@@ -2281,8 +2281,8 @@ class Ndb_schema_event_handler {
     /* slock fixed length */
     field++;
     s->slock_length= (*field)->field_length;
-    DBUG_ASSERT((*field)->field_length == sizeof(s->slock));
-    memcpy(s->slock, (*field)->ptr, s->slock_length);
+    DBUG_ASSERT((*field)->field_length == sizeof(s->slock_buf));
+    memcpy(s->slock_buf, (*field)->ptr, s->slock_length);
     /* query blob */
     field++;
     {
@@ -2621,7 +2621,7 @@ class Ndb_schema_event_handler {
       Cluster_schema *schema= (Cluster_schema *)
         sql_alloc(sizeof(Cluster_schema));
       MY_BITMAP slock;
-      bitmap_init(&slock, schema->slock, 8*SCHEMA_SLOCK_SIZE, FALSE);
+      bitmap_init(&slock, schema->slock_buf, 8*SCHEMA_SLOCK_SIZE, FALSE);
       uint node_id= g_ndb_cluster_connection->node_id();
       {
         ndbcluster_get_schema(event_data, schema);
@@ -2846,7 +2846,7 @@ class Ndb_schema_event_handler {
         if (log_query)
           write_schema_op_to_binlog(thd, schema);
         /* signal that schema operation has been handled */
-        DBUG_DUMP("slock", (uchar*) schema->slock, schema->slock_length);
+        DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
         if (bitmap_is_set(&slock, node_id))
         {
           if (post_epoch_unlock)
@@ -3012,10 +3012,10 @@ handle_schema_log_post_epoch(THD *thd,
                                   key, schema->id, schema->version,
                                   ndb_schema_object->slock[0],
                                   ndb_schema_object->slock[1],
-                                  schema->slock[0],
-                                  schema->slock[1]);
+                                  schema->slock_buf[0],
+                                  schema->slock_buf[1]);
           }
-          memcpy(ndb_schema_object->slock, schema->slock,
+          memcpy(ndb_schema_object->slock, schema->slock_buf,
                  sizeof(ndb_schema_object->slock));
           DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
                     (uchar*)ndb_schema_object->slock_bitmap.bitmap,
