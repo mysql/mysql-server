@@ -5859,7 +5859,8 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     },
                     {
                       "access_type": "range",
-                      "cause": "covering_index_better_than_full_scan",
+                      "rows": 1,
+                      "cost": 1.2,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
