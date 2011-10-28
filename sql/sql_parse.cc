@@ -306,8 +306,7 @@ void init_update_queries(void)
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS |
-                                            CF_WRITE_RPL_INFO_COMMAND;
+                                            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -422,7 +421,6 @@ void init_update_queries(void)
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_REEXECUTION_FRAGILE);
 
-
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
@@ -439,6 +437,9 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
+  /* Does not change the contents of the diagnostics area. */
+  sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
+
   /*
     (1): without it, in "CALL some_proc((subq))", subquery would not be
     traced.
@@ -452,14 +453,10 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
-  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
-  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
-  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
@@ -562,17 +559,6 @@ bool is_log_table_write_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
-}
-
-/**
-  Check if a sql command is allowed to write to rpl info tables.
-  @param command The SQL command
-  @return true if writing is allowed
-*/
-bool is_rpl_info_table_write_query(enum enum_sql_command command)
-{
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
-  return (sql_command_flags[command] & CF_WRITE_RPL_INFO_COMMAND) != 0;
 }
 
 void execute_init_command(THD *thd, LEX_STRING *init_command,
@@ -4621,6 +4607,7 @@ create_sp_error:
     /* fall through */
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
+  case SQLCOM_GET_DIAGNOSTICS:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;

@@ -978,7 +978,7 @@ performance-schema-max-rwlock-instances 1000000
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances 1000
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 165
+performance-schema-max-statement-classes 166
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
@@ -1036,7 +1036,7 @@ slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
-sort-buffer-size 2097152
+sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
 sql-mode 
 symbolic-links FALSE

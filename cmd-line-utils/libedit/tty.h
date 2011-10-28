@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.h,v 1.11 2005/06/01 11:37:52 lukem Exp $	*/
+/*	$NetBSD: tty.h,v 1.13 2011/08/16 16:25:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -40,6 +40,7 @@
 #ifndef _h_el_tty
 #define	_h_el_tty
 
+#include "sys.h"
 #include "histedit.h"
 #include <termios.h>
 #include <unistd.h>
@@ -430,7 +431,7 @@
 #define	C_MIN		23
 #define	C_TIME		24
 #define	C_NCC		25
-#define	C_SH(A)		(1 << (A))
+#define	C_SH(A)		((unsigned int)(1 << (A)))
 
 /*
  * Terminal dependend data structures
@@ -458,7 +459,7 @@ typedef unsigned char ttychar_t[NN_IO][C_NCC];
 
 protected int	tty_init(EditLine *);
 protected void	tty_end(EditLine *);
-protected int	tty_stty(EditLine *, int, const char **);
+protected int	tty_stty(EditLine *, int, const Char **);
 protected int	tty_rawmode(EditLine *);
 protected int	tty_cookedmode(EditLine *);
 protected int	tty_quotemode(EditLine *);
