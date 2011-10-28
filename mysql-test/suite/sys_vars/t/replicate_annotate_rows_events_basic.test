@@ -1,5 +1,7 @@
 # bool readonly
 
+--source include/not_embedded.inc
+
 #
 # show values;
 #
