@@ -3262,20 +3262,20 @@ class Ndb_schema_event_handler {
   }
 
 
-static void
-handle_schema_unlock_post_epoch(THD *thd,
-                                List<Cluster_schema> *unlock_list)
-{
-  DBUG_ENTER("handle_schema_unlock_post_epoch");
-
-  Cluster_schema *schema;
-  while ((schema= unlock_list->pop()))
+  static void
+  handle_schema_unlock_post_epoch(THD *thd,
+                                  List<Cluster_schema> *unlock_list)
   {
-    ndbcluster_update_slock(thd, schema->db, schema->name,
-                            schema->id, schema->version);
+    DBUG_ENTER("handle_schema_unlock_post_epoch");
+
+    Cluster_schema *schema;
+    while ((schema= unlock_list->pop()))
+    {
+      ndbcluster_update_slock(thd, schema->db, schema->name,
+                              schema->id, schema->version);
+    }
+    DBUG_VOID_RETURN;
   }
-  DBUG_VOID_RETURN;
-}
 
   THD* m_thd;
   MEM_ROOT* m_mem_root;
