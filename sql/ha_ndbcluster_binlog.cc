@@ -2314,8 +2314,16 @@ class Ndb_schema_event_handler {
   }
 
 
-  static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
+  static void
+  write_schema_op_to_binlog(THD *thd, Cluster_schema *schema)
   {
+
+    if (!ndb_binlog_running)
+    {
+      // This mysqld is not writing a binlog
+      return;
+    }
+
     /* any_value == 0 means local cluster sourced change that
      * should be logged
      */
@@ -2834,8 +2842,8 @@ class Ndb_schema_event_handler {
           break;
 
         }
-        if (log_query && ndb_binlog_running)
-          ndb_binlog_query(thd, schema);
+        if (log_query)
+          write_schema_op_to_binlog(thd, schema);
         /* signal that schema operation has been handled */
         DBUG_DUMP("slock", (uchar*) schema->slock, schema->slock_length);
         if (bitmap_is_set(&slock, node_id))
@@ -3326,8 +3334,8 @@ handle_schema_log_post_epoch(THD *thd,
         share= 0;
       }
     }
-    if (ndb_binlog_running && log_query)
-      ndb_binlog_query(thd, schema);
+    if (log_query)
+      write_schema_op_to_binlog(thd, schema);
   }
   DBUG_VOID_RETURN;
 }
