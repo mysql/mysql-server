@@ -2615,14 +2615,29 @@ class Ndb_schema_event_handler {
   }
 
 
-  static int
-  handle_schema_event(THD *thd, Ndb *s_ndb,
-                      NdbEventOperation *pOp,
-                      List<Cluster_schema> *post_epoch_log_list,
-                      List<Cluster_schema> *post_epoch_unlock_list,
-                      MEM_ROOT *mem_root)
+  void
+  log_after_epoch(Ndb_schema_op* schema)
   {
-    DBUG_ENTER("handle_schema_event");
+    DBUG_ENTER("log_after_epoch");
+    m_post_epoch_log_list.push_back(schema, m_mem_root);
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  unlock_after_epoch(Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("unlock_after_epoch");
+    m_post_epoch_unlock_list.push_back(schema, m_mem_root);
+    DBUG_VOID_RETURN;
+  }
+
+
+  int
+  handle_schema_op(THD *thd, Ndb *s_ndb,
+                   NdbEventOperation *pOp)
+  {
+    DBUG_ENTER("handle_schema_op");
     const Ndb_event_data* event_data=
       static_cast<const Ndb_event_data*>(pOp->getCustomData());
     {
@@ -2667,15 +2682,15 @@ class Ndb_schema_event_handler {
           schema events get inserted in the binlog after any data
           events
         */
-        post_epoch_log_list->push_back(schema, mem_root);
+        log_after_epoch(schema);
         DBUG_RETURN(0);
 
       case SOT_ALTER_TABLE_COMMIT:
       case SOT_RENAME_TABLE_PREPARE:
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
-        post_epoch_log_list->push_back(schema, mem_root);
-        post_epoch_unlock_list->push_back(schema, mem_root);
+        log_after_epoch(schema);
+        unlock_after_epoch(schema);
         DBUG_RETURN(0);
 
       default:
@@ -2700,7 +2715,7 @@ class Ndb_schema_event_handler {
                       schema->query + schema->query_length,
                       no_print_error);
             /* binlog dropping table after any table operations */
-            post_epoch_log_list->push_back(schema, mem_root);
+            log_after_epoch(schema);
             /* acknowledge this query _after_ epoch completion */
             post_epoch_unlock= 1;
           }
@@ -2783,7 +2798,7 @@ class Ndb_schema_event_handler {
                       schema->query + schema->query_length,
                       no_print_error);
             /* binlog dropping database after any table operations */
-            post_epoch_log_list->push_back(schema, mem_root);
+            log_after_epoch(schema);
             /* acknowledge this query _after_ epoch completion */
             post_epoch_unlock= 1;
           }
@@ -2854,7 +2869,7 @@ class Ndb_schema_event_handler {
         if (bitmap_is_set(&schema->slock, node_id))
         {
           if (post_epoch_unlock)
-            post_epoch_unlock_list->push_back(schema, mem_root);
+            unlock_after_epoch(schema);
           else
             ndbcluster_update_slock(thd, schema->db, schema->name,
                                     schema->id, schema->version);
@@ -3294,10 +3309,7 @@ public:
     case NDBEVENT::TE_INSERT:
     case NDBEVENT::TE_UPDATE:
       /* ndb_schema table, row INSERTed or UPDATEed*/
-      handle_schema_event(m_thd, s_ndb, pOp,
-                          &m_post_epoch_log_list,
-                          &m_post_epoch_unlock_list,
-                          m_mem_root);
+      handle_schema_op(m_thd, s_ndb, pOp);
       break;
 
     case NDBEVENT::TE_DELETE:
