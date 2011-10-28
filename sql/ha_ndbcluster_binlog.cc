@@ -2634,16 +2634,10 @@ class Ndb_schema_event_handler {
 
 
   int
-  handle_schema_op(THD *thd, Ndb *s_ndb,
-                   NdbEventOperation *pOp)
+  handle_schema_op(Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_schema_op");
-    const Ndb_event_data* event_data=
-      static_cast<const Ndb_event_data*>(pOp->getCustomData());
     {
-      Ndb_schema_op* schema=
-        Ndb_schema_op::create(event_data, pOp->getAnyValue());
-
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
 
       if (opt_ndb_extra_logging > 19)
@@ -2695,6 +2689,7 @@ class Ndb_schema_event_handler {
       const uint node_id= g_ndb_cluster_connection->node_id();
       if (schema->node_id != node_id)
       {
+        THD* thd= m_thd; // Code compatibility
         Thd_ndb *thd_ndb= get_thd_ndb(thd);
         Ndb *ndb= thd_ndb->ndb;
         Thd_ndb_options_guard thd_ndb_options(thd_ndb);
@@ -3307,9 +3302,13 @@ public:
     {
     case NDBEVENT::TE_INSERT:
     case NDBEVENT::TE_UPDATE:
+    {
       /* ndb_schema table, row INSERTed or UPDATEed*/
-      handle_schema_op(m_thd, s_ndb, pOp);
+      Ndb_schema_op* schema_op=
+        Ndb_schema_op::create(event_data, pOp->getAnyValue());
+      handle_schema_op(schema_op);
       break;
+    }
 
     case NDBEVENT::TE_DELETE:
       /* ndb_schema table, row delete */
