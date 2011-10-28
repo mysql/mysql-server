@@ -2087,7 +2087,7 @@ end:
 static
 int
 ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
-                         Ndb_event_data *event_data)
+                         const Ndb_event_data *event_data)
 {
   DBUG_ENTER("ndb_handle_schema_change");
   NDB_SHARE *share= event_data->share;
@@ -2560,7 +2560,8 @@ handle_schema_event(THD *thd, Ndb *s_ndb,
                     MEM_ROOT *mem_root)
 {
   DBUG_ENTER("handle_schema_event");
-  Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
+  const Ndb_event_data* event_data=
+    static_cast<const Ndb_event_data*>(pOp->getCustomData());
   NDB_SHARE *tmp_share= event_data->share;
   if (tmp_share && ndb_schema_share == tmp_share)
   {
@@ -5930,7 +5931,8 @@ handle_non_data_event(THD *thd,
                       NdbEventOperation *pOp,
                       ndb_binlog_index_row &row)
 {
-  Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
+  const Ndb_event_data* event_data=
+    static_cast<const Ndb_event_data*>(pOp->getCustomData());
   NDB_SHARE *share= event_data->share;
   NDBEVENT::TableEvent type= pOp->getEventType();
 
