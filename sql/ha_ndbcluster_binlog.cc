@@ -2894,11 +2894,12 @@ class Ndb_schema_event_handler {
                 schema->type));
     int log_query= 0;
     {
-      enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
+      const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
       char key[FN_REFLEN + 1];
       build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
       if (schema_type == SOT_CLEAR_SLOCK)
       {
+        /* Ack to any SQL thread waiting for schema op to complete */
         pthread_mutex_lock(&ndbcluster_mutex);
         NDB_SCHEMA_OBJECT *ndb_schema_object=
           (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects,
@@ -2947,6 +2948,7 @@ class Ndb_schema_event_handler {
         pthread_mutex_unlock(&ndbcluster_mutex);
         DBUG_VOID_RETURN;
       }
+
       /* ndb_share reference temporary, free below */
       NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
       if (share)
