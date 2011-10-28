@@ -2949,6 +2949,12 @@ class Ndb_schema_event_handler {
         DBUG_VOID_RETURN;
       }
 
+      if (opt_ndb_extra_logging > 9)
+        sql_print_information("%s - %s.%s",
+                              get_schema_type_name(schema_type),
+                              schema->db ? schema->db : "(null)",
+                              schema->name ? schema->name : "(null)");
+
       /* ndb_share reference temporary, free below */
       NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
       if (share)
@@ -2963,8 +2969,6 @@ class Ndb_schema_event_handler {
         break;
 
       case SOT_DROP_TABLE:
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("SOT_DROP_TABLE %s.%s", schema->db, schema->name);
         write_schema_op_to_binlog(thd, schema);
         {
           ndb->setDatabaseName(schema->db);
@@ -2981,8 +2985,6 @@ class Ndb_schema_event_handler {
         break;
 
       case SOT_RENAME_TABLE:
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("SOT_RENAME_TABLE %s.%s", schema->db, schema->name);
         write_schema_op_to_binlog(thd, schema);
         if (share)
         {
@@ -2991,17 +2993,12 @@ class Ndb_schema_event_handler {
         break;
 
       case SOT_RENAME_TABLE_PREPARE:
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("SOT_RENAME_TABLE_PREPARE %s.%s -> %s",
-                                schema->db, schema->name, schema->query);
         if (share &&
             schema->node_id != g_ndb_cluster_connection->node_id())
           ndbcluster_prepare_rename_share(share, schema->query);
         break;
 
       case SOT_ALTER_TABLE_COMMIT:
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("SOT_ALTER_TABLE_COMMIT %s.%s", schema->db, schema->name);
         if (schema->node_id == g_ndb_cluster_connection->node_id())
           break;
         write_schema_op_to_binlog(thd, schema);
@@ -3065,8 +3062,6 @@ class Ndb_schema_event_handler {
 
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
       {
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("SOT_ONLINE_ALTER_TABLE_PREPARE %s.%s", schema->db, schema->name);
         int error= 0;
         ndb->setDatabaseName(schema->db);
         {
@@ -3176,8 +3171,6 @@ class Ndb_schema_event_handler {
 
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
       {
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("SOT_ONLINE_ALTER_TABLE_COMMIT %s.%s", schema->db, schema->name);
         if (share)
         {
           pthread_mutex_lock(&share->mutex);
@@ -3201,8 +3194,6 @@ class Ndb_schema_event_handler {
       }
 
       case SOT_RENAME_TABLE_NEW:
-        if (opt_ndb_extra_logging > 9)
-          sql_print_information("SOT_RENAME_TABLE_NEW %s.%s", schema->db, schema->name);
         write_schema_op_to_binlog(thd, schema);
         if (ndb_binlog_running && (!share || !share->op))
         {
