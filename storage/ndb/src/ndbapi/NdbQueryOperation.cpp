@@ -2464,6 +2464,7 @@ NdbQueryImpl::handleBatchComplete(NdbRootFragment& rootFrag)
            << ", finalBatchFrags=" << m_finalBatchFrags
            <<  endl;
   }
+  assert(rootFrag.isFragBatchComplete());
 
   /* May received fragment data after a SCANREF() (timeout?) 
    * terminated the scan.  We are about to close this query, 
@@ -2471,8 +2472,6 @@ NdbQueryImpl::handleBatchComplete(NdbRootFragment& rootFrag)
    */
   if (likely(m_errorReceived == 0))
   {
-    assert(rootFrag.isFragBatchComplete());
-
     assert(m_pendingFrags > 0);                // Check against underflow.
     assert(m_pendingFrags <= m_rootFragCount); // .... and overflow
     m_pendingFrags--;
@@ -2487,6 +2486,16 @@ NdbQueryImpl::handleBatchComplete(NdbRootFragment& rootFrag)
      * added to m_applFrags under mutex protection.
      */
     rootFrag.setReceivedMore();
+    return true;
+  }
+  else if (!getQueryDef().isScanQuery())  // A failed lookup query
+  {
+    /**
+     * A lookup query will retrieve the rows as part of ::execute().
+     * -> Error must be visible through API before we return control
+     *    to the application.
+     */
+    setErrorCode(m_errorReceived);
     return true;
   }
 
@@ -4970,12 +4979,12 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
   if (&getRoot() == this || 
       ref->errorCode != static_cast<Uint32>(Err_TupleNotFound))
   {
-    getQuery().setErrorCode(ref->errorCode);
     if (aSignal->getLength() == TcKeyRef::SignalLength)
     {
       // Signal may contain additional error data
       getQuery().m_error.details = (char *)UintPtr(ref->errorData);
     }
+    getQuery().setFetchTerminated(ref->errorCode,false);
   }
 
   NdbRootFragment& rootFrag = getQuery().m_rootFrags[0];
