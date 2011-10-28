@@ -593,7 +593,7 @@ ConfigValues::getPackedSize() const {
 	break;
       case StringType:
 	size += 8; // key + len
-	size += mod4(strlen(* getString(m_values[i+1])) + 1);
+	size += mod4((unsigned)strlen(* getString(m_values[i+1])) + 1);
 	break;
       case InvalidType:
       default:

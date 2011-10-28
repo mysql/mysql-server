@@ -126,7 +126,7 @@ getParameter(char *blocks[NO_OF_BLOCKS], const char * par, const char * line)
   char * tmp = copy;
   bool done = false;
   while(!done){
-    int len = strcspn(tmp, ", ;:\0");
+    int len = (int)strcspn(tmp, ", ;:\0");
     if(len == 0)
       done = true;
     else {

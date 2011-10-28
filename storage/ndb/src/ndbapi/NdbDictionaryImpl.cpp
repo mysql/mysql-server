@@ -1260,7 +1260,7 @@ NdbTableImpl::buildColumnHash(){
       Uint32 bucket = hv & m_columnHashMask;
       bucket = (bucket < size ? bucket : bucket - size);
       m_columnHash[bucket] = (sz << 16) | (((size - bucket) + pos) << 1);
-      for(size_t j = 0; j<sz; j++, pos++){
+      for(unsigned j = 0; j<sz; j++, pos++){
 	Uint32 col = chains[i][j];	
 	Uint32 hv = hashValues[col];
 	if (m_columnHash.push_back((col << 16) | hv))

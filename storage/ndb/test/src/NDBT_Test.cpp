@@ -414,7 +414,7 @@ NDBT_TestCaseImpl1::NDBT_TestCaseImpl1(NDBT_TestSuite* psuite,
 NDBT_TestCaseImpl1::~NDBT_TestCaseImpl1(){
   NdbCondition_Destroy(waitThreadsCondPtr);
   NdbMutex_Destroy(waitThreadsMutexPtr);
-  size_t i;
+  unsigned i;
   for(i = 0; i < initializers.size();  i++)
     delete initializers[i];
   initializers.clear();

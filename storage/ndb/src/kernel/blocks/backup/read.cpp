@@ -229,7 +229,7 @@ size_t
 aread(void * buf, size_t sz, size_t n, ndbzio_stream* f)
 {
   int error = 0;
-  unsigned r = ndbzread(f, buf, (sz * n), &error);
+  unsigned r = ndbzread(f, buf, (unsigned)(sz * n), &error);
   if (error || r != (sz * n))
   {
     printf("Failed to read!!");

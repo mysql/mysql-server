@@ -2418,7 +2418,7 @@ TransporterRegistry::print_transporters(const char* where, NdbOut& out)
 
   out << "<<" << endl;
 
-  for (size_t i= 0; i < m_transporter_interface.size(); i++){
+  for (unsigned i= 0; i < m_transporter_interface.size(); i++){
     Transporter_interface tf= m_transporter_interface[i];
 
     out << i

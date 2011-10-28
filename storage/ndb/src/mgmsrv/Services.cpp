@@ -599,15 +599,17 @@ MgmApiSession::getConfig(Parser_t::Context &,
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->print("\n");
 
+  unsigned len = (unsigned)strlen(pack64.c_str());
   if(ERROR_INSERTED(3))
   {
     // Return only half the packed config
     BaseString half64 = pack64.substr(0, pack64.length());
-    m_output->println(half64.c_str());
+    m_output->write(half64.c_str(), (unsigned)strlen(half64.c_str()));
+    m_output->write("\n", 1);
     return;
   }
-  m_output->println(pack64.c_str());
-  m_output->print("\n");
+  m_output->write(pack64.c_str(), len);
+  m_output->write("\n\n", 2);
   return;
 }
 
@@ -1370,12 +1372,12 @@ logevent2str(BaseString& str, int eventType,
       str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
       if(strcmp(ndb_logevent_body[i].token,"error") == 0)
       {
-        int pretty_text_len= strlen(pretty_text);
+        int pretty_text_len= (int)strlen(pretty_text);
         if(pretty_text_size-pretty_text_len-3 > 0)
         {
           BaseString::snprintf(pretty_text+pretty_text_len, 4 , " - ");
           ndb_error_string(val, pretty_text+(pretty_text_len+3),
-                           pretty_text_size-pretty_text_len-3);
+                           (int)(pretty_text_size-pretty_text_len-3));
         }
       }
     } while (ndb_logevent_body[++i].type == eventType);
@@ -1430,9 +1432,20 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData,
 
       int r;
       if (m_clients[i].m_parsable)
-        r= out.println(str.c_str());
+      {
+        unsigned len = str.length();
+        r= out.write(str.c_str(), len);
+      }
       else
-        r= out.println(pretty_text);
+      {
+        unsigned len = (unsigned)strlen(pretty_text);
+        r= out.write(pretty_text, len);
+      }
+
+      if (! (r < 0))
+      {
+        r = out.write("\n", 1);
+      }
 
       if (r<0)
       {
@@ -1631,7 +1644,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
   Vector<BaseString> list;
   param.trim();
   param.split(list, " ,");
-  for(size_t i = 0; i<list.size(); i++){
+  for(unsigned i = 0; i<list.size(); i++){
     Vector<BaseString> spec;
     list[i].trim();
     list[i].split(spec, "=:");
@@ -1852,7 +1865,7 @@ MgmApiSession::list_session(SocketServer::Session *_s, void *data)
   lister->m_output->println("session.%llu.m_stop: %d",id,s->m_stop);
   if(s->m_ctx)
   {
-    int l= strlen(s->m_ctx->m_tokenBuffer);
+    int l= (int)strlen(s->m_ctx->m_tokenBuffer);
     char *buf= (char*) malloc(2*l+1);
     char *b= buf;
     for(int i=0; i<l;i++)
@@ -1922,7 +1935,7 @@ MgmApiSession::get_session(SocketServer::Session *_s, void *data)
   p->l->m_output->println("m_stop: %d",s->m_stop);
   if(s->m_ctx)
   {
-    int l= strlen(s->m_ctx->m_tokenBuffer);
+    int l= (int)strlen(s->m_ctx->m_tokenBuffer);
     p->l->m_output->println("parser_buffer_len: %u",l);
     p->l->m_output->println("parser_status: %d",s->m_ctx->m_status);
   }
@@ -2019,7 +2032,7 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
       if((r= read_socket(m_socket,
                          SOCKET_TIMEOUT,
                          &buf64[start],
-                         len64-start)) < 1)
+                         (int)(len64-start))) < 1)
       {
         delete[] buf64;
         result.assfmt("read_socket failed, errno: %d", errno);
