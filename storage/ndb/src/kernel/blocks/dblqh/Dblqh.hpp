@@ -18,6 +18,7 @@
 #ifndef DBLQH_H
 #define DBLQH_H
 
+#ifndef DBLQH_STATE_EXTRACT
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
@@ -41,6 +42,7 @@
 class Dbacc;
 class Dbtup;
 class Lgman;
+#endif // DBLQH_STATE_EXTRACT
 
 #ifdef DBLQH_C
 // Constants
@@ -410,10 +412,15 @@ class Lgman;
  *  - TEST 
  *  - LOG 
  */
-class Dblqh: public SimulatedBlock {
+class Dblqh 
+#ifndef DBLQH_STATE_EXTRACT
+  : public SimulatedBlock
+#endif
+{
   friend class DblqhProxy;
 
 public:
+#ifndef DBLQH_STATE_EXTRACT
   enum LcpCloseState {
     LCP_IDLE = 0,
     LCP_RUNNING = 1,       // LCP is running
@@ -1940,7 +1947,7 @@ public:
     Uint32 usageCountW; // writers
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
-
+#endif // DBLQH_STATE_EXTRACT
   struct TcConnectionrec {
     enum ListState {
       NOT_IN_LIST = 0,
@@ -2021,6 +2028,7 @@ public:
       COPY_CONNECTED = 2,
       LOG_CONNECTED = 3
     };
+#ifndef DBLQH_STATE_EXTRACT
     ConnectState connectState;
     UintR copyCountWords;
     Uint32 keyInfoIVal;
@@ -2131,8 +2139,10 @@ public:
       Uint32 m_page_id[2];
       Local_key m_disk_ref[2];
     } m_nr_delete;
+#endif // DBLQH_STATE_EXTRACT
   }; /* p2c: size = 280 bytes */
-  
+
+#ifndef DBLQH_STATE_EXTRACT
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
 
   struct TcNodeFailRecord {
@@ -3278,8 +3288,9 @@ public:
 
   void sendFireTrigConfTc(Signal* signal, BlockReference ref, Uint32 Tdata[]);
   bool check_fire_trig_pass(Uint32 op, Uint32 pass);
+#endif
 };
-
+#ifndef DBLQH_STATE_EXTRACT
 inline
 bool
 Dblqh::ScanRecord::check_scan_batch_completed() const
@@ -3402,5 +3413,5 @@ Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
 	   regTcPtr->operation == ZDELETE)) ||
     ERROR_INSERTED(5713);
 }
-
+#endif
 #endif
