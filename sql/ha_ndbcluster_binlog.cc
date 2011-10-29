@@ -58,6 +58,7 @@ bool ndb_log_empty_epochs(void);
 #include "ndb_dist_priv_util.h"
 #include "ndb_anyvalue.h"
 #include "ndb_binlog_extra_row_info.h"
+#include "ndb_event_data.h"
 
 /*
   Timeout for syncing schema events between
