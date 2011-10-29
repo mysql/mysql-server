@@ -2305,12 +2305,10 @@ class Ndb_schema_event_handler {
       DBUG_RETURN(schema_op);
     }
   };
-  typedef Ndb_schema_op Cluster_schema; // Old name
-
 
   static void
   print_could_not_discover_error(THD *thd,
-                                 const Cluster_schema *schema)
+                                 const Ndb_schema_op *schema)
   {
     sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
                     "binlog schema event '%s' from node %d. "
@@ -2322,7 +2320,7 @@ class Ndb_schema_event_handler {
 
 
   static void
-  write_schema_op_to_binlog(THD *thd, Cluster_schema *schema)
+  write_schema_op_to_binlog(THD *thd, Ndb_schema_op *schema)
   {
 
     if (!ndb_binlog_running)
@@ -3233,8 +3231,7 @@ class Ndb_schema_event_handler {
     the epoch is complete
   */
   void
-  handle_schema_log_post_epoch(THD *thd,
-                               List<Cluster_schema> *log_list)
+  handle_schema_log_post_epoch(List<Ndb_schema_op> *log_list)
   {
     DBUG_ENTER("handle_schema_log_post_epoch");
 
@@ -3248,12 +3245,11 @@ class Ndb_schema_event_handler {
 
 
   void
-  handle_schema_unlock_post_epoch(THD *thd,
-                                  List<Cluster_schema> *unlock_list)
+  handle_schema_unlock_post_epoch(List<Ndb_schema_op> *unlock_list)
   {
     DBUG_ENTER("handle_schema_unlock_post_epoch");
 
-    Cluster_schema *schema;
+    Ndb_schema_op *schema;
     while ((schema= unlock_list->pop()))
     {
       ack_schema_op(schema->db, schema->name,
@@ -3266,8 +3262,8 @@ class Ndb_schema_event_handler {
   MEM_ROOT* m_mem_root;
   uint m_own_nodeid;
 
-  List<Cluster_schema> m_post_epoch_log_list;
-  List<Cluster_schema> m_post_epoch_unlock_list;
+  List<Ndb_schema_op> m_post_epoch_log_list;
+  List<Ndb_schema_op> m_post_epoch_unlock_list;
 
 public:
   Ndb_schema_event_handler(); // Not implemented
@@ -3426,9 +3422,9 @@ public:
   {
     if (m_post_epoch_log_list.elements > 0)
     {
-      handle_schema_log_post_epoch(m_thd, &m_post_epoch_log_list);
+      handle_schema_log_post_epoch(&m_post_epoch_log_list);
       // NOTE post_epoch_unlock_list may not be handled!
-      handle_schema_unlock_post_epoch(m_thd, &m_post_epoch_unlock_list);
+      handle_schema_unlock_post_epoch(&m_post_epoch_unlock_list);
     }
     // There should be no work left todo...
     DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
