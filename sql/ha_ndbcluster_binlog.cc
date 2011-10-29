@@ -2394,24 +2394,23 @@ class Ndb_schema_event_handler {
 
 
   /*
-    acknowledge handling of schema operation
+    Acknowledge handling of schema operation
+    - Inform the other nodes that schema op has
+      been completed by this node (by updating the
+      row for this op in ndb_schema table)
   */
-  static int
-  ndbcluster_update_slock(THD *thd,
-                          const char *db,
-                          const char *table_name,
-                          uint32 table_id,
-                          uint32 table_version)
+  int
+  ack_schema_op(const char *db, const char *table_name,
+                uint32 table_id, uint32 table_version)
   {
-    DBUG_ENTER("ndbcluster_update_slock");
+    DBUG_ENTER("ack_schema_op");
     if (!ndb_schema_share)
     {
       DBUG_RETURN(0);
     }
 
     const NdbError *ndb_error= 0;
-    uint32 node_id= g_ndb_cluster_connection->node_id();
-    Ndb *ndb= check_ndb_in_thd(thd);
+    Ndb *ndb= check_ndb_in_thd(m_thd);
     char save_db[FN_HEADLEN];
     strcpy(save_db, ndb->getDatabaseName());
 
@@ -2484,7 +2483,7 @@ class Ndb_schema_event_handler {
       {
         uint32 copy[SCHEMA_SLOCK_SIZE/4];
         memcpy(copy, bitbuf, sizeof(copy));
-        bitmap_clear_bit(&slock, node_id);
+        bitmap_clear_bit(&slock, own_nodeid());
         sql_print_information("NDB: reply to %s.%s(%u/%u) from %x%x to %x%x",
                               db, table_name,
                               table_id, table_version,
@@ -2494,7 +2493,7 @@ class Ndb_schema_event_handler {
       }
       else
       {
-        bitmap_clear_bit(&slock, node_id);
+        bitmap_clear_bit(&slock, own_nodeid());
       }
 
       {
@@ -2520,7 +2519,7 @@ class Ndb_schema_event_handler {
         r|= op->setValue(SCHEMA_SLOCK_I, (char*)slock.bitmap);
         DBUG_ASSERT(r == 0);
         /* node_id */
-        r|= op->setValue(SCHEMA_NODE_ID_I, node_id);
+        r|= op->setValue(SCHEMA_NODE_ID_I, own_nodeid());
         DBUG_ASSERT(r == 0);
         /* type */
         r|= op->setValue(SCHEMA_TYPE_I, (uint32)SOT_CLEAR_SLOCK);
@@ -2530,14 +2529,15 @@ class Ndb_schema_event_handler {
                          NdbOperation::DefaultAbortOption, 1 /*force send*/) == 0)
       {
         DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
-                            node_id, db, table_name));
+                            own_nodeid(), db, table_name));
         dict->forceGCPWait(1);
         break;
       }
     err:
       const NdbError *this_error= trans ?
         &trans->getNdbError() : &ndb->getNdbError();
-      if (this_error->status == NdbError::TemporaryError && !thd->killed)
+      if (this_error->status == NdbError::TemporaryError &&
+          !thd_killed(m_thd))
       {
         if (retries--)
         {
@@ -2855,8 +2855,8 @@ class Ndb_schema_event_handler {
           if (post_epoch_unlock)
             unlock_after_epoch(schema);
           else
-            ndbcluster_update_slock(thd, schema->db, schema->name,
-                                    schema->id, schema->version);
+            ack_schema_op(schema->db, schema->name,
+                          schema->id, schema->version);
         }
       }
     }
@@ -3247,7 +3247,7 @@ class Ndb_schema_event_handler {
   }
 
 
-  static void
+  void
   handle_schema_unlock_post_epoch(THD *thd,
                                   List<Cluster_schema> *unlock_list)
   {
@@ -3256,8 +3256,8 @@ class Ndb_schema_event_handler {
     Cluster_schema *schema;
     while ((schema= unlock_list->pop()))
     {
-      ndbcluster_update_slock(thd, schema->db, schema->name,
-                              schema->id, schema->version);
+      ack_schema_op(schema->db, schema->name,
+                    schema->id, schema->version);
     }
     DBUG_VOID_RETURN;
   }
