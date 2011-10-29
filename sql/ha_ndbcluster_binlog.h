@@ -189,6 +189,3 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
 */
 bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-bool
-ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-
