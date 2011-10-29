@@ -2553,12 +2553,10 @@ class Ndb_schema_event_handler {
 
     if (ndb_error)
     {
-      char buf[1024];
-      my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
-                  db, table_name);
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                          ndb_error->code, ndb_error->message, buf);
+      sql_print_warning("NDB: Could not release slock on '%s.%s', "
+                        "Error code: %d Message: %s",
+                        db, table_name,
+                        ndb_error->code, ndb_error->message);
     }
     if (trans)
       ndb->closeTransaction(trans);
