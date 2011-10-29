@@ -47,7 +47,14 @@ static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 
 #include <assert.h>
 #include <ctype.h>
+
+/* XXXMYSQL : stdint.h might not be available on older Solaris platforms. */
+#if defined(__sun) || defined(__sun__)
+#include <sys/inttypes.h>
+#else
 #include <stdint.h>
+#endif
+
 #include <stdio.h>
 #include <errno.h>
 /*
