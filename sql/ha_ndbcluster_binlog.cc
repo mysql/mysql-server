@@ -142,9 +142,9 @@ static int ndbcluster_binlog_terminating= 0;
   Mutex and condition used for interacting between client sql thread
   and injector thread
 */
-pthread_t ndb_binlog_thread;
-pthread_mutex_t injector_mutex;
-pthread_cond_t  injector_cond;
+static pthread_t ndb_binlog_thread;
+static pthread_mutex_t injector_mutex;
+static pthread_cond_t  injector_cond;
 
 /* NDB Injector thread (used for binlog creation) */
 static ulonglong ndb_latest_applied_binlog_epoch= 0;
@@ -153,7 +153,7 @@ static ulonglong ndb_latest_received_binlog_epoch= 0;
 
 NDB_SHARE *ndb_apply_status_share= 0;
 NDB_SHARE *ndb_schema_share= 0;
-pthread_mutex_t ndb_schema_share_mutex;
+static pthread_mutex_t ndb_schema_share_mutex;
 
 extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
