@@ -261,20 +261,6 @@ static void dbug_print_table(const char *info, TABLE *table)
 #define dbug_print_table(a,b)
 #endif
 
-static inline void
-print_warning_list(const char* prefix, List<MYSQL_ERROR>& list)
-{
-  List_iterator_fast<MYSQL_ERROR> it(list);
-  MYSQL_ERROR *err;
-  while ((err= it++))
-  {
-    sql_print_warning("%s: (%d)%s",
-                      prefix,
-                      MYSQL_ERROR_get_sql_errno(err),
-                      MYSQL_ERROR_get_message_text(err));
-  }
-}
-
 
 static void run_query(THD *thd, char *buf, char *end,
                       const int *no_print_error)
@@ -2331,7 +2317,7 @@ class Ndb_schema_event_handler {
                     "my_errno: %d",
                      schema->db, schema->name, schema->query,
                      schema->node_id, my_errno);
-    print_warning_list("NDB Binlog", thd_warn_list(thd));
+    thd_print_warning_list(thd, "NDB Binlog");
   }
 
 
@@ -4879,7 +4865,7 @@ err:
   *conflict_fn_spec= NULL;
 
   if (ndberror.code && opt_ndb_extra_logging)
-    print_warning_list("NDB", thd_warn_list(thd));
+    thd_print_warning_list(thd, "NDB");
   DBUG_RETURN(ndberror.code);
 }
 
