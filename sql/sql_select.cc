@@ -18002,7 +18002,11 @@ use_filesort:
     select->quick= save_quick;
   }
   if (orig_cond_saved)
+  {
+    tab->table->file->cancel_pushed_idx_cond();
     tab->set_cond(orig_cond);
+  }
+
   DBUG_RETURN(0);
 }
 

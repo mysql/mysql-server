@@ -468,6 +468,31 @@ set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug #58816 "Extra temporary duplicate rows in result set when 
+--echo #             switching ICP off"
+--echo #
+
+set @save_optimizer_switch= @@optimizer_switch;
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,9),(2,7),(3,6),(4,3),(5,1);
+
+EXPLAIN SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+
+SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+DROP TABLE t1;
+
+set optimizer_switch= @save_optimizer_switch;
+
+--echo #
 --echo # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
 --echo #
 CREATE TABLE t1 ( f11 int) ;
