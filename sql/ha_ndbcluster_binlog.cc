@@ -3305,7 +3305,7 @@ public:
     }
 
     case NDBEVENT::TE_DELETE:
-      /* ndb_schema table, row delete */
+      /* ndb_schema table, row DELETEd */
       break;
 
     case NDBEVENT::TE_CLUSTER_FAILURE:
