@@ -1452,15 +1452,13 @@ int _ma_read_dynamic_record(MARIA_HA *info, uchar *buf,
   uint b_type;
   MARIA_BLOCK_INFO block_info;
   File file;
-  uchar *to;
-  uint left_length;
+  uchar *UNINIT_VAR(to);
+  uint UNINIT_VAR(left_length);
   DBUG_ENTER("_ma_read_dynamic_record");
 
   if (filepos == HA_OFFSET_ERROR)
     goto err;
 
-  LINT_INIT(to);
-  LINT_INIT(left_length);
   file= info->dfile.file;
   block_of_record= 0;   /* First block of record is numbered as zero. */
   block_info.second_read= 0;
@@ -1738,13 +1736,12 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 {
   int block_of_record, info_read;
   uint left_len,b_type;
-  uchar *to;
+  uchar *UNINIT_VAR(to);
   MARIA_BLOCK_INFO block_info;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_read_rnd_dynamic_record");
 
   info_read=0;
-  LINT_INIT(to);
 
   if (info->lock_type == F_UNLCK)
   {

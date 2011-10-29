@@ -1260,7 +1260,6 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
   {
     LOGHANDLER_FILE_INFO info;
     File fd;
-    LINT_INIT(info.max_lsn);
 
     fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
@@ -1367,11 +1366,9 @@ end:
 static void translog_mark_file_finished(uint32 file)
 {
   int i;
-  struct st_file_counter *fc_ptr;
+  struct st_file_counter *UNINIT_VAR(fc_ptr);
   DBUG_ENTER("translog_mark_file_finished");
   DBUG_PRINT("enter", ("file: %lu", (ulong) file));
-
-  LINT_INIT(fc_ptr);
 
   mysql_mutex_lock(&log_descriptor.unfinished_files_lock);
 
@@ -7487,7 +7484,6 @@ static void translog_force_current_buffer_to_finish()
                        (uint) old_buffer->
                        copy_to_buffer_in_progress));
   translog_lock_assert_owner();
-  LINT_INIT(current_page_fill);
   new_buff_beginning= old_buffer->offset;
   new_buff_beginning+= old_buffer->size; /* increase offset */
 
@@ -7770,9 +7766,8 @@ void translog_flush_buffers(TRANSLOG_ADDRESS *lsn,
 {
   dirty_buffer_mask_t dirty_buffer_mask;
   uint i;
-  uint8 last_buffer_no, start_buffer_no;
+  uint8 UNINIT_VAR(last_buffer_no), start_buffer_no;
   DBUG_ENTER("translog_flush_buffers");
-  LINT_INIT(last_buffer_no);
 
   /*
     We will recheck information when will lock buffers one by
@@ -7919,7 +7914,7 @@ void translog_flush_buffers(TRANSLOG_ADDRESS *lsn,
 my_bool translog_flush(TRANSLOG_ADDRESS lsn)
 {
   struct timespec abstime;
-  ulonglong flush_interval;
+  ulonglong UNINIT_VAR(flush_interval);
   ulonglong time_spent;
   LSN sent_to_disk= LSN_IMPOSSIBLE;
   TRANSLOG_ADDRESS flush_horizon;
@@ -7929,8 +7924,6 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
   DBUG_PRINT("enter", ("Flush up to LSN: (%lu,0x%lx)", LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
-  LINT_INIT(sent_to_disk);
-  LINT_INIT(flush_interval);
 
   mysql_mutex_lock(&log_descriptor.log_flush_lock);
   DBUG_PRINT("info", ("Everything is flushed up to (%lu,0x%lx)",

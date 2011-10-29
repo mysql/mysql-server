@@ -2596,7 +2596,7 @@ static my_bool write_block_record(MARIA_HA *info,
                                   ha_checksum old_record_checksum)
 {
   uchar *data, *end_of_data, *tmp_data_used, *tmp_data;
-  uchar *row_extents_first_part, *row_extents_second_part;
+  uchar *UNINIT_VAR(row_extents_first_part), *UNINIT_VAR(row_extents_second_part);
   uchar *field_length_data;
   uchar *page_buff;
   MARIA_BITMAP_BLOCK *block, *head_block;
@@ -2610,9 +2610,6 @@ static my_bool write_block_record(MARIA_HA *info,
   my_off_t position;
   uint save_my_errno;
   DBUG_ENTER("write_block_record");
-
-  LINT_INIT(row_extents_first_part);
-  LINT_INIT(row_extents_second_part);
 
   head_block= bitmap_blocks->block;
   block_size= share->block_size;
@@ -4672,16 +4669,13 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
                            uchar *data, uchar *end_of_data)
 {
   MARIA_SHARE *share= info->s;
-  uchar *field_length_data, *blob_buffer, *start_of_data;
+  uchar *UNINIT_VAR(field_length_data), *blob_buffer, *start_of_data;
   uint flag, null_bytes, cur_null_bytes, row_extents, field_lengths;
   my_bool found_blob= 0;
   MARIA_EXTENT_CURSOR extent;
   MARIA_COLUMNDEF *column, *end_column;
   MARIA_ROW *cur_row= &info->cur_row;
   DBUG_ENTER("_ma_read_block_record2");
-
-  LINT_INIT(field_length_data);
-  LINT_INIT(blob_buffer);
 
   start_of_data= data;
   flag= (uint) (uchar) data[0];
@@ -7213,11 +7207,10 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   const uchar *field_length_data, *field_length_data_end, *extent_info;
   uchar *current_record, *orig_record;
   pgcache_page_no_t page;
-  ha_checksum checksum_delta;
+  ha_checksum UNINIT_VAR(checksum_delta);
   uint rownr, field_length_header, extent_count, length_on_head_page;
   int error;
   DBUG_ENTER("_ma_apply_undo_row_update");
-  LINT_INIT(checksum_delta);
 
   page=  page_korr(header);
   header+= PAGE_STORE_SIZE;

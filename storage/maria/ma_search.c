@@ -356,17 +356,14 @@ int _ma_seq_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
                    uint32 comp_flag, uchar **ret_pos,
                    uchar *buff, my_bool *last_key)
 {
-  int flag;
-  uint page_flag, nod_flag, length, not_used[2];
+  int UNINIT_VAR(flag);
+  uint page_flag, nod_flag, UNINIT_VAR(length), not_used[2];
   uchar t_buff[MARIA_MAX_KEY_BUFF], *end;
   uchar *page;
   MARIA_KEYDEF *keyinfo= key->keyinfo;
   MARIA_SHARE *share= keyinfo->share;
   MARIA_KEY tmp_key;
   DBUG_ENTER("_ma_seq_search");
-
-  LINT_INIT(flag);
-  LINT_INIT(length);
 
   page_flag= ma_page->flag;
   nod_flag=  ma_page->node;
@@ -430,10 +427,10 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
   uint nod_flag, length, len, matched, cmplen, kseg_len;
   uint page_flag, prefix_len,suffix_len;
   int key_len_skip, seg_len_pack, key_len_left;
-  uchar *end, *vseg, *saved_vseg, *saved_from;
+  uchar *end, *vseg, *UNINIT_VAR(saved_vseg), *UNINIT_VAR(saved_from);
   uchar *page;
   uchar tt_buff[MARIA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
-  uchar  *saved_to;
+  uchar  *UNINIT_VAR(saved_to);
   const uchar *kseg;
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
@@ -441,13 +438,6 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
   MARIA_SHARE *share= keyinfo->share;
   const uchar *sort_order= keyinfo->seg->charset->sort_order;
   DBUG_ENTER("_ma_prefix_search");
-
-  LINT_INIT(length);
-  LINT_INIT(prefix_len);
-  LINT_INIT(seg_len_pack);
-  LINT_INIT(saved_from);
-  LINT_INIT(saved_to);
-  LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
   page_flag=   ma_page->flag;

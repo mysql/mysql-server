@@ -949,8 +949,7 @@ static void type_and_offset_read(DYNAMIC_COLUMN_TYPE *type,
                                  size_t *offset,
                                  uchar *place, size_t offset_size)
 {
-  ulong val;
-  LINT_INIT(val);
+  ulong UNINIT_VAR(val);
 
   place+= COLUMN_NUMBER_SIZE;                 /* skip column number */
   switch (offset_size) {

@@ -43,7 +43,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                  MARIA_CREATE_INFO *ci,uint flags)
 {
   register uint i,j;
-  File dfile,file;
+  File UNINIT_VAR(dfile), UNINIT_VAR(file);
   int errpos,save_errno, create_mode= O_RDWR | O_TRUNC, res;
   myf create_flag;
   uint length,max_key_length,packed,pack_bytes,pointer,real_length_diff,
@@ -76,8 +76,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                       keys, columns, uniques, flags));
 
   DBUG_ASSERT(maria_inited);
-  LINT_INIT(dfile);
-  LINT_INIT(file);
 
   if (!ci)
   {

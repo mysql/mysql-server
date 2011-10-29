@@ -46,9 +46,7 @@ static char *opt_password = 0, *current_user = 0,
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair, tables4rebuild;
-#ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
-#endif
 static uint opt_protocol=0;
 
 enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
@@ -912,10 +910,8 @@ static int dbConnect(char *host, char *user, char *passwd)
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
-#endif
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(&mysql_connection, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -980,7 +976,7 @@ int main(int argc, char **argv)
   ** Check out the args
   */
   if (load_defaults("my", load_default_groups, &argc, &argv))
-    goto end1;
+    goto end2;
 
   defaults_argv= argv;
   if (get_options(&argc, &argv))
@@ -1036,11 +1032,10 @@ int main(int argc, char **argv)
   }
  end1:
   my_free(opt_password);
-#ifdef HAVE_SMEM
   my_free(shared_memory_base_name);
-#endif
   mysql_library_end();
   free_defaults(defaults_argv);
+ end2:
   my_end(my_end_arg);
   return ret;
 } /* main */

@@ -2073,7 +2073,7 @@ bool unpack_vcol_info_from_frm(THD *thd,
   thd->stmt_arena= vcol_arena;
 
   if (init_lex_with_single_table(thd, table, &lex))
-    goto end;
+    goto err;
 
   thd->lex->parse_vcol_expr= TRUE;
 

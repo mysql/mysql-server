@@ -2093,7 +2093,7 @@ static my_socket activate_tcp_port(uint port)
   int error;
   int	arg;
   char port_buf[NI_MAXSERV];
-  my_socket ip_sock;
+  my_socket ip_sock= INVALID_SOCKET;
   DBUG_ENTER("activate_tcp_port");
   DBUG_PRINT("general",("IP Socket is %d",port));
 
@@ -2111,12 +2111,8 @@ static my_socket activate_tcp_port(uint port)
     unireg_abort(1);				/* purecov: tested */
   }
 
-  for (a= ai; a != NULL; a= a->ai_next)
-  {
+  for (a= ai; a != NULL && ip_sock == INVALID_SOCKET; a= a->ai_next)
     ip_sock= socket(a->ai_family, a->ai_socktype, a->ai_protocol);
-    if (ip_sock != INVALID_SOCKET)
-      break;
-  }
 
   if (ip_sock == INVALID_SOCKET)
   {

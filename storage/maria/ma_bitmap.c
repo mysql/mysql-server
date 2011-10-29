@@ -1415,16 +1415,11 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
   uchar *page_end= data + bitmap->total_size;
   uchar *best_data= 0;
   uint min_size;
-  uint best_area_size, best_prefix_area_size, best_suffix_area_size;
+  uint best_area_size, UNINIT_VAR(best_prefix_area_size), best_suffix_area_size;
   uint page, size;
-  ulonglong best_prefix_bits;
+  ulonglong UNINIT_VAR(best_prefix_bits);
   DBUG_ENTER("allocate_full_pages");
   DBUG_PRINT("enter", ("pages_needed: %lu", pages_needed));
-
-  /* Following variables are only used if best_data is set */
-  LINT_INIT(best_prefix_bits);
-  LINT_INIT(best_prefix_area_size);
-  LINT_INIT(best_suffix_area_size);
 
   min_size= pages_needed;
   if (!full_page && min_size > BLOB_SEGMENT_MIN_SIZE)

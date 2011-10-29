@@ -192,11 +192,9 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
   MARIA_SHARE *share= info->s;
   reg2 ha_rows i;
   uint delete_link_length;
-  my_off_t empty,next_link,old_link;
+  my_off_t empty,next_link,UNINIT_VAR(old_link);
   char buff[22],buff2[22];
   DBUG_ENTER("maria_chk_del");
-
-  LINT_INIT(old_link);
 
   param->record_checksum=0;
 
@@ -3652,13 +3650,12 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   double  *rec_per_key_part;
   char llbuff[22];
   MARIA_SORT_INFO sort_info;
-  ulonglong key_map;
+  ulonglong UNINIT_VAR(key_map);
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
   my_bool scan_inited= 0, reenable_logging= 0;
   MARIA_SHARE backup_share;
   DBUG_ENTER("maria_repair_by_sort");
-  LINT_INIT(key_map);
 
   got_error= 1;
   new_file= -1;
@@ -4176,13 +4173,12 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   IO_CACHE_SHARE io_share;
   MARIA_SORT_INFO sort_info;
   MARIA_SHARE backup_share;
-  ulonglong key_map;
+  ulonglong UNINIT_VAR(key_map);
   pthread_attr_t thr_attr;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
   my_bool reenable_logging= 0;
   DBUG_ENTER("maria_repair_parallel");
-  LINT_INIT(key_map);
 
   got_error= 1;
   new_file= -1;
@@ -4908,9 +4904,8 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
     }
   case DYNAMIC_RECORD:
   {
-    uchar *to;
+    uchar *UNINIT_VAR(to);
     ha_checksum checksum= 0;
-    LINT_INIT(to);
 
     pos=sort_param->pos;
     param->progress= pos;

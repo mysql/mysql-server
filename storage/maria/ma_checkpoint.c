@@ -552,13 +552,10 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     translog_get_horizon();
   ulonglong pagecache_flushes_at_last_checkpoint=
     maria_pagecache->global_cache_write;
-  uint pages_bunch_size;
+  uint UNINIT_VAR(pages_bunch_size);
   struct st_filter_param filter_param;
-  PAGECACHE_FILE *dfile; /**< data file currently being flushed */
-  PAGECACHE_FILE *kfile; /**< index file currently being flushed */
-  LINT_INIT(kfile);
-  LINT_INIT(dfile);
-  LINT_INIT(pages_bunch_size);
+  PAGECACHE_FILE *UNINIT_VAR(dfile); /**< data file currently being flushed */
+  PAGECACHE_FILE *UNINIT_VAR(kfile); /**< index file currently being flushed */
 
   my_thread_init();
   DBUG_PRINT("info",("Maria background checkpoint thread starts"));
@@ -756,7 +753,6 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   PAGECACHE_FLUSH_FILTER filter;
   DBUG_ENTER("collect_tables");
 
-  LINT_INIT(state_copies_horizon);
   /* let's make a list of distinct shares */
   mysql_mutex_lock(&THR_LOCK_maria);
   for (nb= 0, pos= maria_open_list; pos; pos= pos->next)

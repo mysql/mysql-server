@@ -5035,7 +5035,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
   */
   if (likely(is_open()))
   {
-    my_off_t my_org_b_tell;
+    my_off_t UNINIT_VAR(my_org_b_tell);
 #ifdef HAVE_REPLICATION
     /*
       In the future we need to add to the following if tests like

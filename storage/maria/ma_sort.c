@@ -506,7 +506,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
 {
   MARIA_SORT_INFO *sort_info=sort_param->sort_info;
   HA_CHECK *param=sort_info->param;
-  ulong length, keys;
+  ulong UNINIT_VAR(length), keys;
   double *rec_per_key_part= param->new_rec_per_key_part;
   int got_error=sort_info->got_error;
   uint i;
@@ -515,7 +515,6 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
   MARIA_SORT_PARAM *sinfo;
   uchar *mergebuf=0;
   DBUG_ENTER("_ma_thr_write_keys");
-  LINT_INIT(length);
 
   for (i= 0, sinfo= sort_param ;
        i < sort_info->total_keys ;
@@ -941,7 +940,7 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   int error;
   uint sort_length,maxcount;
   ha_rows count;
-  my_off_t to_start_filepos;
+  my_off_t UNINIT_VAR(to_start_filepos);
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
@@ -950,7 +949,6 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   count=error=0;
   maxcount=keys/((uint) (Tb-Fb) +1);
   DBUG_ASSERT(maxcount > 0);
-  LINT_INIT(to_start_filepos);
   if (to_file)
     to_start_filepos=my_b_tell(to_file);
   strpos= (uchar*) sort_keys;
