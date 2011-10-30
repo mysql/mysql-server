@@ -493,6 +493,37 @@ DROP TABLE t1;
 set optimizer_switch= @save_optimizer_switch;
 
 --echo #
+--echo # Bug#58837: ICP crash or valgrind error due to uninitialized 
+--echo #            value in innobase_index_cond
+--echo #
+
+CREATE TABLE t1 (
+  t1_int INT,
+  t1_time TIME
+);
+
+CREATE TABLE t2 ( 
+  t2_int int PRIMARY KEY,
+  t2_int2 INT
+);
+
+--disable_warnings
+INSERT INTO t2 VALUES ();
+INSERT INTO t1 VALUES ();
+--enable_warnings
+
+SELECT * FROM t1 AS t1a 
+  WHERE NOT EXISTS (SELECT * FROM t1 AS t1b
+                      WHERE t1b.t1_int NOT IN
+                            (SELECT t2.t2_int FROM t2
+                               WHERE t1b.t1_time LIKE t1b.t1_int
+                                     OR t1b.t1_time <> t2.t2_int2
+                                        AND 6=7));
+
+DROP TABLE t1,t2;
+
+
+--echo #
 --echo # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
 --echo #
 CREATE TABLE t1 ( f11 int) ;
