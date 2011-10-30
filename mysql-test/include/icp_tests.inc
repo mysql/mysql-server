@@ -553,6 +553,28 @@ WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug#58838: "Wrong results with HAVING + LIMIT without GROUP BY when 
+--echo #            ICP is enabled".
+--echo #            (Fixed by the patches for LP bugs #668644, #702322)
+--echo # 
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (c1)
+);
+
+INSERT INTO t1 VALUES (1,37),(2,8),(3,-25),(4,NULL),(5,55);
+
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 0;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 1;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 2;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 5;
+
+DROP TABLE t1;
+
+--echo #
 --echo # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
 --echo #
 CREATE TABLE t1 ( f11 int) ;
