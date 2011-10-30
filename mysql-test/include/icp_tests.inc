@@ -522,6 +522,35 @@ SELECT * FROM t1 AS t1a
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#59186: Wrong results of join when ICP is enabled
+--echo #            (fixed by the patch for LP bug #694092)
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(3) NOT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'y'),(0,'or');
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(3) NOT NULL,
+  c2 VARCHAR(6) NOT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (6,'y','RPOYT'),(10,'m','JINQE');
+
+EXPLAIN
+SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
+WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
+      (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
+SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
+WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
+      (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
+
+DROP TABLE t1, t2;
 
 --echo #
 --echo # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
