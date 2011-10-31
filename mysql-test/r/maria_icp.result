@@ -564,6 +564,23 @@ pk	i1	c1	i2
 INSERT INTO t1 (i2) VALUES (1);
 DROP TABLE t1;
 #
+# Bug #11766678 - 59843:
+# USING UNINITIALISED VALUE IN USES_INDEX_FIELDS_ONLY
+#
+CREATE TABLE t1 (
+col999 FLOAT NOT NULL,
+COL1000 VARBINARY(179) NOT NULL,
+col1003 DATE DEFAULT NULL,
+KEY idx4267 (col1000, col1003)
+);
+INSERT INTO t1 VALUES (),();
+Warnings:
+Warning	1364	Field 'col999' doesn't have a default value
+Warning	1364	Field 'COL1000' doesn't have a default value
+SELECT col999 FROM t1 WHERE col1000 = "3" AND col1003 <=> sysdate();
+col999
+DROP TABLE t1;
+#
 # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
 #
 CREATE TABLE t1 ( f11 int) ;

@@ -598,6 +598,23 @@ INSERT INTO t1 (i2) VALUES (1);
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #11766678 - 59843:
+--echo # USING UNINITIALISED VALUE IN USES_INDEX_FIELDS_ONLY
+--echo #
+
+CREATE TABLE t1 (
+  col999 FLOAT NOT NULL,
+  COL1000 VARBINARY(179) NOT NULL,
+  col1003 DATE DEFAULT NULL,
+  KEY idx4267 (col1000, col1003)
+);
+
+INSERT INTO t1 VALUES (),();
+SELECT col999 FROM t1 WHERE col1000 = "3" AND col1003 <=> sysdate();
+
+DROP TABLE t1;
+
+--echo #
 --echo # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
 --echo #
 CREATE TABLE t1 ( f11 int) ;
