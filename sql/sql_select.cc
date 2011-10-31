@@ -8026,7 +8026,10 @@ void Optimize_table_order::best_access_path(
     Don't do a table scan on InnoDB tables, if we can read the used
     parts of the row from any of the used index.
     This is because table scans uses index and we would not win
-    anything by using a table scan.
+    anything by using a table scan. The only exception is INDEX_MERGE
+    quick select. We can not say for sure that INDEX_MERGE quick select
+    is always faster than ref access. So it's necessary to check if
+    ref access is more expensive.
 
     A word for word translation of the below if-statement in sergefp's
     understanding: we check if we should use table scan if:
@@ -8066,8 +8069,11 @@ void Optimize_table_order::best_access_path(
     goto skip_table_scan;
   }
 
-  if (((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
-       !s->table->covering_keys.is_clear_all() && best_key && !s->quick))//(3)
+  if ((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
+      !s->table->covering_keys.is_clear_all() && best_key &&            //(3)
+      (!s->quick ||                                                     //(3)
+       (s->quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
+        best < s->quick->read_time)))                                   //(3)
   {
     trace_access_scan.add_alnum("access_type", s->quick ? "range" : "scan").
       add_alnum("cause", "covering_index_better_than_full_scan");
@@ -19009,8 +19015,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
 
     // Initialize full scan
-    init_read_record(&last_tab->read_record, join->thd,
-                     sjm->table, NULL, TRUE, TRUE, FALSE);
+    if (init_read_record(&last_tab->read_record, join->thd,
+                         sjm->table, NULL, TRUE, TRUE, FALSE))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
 
     last_tab->read_first_record= join_read_record_no_init;
     last_tab->read_record.copy_field= sjm->copy_field;
@@ -20257,8 +20264,9 @@ int join_init_read_record(JOIN_TAB *tab)
     report_error(tab->table, error);
     return 1;
   }
-  init_read_record(&tab->read_record, tab->join->thd, tab->table,
-		   tab->select,1,1, FALSE);
+  if (init_read_record(&tab->read_record, tab->join->thd, tab->table,
+                       tab->select, 1, 1, FALSE))
+    return 1;
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
@@ -23803,7 +23811,9 @@ copy_fields(TMP_TABLE_PARAM *param)
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;
 
-  for (; ptr != end; ptr++)
+  DBUG_ASSERT((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
+
+  for (; ptr < end; ptr++)
     (*ptr->do_copy)(ptr);
 
   List_iterator_fast<Item> it(param->copy_funcs);
