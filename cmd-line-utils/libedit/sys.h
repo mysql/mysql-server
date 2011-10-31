@@ -92,8 +92,21 @@ size_t	strlcpy(char *dst, const char *src, size_t size);
 char	*fgetln(FILE *fp, size_t *len);
 #endif
 
-#ifndef HAVE_WCSDUP
+#ifdef __linux__
+/* Apparently we need _GNU_SOURCE defined to get access to wcsdup on Linux */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#endif
+
+#ifndef __USE_XOPEN
+#define __USE_XOPEN
+#endif
+
 #include <wchar.h>
+#include <wctype.h>
+
+#ifndef HAVE_WCSDUP
 wchar_t *wcsdup(const wchar_t *);
 #endif
 
