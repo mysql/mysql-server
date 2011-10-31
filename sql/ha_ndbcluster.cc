@@ -13517,13 +13517,8 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     if (opt_ndb_extra_logging > 9)
       sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
     if (opt_ndb_extra_logging)
-      sql_print_information("NDB_SHARE: trailing share "
-                            "%s(connect_count: %u) "
-                            "released by close_cached_tables at "
-                            "connect_count: %u",
-                            share->key,
-                            share->connect_count,
-                            g_ndb_cluster_connection->get_connect_count());
+      sql_print_information("NDB_SHARE: trailing share %s, "
+                            "released by close_cached_tables", share->key);
     ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
@@ -13547,13 +13542,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     if (share->use_count == 0)
     {
       if (opt_ndb_extra_logging)
-        sql_print_information("NDB_SHARE: trailing share "
-                              "%s(connect_count: %u) "
-                              "released after NSS_DROPPED check "
-                              "at connect_count: %u",
-                              share->key,
-                              share->connect_count,
-                              g_ndb_cluster_connection->get_connect_count());
+        sql_print_information("NDB_SHARE: trailing share %s, "
+                              "released after NSS_DROPPED check",
+                              share->key);
       ndbcluster_real_free_share(&share);
       DBUG_RETURN(0);
     }

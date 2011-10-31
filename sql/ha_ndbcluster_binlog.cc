@@ -360,7 +360,6 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
   int error= 0;
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
-  share->connect_count= g_ndb_cluster_connection->get_connect_count();
 #ifdef HAVE_NDB_BINLOG
   share->m_cfn_share= NULL;
 #endif

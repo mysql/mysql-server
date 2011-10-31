@@ -178,7 +178,6 @@ struct NDB_SHARE {
   struct Ndb_statistics stat;
   struct Ndb_index_stat* index_stat_list;
   bool util_thread; // if opened by util thread
-  uint32 connect_count;
   uint32 flags;
 #ifdef HAVE_NDB_BINLOG
   NDB_CONFLICT_FN_SHARE *m_cfn_share;
