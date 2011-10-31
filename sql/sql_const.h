@@ -190,11 +190,38 @@
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
 
 /*
-  Subquery materialization-related constants
+  Constants related to the use of temporary tables in query execution.
+  Lookup and write operations are currently assumed to be equally costly
+  (concerns HEAP_TEMPTABLE_ROW_COST and DISK_TEMPTABLE_ROW_COST).
 */
-#define HEAP_TEMPTABLE_LOOKUP_COST 0.05
-#define DISK_TEMPTABLE_LOOKUP_COST 1.0
-#define RAID_BLOCK_SIZE 1024
+
+#define HEAP_TEMPTABLE_CREATE_COST    0.0
+#define HEAP_TEMPTABLE_ROW_COST       0.05
+#define DISK_TEMPTABLE_CREATE_COST    0.0
+#define DISK_TEMPTABLE_ROW_COST       1.0
+#if defined(FUTURE)
+/*
+  Creating a Heap temporary table is by benchmark found to be as costly as
+  writing 10 rows into the table.
+*/
+#define HEAP_TEMPTABLE_CREATE_COST    2.0
+/*
+  Writing a row to or reading a row from a Heap temporary table is equivalent
+  to evaluating a row in the join engine.
+*/
+#define HEAP_TEMPTABLE_ROW_COST       0.2
+/*
+  Creating a MyISAM table is 20 times slower than creating a Heap table.
+*/
+#define DISK_TEMPTABLE_CREATE_COST   40.0
+/*
+  Generating MyIsam rows sequentially is 2 times slower than generating
+  Heap rows, when number of rows is greater than 1000. However, we do not have
+  benchmarks for very large tables, so setting this factor conservatively to
+  be 5 times slower (ie the cost is 1.0).
+*/
+#define DISK_TEMPTABLE_ROW_COST       1.0
+#endif
 
 #define MY_CHARSET_BIN_MB_MAXLEN 1
 
