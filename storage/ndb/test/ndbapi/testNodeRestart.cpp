@@ -4757,6 +4757,125 @@ int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Motivated by bug# 13323589 */
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 4)
+  {
+    return NDBT_OK;
+  }
+
+  int master = res.getMasterNodeId();
+  int otherVictim = res.getRandomNodeOtherNodeGroup(master, rand());
+  int nextMaster = res.getNextMasterNodeId(master);
+  nextMaster = (nextMaster == otherVictim) ? res.getNextMasterNodeId(otherVictim) :
+    nextMaster;
+  assert(nextMaster != master);
+  assert(nextMaster != otherVictim);
+
+  /* Get a node which is not current or next master */
+  int slowNode= nextMaster;
+  while ((slowNode == nextMaster) ||
+         (slowNode == otherVictim) ||
+         (slowNode == master))
+  {
+    slowNode = res.getRandomNotMasterNodeId(rand());
+  }
+
+  ndbout_c("master: %d otherVictim : %d nextMaster: %d slowNode: %d",
+           master,
+           otherVictim,
+           nextMaster,
+           slowNode);
+
+  /* Steps :
+   * 1. Insert slow LCP frag error in slowNode
+   * 2. Start LCP
+   * 3. Wait for LCP to start
+   * 4. Kill at least two nodes including Master
+   * 5. Wait for killed nodes to attempt to rejoin
+   * 6. Remove slow LCP error
+   * 7. Allow system to stabilise + check no errors
+   */
+  // 5073 = Delay on handling BACKUP_FRAGMENT_CONF in LQH
+  if (res.insertErrorInNode(slowNode, 5073))
+  {
+    return NDBT_FAILED;
+  }
+
+  {
+    int req[1] = {DumpStateOrd::DihStartLcpImmediately};
+    if (res.dumpStateOneNode(master, req, 1))
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  ndbout_c("Giving LCP time to start...");
+
+  NdbSleep_SecSleep(10);
+
+  ndbout_c("Killing other victim node (%u)...", otherVictim);
+
+  if (res.restartOneDbNode(otherVictim, false, false, true))
+  {
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("Killing Master node (%u)...", master);
+
+  if (res.restartOneDbNode(master, false, false, true))
+  {
+    return NDBT_FAILED;
+  }
+
+  /*
+     ndbout_c("Waiting for old Master node to enter NoStart state...");
+     if (res.waitNodesNoStart(&master, 1, 10))
+     return NDBT_FAILED;
+
+     ndbout_c("Starting old Master...");
+     if (res.startNodes(&master, 1))
+     return NDBT_FAILED;
+
+  */
+  ndbout_c("Waiting for some progress on old Master and other victim restart");
+  NdbSleep_SecSleep(15);
+
+  ndbout_c("Now removing error insert on slow node (%u)", slowNode);
+
+  if (res.insertErrorInNode(slowNode, 0))
+  {
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("Now wait a while to check stability...");
+  NdbSleep_SecSleep(30);
+
+  if (res.getNodeStatus(master) == NDB_MGM_NODE_STATUS_NOT_STARTED)
+  {
+    ndbout_c("Old Master needs kick to restart");
+    if (res.startNodes(&master, 1))
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  ndbout_c("Wait for cluster recovery...");
+  if (res.waitClusterStarted())
+  {
+    return NDBT_FAILED;
+  }
+
+
+  ndbout_c("Done");
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -5287,6 +5406,11 @@ TESTCASE("Bug57767", "")
 TESTCASE("Bug57522", "")
 {
   INITIALIZER(runBug57522);
+}
+TESTCASE("MasterFailSlowLCP",
+         "DIH Master failure during a slow LCP can cause a crash.")
+{
+  INITIALIZER(runMasterFailSlowLCP);
 }
 TESTCASE("ForceStopAndRestart", "Test restart and stop -with force flag")
 {

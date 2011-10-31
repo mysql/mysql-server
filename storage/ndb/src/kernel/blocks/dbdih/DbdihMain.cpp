@@ -2372,6 +2372,17 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   CRASH_INSERTION(7122);
   ndbrequire(isMaster());
   ndbrequire(refToNode(retRef) == nodeId);
+  if (c_lcpMasterTakeOverState.state != LMTOS_IDLE)
+  {
+    jam();
+    infoEvent("DIH : Denied request for start permission from %u "
+              "while LCP Master takeover in progress.",
+              nodeId);
+    signal->theData[0] = nodeId;
+    signal->theData[1] = StartPermRef::ZNODE_START_DISALLOWED_ERROR;
+    sendSignal(retRef, GSN_START_PERMREF, signal, 2, JBB);
+    return;
+  }
   if ((c_nodeStartMaster.activeState) ||
       (c_nodeStartMaster.wait != ZFALSE) ||
       ERROR_INSERTED_CLEAR(7175)) {
