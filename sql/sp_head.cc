@@ -3398,6 +3398,14 @@ int
 sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 {
   /*
+    RETURN is a "procedure statement" (in terms of the SQL standard).
+    That means, Diagnostics Area should be clean before its execution.
+  */
+
+  Diagnostics_area *da= thd->get_stmt_da();
+  da->clear_warning_info(da->warning_info_id());
+
+  /*
     Change <next instruction pointer>, so that this will be the last
     instruction in the stored function.
   */
