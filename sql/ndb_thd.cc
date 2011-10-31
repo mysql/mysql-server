@@ -37,7 +37,7 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
 
   else if (validate_ndb && !thd_ndb->valid_ndb())
   {
-    if (!thd_ndb->recycle_ndb(thd))
+    if (!thd_ndb->recycle_ndb())
       return NULL;
   }
 
