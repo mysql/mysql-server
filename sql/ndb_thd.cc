@@ -43,3 +43,23 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
 
   return thd_ndb->ndb;
 }
+
+#ifndef MYSQL_SERVER
+#define MYSQL_SERVER
+#endif
+
+#include <sql_class.h>
+
+void
+thd_print_warning_list(THD* thd, const char* prefix)
+{
+  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+  MYSQL_ERROR *err;
+  while ((err= it++))
+  {
+    sql_print_warning("%s: (%d)%s",
+                      prefix,
+                      err->get_sql_errno(),
+                      err->get_message_text());
+  }
+}

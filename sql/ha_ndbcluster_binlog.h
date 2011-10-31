@@ -31,35 +31,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 extern handlerton *ndbcluster_hton;
 
-class Ndb_event_data
-{
-public:
-  Ndb_event_data(NDB_SHARE *the_share) :
-    shadow_table(0),
-    share(the_share)
-  {
-    ndb_value[0]= 0;
-    ndb_value[1]= 0;
-  }
-  ~Ndb_event_data()
-  {
-    if (shadow_table)
-      closefrm(shadow_table, 1);
-    shadow_table= 0;
-    free_root(&mem_root, MYF(0));
-    share= 0;
-    /*
-       ndbvalue[] allocated with my_multi_malloc
-       so only first pointer should be freed  
-    */
-    my_free(ndb_value[0], MYF(MY_WME|MY_ALLOW_ZERO_PTR));
-  }
-  MEM_ROOT mem_root;
-  TABLE *shadow_table;
-  NDB_SHARE *share;
-  NdbValue *ndb_value[2];
-};
-
 /*
   The numbers below must not change as they
   are passed between mysql servers, and if changed
@@ -218,6 +189,3 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
 */
 bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-bool
-ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-

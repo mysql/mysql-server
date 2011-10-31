@@ -53,6 +53,7 @@
 #include "ndb_conflict_trans.h"
 #include "ndb_anyvalue.h"
 #include "ndb_binlog_extra_row_info.h"
+#include "ndb_event_data.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -8760,6 +8761,31 @@ ha_ndbcluster::start_transaction_part_id(Uint32 part_id, int &error)
    
 
 /**
+  Static error print function called from static handler method
+  ndbcluster_commit and ndbcluster_rollback.
+*/
+static void
+ndbcluster_print_error(int error, const NdbOperation *error_op)
+{
+  DBUG_ENTER("ndbcluster_print_error");
+  TABLE_SHARE share;
+  const char *tab_name= (error_op) ? error_op->getTableName() : "";
+  if (tab_name == NULL)
+  {
+    DBUG_ASSERT(tab_name != NULL);
+    tab_name= "";
+  }
+  share.db.str= (char*) "";
+  share.db.length= 0;
+  share.table_name.str= (char *) tab_name;
+  share.table_name.length= strlen(tab_name);
+  ha_ndbcluster error_handler(ndbcluster_hton, &share);
+  error_handler.print_error(error, MYF(0));
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Commit a transaction started in NDB.
 */
 
@@ -11841,7 +11867,7 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
 /**
   Try to discover one table from NDB.
 */
-
+static
 int ndbcluster_discover(handlerton *hton, THD* thd, const char *db, 
                         const char *name,
                         uchar **frmblob, 
@@ -11962,7 +11988,7 @@ err:
 /**
   Check if a table exists in NDB.
 */
-
+static
 int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd, 
                                       const char *db,
                                       const char *name)
@@ -12749,30 +12775,6 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  Static error print function called from static handler method
-  ndbcluster_commit and ndbcluster_rollback.
-*/
-
-void ndbcluster_print_error(int error, const NdbOperation *error_op)
-{
-  DBUG_ENTER("ndbcluster_print_error");
-  TABLE_SHARE share;
-  const char *tab_name= (error_op) ? error_op->getTableName() : "";
-  if (tab_name == NULL) 
-  {
-    DBUG_ASSERT(tab_name != NULL);
-    tab_name= "";
-  }
-  share.db.str= (char*) "";
-  share.db.length= 0;
-  share.table_name.str= (char *) tab_name;
-  share.table_name.length= strlen(tab_name);
-  ha_ndbcluster error_handler(ndbcluster_hton, &share);
-  error_handler.print_error(error, MYF(0));
-  DBUG_VOID_RETURN;
-}
 
 /**
   Set a given location from full pathname to database name.
