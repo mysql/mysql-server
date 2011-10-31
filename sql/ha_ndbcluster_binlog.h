@@ -72,14 +72,6 @@ int ndbcluster_create_event_ops(THD *thd,
                                 NDB_SHARE *share,
                                 const NDBTAB *ndbtab,
                                 const char *event_name);
-int ndbcluster_log_schema_op(THD *thd,
-                             const char *query, int query_length,
-                             const char *db, const char *table_name,
-                             uint32 ndb_table_id,
-                             uint32 ndb_table_version,
-                             enum SCHEMA_OP_TYPE type,
-                             const char *new_db,
-                             const char *new_table_name);
 int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                           const char *type_str,
                           const char * dbname, const char * tabname);
