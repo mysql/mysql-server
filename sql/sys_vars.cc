@@ -2212,15 +2212,18 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
+  bool check_purge= false;
+
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
-    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
-      (binlog_checksum_options != (uint) var->save_result.ulonglong_value?
-       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
-    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+    bool alg_changed=
+      (binlog_checksum_options != (uint) var->save_result.ulonglong_value);
+    if (alg_changed)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
-    mysql_bin_log.rotate_and_purge(flags);
+    mysql_bin_log.rotate(true, &check_purge);
+    if (alg_changed)
+      mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   else
   {
@@ -2229,6 +2232,10 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
   DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  
+  if (check_purge)
+    mysql_bin_log.purge();
+
   return 0;
 }
 
@@ -2258,7 +2265,7 @@ static Sys_var_ulong Sys_sort_buffer(
        "sort_buffer_size",
        "Each thread that needs to do a sort allocates a buffer of this size",
        SESSION_VAR(sortbuff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(MAX_SORT_MEMORY),
+       VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)

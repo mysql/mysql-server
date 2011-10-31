@@ -1100,7 +1100,11 @@ Events::load_events_from_db(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE);
+  if (init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE))
+  {
+    sql_print_error("Event Scheduler: Error while starting read of mysql.event");
+    DBUG_RETURN(TRUE);
+  }
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;

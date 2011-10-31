@@ -61,11 +61,6 @@ int mi_delete_all_rows(MI_INFO *info)
       mysql_file_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME)))
     goto err;
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
-#ifdef HAVE_MMAP
-  /* Map again */
-  if (share->file_map)
-    mi_dynmap_file(info, (my_off_t) 0);
-#endif
   DBUG_RETURN(0);
 
 err:
