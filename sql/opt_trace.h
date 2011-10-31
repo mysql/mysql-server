@@ -1161,6 +1161,7 @@ public:
   Opt_trace_object& add(const char *key, bool value) { return *this; }
   Opt_trace_object& add(const char *key, int value) { return *this; }
   Opt_trace_object& add(const char *key, uint value) { return *this; }
+  Opt_trace_object& add(const char *key, ulong value) { return *this; }
   Opt_trace_object& add(const char *key, longlong value) { return *this; }
   Opt_trace_object& add(const char *key, ulonglong value) { return *this; }
   Opt_trace_object& add(const char *key, double value) { return *this; }
