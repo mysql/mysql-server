@@ -54,6 +54,7 @@
 #include "ndb_anyvalue.h"
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_event_data.h"
+#include "ndb_schema_dist.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
