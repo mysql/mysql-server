@@ -10587,7 +10587,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
   int error= 0;
   char unique_name[FN_LEN + 1];
   static const char* unique_suffix= "$unique";
-  DBUG_ENTER("ha_ndbcluster::create_ordered_index");
+  DBUG_ENTER("ha_ndbcluster::create_index");
   DBUG_PRINT("info", ("Creating index %u: %s", idx_no, name));  
 
   if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
