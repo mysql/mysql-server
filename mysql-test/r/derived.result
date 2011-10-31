@@ -1668,7 +1668,7 @@ DROP VIEW v1;
 DROP TABLE t1;
 #
 #
-#  Bug#13105833: Crash when using LooseScan sj-strategy for a view
+# Bug#13105833: Crash when using LooseScan sj-strategy for a view.
 #
 CREATE TABLE t1 (pk int(11)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
