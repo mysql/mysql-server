@@ -60,6 +60,7 @@ bool ndb_log_empty_epochs(void);
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_event_data.h"
 #include "ndb_schema_object.h"
+#include "ndb_schema_dist.h"
 
 /*
   Timeout for syncing schema events between
@@ -1549,54 +1550,6 @@ static void ndb_report_waiting(const char *key,
   }
 }
 
-static
-const char*
-get_schema_type_name(uint type)
-{
-  switch(type){
-  case SOT_DROP_TABLE:
-    return "DROP_TABLE";
-  case SOT_CREATE_TABLE:
-    return "CREATE_TABLE";
-  case SOT_RENAME_TABLE_NEW:
-    return "RENAME_TABLE_NEW";
-  case SOT_ALTER_TABLE_COMMIT:
-    return "ALTER_TABLE_COMMIT";
-  case SOT_DROP_DB:
-    return "DROP_DB";
-  case SOT_CREATE_DB:
-    return "CREATE_DB";
-  case SOT_ALTER_DB:
-    return "ALTER_DB";
-  case SOT_CLEAR_SLOCK:
-    return "CLEAR_SLOCK";
-  case SOT_TABLESPACE:
-    return "TABLESPACE";
-  case SOT_LOGFILE_GROUP:
-    return "LOGFILE_GROUP";
-  case SOT_RENAME_TABLE:
-    return "RENAME_TABLE";
-  case SOT_TRUNCATE_TABLE:
-    return "TRUNCATE_TABLE";
-  case SOT_RENAME_TABLE_PREPARE:
-    return "RENAME_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_PREPARE:
-    return "ONLINE_ALTER_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_COMMIT:
-    return "ONLINE_ALTER_TABLE_COMMIT";
-  case SOT_CREATE_USER:
-    return "CREATE_USER";
-  case SOT_DROP_USER:
-    return "DROP_USER";
-  case SOT_RENAME_USER:
-    return "RENAME_USER";
-  case SOT_GRANT:
-    return "GRANT";
-  case SOT_REVOKE:
-    return "REVOKE";
-  }
-  return "<unknown>";
-}
 
 extern void update_slave_api_stats(Ndb*);
 
