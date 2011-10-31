@@ -42,7 +42,6 @@ class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
 class ha_ndbcluster_cond;
-class Ndb_event_data;
 class NdbQuery;
 class NdbQueryOperation;
 class NdbQueryOperationTypeWrapper;
@@ -497,9 +496,6 @@ private:
                                     const uchar *record,
                                     bool use_active_index);
   friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
-  friend int ndb_handle_schema_change(THD *thd, 
-                                      Ndb *ndb, NdbEventOperation *pOp,
-                                      NDB_SHARE *share);
 
   void check_read_before_write_removal();
   static int drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
@@ -813,12 +809,6 @@ private:
                    uint part_id= ~(uint)0);
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
 };
-
-int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
-                        const void** frmblob, uint* frmlen);
-int ndbcluster_table_exists_in_engine(THD* thd,
-                                      const char *db, const char *name);
-void ndbcluster_print_error(int error, const NdbOperation *error_op);
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
