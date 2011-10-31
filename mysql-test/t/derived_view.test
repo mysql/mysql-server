@@ -1221,5 +1221,45 @@ SET @@tmp_table_size=default;
 
 drop table t1,t2,t3;
 
+--echo #
+--echo # BUG#882994: Crash in QUICK_RANGE_SELECT::reset with derived_with_keys
+--echo #
+CREATE TABLE t2 (
+  pk varchar(33), 
+  col_varchar_key varchar(3) NOT NULL,
+  col_varchar_nokey varchar(52) NOT NULL);
+
+INSERT INTO t2 VALUES ('NICSpanish','NIC','Spanish'),
+  ('NERHausa','NER','Hausa'),('NGAJoruba','NGA','Joruba'),
+  ('NIUNiue','NIU','Niue'),('NFKEnglish','NFK','English'),
+  ('NORNorwegian','NOR','Norwegian'),('CIVAkan','CIV','Akan'),
+  ('OMNArabic','OMN','Arabic'),('PAKPunjabi','PAK','Punjabi'),
+  ('PLWPalau','PLW','Palau'),('PANSpanish','PAN','Spanish'),
+  ('PNGPapuan Langua','PNG','Papuan Languages'), ('PRYSpanish','PRY','Spanish'),
+  ('PERSpanish','PER','Spanish'), ('PCNPitcairnese','PCN','Pitcairnese'),
+  ('MNPPhilippene La','MNP','Philippene Langu'),('PRTPortuguese','PRT','Portuguese'),
+  ('PRISpanish','PRI','Spanish'),('POLPolish','POL','Polish'),('GNQFang','GNQ','Fang');
+
+CREATE TABLE t1 ( col_varchar_nokey varchar(52) NOT NULL ) ;
+INSERT INTO t1 VALUES ('Chinese'),('English'),('French'),('German'),
+  ('Italian'),('Japanese'),('Korean'),('Polish'),('Portuguese'),('Spanish'),
+  ('Tagalog'),('Vietnamese');
+CREATE TABLE t3 ( col_varchar_key varchar(52)) ;
+INSERT INTO t3 VALUES ('United States');
+
+set @tmp_882994= @@max_heap_table_size;
+--disable_warnings
+set max_heap_table_size=1;
+--enable_warnings
+
+SELECT *
+FROM t3 JOIN
+( SELECT t2.* FROM t1, t2 ) AS alias2
+ON ( alias2.col_varchar_nokey = t3.col_varchar_key )
+ORDER BY CONCAT(alias2.col_varchar_nokey);
+
+set max_heap_table_size= @tmp_882994;
+drop table t1,t2,t3;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;
