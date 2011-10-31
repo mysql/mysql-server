@@ -1254,9 +1254,9 @@ Thd_ndb::~Thd_ndb()
 
 
 inline
-Ndb *ha_ndbcluster::get_ndb(THD *thd)
+Ndb *ha_ndbcluster::get_ndb(THD *thd) const
 {
-  return get_thd_ndb(thd)->ndb;
+  return thd_get_thd_ndb(thd)->ndb;
 }
 
 /*
@@ -2226,7 +2226,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   If any index should fail to be created,
   the error is returned immediately
 */
-int ha_ndbcluster::create_indexes(THD *thd, Ndb *ndb, TABLE *tab)
+int ha_ndbcluster::create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const
 {
   uint i;
   int error= 0;
@@ -2760,7 +2760,7 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint inx,
           ORDERED_INDEX);
 } 
 
-bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info)
+bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info) const
 {
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
@@ -10582,7 +10582,7 @@ cleanup_failed:
 
 
 int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info, 
-                                NDB_INDEX_TYPE idx_type, uint idx_no)
+                                NDB_INDEX_TYPE idx_type, uint idx_no) const
 {
   int error= 0;
   char unique_name[FN_LEN + 1];
@@ -10640,14 +10640,14 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
 }
 
 int ha_ndbcluster::create_ordered_index(THD *thd, const char *name, 
-                                        KEY *key_info)
+                                        KEY *key_info) const
 {
   DBUG_ENTER("ha_ndbcluster::create_ordered_index");
   DBUG_RETURN(create_ndb_index(thd, name, key_info, FALSE));
 }
 
 int ha_ndbcluster::create_unique_index(THD *thd, const char *name, 
-                                       KEY *key_info)
+                                       KEY *key_info) const
 {
 
   DBUG_ENTER("ha_ndbcluster::create_unique_index");
@@ -10664,7 +10664,7 @@ int ha_ndbcluster::create_unique_index(THD *thd, const char *name,
 
 int ha_ndbcluster::create_ndb_index(THD *thd, const char *name, 
                                     KEY *key_info,
-                                    bool unique)
+                                    bool unique) const
 {
   char index_name[FN_LEN + 1];
   Ndb *ndb= get_ndb(thd);
@@ -11837,7 +11837,7 @@ int ha_ndbcluster::close(void)
 }
 
 
-int ha_ndbcluster::check_ndb_connection(THD* thd)
+int ha_ndbcluster::check_ndb_connection(THD* thd) const
 {
   Ndb *ndb;
   DBUG_ENTER("check_ndb_connection");
@@ -14233,7 +14233,7 @@ retry:
   that the table with this name is a ndb table.
 */
 
-int ha_ndbcluster::write_ndb_file(const char *name)
+int ha_ndbcluster::write_ndb_file(const char *name) const
 {
   File file;
   bool error=1;
