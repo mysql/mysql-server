@@ -10,7 +10,7 @@ UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SELECT * FROM t1;
-a
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
 set global example_ulong_var=500;
 set global example_enum_var= e1;

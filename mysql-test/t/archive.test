@@ -1788,3 +1788,17 @@ CREATE INDEX i1 ON t1(c1);
 --replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
 SHOW WARNINGS; 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#11758979 - 51252: ARCHIVE TABLES STILL FAIL UNDER STRESS
+--echo #                TESTS: CRASH, CORRUPTION, 4G MEMOR
+--echo # (to be executed with valgrind)
+CREATE TABLE t1(a BLOB, b VARCHAR(200)) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES(NULL, '');
+FLUSH TABLE t1;
+--echo # we need this select to workaround BUG#11764364
+SELECT * FROM t1;
+CHECKSUM TABLE t1 EXTENDED;
+FLUSH TABLE t1;
+OPTIMIZE TABLE t1;
+DROP TABLE t1;

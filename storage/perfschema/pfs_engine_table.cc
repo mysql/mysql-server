@@ -35,7 +35,8 @@
 #include "table_os_global_by_type.h"
 #include "table_sync_instances.h"
 #include "table_file_instances.h"
-#include "table_file_summary.h"
+#include "table_file_summary_by_instance.h"
+#include "table_file_summary_by_event_name.h"
 #include "table_threads.h"
 
 #include "table_ews_by_host_by_event_name.h"
