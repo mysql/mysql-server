@@ -2312,25 +2312,10 @@ fts_get_next_doc_id(
 	fts_cache_t*	cache = table->fts->cache;
 
 	/* If the Doc ID system has not yet been initialized, we
-	will consult the CONFIG table and ADDED table to establish
+	will consult the CONFIG table and user table to re-establish
 	the initial value of the Doc ID */
-	if (cache->first_doc_id == 0) {
-		doc_id_t	init_doc_id;
 
-		rw_lock_x_lock(&cache->lock);
-
-		if (cache->first_doc_id != 0) {
-			rw_lock_x_unlock(&cache->lock);
-			goto nextid;
-		}
-
-		init_doc_id = fts_init_doc_id(table);
-		
-		cache->first_doc_id = init_doc_id;
-
-		rw_lock_x_unlock(&cache->lock);
-	} else {
-nextid:
+	if (cache->first_doc_id != 0 || !fts_init_doc_id(table)) {
 		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			return(DB_SUCCESS);
 		}
@@ -4473,32 +4458,13 @@ fts_init_doc_id(
 	const dict_table_t*	table)		/*!< in: table */
 {
 	doc_id_t	max_doc_id = 0;
-#ifdef FTS_ADD_DEBUG
-	doc_id_t	doc_id_added = 0;
-	fts_table_t     fts_table;
-	ib_vector_t*	doc_ids;
-	ib_alloc_t*	heap_alloc;
-	mem_heap_t*	heap = mem_heap_create(1024);
 
-	heap_alloc = ib_heap_allocator_create(heap);
+	rw_lock_x_lock(&table->fts->cache->lock);
 
-	/* First consult the ADDED table */
-	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, table);
-
-	doc_ids = ib_vector_create(heap_alloc, sizeof(fts_update_t), 1);
-
-	fts_pending_read_doc_ids(&fts_table, TRUE, doc_ids);
-
-	if (ib_vector_size(doc_ids) > 0) {
-		doc_id_added =  *(doc_id_t*) ib_vector_get_const(doc_ids, 0);
+	if (table->fts->cache->first_doc_id != 0) {
+		rw_lock_x_unlock(&table->fts->cache->lock);
+		return(0);
 	}
-
-	mem_heap_free(heap);
-#endif /* FTS_ADD_DEBUG */
-
-#ifdef UNIV_SYNC_DEBUG
-        ut_ad(rw_lock_own(&table->fts->cache->lock, RW_LOCK_EX));
-#endif
 
 	/* Then compare this value with the ID value stored in the CONFIG
 	table. The larger one will be our new initial Doc ID */
@@ -4512,6 +4478,12 @@ fts_init_doc_id(
 	}
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
+
+	table->fts->cache->first_doc_id = max_doc_id;
+
+	rw_lock_x_unlock(&table->fts->cache->lock);
+
+	ut_ad(max_doc_id > 0);
 
 	return(max_doc_id);
 }

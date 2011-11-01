@@ -87,10 +87,10 @@ SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 DROP TABLE t2 , t1;
 
 # on update cascade
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
   fulltext key(s2),
-  foreign key (s1,s2) references t1 (s1,s2) on update cascade);
+  foreign key (s1,s2) references t1 (s1,s2) on update cascade) ENGINE = InnoDB;
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
@@ -99,40 +99,62 @@ select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
 # on delete cascade
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
   fulltext key(s2),
-  foreign key (s1,s2) references t1 (s1,s2) on delete cascade);
+  foreign key (s1,s2) references t1 (s1,s2) on delete cascade) ENGINE = InnoDB;
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
-update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
-commit;
+delete from t1  where s2 <> 'Sunshine';
 select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
 # on delete set NULL
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
   fulltext key(s2),
-  foreign key (s1,s2) references t1 (s1,s2) on delete set null);
+  foreign key (s1,s2) references t1 (s1,s2) on delete set null) ENGINE = InnoDB;
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
-update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
-commit;
+delete from t1 where s2 <> 'Sunshine';
 select * from t2 where match(s2) against ('Lollipops');
 DROP TABLE t2 , t1;
 
 
 # on update set NULL
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
   fulltext key(s2),
-  foreign key (s1,s2) references t1 (s1,s2) on update set null);
+  foreign key (s1,s2) references t1 (s1,s2) on update set null) ENGINE = InnoDB;
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
 commit;
 select * from t2 where match(s2) against ('Lollipops');
+DROP TABLE t2 , t1;
+
+# When Doc ID is involved
+create table t1 (s1 bigint unsigned not null, s2 varchar(200),
+		 primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (FTS_DOC_ID BIGINT UNSIGNED NOT NULL, s2 varchar(200),
+		 foreign key (FTS_DOC_ID) references t1 (s1)
+		 on update cascade) ENGINE = InnoDB;
+
+create fulltext index idx on t2(s2);
+
+show create table t2;
+
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+
+update t1 set s1 = 3 where s1=1;
+
+select * from t2 where match(s2) against ('sunshine');
+
+# FTS Doc ID cannot be reused
+--error 1451
+update t1 set s1 = 1 where s1=3;
+
 DROP TABLE t2 , t1;
 
 #------------------------------------------------------------------------------
