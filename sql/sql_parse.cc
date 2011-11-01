@@ -5917,6 +5917,7 @@ mysql_new_select(LEX *lex, bool move_down)
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
+  select_lex->nest_level_base= &thd->lex->unit;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
