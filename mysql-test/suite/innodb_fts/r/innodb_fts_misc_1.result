@@ -76,15 +76,59 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 id1	a1	b1
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2	a2	b2
-3	changing column - on update cascade	In this tutorial we will show ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
 id1	a1	b1
 3	changing column - on update cascade	to check foreign constraint
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
 id2	a2	b2
+3	changing column - on update cascade	In this tutorial we will show ...
 SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 id2	a2	b2
 3	changing column - on update cascade	In this tutorial we will show ...
+DROP TABLE t2 , t1;
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t2 (s1 int, s2 varchar(200),
+fulltext key(s2),
+foreign key (s1,s2) references t1 (s1,s2) on update cascade);
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
+commit;
+select * from t2 where match(s2) against ('Lollipops');
+s1	s2
+DROP TABLE t2 , t1;
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t2 (s1 int, s2 varchar(200),
+fulltext key(s2),
+foreign key (s1,s2) references t1 (s1,s2) on delete cascade);
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
+commit;
+select * from t2 where match(s2) against ('Lollipops');
+s1	s2
+DROP TABLE t2 , t1;
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t2 (s1 int, s2 varchar(200),
+fulltext key(s2),
+foreign key (s1,s2) references t1 (s1,s2) on delete set null);
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
+commit;
+select * from t2 where match(s2) against ('Lollipops');
+s1	s2
+DROP TABLE t2 , t1;
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t2 (s1 int, s2 varchar(200),
+fulltext key(s2),
+foreign key (s1,s2) references t1 (s1,s2) on update set null);
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
+commit;
+select * from t2 where match(s2) against ('Lollipops');
+s1	s2
 DROP TABLE t2 , t1;
 CREATE TABLE t1 (
 id1 INT ,
