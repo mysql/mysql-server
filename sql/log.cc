@@ -456,9 +456,7 @@ bool Log_to_csv_event_handler::
     goto err;
 
   DBUG_ASSERT(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
-
-  ((Field_timestamp*) table->field[GLT_FIELD_EVENT_TIME])->store_timestamp(
-      (my_time_t) event_time);
+  table->field[GLT_FIELD_EVENT_TIME]->store_timestamp(event_time);
 
   /* do a write */
   if (table->field[GLT_FIELD_USER_HOST]->store(user_host, user_host_len,
@@ -599,8 +597,7 @@ bool Log_to_csv_event_handler::
 
   /* store the time and user values */
   DBUG_ASSERT(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
-  ((Field_timestamp*) table->field[SQLT_FIELD_START_TIME])->store_timestamp(
-      (my_time_t) current_time);
+  table->field[SQLT_FIELD_START_TIME]->store_timestamp(current_time);
   if (table->field[SQLT_FIELD_USER_HOST]->store(user_host, user_host_len,
                                                 client_cs))
     goto err;
@@ -619,11 +616,11 @@ bool Log_to_csv_event_handler::
 
     /* fill in query_time field */
     calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
-    if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+    if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
     calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
-    if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+    if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;
     /* rows_sent */
     if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->get_sent_row_count(), TRUE))
@@ -1080,7 +1077,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length)
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
-      error= (*current_handler++)->log_slow(thd, current_time, thd->start_time,
+      error= (*current_handler++)->log_slow(thd, current_time,
+                                            thd->start_time.tv_sec,
                                             user_host_buff, user_host_len,
                                             query_utime, lock_utime, is_command,
                                             query, query_length) || error;

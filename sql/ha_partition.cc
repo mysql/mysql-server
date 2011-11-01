@@ -3455,7 +3455,7 @@ int ha_partition::write_row(uchar * buf)
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   /*
@@ -3571,7 +3571,7 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
     inside m_file[*]->update_row() methods
   */
   if (orig_timestamp_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],

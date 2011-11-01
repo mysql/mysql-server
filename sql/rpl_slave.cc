@@ -2687,7 +2687,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   {
     // The time when we should execute the event.
     time_t sql_delay_end=
-      ev->when + rli->mi->clock_diff_with_master + sql_delay;
+      ev->when.tv_sec + rli->mi->clock_diff_with_master + sql_delay;
     // The current time.
     time_t now= my_time(0);
     // The time we will have to sleep before executing the event.
@@ -2701,7 +2701,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
                         "now= %ld "
                         "sql_delay_end= %ld "
                         "nap_time= %ld",
-                        sql_delay, (long)ev->when,
+                        sql_delay, (long) ev->when.tv_sec,
                         rli->mi->clock_diff_with_master,
                         (long)now, (long)sql_delay_end, (long)nap_time));
 
@@ -2820,8 +2820,8 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
   thd->server_id = ev->server_id; // use the original server id for logging
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
-  if (!ev->when)
-    ev->when= my_time(0);
+  if (!ev->when.tv_sec)
+    my_micro_time_to_timeval(my_micro_time(), &ev->when);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
   if (!(rli->is_mts_recovery() && bitmap_is_set(&rli->recovery_groups,
@@ -3102,9 +3102,9 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     */
     if (!(rli->is_parallel_exec() ||
           ev->is_artificial_event() || ev->is_relay_log_event() ||
-          (ev->when == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
+          (ev->when.tv_sec == 0) || ev->get_type_code() == FORMAT_DESCRIPTION_EVENT))
     {
-      rli->last_master_timestamp= ev->when + (time_t) ev->exec_time;
+      rli->last_master_timestamp= ev->when.tv_sec + (time_t) ev->exec_time;
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
     }
 

@@ -240,9 +240,9 @@ protected:
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, uint precision);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(float value, uint32 decimals, String *buffer);
   virtual bool store(double value, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -580,7 +580,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
   else
     set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+                  MAX_TIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
 }
 
@@ -658,7 +658,7 @@ void set_param_time(Item_param *param, uchar **pos, ulong len)
     tm.second= 59;
   }
   param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+                  MAX_TIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 
 }
 
@@ -4307,7 +4307,8 @@ bool Protocol_local::store(const char *str, size_t length,
 
 /* Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store(MYSQL_TIME *time)
+bool Protocol_local::store(MYSQL_TIME *time,
+                           uint precision __attribute__((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }
@@ -4323,7 +4324,8 @@ bool Protocol_local::store_date(MYSQL_TIME *time)
 
 /** Store MYSQL_TIME (in binary format) */
 
-bool Protocol_local::store_time(MYSQL_TIME *time)
+bool Protocol_local::store_time(MYSQL_TIME *time,
+                                uint precision __attribute__((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }

@@ -151,6 +151,9 @@
 #
 #
 
+# For TIME to DATETIME/TIMESTAMP conversion:
+SET timestamp=UNIX_TIMESTAMP('2010-01-01');
+
 --disable_warnings
 DROP TABLE IF EXISTS t1_selects, t1_modes, t1_values;
 DROP VIEW  IF EXISTS v1;

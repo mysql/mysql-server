@@ -904,10 +904,11 @@ class Item_func_weight_string :public Item_str_func
   uint flags;
   uint nweights;
   uint result_length;
+  Field *field;
 public:
   Item_func_weight_string(Item *a, uint result_length_arg,
                           uint nweights_arg, uint flags_arg)
-  :Item_str_func(a)
+  :Item_str_func(a), field(NULL)
   {
     nweights= nweights_arg;
     flags= flags_arg;

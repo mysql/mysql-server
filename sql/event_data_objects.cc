@@ -1158,7 +1158,7 @@ append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
   */
   MYSQL_TIME time;
   time_zone->gmt_sec_to_TIME(&time, secs);
-  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff));
+  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff, 0));
   buf->append(STRING_WITH_LEN("'"));
 }
 

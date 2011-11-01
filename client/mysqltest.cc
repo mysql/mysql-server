@@ -7061,9 +7061,10 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
       dynstr_append_mem(ds, "\n", 1);
   }
 
-  if (mysql_stmt_fetch(stmt) != MYSQL_NO_DATA)
-    die("fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
-	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
+  int rc;
+  if ((rc= mysql_stmt_fetch(stmt)) != MYSQL_NO_DATA)
+    die("fetch didn't end with MYSQL_NO_DATA from statement: %d: %s; rc=%d",
+        mysql_stmt_errno(stmt), mysql_stmt_error(stmt), rc);
 
   for (i= 0; i < num_fields; i++)
   {

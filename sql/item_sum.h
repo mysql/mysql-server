@@ -1012,14 +1012,21 @@ protected:
   void clear();
   double val_real();
   longlong val_int();
+  longlong val_time_temporal();
+  longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *);
   void reset_field();
   String *val_str(String *);
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }
+  enum Item_result numeric_context_result_type() const
+  {
+    return args[0]->numeric_context_result_type();
+  }
   void update_field();
   void min_max_update_str_field();
+  void min_max_update_temporal_field();
   void min_max_update_real_field();
   void min_max_update_int_field();
   void min_max_update_decimal_field();
@@ -1028,11 +1035,6 @@ protected:
   void no_rows_in_result();
   Field *create_tmp_field(bool group, TABLE *table,
 			  uint convert_blob_length);
-  /*
-    MIN/MAX uses Item_cache_datetime for storing DATETIME values, thus
-    in this case a correct INT value can be provided.
-  */
-  bool result_as_longlong() { return args[0]->result_as_longlong(); }
 };
 
 

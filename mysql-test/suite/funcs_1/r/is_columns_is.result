@@ -25,7 +25,7 @@ def	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8
 def	information_schema	COLUMNS	COLUMN_NAME	4		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	COLUMNS	COLUMN_TYPE	15	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 def	information_schema	COLUMNS	DATA_TYPE	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	COLUMNS	EXTRA	17		NO	varchar	27	81	NULL	NULL	utf8	utf8_general_ci	varchar(27)			select	
+def	information_schema	COLUMNS	EXTRA	17		NO	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
 def	information_schema	COLUMNS	IS_NULLABLE	7		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 def	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
@@ -424,7 +424,7 @@ NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	COLUMNS	COLLATION_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 1.0000	information_schema	COLUMNS	COLUMN_TYPE	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	COLUMNS	COLUMN_KEY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
-3.0000	information_schema	COLUMNS	EXTRA	varchar	27	81	utf8	utf8_general_ci	varchar(27)
+3.0000	information_schema	COLUMNS	EXTRA	varchar	30	90	utf8	utf8_general_ci	varchar(30)
 3.0000	information_schema	COLUMNS	PRIVILEGES	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 3.0000	information_schema	COLUMNS	COLUMN_COMMENT	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	COLUMN_PRIVILEGES	GRANTEE	varchar	81	243	utf8	utf8_general_ci	varchar(81)

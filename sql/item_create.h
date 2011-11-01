@@ -166,6 +166,11 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *len, const char *dec,
                  const CHARSET_INFO *cs);
 
+Item *create_temporal_literal(THD *thd,
+                              const char *str, uint length,
+                              const CHARSET_INFO *cs,
+                              enum_field_types type, bool send_error);
+
 int item_create_init();
 void item_create_cleanup();
 
