@@ -1714,6 +1714,19 @@ private:
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
+
+/*
+  Convert microseconds since epoch to timeval.
+  @param     micro_time  Microseconds.
+  @param OUT tm          A timeval variable to write to.
+*/
+static inline void
+my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
+{
+  tm->tv_sec=  micro_time / 1000000;
+  tm->tv_usec= micro_time % 1000000;
+}
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1885,7 +1898,8 @@ public:
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;
-  time_t     start_time, user_time;
+  struct timeval start_time;
+  struct timeval user_time;
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
@@ -2457,7 +2471,8 @@ public:
     Reset to FALSE when we leave the sub-statement mode.
   */
   bool       is_fatal_sub_stmt_error;
-  bool	     query_start_used, rand_used, time_zone_used;
+  bool	     query_start_used, query_start_usec_used;
+  bool       rand_used, time_zone_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
@@ -2506,6 +2521,7 @@ public:
     long      long_value;
     ulong     ulong_value;
     ulonglong ulonglong_value;
+    double    double_value;
   } sys_var_tmp;
   
   struct {
@@ -2688,41 +2704,60 @@ public:
 
   // End implementation of MDL_context_owner interface.
 
-
-  inline time_t query_start() { query_start_used=1; return start_time; }
+  inline sql_mode_t datetime_flags() const
+  {
+    return variables.sql_mode &
+      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
+  }
+  inline time_t query_start()
+  {
+    query_start_used= 1;
+    return start_time.tv_sec;
+  }
+  inline long query_start_usec()
+  {
+    query_start_usec_used= 1;
+    return start_time.tv_usec;
+  }
+  inline struct timeval *query_start_timeval()
+  {
+    query_start_used= query_start_usec_used= 1;
+    return &start_time;
+  }
+  struct timeval query_start_timeval_trunc(uint decimals);
   inline void set_time()
   {
-    if (user_time)
+    start_utime= utime_after_lock= my_micro_time();
+    if (user_time.tv_sec || user_time.tv_usec)
     {
       start_time= user_time;
-      start_utime= utime_after_lock= my_micro_time();
     }
     else
-      start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
+      my_micro_time_to_timeval(start_utime, &start_time);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time);
+    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_current_time()
   {
-    start_time= my_time(MY_WME);
+    my_micro_time_to_timeval(my_micro_time(), &start_time);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time);
+    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
-  inline void set_time(time_t t)
+  inline void set_time(const struct timeval *t)
   {
-    start_time= user_time= t;
+    start_time= user_time= *t;
     start_utime= utime_after_lock= my_micro_time();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time);
+    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
-    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
+    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time.tv_sec));
   }
   void set_time_after_lock()
   {

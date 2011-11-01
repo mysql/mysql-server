@@ -772,7 +772,7 @@ THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
-   user_time(0), in_sub_stmt(0),
+   in_sub_stmt(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -817,7 +817,7 @@ THD::THD(bool enable_plugins)
   security_ctx= &main_security_ctx;
   no_errors= 0;
   password= 0;
-  query_start_used= 0;
+  query_start_used= query_start_usec_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
@@ -831,7 +831,10 @@ THD::THD(bool enable_plugins)
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
-  start_time=(time_t) 0;
+  user_time.tv_sec= 0;
+  user_time.tv_usec= 0;
+  start_time.tv_sec= 0;
+  start_time.tv_usec= 0;
   start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
@@ -1047,6 +1050,26 @@ void THD::raise_note_printf(uint sql_errno, ...)
                          ebuff);
   DBUG_VOID_RETURN;
 }
+
+
+struct timeval THD::query_start_timeval_trunc(uint decimals)
+{
+  struct timeval tv;
+  tv.tv_sec= start_time.tv_sec;
+  query_start_used= 1;
+  if (decimals)
+  {
+    tv.tv_usec= start_time.tv_usec;
+    my_timeval_trunc(&tv, decimals);
+    query_start_usec_used= 1;
+  }
+  else
+  {
+    tv.tv_usec= 0;
+  }
+  return tv;
+}
+
 
 Sql_condition* THD::raise_condition(uint sql_errno,
                                     const char* sqlstate,

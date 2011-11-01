@@ -7067,6 +7067,10 @@ static void test_bind_date_conv(uint row_count)
   MYSQL_TIME   tm[4];
   ulong        second_part;
   uint         year, month, day, hour, minute, sec;
+  uint         now_year= 1990, now_month= 3, now_day= 13;
+
+  rc= mysql_query(mysql, "SET timestamp=UNIX_TIMESTAMP('1990-03-13')");
+  myquery(rc);
 
   stmt= mysql_simple_prepare(mysql, "INSERT INTO test_date VALUES(?, ?, ?, ?)");
   check_stmt(stmt);
@@ -7167,9 +7171,15 @@ static void test_bind_date_conv(uint row_count)
                 i, tm[i].year, tm[i].month, tm[i].day,
                 tm[i].hour, tm[i].minute, tm[i].second,
                 tm[i].second_part);
-      DIE_UNLESS(tm[i].year == 0 || tm[i].year == year+count);
-      DIE_UNLESS(tm[i].month == 0 || tm[i].month == month+count);
-      DIE_UNLESS(tm[i].day == 0 || tm[i].day == day+count);
+      DIE_UNLESS(tm[i].year == 0 || tm[i].year == year + count ||
+                 (tm[i].year == now_year &&
+                  my_bind[i].buffer_type == MYSQL_TYPE_TIME));
+      DIE_UNLESS(tm[i].month == 0 || tm[i].month == month + count ||
+                 (tm[i].month == now_month &&
+                  my_bind[i].buffer_type == MYSQL_TYPE_TIME));
+      DIE_UNLESS(tm[i].day == 0 || tm[i].day == day + count ||
+                 (tm[i].day == now_day &&
+                  my_bind[i].buffer_type == MYSQL_TYPE_TIME));
 
       DIE_UNLESS(tm[i].hour == 0 || tm[i].hour == hour+count);
       DIE_UNLESS(tm[i].minute == 0 || tm[i].minute == minute+count);
@@ -7290,6 +7300,153 @@ static void test_date_dt()
 
   test_bind_date_conv(2);
 }
+
+
+/*
+  Test TIME/DATETIME parameters to cover the following methods:
+    Item_param::val_int()
+    Item_param::val_real()
+    Item_param::val_decimal()
+*/
+static void test_temporal_param()
+{
+#define N_PARAMS 3
+  MYSQL_STMT   *stmt= 0;
+  uint         rc;
+  ulong        length[N_PARAMS],  length2[N_PARAMS];
+  MYSQL_BIND   my_bind[N_PARAMS], my_bind2[N_PARAMS];
+  my_bool      is_null[N_PARAMS], is_null2[N_PARAMS];
+  MYSQL_TIME   tm;
+  longlong     bigint= 123;
+  double       real= 123;
+  char         dec[40];
+
+  /* Initialize param/fetch buffers for data, null flags, lengths */
+  memset(&my_bind, 0, sizeof(my_bind));
+  memset(&my_bind2, 0, sizeof(my_bind2));
+  memset(&length, 0, sizeof(length));
+  memset(&length2, 0, sizeof(length2));
+  memset(&is_null, 0, sizeof(is_null));
+  memset(&is_null2, 0, sizeof(is_null2));
+
+  /* Initialize the first input parameter */
+  my_bind[0].buffer_type= MYSQL_TYPE_TIMESTAMP;
+  my_bind[0].buffer= (void *) &tm;
+  my_bind[0].is_null= &is_null[0];
+  my_bind[0].length= &length[0];
+  my_bind[0].buffer_length= sizeof(tm);
+
+  /* Clone the second and the third input parameter */
+  my_bind[2]= my_bind[1]= my_bind[0];
+
+  /* Initialize fetch parameters */
+  my_bind2[0].buffer_type= MYSQL_TYPE_LONGLONG;
+  my_bind2[0].length= &length2[0];
+  my_bind2[0].is_null= &is_null2[0];
+  my_bind2[0].buffer_length= sizeof(bigint);
+  my_bind2[0].buffer= (void *) &bigint;
+
+  my_bind2[1].buffer_type= MYSQL_TYPE_DOUBLE;
+  my_bind2[1].length= &length2[1];
+  my_bind2[1].is_null= &is_null2[1];
+  my_bind2[1].buffer_length= sizeof(real);
+  my_bind2[1].buffer= (void *) &real;
+
+  my_bind2[2].buffer_type= MYSQL_TYPE_STRING;
+  my_bind2[2].length= &length2[2];
+  my_bind2[2].is_null= &is_null2[2];
+  my_bind2[2].buffer_length= sizeof(dec);
+  my_bind2[2].buffer= (void *) &dec;
+
+
+  /* Prepare and bind input and output parameters */
+  stmt= mysql_simple_prepare(mysql, "SELECT CAST(? AS SIGNED), ?+0e0, ?+0.0");
+  check_stmt(stmt);
+  verify_param_count(stmt, N_PARAMS);
+
+  rc= mysql_stmt_bind_param(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_bind_result(stmt, my_bind2);
+  check_execute(stmt, rc);
+
+  /* Initialize DATETIME value */
+  tm.neg= 0;
+  tm.time_type= MYSQL_TYPE_DATETIME;
+  tm.year= 2001;
+  tm.month= 10;
+  tm.day= 20;
+  tm.hour= 10;
+  tm.minute= 10;
+  tm.second= 59;
+  tm.second_part= 500000;
+
+  /* Execute and fetch */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  if (!opt_silent)
+    printf("\n%lld %f '%s'\n", bigint, real, dec);
+
+  /* Check values.  */
+  DIE_UNLESS(bigint ==  20011020101100);
+  DIE_UNLESS(real == 20011020101059.5);
+  DIE_UNLESS(!strcmp(dec, "20011020101059.5"));
+
+  mysql_stmt_close(stmt);
+
+  /* Re-initialize input parameters to TIME data type */
+  my_bind[0].buffer_type= my_bind[1].buffer_type=
+                          my_bind[2].buffer_type= MYSQL_TYPE_TIME;
+
+  /* Prepare and bind intput and output parameters */
+  stmt= mysql_simple_prepare(mysql, "SELECT CAST(? AS SIGNED), ?+0e0, ?+0.0");
+  check_stmt(stmt);
+  verify_param_count(stmt, N_PARAMS);
+
+  rc= mysql_stmt_bind_param(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_bind_result(stmt, my_bind2);
+  check_execute(stmt, rc);
+
+  /* Initialize TIME value */
+  tm.neg= 0;
+  tm.time_type= MYSQL_TYPE_TIME;
+  tm.year= tm.month= tm.day= 0;
+  tm.hour= 10;
+  tm.minute= 10;
+  tm.second= 59;
+  tm.second_part= 500000;
+
+  /* Execute and fetch */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  if (!opt_silent)
+    printf("\n%lld %f '%s'\n", bigint, real, dec);
+
+  /* Check returned values */
+  DIE_UNLESS(bigint ==  101100);
+  DIE_UNLESS(real ==  101059.5);
+  DIE_UNLESS(!strcmp(dec, "101059.5"));
+
+  mysql_stmt_close(stmt);
+}
+
+
 
 
 /* Misc tests to keep pure coverage happy */
@@ -8449,7 +8606,9 @@ static void test_explain_bug()
   verify_prepare_field(result, 5, "Extra", "EXTRA",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "information_schema", 27, 0);
+                       0, 0, "information_schema",
+                       mysql_get_server_version(mysql) <= 50602 ? 27 : 30,
+                       0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -19892,6 +20051,7 @@ static struct my_tests_st my_tests[]= {
   { "test_store_result2", test_store_result2 },
   { "test_subselect", test_subselect },
   { "test_date", test_date },
+  { "test_temporal_param", test_temporal_param },
   { "test_date_date", test_date_date },
   { "test_date_time", test_date_time },
   { "test_date_ts", test_date_ts },

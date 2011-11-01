@@ -91,6 +91,7 @@ public:
   int compare_int_signed_unsigned();
   int compare_int_unsigned_signed();
   int compare_int_unsigned();
+  int compare_temporal_packed();
   int compare_row();             // compare args[0] & args[1]
   int compare_e_string();	 // compare args[0] & args[1]
   int compare_e_binary_string(); // compare args[0] & args[1]
@@ -126,9 +127,9 @@ public:
   inline void set_cmp_context_for_datetime()
   {
     DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
-    if ((*a)->result_as_longlong())
+    if ((*a)->is_temporal())
       (*a)->cmp_context= INT_RESULT;
-    if ((*b)->result_as_longlong())
+    if ((*b)->is_temporal())
       (*b)->cmp_context= INT_RESULT;
   }
   friend class Item_func;
@@ -701,11 +702,16 @@ public:
   Item_result cmp_type;
   String value0,value1,value2;
   /* TRUE <=> arguments will be compared as dates. */
-  bool compare_as_dates;
+  bool compare_as_dates_with_strings;
+  bool compare_as_temporal_dates;
+  bool compare_as_temporal_times;
+  
   /* Comparators used for DATE/DATETIME comparison. */
   Arg_comparator ge_cmp, le_cmp;
   Item_func_between(Item *a, Item *b, Item *c)
-    :Item_func_opt_neg(a, b, c), compare_as_dates(FALSE) {}
+    :Item_func_opt_neg(a, b, c), compare_as_dates_with_strings(FALSE),
+    compare_as_temporal_dates(FALSE),
+    compare_as_temporal_times(FALSE) {}
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_KEY; }
   enum Functype functype() const   { return BETWEEN; }
@@ -794,7 +800,6 @@ public:
   longlong int_op();
   String *str_op(String *str);
   my_decimal *decimal_op(my_decimal *);
-  enum_field_types field_type() const;
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
@@ -968,6 +973,34 @@ public:
 };
 
 
+class in_datetime_as_longlong :public in_longlong
+{
+public:
+  in_datetime_as_longlong(uint elements)
+    :in_longlong(elements) {};
+  Item *create_item()
+  {
+    return new Item_temporal(0LL);
+  }
+  void set(uint pos, Item *item);
+  uchar *get_value(Item *item);
+};
+
+
+class in_time_as_longlong :public in_longlong
+{
+public:
+  in_time_as_longlong(uint elements)
+    :in_longlong(elements) {};
+  Item *create_item()
+  {
+    return new Item_temporal(0LL);
+  }
+  void set(uint pos, Item *item);
+  uchar *get_value(Item *item);
+};
+
+
 /*
   Class to represent a vector of constant DATE/DATETIME values.
   Values are obtained with help of the get_datetime_value() function.
@@ -989,6 +1022,10 @@ public:
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
   friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
+  Item* create_item()
+  { 
+    return new Item_temporal((longlong) 0);
+  }
 };
 
 
@@ -1279,7 +1316,6 @@ public:
   Item *find_item(String *str);
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
-  void agg_str_lengths(Item *arg);
   void agg_num_lengths(Item *arg);
 };
 

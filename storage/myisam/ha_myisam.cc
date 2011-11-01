@@ -770,7 +770,7 @@ int ha_myisam::write_row(uchar *buf)
 
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -1551,7 +1551,7 @@ int ha_myisam::update_row(const uchar *old_data, uchar *new_data)
 {
   ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
+    table->get_timestamp_field()->set_time();
   return mi_update(file,old_data,new_data);
 }
 

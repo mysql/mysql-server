@@ -282,16 +282,16 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), thd->dup_field->field_name);
       return -1;
     }
-    if (table->timestamp_field)	// Don't automaticly set timestamp if used
+    if (table->get_timestamp_field()) // Don't automaticly set timestamp if used
     {
       if (bitmap_is_set(table->write_set,
-                        table->timestamp_field->field_index))
+                        table->get_timestamp_field()->field_index))
         clear_timestamp_auto_bits(table->timestamp_field_type,
                                   TIMESTAMP_AUTO_SET_ON_INSERT);
       else
       {
         bitmap_set_bit(table->write_set,
-                       table->timestamp_field->field_index);
+                       table->get_timestamp_field()->field_index);
       }
     }
   }
@@ -338,14 +338,15 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   TABLE *table= insert_table_list->table;
   my_bool timestamp_mark= 0;
 
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     /*
       Unmark the timestamp field so that we can check if this is modified
       by update_fields
     */
     timestamp_mark= bitmap_test_and_clear(table->write_set,
-                                          table->timestamp_field->field_index);
+                                          table->get_timestamp_field()->
+                                          field_index);
   }
 
   /* Check the fields we are going to modify */
@@ -358,16 +359,16 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                insert_table_list, map))
     return -1;
 
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     /* Don't set timestamp column if this is modified. */
     if (bitmap_is_set(table->write_set,
-                      table->timestamp_field->field_index))
+                      table->get_timestamp_field()->field_index))
       clear_timestamp_auto_bits(table->timestamp_field_type,
                                 TIMESTAMP_AUTO_SET_ON_UPDATE);
     if (timestamp_mark)
       bitmap_set_bit(table->write_set,
-                     table->timestamp_field->field_index);
+                     table->get_timestamp_field()->field_index);
   }
   return 0;
 }
@@ -2316,13 +2317,14 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   *field=0;
 
   /* Adjust timestamp */
-  if (table->timestamp_field)
+  if (table->get_timestamp_field())
   {
     /* Restore offset as this may have been reset in handle_inserts */
-    copy->timestamp_field=
-      (Field_timestamp*) copy->field[share->timestamp_field_offset];
-    copy->timestamp_field->unireg_check= table->timestamp_field->unireg_check;
-    copy->timestamp_field_type= copy->timestamp_field->get_auto_set_type();
+    copy->set_timestamp_field(copy->field[share->timestamp_field_offset]);
+    copy->get_timestamp_field()->unireg_check= table->get_timestamp_field()->
+                                               unireg_check;
+    copy->timestamp_field_type= copy->get_timestamp_field()->
+                                      get_auto_set_type();
   }
 
   /* Adjust in_use for pointing to client thread */
@@ -2397,7 +2399,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   if (!(row->record= (char*) my_malloc(table->s->reclength, MYF(MY_WME))))
     goto err;
   memcpy(row->record, table->record[0], table->s->reclength);
-  row->start_time=		thd->start_time;
+  row->start_time=		thd->start_time.tv_sec;
   row->query_start_used=	thd->query_start_used;
   /*
     those are for the binlog: LAST_INSERT_ID() has been evaluated at this
@@ -2924,7 +2926,8 @@ bool Delayed_insert::handle_inserts(void)
     mysql_mutex_unlock(&mutex);
     memcpy(table->record[0],row->record,table->s->reclength);
 
-    thd.start_time=row->start_time;
+    thd.start_time.tv_sec= row->start_time;
+    thd.start_time.tv_usec= 0;
     thd.query_start_used=row->query_start_used;
 
     /* 
@@ -3727,7 +3730,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
-  tmp_table.timestamp_field= 0;
+  tmp_table.set_timestamp_field(0);
   tmp_table.s= &share;
   init_tmp_table_share(thd, &share, "", 0, "", "");
 

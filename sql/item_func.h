@@ -30,19 +30,20 @@ class Item_func :public Item_result_field
 {
 protected:
   Item **args, *tmp_arg[2];
+  /// Value used in calculation of result of const_item()
+  bool const_item_cache;
   /*
     Allowed numbers of columns in result (usually 1, which means scalar value)
     0 means get this number from first argument
   */
   uint allowed_arg_cols;
-public:
-  uint arg_count;
   /// Value used in calculation of result of used_tables()
   table_map used_tables_cache;
   /// Value used in calculation of result of not_null_tables()
   table_map not_null_tables_cache;
-  /// Value used in calculation of result of const_item()
-  bool const_item_cache;
+public:
+  uint arg_count;
+  //bool const_item_cache;
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
@@ -125,6 +126,8 @@ public:
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
+  void set_used_tables(table_map map) { used_tables_cache= map; }
+  void set_not_null_tables(table_map map) { not_null_tables_cache= map; }
   bool eq(const Item *item, bool binary_cmp) const;
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
@@ -141,16 +144,19 @@ public:
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
-  void count_only_length();
+  void count_only_length(Item **item, uint nitems);
   void count_real_length();
   void count_decimal_length();
+  void count_datetime_length(Item **item, uint nitems);
+  bool count_string_result_length(enum_field_types field_type,
+                                  Item **item, uint nitems);
   inline bool get_arg0_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
   inline bool get_arg0_time(MYSQL_TIME *ltime)
   {
-    return (null_value=args[0]->get_time(ltime));
+    return (null_value= args[0]->get_time(ltime));
   }
   bool is_null() { 
     update_null_value();
@@ -909,10 +915,28 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
+  /*
+    TS-TODO: implement own get_date() and get_time() for performance reasons.
+    Otherwise Item generic functions are used which involve val_str()
+    followed by string-to-time and string-to-datetime conversion.
+    Similar happens for other hybrid function, like COALESCE.
+
+    The other classes that may need their own implementations are:
+    Item_func_coalesce, Item_func_if, Item_func_case, Item_func_min_max,
+    Item_singlerow_subselect, Item_sum_min, Item_sum_max
+    Item_func_add_time, Item_date_add_interval, Item_func_str_to_date
+  */
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
-  bool result_as_longlong() { return compare_as_dates; };
-  uint cmp_datetimes(ulonglong *value);
+  enum Item_result cast_to_int_type () const
+  {
+    /*
+      make CAST(LEAST_OR_GREATEST(datetime_expr, varchar_expr))
+      return a number in format "YYYMMDDhhmmss".
+    */
+    return compare_as_dates ? INT_RESULT : result_type();
+  }
+  uint cmp_datetimes(longlong *value);
   enum_field_types field_type() const { return cached_field_type; }
 };
 
@@ -1623,6 +1647,8 @@ public:
   double val_real();
   longlong val_int();
   String* val_str(String*);
+  my_decimal *val_decimal(my_decimal *dec_buf)
+  { return val_decimal_from_real(dec_buf); }
   /* TODO: fix to support views */
   const char *func_name() const { return "get_system_var"; }
   /**

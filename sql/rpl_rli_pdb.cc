@@ -1678,8 +1678,8 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   thd->server_id = ev->server_id;
   thd->set_time();
   thd->lex->current_select= 0;
-  if (!ev->when)
-    ev->when= my_time(0);
+  if (!ev->when.tv_sec)
+    ev->when.tv_sec= my_time(0);
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
 
   DBUG_PRINT("slave_worker_exec_job:", ("W_%lu <- job item: %p data: %p thd: %p", worker->id, job_item, ev, thd));

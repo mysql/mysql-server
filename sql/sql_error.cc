@@ -894,6 +894,31 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 }
 
 
+ErrConvString::ErrConvString(double nr)
+{
+  // enough to print '-[digits].E+###'
+  DBUG_ASSERT(sizeof(err_buffer) > DBL_DIG + 8);
+  buf_length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE,
+                      sizeof(err_buffer) - 1, err_buffer, NULL);  
+}
+
+
+
+ErrConvString::ErrConvString(const my_decimal *nr)
+{
+  int len= sizeof(err_buffer);
+  (void) decimal2string((decimal_t *) nr, err_buffer, &len, 0, 0, 0);
+  buf_length= (uint) len;
+}
+
+
+ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
+{
+  buf_length= my_TIME_to_str(ltime, err_buffer,
+                             min(dec, DATETIME_MAX_DECIMALS));
+}
+
+
 /**
    Convert value for dispatch to error message(see WL#751).
 
@@ -904,11 +929,11 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
    @param from_cs     charset from convert
  
    @retval
-   result string
+   number of bytes written to "to"
 */
 
-char *err_conv(char *buff, uint to_length, const char *from,
-               uint from_length, const CHARSET_INFO *from_cs)
+uint err_conv(char *buff, uint to_length, const char *from,
+              uint from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;
@@ -954,9 +979,10 @@ char *err_conv(char *buff, uint to_length, const char *from,
     uint errors;
     res= copy_and_convert(to, to_length, system_charset_info,
                           from, from_length, from_cs, &errors);
-    to[res]= 0;
+    to+= res;
+    *to= 0;
   }
-  return buff;
+  return to - buff;
 }
 
 
