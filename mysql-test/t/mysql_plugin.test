@@ -144,7 +144,9 @@ EOF
 --echo #
 --replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wicky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wacky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
 eval INSERT INTO mysql.plugin VALUES ('wonky', '$DAEMONEXAMPLE'); 
 
 --echo #
