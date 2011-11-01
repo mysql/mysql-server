@@ -1698,7 +1698,7 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
     The swap is needed for expressions of type 'f1 < ALL ( SELECT ....)'
     where we want to evaluate the sub query even if f1 would be null.
   */
-  subs= func->create_swap(left_expr, subs);
+  subs= func->create_swap(*(optimizer->get_cache()), subs);
   thd->change_item_tree(place, subs);
   if (subs->fix_fields(thd, &subs))
     DBUG_RETURN(true);
