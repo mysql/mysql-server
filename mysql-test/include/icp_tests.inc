@@ -615,6 +615,32 @@ SELECT col999 FROM t1 WHERE col1000 = "3" AND col1003 <=> sysdate();
 DROP TABLE t1;
 
 --echo #
+--echo # BUG#12822678 - ICP WITH STRAIGHT_JOIN
+--echo #
+
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  d1 DOUBLE,
+  KEY k1 (d1)
+);
+INSERT INTO t1 VALUES (10,1), (17,NULL), (22,NULL);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (4,1);
+
+EXPLAIN
+SELECT t1.d1, t2.pk, t2.i1 FROM t1 STRAIGHT_JOIN t2 ON t2.i1
+  WHERE t2.pk <> t1.d1 AND t2.pk = 4;
+SELECT t1.d1, t2.pk, t2.i1 FROM t1 STRAIGHT_JOIN t2 ON t2.i1
+  WHERE t2.pk <> t1.d1 AND t2.pk = 4;
+
+DROP TABLE t1, t2;
+
+--echo #
 --echo # BUG#778434 Wrong result with in_to_exists=on in maria-5.3-mwl89
 --echo #
 CREATE TABLE t1 ( f11 int) ;
