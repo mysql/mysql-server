@@ -54,6 +54,7 @@ SET(HEADERS
   m_ctype.h
   my_attribute.h 
   my_compiler.h
+  mysql_com_server.h
   ${HEADERS_GEN_CONFIGURE}
 )
 

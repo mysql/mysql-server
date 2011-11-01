@@ -3148,10 +3148,14 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
       state->m_wait= wait;
       flags|= STATE_FLAG_EVENT;
 
-      PFS_events_waits *parent_event= wait - 1;
       wait->m_event_type= EVENT_TYPE_WAIT;
-      wait->m_nesting_event_id= parent_event->m_event_id;
-      wait->m_nesting_event_type= parent_event->m_event_type;
+      /*
+        IDLE events are waits, but by definition we know that
+        such waits happen outside of any STAGE and STATEMENT,
+        so they have no parents.
+      */
+      wait->m_nesting_event_id= 0;
+      /* no need to set wait->m_nesting_event_type */
 
       wait->m_thread= pfs_thread;
       wait->m_class= &global_idle_class;
