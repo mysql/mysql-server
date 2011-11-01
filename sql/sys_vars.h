@@ -871,7 +871,7 @@ public:
     option.min_value= (longlong) double2ulonglong(min_val);
     option.max_value= (longlong) double2ulonglong(max_val);
     global_var(double)= (double)option.def_value;
-    DBUG_ASSERT(min_val < max_val);
+    DBUG_ASSERT(min_val <= max_val);
     DBUG_ASSERT(min_val <= def_val);
     DBUG_ASSERT(max_val >= def_val);
     DBUG_ASSERT(size == sizeof(double));
