@@ -1532,7 +1532,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1=2001-02-03 10:20:30 /* DATETIME meta=0 nullable=1 is_null=0 */
+###   @1='2001-02-03 10:20:30' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1549,7 +1549,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=2001-02-03 10:20:30 /* DATETIME meta=0 nullable=1 is_null=0 */
+###   @1='2001-02-03 10:20:30' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1577,7 +1577,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1=981184830 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
+###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1594,7 +1594,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=981184830 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
+###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1621,7 +1621,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1='11:22:33' /* TIME meta=0 nullable=1 is_null=0 */
+###   @1='11:22:33' /* TIME(0) meta=0 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
@@ -1638,7 +1638,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1='11:22:33' /* TIME meta=0 nullable=1 is_null=0 */
+###   @1='11:22:33' /* TIME(0) meta=0 nullable=1 is_null=0 */
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
