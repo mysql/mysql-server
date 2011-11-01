@@ -251,7 +251,9 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int remove_logs_from_index(LOG_INFO* linfo, bool need_update_threads);
-  int rotate_and_purge(uint flags);
+  int rotate(bool force_rotate, bool* check_purge);
+  void purge();
+  int rotate_and_purge(bool force_rotate);
   /**
      Flush binlog cache and synchronize to disk.
 

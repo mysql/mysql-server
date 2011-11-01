@@ -3567,16 +3567,11 @@ btr_record_not_null_field_in_rec(
 	}
 
 	for (i = 0; i < n_unique; i++) {
-		ulint	rec_len;
-
-		rec_get_nth_field_offs(offsets, i, &rec_len);
-
-		if (rec_len != UNIV_SQL_NULL) {
-			n_not_null[i]++;
-		} else {
-			/* Break if we hit the first NULL value */
+		if (rec_offs_nth_sql_null(offsets, i)) {
 			break;
 		}
+
+		n_not_null[i]++;
 	}
 }
 
@@ -3720,8 +3715,7 @@ btr_estimate_number_of_different_key_vals(
 
 			if (n_not_null) {
 				btr_record_not_null_field_in_rec(
-					n_cols, offsets_next_rec,
-					n_not_null);
+					n_cols, offsets_next_rec, n_not_null);
 			}
 
 			total_external_size
@@ -4618,8 +4612,7 @@ btr_check_blob_fil_page_type(
 		ulint	flags = fil_space_get_flags(space_id);
 
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
-		if (UNIV_LIKELY((flags & DICT_TF_FORMAT_MASK)
-				== (UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT))) {
+		if (dict_tf_get_format(flags) == UNIV_FORMAT_A) {
 			/* Old versions of InnoDB did not initialize
 			FIL_PAGE_TYPE on BLOB pages.  Do not print
 			anything about the type mismatch when reading

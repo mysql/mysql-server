@@ -440,24 +440,40 @@ struct PFS_socket_io_stat_row
   inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
   {
     PFS_byte_stat all;
-    PFS_byte_stat read= stat->m_read;
-    PFS_byte_stat write= stat->m_write;
-    PFS_byte_stat misc= stat->m_misc;
 
-    m_read.set(normalizer, &read);
-    m_write.set(normalizer, &write);
-    m_misc.set(normalizer, &misc);
-  //m_read.set(normalizer, &stat->m_read);
-  //m_write.set(normalizer, &stat->m_write);
-  //m_misc.set(normalizer, &stat->m_misc);
+    m_read.set(normalizer, &stat->m_read);
+    m_write.set(normalizer, &stat->m_write);
+    m_misc.set(normalizer, &stat->m_misc);
     
     /* Combine stats for all operations */
-    all.aggregate(&read);
-    all.aggregate(&write);
-    all.aggregate(&misc);
-  //all.aggregate(&stat->m_read);
-  //all.aggregate(&stat->m_write);
-  //all.aggregate(&stat->m_misc);
+    all.aggregate(&stat->m_read);
+    all.aggregate(&stat->m_write);
+    all.aggregate(&stat->m_misc);
+
+    m_all.set(normalizer, &all);
+  }
+};
+
+/** Row fragment for file io statistics columns. */
+struct PFS_file_io_stat_row
+{
+  PFS_byte_stat_row m_read;
+  PFS_byte_stat_row m_write;
+  PFS_byte_stat_row m_misc;
+  PFS_byte_stat_row m_all;
+  
+  inline void set(time_normalizer *normalizer, const PFS_file_io_stat *stat)
+  {
+    PFS_byte_stat all;
+
+    m_read.set(normalizer, &stat->m_read);
+    m_write.set(normalizer, &stat->m_write);
+    m_misc.set(normalizer, &stat->m_misc);
+    
+    /* Combine stats for all operations */
+    all.aggregate(&stat->m_read);
+    all.aggregate(&stat->m_write);
+    all.aggregate(&stat->m_misc);
 
     m_all.set(normalizer, &all);
   }
