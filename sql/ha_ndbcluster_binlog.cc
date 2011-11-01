@@ -2583,6 +2583,78 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(false);
   }
 
+  void handle_clear_slock(Ndb_schema_op* schema, bool post_epoch)
+  {
+    if (!post_epoch)
+    {
+      /*
+        handle slock after epoch is completed to ensure that
+        schema events get inserted in the binlog after any data
+        events
+      */
+      log_after_epoch(schema);
+      return;
+    }
+
+    char key[FN_REFLEN + 1];
+    build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
+
+    /* Ack to any SQL thread waiting for schema op to complete */
+    NDB_SCHEMA_OBJECT *ndb_schema_object= ndb_get_schema_object(key, false);
+    if (!ndb_schema_object)
+    {
+      /* Noone waiting for this schema op in this mysqld */
+      if (opt_ndb_extra_logging > 19)
+        sql_print_information("NDB: Discarding event...no obj: %s (%u/%u)",
+                              key, schema->id, schema->version);
+      return;
+    }
+
+    if (ndb_schema_object->table_id != schema->id ||
+        ndb_schema_object->table_version != schema->version)
+    {
+      /* Someone waiting, but for another id/version... */
+      if (opt_ndb_extra_logging > 19)
+        sql_print_information("NDB: Discarding event...key: %s "
+                              "non matching id/version [%u/%u] != [%u/%u]",
+                              key,
+                              ndb_schema_object->table_id,
+                              ndb_schema_object->table_version,
+                              schema->id,
+                              schema->version);
+      ndb_free_schema_object(&ndb_schema_object);
+      return;
+    }
+
+    /*
+      Copy the latest slock info into the ndb_schema_object so that
+      waiter can check if all nodes it's waiting for has answered
+    */
+    pthread_mutex_lock(&ndb_schema_object->mutex);
+    if (opt_ndb_extra_logging > 19)
+    {
+      sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) from"
+                            " %x%x to %x%x",
+                            key, schema->id, schema->version,
+                            ndb_schema_object->slock[0],
+                            ndb_schema_object->slock[1],
+                            schema->slock_buf[0],
+                            schema->slock_buf[1]);
+    }
+    memcpy(ndb_schema_object->slock, schema->slock_buf,
+           sizeof(ndb_schema_object->slock));
+    DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
+              (uchar*)ndb_schema_object->slock_bitmap.bitmap,
+              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
+    pthread_mutex_unlock(&ndb_schema_object->mutex);
+
+    ndb_free_schema_object(&ndb_schema_object);
+
+    /* Wake up the waiter */
+    pthread_cond_signal(&injector_cond);
+    return;
+  }
+
 
   int
   handle_schema_op(Ndb_schema_op* schema)
@@ -2617,12 +2689,7 @@ class Ndb_schema_event_handler {
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
-        /*
-          handle slock after epoch is completed to ensure that
-          schema events get inserted in the binlog after any data
-          events
-        */
-        log_after_epoch(schema);
+        handle_clear_slock(schema, false);
         DBUG_RETURN(0);
 
       case SOT_ALTER_TABLE_COMMIT:
@@ -2844,52 +2911,7 @@ class Ndb_schema_event_handler {
       build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
       if (schema_type == SOT_CLEAR_SLOCK)
       {
-        /* Ack to any SQL thread waiting for schema op to complete */
-        NDB_SCHEMA_OBJECT *ndb_schema_object=
-          ndb_get_schema_object(key, false);
-        if (ndb_schema_object &&
-            (ndb_schema_object->table_id == schema->id &&
-             ndb_schema_object->table_version == schema->version))
-        {
-          pthread_mutex_lock(&ndb_schema_object->mutex);
-          if (opt_ndb_extra_logging > 19)
-          {
-            sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) from"
-                                  " %x%x to %x%x",
-                                  key, schema->id, schema->version,
-                                  ndb_schema_object->slock[0],
-                                  ndb_schema_object->slock[1],
-                                  schema->slock_buf[0],
-                                  schema->slock_buf[1]);
-          }
-          memcpy(ndb_schema_object->slock, schema->slock_buf,
-                 sizeof(ndb_schema_object->slock));
-          DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
-                    (uchar*)ndb_schema_object->slock_bitmap.bitmap,
-                    no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-          pthread_mutex_unlock(&ndb_schema_object->mutex);
-          pthread_cond_signal(&injector_cond);
-        }
-        else if (opt_ndb_extra_logging > 19)
-        {
-          if (ndb_schema_object == 0)
-          {
-            sql_print_information("NDB: Discarding event...no obj: %s (%u/%u)",
-                                  key, schema->id, schema->version);
-          }
-          else
-          {
-            sql_print_information("NDB: Discarding event...key: %s "
-                                  "non matching id/version [%u/%u] != [%u/%u]",
-                                  key,
-                                  ndb_schema_object->table_id,
-                                  ndb_schema_object->table_version,
-                                  schema->id,
-                                  schema->version);
-          }
-        }
-        if (ndb_schema_object)
-          ndb_free_schema_object(&ndb_schema_object);
+        handle_clear_slock(schema, true);
         DBUG_VOID_RETURN;
       }
 
