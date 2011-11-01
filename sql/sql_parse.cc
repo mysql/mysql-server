@@ -1628,8 +1628,6 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log)
   {
-    ulonglong end_utime_of_query= thd->current_utime();
-
     if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
@@ -1642,11 +1640,9 @@ void log_slow_statement(THD *thd)
       if (thd->rewritten_query.length())
         slow_log_print(thd,
                        thd->rewritten_query.c_ptr_safe(),
-                       thd->rewritten_query.length(), 
-                       end_utime_of_query);
+                       thd->rewritten_query.length());
       else
-        slow_log_print(thd, thd->query(), thd->query_length(), 
-                       end_utime_of_query);
+        slow_log_print(thd, thd->query(), thd->query_length());
     }
   }
   DBUG_VOID_RETURN;

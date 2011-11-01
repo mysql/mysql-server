@@ -1015,15 +1015,13 @@ bool LOGGER::flush_general_log()
     thd                 THD of the query being logged
     query               The query being logged
     query_length        The length of the query string
-    current_utime       Current time in microseconds (from undefined start)
 
   RETURN
     FALSE   OK
     TRUE    error occured
 */
 
-bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
-                            ulonglong current_utime)
+bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length)
 
 {
   bool error= FALSE;
@@ -1032,7 +1030,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
-  ulonglong query_utime, lock_utime;
+  ulonglong query_utime, lock_utime, current_utime;
 
   DBUG_ASSERT(thd->enable_slow_log);
   /*
@@ -1062,6 +1060,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
                              sctx->ip ? sctx->ip : "", "]", NullS) -
                     user_host_buff);
 
+    current_utime= thd->current_utime();
     current_time= my_time_possible_from_micro(current_utime);
     if (thd->start_utime)
     {
@@ -2034,10 +2033,9 @@ int error_log_print(enum loglevel level, const char *format,
 }
 
 
-bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    ulonglong current_utime)
+bool slow_log_print(THD *thd, const char *query, uint query_length)
 {
-  return logger.slow_log_print(thd, query, query_length, current_utime);
+  return logger.slow_log_print(thd, query, query_length);
 }
 
 
