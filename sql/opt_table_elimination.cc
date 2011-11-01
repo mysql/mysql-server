@@ -695,6 +695,8 @@ eliminate_tables_for_list(JOIN *join, List<TABLE_LIST> *join_list,
     {
       table_map outside_used_tables= tables_used_elsewhere | 
                                      tables_used_on_left;
+      if (on_expr)
+        outside_used_tables |= on_expr->used_tables();
       if (tbl->nested_join)
       {
         /* This is  "... LEFT JOIN (join_nest) ON cond" */
