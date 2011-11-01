@@ -86,10 +86,10 @@ SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 id2	a2	b2
 3	changing column - on update cascade	In this tutorial we will show ...
 DROP TABLE t2 , t1;
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
 fulltext key(s2),
-foreign key (s1,s2) references t1 (s1,s2) on update cascade);
+foreign key (s1,s2) references t1 (s1,s2) on update cascade) ENGINE = InnoDB;
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
@@ -97,10 +97,30 @@ commit;
 select * from t2 where match(s2) against ('Lollipops');
 s1	s2
 DROP TABLE t2 , t1;
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
 create table t2 (s1 int, s2 varchar(200),
 fulltext key(s2),
-foreign key (s1,s2) references t1 (s1,s2) on delete cascade);
+foreign key (s1,s2) references t1 (s1,s2) on delete cascade) ENGINE = InnoDB;
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+delete from t1  where s2 <> 'Sunshine';
+select * from t2 where match(s2) against ('Lollipops');
+s1	s2
+DROP TABLE t2 , t1;
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (s1 int, s2 varchar(200),
+fulltext key(s2),
+foreign key (s1,s2) references t1 (s1,s2) on delete set null) ENGINE = InnoDB;
+insert into t1 values (1,'Sunshine'),(2,'Lollipops');
+insert into t2 values (1,'Sunshine'),(2,'Lollipops');
+delete from t1 where s2 <> 'Sunshine';
+select * from t2 where match(s2) against ('Lollipops');
+s1	s2
+DROP TABLE t2 , t1;
+create table t1 (s1 int, s2 varchar(200), primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (s1 int, s2 varchar(200),
+fulltext key(s2),
+foreign key (s1,s2) references t1 (s1,s2) on update set null) ENGINE = InnoDB;
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
@@ -108,27 +128,29 @@ commit;
 select * from t2 where match(s2) against ('Lollipops');
 s1	s2
 DROP TABLE t2 , t1;
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
-create table t2 (s1 int, s2 varchar(200),
-fulltext key(s2),
-foreign key (s1,s2) references t1 (s1,s2) on delete set null);
+create table t1 (s1 bigint unsigned not null, s2 varchar(200),
+primary key (s1,s2)) ENGINE = InnoDB;
+create table t2 (FTS_DOC_ID BIGINT UNSIGNED NOT NULL, s2 varchar(200),
+foreign key (FTS_DOC_ID) references t1 (s1)
+on update cascade) ENGINE = InnoDB;
+create fulltext index idx on t2(s2);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `FTS_DOC_ID` bigint(20) unsigned NOT NULL,
+  `s2` varchar(200) DEFAULT NULL,
+  KEY `FTS_DOC_ID` (`FTS_DOC_ID`),
+  FULLTEXT KEY `idx` (`s2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`FTS_DOC_ID`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
-update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
-commit;
-select * from t2 where match(s2) against ('Lollipops');
-s1	s2
-DROP TABLE t2 , t1;
-create table t1 (s1 int, s2 varchar(200), primary key (s1,s2));
-create table t2 (s1 int, s2 varchar(200),
-fulltext key(s2),
-foreign key (s1,s2) references t1 (s1,s2) on update set null);
-insert into t1 values (1,'Sunshine'),(2,'Lollipops');
-insert into t2 values (1,'Sunshine'),(2,'Lollipops');
-update t1 set s2 = 'Rainbows' where s2 <> 'Sunshine';
-commit;
-select * from t2 where match(s2) against ('Lollipops');
-s1	s2
+update t1 set s1 = 3 where s1=1;
+select * from t2 where match(s2) against ('sunshine');
+FTS_DOC_ID	s2
+3	Sunshine
+update t1 set s1 = 1 where s1=3;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`FTS_DOC_ID`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 DROP TABLE t2 , t1;
 CREATE TABLE t1 (
 id1 INT ,

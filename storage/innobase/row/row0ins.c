@@ -449,6 +449,7 @@ row_ins_cascade_calc_update_vec(
 	ulint		j;
 	ibool		doc_id_updated = FALSE;
 	ulint		doc_id_pos = 0;
+	doc_id_t	new_doc_id = 0;
 
 	ut_a(node);
 	ut_a(foreign);
@@ -600,7 +601,6 @@ row_ins_cascade_calc_update_vec(
 				Doc ID is valid */
 				if (table->fts
 				    && ufield->field_no == doc_id_pos) {
-					doc_id_t	new_doc_id;
 					doc_id_t	n_doc_id;
 
 					n_doc_id =
@@ -643,10 +643,11 @@ row_ins_cascade_calc_update_vec(
 	}
 
 	/* Generate a new Doc ID if FTS index columns get updated */
-	if (table->fts && *fts_col_affected && !doc_id_updated) {
+	if (table->fts && *fts_col_affected) {
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	doc_id;
 
+			ut_ad(!doc_id_updated);
 			ufield = update->fields + n_fields_updated;
 			fts_get_next_doc_id(table, &trx->fts_next_doc_id);
 			doc_id = fts_update_doc_id(table, ufield,
@@ -654,11 +655,18 @@ row_ins_cascade_calc_update_vec(
 			n_fields_updated++;
 			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
 		} else  {
-			fprintf(stderr, "InnoDB: FTS Doc ID must be updated "
-			       "along with FTS indexed column for table ");
-			ut_print_name(stderr, trx, TRUE, table->name);
-			putc('\n', stderr);
-			return(ULINT_UNDEFINED);
+			if (doc_id_updated) {
+				ut_ad(new_doc_id);
+				fts_trx_add_op(trx, table, new_doc_id,
+					       FTS_INSERT, NULL);
+			} else {
+				fprintf(stderr, "InnoDB: FTS Doc ID must be "
+					"updated along with FTS indexed "
+					"column for table ");
+				ut_print_name(stderr, trx, TRUE, table->name);
+				putc('\n', stderr);
+				return(ULINT_UNDEFINED);
+			}
 		}
 	}
 
@@ -1094,7 +1102,9 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
-	doc_id = fts_get_doc_id_from_rec(table, clust_rec, tmp_heap);
+	if (table->fts) {
+		doc_id = fts_get_doc_id_from_rec(table, clust_rec, tmp_heap);
+	}
 
 	if ((node->is_delete
 	     && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))

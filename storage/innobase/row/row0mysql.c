@@ -1459,23 +1459,30 @@ static
 void
 init_fts_doc_id_for_ref(
 /*====================*/
-	dict_table_t*	table)
+	dict_table_t*	table,		/*!< in: table */
+	ulint		depth)		/*!< in: recusive call depth */
 {
-	doc_id_t	doc_id;
 	dict_foreign_t* foreign;
 
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+
+	depth++;
+
+	/* Limit on tables involved in cascading delete/update */
+	if (depth > FK_MAX_CASCADE_DEL) {
+		return;
+	}
 
 	/* Loop through this table's referenced list and also
 	recursively traverse each table's foreign table list */
 	while (foreign && foreign->foreign_table) {
 		if (foreign->foreign_table->fts) {
-			fts_get_next_doc_id(foreign->foreign_table, &doc_id);
+			fts_init_doc_id(foreign->foreign_table);
 		}
 
 		if (UT_LIST_GET_LEN(foreign->foreign_table->referenced_list)
-		    > 0) {
-			init_fts_doc_id_for_ref(foreign->foreign_table);
+		    > 0 && foreign->foreign_table != table) {
+			init_fts_doc_id_for_ref(foreign->foreign_table, depth);
 		}
 
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
@@ -1553,7 +1560,7 @@ row_update_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	init_fts_doc_id_for_ref(table);
+	init_fts_doc_id_for_ref(table, 0);
 
 	trx_start_if_not_started_xa(trx);
 
