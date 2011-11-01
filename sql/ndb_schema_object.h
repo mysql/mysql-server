@@ -46,10 +46,8 @@ struct NDB_SCHEMA_OBJECT {
 };
 
 NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
-                                         bool create_if_not_exists,
-                                         bool have_lock);
+                                         bool create_if_not_exists);
 
-void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
-                            bool have_lock);
+void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object);
 
 #endif

@@ -51,16 +51,14 @@ public:
 
 
 NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
-                                         bool create_if_not_exists,
-                                         bool have_lock)
+                                         bool create_if_not_exists)
 {
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   uint length= (uint) strlen(key);
   DBUG_ENTER("ndb_get_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
+  pthread_mutex_lock(&ndbcluster_mutex);
   while (!(ndb_schema_object=
            (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects.m_hash,
                                                (const uchar*) key,
@@ -97,20 +95,18 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     ndb_schema_object->use_count++;
     DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->use_count));
   }
-  if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
+  pthread_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(ndb_schema_object);
 }
 
 
 void
-ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
-                       bool have_lock)
+ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
 {
   DBUG_ENTER("ndb_free_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", (*ndb_schema_object)->key));
-  if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
+
+  pthread_mutex_lock(&ndbcluster_mutex);
   if (!--(*ndb_schema_object)->use_count)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
@@ -123,7 +119,6 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
   }
-  if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
+  pthread_mutex_unlock(&ndbcluster_mutex);
   DBUG_VOID_RETURN;
 }

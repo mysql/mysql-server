@@ -1670,7 +1670,7 @@ int ndbcluster_log_schema_op(THD *thd,
   {
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, db, table_name, "", 0);
-    ndb_schema_object= ndb_get_schema_object(key, TRUE, FALSE);
+    ndb_schema_object= ndb_get_schema_object(key, true);
     ndb_schema_object->table_id= ndb_table_id;
     ndb_schema_object->table_version= ndb_table_version;
   }
@@ -1687,8 +1687,7 @@ int ndbcluster_log_schema_op(THD *thd,
     if (ndb_schema_share == 0)
     {
       pthread_mutex_unlock(&ndb_schema_share_mutex);
-      if (ndb_schema_object)
-        ndb_free_schema_object(&ndb_schema_object, FALSE);
+      ndb_free_schema_object(&ndb_schema_object);
       DBUG_RETURN(0);    
     }
     pthread_mutex_lock(&ndb_schema_share->mutex);
@@ -1980,8 +1979,7 @@ end:
                           type_str, ndb_schema_object->key);
   }
 
-  if (ndb_schema_object)
-    ndb_free_schema_object(&ndb_schema_object, FALSE);
+  ndb_free_schema_object(&ndb_schema_object);
 
   if (opt_ndb_extra_logging > 19)
   {
@@ -2847,9 +2845,8 @@ class Ndb_schema_event_handler {
       if (schema_type == SOT_CLEAR_SLOCK)
       {
         /* Ack to any SQL thread waiting for schema op to complete */
-        pthread_mutex_lock(&ndbcluster_mutex);
         NDB_SCHEMA_OBJECT *ndb_schema_object=
-          ndb_get_schema_object(key, false, true);
+          ndb_get_schema_object(key, false);
         if (ndb_schema_object &&
             (ndb_schema_object->table_id == schema->id &&
              ndb_schema_object->table_version == schema->version))
@@ -2891,7 +2888,8 @@ class Ndb_schema_event_handler {
                                   schema->version);
           }
         }
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        if (ndb_schema_object)
+          ndb_free_schema_object(&ndb_schema_object);
         DBUG_VOID_RETURN;
       }
 
