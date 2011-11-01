@@ -6295,7 +6295,7 @@ calc_row_difference(
 			trx->fts_next_doc_id = 0;
 		}
 
-		error = fts_update_doc_id(
+		fts_update_doc_id(
 			innodb_table, ufield, &trx->fts_next_doc_id);
 
 		if (error == DB_SUCCESS) {

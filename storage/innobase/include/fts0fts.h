@@ -618,9 +618,10 @@ fts_get_doc_id_from_rec(
 	mem_heap_t*	heap);			/*!< in: heap */
 
 /******************************************************************//**
-Update the query graph with a new document id. */
+Update the query graph with a new document id.
+@return Doc ID used */
 UNIV_INTERN
-ulint
+doc_id_t
 fts_update_doc_id(
 /*==============*/
 	dict_table_t*	table,			/*!< in: table */

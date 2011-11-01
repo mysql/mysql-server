@@ -5021,9 +5021,9 @@ fts_add_doc_id_column(
 
 /*********************************************************************//**
 Update the query graph with a new document id.
-@return DB_SUCCESS or error code */
+@return Doc ID used */
 UNIV_INTERN
-ulint
+doc_id_t
 fts_update_doc_id(
 /*==============*/
 	dict_table_t*	table,		/*!< in: table */
@@ -5047,8 +5047,6 @@ fts_update_doc_id(
 
 		ufield->new_val.len = sizeof(doc_id_t);
 
-		ufield->field_no = table->fts->doc_col;
-
 		clust_index = dict_table_get_first_index(table);
 
 		ufield->field_no = dict_col_get_clust_pos(
@@ -5061,7 +5059,7 @@ fts_update_doc_id(
 		ufield->new_val.data = next_doc_id;
 	}
 
-	return(error);
+	return(doc_id);
 }
 
 /*********************************************************************//**

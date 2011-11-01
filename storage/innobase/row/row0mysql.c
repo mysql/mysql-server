@@ -1452,6 +1452,36 @@ row_fts_update_or_delete(
 
 	return(DB_SUCCESS);
 }
+
+/*********************************************************************//**
+Initialize the Doc ID system for FK table with FTS index */
+static
+void
+init_fts_doc_id_for_ref(
+/*====================*/
+	dict_table_t*	table)
+{
+	doc_id_t	doc_id;
+	dict_foreign_t* foreign;
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+
+	/* Loop through this table's referenced list and also
+	recursively traverse each table's foreign table list */
+	while (foreign && foreign->foreign_table) {
+		if (foreign->foreign_table->fts) {
+			fts_get_next_doc_id(foreign->foreign_table, &doc_id);
+		}
+
+		if (UT_LIST_GET_LEN(foreign->foreign_table->referenced_list)
+		    > 0) {
+			init_fts_doc_id_for_ref(foreign->foreign_table);
+		}
+
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+}
+
 /*********************************************************************//**
 Does an update or delete of a row for MySQL.
 @return	error code or DB_SUCCESS */
@@ -1522,6 +1552,8 @@ row_update_for_mysql(
 	trx->op_info = "updating or deleting";
 
 	row_mysql_delay_if_needed();
+
+	init_fts_doc_id_for_ref(table);
 
 	trx_start_if_not_started_xa(trx);
 
