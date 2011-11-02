@@ -10001,13 +10001,13 @@ int ha_ndbcluster::create(const char *name,
   
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
-  /*
-    Don't allow table creation unless
-    schema distribution table is setup
-    ( unless it is a creation of the schema dist table itself )
-  */
-  if (!ndb_schema_share)
+
+  if (!ndb_schema_dist_is_ready())
   {
+    /*
+      Don't allow table creation unless schema distribution is ready
+      ( unless it is a creation of the schema dist table itself )
+    */
     if (!(strcmp(m_dbname, NDB_REP_DB) == 0 &&
           strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
     {
@@ -10534,7 +10534,7 @@ cleanup_failed:
                          get_binlog_full(share));
       int do_event_op= ndb_binlog_running;
 
-      if (!ndb_schema_share &&
+      if (!ndb_schema_dist_is_ready() &&
           strcmp(share->db, NDB_REP_DB) == 0 &&
           strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
         do_event_op= 1;
@@ -11089,13 +11089,10 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   NDBDICT *dict= ndb->getDictionary();
   int ndb_table_id= 0;
   int ndb_table_version= 0;
-  /*
-    Don't allow drop table unless
-    schema distribution table is setup
-  */
-  if (!ndb_schema_share)
+
+  if (!ndb_schema_dist_is_ready())
   {
-    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    /* Don't allow drop table unless schema distribution is ready */
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
   /* ndb_share reference temporary */
@@ -11245,15 +11242,10 @@ int ha_ndbcluster::delete_table(const char *name)
   set_dbname(name);
   set_tabname(name);
 
-  /*
-    Don't allow drop table unless
-    schema distribution table is setup
-  */
-  if (!ndb_schema_share)
+  if (!ndb_schema_dist_is_ready())
   {
-    DBUG_PRINT("info", ("Schema distribution table not setup"));
-    error= HA_ERR_NO_CONNECTION;
-    goto err;
+    /* Don't allow drop table unless schema distribution is ready */
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
   if (check_ndb_connection(thd))
@@ -12100,15 +12092,13 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
 {
   THD *thd= current_thd;
   DBUG_ENTER("ndbcluster_drop_database");
-  /*
-    Don't allow drop database unless
-    schema distribution table is setup
-  */
-  if (!ndb_schema_share)
+
+  if (!ndb_schema_dist_is_ready())
   {
-    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    /* Don't allow drop database unless schema distribution is ready */
     DBUG_VOID_RETURN;
   }
+
   ndbcluster_drop_database_impl(thd, path);
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
