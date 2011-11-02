@@ -131,7 +131,6 @@ bool ndb_binlog_setup(THD *thd);
 bool ndb_binlog_is_read_only(void);
 
 extern NDB_SHARE *ndb_apply_status_share;
-extern NDB_SHARE *ndb_schema_share;
 
 extern my_bool ndb_binlog_running;
 
