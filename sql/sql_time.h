@@ -86,7 +86,7 @@ bool calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
                     int l_sign, longlong *seconds_out, long *microseconds_out);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
-void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
+void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds);
 uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);
 
 int calc_weekday(long daynr,bool sunday_first_day_of_week);

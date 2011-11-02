@@ -615,11 +615,11 @@ bool Log_to_csv_event_handler::
     t.neg= 0;
 
     /* fill in query_time field */
-    calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;
     /* rows_sent */

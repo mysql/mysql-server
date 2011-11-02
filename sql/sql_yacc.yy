@@ -5931,7 +5931,7 @@ func_datetime_precision:
         | '(' NUM ')'
            {
              int error;
-             $$= (longlong) my_strtoll10($2.str, NULL, &error);
+             $$= (ulong) my_strtoll10($2.str, NULL, &error);
            }
         ;
 

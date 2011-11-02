@@ -7395,7 +7395,7 @@ static void test_temporal_param()
     printf("\n%lld %f '%s'\n", bigint, real, dec);
 
   /* Check values.  */
-  DIE_UNLESS(bigint ==  20011020101100);
+  DIE_UNLESS(bigint ==  20011020101100LL);
   DIE_UNLESS(real == 20011020101059.5);
   DIE_UNLESS(!strcmp(dec, "20011020101059.5"));
 

@@ -2988,7 +2988,7 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time, uint fuzzy_date)
 
   days= (long) (seconds / SECONDS_IN_24H);
 
-  calc_time_from_sec(time, (long) (seconds % SECONDS_IN_24H), microseconds);
+  calc_time_from_sec(time, seconds % SECONDS_IN_24H, microseconds);
 
   if (!is_time)
   {
@@ -3092,7 +3092,7 @@ bool Item_func_timediff::get_time(MYSQL_TIME *l_time3)
   if (l_time1.neg && (seconds || microseconds))
     l_time3->neg= 1 - l_time3->neg;         // Swap sign of result
 
-  calc_time_from_sec(l_time3, (long) seconds, microseconds);
+  calc_time_from_sec(l_time3, seconds, microseconds);
   adjust_time_range_with_warn(l_time3, decimals);
   return false;
 
