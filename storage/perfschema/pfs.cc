@@ -2408,6 +2408,11 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
       state->m_wait= wait;
       flags|= STATE_FLAG_EVENT;
 
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
+
       PFS_table_share *share= pfs_table->m_share;
       wait->m_thread= pfs_thread;
       wait->m_class= &global_table_io_class;
@@ -2521,6 +2526,11 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
       PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
       state->m_wait= wait;
       flags|= STATE_FLAG_EVENT;
+
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_type= parent_event->m_event_type;
 
       PFS_table_share *share= pfs_table->m_share;
       wait->m_thread= pfs_thread;
