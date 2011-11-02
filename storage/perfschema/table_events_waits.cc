@@ -43,6 +43,11 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("END_EVENT_ID") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("EVENT_NAME") },
     { C_STRING_WITH_LEN("varchar(128)") },
     { NULL, 0}
@@ -126,7 +131,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_waits_current::m_field_def=
-{ 18, field_types };
+{ 19, field_types };
 
 PFS_engine_table_share
 table_events_waits_current::m_share=
@@ -433,6 +438,7 @@ void table_events_waits_common::make_row(bool thread_own_wait,
 
   m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
   m_row.m_event_id= wait->m_event_id;
+  m_row.m_end_event_id= wait->m_end_event_id;
   m_row.m_nesting_event_id= wait->m_nesting_event_id;
   m_row.m_nesting_event_type= wait->m_nesting_event_type;
 
@@ -601,34 +607,40 @@ int table_events_waits_common::read_row_values(TABLE *table,
       case 1: /* EVENT_ID */
         set_field_ulonglong(f, m_row.m_event_id);
         break;
-      case 2: /* EVENT_NAME */
+      case 2: /* END_EVENT_ID */
+        if (m_row.m_end_event_id > 0)
+          set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        else
+          f->set_null();
+        break;
+      case 3: /* EVENT_NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
         break;
-      case 3: /* SOURCE */
+      case 4: /* SOURCE */
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
-      case 4: /* TIMER_START */
+      case 5: /* TIMER_START */
         if (m_row.m_timer_start != 0)
           set_field_ulonglong(f, m_row.m_timer_start);
         else
           f->set_null();
         break;
-      case 5: /* TIMER_END */
+      case 6: /* TIMER_END */
         if (m_row.m_timer_end != 0)
           set_field_ulonglong(f, m_row.m_timer_end);
         else
           f->set_null();
         break;
-      case 6: /* TIMER_WAIT */
+      case 7: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
           set_field_ulonglong(f, m_row.m_timer_wait);
         else
           f->set_null();
         break;
-      case 7: /* SPINS */
+      case 8: /* SPINS */
         f->set_null();
         break;
-      case 8: /* OBJECT_SCHEMA */
+      case 9: /* OBJECT_SCHEMA */
         if (m_row.m_object_schema_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_object_schema,
@@ -637,7 +649,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 9: /* OBJECT_NAME */
+      case 10: /* OBJECT_NAME */
         if (m_row.m_object_name_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_object_name,
@@ -646,7 +658,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 10: /* INDEX_NAME */
+      case 11: /* INDEX_NAME */
         if (m_row.m_index_name_length > 0)
         {
           set_field_varchar_utf8(f, m_row.m_index_name,
@@ -655,7 +667,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 11: /* OBJECT_TYPE */
+      case 12: /* OBJECT_TYPE */
         if (m_row.m_object_type)
         {
           set_field_varchar_utf8(f, m_row.m_object_type,
@@ -664,26 +676,26 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 12: /* OBJECT_INSTANCE */
+      case 13: /* OBJECT_INSTANCE */
         set_field_ulonglong(f, m_row.m_object_instance_addr);
         break;
-      case 13: /* NESTING_EVENT_ID */
+      case 14: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
           set_field_ulonglong(f, m_row.m_nesting_event_id);
         else
           f->set_null();
         break;
-      case 14: /* NESTING_EVENT_TYPE */
+      case 15: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
           set_field_enum(f, m_row.m_nesting_event_type);
         else
           f->set_null();
         break;
-      case 15: /* OPERATION */
+      case 16: /* OPERATION */
         operation= &operation_names_map[(int) m_row.m_operation - 1];
         set_field_varchar_utf8(f, operation->str, operation->length);
         break;
-      case 16: /* NUMBER_OF_BYTES */
+      case 17: /* NUMBER_OF_BYTES */
         if ((m_row.m_operation == OPERATION_TYPE_FILEREAD) ||
             (m_row.m_operation == OPERATION_TYPE_FILEWRITE) ||
             (m_row.m_operation == OPERATION_TYPE_FILECHSIZE) ||
@@ -695,7 +707,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 17: /* FLAGS */
+      case 18: /* FLAGS */
         f->set_null();
         break;
       default:

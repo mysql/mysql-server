@@ -5,21 +5,21 @@ SET @@global.sort_buffer_size = 1000;
 SET @@global.sort_buffer_size = DEFAULT;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-2097152
+262144
 SET @@session.sort_buffer_size = 2000;
 SET @@session.sort_buffer_size = DEFAULT;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
-2097152
+262144
 '#--------------------FN_DYNVARS_151_02-------------------------#'
 SET @@global.sort_buffer_size = DEFAULT;
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
-2097152
+262144
 SET @@session.sort_buffer_size = DEFAULT;
 SELECT @@session.sort_buffer_size;
 @@session.sort_buffer_size
-2097152
+262144
 '#--------------------FN_DYNVARS_151_03-------------------------#'
 SET @@global.sort_buffer_size = 32776;
 SELECT @@global.sort_buffer_size;

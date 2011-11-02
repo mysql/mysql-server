@@ -3776,3 +3776,101 @@ delimiter ;|
 --echo
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+
+
+--echo #
+--echo # Bug#13113222 RQG_SIGNAL_RESIGNAL FAILED WITH ASSERTION.
+--echo #
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SELECT 'triggered p1';
+  # This will trigger an error.
+  SIGNAL SQLSTATE 'HY000';
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING SELECT 'triggered p2';
+  # This will trigger a warning.
+  SIGNAL SQLSTATE '01000';
+END|
+delimiter ;|
+
+SET @old_max_error_count=  @@session.max_error_count;
+SET SESSION max_error_count= 0;
+CALL p1();
+CALL p2();
+SET SESSION max_error_count= @old_max_error_count;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+--echo
+--echo # Bug#12652873: 61392: Continue handler for NOT FOUND being triggered
+--echo # from internal stored function.
+--echo
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+--echo
+--echo # f1() raises NOT_FOUND condition.
+--echo # Raising NOT_FOUND can not be simulated by SIGNAL,
+--echo # because SIGNAL would raise SQL-error in that case.
+--echo
+
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  DECLARE v VARCHAR(5) DEFAULT -1;
+  SELECT b FROM t1 WHERE a = 2 INTO v;
+  RETURN v;
+END|
+
+--echo
+--echo # Here we check that the NOT_FOUND condition raised in f1()
+--echo # is not visible in the outer function (f2), i.e. the continue
+--echo # handler in f2() will not be called.
+--echo
+
+CREATE FUNCTION f2() RETURNS INTEGER
+BEGIN
+  DECLARE v INTEGER;
+
+  DECLARE CONTINUE HANDLER FOR NOT FOUND
+    SET @msg = 'Handler activated.';
+
+  SELECT f1() INTO v;
+
+  RETURN v;
+END|
+
+delimiter ;|
+
+SET @msg = '';
+
+--echo
+SELECT f2();
+--echo
+SELECT @msg;
+--echo
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1;
