@@ -59,6 +59,8 @@ bool ndb_log_empty_epochs(void);
 #include "ndb_anyvalue.h"
 #include "ndb_binlog_extra_row_info.h"
 #include "ndb_event_data.h"
+#include "ndb_schema_object.h"
+#include "ndb_schema_dist.h"
 
 /*
   Timeout for syncing schema events between
@@ -157,24 +159,6 @@ static pthread_mutex_t ndb_schema_share_mutex;
 
 extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
-
-/* Schema object distribution handling */
-HASH ndb_schema_objects;
-typedef struct st_ndb_schema_object {
-  pthread_mutex_t mutex;
-  char *key;
-  uint key_length;
-  uint use_count;
-  MY_BITMAP slock_bitmap;
-  uint32 slock[256/32]; // 256 bits for lock status of table
-  uint32 table_id;
-  uint32 table_version;
-} NDB_SCHEMA_OBJECT;
-static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
-                                                my_bool create_if_not_exists,
-                                                my_bool have_lock);
-static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
-                                   bool have_lock);
 
 #ifndef DBUG_OFF
 /* purecov: begin deadcode */
@@ -376,7 +360,6 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
   int error= 0;
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
-  share->connect_count= g_ndb_cluster_connection->get_connect_count();
 #ifdef HAVE_NDB_BINLOG
   share->m_cfn_share= NULL;
 #endif
@@ -1566,54 +1549,6 @@ static void ndb_report_waiting(const char *key,
   }
 }
 
-static
-const char*
-get_schema_type_name(uint type)
-{
-  switch(type){
-  case SOT_DROP_TABLE:
-    return "DROP_TABLE";
-  case SOT_CREATE_TABLE:
-    return "CREATE_TABLE";
-  case SOT_RENAME_TABLE_NEW:
-    return "RENAME_TABLE_NEW";
-  case SOT_ALTER_TABLE_COMMIT:
-    return "ALTER_TABLE_COMMIT";
-  case SOT_DROP_DB:
-    return "DROP_DB";
-  case SOT_CREATE_DB:
-    return "CREATE_DB";
-  case SOT_ALTER_DB:
-    return "ALTER_DB";
-  case SOT_CLEAR_SLOCK:
-    return "CLEAR_SLOCK";
-  case SOT_TABLESPACE:
-    return "TABLESPACE";
-  case SOT_LOGFILE_GROUP:
-    return "LOGFILE_GROUP";
-  case SOT_RENAME_TABLE:
-    return "RENAME_TABLE";
-  case SOT_TRUNCATE_TABLE:
-    return "TRUNCATE_TABLE";
-  case SOT_RENAME_TABLE_PREPARE:
-    return "RENAME_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_PREPARE:
-    return "ONLINE_ALTER_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_COMMIT:
-    return "ONLINE_ALTER_TABLE_COMMIT";
-  case SOT_CREATE_USER:
-    return "CREATE_USER";
-  case SOT_DROP_USER:
-    return "DROP_USER";
-  case SOT_RENAME_USER:
-    return "RENAME_USER";
-  case SOT_GRANT:
-    return "GRANT";
-  case SOT_REVOKE:
-    return "REVOKE";
-  }
-  return "<unknown>";
-}
 
 extern void update_slave_api_stats(Ndb*);
 
@@ -1735,7 +1670,7 @@ int ndbcluster_log_schema_op(THD *thd,
   {
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, db, table_name, "", 0);
-    ndb_schema_object= ndb_get_schema_object(key, TRUE, FALSE);
+    ndb_schema_object= ndb_get_schema_object(key, true);
     ndb_schema_object->table_id= ndb_table_id;
     ndb_schema_object->table_version= ndb_table_version;
   }
@@ -1752,8 +1687,7 @@ int ndbcluster_log_schema_op(THD *thd,
     if (ndb_schema_share == 0)
     {
       pthread_mutex_unlock(&ndb_schema_share_mutex);
-      if (ndb_schema_object)
-        ndb_free_schema_object(&ndb_schema_object, FALSE);
+      ndb_free_schema_object(&ndb_schema_object);
       DBUG_RETURN(0);    
     }
     pthread_mutex_lock(&ndb_schema_share->mutex);
@@ -2045,8 +1979,7 @@ end:
                           type_str, ndb_schema_object->key);
   }
 
-  if (ndb_schema_object)
-    ndb_free_schema_object(&ndb_schema_object, FALSE);
+  ndb_free_schema_object(&ndb_schema_object);
 
   if (opt_ndb_extra_logging > 19)
   {
@@ -2650,6 +2583,78 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(false);
   }
 
+  void handle_clear_slock(Ndb_schema_op* schema, bool post_epoch)
+  {
+    if (!post_epoch)
+    {
+      /*
+        handle slock after epoch is completed to ensure that
+        schema events get inserted in the binlog after any data
+        events
+      */
+      log_after_epoch(schema);
+      return;
+    }
+
+    char key[FN_REFLEN + 1];
+    build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
+
+    /* Ack to any SQL thread waiting for schema op to complete */
+    NDB_SCHEMA_OBJECT *ndb_schema_object= ndb_get_schema_object(key, false);
+    if (!ndb_schema_object)
+    {
+      /* Noone waiting for this schema op in this mysqld */
+      if (opt_ndb_extra_logging > 19)
+        sql_print_information("NDB: Discarding event...no obj: %s (%u/%u)",
+                              key, schema->id, schema->version);
+      return;
+    }
+
+    if (ndb_schema_object->table_id != schema->id ||
+        ndb_schema_object->table_version != schema->version)
+    {
+      /* Someone waiting, but for another id/version... */
+      if (opt_ndb_extra_logging > 19)
+        sql_print_information("NDB: Discarding event...key: %s "
+                              "non matching id/version [%u/%u] != [%u/%u]",
+                              key,
+                              ndb_schema_object->table_id,
+                              ndb_schema_object->table_version,
+                              schema->id,
+                              schema->version);
+      ndb_free_schema_object(&ndb_schema_object);
+      return;
+    }
+
+    /*
+      Copy the latest slock info into the ndb_schema_object so that
+      waiter can check if all nodes it's waiting for has answered
+    */
+    pthread_mutex_lock(&ndb_schema_object->mutex);
+    if (opt_ndb_extra_logging > 19)
+    {
+      sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) from"
+                            " %x%x to %x%x",
+                            key, schema->id, schema->version,
+                            ndb_schema_object->slock[0],
+                            ndb_schema_object->slock[1],
+                            schema->slock_buf[0],
+                            schema->slock_buf[1]);
+    }
+    memcpy(ndb_schema_object->slock, schema->slock_buf,
+           sizeof(ndb_schema_object->slock));
+    DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
+              (uchar*)ndb_schema_object->slock_bitmap.bitmap,
+              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
+    pthread_mutex_unlock(&ndb_schema_object->mutex);
+
+    ndb_free_schema_object(&ndb_schema_object);
+
+    /* Wake up the waiter */
+    pthread_cond_signal(&injector_cond);
+    return;
+  }
+
 
   int
   handle_schema_op(Ndb_schema_op* schema)
@@ -2684,12 +2689,7 @@ class Ndb_schema_event_handler {
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
-        /*
-          handle slock after epoch is completed to ensure that
-          schema events get inserted in the binlog after any data
-          events
-        */
-        log_after_epoch(schema);
+        handle_clear_slock(schema, false);
         DBUG_RETURN(0);
 
       case SOT_ALTER_TABLE_COMMIT:
@@ -2911,53 +2911,7 @@ class Ndb_schema_event_handler {
       build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
       if (schema_type == SOT_CLEAR_SLOCK)
       {
-        /* Ack to any SQL thread waiting for schema op to complete */
-        pthread_mutex_lock(&ndbcluster_mutex);
-        NDB_SCHEMA_OBJECT *ndb_schema_object=
-          (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects,
-                                              (const uchar*) key, strlen(key));
-        if (ndb_schema_object &&
-            (ndb_schema_object->table_id == schema->id &&
-             ndb_schema_object->table_version == schema->version))
-        {
-          pthread_mutex_lock(&ndb_schema_object->mutex);
-          if (opt_ndb_extra_logging > 19)
-          {
-            sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) from"
-                                  " %x%x to %x%x",
-                                  key, schema->id, schema->version,
-                                  ndb_schema_object->slock[0],
-                                  ndb_schema_object->slock[1],
-                                  schema->slock_buf[0],
-                                  schema->slock_buf[1]);
-          }
-          memcpy(ndb_schema_object->slock, schema->slock_buf,
-                 sizeof(ndb_schema_object->slock));
-          DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
-                    (uchar*)ndb_schema_object->slock_bitmap.bitmap,
-                    no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-          pthread_mutex_unlock(&ndb_schema_object->mutex);
-          pthread_cond_signal(&injector_cond);
-        }
-        else if (opt_ndb_extra_logging > 19)
-        {
-          if (ndb_schema_object == 0)
-          {
-            sql_print_information("NDB: Discarding event...no obj: %s (%u/%u)",
-                                  key, schema->id, schema->version);
-          }
-          else
-          {
-            sql_print_information("NDB: Discarding event...key: %s "
-                                  "non matching id/version [%u/%u] != [%u/%u]",
-                                  key,
-                                  ndb_schema_object->table_id,
-                                  ndb_schema_object->table_version,
-                                  schema->id,
-                                  schema->version);
-          }
-        }
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        handle_clear_slock(schema, true);
         DBUG_VOID_RETURN;
       }
 
@@ -3746,6 +3700,18 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
 }
 
 #ifdef HAVE_NDB_BINLOG
+
+enum Ndb_binlog_type
+{
+  NBT_DEFAULT                   = 0
+  ,NBT_NO_LOGGING               = 1
+  ,NBT_UPDATED_ONLY             = 2
+  ,NBT_FULL                     = 3
+  ,NBT_USE_UPDATE               = 4 /* bit 0x4 indicates USE_UPDATE */
+  ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
+  ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
+};
+
 static void 
 set_binlog_flags(NDB_SHARE *share,
                  Ndb_binlog_type ndb_binlog_type)
@@ -6491,93 +6457,6 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   Injector thread main loop
 ****************************************************************/
 
-static uchar *
-ndb_schema_objects_get_key(NDB_SCHEMA_OBJECT *schema_object,
-                           size_t *length,
-                           my_bool not_used __attribute__((unused)))
-{
-  *length= schema_object->key_length;
-  return (uchar*) schema_object->key;
-}
-
-static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
-                                                my_bool create_if_not_exists,
-                                                my_bool have_lock)
-{
-  NDB_SCHEMA_OBJECT *ndb_schema_object;
-  uint length= (uint) strlen(key);
-  DBUG_ENTER("ndb_get_schema_object");
-  DBUG_PRINT("enter", ("key: '%s'", key));
-
-  if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
-  while (!(ndb_schema_object=
-           (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects,
-                                               (const uchar*) key,
-                                               length)))
-  {
-    if (!create_if_not_exists)
-    {
-      DBUG_PRINT("info", ("does not exist"));
-      break;
-    }
-    if (!(ndb_schema_object=
-          (NDB_SCHEMA_OBJECT*) my_malloc(sizeof(*ndb_schema_object) + length + 1,
-                                         MYF(MY_WME | MY_ZEROFILL))))
-    {
-      DBUG_PRINT("info", ("malloc error"));
-      break;
-    }
-    ndb_schema_object->key= (char *)(ndb_schema_object+1);
-    memcpy(ndb_schema_object->key, key, length + 1);
-    ndb_schema_object->key_length= length;
-    if (my_hash_insert(&ndb_schema_objects, (uchar*) ndb_schema_object))
-    {
-      my_free((uchar*) ndb_schema_object, 0);
-      break;
-    }
-    pthread_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
-    bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
-                sizeof(ndb_schema_object->slock)*8, FALSE);
-    bitmap_clear_all(&ndb_schema_object->slock_bitmap);
-    break;
-  }
-  if (ndb_schema_object)
-  {
-    ndb_schema_object->use_count++;
-    DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->use_count));
-  }
-  if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
-  DBUG_RETURN(ndb_schema_object);
-}
-
-
-static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
-                                   bool have_lock)
-{
-  DBUG_ENTER("ndb_free_schema_object");
-  DBUG_PRINT("enter", ("key: '%s'", (*ndb_schema_object)->key));
-  if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
-  if (!--(*ndb_schema_object)->use_count)
-  {
-    DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
-    my_hash_delete(&ndb_schema_objects, (uchar*) *ndb_schema_object);
-    pthread_mutex_destroy(&(*ndb_schema_object)->mutex);
-    my_free((uchar*) *ndb_schema_object, MYF(0));
-    *ndb_schema_object= 0;
-  }
-  else
-  {
-    DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
-  }
-  if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
-  DBUG_VOID_RETURN;
-}
-
-
 static void
 remove_event_operations(Ndb* ndb)
 {
@@ -6748,10 +6627,6 @@ restart_cluster_failure:
     pthread_cond_signal(&injector_cond);
     goto err;
   }
-
-  /* init hash for schema object distribution */
-  (void) my_hash_init(&ndb_schema_objects, system_charset_info, 32, 0, 0,
-                      (my_hash_get_key)ndb_schema_objects_get_key, 0, 0);
 
   /*
     Expose global reference to our ndb object.
@@ -7540,8 +7415,6 @@ restart_cluster_failure:
     delete i_ndb;
     i_ndb= 0;
   }
-
-  my_hash_free(&ndb_schema_objects);
 
   if (thd_ndb)
   {
