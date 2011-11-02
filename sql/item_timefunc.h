@@ -662,8 +662,8 @@ public:
 */
 class Item_date_literal :public Item_date_func
 {
-  MYSQL_TIME ctime;
-  longlong ctime_as_temporal;
+  MYSQL_TIME ctime;           // Date value
+  longlong ctime_as_temporal; // Cached packed representation of ctime
 public:
   Item_date_literal(MYSQL_TIME *ltime) :Item_date_func()
   {
@@ -711,8 +711,8 @@ public:
 */
 class Item_time_literal :public Item_time_func
 {
-  MYSQL_TIME ctime;
-  longlong ctime_as_temporal;
+  MYSQL_TIME ctime;           // Time value
+  longlong ctime_as_temporal; // Cached packed representation of ctime
 public:
   Item_time_literal(MYSQL_TIME *ltime, uint dec_arg) :Item_time_func()
   {
@@ -761,8 +761,8 @@ public:
 */
 class Item_datetime_literal :public Item_datetime_func
 {
-  MYSQL_TIME ctime;
-  longlong ctime_as_temporal;
+  MYSQL_TIME ctime;            // Datetime value
+  longlong ctime_as_temporal;  // Cached packed representation of ctime
 public:
   Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg) :Item_datetime_func()
   {
@@ -812,8 +812,8 @@ class Item_func_curtime :public Item_time_func
 {
   char buff[9*2+32];
   uint buff_length;
-  MYSQL_TIME ctime;
-  longlong ctime_as_temporal;
+  MYSQL_TIME ctime;            // TIME value
+  longlong ctime_as_temporal;  // Cached packed representation of ctime
 protected:
   void store_now_in_TIME_tz(THD *thd, Time_zone *tz, MYSQL_TIME *now_time);
   /* 
@@ -859,8 +859,8 @@ public:
 
 class Item_func_curdate :public Item_date_func
 {
-  longlong ctime_as_longlong; // Initialized in fix_length_and_dec
   MYSQL_TIME ctime;           // Initialized in fix_length_and_dec
+  longlong ctime_as_longlong; // Initialized in fix_length_and_dec
 protected:
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
 public:
@@ -901,10 +901,10 @@ public:
 class Item_func_now :public Item_datetime_func
 {
 protected:
-  longlong ctime_as_longlong;
+  MYSQL_TIME ctime;           // Datetime value
+  longlong ctime_as_longlong; // Cached packed representation of ctime
   char buff[20*2+32];	// +32 to make my_snprintf_{8bit|ucs2} happy
   uint buff_length;
-  MYSQL_TIME ctime;
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
 public:
   Item_func_now(uint8 dec_arg) :Item_datetime_func() { decimals= dec_arg; }
