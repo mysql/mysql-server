@@ -37,6 +37,8 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
+#include <mysql/psi/mysql_idle.h>
+#include <mysql_com_server.h>
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -182,9 +184,6 @@ typedef struct st_user_var_events
   bool unsigned_flag;
 } BINLOG_USER_VAR_EVENT;
 
-#define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
-#define RP_FORCE_ROTATE               2
-#define RP_BINLOG_CHECKSUM_ALG_CHANGE 4
 /*
   The COPY_INFO structure is used by INSERT/REPLACE code.
   The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
@@ -1778,6 +1777,8 @@ public:
   Query_cache_tls query_cache_tls;
 #endif
   NET	  net;				// client connection descriptor
+  /** Aditional network instrumentation for the server only. */
+  NET_SERVER m_net_server_extension;
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
   Protocol_binary protocol_binary;	// Binary protocol
@@ -2361,6 +2362,15 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
+  /** Current statement instrumentation state. */
+  PSI_statement_locker_state m_statement_state;
+  /** Idle instrumentation. */
+  PSI_idle_locker *m_idle_psi;
+  /** Idle instrumentation state. */
+  PSI_idle_locker_state m_idle_state;
+  /** True if the server code is IDLE for this connection. */
+  bool m_server_idle;
+
 
   /*
     Id of current query. Statement can be reused to execute several queries
@@ -3722,7 +3732,8 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      save_copy_field= copy_field= 0;
+      save_copy_field= copy_field= NULL;
+      save_copy_field_end= copy_field_end= NULL;
     }
   }
 };

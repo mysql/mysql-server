@@ -784,6 +784,8 @@ THD::THD(bool enable_plugins)
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
    m_statement_psi(NULL),
+   m_idle_psi(NULL),
+   m_server_idle(false),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),

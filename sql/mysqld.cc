@@ -69,7 +69,10 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
+#include <mysql/psi/mysql_statement.h>
+#include "mysql_com_server.h"
 
 #include "keycaches.h"
 #include "../storage/myisam/ha_myisam.h"
@@ -690,6 +693,84 @@ void set_remaining_args(int argc, char **argv)
 {
   remaining_argc= argc;
   remaining_argv= argv;
+}
+
+PSI_statement_info stmt_info_new_packet;
+
+void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */)
+{
+  THD *thd;
+  thd= static_cast<THD*> (user_data);
+  DBUG_ASSERT(thd != NULL);
+
+  if (thd->m_server_idle)
+  {
+    /*
+      The server is IDLE, waiting for the next command.
+      Technically, it is a wait on a socket, which may take a long time,
+      because the call is blocking.
+      Disable the socket instrumentation, to avoid recording a SOCKET event.
+      Instead, start explicitly an IDLE event.
+    */
+    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+    MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
+  }
+}
+
+void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */, my_bool rc)
+{
+  THD *thd;
+  thd= static_cast<THD*> (user_data);
+  DBUG_ASSERT(thd != NULL);
+
+  if (thd->m_server_idle)
+  {
+    /*
+      The server just got data for a network packet header,
+      from the network layer.
+      The IDLE event is now complete, since we now have a message to process.
+      We need to:
+      - start a new STATEMENT event
+      - start a new STAGE event, within this statement,
+      - start recording SOCKET WAITS events, within this stage.
+      The proper order is critical to get events numbered correctly,
+      and nested in the proper parent.
+    */
+    MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
+
+    if (! rc)
+    {
+      thd->m_statement_psi= MYSQL_START_STATEMENT(& thd->m_statement_state,
+                                                  stmt_info_new_packet.m_key,
+                                                  thd->db, thd->db_length);
+
+      THD_STAGE_INFO(thd, stage_init);
+    }
+
+    /*
+      TODO: consider recording a SOCKET event for the bytes just read,
+      by also passing count here.
+    */
+    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+  }
+}
+
+void init_net_server_extension(THD *thd)
+{
+#ifdef HAVE_PSI_INTERFACE
+  /* Start with a clean state for connection events. */
+  thd->m_idle_psi= NULL;
+  thd->m_statement_psi= NULL;
+  thd->m_server_idle= false;
+  /* Hook up the NET_SERVER callback in the net layer. */
+  thd->m_net_server_extension.m_user_data= thd;
+  thd->m_net_server_extension.m_before_header= net_before_header_psi;
+  thd->m_net_server_extension.m_after_header= net_after_header_psi;
+  /* Activate this private extension for the mysqld server. */
+  thd->net.extension= & thd->m_net_server_extension;
+#else
+  thd->net.extension= NULL;
+#endif
 }
 
 /*
@@ -3112,9 +3193,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_events",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_EVENTS]), SHOW_LONG_STATUS},
   {"show_errors",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ERRORS]), SHOW_LONG_STATUS},
   {"show_fields",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]), SHOW_LONG_STATUS},
-#ifndef DBUG_OFF
   {"show_function_code",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FUNC_CODE]), SHOW_LONG_STATUS},
-#endif
   {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
   {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
   {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
@@ -3122,9 +3201,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
   {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
   {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
-#ifndef DBUG_OFF
   {"show_procedure_code",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROC_CODE]), SHOW_LONG_STATUS},
-#endif
   {"show_procedure_status",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_PROC]), SHOW_LONG_STATUS},
   {"show_processlist",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROCESSLIST]), SHOW_LONG_STATUS},
   {"show_profile",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROFILE]), SHOW_LONG_STATUS},
@@ -3162,7 +3239,7 @@ SHOW_VAR com_status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
 PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
@@ -5760,6 +5837,7 @@ void handle_connections_sockets()
       delete thd;
       continue;
     }
+    init_net_server_extension(thd);
     if (mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock))
       thd->security_ctx->host=(char*) my_localhost;
 
@@ -8778,6 +8856,21 @@ void init_server_psi_keys(void)
   init_com_statement_info();
   count= array_elements(com_statement_info);
   mysql_statement_register(category, com_statement_info, count);
+
+  /*
+    When a new packet is received,
+    it is instrumented as "statement/com/".
+    Based on the packet type found, it later mutates to the
+    proper narrow type, for example
+    "statement/com/query" or "statement/com/ping".
+    In cases of "statement/com/query", SQL queries are given to
+    the parser, which mutates the statement type to an even more
+    narrow classification, for example "statement/sql/select".
+  */
+  stmt_info_new_packet.m_key= 0;
+  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
+  mysql_statement_register(category, & stmt_info_new_packet, 1);
 #endif
 }
 
