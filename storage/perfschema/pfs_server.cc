@@ -106,6 +106,21 @@ initialize_performance_schema(const PFS_global_param *param)
   }
 
   pfs_initialized= true;
+
+  /** Default values for SETUP_CONSUMERS */
+  flag_events_stages_current=          param->m_consumer_events_stages_current_enabled;
+  flag_events_stages_current=          param->m_consumer_events_stages_current_enabled;
+  flag_events_stages_history=          param->m_consumer_events_stages_history_enabled;
+  flag_events_stages_history_long=     param->m_consumer_events_stages_history_long_enabled;
+  flag_events_statements_current=      param->m_consumer_events_statements_current_enabled;
+  flag_events_statements_history=      param->m_consumer_events_statements_history_enabled;
+  flag_events_statements_history_long= param->m_consumer_events_statements_history_long_enabled;
+  flag_events_waits_current=           param->m_consumer_events_waits_current_enabled;
+  flag_events_waits_history=           param->m_consumer_events_waits_history_enabled;
+  flag_events_waits_history_long=      param->m_consumer_events_waits_history_long_enabled;
+  flag_global_instrumentation=         param->m_consumer_global_instrumentation_enabled;
+  flag_thread_instrumentation=         param->m_consumer_thread_instrumentation_enabled;
+
   install_default_setup(&PFS_bootstrap);
   return &PFS_bootstrap;
 }

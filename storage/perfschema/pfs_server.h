@@ -110,7 +110,19 @@
 struct PFS_global_param
 {
   /** True if the performance schema is enabled. */
-  bool m_enabled;
+  bool m_enabled; 
+  /** Default values for SETUP_CONSUMERS. */
+  bool m_consumer_events_stages_current_enabled;
+  bool m_consumer_events_stages_history_enabled;
+  bool m_consumer_events_stages_history_long_enabled;
+  bool m_consumer_events_statements_current_enabled;
+  bool m_consumer_events_statements_history_enabled;
+  bool m_consumer_events_statements_history_long_enabled;
+  bool m_consumer_events_waits_current_enabled;
+  bool m_consumer_events_waits_history_enabled;
+  bool m_consumer_events_waits_history_long_enabled;
+  bool m_consumer_global_instrumentation_enabled;
+  bool m_consumer_thread_instrumentation_enabled;
   /**
     Maximum number of instrumented mutex classes.
     @sa mutex_class_lost.
