@@ -505,6 +505,7 @@ typedef void (*Cond_traverser) (const Item *item, void *arg);
 class Item_equal;
 class COND_EQUAL;
 
+class st_select_lex_unit;
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -1159,8 +1160,10 @@ public:
   }
   struct Collect_deps_prm
   {
-    int nest_level;
     List<Item> *parameters;
+    /* unit from which we count nest_level */
+    st_select_lex_unit *nest_level_base;
+    int nest_level;
   };
   /**
     Collect outer references

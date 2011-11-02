@@ -599,7 +599,9 @@ bool Item_subselect::exec()
 
 void Item_subselect::get_cache_parameters(List<Item> &parameters)
 {
-  Collect_deps_prm prm= { unit->first_select()->nest_level, &parameters };
+  Collect_deps_prm prm= {&parameters,
+    unit->first_select()->nest_level_base,
+    unit->first_select()->nest_level};
   walk(&Item::collect_outer_ref_processor, TRUE, (uchar*)&prm);
 }
 
