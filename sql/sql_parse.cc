@@ -1582,15 +1582,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
 
-  /* Performance Schema Interface instrumentation, end */
-  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-  thd->m_statement_psi= NULL;
-
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   dec_thread_running();
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+
+  /* Performance Schema Interface instrumentation, end */
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi= NULL;
 
   /* DTRACE instrumentation, end */
   if (MYSQL_QUERY_DONE_ENABLED() || MYSQL_COMMAND_DONE_ENABLED())
