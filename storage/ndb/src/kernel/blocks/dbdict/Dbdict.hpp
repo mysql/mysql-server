@@ -713,7 +713,7 @@ public:
   }
   
   DictObject * get_object(const char * name, Uint32 len){
-    return get_object(name, len, Rope::hash(name, len));
+    return get_object(name, len, LocalRope::hash(name, len));
   }
   
   DictObject * get_object(const char * name, Uint32 len, Uint32 hash);
@@ -724,7 +724,7 @@ public:
   }
 
   bool get_object(DictObjectPtr& obj_ptr, const char * name, Uint32 len){
-    return get_object(obj_ptr, name, len, Rope::hash(name, len));
+    return get_object(obj_ptr, name, len, LocalRope::hash(name, len));
   }
 
   bool get_object(DictObjectPtr&, const char* name, Uint32 len, Uint32 hash);
@@ -1235,7 +1235,7 @@ private:
   copyRope(RopeHandle& rh_dst, const RopeHandle& rh_src)
   {
     char buf[sz];
-    Rope r_dst(c_rope_pool, rh_dst);
+    LocalRope r_dst(c_rope_pool, rh_dst);
     ConstRope r_src(c_rope_pool, rh_src);
     ndbrequire(r_src.size() <= sz);
     r_src.copy(buf);

@@ -230,7 +230,7 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     bool ok = c_obj_hash.first(iter);
     for(; ok; ok = c_obj_hash.next(iter))
     {
-      Rope name(c_rope_pool, iter.curr.p->m_name);
+      LocalRope name(c_rope_pool, iter.curr.p->m_name);
       char buf[1024];
       name.copy(buf);
       ndbout_c("%s m_ref_count: %d", buf, iter.curr.p->m_ref_count); 
@@ -2751,7 +2751,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     sb = sm;
   }
   
-  sb /= (Rope::getSegmentSize() * sizeof(Uint32));
+  sb /= (LocalRope::getSegmentSize() * sizeof(Uint32));
   sb += 100; // more safty
   ndbrequire(sb < (Uint64(1) << 32));
   c_rope_pool.setSize(Uint32(sb));
@@ -3106,7 +3106,7 @@ Dbdict::activateIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   {
     DictObjectPtr obj_ptr;
     c_obj_pool.getPtr(obj_ptr, indexPtr.p->m_obj_ptr_i);
-    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    LocalRope name(c_rope_pool, obj_ptr.p->m_name);
     name.copy(indexName);
   }
 
@@ -3267,7 +3267,7 @@ Dbdict::rebuildIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   {
     DictObjectPtr obj_ptr;
     c_obj_pool.getPtr(obj_ptr, indexPtr.p->m_obj_ptr_i);
-    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    LocalRope name(c_rope_pool, obj_ptr.p->m_name);
     name.copy(indexName);
   }
 
@@ -4695,7 +4695,7 @@ Dbdict::get_object(DictObjectPtr& obj_ptr, const char* name, Uint32 len, Uint32 
 
 void
 Dbdict::release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p){
-  Rope name(c_rope_pool, obj_ptr_p->m_name);
+  LocalRope name(c_rope_pool, obj_ptr_p->m_name);
   name.erase();
 
   Ptr<DictObject> ptr = { obj_ptr_p, obj_ptr_i };
@@ -4759,7 +4759,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   // TODO
   /* ---------------------------------------------------------------- */
   const Uint32 tableNameLength = Uint32(strlen(c_tableDesc.TableName) + 1);
-  const Uint32 name_hash = Rope::hash(c_tableDesc.TableName, tableNameLength);
+  const Uint32 name_hash = LocalRope::hash(c_tableDesc.TableName, tableNameLength);
 
   if(checkExist){
     jam();
@@ -4824,7 +4824,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   }//switch
   
   { 
-    Rope name(c_rope_pool, tablePtr.p->tableName);
+    LocalRope name(c_rope_pool, tablePtr.p->tableName);
     tabRequire(name.assign(c_tableDesc.TableName, tableNameLength, name_hash),
 	       CreateTableRef::OutOfStringBuffer);
   }
@@ -4946,14 +4946,14 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   }
   
   {
-    Rope frm(c_rope_pool, tablePtr.p->frmData);
+    LocalRope frm(c_rope_pool, tablePtr.p->frmData);
     tabRequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen),
 	       CreateTableRef::OutOfStringBuffer);
-    Rope range(c_rope_pool, tablePtr.p->rangeData);
+    LocalRope range(c_rope_pool, tablePtr.p->rangeData);
     tabRequire(range.assign((const char*)c_tableDesc.RangeListData,
                c_tableDesc.RangeListDataLen),
 	      CreateTableRef::OutOfStringBuffer);
-    Rope fd(c_rope_pool, tablePtr.p->ngData);
+    LocalRope fd(c_rope_pool, tablePtr.p->ngData);
     tabRequire(fd.assign((const char*)c_tableDesc.FragmentData,
                          c_tableDesc.FragmentDataLen),
 	       CreateTableRef::OutOfStringBuffer);
@@ -5081,7 +5081,7 @@ Dbdict::upgrade_seizeTrigger(Ptr<TableRecord> tabPtr,
       BaseString::snprintf(buf, sizeof(buf),
                            "UPG_UPD_NDB$INDEX_%u_UI", tabPtr.i);
       {
-        Rope name(c_rope_pool, triggerPtr.p->triggerName);
+        LocalRope name(c_rope_pool, triggerPtr.p->triggerName);
         name.assign(buf);
       }
 
@@ -5119,7 +5119,7 @@ Dbdict::upgrade_seizeTrigger(Ptr<TableRecord> tabPtr,
                            "UPG_DEL_NDB$INDEX_%u_UI", tabPtr.i);
 
       {
-        Rope name(c_rope_pool, triggerPtr.p->triggerName);
+        LocalRope name(c_rope_pool, triggerPtr.p->triggerName);
         name.assign(buf);
       }
 
@@ -5185,7 +5185,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
      * Check that attribute is not defined twice
      */
     const Uint32 len = Uint32(strlen(attrDesc.AttributeName)+1);
-    const Uint32 name_hash = Rope::hash(attrDesc.AttributeName, len);
+    const Uint32 name_hash = LocalRope::hash(attrDesc.AttributeName, len);
     {
       AttributeRecord key;
       key.m_key.m_name_ptr = attrDesc.AttributeName;
@@ -5216,7 +5216,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
      * TmpAttrib to Attribute mapping
      */
     {
-      Rope name(c_rope_pool, attrPtr.p->attributeName);
+      LocalRope name(c_rope_pool, attrPtr.p->attributeName);
       if (!name.assign(attrDesc.AttributeName, len, name_hash))
       {
 	jam();
@@ -5330,7 +5330,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
         }
       }
 
-      Rope defaultValue(c_rope_pool, attrPtr.p->defaultValue);
+      LocalRope defaultValue(c_rope_pool, attrPtr.p->defaultValue);
       defaultValue.assign(defaultValueBuf,
                           attrDesc.AttributeDefaultValueLen);
     }
@@ -7087,22 +7087,22 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
   }
   else
   {
-    Rope tmp(c_rope_pool, tablePtr.p->tableName);
+    LocalRope tmp(c_rope_pool, tablePtr.p->tableName);
     tmp.erase();
   }
   
   {
-    Rope tmp(c_rope_pool, tablePtr.p->frmData);
+    LocalRope tmp(c_rope_pool, tablePtr.p->frmData);
     tmp.erase();
   }
 
   {
-    Rope tmp(c_rope_pool, tablePtr.p->ngData);
+    LocalRope tmp(c_rope_pool, tablePtr.p->ngData);
     tmp.erase();
   }
 
   {
-    Rope tmp(c_rope_pool, tablePtr.p->rangeData);
+    LocalRope tmp(c_rope_pool, tablePtr.p->rangeData);
     tmp.erase();
   }
 
@@ -7110,8 +7110,8 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
 					tablePtr.p->m_attributes);
   AttributeRecordPtr attrPtr;
   for(list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr)){
-    Rope name(c_rope_pool, attrPtr.p->attributeName);
-    Rope def(c_rope_pool, attrPtr.p->defaultValue);
+    LocalRope name(c_rope_pool, attrPtr.p->attributeName);
+    LocalRope def(c_rope_pool, attrPtr.p->defaultValue);
     name.erase();
     def.erase();
   }
@@ -7443,7 +7443,7 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   // from a newer execDROP_TAB_REQ version
   {
     char buf[1024];
-    Rope name(c_rope_pool, tablePtr.p->tableName);
+    LocalRope name(c_rope_pool, tablePtr.p->tableName);
     name.copy(buf);
     g_eventLogger->info("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i,
                         tablePtr.p->m_obj_ptr_i);
@@ -7815,11 +7815,11 @@ Dbdict::alterTable_release(SchemaOpPtr op_ptr)
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
   {
-    Rope r(c_rope_pool, alterTabPtr.p->m_oldTableName);
+    LocalRope r(c_rope_pool, alterTabPtr.p->m_oldTableName);
     r.erase();
   }
   {
-    Rope r(c_rope_pool, alterTabPtr.p->m_oldFrmData);
+    LocalRope r(c_rope_pool, alterTabPtr.p->m_oldFrmData);
     r.erase();
   }
   LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena, c_opSectionBufferPool);
@@ -10245,7 +10245,7 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     if (! reqListNames)
       continue;
     
-    Rope name(c_rope_pool, iter.curr.p->m_name);
+    LocalRope name(c_rope_pool, iter.curr.p->m_name);
     const Uint32 size = name.size();
     conf->tableData[pos] = size;
     pos++;
@@ -10465,7 +10465,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     if (reqListNames)
     {
       jam();
-      Rope name(c_rope_pool, iter.curr.p->m_name);
+      LocalRope name(c_rope_pool, iter.curr.p->m_name);
       const Uint32 size = name.size(); // String length including \0
       const Uint32 wsize = (size + 3) / 4;
       tableNamesWriter.putWord(size);
@@ -11002,7 +11002,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
   }
   w.add(DictTabInfo::FragmentTypeVal, createIndexPtr.p->m_fragmentType);
   w.add(DictTabInfo::TableTypeVal, createIndexPtr.p->m_request.indexType);
-  { Rope name(c_rope_pool, tablePtr.p->tableName);
+  { LocalRope name(c_rope_pool, tablePtr.p->tableName);
     char tableName[MAX_TAB_NAME_SIZE];
     name.copy(tableName);
     w.add(DictTabInfo::PrimaryTable, tableName);
@@ -11027,7 +11027,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
     AttributeRecordPtr attrPtr;
     c_attributeRecordPool.getPtr(attrPtr, attrMap[k].attr_ptr_i);
 
-    { Rope attrName(c_rope_pool, attrPtr.p->attributeName);
+    { LocalRope attrName(c_rope_pool, attrPtr.p->attributeName);
       char attributeName[MAX_ATTR_NAME_SIZE];
       attrName.copy(attributeName);
       w.add(DictTabInfo::AttributeName, attributeName);
@@ -17822,7 +17822,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   }
 
   {
-    Rope name(c_rope_pool, triggerPtr.p->triggerName);
+    LocalRope name(c_rope_pool, triggerPtr.p->triggerName);
     if (!name.assign(createTriggerPtr.p->m_triggerName)) {
       jam();
       setError(error, CreateTrigRef::OutOfStringBuffer, __LINE__);
@@ -20725,7 +20725,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   }
 
   Uint32 len = Uint32(strlen(f.FileName) + 1);
-  Uint32 hash = Rope::hash(f.FileName, len);
+  Uint32 hash = LocalRope::hash(f.FileName, len);
   if(get_object(f.FileName, len, hash) != 0)
   {
     jam();
@@ -20773,7 +20773,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   new (filePtr.p) File();
 
   {
-    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    LocalRope name(c_rope_pool, obj_ptr.p->m_name);
     if(!name.assign(f.FileName, len, hash))
     {
       jam();
@@ -21423,7 +21423,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   }
 
   Uint32 len = Uint32(strlen(fg.FilegroupName) + 1);
-  Uint32 hash = Rope::hash(fg.FilegroupName, len);
+  Uint32 hash = LocalRope::hash(fg.FilegroupName, len);
   if(get_object(fg.FilegroupName, len, hash) != 0)
   {
     jam();
@@ -21450,7 +21450,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   new (fg_ptr.p) Filegroup();
 
   {
-    Rope name(c_rope_pool, obj_ptr.p->m_name);
+    LocalRope name(c_rope_pool, obj_ptr.p->m_name);
     if(!name.assign(fg.FilegroupName, len, hash))
     {
       jam();
@@ -22012,7 +22012,7 @@ Dbdict::dropFile_parse(Signal* signal, bool master,
 #if defined VM_TRACE || defined ERROR_INSERT
   {
     char buf[1024];
-    Rope name(c_rope_pool, f_ptr.p->m_path);
+    LocalRope name(c_rope_pool, f_ptr.p->m_path);
     name.copy(buf);
     ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, 
              impl_req->file_id,
@@ -22371,7 +22371,7 @@ Dbdict::dropFilegroup_parse(Signal* signal, bool master,
 #if defined VM_TRACE || defined ERROR_INSERT
   {
     char buf[1024];
-    Rope name(c_rope_pool, fg_ptr.p->m_name);
+    LocalRope name(c_rope_pool, fg_ptr.p->m_name);
     name.copy(buf);
     ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, 
              impl_req->filegroup_id,
@@ -28413,7 +28413,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   }
 
   Uint32 len = Uint32(strlen(hm.HashMapName) + 1);
-  Uint32 hash = Rope::hash(hm.HashMapName, len);
+  Uint32 hash = LocalRope::hash(hm.HashMapName, len);
 
   if (ERROR_INSERTED(6205))
   {
@@ -28480,7 +28480,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
 
   RopeHandle name;
   {
-    Rope tmp(c_rope_pool, name);
+    LocalRope tmp(c_rope_pool, name);
     if(!tmp.assign(hm.HashMapName, len, hash))
     {
       jam();
@@ -28669,7 +28669,7 @@ error:
   else
   {
     jam();
-    Rope tmp(c_rope_pool, name);
+    LocalRope tmp(c_rope_pool, name);
     tmp.erase();
   }
 }
