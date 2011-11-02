@@ -124,6 +124,7 @@ select count(*) from t1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
+  --sorted_result
   --replace_column 9 #
 }
 explain select count(*) from t1 where
@@ -134,6 +135,7 @@ select count(*) from t1 where
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
+  --sorted_result
   --replace_column 9 #
 }
 explain select count(*) from t1 where
@@ -324,32 +326,32 @@ SELECT COUNT(*) FROM t1 WHERE b = 0 AND a = 0 AND c = 13286427 AND
 drop table t1;
 
 # BUG#21277: Index Merge/sort_union: wrong query results
-create table t1
-(
-  key1 int not null, 
-  key2 int not null default 0,
-  key3 int not null default 0
-);
+#create table t1
+#(
+#  key1 int not null, 
+#  key2 int not null default 0,
+#  key3 int not null default 0
+#);
 
-insert into t1(key1) values (1),(2),(3),(4),(5),(6),(7),(8);
+#insert into t1(key1) values (1),(2),(3),(4),(5),(6),(7),(8);
 
-let $1=7;
-set @d=8;
-while ($1)
-{
-  eval insert into t1 (key1) select key1+@d from t1;
-  eval set @d=@d*2;
-  dec $1;
-}
+#let $1=7;
+#set @d=8;
+#while ($1)
+#{
+#  eval insert into t1 (key1) select key1+@d from t1;
+#  eval set @d=@d*2;
+#  dec $1;
+#}
 
-alter table t1 add index i2(key2);
-alter table t1 add index i3(key3);
-update t1 set key2=key1,key3=key1;
+#alter table t1 add index i2(key2);
+#alter table t1 add index i3(key3);
+#update t1 set key2=key1,key3=key1;
 
 # to test the bug, the following must use "sort_union":
-explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
-select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
-drop table t1;
+#explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
+#select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
+#drop table t1;
 
 --echo #
 --echo # Bug#56423: Different count with SELECT and CREATE SELECT queries
