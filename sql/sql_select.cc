@@ -9701,6 +9701,8 @@ bool JOIN_TAB::preread_init()
                                     derived, DT_CREATE | DT_FILL))
       return TRUE;
   preread_init_done= TRUE;
+  if (select && select->quick)
+    select->quick->replace_handler(table->file);
   return FALSE;
 }
 

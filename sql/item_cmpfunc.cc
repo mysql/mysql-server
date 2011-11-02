@@ -1792,7 +1792,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
     if (!new_item)
       return 0;
     if (args[1] != new_item)
-      current_thd->change_item_tree(args, new_item);
+      current_thd->change_item_tree(args + 1, new_item);
   }
   else
   {

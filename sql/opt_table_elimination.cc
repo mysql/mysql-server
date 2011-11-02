@@ -588,10 +588,8 @@ void eliminate_tables(JOIN *join)
   if (!join->outer_join)
     DBUG_VOID_RETURN;
 
-#ifndef DBUG_OFF
   if (!optimizer_flag(thd, OPTIMIZER_SWITCH_TABLE_ELIMINATION))
     DBUG_VOID_RETURN; /* purecov: inspected */
-#endif
 
   /* Find the tables that are referred to from WHERE/HAVING */
   used_tables= (join->conds?  join->conds->used_tables() : 0) | 

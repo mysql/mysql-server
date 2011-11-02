@@ -1736,5 +1736,33 @@ drop table t1, t2, t3;
 
 set optimizer_switch=@subselect4_tmp;
 
+--echo #
+--echo # LP BUG#833702 Wrong result with nested IN and singlerow subqueries and equality propagation
+--echo #
+
+CREATE TABLE t2 (c int , a int, b int);
+INSERT INTO t2 VALUES (10,7,0);
+
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (5,0),(7,0);
+
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(8);
+
+set @@optimizer_switch='in_to_exists=on,materialization=off,subquery_cache=off';
+
+SELECT * FROM t2
+WHERE t2.b IN (SELECT b FROM t3 WHERE t3.a = t2.a AND a < SOME (SELECT * FROM t4))
+   OR ( t2.c > 242 );
+
+EXPLAIN SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+
+drop table t2, t3, t4;
+
+set optimizer_switch=@subselect4_tmp;
+
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;
