@@ -2117,8 +2117,12 @@ static my_socket activate_tcp_port(uint port)
     unireg_abort(1);				/* purecov: tested */
   }
 
-  for (a= ai; a != NULL && ip_sock == INVALID_SOCKET; a= a->ai_next)
-    ip_sock= socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+  for (a= ai; a != NULL; a= a->ai_next)
+  {
+     ip_sock= socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+    if (ip_sock != INVALID_SOCKET)
+      break;
+  }
 
   if (ip_sock == INVALID_SOCKET)
   {
