@@ -2571,11 +2571,6 @@ fts_add(
 	fts_trx_table_t*ftt,			/*!< in: FTS trx table */
 	fts_trx_row_t*	row)			/*!< in: row */
 {
-#ifdef FTS_ADD_DEBUG
-	pars_info_t*	info;
-	que_t*		graph;
-	doc_id_t	write_doc_id;
-#endif /*FTS_ADD_DEBUG */
 	dict_table_t*	table = ftt->table;
 	ulint		error = DB_SUCCESS;
 	doc_id_t	doc_id = row->doc_id;
@@ -2583,41 +2578,6 @@ fts_add(
 	ut_a(row->state == FTS_INSERT || row->state == FTS_MODIFY);
 
 	fts_add_doc_by_id(ftt, doc_id, row->fts_indexes);
-
-#ifdef FTS_ADD_DEBUG
-	/* Following chunk of code Adds the inserted Doc ID into ADDED table.
-	We no longer need ADDED table, it is kept for debugging and diagnostic
-	purpose */
-	graph = ftt->docs_added_graph;
-
-	if (graph) {
-		info = graph->info;
-	} else {
-		info = pars_info_create();
-	}
-
-	/* Convert to "storage" byte order. */
-	fts_write_doc_id((byte*) &write_doc_id, doc_id);
-	fts_bind_doc_id(info, "doc_id", &write_doc_id);
-
-	if  (!graph) {
-		fts_table_t	fts_table;
-
-		FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE,
-				   ftt->table);
-
-		graph = fts_parse_sql(
-			&fts_table,
-			info,
-			"BEGIN INSERT INTO %s VALUES (:doc_id);");
-
-		ftt->docs_added_graph = graph;
-	}
-
-	ut_a(graph == ftt->docs_added_graph);
-
-	error = fts_eval_sql(ftt->fts_trx->trx, graph);
-#endif /*FTS_ADD_DEBUG */
 
 	if (error == DB_SUCCESS) {
 		mutex_enter(&table->fts->cache->deleted_lock);
@@ -2667,36 +2627,6 @@ fts_delete(
 	fts_write_doc_id((byte*) &write_doc_id, doc_id);
 	fts_bind_doc_id(info, "doc_id", &write_doc_id);
 
-#ifdef FTS_ADD_DEBUG
-	/* Following chunk of code deletes Doc ID from the ADDED table.
-	We no longer need ADDED table, it is kept for debugging and diagnostic
-	purpose */
-	undo_no_t	undo_no;
-	trx->op_info = "deleting doc id from FTS ADDED";
-
-	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, table);
-
-	/* We want to reuse info */
-	info->graph_owns_us = FALSE;
-
-	graph = fts_parse_sql(
-		&fts_table,
-		info,
-		"BEGIN DELETE FROM %s WHERE doc_id = :doc_id;\n");
-
-	undo_no = trx->undo_no;
-
-	error = fts_eval_sql(trx, graph);
-
-	fts_que_graph_free(graph);
-
-	n_rows_updated = (ulint) (trx->undo_no -undo_no);
-
-	/* If the row was deleted in FTS ADDED then the cache
-	needs to know, */
-	if (error == DB_SUCCESS && n_rows_updated > 0) {
-#endif /* FTS_ADD_DEBUG*/
-
 	/* It is possible we update record that has not yet be sync-ed
 	into cache from last crash (delete Doc will not initialize the
 	sync). Do not do any added counter accounting until the FTS cache
@@ -2706,9 +2636,6 @@ fts_delete(
 		fts_update_t*	update;
 
 		mutex_enter(&table->fts->cache->deleted_lock);
-
-		/* FIXME: This assertion could trigger in Michael's tests
-		ut_ad(table->fts->cache->added > 0); */
 
 		/* The Doc ID could belong to those left in
 		ADDED table from last crash. So need to check
@@ -3593,54 +3520,6 @@ fts_write_node(
 	return(error);
 }
 
-#ifdef FTS_ADD_DEBUG
-/*********************************************************************//**
-Delete rows from the ADDED table that are indexed in the cache. */
-static
-ulint
-fts_sync_delete_from_added(
-/*=======================*/
-						/* out: DB_SUCCESS if all OK */
-	fts_sync_t*	sync)			/*!< in: sync state */
-{
-	pars_info_t*	info;
-	que_t*		graph;
-	ulint		error;
-	fts_table_t	fts_table;
-	doc_id_t	write_last;
-	doc_id_t	write_first;
-
-	ut_a(sync->max_doc_id >= sync->min_doc_id);
-
-	info = pars_info_create();
-
-	/* Convert to "storage" byte order. */
-	fts_write_doc_id((byte*) &write_first, sync->min_doc_id);
-	fts_bind_doc_id(info, "first", &write_first);
-
-	/* Convert to "storage" byte order. */
-	fts_write_doc_id((byte*) &write_last, sync->max_doc_id);
-	fts_bind_doc_id(info, "last", &write_last);
-
-	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, sync->table);
-
-	printf("Deleting %lu -> %lu\n",
-	       (ulint) sync->min_doc_id, (ulint) sync->max_doc_id);
-
-	graph = fts_parse_sql(
-		&fts_table,
-		info,
-		"BEGIN\n"
-		"DELETE FROM %s WHERE doc_id >= :first AND doc_id <= :last;");
-
-	error = fts_eval_sql(sync->trx, graph);
-
-	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
-
-	return(error);
-}
-#endif
-
 /*********************************************************************//**
 Add rows to the DELETED_CACHE table.
 @return DB_SUCCESS if all went well else error code*/
@@ -3802,6 +3681,7 @@ fts_sync_write_words(
 	return(error);
 }
 
+#ifdef FTS_DOC_STATS_DEBUG
 /*********************************************************************//**
 Write a single documents statistics to disk.
 @return DB_SUCCESS if all went well else error code */
@@ -3915,6 +3795,7 @@ fts_sync_write_doc_stats(
 
 	return(error);
 }
+#endif /* FTS_DOC_STATS_DEBUG */
 
 /*********************************************************************//**
 Callback to check the existince of a word.
@@ -4070,11 +3951,16 @@ fts_sync_index(
 
 	error = fts_sync_write_words(trx, index_cache);
 
+#ifdef FTS_DOC_STATS_DEBUG
+	/* FTS_RESOLVE: the word counter info in auxiliary table "DOC_ID"
+	is not used currently for ranking. We disable fts_sync_write_doc_stats()
+	for now */
 	/* Write the per doc statistics that will be used for ranking. */
 	if (error == DB_SUCCESS) {
 
 		error = fts_sync_write_doc_stats(trx, index_cache);
 	}
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	return(error);
 }
