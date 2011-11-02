@@ -1353,6 +1353,8 @@ toku_lt_create(toku_lock_tree** ptree,
     tmp_tree->bw_buf    = (toku_range*)
                         toku_malloc(tmp_tree->bw_buflen * sizeof(toku_range));
     if (!tmp_tree->bw_buf) { r = ENOMEM; goto cleanup; }
+    tmp_tree->verify_buflen = 0;
+    tmp_tree->verify_buf = NULL;
     r = toku_omt_create(&tmp_tree->dbs);
     if (r != 0) 
         goto cleanup;
@@ -1497,6 +1499,7 @@ toku_lt_close(toku_lock_tree* tree) {
 
     toku_free(tree->buf);
     toku_free(tree->bw_buf);
+    toku_free(tree->verify_buf);
     toku_free(tree);
     r = first_error;
 cleanup:
@@ -2280,29 +2283,6 @@ toku_lt_remove_db_ref(toku_lock_tree* tree, DB *db) {
     assert_zero(r);
 }
 
-static void 
-lt_verify(toku_lock_tree *lt) {    
-    // verify the borderwrite tree
-    toku_rt_verify(lt->borderwrite);
-
-    // verify all of the selfread and selfwrite trees
-    toku_rth_start_scan(lt->rth);
-    rt_forest *forest;
-    while ((forest = toku_rth_next(lt->rth)) != NULL) {
-        if (forest->self_read)
-            toku_rt_verify(forest->self_read);
-        if (forest->self_write)
-            toku_rt_verify(forest->self_write);
-    }
-}
-
-void 
-toku_lt_verify(toku_lock_tree *lt, DB *db) {
-    lt_set_comparison_functions(lt, db);
-    lt_verify(lt);
-    lt_clear_comparison_functions(lt);
-}
-
 static void
 toku_lock_request_init_wait(toku_lock_request *lock_request) {
     if (!lock_request->wait_initialized) {
@@ -2724,4 +2704,72 @@ toku_ltm_get_lock_wait_time(toku_ltm *mgr, uint64_t *lock_wait_time_msec) {
         *lock_wait_time_msec = UINT64_MAX;
     else
         *lock_wait_time_msec = mgr->lock_wait_time.tv_sec * 1000 + mgr->lock_wait_time.tv_usec / 1000;
+}
+
+static void 
+verify_range_in_borderwrite(toku_lock_tree *tree, toku_interval *query, TXNID txnid) {
+    int r;
+
+    uint32_t numfound;
+    r = toku_rt_find(tree->borderwrite, query, 0, &tree->verify_buf, &tree->verify_buflen, &numfound);
+    assert(r == 0);
+    assert(numfound == 1);
+
+    toku_range *range = &tree->verify_buf[0];
+    assert(range->data == txnid);
+    assert(interval_dominated(query, &range->ends));
+}
+
+struct verify_extra {
+    toku_lock_tree *lt;
+    TXNID id;
+};
+
+static int
+verify_range_in_borderwrite_cb(toku_range *range, void *extra) {
+    struct verify_extra *vextra = (struct verify_extra *) extra;
+    verify_range_in_borderwrite(vextra->lt, &range->ends, vextra->id);
+    return 0;
+}
+
+static void
+verify_all_ranges_in_borderwrite(toku_lock_tree *lt, toku_range_tree *rt, TXNID id) {
+    struct verify_extra vextra = { .lt = lt, .id = id };
+    toku_rt_iterate(rt, verify_range_in_borderwrite_cb, &vextra);
+}
+
+static void
+verify_all_selfwrite_ranges_in_borderwrite(toku_lock_tree *lt) {
+    toku_rth_start_scan(lt->rth);
+    rt_forest *forest;
+    while ((forest = toku_rth_next(lt->rth))) {
+	if (forest->self_write)
+	    verify_all_ranges_in_borderwrite(lt, forest->self_write, forest->hash_key);
+    }
+}
+
+static void 
+lt_verify(toku_lock_tree *lt) {    
+    // verify all of the selfread and selfwrite trees
+    toku_rth_start_scan(lt->rth);
+    rt_forest *forest;
+    while ((forest = toku_rth_next(lt->rth)) != NULL) {
+        if (forest->self_read)
+            toku_rt_verify(forest->self_read);
+        if (forest->self_write)
+            toku_rt_verify(forest->self_write);
+    }
+
+    // verify the borderwrite tree
+    toku_rt_verify(lt->borderwrite);
+
+    // verify that the ranges in the selfwrite trees are in the borderwrite tree
+    verify_all_selfwrite_ranges_in_borderwrite(lt);
+}
+
+void 
+toku_lt_verify(toku_lock_tree *lt, DB *db) {
+    lt_set_comparison_functions(lt, db);
+    lt_verify(lt);
+    lt_clear_comparison_functions(lt);
 }

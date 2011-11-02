@@ -96,6 +96,8 @@ struct __toku_lock_tree {
     uint32_t            buflen;      /**< The length of buf */
     toku_range*         bw_buf;
     uint32_t            bw_buflen;
+    toku_range*         verify_buf;
+    uint32_t            verify_buflen;
     /** Whether lock escalation is allowed. */
     bool                lock_escalation_allowed;
     /** Lock tree manager */
