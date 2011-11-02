@@ -3,10 +3,6 @@
   fixed so that it could compile and run in MySQL source tree
 */
 
-#ifdef DBUG_OFF				/* We are testing dbug */
-#undef DBUG_OFF
-#endif
-
 #include <my_global.h>	/* This includes dbug.h */
 #include <my_pthread.h>
 
@@ -16,9 +12,6 @@ char *argv[];
 {
   register int result, ix;
   extern int factorial(int);
-#if defined(HAVE_PTHREAD_INIT)
-  pthread_init();			/* Must be called before DBUG_ENTER */
-#endif
   my_thread_global_init();
 
   {

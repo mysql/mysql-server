@@ -113,7 +113,7 @@ ENDIF()
 
 
 SET(LIBS 
-  ${DBUG_LIBRARY} strings regex mysys vio 
+  dbug strings regex mysys vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_PLUGIN_LIBS}
