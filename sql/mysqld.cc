@@ -695,7 +695,9 @@ void set_remaining_args(int argc, char **argv)
   remaining_argv= argv;
 }
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info stmt_info_new_packet;
+#endif
 
 void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */)
 {
