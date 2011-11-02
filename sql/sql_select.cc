@@ -22059,10 +22059,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   /* Test if constant range in WHERE */
   if (tab->ref.key >= 0 && tab->ref.key_parts)
   {
-    ref_key=	   tab->ref.key;
-    ref_key_parts= tab->ref.key_parts;
     if (tab->type == JT_REF_OR_NULL || tab->type == JT_FT)
       DBUG_RETURN(0);
+    ref_key=	   tab->ref.key;
+    ref_key_parts= tab->ref.key_parts;
   }
   else if (select && select->quick)		// Range found by opt_range
   {
@@ -22339,7 +22339,7 @@ check_reverse_order:
           goto use_filesort;            // Reverse sort failed -> filesort
         }
         if (select->quick == save_quick)
-          save_quick= 0;                // make_reverse() consumed it
+          save_quick= 0;                // Because set_quick(tmp) frees it
         select->set_quick(tmp);
       }
       else if (tab->type != JT_INDEX_SCAN && tab->type != JT_REF_OR_NULL &&
@@ -22367,20 +22367,24 @@ check_reverse_order:
   */
 
 skipped_filesort:
-  // Keep current (ordered) select->quick 
-  if (select && save_quick != select->quick)
-  {
-    delete save_quick;
-    save_quick= NULL;
-  }
   ret= true;
   goto fix_ICP;
 use_filesort:
-  // Restore original save_quick
-  if (select && select->quick != save_quick)
-    select->set_quick(save_quick);
   ret= false;
+
 fix_ICP:
+  if (ret && !no_changes)
+  {
+    // Keep current (ordered) select->quick
+    if (select && save_quick != select->quick)
+      delete save_quick;
+  }
+  else
+  {
+    // Restore original save_quick
+    if (select && select->quick != save_quick)
+      select->set_quick(save_quick);
+  }
   if (changed_key >= 0)
   {
     bool cancelled_ICP= false;
