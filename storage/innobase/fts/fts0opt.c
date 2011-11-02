@@ -2578,6 +2578,11 @@ fts_optimize_remove_table(
 	os_event_t		event;
 	fts_msg_del_t* remove;
 
+	/* if the optimize system not yet initialized, return */
+	if (!fts_optimize_wq) {
+		return;
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_DEL_TABLE, NULL);
 
 	/* We will wait on this event until signalled by the consumer. */
@@ -2952,9 +2957,8 @@ fts_optimize_thread(
 		}
 	}
 
-
-	/* Lock dict_operation_lock to make sure no DDL happening */
-	rw_lock_x_lock(&dict_operation_lock);
+	/* Server is being shutdown, sync the data from FTS cache to disk
+	if needed */
 	if (n_tables > 0) {
 		ulint	i;
 
@@ -2979,8 +2983,6 @@ fts_optimize_thread(
 			}
 		}
 	}
-
-	rw_lock_x_unlock(&dict_operation_lock);
 
 	ib_vector_free(tables);
 
