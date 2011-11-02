@@ -3261,7 +3261,6 @@ static
 void
 btr_record_not_null_field_in_rec(
 /*=============================*/
-	rec_t*		rec,		/*!< in: physical record */
 	ulint		n_unique,	/*!< in: dict_index_get_n_unique(index),
 					number of columns uniquely determine
 					an index entry */
@@ -3280,17 +3279,11 @@ btr_record_not_null_field_in_rec(
 	}
 
 	for (i = 0; i < n_unique; i++) {
-		ulint	rec_len;
-		byte*	field;
-
-		field = rec_get_nth_field(rec, offsets, i, &rec_len);
-
-		if (rec_len != UNIV_SQL_NULL) {
-			n_not_null[i]++;
-		} else {
-			/* Break if we hit the first NULL value */
+		if (rec_offs_nth_sql_null(offsets, i)) {
 			break;
 		}
+
+		n_not_null[i]++;
 	}
 }
 
@@ -3398,7 +3391,7 @@ btr_estimate_number_of_different_key_vals(
 
 			if (n_not_null) {
 				btr_record_not_null_field_in_rec(
-					rec, n_cols, offsets_rec, n_not_null);
+					n_cols, offsets_rec, n_not_null);
 			}
 		}
 
@@ -3433,8 +3426,7 @@ btr_estimate_number_of_different_key_vals(
 
 			if (n_not_null) {
 				btr_record_not_null_field_in_rec(
-					next_rec, n_cols, offsets_next_rec,
-					n_not_null);
+					n_cols, offsets_next_rec, n_not_null);
 			}
 
 			total_external_size
