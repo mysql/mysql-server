@@ -6985,7 +6985,7 @@ view_err:
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
-    enum_alter_table_change_level need_copy_table_res;
+    enum_alter_table_change_level need_copy_table_res=ALTER_TABLE_METADATA_ONLY;
     /* Check how much the tables differ. */
     if (compare_tables(table, alter_info,
                        create_info, order_num,
