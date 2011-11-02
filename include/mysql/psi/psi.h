@@ -136,6 +136,8 @@ struct PSI_bootstrap
   @sa DISABLE_PSI_TABLE
   @sa DISABLE_PSI_STAGE
   @sa DISABLE_PSI_STATEMENT
+  @sa DISABLE_PSI_SOCKET
+  @sa DISABLE_PSI_IDLE
 */
 
 #ifndef DISABLE_PSI_MUTEX
@@ -219,6 +221,16 @@ struct PSI_bootstrap
 
 #ifndef DISABLE_PSI_SOCKET
 #define HAVE_PSI_SOCKET_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_IDLE
+  Compiling option to disable the idle instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_IDLE
+#define HAVE_PSI_IDLE_INTERFACE
 #endif
 
 /**
