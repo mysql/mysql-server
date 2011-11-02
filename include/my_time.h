@@ -91,7 +91,7 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
                    ulonglong flags, int *was_cut);
 enum enum_mysql_timestamp_type
 str_to_time(const char *str, uint length, MYSQL_TIME *l_time, 
-            ulong flag, int *warning);
+            ulonglong flag, int *warning);
 enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 ulonglong flags, int *was_cut);

@@ -105,7 +105,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
                               timestamp_type cached_timestamp_type,
                               const char **sub_pattern_end,
                               const char *date_time_type,
-                              uint fuzzy_date)
+                              ulonglong fuzzy_date)
 {
   int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
@@ -1499,7 +1499,7 @@ double Item_temporal_func::val_real()
 }
 
 
-bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_from_days::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   longlong value=args[0]->val_int();
   if (args[0]->null_value)
@@ -1557,7 +1557,7 @@ void Item_func_curdate_utc::store_now_in_TIME(MYSQL_TIME *now_time)
 
 
 bool Item_func_curdate::get_date(MYSQL_TIME *res,
-				 uint fuzzy_date __attribute__((unused)))
+				 ulonglong fuzzy_date __attribute__((unused)))
 {
   *res=ltime;
   return 0;
@@ -1576,7 +1576,7 @@ bool Item_func_curtime::fix_fields(THD *thd, Item **items)
 }
 
 bool Item_func_curtime::get_date(MYSQL_TIME *res,
-                                 uint fuzzy_date __attribute__((unused)))
+                                 ulonglong fuzzy_date __attribute__((unused)))
 {
   *res= ltime;
   return 0;
@@ -1667,7 +1667,7 @@ void Item_func_now_utc::store_now_in_TIME(MYSQL_TIME *now_time)
 
 
 bool Item_func_now::get_date(MYSQL_TIME *res,
-                             uint fuzzy_date __attribute__((unused)))
+                             ulonglong fuzzy_date __attribute__((unused)))
 {
   *res= ltime;
   return 0;
@@ -1689,13 +1689,13 @@ void Item_func_sysdate_local::store_now_in_TIME(MYSQL_TIME *now_time)
 
 
 bool Item_func_sysdate_local::get_date(MYSQL_TIME *res,
-                                       uint fuzzy_date __attribute__((unused)))
+                                       ulonglong fuzzy_date __attribute__((unused)))
 {
   store_now_in_TIME(res);
   return 0;
 }
 
-bool Item_func_sec_to_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_sec_to_time::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   bool sign;
@@ -1922,7 +1922,7 @@ void Item_func_from_unixtime::fix_length_and_dec()
 
 
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
-				       uint fuzzy_date __attribute__((unused)))
+				       ulonglong fuzzy_date __attribute__((unused)))
 {
   bool sign;
   ulonglong sec;
@@ -1952,7 +1952,7 @@ void Item_func_convert_tz::fix_length_and_dec()
 
 
 bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
-                                    uint fuzzy_date __attribute__((unused)))
+                                    ulonglong fuzzy_date __attribute__((unused)))
 {
   my_time_t my_time_tmp;
   String str;
@@ -2045,7 +2045,7 @@ void Item_date_add_interval::fix_length_and_dec()
 
 /* Here arg[1] is a Item_interval object */
 
-bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   INTERVAL interval;
 
@@ -2411,7 +2411,7 @@ void Item_char_typecast::fix_length_and_dec()
 }
 
 
-bool Item_time_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_time_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   if (get_arg0_time(ltime))
     return 1;
@@ -2428,7 +2428,7 @@ bool Item_time_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
-bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_date_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   if (get_arg0_date(ltime, TIME_FUZZY_DATE))
     return 1;
@@ -2449,7 +2449,7 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
-bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   if (get_arg0_date(ltime, fuzzy_date & ~TIME_TIME_ONLY))
     return 1;
@@ -2494,7 +2494,7 @@ bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     0099-12-31
 */
 
-bool Item_func_makedate::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_makedate::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   long daynr=  (long) args[1]->val_int();
@@ -2559,7 +2559,7 @@ void Item_func_add_time::fix_length_and_dec()
   Result: Time value or datetime value
 */
 
-bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_add_time::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME l_time1, l_time2;
@@ -2664,7 +2664,7 @@ void Item_func_add_time::print(String *str, enum_query_type query_type)
   Result: Time value
 */
 
-bool Item_func_timediff::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_timediff::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   longlong seconds;
@@ -2727,7 +2727,7 @@ bool Item_func_timediff::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   Result: Time value
 */
 
-bool Item_func_maketime::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_maketime::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   bool overflow= 0;
@@ -3110,7 +3110,7 @@ void Item_func_str_to_date::fix_length_and_dec()
 }
 
 
-bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   DATE_TIME_FORMAT date_time_format;
   char val_buff[64], format_buff[64];
@@ -3143,7 +3143,7 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
-bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_last_day::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
       (ltime->month == 0))

@@ -1348,7 +1348,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       List_iterator_fast<LEX_STRING> it_db_cl_name(triggers->db_cl_names);
       LEX *old_lex= thd->lex, lex;
       sp_rcontext *save_spcont= thd->spcont;
-      ulong save_sql_mode= thd->variables.sql_mode;
+      ulonglong save_sql_mode= thd->variables.sql_mode;
       LEX_STRING *on_table_name;
 
       thd->lex= &lex;
@@ -1848,7 +1848,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 {
   char path_buff[FN_REFLEN];
   LEX_STRING *def, *on_table_name, new_def;
-  ulong save_sql_mode= thd->variables.sql_mode;
+  ulonglong save_sql_mode= thd->variables.sql_mode;
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
   List_iterator_fast<ulonglong> it_mode(definition_modes_list);

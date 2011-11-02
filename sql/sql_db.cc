@@ -1656,7 +1656,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
 
   /* Lock the old name, the new name will be locked by mysql_create_db().*/
   if (lock_schema_name(thd, old_db->str))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(1);
 
   /*
     Let's remember if we should do "USE newdb" afterwards.

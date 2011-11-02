@@ -4084,9 +4084,9 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache, void *unused
     mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     uint tmp_block_size= (uint) key_cache->param_block_size;
-    uint division_limit= key_cache->param_division_limit;
-    uint age_threshold=  key_cache->param_age_threshold;
-    uint partitions= key_cache->param_partitions;
+    uint division_limit= (uint)key_cache->param_division_limit;
+    uint age_threshold=  (uint)key_cache->param_age_threshold;
+    uint partitions=     (uint)key_cache->param_partitions;
     mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
@@ -4110,8 +4110,8 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
     mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     long tmp_block_size= (long) key_cache->param_block_size;
-    uint division_limit= key_cache->param_division_limit;
-    uint age_threshold=  key_cache->param_age_threshold;
+    uint division_limit= (uint)key_cache->param_division_limit;
+    uint age_threshold=  (uint)key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
 				  tmp_buff_size,
@@ -4131,8 +4131,8 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
   if (key_cache->key_cache_inited)
   {
     mysql_mutex_lock(&LOCK_global_system_variables);
-    uint division_limit= key_cache->param_division_limit;
-    uint age_threshold=  key_cache->param_age_threshold;
+    uint division_limit= (uint)key_cache->param_division_limit;
+    uint age_threshold=  (uint)key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
@@ -4152,9 +4152,9 @@ int ha_repartition_key_cache(KEY_CACHE *key_cache)
     mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     long tmp_block_size= (long) key_cache->param_block_size;
-    uint division_limit= key_cache->param_division_limit;
-    uint age_threshold=  key_cache->param_age_threshold;
-    uint partitions= key_cache->param_partitions;
+    uint division_limit= (uint)key_cache->param_division_limit;
+    uint age_threshold=  (uint)key_cache->param_age_threshold;
+    uint partitions=     (uint)key_cache->param_partitions;
     mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!repartition_key_cache(key_cache, tmp_block_size,
 				       tmp_buff_size,

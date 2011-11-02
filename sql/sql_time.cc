@@ -245,7 +245,7 @@ to_ascii(CHARSET_INFO *cs,
          wc < 128)
   {
     src+= cnvres;
-    *dst++= wc;
+    *dst++= static_cast<char>(wc);
   }
   *dst= '\0';
   return dst - dst0;
@@ -255,7 +255,7 @@ to_ascii(CHARSET_INFO *cs,
 /* Character set-aware version of str_to_time() */
 timestamp_type
 str_to_time(CHARSET_INFO *cs, const char *str,uint length,
-                 MYSQL_TIME *l_time, ulong fuzzydate, int *warning)
+                 MYSQL_TIME *l_time, ulonglong fuzzydate, int *warning)
 {
   char cnv[32];
   if ((cs->state & MY_CS_NONASCII) != 0)
@@ -270,7 +270,7 @@ str_to_time(CHARSET_INFO *cs, const char *str,uint length,
 /* Character set-aware version of str_to_datetime() */
 timestamp_type str_to_datetime(CHARSET_INFO *cs,
                                const char *str, uint length,
-                               MYSQL_TIME *l_time, uint flags, int *was_cut)
+                               MYSQL_TIME *l_time, ulonglong flags, int *was_cut)
 {
   char cnv[32];
   if ((cs->state & MY_CS_NONASCII) != 0)
@@ -293,7 +293,7 @@ timestamp_type str_to_datetime(CHARSET_INFO *cs,
 timestamp_type
 str_to_datetime_with_warn(CHARSET_INFO *cs,
                           const char *str, uint length, MYSQL_TIME *l_time,
-                          ulong flags)
+                          ulonglong flags)
 {
   int was_cut;
   THD *thd= current_thd;
@@ -324,7 +324,7 @@ str_to_datetime_with_warn(CHARSET_INFO *cs,
   @returns 0 for success, 1 for a failure
 */
 static bool number_to_time_with_warn(bool neg, ulonglong nr, ulong sec_part,
-                                     MYSQL_TIME *ltime, ulong fuzzydate,
+                                     MYSQL_TIME *ltime, ulonglong fuzzydate,
                                      const ErrConv *str,
                                      const char *field_name)
 {
@@ -356,7 +356,7 @@ static bool number_to_time_with_warn(bool neg, ulonglong nr, ulong sec_part,
 
 
 bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
-                                  ulong fuzzydate, const char *field_name)
+                                  ulonglong fuzzydate, const char *field_name)
 {
   const ErrConvDouble str(value);
   bool neg= value < 0;
@@ -375,7 +375,7 @@ bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
 
 
 bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
-                                   ulong fuzzydate, const char *field_name)
+                                   ulonglong fuzzydate, const char *field_name)
 {
   const ErrConvDecimal str(value);
   ulonglong nr;
@@ -387,7 +387,7 @@ bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
 
 
 bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
-                               ulong fuzzydate, const char *field_name)
+                               ulonglong fuzzydate, const char *field_name)
 {
   const ErrConvInteger str(value);
   bool neg= value < 0;

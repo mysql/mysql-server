@@ -818,12 +818,12 @@ public:
                          const char *query, uint query_length);
 
   /* we use this function to setup all enabled log event handlers */
-  int set_handlers(uint error_log_printer,
-                   uint slow_log_printer,
-                   uint general_log_printer);
-  void init_error_log(uint error_log_printer);
-  void init_slow_log(uint slow_log_printer);
-  void init_general_log(uint general_log_printer);
+  int set_handlers(ulonglong error_log_printer,
+                   ulonglong slow_log_printer,
+                   ulonglong general_log_printer);
+  void init_error_log(ulonglong error_log_printer);
+  void init_slow_log(ulonglong slow_log_printer);
+  void init_general_log(ulonglong general_log_printer);
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
   MYSQL_QUERY_LOG *get_slow_log_file_handler() const

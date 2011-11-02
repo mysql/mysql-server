@@ -1334,7 +1334,7 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
   return general_log_write(thd, command, message_buff, message_buff_len);
 }
 
-void LOGGER::init_error_log(uint error_log_printer)
+void LOGGER::init_error_log(ulonglong error_log_printer)
 {
   if (error_log_printer & LOG_NONE)
   {
@@ -1357,7 +1357,7 @@ void LOGGER::init_error_log(uint error_log_printer)
   }
 }
 
-void LOGGER::init_slow_log(uint slow_log_printer)
+void LOGGER::init_slow_log(ulonglong slow_log_printer)
 {
   if (slow_log_printer & LOG_NONE)
   {
@@ -1382,7 +1382,7 @@ void LOGGER::init_slow_log(uint slow_log_printer)
   }
 }
 
-void LOGGER::init_general_log(uint general_log_printer)
+void LOGGER::init_general_log(ulonglong general_log_printer)
 {
   if (general_log_printer & LOG_NONE)
   {
@@ -1495,9 +1495,9 @@ bool Log_to_csv_event_handler::init()
   return 0;
 }
 
-int LOGGER::set_handlers(uint error_log_printer,
-                         uint slow_log_printer,
-                         uint general_log_printer)
+int LOGGER::set_handlers(ulonglong error_log_printer,
+                         ulonglong slow_log_printer,
+                         ulonglong general_log_printer)
 {
   /* error log table is not supported yet */
   DBUG_ASSERT(error_log_printer < LOG_TABLE);

@@ -7137,7 +7137,7 @@ copy_data_between_tables(THD *thd, TABLE *from,TABLE *to,
   List<Item>   all_fields;
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
-  ulong save_sql_mode= thd->variables.sql_mode;
+  ulonglong save_sql_mode= thd->variables.sql_mode;
   ulonglong prev_insert_id, time_to_report_progress;
   List_iterator<Create_field> it(create);
   Create_field *def;

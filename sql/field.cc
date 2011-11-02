@@ -1759,7 +1759,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 }
 
 
-bool Field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Field::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -4251,7 +4251,7 @@ my_decimal *Field_real::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Field_real::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Field_real::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double nr= val_real();
@@ -4637,7 +4637,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 }
 
 
-bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_timestamp::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   THD *thd= table->in_use;
   thd->time_zone_used= 1;
@@ -5182,7 +5182,7 @@ String *Field_time::val_str(String *val_buffer,
   DATE_FORMAT(time, "%l.%i %p")
 */
  
-bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_time::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   THD *thd= table->in_use;
   if (!(fuzzydate & (TIME_FUZZY_DATE|TIME_TIME_ONLY)))
@@ -5300,7 +5300,7 @@ String *Field_time_hires::val_str(String *str,
   return str;
 }
 
-bool Field_time_hires::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_time_hires::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   uint32 len= pack_length();
   longlong packed= read_bigendian(ptr, len);
@@ -5480,7 +5480,7 @@ String *Field_year::val_str(String *val_buffer,
 }
 
 
-bool Field_year::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Field_year::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   int tmp= (int) ptr[0];
   if (tmp || field_length != 4)
@@ -5651,7 +5651,7 @@ String *Field_newdate::val_str(String *val_buffer,
 }
 
 
-bool Field_newdate::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Field_newdate::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   uint32 tmp=(uint32) uint3korr(ptr);
   ltime->day=   tmp & 31;
@@ -5771,7 +5771,7 @@ String *Field_datetime::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_datetime::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   longlong tmp=Field_datetime::val_int();
   uint32 part1,part2;
@@ -5887,7 +5887,7 @@ String *Field_datetime_hires::val_str(String *str,
   return str;
 }
 
-bool Field_datetime_hires::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_datetime_hires::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   ulonglong packed= read_bigendian(ptr, Field_datetime_hires::pack_length());
   unpack_time(sec_part_unshift(packed, dec), ltime);

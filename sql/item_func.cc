@@ -2725,7 +2725,7 @@ void Item_func_min_max::fix_length_and_dec()
    0    Otherwise
 */
 
-bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   longlong UNINIT_VAR(min_max);
   DBUG_ASSERT(fixed == 1);

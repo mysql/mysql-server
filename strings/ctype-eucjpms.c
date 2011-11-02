@@ -204,7 +204,7 @@ static uint mbcharlen_eucjpms(CHARSET_INFO *cs __attribute__((unused)),uint c)
 
 /* Case info pages for JIS-X-0208 range */
 
-static const MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_INFO cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -325,7 +325,7 @@ static const MY_UNICASE_INFO cA2[256]=
 };
 
 
-static const MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_INFO cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -446,7 +446,7 @@ static const MY_UNICASE_INFO cA3[256]=
 };
 
 
-static const MY_UNICASE_INFO cA6[256]=
+static MY_UNICASE_INFO cA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -567,7 +567,7 @@ static const MY_UNICASE_INFO cA6[256]=
 };
 
 
-static const MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_INFO cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -688,7 +688,7 @@ static const MY_UNICASE_INFO cA7[256]=
 };
 
 
-static const MY_UNICASE_INFO cAD[256]=
+static MY_UNICASE_INFO cAD[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -811,7 +811,7 @@ static const MY_UNICASE_INFO cAD[256]=
 
 /* Case info pages for JIS-X-0212 range */
 
-static const MY_UNICASE_INFO c8FA6[256]=
+static MY_UNICASE_INFO c8FA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -932,7 +932,7 @@ static const MY_UNICASE_INFO c8FA6[256]=
 };
 
 
-static const MY_UNICASE_INFO c8FA7[256]=
+static MY_UNICASE_INFO c8FA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1053,7 +1053,7 @@ static const MY_UNICASE_INFO c8FA7[256]=
 };
 
 
-static const MY_UNICASE_INFO c8FA9[256]=
+static MY_UNICASE_INFO c8FA9[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1174,7 +1174,7 @@ static const MY_UNICASE_INFO c8FA9[256]=
 };
 
 
-static const MY_UNICASE_INFO c8FAA[256]=
+static MY_UNICASE_INFO c8FAA[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1295,7 +1295,7 @@ static const MY_UNICASE_INFO c8FAA[256]=
 };
 
 
-static const MY_UNICASE_INFO c8FAB[256]=
+static MY_UNICASE_INFO c8FAB[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1416,7 +1416,7 @@ static const MY_UNICASE_INFO c8FAB[256]=
 };
 
 
-static const MY_UNICASE_INFO c8FF3[256]=
+static MY_UNICASE_INFO c8FF3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1537,7 +1537,7 @@ static const MY_UNICASE_INFO c8FF3[256]=
 };
 
 
-static const MY_UNICASE_INFO c8FF4[256]=
+static MY_UNICASE_INFO c8FF4[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1658,7 +1658,7 @@ static const MY_UNICASE_INFO c8FF4[256]=
 };
 
 
-static const MY_UNICASE_INFO *my_caseinfo_eucjpms[512]=
+static MY_UNICASE_INFO *my_caseinfo_eucjpms[512]=
 {
   /* JIS-X-0208 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */

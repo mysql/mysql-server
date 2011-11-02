@@ -1181,7 +1181,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
   As a extra convenience the time structure is reset on error or NULL values!
 */
 
-bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   if (field_type() == MYSQL_TYPE_TIME)
     fuzzydate|= TIME_TIME_ONLY;
@@ -2467,7 +2467,7 @@ String *Item_field::str_result(String *str)
   return result_field->val_str(str,&str_value);
 }
 
-bool Item_field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_field::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   if ((null_value=field->is_null()) || field->get_date(ltime,fuzzydate))
   {
@@ -2477,7 +2477,7 @@ bool Item_field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Item_field::get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_field::get_date_result(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   if (result_field->is_null() || result_field->get_date(ltime,fuzzydate))
   {
@@ -3395,7 +3395,7 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
 }
 
 
-bool Item_param::get_date(MYSQL_TIME *res, uint fuzzydate)
+bool Item_param::get_date(MYSQL_TIME *res, ulonglong fuzzydate)
 {
   if (state == TIME_VALUE)
   {
@@ -4217,7 +4217,7 @@ String* Item_ref_null_helper::val_str(String* s)
 }
 
 
-bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {  
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
 }
@@ -7176,7 +7176,7 @@ bool Item_ref::is_null()
 }
 
 
-bool Item_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_ref::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
 }
@@ -7313,7 +7313,7 @@ bool Item_direct_ref::is_null()
 }
 
 
-bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_direct_ref::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   return (null_value=(*ref)->get_date(ltime,fuzzydate));
 }
@@ -7675,7 +7675,7 @@ bool Item_cache_wrapper::is_null()
   Get the date value of the possibly cached item
 */
 
-bool Item_cache_wrapper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_cache_wrapper::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   Item *cached_value;
   DBUG_ENTER("Item_cache_wrapper::get_date");
@@ -8734,7 +8734,7 @@ bool  Item_cache_temporal::cache_value()
 }
 
 
-bool Item_cache_temporal::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_cache_temporal::get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
 {
   ErrConvInteger str(value);
 

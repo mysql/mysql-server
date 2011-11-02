@@ -474,9 +474,9 @@ ulong slave_exec_mode_options;
 ulonglong slave_type_conversions_options;
 ulong thread_cache_size=0;
 ulong binlog_cache_size=0;
-ulonglong  max_binlog_cache_size=0;
+ulong max_binlog_cache_size=0;
 ulong binlog_stmt_cache_size=0;
-ulonglong  max_binlog_stmt_cache_size=0;
+ulong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -2209,7 +2209,7 @@ static void network_init(void)
       extra_ip_sock= activate_tcp_port(mysqld_extra_port);
   }
 
-#ifdef __NT__
+#ifdef _WIN32
   /* create named pipe */
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
@@ -5106,6 +5106,7 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
   mysqld_exit(0);
+  return 0;
 }
 
 #endif /* !EMBEDDED_LIBRARY */

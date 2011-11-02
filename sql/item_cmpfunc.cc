@@ -3141,7 +3141,7 @@ double Item_func_coalesce::real_op()
 }
 
 
-bool Item_func_coalesce::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_func_coalesce::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   null_value= 0;

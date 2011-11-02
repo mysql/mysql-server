@@ -154,12 +154,12 @@ public:
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, T)= var->save_result.ulonglong_value;
+    session_var(thd, T)= static_cast<T>(var->save_result.ulonglong_value);
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(T)= var->save_result.ulonglong_value;
+    global_var(T)= static_cast<T>(var->save_result.ulonglong_value);
     return false;
   }
   bool check_update_type(Item_result type)
@@ -276,12 +276,12 @@ public:
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, ulong)= var->save_result.ulonglong_value;
+    session_var(thd, ulong)= static_cast<ulong>(var->save_result.ulonglong_value);
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(ulong)= var->save_result.ulonglong_value;
+    global_var(ulong)= static_cast<ulong>(var->save_result.ulonglong_value);
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
@@ -324,12 +324,12 @@ public:
   }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, my_bool)= var->save_result.ulonglong_value;
+    session_var(thd, my_bool)= var->save_result.ulonglong_value != 0;
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(my_bool)= var->save_result.ulonglong_value;
+    global_var(my_bool)= var->save_result.ulonglong_value != 0;
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
@@ -651,7 +651,7 @@ public:
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           ulonglong min_val, ulonglong max_val, ulonglong def_val,
-          ulonglong block_size, PolyLock *lock,
+          uint block_size, PolyLock *lock,
           enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func,
           keycache_update_function on_update_func,
@@ -1410,7 +1410,7 @@ public:
   Sys_var_session_special(const char *name_arg,
                const char *comment, int flag_args,
                CMD_LINE getopt,
-               ulonglong min_val, ulonglong max_val, ulonglong block_size,
+               ulonglong min_val, ulonglong max_val, uint block_size,
                PolyLock *lock, enum binlog_status_enum binlog_status_arg,
                on_check_function on_check_func,
                session_special_update_function update_func_arg,
