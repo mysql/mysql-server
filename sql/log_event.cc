@@ -1957,7 +1957,6 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_TIMESTAMP2:
     {
-      DBUG_ASSERT(meta);
       char buf[MAX_DATE_STRING_REP_LENGTH];
       struct timeval tm;
       my_timestamp_from_binary(&tm, ptr, meta);
@@ -1982,7 +1981,6 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_DATETIME2:
     {
-      DBUG_ASSERT(meta);
       char buf[MAX_DATE_STRING_REP_LENGTH];
       MYSQL_TIME ltime;
       longlong packed= my_datetime_packed_from_binary(ptr, meta);
@@ -2004,7 +2002,6 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_TIME2:
     {
-      DBUG_ASSERT(meta);
       char buf[MAX_DATE_STRING_REP_LENGTH];
       MYSQL_TIME ltime;
       longlong packed= my_time_packed_from_binary(ptr, meta);

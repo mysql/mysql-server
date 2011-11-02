@@ -447,25 +447,29 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     if (!(*item)->is_null() && !(*item)->save_in_field(field, 1)) // TS-TODO
     {
       Item *tmp= field->type() == MYSQL_TYPE_TIME ?
-                   /*new Item_time_with_ref(field->decimals(),
-                                          field->val_time_temporal(), *item) :*/
+#define OLD_CMP
+#ifdef OLD_CMP
+                   new Item_time_with_ref(field->decimals(),
+                                          field->val_time_temporal(), *item) :
+#else
                    new Item_time_with_ref(max((*item)->time_precision(),
                                               field->decimals()),
                                           (*item)->val_time_temporal(),
                                           *item) :
+#endif
                  field->is_temporal_with_date() ?
-                 /*
+#ifdef OLD_CMP
                    new Item_datetime_with_ref(field->type(),
                                                field->decimals(),
                                                field->val_date_temporal(),
                                                *item) :
-                  */
+#else
                    new Item_datetime_with_ref(field->type(),
                                               max((*item)->datetime_precision(),
                                                   field->decimals()),
                                               (*item)->val_date_temporal(),
                                               *item) :
-                   
+#endif
                    new Item_int_with_ref(field->val_int(), *item,
                                          test(field->flags & UNSIGNED_FLAG));
       if (tmp)
