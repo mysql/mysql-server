@@ -854,11 +854,19 @@ bool do_command(THD *thd)
 		       net->error,
 		       vio_description(net->vio)));
 
+    /* Instrument this broken statement as "statement/com/error" */
+    thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                 com_statement_info[COM_END].m_key);
+
     /* Check if we can continue without closing the connection */
 
     /* The error must be set. */
     DBUG_ASSERT(thd->is_error());
     thd->protocol->end_statement();
+
+    /* Mark the statement completed. */
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= NULL;
 
     if (net->error != 3)
     {
@@ -906,7 +914,7 @@ bool do_command(THD *thd)
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
 
 out:
-  /* The statement instrumentation is closed in dispatch_command() */
+  /* The statement instrumentation must be closed in all cases. */
   DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_RETURN(return_value);
 }
@@ -1207,6 +1215,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 /* PSI end */
       MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+      thd->m_statement_psi= NULL;
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
