@@ -2439,13 +2439,8 @@ Uint32 Dbdict::getFreeObjId(Uint32 minId, bool both)
   return RNIL;
 }
 
-Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId) 
+Uint32 Dbdict::getFreeTableRecord()
 {
-  Uint32 minId = (primaryTableId == RNIL ? 0 : primaryTableId + 1);
-  if (ERROR_INSERTED(6012) && minId < 4096){
-    minId = 4096;
-    CLEAR_ERROR_INSERT_VALUE;
-  }
   Uint32 i = getFreeObjId(0);
   if (i == RNIL) {
     jam();
@@ -4780,7 +4775,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   }
   case DictTabInfo::AlterTableFromAPI:{
     jam();
-    tablePtr.i = getFreeTableRecord(c_tableDesc.PrimaryTableId);
+    tablePtr.i = getFreeTableRecord();
     /* ---------------------------------------------------------------- */
     // Check if no free tables existed.
     /* ---------------------------------------------------------------- */
@@ -5276,14 +5271,6 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       return;
     }
     
-    // XXX old test option, remove
-    if(!attrDesc.AttributeKeyFlag && 
-       tablePtr.i > 1 &&
-       !tablePtr.p->isIndex())
-    {
-      //attrDesc.AttributeStorageType= NDB_STORAGETYPE_DISK;
-    }
-
     Uint32 desc = 0;
     AttributeDescriptor::setType(desc, attrDesc.AttributeExtType);
     AttributeDescriptor::setSize(desc, attrDesc.AttributeSize);
