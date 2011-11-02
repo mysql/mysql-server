@@ -42,7 +42,6 @@ class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
 class ha_ndbcluster_cond;
-class Ndb_event_data;
 class NdbQuery;
 class NdbQueryOperation;
 class NdbQueryOperationTypeWrapper;
@@ -506,9 +505,6 @@ private:
                                     const uchar *record,
                                     bool use_active_index);
   friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
-  friend int ndb_handle_schema_change(THD *thd, 
-                                      Ndb *ndb, NdbEventOperation *pOp,
-                                      NDB_SHARE *share);
 
   void check_read_before_write_removal();
   static int drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
@@ -518,13 +514,14 @@ private:
 
   int add_index_impl(THD *thd, TABLE *table_arg,
                      KEY *key_info, uint num_of_keys);
-  int create_ndb_index(THD *thd, const char *name, KEY *key_info, bool unique);
-  int create_ordered_index(THD *thd, const char *name, KEY *key_info);
-  int create_unique_index(THD *thd, const char *name, KEY *key_info);
+  int create_ndb_index(THD *thd, const char *name, KEY *key_info,
+                       bool unique) const;
+  int create_ordered_index(THD *thd, const char *name, KEY *key_info) const;
+  int create_unique_index(THD *thd, const char *name, KEY *key_info) const;
   int create_index(THD *thd, const char *name, KEY *key_info, 
-                   NDB_INDEX_TYPE idx_type, uint idx_no);
+                   NDB_INDEX_TYPE idx_type, uint idx_no) const;
 // Index list management
-  int create_indexes(THD *thd, Ndb *ndb, TABLE *tab);
+  int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
   int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
   void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
@@ -542,7 +539,7 @@ private:
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
-  bool check_index_fields_not_null(KEY *key_info);
+  bool check_index_fields_not_null(KEY *key_info) const;
 
   bool check_if_pushable(int type, //NdbQueryOperationDef::Type,
                          uint idx= MAX_KEY,
@@ -655,9 +652,9 @@ private:
 
   char *update_table_comment(const char * comment);
 
-  int write_ndb_file(const char *name);
+  int write_ndb_file(const char *name) const;
 
-  int check_ndb_connection(THD* thd);
+  int check_ndb_connection(THD* thd) const;
 
   void set_rec_per_key();
   int records_update();
@@ -810,18 +807,12 @@ private:
   bool m_disable_multi_read;
   uchar *m_multi_range_result_ptr;
   NdbIndexScanOperation *m_multi_cursor;
-  Ndb *get_ndb(THD *thd);
+  Ndb *get_ndb(THD *thd) const;
 
   int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE,
                    uint part_id= ~(uint)0);
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
 };
-
-int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
-                        const void** frmblob, uint* frmlen);
-int ndbcluster_table_exists_in_engine(THD* thd,
-                                      const char *db, const char *name);
-void ndbcluster_print_error(int error, const NdbOperation *error_op);
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;

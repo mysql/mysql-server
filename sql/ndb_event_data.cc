@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +15,30 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define NDB_REP_DB      "mysql"
-#define NDB_REP_TABLE   "ndb_binlog_index"
-#define NDB_APPLY_TABLE "ndb_apply_status"
-#define NDB_SCHEMA_TABLE "ndb_schema"
-#define NDB_REPLICATION_TABLE "ndb_replication"
+#include "ndb_event_data.h"
+
+#include <table.h>
+
+
+Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :
+  shadow_table(NULL),
+  share(the_share)
+{
+  ndb_value[0]= NULL;
+  ndb_value[1]= NULL;
+}
+
+
+Ndb_event_data::~Ndb_event_data()
+{
+  if (shadow_table)
+    closefrm(shadow_table, 1);
+  shadow_table= NULL;
+  free_root(&mem_root, MYF(0));
+  share= NULL;
+  /*
+    ndbvalue[] allocated with my_multi_malloc -> only
+    first pointer need to be freed
+  */
+  my_free(ndb_value[0]);
+}

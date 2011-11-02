@@ -27,14 +27,7 @@
 // Do we have waiter...
 static bool ndb_index_stat_waiter= false;
 
-// copied from ha_ndbcluster_binlog.h
-
-extern handlerton *ndbcluster_hton;
-
-inline
-void
-set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
-{ thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
+#include "ndb_thd.h"
 
 // Typedefs for long names 
 typedef NdbDictionary::Table NDBTAB;
@@ -1990,7 +1983,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
     pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
     goto ndb_index_stat_thread_end;
   }
-  set_thd_ndb(thd, thd_ndb);
+  thd_set_thd_ndb(thd, thd_ndb);
   thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
   if (thd_ndb->ndb->setDatabaseName(NDB_INDEX_STAT_DB) == -1)
   {
@@ -2111,7 +2104,7 @@ ndb_index_stat_thread_fail:
   if (thd_ndb)
   {
     Thd_ndb::release(thd_ndb);
-    set_thd_ndb(thd, NULL);
+    thd_set_thd_ndb(thd, NULL);
   }
   thd->cleanup();
   delete thd;
