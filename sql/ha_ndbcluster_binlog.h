@@ -31,65 +31,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 extern handlerton *ndbcluster_hton;
 
-class Ndb_event_data
-{
-public:
-  Ndb_event_data(NDB_SHARE *the_share) :
-    shadow_table(0),
-    share(the_share)
-  {
-    ndb_value[0]= 0;
-    ndb_value[1]= 0;
-  }
-  ~Ndb_event_data()
-  {
-    if (shadow_table)
-      closefrm(shadow_table, 1);
-    shadow_table= 0;
-    free_root(&mem_root, MYF(0));
-    share= 0;
-    /*
-       ndbvalue[] allocated with my_multi_malloc
-       so only first pointer should be freed  
-    */
-    my_free(ndb_value[0], MYF(MY_WME|MY_ALLOW_ZERO_PTR));
-  }
-  MEM_ROOT mem_root;
-  TABLE *shadow_table;
-  NDB_SHARE *share;
-  NdbValue *ndb_value[2];
-};
-
-/*
-  The numbers below must not change as they
-  are passed between mysql servers, and if changed
-  would break compatablility.  Add new numbers to
-  the end.
-*/
-enum SCHEMA_OP_TYPE
-{
-  SOT_DROP_TABLE= 0,
-  SOT_CREATE_TABLE= 1,
-  SOT_RENAME_TABLE_NEW= 2,
-  SOT_ALTER_TABLE_COMMIT= 3,
-  SOT_DROP_DB= 4,
-  SOT_CREATE_DB= 5,
-  SOT_ALTER_DB= 6,
-  SOT_CLEAR_SLOCK= 7,
-  SOT_TABLESPACE= 8,
-  SOT_LOGFILE_GROUP= 9,
-  SOT_RENAME_TABLE= 10,
-  SOT_TRUNCATE_TABLE= 11,
-  SOT_RENAME_TABLE_PREPARE= 12,
-  SOT_ONLINE_ALTER_TABLE_PREPARE= 13,
-  SOT_ONLINE_ALTER_TABLE_COMMIT= 14,
-  SOT_CREATE_USER= 15,
-  SOT_DROP_USER= 16,
-  SOT_RENAME_USER= 17,
-  SOT_GRANT= 18,
-  SOT_REVOKE= 19
-};
-
 const uint max_ndb_nodes= 256; /* multiple of 32 */
 
 static const char *ha_ndb_ext=".ndb";
@@ -131,14 +72,6 @@ int ndbcluster_create_event_ops(THD *thd,
                                 NDB_SHARE *share,
                                 const NDBTAB *ndbtab,
                                 const char *event_name);
-int ndbcluster_log_schema_op(THD *thd,
-                             const char *query, int query_length,
-                             const char *db, const char *table_name,
-                             uint32 ndb_table_id,
-                             uint32 ndb_table_version,
-                             enum SCHEMA_OP_TYPE type,
-                             const char *new_db,
-                             const char *new_table_name);
 int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                           const char *type_str,
                           const char * dbname, const char * tabname);
@@ -218,6 +151,3 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
 */
 bool
 ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-bool
-ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
-

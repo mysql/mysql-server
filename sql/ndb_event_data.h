@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +15,25 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define NDB_REP_DB      "mysql"
-#define NDB_REP_TABLE   "ndb_binlog_index"
-#define NDB_APPLY_TABLE "ndb_apply_status"
-#define NDB_SCHEMA_TABLE "ndb_schema"
-#define NDB_REPLICATION_TABLE "ndb_replication"
+#ifndef NDB_EVENT_DATA_H
+#define NDB_EVENT_DATA_H
+
+#include <my_global.h> // my_alloc.h
+#include <my_alloc.h> // MEM_ROOT
+
+class Ndb_event_data
+{
+public:
+  Ndb_event_data(); // Not implemented
+  Ndb_event_data(const Ndb_event_data&); // Not implemented
+  Ndb_event_data(struct NDB_SHARE *the_share);
+
+  ~Ndb_event_data();
+
+  MEM_ROOT mem_root;
+  struct TABLE *shadow_table;
+  struct NDB_SHARE *share;
+  union NdbValue *ndb_value[2];
+};
+
+#endif

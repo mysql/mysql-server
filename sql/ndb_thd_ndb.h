@@ -135,8 +135,8 @@ public:
   bool has_required_global_schema_lock(const char* func);
 
   unsigned m_connect_count;
-  bool valid_ndb(void);
-  bool recycle_ndb(THD* thd);
+  bool valid_ndb(void) const;
+  bool recycle_ndb(void);
 };
 
 #endif

@@ -61,7 +61,7 @@ Thd_ndb::release(Thd_ndb* thd_ndb)
 
 
 bool
-Thd_ndb::recycle_ndb(THD* thd)
+Thd_ndb::recycle_ndb(void)
 {
   DBUG_ENTER("recycle_ndb");
   DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
@@ -87,14 +87,14 @@ Thd_ndb::recycle_ndb(THD* thd)
   }
   else
   {
-    ndb->setCustomData64(thd_get_thread_id(thd));
+    ndb->setCustomData64(thd_get_thread_id(m_thd));
   }
   DBUG_RETURN(true);
 }
 
 
 bool
-Thd_ndb::valid_ndb(void)
+Thd_ndb::valid_ndb(void) const
 {
   // The ndb object should be valid as long as a
   // global schema lock transaction is ongoing

@@ -53,6 +53,8 @@
 #include "ndb_conflict_trans.h"
 #include "ndb_anyvalue.h"
 #include "ndb_binlog_extra_row_info.h"
+#include "ndb_event_data.h"
+#include "ndb_schema_dist.h"
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal();
@@ -1252,9 +1254,9 @@ Thd_ndb::~Thd_ndb()
 
 
 inline
-Ndb *ha_ndbcluster::get_ndb(THD *thd)
+Ndb *ha_ndbcluster::get_ndb(THD *thd) const
 {
-  return get_thd_ndb(thd)->ndb;
+  return thd_get_thd_ndb(thd)->ndb;
 }
 
 /*
@@ -2224,7 +2226,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   If any index should fail to be created,
   the error is returned immediately
 */
-int ha_ndbcluster::create_indexes(THD *thd, Ndb *ndb, TABLE *tab)
+int ha_ndbcluster::create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const
 {
   uint i;
   int error= 0;
@@ -2758,7 +2760,7 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint inx,
           ORDERED_INDEX);
 } 
 
-bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info)
+bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info) const
 {
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
@@ -8764,6 +8766,31 @@ ha_ndbcluster::start_transaction_part_id(Uint32 part_id, int &error)
    
 
 /**
+  Static error print function called from static handler method
+  ndbcluster_commit and ndbcluster_rollback.
+*/
+static void
+ndbcluster_print_error(int error, const NdbOperation *error_op)
+{
+  DBUG_ENTER("ndbcluster_print_error");
+  TABLE_SHARE share;
+  const char *tab_name= (error_op) ? error_op->getTableName() : "";
+  if (tab_name == NULL)
+  {
+    DBUG_ASSERT(tab_name != NULL);
+    tab_name= "";
+  }
+  share.db.str= (char*) "";
+  share.db.length= 0;
+  share.table_name.str= (char *) tab_name;
+  share.table_name.length= strlen(tab_name);
+  ha_ndbcluster error_handler(ndbcluster_hton, &share);
+  error_handler.print_error(error, MYF(0));
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Commit a transaction started in NDB.
 */
 
@@ -10559,12 +10586,12 @@ cleanup_failed:
 
 
 int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info, 
-                                NDB_INDEX_TYPE idx_type, uint idx_no)
+                                NDB_INDEX_TYPE idx_type, uint idx_no) const
 {
   int error= 0;
   char unique_name[FN_LEN + 1];
   static const char* unique_suffix= "$unique";
-  DBUG_ENTER("ha_ndbcluster::create_ordered_index");
+  DBUG_ENTER("ha_ndbcluster::create_index");
   DBUG_PRINT("info", ("Creating index %u: %s", idx_no, name));  
 
   if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
@@ -10617,14 +10644,14 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
 }
 
 int ha_ndbcluster::create_ordered_index(THD *thd, const char *name, 
-                                        KEY *key_info)
+                                        KEY *key_info) const
 {
   DBUG_ENTER("ha_ndbcluster::create_ordered_index");
   DBUG_RETURN(create_ndb_index(thd, name, key_info, FALSE));
 }
 
 int ha_ndbcluster::create_unique_index(THD *thd, const char *name, 
-                                       KEY *key_info)
+                                       KEY *key_info) const
 {
 
   DBUG_ENTER("ha_ndbcluster::create_unique_index");
@@ -10641,7 +10668,7 @@ int ha_ndbcluster::create_unique_index(THD *thd, const char *name,
 
 int ha_ndbcluster::create_ndb_index(THD *thd, const char *name, 
                                     KEY *key_info,
-                                    bool unique)
+                                    bool unique) const
 {
   char index_name[FN_LEN + 1];
   Ndb *ndb= get_ndb(thd);
@@ -11814,7 +11841,7 @@ int ha_ndbcluster::close(void)
 }
 
 
-int ha_ndbcluster::check_ndb_connection(THD* thd)
+int ha_ndbcluster::check_ndb_connection(THD* thd) const
 {
   Ndb *ndb;
   DBUG_ENTER("check_ndb_connection");
@@ -11845,7 +11872,7 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
 /**
   Try to discover one table from NDB.
 */
-
+static
 int ndbcluster_discover(handlerton *hton, THD* thd, const char *db, 
                         const char *name,
                         uchar **frmblob, 
@@ -11966,7 +11993,7 @@ err:
 /**
   Check if a table exists in NDB.
 */
-
+static
 int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd, 
                                       const char *db,
                                       const char *name)
@@ -12755,30 +12782,6 @@ void ha_ndbcluster::print_error(int error, myf errflag)
 
 
 /**
-  Static error print function called from static handler method
-  ndbcluster_commit and ndbcluster_rollback.
-*/
-
-void ndbcluster_print_error(int error, const NdbOperation *error_op)
-{
-  DBUG_ENTER("ndbcluster_print_error");
-  TABLE_SHARE share;
-  const char *tab_name= (error_op) ? error_op->getTableName() : "";
-  if (tab_name == NULL) 
-  {
-    DBUG_ASSERT(tab_name != NULL);
-    tab_name= "";
-  }
-  share.db.str= (char*) "";
-  share.db.length= 0;
-  share.table_name.str= (char *) tab_name;
-  share.table_name.length= strlen(tab_name);
-  ha_ndbcluster error_handler(ndbcluster_hton, &share);
-  error_handler.print_error(error, MYF(0));
-  DBUG_VOID_RETURN;
-}
-
-/**
   Set a given location from full pathname to database name.
 */
 
@@ -13512,13 +13515,8 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     if (opt_ndb_extra_logging > 9)
       sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
     if (opt_ndb_extra_logging)
-      sql_print_information("NDB_SHARE: trailing share "
-                            "%s(connect_count: %u) "
-                            "released by close_cached_tables at "
-                            "connect_count: %u",
-                            share->key,
-                            share->connect_count,
-                            g_ndb_cluster_connection->get_connect_count());
+      sql_print_information("NDB_SHARE: trailing share %s, "
+                            "released by close_cached_tables", share->key);
     ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
@@ -13542,13 +13540,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     if (share->use_count == 0)
     {
       if (opt_ndb_extra_logging)
-        sql_print_information("NDB_SHARE: trailing share "
-                              "%s(connect_count: %u) "
-                              "released after NSS_DROPPED check "
-                              "at connect_count: %u",
-                              share->key,
-                              share->connect_count,
-                              g_ndb_cluster_connection->get_connect_count());
+        sql_print_information("NDB_SHARE: trailing share %s, "
+                              "released after NSS_DROPPED check",
+                              share->key);
       ndbcluster_real_free_share(&share);
       DBUG_RETURN(0);
     }
@@ -14237,7 +14231,7 @@ retry:
   that the table with this name is a ndb table.
 */
 
-int ha_ndbcluster::write_ndb_file(const char *name)
+int ha_ndbcluster::write_ndb_file(const char *name) const
 {
   File file;
   bool error=1;

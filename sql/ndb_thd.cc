@@ -37,9 +37,31 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
 
   else if (validate_ndb && !thd_ndb->valid_ndb())
   {
-    if (!thd_ndb->recycle_ndb(thd))
+    if (!thd_ndb->recycle_ndb())
       return NULL;
   }
 
   return thd_ndb->ndb;
+}
+
+#ifndef MYSQL_SERVER
+#define MYSQL_SERVER
+#endif
+
+#include <sql_class.h>
+
+void
+thd_print_warning_list(THD* thd, const char* prefix)
+{
+  Diagnostics_area::Sql_condition_iterator
+   it(thd->get_stmt_da()->sql_conditions());
+
+  const Sql_condition *err;
+  while ((err= it++))
+  {
+    sql_print_warning("%s: (%d)%s",
+                      prefix,
+                      err->get_sql_errno(),
+                      err->get_message_text());
+  }
 }
