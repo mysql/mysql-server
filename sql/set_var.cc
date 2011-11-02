@@ -489,6 +489,10 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
       if (type == OPT_GLOBAL && var->check_type(type))
         continue;
 
+      /* don't show non-visible variables */
+      if (var->not_visible())
+        continue;
+
       show->name= var->name.str;
       show->value= (char*) var;
       show->type= SHOW_SYS;

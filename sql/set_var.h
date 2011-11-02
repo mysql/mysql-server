@@ -55,7 +55,7 @@ public:
   sys_var *next;
   LEX_CSTRING name;
   enum flag_enum { GLOBAL, SESSION, ONLY_SESSION, SCOPE_MASK=1023,
-                   READONLY=1024, ALLOCATED=2048 };
+                   READONLY=1024, ALLOCATED=2048, INVISIBLE=4096 };
   static const int PARSE_EARLY= 1;
   static const int PARSE_NORMAL= 2;
   /**
@@ -109,6 +109,7 @@ public:
   int scope() const { return flags & SCOPE_MASK; }
   const CHARSET_INFO *charset(THD *thd);
   bool is_readonly() const { return flags & READONLY; }
+  bool not_visible() const { return flags & INVISIBLE; }
   /**
     the following is only true for keycache variables,
     that support the syntax @@keycache_name.variable_name
