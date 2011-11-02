@@ -1723,8 +1723,8 @@ extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 static inline void
 my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
 {
-  tm->tv_sec=  micro_time / 1000000;
-  tm->tv_usec= micro_time % 1000000;
+  tm->tv_sec=  (long) (micro_time / 1000000);
+  tm->tv_usec= (long) (micro_time % 1000000);
 }
 
 /**

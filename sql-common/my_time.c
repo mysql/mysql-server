@@ -654,6 +654,9 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
     value=value*10L + (long) (*str - '0');
 
+  if (value > UINT_MAX)
+    return 1;
+
   /* Skip all space after 'days' */
   end_of_days= str;
   for (; str != end && my_isspace(&my_charset_latin1, str[0]) ; str++)

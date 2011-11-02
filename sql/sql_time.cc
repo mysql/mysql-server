@@ -688,7 +688,7 @@ void localtime_to_TIME(MYSQL_TIME *to, struct tm *from)
   to->second=   (int) from->tm_sec;
 }
 
-void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds)
+void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds)
 {
   long t_seconds;
   // to->neg is not cleared, it may already be set to a useful value
@@ -696,8 +696,9 @@ void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds)
   to->year= 0;
   to->month= 0;
   to->day= 0;
-  to->hour= seconds/3600L;
-  t_seconds= seconds%3600L;
+  DBUG_ASSERT(seconds < (0xFFFFFFFFLL * 3600LL));
+  to->hour=  (long) (seconds / 3600L);
+  t_seconds= (long) (seconds % 3600L);
   to->minute= t_seconds/60L;
   to->second= t_seconds%60L;
   to->second_part= microseconds;
@@ -1520,7 +1521,7 @@ void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime)
     DBUG_ASSERT(ldate->year > 0);
 
     days= (long) (seconds / SECONDS_IN_24H);
-    calc_time_from_sec(ldate, (long) (seconds % SECONDS_IN_24H), useconds);
+    calc_time_from_sec(ldate, seconds % SECONDS_IN_24H, useconds);
     get_date_from_daynr(days, &ldate->year, &ldate->month, &ldate->day);
   }
   ldate->time_type= MYSQL_TIMESTAMP_DATETIME;

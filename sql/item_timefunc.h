@@ -823,7 +823,7 @@ protected:
   */
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
 public:
-  Item_func_curtime(ulong dec_arg) :Item_time_func() { decimals= dec_arg; }
+  Item_func_curtime(uint8 dec_arg) :Item_time_func() { decimals= dec_arg; }
   longlong val_time_temporal()
   {
     DBUG_ASSERT(fixed == 1);
@@ -907,7 +907,7 @@ protected:
   MYSQL_TIME ctime;
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
 public:
-  Item_func_now(ulong dec_arg) :Item_datetime_func() { decimals= dec_arg; }
+  Item_func_now(uint8 dec_arg) :Item_datetime_func() { decimals= dec_arg; }
   longlong val_date_temporal()
   {
     DBUG_ASSERT(fixed == 1);
@@ -948,7 +948,7 @@ public:
 class Item_func_sysdate_local :public Item_datetime_func
 {
 public:
-  Item_func_sysdate_local(ulong dec_arg) :
+  Item_func_sysdate_local(uint8 dec_arg) :
     Item_datetime_func() { decimals= dec_arg; }
   bool const_item() const { return 0; }
   const char *func_name() const { return "sysdate"; }
