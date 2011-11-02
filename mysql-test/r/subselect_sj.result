@@ -1994,4 +1994,28 @@ a
 20
 DROP TABLE t1,t2,t3;
 set optimizer_switch=@tmp_877288;
+#
+# BUG#878753: Assertion '0' failed in replace_where_subcondition with derived_merge
+#
+set @tmp878753= @@optimizer_switch;
+set optimizer_switch= 'semijoin=on,derived_merge=on';
+CREATE TABLE t1 (b int(11)) ;
+CREATE TABLE t2 (c int, b int, d varchar(52) NOT NULL) ;
+CREATE TABLE t3 (b int(11)) ;
+PREPARE st1 FROM '
+        SELECT * FROM t1
+        JOIN (
+                SELECT t2.* FROM t2
+                WHERE t2.d <> "a"
+                AND t2.c IN (
+                        SELECT t3.b
+                        FROM t3
+                )
+        ) AS alias2
+        ON ( alias2.b = t1.b );
+';
+EXECUTE st1;
+b	c	b	d
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp878753;
 set optimizer_switch=@subselect_sj_tmp;

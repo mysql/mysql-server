@@ -1026,7 +1026,6 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
                                        Item *old_cond, Item *new_cond,
                                        bool do_fix_fields)
 {
-  //Item **expr= (emb_nest == (TABLE_LIST*)1)? &join->conds : &emb_nest->on_expr;
   if (*expr == old_cond)
   {
     *expr= new_cond;
@@ -1050,9 +1049,15 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
       }
     }
   }
-  // If we came here it means there were an error during prerequisites check.
-  DBUG_ASSERT(0);
-  return TRUE;
+  /* 
+    We can come to here when 
+     - we're doing replace operations on both on_expr and prep_on_expr
+     - on_expr is the same as prep_on_expr, or they share a sub-tree 
+       (so, when we do replace in on_expr, we replace in prep_on_expr, too,
+        and when we try doing a replace in prep_on_expr, the item we wanted 
+        to replace there has already been replaced)
+  */
+  return FALSE;
 }
 
 static int subq_sj_candidate_cmp(Item_in_subselect* el1, Item_in_subselect* el2,
