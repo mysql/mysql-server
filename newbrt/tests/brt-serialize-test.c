@@ -357,7 +357,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     }
     for (int i = 0; i < nrows; ++i) {
         r = toku_omt_insert(BLB_BUFFER(&sn, i), les[i], omt_cmp, les[i], NULL); assert(r==0);
-        BLB_NBYTESINBUF(&sn, i) = OMT_ITEM_OVERHEAD + leafentry_disksize(les[i]);
+        BLB_NBYTESINBUF(&sn, i) = leafentry_disksize(les[i]);
         if (i < nrows-1) {
             u_int32_t keylen;
             char *key = le_key_and_len(les[i], &keylen);
@@ -480,7 +480,7 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     BLB_NBYTESINBUF(&sn, 0) = 0;
     for (int i = 0; i < nrows; ++i) {
         r = toku_omt_insert(BLB_BUFFER(&sn, 0), les[i], omt_int_cmp, les[i], NULL); assert(r==0);
-        BLB_NBYTESINBUF(&sn, 0) += OMT_ITEM_OVERHEAD + leafentry_disksize(les[i]);
+        BLB_NBYTESINBUF(&sn, 0) += leafentry_disksize(les[i]);
     }
 
     struct brt *XMALLOC(brt);
@@ -604,7 +604,7 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     BLB_NBYTESINBUF(&sn, 0) = 0;
     for (int i = 0; i < 7; ++i) {
         r = toku_omt_insert(BLB_BUFFER(&sn, 0), les[i], omt_cmp, les[i], NULL); assert(r==0);
-        BLB_NBYTESINBUF(&sn, 0) += OMT_ITEM_OVERHEAD + leafentry_disksize(les[i]);
+        BLB_NBYTESINBUF(&sn, 0) += leafentry_disksize(les[i]);
     }
 
     struct brt *XMALLOC(brt);

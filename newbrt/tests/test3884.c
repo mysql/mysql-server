@@ -85,7 +85,7 @@ test_split_on_boundary(void)
             memset(val, k, sizeof val);
             elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -170,7 +170,7 @@ test_split_with_everything_on_the_left(void)
                 memset(val, k, sizeof val);
                 elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
                 r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-                BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
+                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
             }
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += (sizeof k);
@@ -180,7 +180,7 @@ test_split_with_everything_on_the_left(void)
             memset(big_val, k, nelts * eltsize - 1);
             big_element = le_fastmalloc((char *) &k, keylen, big_val, nelts * eltsize - 1);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), big_element, omt_long_cmp, big_element, NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(big_element);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(big_element);
         }
     }
 
@@ -264,7 +264,7 @@ test_split_on_boundary_of_last_node(void)
                 memset(val, k, sizeof val);
                 elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
                 r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-                BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
+                BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
             }
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += (sizeof k);
@@ -274,7 +274,7 @@ test_split_on_boundary_of_last_node(void)
             memset(big_val, k, nelts * eltsize - 100);
             big_element = le_fastmalloc((char *) &k, keylen, big_val, nelts * eltsize - 100);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), big_element, omt_long_cmp, big_element, NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(big_element);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(big_element);
         }
     }
 
@@ -361,8 +361,8 @@ test_split_at_begin(void)
             memset(val, k, sizeof val);
             elts[k] = le_fastmalloc((char *) &k, keylen, val, vallen);
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
-            totalbytes += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
+            totalbytes += leafentry_disksize(elts[k]);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
@@ -375,8 +375,8 @@ test_split_at_begin(void)
         memset(val, k, sizeof val);
         elts[k] = le_fastmalloc((char *) &k, keylen, val, totalbytes + 3);
         r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-        BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
-        totalbytes += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
+        BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
+        totalbytes += leafentry_disksize(elts[k]);
     }
 
     unlink(fname);
@@ -460,8 +460,8 @@ test_split_at_end(void)
                 elts[k] = le_fastmalloc((char *) &k, keylen, val, totalbytes + 3);
             }
             r = toku_omt_insert(BLB_BUFFER(&sn, bn), elts[k], omt_long_cmp, elts[k], NULL); assert(r == 0);
-            BLB_NBYTESINBUF(&sn, bn) += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
-            totalbytes += OMT_ITEM_OVERHEAD + leafentry_disksize(elts[k]);
+            BLB_NBYTESINBUF(&sn, bn) += leafentry_disksize(elts[k]);
+            totalbytes += leafentry_disksize(elts[k]);
         }
         if (bn < sn.n_children - 1) {
             sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);

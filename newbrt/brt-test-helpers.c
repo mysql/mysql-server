@@ -150,7 +150,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     if (r==0) {
 	LEAFENTRY storeddata=storeddatav;
 	// It's already there.  So now we have to remove it and put the new one back in.
-	BLB_NBYTESINBUF(node, 0) -= OMT_ITEM_OVERHEAD + leafentry_disksize(storeddata);
+	BLB_NBYTESINBUF(node, 0) -= leafentry_disksize(storeddata);
 	toku_free(storeddata);
 	// Now put the new kv in.
 	toku_omt_set_at(BLB_BUFFER(node, 0), leafentry, idx);
@@ -161,7 +161,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     // hack to get tests passing. These tests should not be directly inserting into buffers
     BLB(node, 0)->max_msn_applied = msn;
 
-    BLB_NBYTESINBUF(node, 0) += OMT_ITEM_OVERHEAD + disksize;
+    BLB_NBYTESINBUF(node, 0) += disksize;
 
     node->dirty=1;
 

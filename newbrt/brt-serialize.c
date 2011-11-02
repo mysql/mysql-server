@@ -472,7 +472,7 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
     LEAFENTRY le=lev;
     struct sum_info *si = vsi;
     si->count++;
-    si->dsum += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+    si->dsum += leafentry_disksize(le);
     si->msum += leafentry_memsize(le);
     return 0;
 }
@@ -1287,7 +1287,7 @@ deserialize_brtnode_partition(
             memcpy(array[i], le, disksize);
         }
         u_int32_t end_of_data = rb.ndone;
-        BLB_NBYTESINBUF(node, index) += end_of_data-start_of_data + num_entries*OMT_ITEM_OVERHEAD;
+        BLB_NBYTESINBUF(node, index) += end_of_data-start_of_data;
         // destroy old buffer that was created by toku_setup_basementnode, so we can create a new one
         toku_omt_destroy(&BLB_BUFFER(node, index));
         int r = toku_omt_create_steal_sorted_array(&BLB_BUFFER(node, index), &array, num_entries, num_entries);

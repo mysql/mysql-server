@@ -1505,7 +1505,7 @@ move_leafentries(
 	se_diff->ndata++;
 	se_diff->dsize += le_keylen(curr_le) + le_latest_vallen(curr_le);
 
-	*num_bytes_moved += OMT_ITEM_OVERHEAD + leafentry_disksize(curr_le);
+	*num_bytes_moved += leafentry_disksize(curr_le);
 	new_le[i-lbi] = curr_le;
     }
 
@@ -1991,7 +1991,7 @@ brt_leaf_delete_leafentry (
 	assert(r==0);
     }
 
-    bn->n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+    bn->n_bytes_in_buffer -= leafentry_disksize(le);
 
     {
 	u_int32_t oldlen = le_latest_vallen(le) + le_keylen(le);
@@ -2046,12 +2046,12 @@ brt_leaf_apply_cmd_once (
 	    assert(se->dsize < (1U<<31)); // make sure we didn't underflow
 	}
 
-	bn->n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+	bn->n_bytes_in_buffer -= leafentry_disksize(le);
 	
 	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_keylen(new_le), le_latest_vallen(le), node->u.l.leaf_stats.dsize);
 	// the ndata and nkeys remains unchanged
 
-	bn->n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
+	bn->n_bytes_in_buffer += newdisksize;
 
 	{ int r = toku_omt_set_at(bn->buffer, new_le, idx); assert(r==0); }
 	toku_free(le);
@@ -2068,7 +2068,7 @@ brt_leaf_apply_cmd_once (
 	    int r = toku_omt_insert_at(bn->buffer, new_le, idx);
 	    assert(r==0);
 
-	    bn->n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
+	    bn->n_bytes_in_buffer += newdisksize;
 
 	    se->dsize += le_latest_vallen(new_le) + le_keylen(new_le);
 	    assert(se->dsize < (1U<<31)); // make sure we didn't underflow
