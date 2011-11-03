@@ -367,4 +367,3 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
 
   return 0;
 }
-

@@ -28,3 +28,24 @@ let $merge_table_support= 0;
 
 --source include/index_merge_2sweeps.inc
 --source include/index_merge_ror_cpk.inc
+
+
+--echo #
+--echo # Bug#11747423 32254: INDEX MERGE USED UNNECESSARILY
+--echo #
+CREATE TABLE t1 (
+  id INT NOT NULL PRIMARY KEY,
+  id2 INT NOT NULL,
+  id3 INT NOT NULL,
+  KEY (id2),
+  KEY (id3),
+  KEY covering_index (id2,id3)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (0, 0, 0), (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4), (5, 5, 5), (6, 6, 6), (7, 7, 7);
+INSERT INTO t1 SELECT id + 8, id2 + 8, id3 +8 FROM t1;
+INSERT INTO t1 SELECT id + 16, 7, 0 FROM t1;
+
+EXPLAIN SELECT SQL_NO_CACHE count(*) FROM t1 WHERE id2=7 AND id3=0;
+
+DROP TABLE t1;

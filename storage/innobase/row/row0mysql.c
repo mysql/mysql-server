@@ -2653,7 +2653,7 @@ row_import_tablespace_for_mysql(
 
 	success = fil_open_single_table_tablespace(
 		TRUE, table->space,
-		table->flags == DICT_TF_COMPACT ? 0 : table->flags,
+		dict_tf_to_fsp_flags(table->flags),
 		table->name);
 	if (success) {
 		table->ibd_file_missing = FALSE;
@@ -4073,6 +4073,7 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+			err = DB_ERROR;
 			goto funct_exit;
 		}
 
