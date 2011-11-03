@@ -1028,16 +1028,14 @@ bool Item_date_literal::eq(const Item *item, bool binary_cmp) const
   return
     item->basic_const_item() && type() == item->type() &&
     func_name() == ((Item_func *) item)->func_name() &&
-    ctime_as_temporal == ((Item_date_literal *) item)->ctime_as_temporal;
+    cached_time.eq(((Item_date_literal *) item)->cached_time);
 }
 
 
 void Item_date_literal::print(String *str, enum_query_type query_type)
 {
-  char buff[MAX_DATE_STRING_REP_LENGTH];
   str->append("DATE'");
-  my_date_to_str(&ctime, buff);
-  str->append(buff);
+  str->append(cached_time.cptr());
   str->append('\'');
 }
 
@@ -1047,16 +1045,14 @@ bool Item_datetime_literal::eq(const Item *item, bool binary_cmp) const
   return
     item->basic_const_item() && type() == item->type() &&
     func_name() == ((Item_func *) item)->func_name() &&
-    ctime_as_temporal == ((Item_datetime_literal *) item)->ctime_as_temporal;
+    cached_time.eq(((Item_datetime_literal *) item)->cached_time);
 }
 
 
 void Item_datetime_literal::print(String *str, enum_query_type query_type)
 {
-  char buff[MAX_DATE_STRING_REP_LENGTH];
   str->append("TIMESTAMP'");
-  my_datetime_to_str(&ctime, buff, decimals);
-  str->append(buff);
+  str->append(cached_time.cptr());
   str->append('\'');
 }
 
@@ -1066,16 +1062,14 @@ bool Item_time_literal::eq(const Item *item, bool binary_cmp) const
   return
     item->basic_const_item() && type() == item->type() &&
     func_name() == ((Item_func *) item)->func_name() &&
-    ctime_as_temporal == ((Item_time_literal *) item)->ctime_as_temporal;
+    cached_time.eq(((Item_time_literal *) item)->cached_time);
 }
 
 
 void Item_time_literal::print(String *str, enum_query_type query_type)
 {
-  char buff[MAX_DATE_STRING_REP_LENGTH];
   str->append("TIME'");
-  my_time_to_str(&ctime, buff, decimals);
-  str->append(buff);
+  str->append(cached_time.cptr());
   str->append('\'');
 }
 
@@ -1804,191 +1798,194 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
-void Item_func_curdate::fix_length_and_dec()
+/**
+  Set time and time_packed from a TIME value.
+*/
+void MYSQL_TIME_cache::set_time(MYSQL_TIME *ltime, uint8 dec_arg)
 {
-  Item_date_func::fix_length_and_dec();
-
-  store_now_in_TIME(&ctime);
-  
-  /* We don't need to set second_part and neg because they already 0 */
-  ctime.hour= ctime.minute= ctime.second= 0;
-  ctime.time_type= MYSQL_TIMESTAMP_DATE;
-  ctime_as_longlong= (longlong) TIME_to_longlong_date_packed(&ctime);
+  DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_TIME);
+  time= *ltime;
+  time_packed= TIME_to_longlong_time_packed(&time);
+  dec= dec_arg;
 }
 
 
-String *Item_func_curdate::val_str(String *str)
+/**
+  Set time and time_packed from a DATE value.
+*/
+void MYSQL_TIME_cache::set_date(MYSQL_TIME *ltime)
 {
-  DBUG_ASSERT(fixed == 1);
-  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
-  {
-    null_value= 1;
-    return (String *) 0;
-  }
-  make_date((DATE_TIME_FORMAT *) 0, &ctime, str);
+  DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATE);
+  time= *ltime;
+  time_packed= TIME_to_longlong_date_packed(&time);
+}
+
+
+/**
+  Set time and time_packed from a DATETIME value.
+*/
+void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg)
+{
+  DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATETIME);
+  time= *ltime;
+  time_packed= TIME_to_longlong_datetime_packed(&time);
+  dec= dec_arg;
+}
+
+
+/**
+  Set time and time_packed according to DATETIME value
+  in "struct timeval" representation and its time zone.
+*/
+void MYSQL_TIME_cache::set_datetime(struct timeval tv, uint8 dec_arg,
+                                    Time_zone *tz)
+{
+  tz->gmt_sec_to_TIME(&time, tv);
+  time_packed= TIME_to_longlong_datetime_packed(&time);
+  dec= dec_arg;
+}
+
+
+/**
+  Set time and time_packed according to DATE value
+  in "struct timeval" representation and its time zone.
+*/
+void MYSQL_TIME_cache::set_date(struct timeval tv, Time_zone *tz)
+{
+  tz->gmt_sec_to_TIME(&time, (my_time_t) tv.tv_sec);
+  time.time_type= MYSQL_TIMESTAMP_DATE;
+  /* We don't need to set second_part and neg because they are already 0 */
+  time.hour= time.minute= time.second= 0;
+  time_packed= TIME_to_longlong_date_packed(&time);
+}
+
+
+/**
+  Set time and time_packed according to TIME value
+  in "struct timeval" representation and its time zone.
+*/
+void MYSQL_TIME_cache::set_time(struct timeval tv, uint8 dec_arg,
+                                Time_zone *tz)
+{
+  tz->gmt_sec_to_TIME(&time, tv);
+  datetime_to_time(&time);
+  time_packed= TIME_to_longlong_time_packed(&time);
+  dec= dec_arg;
+}
+
+
+/**
+  Cache string representation from the cached MYSQL_TIME representation.
+  If string representation has already been cached, then nothing happens.
+*/
+void MYSQL_TIME_cache::cache_string()
+{
+  DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+  if (!string_length)
+    string_length= my_TIME_to_str(&time, string_buff, decimals());
+}
+
+
+/**
+  Cache string representation (if needed) and return it as C string.
+*/
+const char *MYSQL_TIME_cache::cptr()
+{
+  cache_string();
+  return string_buff;
+}
+
+
+/**
+  Cache string representation (if needed) and return it as String.
+*/
+String *MYSQL_TIME_cache::val_str(String *str)
+{
+  cache_string();
+  str->set(string_buff, string_length, &my_charset_latin1);
   return str;
 }
 
 
-/**
-    Converts current time in my_time_t to MYSQL_TIME represenatation for local
-    time zone. Defines time zone (local) used for whole CURDATE function.
-*/
-void Item_func_curdate_local::store_now_in_TIME(MYSQL_TIME *now_time)
+/* CURDATE() and UTC_DATE() */
+void Item_func_curdate::fix_length_and_dec()
 {
   THD *thd= current_thd;
-  thd->variables.time_zone->gmt_sec_to_TIME(now_time, 
-                                            (my_time_t) thd->query_start());
-  thd->time_zone_used= 1;
+  Item_date_func::fix_length_and_dec();
+  cached_time.set_date(thd->query_start_timeval_trunc(decimals), time_zone());
 }
 
 
-/**
-    Converts current time in my_time_t to MYSQL_TIME represenatation for UTC
-    time zone. Defines time zone (UTC) used for whole UTC_DATE function.
-*/
-void Item_func_curdate_utc::store_now_in_TIME(MYSQL_TIME *now_time)
+Time_zone *Item_func_curdate_local::time_zone()
 {
-  my_tz_UTC->gmt_sec_to_TIME(now_time, 
-                             (my_time_t) (current_thd->query_start()));
-  /* 
-    We are not flagging this query as using time zone, since it uses fixed
-    UTC-SYSTEM time-zone.
-  */
+  return current_thd->time_zone();
 }
 
 
-bool Item_func_curdate::get_date(MYSQL_TIME *res,
-				 uint fuzzy_date __attribute__((unused)))
+Time_zone *Item_func_curdate_utc::time_zone()
 {
-  *res= ctime;
-  return 0;
+  return my_tz_UTC;
 }
 
 
-String *Item_func_curtime::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  str_value.set(buff, buff_length, &my_charset_latin1);
-  return &str_value;
-}
-
-
-bool Item_func_curtime::get_time(MYSQL_TIME *ltime)
-{
-  *ltime= ctime;
-  return false;
-}
-
-
+/* CURTIME() and UTC_TIME() */
 void Item_func_curtime::fix_length_and_dec()
 {
   if (check_precision())
     return;
-  store_now_in_TIME(&ctime);
-  ctime_as_temporal= TIME_to_longlong_time_packed(&ctime);
-  buff_length= (uint) my_time_to_str(&ctime, buff, decimals);
-  fix_length_and_charset_datetime(buff_length);
-}
-
-
-void Item_func_curtime::store_now_in_TIME_tz(THD *thd, Time_zone *tz,
-                                             MYSQL_TIME *now_time)
-{
-  struct timeval tv= thd->query_start_timeval_trunc(decimals);
-  tz->gmt_sec_to_TIME(now_time, (my_time_t) tv.tv_sec);
-  now_time->second_part= tv.tv_usec;
-  datetime_to_time(now_time);
-}
-
-/**
-    Converts current time in my_time_t to MYSQL_TIME represenatation for local
-    time zone. Defines time zone (local) used for whole CURTIME function.
-*/
-void Item_func_curtime_local::store_now_in_TIME(MYSQL_TIME *now_time)
-{
   THD *thd= current_thd;
-  store_now_in_TIME_tz(thd, thd->variables.time_zone, now_time);
-  thd->time_zone_used= 1;
-}
-
-
-/**
-    Converts current time in my_time_t to MYSQL_TIME represenatation for UTC
-    time zone. Defines time zone (UTC) used for whole UTC_TIME function.
-*/
-void Item_func_curtime_utc::store_now_in_TIME(MYSQL_TIME *now_time)
-{
-  store_now_in_TIME_tz(current_thd, my_tz_UTC, now_time);
-  /* 
-    We are not flagging this query as using time zone, since it uses fixed
-    UTC-SYSTEM time-zone.
+  cached_time.set_time(thd->query_start_timeval_trunc(decimals), decimals,
+                       time_zone());
+  /*
+    We use 8 instead of MAX_TIME_WIDTH (which is 10) becase:
+    - there is no sign 
+    - hour is in the 2-digit range
   */
+  fix_length_and_dec_and_charset_datetime(8, decimals);
 }
 
 
-String *Item_func_now::val_str(String *str)
+Time_zone *Item_func_curtime_local::time_zone()
 {
-  DBUG_ASSERT(fixed == 1);
-  str_value.set(buff, buff_length, &my_charset_numeric);
-  return &str_value;
+  return current_thd->time_zone();
 }
 
+
+Time_zone *Item_func_curtime_utc::time_zone()
+{
+  return my_tz_UTC;
+}
+
+
+/* NOW() and UTC_TIMESTAMP () */
 
 void Item_func_now::fix_length_and_dec()
 {
   if (check_precision())
     return;
-  store_now_in_TIME(&ctime);
-  ctime_as_longlong= (longlong) TIME_to_longlong_datetime_packed(&ctime);
-  buff_length= (uint) my_datetime_to_str(&ctime, buff, decimals);
-  fix_length_and_charset_datetime(buff_length);
-}
-
-
-/**
-    Converts current time in my_time_t to MYSQL_TIME represenatation for local
-    time zone. Defines time zone (local) used for whole NOW function.
-*/
-void Item_func_now_local::store_now_in_TIME(MYSQL_TIME *now_time)
-{
   THD *thd= current_thd;
-  struct timeval tv= thd->query_start_timeval_trunc(decimals);
-  thd->variables.time_zone->gmt_sec_to_TIME(now_time, (my_time_t) tv.tv_sec);
-  now_time->second_part= tv.tv_usec;
-  thd->time_zone_used= 1;
+  cached_time.set_datetime(thd->query_start_timeval_trunc(decimals), decimals,
+                           time_zone());
+  fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, decimals);
 }
 
 
-/**
-    Converts current time in my_time_t to MYSQL_TIME represenatation for UTC
-    time zone. Defines time zone (UTC) used for whole UTC_TIMESTAMP function.
-*/
-void Item_func_now_utc::store_now_in_TIME(MYSQL_TIME *now_time)
+Time_zone *Item_func_now_local::time_zone()
 {
-  THD *thd= current_thd;
-  struct timeval tv= thd->query_start_timeval_trunc(decimals);
-  my_tz_UTC->gmt_sec_to_TIME(now_time, (my_time_t) thd->query_start());
-  now_time->second_part= tv.tv_usec;
-  /* 
-    We are not flagging this query as using time zone, since it uses fixed
-    UTC-SYSTEM time-zone.
-  */
+  return current_thd->time_zone();
 }
 
 
-bool Item_func_now::get_date(MYSQL_TIME *res,
-                             uint fuzzy_date __attribute__((unused)))
+Time_zone *Item_func_now_utc::time_zone()
 {
-  *res= ctime;
-  return 0;
+  return my_tz_UTC;
 }
 
 
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
-  return to->store_time(&ctime, decimals);
+  return to->store_time(cached_time.get_TIME(), decimals);
 }
 
 
@@ -2001,14 +1998,13 @@ bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
 {
   THD *thd= current_thd;
   ulonglong tmp= my_micro_time();
-  thd->variables.time_zone->gmt_sec_to_TIME(now_time,
-                                            (my_time_t) (tmp / 1000000));
+  thd->time_zone()->gmt_sec_to_TIME(now_time,
+                                    (my_time_t) (tmp / 1000000));
   if (decimals)
   {
     now_time->second_part= tmp % 1000000;
     my_datetime_trunc(now_time, decimals);
   }
-  thd->time_zone_used= 1;
   return false;
 }
 

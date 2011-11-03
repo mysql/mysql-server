@@ -658,17 +658,100 @@ public:
 
 
 /**
+  Cache for MYSQL_TIME value with various representations.
+  
+  - MYSQL_TIME representation (time) is initialized during set_XXX().
+  - Packed representation (time_packed) is also initialized during set_XXX().
+  - String representation (string_buff) is not initialized during set_XXX(),
+    It's initialized only if val_str() or cptr() are called.
+*/
+class MYSQL_TIME_cache
+{
+  MYSQL_TIME time;                              // MYSQL_TIME representation
+  longlong time_packed;                         // packed representation
+  char string_buff[MAX_DATE_STRING_REP_LENGTH]; // string representation
+  uint string_length;                           // length of string
+  uint8 dec;                                    // Number of decimals
+  void cache_string(); // Store string representation to string_buff
+public:
+  MYSQL_TIME_cache()
+  {
+    time.time_type= MYSQL_TIMESTAMP_NONE;
+    string_length= 0;
+    string_buff[0]= '\0';
+    dec= 0;
+  }
+  // Initialize time and time_packed from MYSQL_TIME parameter.
+  void set_date(MYSQL_TIME *ltime);
+  void set_time(MYSQL_TIME *ltime, uint8 dec_arg);
+  void set_datetime(MYSQL_TIME *ltime, uint8 dec_arg);
+  // Initialize time and time_packed from "struct timeval" and time zone.
+  void set_date(struct timeval tv, Time_zone *tz);
+  void set_time(struct timeval tv, uint8 dec_arg, Time_zone *tz);
+  void set_datetime(struct timeval tv, uint8 dec_arg, Time_zone *tz);
+
+  /**
+    Test if cached value is equal to another MYSQL_TIME_cache value.
+  */
+  bool eq(const MYSQL_TIME_cache &tm) const
+  {
+    return val_packed() == tm.val_packed();
+  }
+
+  /**
+    Return number of decimal digits.
+  */
+  uint8 decimals() const
+  {
+    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    return dec;
+  }
+
+  /**
+    Return packed representation.
+  */
+  longlong val_packed() const
+  {
+    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    return time_packed;
+  }
+  /**
+    Store MYSQL_TIME representation into the given MYSQL_TIME variable.
+  */
+  void get_TIME(MYSQL_TIME *ltime) const
+  {
+    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    *ltime= time;
+  }
+  /**
+    Return pointer to MYSQL_TIME representation.
+  */
+  MYSQL_TIME *get_TIME()
+  {
+    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    return &time;
+  }
+  /**
+    Store string representation into String.
+  */
+  String *val_str(String *str);
+  /**
+    Return C string representation.
+  */
+  const char *cptr();
+};
+
+
+/**
   DATE'2010-01-01'
 */
 class Item_date_literal :public Item_date_func
 {
-  MYSQL_TIME ctime;           // Date value
-  longlong ctime_as_temporal; // Cached packed representation of ctime
+  MYSQL_TIME_cache cached_time;
 public:
   Item_date_literal(MYSQL_TIME *ltime) :Item_date_func()
   {
-    ctime= *ltime;
-    ctime_as_temporal= TIME_to_longlong_date_packed(&ctime);
+    cached_time.set_date(ltime);
     fix_length_and_dec();
     fixed= 1;
   }
@@ -677,13 +760,18 @@ public:
   longlong val_date_temporal()
   {
     DBUG_ASSERT(fixed);
-    return ctime_as_temporal;
+    return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     DBUG_ASSERT(fixed);
-    *ltime= ctime;
+    cached_time.get_TIME(ltime);
     return false;
+  }
+  String *val_str(String *str)
+  {
+    DBUG_ASSERT(fixed);
+    return cached_time.val_str(str);
   }
   void fix_length_and_dec()
   {
@@ -711,14 +799,12 @@ public:
 */
 class Item_time_literal :public Item_time_func
 {
-  MYSQL_TIME ctime;           // Time value
-  longlong ctime_as_temporal; // Cached packed representation of ctime
+  MYSQL_TIME_cache cached_time;
 public:
   Item_time_literal(MYSQL_TIME *ltime, uint dec_arg) :Item_time_func()
   {
-    ctime= *ltime;
-    ctime_as_temporal= TIME_to_longlong_time_packed(&ctime);
     decimals= min(dec_arg, DATETIME_MAX_DECIMALS);
+    cached_time.set_time(ltime, decimals);
     fix_length_and_dec();
     fixed= 1;
   }
@@ -727,13 +813,18 @@ public:
   longlong val_time_temporal()
   {
     DBUG_ASSERT(fixed);
-    return ctime_as_temporal;
+    return cached_time.val_packed();
   }
   bool get_time(MYSQL_TIME *ltime)
   {
     DBUG_ASSERT(fixed);
-    *ltime= ctime;
+    cached_time.get_TIME(ltime);
     return false;
+  }
+  String *val_str(String *str)
+  {
+    DBUG_ASSERT(fixed);
+    return cached_time.val_str(str);
   }
   void fix_length_and_dec()
   {
@@ -761,14 +852,12 @@ public:
 */
 class Item_datetime_literal :public Item_datetime_func
 {
-  MYSQL_TIME ctime;            // Datetime value
-  longlong ctime_as_temporal;  // Cached packed representation of ctime
+  MYSQL_TIME_cache cached_time;
 public:
   Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg) :Item_datetime_func()
   {
-    ctime= *ltime;
-    ctime_as_temporal= TIME_to_longlong_datetime_packed(&ctime);
     decimals= min(dec_arg, DATETIME_MAX_DECIMALS);
+    cached_time.set_datetime(ltime, decimals);
     fix_length_and_dec();
     fixed= 1;
   }
@@ -777,13 +866,18 @@ public:
   longlong val_date_temporal()
   {
     DBUG_ASSERT(fixed);
-    return ctime_as_temporal;
+    return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     DBUG_ASSERT(fixed);
-    *ltime= ctime;
+    cached_time.get_TIME(ltime);
     return false;
+  }
+  String *val_str(String *str)
+  {
+    DBUG_ASSERT(fixed);
+    return cached_time.val_str(str);
   }
   void fix_length_and_dec()
   {
@@ -810,35 +904,36 @@ public:
 
 class Item_func_curtime :public Item_time_func
 {
-  char buff[9*2+32];
-  uint buff_length;
-  MYSQL_TIME ctime;            // TIME value
-  longlong ctime_as_temporal;  // Cached packed representation of ctime
+  MYSQL_TIME_cache cached_time; // Initialized in fix_length_and_dec
 protected:
-  void store_now_in_TIME_tz(THD *thd, Time_zone *tz, MYSQL_TIME *now_time);
-  /* 
-    Abstract method that defines which time zone is used for conversion.
-    Converts time current time in my_time_t representation to broken-down
-    MYSQL_TIME representation using UTC-SYSTEM or per-thread time zone.
-  */
-  virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
+  // Abstract method that defines which time zone is used for conversion.
+  virtual Time_zone *time_zone()= 0;
 public:
   Item_func_curtime(uint8 dec_arg) :Item_time_func() { decimals= dec_arg; }
+  void fix_length_and_dec();
   longlong val_time_temporal()
   {
     DBUG_ASSERT(fixed == 1);
-    return ctime_as_temporal;
+    return cached_time.val_packed();
   }
-  String *val_str(String *str);
-  void fix_length_and_dec();
-  bool get_time(MYSQL_TIME *ltime);
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(fixed == 1);
+    cached_time.get_TIME(ltime);
+    return false;
+  }
+  String *val_str(String *str)
+  {
+    DBUG_ASSERT(fixed == 1);
+    return cached_time.val_str(&str_value);
+  }
 };
 
 
 class Item_func_curtime_local :public Item_func_curtime
 {
 protected:
-  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
+  Time_zone *time_zone();
 public:
   Item_func_curtime_local(ulong dec_arg) :Item_func_curtime(dec_arg) {}
   const char *func_name() const { return "curtime"; }
@@ -848,7 +943,7 @@ public:
 class Item_func_curtime_utc :public Item_func_curtime
 {
 protected:
-  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
+  Time_zone *time_zone();
 public:
   Item_func_curtime_utc(ulong dec_arg) :Item_func_curtime(dec_arg) {}
   const char *func_name() const { return "utc_time"; }
@@ -859,27 +954,35 @@ public:
 
 class Item_func_curdate :public Item_date_func
 {
-  MYSQL_TIME ctime;           // Initialized in fix_length_and_dec
-  longlong ctime_as_longlong; // Initialized in fix_length_and_dec
+  MYSQL_TIME_cache cached_time; // Initialized in fix_length_and_dec
 protected:
-  virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
+  virtual Time_zone *time_zone()= 0;
 public:
   Item_func_curdate() :Item_date_func() {}
+  void fix_length_and_dec();
   longlong val_date_temporal()
   {
     DBUG_ASSERT(fixed == 1);
-    return (ctime_as_longlong) ;
+    return cached_time.val_packed();
   }
-  String *val_str(String *str);
-  void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date)
+  {
+    DBUG_ASSERT(fixed == 1);
+    cached_time.get_TIME(res);
+    return false;
+  }
+  String *val_str(String *str)
+  {
+    DBUG_ASSERT(fixed == 1);
+    return cached_time.val_str(&str_value);
+  }
 };
 
 
 class Item_func_curdate_local :public Item_func_curdate
 {
 protected:
-  void store_now_in_TIME(MYSQL_TIME *now_time);
+  Time_zone *time_zone();
 public:
   Item_func_curdate_local() :Item_func_curdate() {}
   const char *func_name() const { return "curdate"; }
@@ -889,7 +992,7 @@ public:
 class Item_func_curdate_utc :public Item_func_curdate
 {
 protected:
-  void store_now_in_TIME(MYSQL_TIME *now_time);
+  Time_zone *time_zone();
 public:
   Item_func_curdate_utc() :Item_func_curdate() {}
   const char *func_name() const { return "utc_date"; }
@@ -900,30 +1003,36 @@ public:
 
 class Item_func_now :public Item_datetime_func
 {
+  MYSQL_TIME_cache cached_time; 
 protected:
-  MYSQL_TIME ctime;           // Datetime value
-  longlong ctime_as_longlong; // Cached packed representation of ctime
-  char buff[20*2+32];	// +32 to make my_snprintf_{8bit|ucs2} happy
-  uint buff_length;
-  virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
+  virtual Time_zone *time_zone()= 0;
 public:
   Item_func_now(uint8 dec_arg) :Item_datetime_func() { decimals= dec_arg; }
+  void fix_length_and_dec();
+  int save_in_field(Field *to, bool no_conversions);
   longlong val_date_temporal()
   {
     DBUG_ASSERT(fixed == 1);
-    return ctime_as_longlong;
+    return cached_time.val_packed();
   }
-  int save_in_field(Field *to, bool no_conversions);
-  String *val_str(String *str);
-  void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date)
+  {
+    DBUG_ASSERT(fixed == 1);
+    cached_time.get_TIME(res);
+    return false;
+  }
+  String *val_str(String *str)
+  {
+    DBUG_ASSERT(fixed == 1);
+    return cached_time.val_str(&str_value);
+  }
 };
 
 
 class Item_func_now_local :public Item_func_now
 {
 protected:
-  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
+  Time_zone *time_zone();
 public:
   Item_func_now_local(ulong dec_arg) :Item_func_now(dec_arg) {}
   const char *func_name() const { return "now"; }
@@ -934,7 +1043,7 @@ public:
 class Item_func_now_utc :public Item_func_now
 {
 protected:
-  virtual void store_now_in_TIME(MYSQL_TIME *now_time);
+  Time_zone *time_zone();
 public:
   Item_func_now_utc(ulong dec_arg) :Item_func_now(dec_arg) {}
   const char *func_name() const { return "utc_timestamp"; }

@@ -2709,6 +2709,11 @@ public:
     return variables.sql_mode &
       (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
   }
+  inline Time_zone *time_zone()
+  {
+    time_zone_used= 1;
+    return variables.time_zone;
+  }
   inline time_t query_start()
   {
     query_start_used= 1;

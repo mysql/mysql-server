@@ -5344,7 +5344,6 @@ bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime)
   ASSERT_COLUMN_MARKED_FOR_READ;
   uint32 temp;
   THD  *thd= table ? table->in_use : current_thd;
-  thd->time_zone_used= 1;
 #ifdef WORDS_BIGENDIAN
   if (table && table->s->db_low_byte_first)
     temp= uint4korr(ptr);
@@ -5353,7 +5352,7 @@ bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime)
     longget(temp, ptr);
   if (!temp)
     return true;
-  thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) temp);
+  thd->time_zone()->gmt_sec_to_TIME(ltime, (my_time_t) temp);
   return false;
 }
 
@@ -5564,11 +5563,9 @@ Field_timestampf::get_date_internal(MYSQL_TIME *ltime)
   THD *thd= table ? table->in_use : current_thd;
   struct timeval tm;
   my_timestamp_from_binary(&tm, ptr, dec);
-  thd->time_zone_used= 1;
   if (tm.tv_sec == 0)
     return true;
-  thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t) tm.tv_sec);
-  ltime->second_part= tm.tv_usec;
+  thd->time_zone()->gmt_sec_to_TIME(ltime, tm);
   return false;
 }
 
