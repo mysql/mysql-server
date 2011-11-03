@@ -2472,7 +2472,7 @@ fts_ast_visit_sub_exp(
 
 	node = node->list.head;
 
-	if (!node->next) {
+	if (!node || !node->next) {
 		return(error);
 	}
 

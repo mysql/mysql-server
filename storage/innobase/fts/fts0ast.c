@@ -234,6 +234,10 @@ fts_ast_add_node(
 	fts_ast_node_t*	node,			/*!< in: list instance */
 	fts_ast_node_t*	elem)			/*!< in: node to add to list */
 {
+	if (!elem) {
+		return(NULL);
+	}
+
 	ut_a(!elem->next);
 	ut_a(node->type == FTS_AST_LIST
 	     || node->type == FTS_AST_SUBEXP_LIST);

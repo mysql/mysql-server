@@ -462,9 +462,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    51,    51,    57,    61,    71,    82,    86,    95,    99,
-     103,   107,   112,   118,   123,   130,   136,   140,   144,   148,
-     152,   157,   162,   169
+       0,    51,    51,    57,    61,    71,    83,    87,    96,   100,
+     104,   108,   113,   119,   124,   131,   137,   141,   145,   149,
+     153,   158,   163,   170
 };
 #endif
 
@@ -1420,6 +1420,7 @@ yyreduce:
 #line 71 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (2)].node);
+		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (2)].node));
 
 		if (!(yyval.node)) {
 			(yyval.node) = fts_ast_create_node_subexp_list(state, (yyvsp[(2) - (2)].node));
@@ -1432,7 +1433,7 @@ yyreduce:
   case 6:
 
 /* Line 1455 of yacc.c  */
-#line 82 "fts0pars.y"
+#line 83 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(2) - (3)].node);
 	;}
@@ -1441,7 +1442,7 @@ yyreduce:
   case 7:
 
 /* Line 1455 of yacc.c  */
-#line 86 "fts0pars.y"
+#line 87 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_subexp_list(state, (yyvsp[(1) - (4)].node));
 
@@ -1454,7 +1455,7 @@ yyreduce:
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 95 "fts0pars.y"
+#line 96 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 	;}
@@ -1463,7 +1464,7 @@ yyreduce:
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 99 "fts0pars.y"
+#line 100 "fts0pars.y"
     {
 		(yyval.node) = (yyvsp[(1) - (1)].node);
 	;}
@@ -1472,7 +1473,7 @@ yyreduce:
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 103 "fts0pars.y"
+#line 104 "fts0pars.y"
     {
 		fts_ast_term_set_wildcard((yyvsp[(1) - (2)].node));
 	;}
@@ -1481,7 +1482,7 @@ yyreduce:
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 107 "fts0pars.y"
+#line 108 "fts0pars.y"
     {
 		fts_ast_term_set_distance((yyvsp[(1) - (3)].node), strtoul((yyvsp[(3) - (3)].token), NULL, 10));
 		free((yyvsp[(3) - (3)].token));
@@ -1491,7 +1492,7 @@ yyreduce:
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 112 "fts0pars.y"
+#line 113 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (3)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (3)].node));
@@ -1502,7 +1503,7 @@ yyreduce:
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 118 "fts0pars.y"
+#line 119 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (2)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (2)].node));
@@ -1512,7 +1513,7 @@ yyreduce:
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 123 "fts0pars.y"
+#line 124 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (4)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (4)].node));
@@ -1524,7 +1525,7 @@ yyreduce:
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 130 "fts0pars.y"
+#line 131 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_list(state, (yyvsp[(1) - (2)].node));
 		fts_ast_add_node((yyval.node), (yyvsp[(2) - (2)].node));
@@ -1534,7 +1535,7 @@ yyreduce:
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 136 "fts0pars.y"
+#line 137 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_IGNORE);
 	;}
@@ -1543,7 +1544,7 @@ yyreduce:
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 140 "fts0pars.y"
+#line 141 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_EXIST);
 	;}
@@ -1552,7 +1553,7 @@ yyreduce:
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 144 "fts0pars.y"
+#line 145 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_NEGATE);
 	;}
@@ -1561,7 +1562,7 @@ yyreduce:
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 148 "fts0pars.y"
+#line 149 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_DECR_RATING);
 	;}
@@ -1570,7 +1571,7 @@ yyreduce:
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 152 "fts0pars.y"
+#line 153 "fts0pars.y"
     {
 		(yyval.node) = fts_ast_create_node_oper(state, FTS_INCR_RATING);
 	;}
@@ -1579,7 +1580,7 @@ yyreduce:
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 157 "fts0pars.y"
+#line 158 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_term(state, (yyvsp[(1) - (1)].token));
 		free((yyvsp[(1) - (1)].token));
@@ -1589,7 +1590,7 @@ yyreduce:
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 162 "fts0pars.y"
+#line 163 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_term(state, (yyvsp[(1) - (1)].token));
 		free((yyvsp[(1) - (1)].token));
@@ -1599,7 +1600,7 @@ yyreduce:
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 169 "fts0pars.y"
+#line 170 "fts0pars.y"
     {
 		(yyval.node)  = fts_ast_create_node_text(state, (yyvsp[(1) - (1)].token));
 		free((yyvsp[(1) - (1)].token));
@@ -1609,7 +1610,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 1613 "fts0pars.c"
+#line 1614 "fts0pars.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1821,7 +1822,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 174 "fts0pars.y"
+#line 175 "fts0pars.y"
 
 
 /********************************************************************

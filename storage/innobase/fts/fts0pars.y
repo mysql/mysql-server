@@ -70,6 +70,7 @@ expr_lst: /* Empty */	{
 
 	| expr_lst sub_expr		{
 		$$ = $1;
+		$$ = fts_ast_create_node_list(state, $1);
 
 		if (!$$) {
 			$$ = fts_ast_create_node_subexp_list(state, $2);
