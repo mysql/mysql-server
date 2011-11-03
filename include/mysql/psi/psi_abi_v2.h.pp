@@ -8,14 +8,14 @@ struct PSI_table_share;
 struct PSI_table;
 struct PSI_thread;
 struct PSI_file;
+struct PSI_socket;
 struct PSI_table_locker;
 struct PSI_statement_locker;
-struct PSI_socket;
+struct PSI_idle_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
 };
-struct PSI_idle_locker;
 struct PSI_mutex_locker;
 struct PSI_rwlock_locker;
 struct PSI_cond_locker;

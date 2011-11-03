@@ -837,15 +837,20 @@ bool do_command(THD *thd)
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
 
-  #ifdef HAVE_PSI_INTERFACE
-  net->mysql_socket_idle= TRUE;
-  #endif
-
+  /*
+    Because of networking layer callbacks in place,
+    this call will maintain the following instrumentation:
+    - IDLE events
+    - SOCKET events
+    - STATEMENT events
+    - STAGE events
+    when reading a new network packet.
+    In particular, a new instrumented statement is started.
+    See init_net_server_extension()
+  */
+  thd->m_server_idle= true;
   packet_length= my_net_read(net);
-
-  #ifdef HAVE_PSI_INTERFACE
-  net->mysql_socket_idle= FALSE;
-  #endif
+  thd->m_server_idle= false;
 
   if (packet_length == packet_error)
   {
@@ -853,11 +858,19 @@ bool do_command(THD *thd)
 		       net->error,
 		       vio_description(net->vio)));
 
+    /* Instrument this broken statement as "statement/com/error" */
+    thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                 com_statement_info[COM_END].m_key);
+
     /* Check if we can continue without closing the connection */
 
     /* The error must be set. */
     DBUG_ASSERT(thd->is_error());
     thd->protocol->end_statement();
+
+    /* Mark the statement completed. */
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= NULL;
 
     if (net->error != 3)
     {
@@ -905,6 +918,8 @@ bool do_command(THD *thd)
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
 
 out:
+  /* The statement instrumentation must be closed in all cases. */
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_RETURN(return_value);
 }
 #endif  /* EMBEDDED_LIBRARY */
@@ -1001,10 +1016,6 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_statement_locker_state state;
-#endif
-
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
@@ -1021,10 +1032,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       (char *) thd->security_ctx->host_or_ip);
 
   /* Performance Schema Interface instrumentation, begin */
-  thd->m_statement_psi= MYSQL_START_STATEMENT(& state, com_statement_info[command].m_key,
-                                              thd->db, thd->db_length);
-  THD_STAGE_INFO(thd, stage_init);
-  
+  thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                               com_statement_info[command].m_key);
+
   thd->set_command(command);
   /*
     Commands which always take a long time are logged into
@@ -1209,6 +1219,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 /* PSI end */
       MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+      thd->m_statement_psi= NULL;
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
@@ -1234,7 +1245,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
 /* PSI begin */
-      thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
+      thd->m_statement_psi= MYSQL_START_STATEMENT(& thd->m_statement_state,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length);
       THD_STAGE_INFO(thd, stage_init);
@@ -1583,6 +1594,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
+
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   dec_thread_running();
@@ -1632,8 +1644,6 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log)
   {
-    ulonglong end_utime_of_query= thd->current_utime();
-
     if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
@@ -1646,11 +1656,9 @@ void log_slow_statement(THD *thd)
       if (thd->rewritten_query.length())
         slow_log_print(thd,
                        thd->rewritten_query.c_ptr_safe(),
-                       thd->rewritten_query.length(), 
-                       end_utime_of_query);
+                       thd->rewritten_query.length());
       else
-        slow_log_print(thd, thd->query(), thd->query_length(), 
-                       end_utime_of_query);
+        slow_log_print(thd, thd->query(), thd->query_length());
     }
   }
   DBUG_VOID_RETURN;

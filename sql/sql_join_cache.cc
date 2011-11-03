@@ -368,6 +368,7 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
       copy->field= 0;
       copy->referenced_field_no= 0;
       copy->get_rowid= NULL;
+      tab->copy_current_rowid= copy;
       length+= copy->length;
       data_field_count++;
       copy++;
