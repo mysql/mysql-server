@@ -3254,6 +3254,15 @@ void Item_func_case::fix_length_and_dec()
           return;
       }
     }
+    /*
+      Set cmp_context of all WHEN arguments. This prevents
+      Item_field::equal_fields_propagator() from transforming a
+      zerofill argument into a string constant. Such a change would
+      require rebuilding cmp_items.
+    */
+    for (i= 0; i < ncases; i+= 2)
+      args[i]->cmp_context= item_cmp_type(left_result_type,
+                                          args[i]->result_type());
   }
 
   if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
