@@ -228,14 +228,25 @@ public:
     }
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
-  ArrayPool<AttributeRecord> c_attributeRecordPool;
-  DLHashTable<AttributeRecord> c_attributeRecordHash;
+  typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
+  typedef DLHashTable<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_hash;
+  typedef DLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_list;
+  typedef LocalDLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> LocalAttributeRecord_list;
+
+  AttributeRecord_pool c_attributeRecordPool;
+  AttributeRecord_hash c_attributeRecordHash;
   RSS_AP_SNAPSHOT(c_attributeRecordPool);
 
   /**
    * Shared table / index record.  Most of this is permanent data stored
    * on disk.  Index trigger ids are volatile.
    */
+  struct TableRecord;
+  typedef Ptr<TableRecord> TableRecordPtr;
+  typedef ArrayPool<TableRecord> TableRecord_pool;
+  typedef DLFifoList<TableRecord,TableRecord,TableRecord_pool> TableRecord_list;
+  typedef LocalDLFifoList<TableRecord,TableRecord,TableRecord_pool> LocalTableRecord_list;
+
   struct TableRecord {
     TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
     Uint32 maxRowsLow;
@@ -353,7 +364,7 @@ public:
     Uint32 filePtr[2];
 
     /**    Pointer to first attribute in table */
-    DLFifoList<AttributeRecord>::Head m_attributes;
+    AttributeRecord_list::Head m_attributes;
 
     Uint32 nextPool;
 
@@ -402,7 +413,7 @@ public:
     Uint32 m_tablespace_id;
 
     /** List of indexes attached to table */
-    DLFifoList<TableRecord>::Head m_indexes;
+    TableRecord_list::Head m_indexes;
     Uint32 nextList, prevList;
 
     /*
@@ -423,8 +434,7 @@ public:
     Uint32 indexStatBgRequest;
   };
 
-  typedef Ptr<TableRecord> TableRecordPtr;
-  ArrayPool<TableRecord> c_tableRecordPool;
+  TableRecord_pool c_tableRecordPool;
   RSS_AP_SNAPSHOT(c_tableRecordPool);
 
   /**  Node Group and Tablespace id+version + range or list data.
@@ -487,9 +497,11 @@ public:
     Uint32 nextPool;
   };
 
-  Uint32 c_maxNoOfTriggers;
   typedef Ptr<TriggerRecord> TriggerRecordPtr;
-  ArrayPool<TriggerRecord> c_triggerRecordPool;
+  typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
+
+  Uint32 c_maxNoOfTriggers;
+  TriggerRecord_pool c_triggerRecordPool;
   RSS_AP_SNAPSHOT(c_triggerRecordPool);
 
   /**
@@ -529,7 +541,8 @@ public:
   };
 
   typedef Ptr<FsConnectRecord> FsConnectRecordPtr;
-  ArrayPool<FsConnectRecord> c_fsConnectRecordPool;
+  typedef ArrayPool<FsConnectRecord> FsConnectRecord_pool;
+  FsConnectRecord_pool c_fsConnectRecordPool;
 
   /**
    * This record stores all the information about a node and all its attributes
@@ -702,9 +715,12 @@ public:
   };
 
   typedef Ptr<DictObject> DictObjectPtr;
+  typedef ArrayPool<DictObject> DictObject_pool;
+  typedef DLHashTable<DictObject,DictObject,DictObject_pool> DictObject_hash;
+  typedef SLList<DictObject> DictObject_list;
 
-  DLHashTable<DictObject> c_obj_hash; // Name
-  ArrayPool<DictObject> c_obj_pool;
+  DictObject_hash c_obj_hash; // Name
+  DictObject_pool c_obj_pool;
   RSS_AP_SNAPSHOT(c_obj_pool);
 
   // 1
@@ -1596,9 +1612,9 @@ private:
   };
 
   typedef RecordPool<SchemaOp,ArenaPool> SchemaOp_pool;
-  typedef LocalDLFifoList<SchemaOp,SchemaOp,SchemaOp_pool> LocalSchemaOp_list;
   typedef DLHashTable<SchemaOp,SchemaOp,SchemaOp_pool> SchemaOp_hash;
   typedef DLFifoList<SchemaOp,SchemaOp,SchemaOp_pool>::Head  SchemaOp_head;
+  typedef LocalDLFifoList<SchemaOp,SchemaOp,SchemaOp_pool> LocalSchemaOp_list;
 
   SchemaOp_pool c_schemaOpPool;
   SchemaOp_hash c_schemaOpHash;
@@ -1959,9 +1975,12 @@ private:
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
+  typedef DLHashTable<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_hash;
+  typedef DLFifoList<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_list;
+
   SchemaTrans_pool c_schemaTransPool;
-  DLHashTable<SchemaTrans,SchemaTrans,SchemaTrans_pool> c_schemaTransHash;
-  DLFifoList<SchemaTrans,SchemaTrans,SchemaTrans_pool> c_schemaTransList;
+  SchemaTrans_hash c_schemaTransHash;
+  SchemaTrans_list c_schemaTransList;
   Uint32 c_schemaTransCount;
 
   bool seizeSchemaTrans(SchemaTransPtr&, Uint32 trans_key);
@@ -2226,8 +2245,11 @@ private:
 #endif
   };
 
-  ArrayPool<TxHandle> c_txHandlePool;
-  DLHashTable<TxHandle> c_txHandleHash;
+  typedef ArrayPool<TxHandle> TxHandle_pool;
+  typedef DLHashTable<TxHandle,TxHandle,TxHandle_pool> TxHandle_hash;
+
+  TxHandle_pool c_txHandlePool;
+  TxHandle_hash c_txHandleHash;
 
   bool seizeTxHandle(TxHandlePtr&);
   bool findTxHandle(TxHandlePtr&, Uint32 tx_key);
@@ -2932,12 +2954,12 @@ private:
     bool equal(const HashMapRecord& obj) const { return key == obj.key;}
 
   };
-  typedef Ptr<HashMapRecord> HashMapPtr;
-  typedef ArrayPool<HashMapRecord> HashMap_pool;
-  typedef KeyTableImpl<HashMap_pool, HashMapRecord> HashMap_hash;
+  typedef Ptr<HashMapRecord> HashMapRecordPtr;
+  typedef ArrayPool<HashMapRecord> HashMapRecord_pool;
+  typedef KeyTableImpl<HashMapRecord_pool, HashMapRecord> HashMapRecord_hash;
 
-  HashMap_pool c_hash_map_pool;
-  HashMap_hash c_hash_map_hash;
+  HashMapRecord_pool c_hash_map_pool;
+  HashMapRecord_hash c_hash_map_hash;
   RSS_AP_SNAPSHOT(c_hash_map_pool);
   RSS_AP_SNAPSHOT(g_hash_map);
 
@@ -3612,13 +3634,18 @@ private:
     Uint32 u_opSignalUtil   [PTR_ALIGN(opSignalUtilSize)];
     Uint32 nextPool;
   };
-  ArrayPool<OpRecordUnion> c_opRecordPool;
+  typedef ArrayPool<OpRecordUnion> OpRecordUnion_pool;
+  OpRecordUnion_pool c_opRecordPool;
 
   // Operation records
-  KeyTable2C<OpCreateEvent, OpRecordUnion> c_opCreateEvent;
-  KeyTable2C<OpSubEvent, OpRecordUnion> c_opSubEvent;
-  KeyTable2C<OpDropEvent, OpRecordUnion> c_opDropEvent;
-  KeyTable2C<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
+  typedef KeyTable2C<OpCreateEvent, OpRecordUnion> OpCreateEvent_pool;
+  typedef KeyTable2C<OpSubEvent, OpRecordUnion> OpSubEvent_pool;
+  typedef KeyTable2C<OpDropEvent, OpRecordUnion> OpDropEvent_pool;
+  typedef KeyTable2C<OpSignalUtil, OpRecordUnion> OpSignalUtil_pool;
+  OpCreateEvent_pool c_opCreateEvent;
+  OpSubEvent_pool c_opSubEvent;
+  OpDropEvent_pool c_opDropEvent;
+  OpSignalUtil_pool c_opSignalUtil;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;

@@ -226,7 +226,7 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == 1227)
   {
-    DLHashTable<DictObject>::Iterator iter;
+    DictObject_hash::Iterator iter;
     bool ok = c_obj_hash.first(iter);
     for(; ok; ok = c_obj_hash.next(iter))
     {
@@ -563,7 +563,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
     break;
   }
   case DictTabInfo::HashMap:{
-    Ptr<HashMapRecord> hm_ptr;
+    HashMapRecordPtr hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, tableId));
     packHashMapIntoPages(w, hm_ptr);
     break;
@@ -655,7 +655,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 
   if (tablePtr.p->hashMapObjectId != RNIL)
   {
-    HashMapPtr hm_ptr;
+    HashMapRecordPtr hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, tablePtr.p->hashMapObjectId));
     w.add(DictTabInfo::HashMapVersion, hm_ptr.p->m_object_version);
   }
@@ -736,7 +736,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   }
 
   AttributeRecordPtr attrPtr;
-  LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
+  LocalAttributeRecord_list list(c_attributeRecordPool,
 				    tablePtr.p->m_attributes);
   for(list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr)){
     jam();
@@ -2774,8 +2774,8 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
 	     ReadConfigConf::SignalLength, JBB);
 
   {
-    Ptr<DictObject> ptr;
-    SLList<DictObject> objs(c_obj_pool);
+    DictObjectPtr ptr;
+    DictObject_list objs(c_obj_pool);
     while(objs.seize(ptr))
       new (ptr.p) DictObject();
     objs.release();
@@ -3923,7 +3923,7 @@ Dbdict::restart_nextOp(Signal* signal, bool commit)
     jam();
     c_restartRecord.m_op_cnt = 0;
 
-    Ptr<TxHandle> tx_ptr;
+    TxHandlePtr tx_ptr;
     c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
 
     Callback c = {
@@ -4060,7 +4060,7 @@ Dbdict::restartNextPass(Signal* signal)
     c_restartRecord.m_pass--;
     c_restartRecord.m_op_cnt = 0;
 
-    Ptr<TxHandle> tx_ptr;
+    TxHandlePtr tx_ptr;
     c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
 
     Callback c = {
@@ -4274,12 +4274,12 @@ Dbdict::restartCreateObj_parse(Signal* signal,
                                bool file)
 {
   jam();
-  Ptr<SchemaOp> op_ptr;
+  SchemaOpPtr op_ptr;
 
-  Ptr<TxHandle> tx_ptr;
+  TxHandlePtr tx_ptr;
   c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
 
-  Ptr<SchemaTrans> trans_ptr;
+  SchemaTransPtr trans_ptr;
   findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
 
   switch(c_restartRecord.m_entry.m_tableType){
@@ -4290,27 +4290,27 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
   {
-    Ptr<CreateTableRec> opRecPtr;
+    CreateTableRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
   {
-    Ptr<CreateFileRec> opRecPtr;
+    CreateFileRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
   case DictTabInfo::Tablespace:
   case DictTabInfo::LogfileGroup:
   {
-    Ptr<CreateFilegroupRec> opRecPtr;
+    CreateFilegroupRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
   case DictTabInfo::HashMap:
   {
-    Ptr<CreateHashMapRec> opRecPtr;
+    CreateHashMapRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     break;
   }
@@ -4358,12 +4358,12 @@ Dbdict::restartDropObj(Signal* signal,
   c_restartRecord.m_entry = *entry;
 
   jam();
-  Ptr<SchemaOp> op_ptr;
+  SchemaOpPtr op_ptr;
 
-  Ptr<TxHandle> tx_ptr;
+  TxHandlePtr tx_ptr;
   c_txHandleHash.getPtr(tx_ptr, c_restartRecord.m_tx_ptr_i);
 
-  Ptr<SchemaTrans> trans_ptr;
+  SchemaTransPtr trans_ptr;
   findSchemaTrans(trans_ptr, tx_ptr.p->m_transKey);
 
   switch(c_restartRecord.m_entry.m_tableType){
@@ -4373,14 +4373,14 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::HashIndex:
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
-    Ptr<DropTableRec> opRecPtr;
+    DropTableRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     ndbrequire(false);
     break;
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
   {
-    Ptr<DropFileRec> opRecPtr;
+    DropFileRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     opRecPtr.p->m_request.file_id = tableId;
     opRecPtr.p->m_request.file_version = entry->m_tableVersion;
@@ -4389,7 +4389,7 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::Tablespace:
   case DictTabInfo::LogfileGroup:
   {
-    Ptr<DropFilegroupRec> opRecPtr;
+    DropFilegroupRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     opRecPtr.p->m_request.filegroup_id = tableId;
     opRecPtr.p->m_request.filegroup_version = entry->m_tableVersion;
@@ -4643,12 +4643,12 @@ void Dbdict::execINCL_NODEREQ(Signal* signal)
 inline
 void Dbdict::printTables()
 {
-  DLHashTable<DictObject>::Iterator iter;
+  DictObject_hash::Iterator iter;
   bool moreTables = c_obj_hash.first(iter);
   printf("OBJECTS IN DICT:\n");
   char name[PATH_MAX];
   while (moreTables) {
-    Ptr<DictObject> tablePtr = iter.curr;
+    DictObjectPtr tablePtr = iter.curr;
     ConstRope r(c_rope_pool, tablePtr.p->m_name);
     r.copy(name);
     printf("%s ", name);
@@ -4669,7 +4669,7 @@ void Dbdict::printTables()
 
 Dbdict::DictObject *
 Dbdict::get_object(const char * name, Uint32 len, Uint32 hash){
-  Ptr<DictObject> old_ptr;
+  DictObjectPtr old_ptr;
   if (get_object(old_ptr, name, len, hash))
   {
     return old_ptr.p;
@@ -4693,7 +4693,7 @@ Dbdict::release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p){
   LocalRope name(c_rope_pool, obj_ptr_p->m_name);
   name.erase();
 
-  Ptr<DictObject> ptr = { obj_ptr_p, obj_ptr_i };
+  DictObjectPtr ptr = { obj_ptr_p, obj_ptr_i };
   c_obj_hash.release(ptr);
 }
 
@@ -4824,7 +4824,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 	       CreateTableRef::OutOfStringBuffer);
   }
 
-  Ptr<DictObject> obj_ptr;
+  DictObjectPtr obj_ptr;
   if (parseP->requestType != DictTabInfo::AlterTableFromAPI) {
     jam();
     ndbrequire(c_obj_hash.seize(obj_ptr));
@@ -4908,7 +4908,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     if (dictObj && dictObj->m_type == DictTabInfo::HashMap)
     {
       jam();
-      HashMapPtr hm_ptr;
+      HashMapRecordPtr hm_ptr;
       ndbrequire(c_hash_map_hash.find(hm_ptr, dictObj->m_id));
       tablePtr.p->hashMapObjectId = hm_ptr.p->m_object_id;
       tablePtr.p->hashMapVersion = hm_ptr.p->m_object_version;
@@ -4918,7 +4918,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   if (tablePtr.p->fragmentType == DictTabInfo::HashMapPartition)
   {
     jam();
-    HashMapPtr hm_ptr;
+    HashMapRecordPtr hm_ptr;
     tabRequire(c_hash_map_hash.find(hm_ptr, tablePtr.p->hashMapObjectId),
                CreateTableRef::InvalidHashMap);
 
@@ -5043,7 +5043,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 }//handleTabInfoInit()
 
 void
-Dbdict::upgrade_seizeTrigger(Ptr<TableRecord> tabPtr,
+Dbdict::upgrade_seizeTrigger(TableRecordPtr tabPtr,
                              Uint32 insertTriggerId,
                              Uint32 updateTriggerId,
                              Uint32 deleteTriggerId)
@@ -5080,7 +5080,7 @@ Dbdict::upgrade_seizeTrigger(Ptr<TableRecord> tabPtr,
         name.assign(buf);
       }
 
-      Ptr<DictObject> obj_ptr;
+      DictObjectPtr obj_ptr;
       bool ok = c_obj_hash.seize(obj_ptr);
       ndbrequire(ok);
       new (obj_ptr.p) DictObject();
@@ -5118,7 +5118,7 @@ Dbdict::upgrade_seizeTrigger(Ptr<TableRecord> tabPtr,
         name.assign(buf);
       }
 
-      Ptr<DictObject> obj_ptr;
+      DictObjectPtr obj_ptr;
       bool ok = c_obj_hash.seize(obj_ptr);
       ndbrequire(ok);
       new (obj_ptr.p) DictObject();
@@ -5153,7 +5153,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   AttributeRecordPtr attrPtr;
   c_attributeRecordHash.removeAll();
 
-  LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
+  LocalAttributeRecord_list list(c_attributeRecordPool,
 					tablePtr.p->m_attributes);
 
   Uint32 counts[] = {0,0,0,0,0};
@@ -5187,7 +5187,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       key.m_key.m_name_len = len;
       key.attributeName.m_hash = name_hash;
       key.m_key.m_pool = &c_rope_pool;
-      Ptr<AttributeRecord> old_ptr;
+      AttributeRecordPtr old_ptr;
       c_attributeRecordHash.find(old_ptr, key);
 
       if(old_ptr.i != RNIL){
@@ -5656,7 +5656,7 @@ Dbdict::create_fragmentation(Signal* signal,
   if (tabPtr.p->hashMapObjectId != RNIL)
   {
     jam();
-    HashMapPtr hm_ptr;
+    HashMapRecordPtr hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, tabPtr.p->hashMapObjectId));
     frag_req->map_ptr_i = hm_ptr.p->m_map_ptr_i;
   }
@@ -6149,8 +6149,8 @@ Dbdict::createTab_local(Signal* signal,
     }
 
     Uint32 key = 0;
-    Ptr<AttributeRecord> attrPtr;
-    LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
+    AttributeRecordPtr attrPtr;
+    LocalAttributeRecord_list list(c_attributeRecordPool,
                                           tabPtr.p->m_attributes);
     for(list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr))
     {
@@ -6387,7 +6387,7 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
 
   if (tabPtr.p->hashMapObjectId != RNIL)
   {
-    HashMapPtr hm_ptr;
+    HashMapRecordPtr hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, tabPtr.p->hashMapObjectId));
     req->hashMapPtrI = hm_ptr.p->m_map_ptr_i;
   }
@@ -6567,7 +6567,7 @@ Dbdict::execLQHFRAGCONF(Signal * signal)
   {
     jam();
     SchemaOpPtr op_ptr;
-    Ptr<TableRecord> tabPtr;
+    TableRecordPtr tabPtr;
     c_tableRecordPool.getPtr(tabPtr, tableId);
     if (DictTabInfo::isTable(tabPtr.p->tableType))
     {
@@ -6620,7 +6620,7 @@ Dbdict::execLQHFRAGREF(Signal * signal)
   {
     jam();
     SchemaOpPtr op_ptr;
-    Ptr<TableRecord> tabPtr;
+    TableRecordPtr tabPtr;
     c_tableRecordPool.getPtr(tabPtr, tableId);
     if (DictTabInfo::isTable(tabPtr.p->tableType))
     {
@@ -6819,10 +6819,10 @@ Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   if (DictTabInfo::isIndex(tabPtr.p->tableType))
   {
-    Ptr<TableRecord> basePtr;
+    TableRecordPtr basePtr;
     c_tableRecordPool.getPtr(basePtr, tabPtr.p->primaryTableId);
 
-    LocalDLFifoList<TableRecord> list(c_tableRecordPool, basePtr.p->m_indexes);
+    LocalTableRecord_list list(c_tableRecordPool, basePtr.p->m_indexes);
     list.add(tabPtr);
   }
 }
@@ -7093,7 +7093,7 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
     tmp.erase();
   }
 
-  LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
+  LocalAttributeRecord_list list(c_attributeRecordPool,
 					tablePtr.p->m_attributes);
   AttributeRecordPtr attrPtr;
   for(list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr)){
@@ -7444,10 +7444,10 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   if (DictTabInfo::isIndex(tablePtr.p->tableType))
   {
-    Ptr<TableRecord> basePtr;
+    TableRecordPtr basePtr;
     c_tableRecordPool.getPtr(basePtr, tablePtr.p->primaryTableId);
 
-    LocalDLFifoList<TableRecord> list(c_tableRecordPool, basePtr.p->m_indexes);
+    LocalTableRecord_list list(c_tableRecordPool, basePtr.p->m_indexes);
     list.remove(tablePtr);
   }
   dropTabPtr.p->m_block = 0;
@@ -8119,7 +8119,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       return;
     }
 
-    LocalDLFifoList<AttributeRecord>
+    LocalAttributeRecord_list
       list(c_attributeRecordPool, newTablePtr.p->m_attributes);
     AttributeRecordPtr attrPtr;
     list.first(attrPtr);
@@ -8328,10 +8328,10 @@ Dbdict::check_supported_reorg(Uint32 org_map_id, Uint32 new_map_id)
     return 0;
   }
 
-  HashMapPtr orgmap_ptr;
+  HashMapRecordPtr orgmap_ptr;
   ndbrequire(c_hash_map_hash.find(orgmap_ptr, org_map_id));
 
-  HashMapPtr newmap_ptr;
+  HashMapRecordPtr newmap_ptr;
   ndbrequire(c_hash_map_hash.find(newmap_ptr, new_map_id));
 
   Ptr<Hash2FragmentMap> orgptr;
@@ -8430,7 +8430,7 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       TableRecordPtr tabPtr;
       TableRecordPtr indexPtr;
       c_tableRecordPool.getPtr(tabPtr, impl_req->tableId);
-      LocalDLFifoList<TableRecord> list(c_tableRecordPool, tabPtr.p->m_indexes);
+      LocalTableRecord_list list(c_tableRecordPool, tabPtr.p->m_indexes);
       Uint32 ptrI = alterTabPtr.p->m_sub_add_frag_index_ptr;
 
       if (ptrI == RNIL)
@@ -8892,7 +8892,7 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
      * Get DIH connectPtr for future commit
      */
     {
-      Ptr<SchemaOp> tmp = op_ptr;
+      SchemaOpPtr tmp = op_ptr;
       LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       for (list.prev(tmp); !tmp.isNull(); list.prev(tmp))
       {
@@ -9071,7 +9071,7 @@ Dbdict::alterTable_toLocal(Signal* signal, SchemaOpPtr op_ptr)
     if (AlterTableReq::getReorgFragFlag(req->changeMask))
     {
       jam();
-      HashMapPtr hm_ptr;
+      HashMapRecordPtr hm_ptr;
       ndbrequire(c_hash_map_hash.find(hm_ptr,
                                       alterTabPtr.p->m_newTablePtr.p->hashMapObjectId));
       req->new_map_ptr_i = hm_ptr.p->m_map_ptr_i;
@@ -9173,7 +9173,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
         << " old=" << copyRope<sz>(tablePtr.p->tableName)
         << " new=" << copyRope<sz>(newTablePtr.p->tableName));
 
-      Ptr<DictObject> obj_ptr;
+      DictObjectPtr obj_ptr;
       c_obj_pool.getPtr(obj_ptr, tablePtr.p->m_obj_ptr_i);
 
       // remove old name from hash
@@ -9206,9 +9206,9 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
       jam();
 
       /* Move the column definitions to the real table definitions. */
-      LocalDLFifoList<AttributeRecord>
+      LocalAttributeRecord_list
         list(c_attributeRecordPool, tablePtr.p->m_attributes);
-      LocalDLFifoList<AttributeRecord>
+      LocalAttributeRecord_list
         newlist(c_attributeRecordPool, newTablePtr.p->m_attributes);
 
       const Uint32 noOfNewAttr = impl_req->noOfNewAttr;
@@ -10091,7 +10091,7 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
   conf->counter = 0;
   Uint32 pos = 0;
 
-  DLHashTable<DictObject>::Iterator iter;
+  DictObject_hash::Iterator iter;
   bool ok = c_obj_hash.first(iter);
   for(; ok; ok = c_obj_hash.next(iter)){
     Uint32 type = iter.curr.p->m_type;
@@ -10279,7 +10279,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   NodeReceiverGroup rg(senderRef);
 
-  DLHashTable<DictObject>::Iterator iter;
+  DictObject_hash::Iterator iter;
   bool done = !c_obj_hash.first(iter);
 
   if (done)
@@ -10831,7 +10831,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
 
       // find the attribute
       {
-        LocalDLFifoList<AttributeRecord>
+        LocalAttributeRecord_list
           list(c_attributeRecordPool, tablePtr.p->m_attributes);
         list.first(attrPtr);
         while (!attrPtr.isNull()) {
@@ -11048,7 +11048,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
     jam();
     Uint32 key_type = NDB_ARRAYTYPE_FIXED;
     AttributeRecordPtr attrPtr;
-    LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
+    LocalAttributeRecord_list list(c_attributeRecordPool,
                                           tablePtr.p->m_attributes);
     // XXX move to parse
     for (list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr))
@@ -12033,7 +12033,7 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
        *       or if prev op is AlterIndex using baseop.p->m_base_op_ptr_i
        *   (i.e recursivly, assuming that no operation can come inbetween)
        */
-      Ptr<SchemaOp> baseop = op_ptr;
+      SchemaOpPtr baseop = op_ptr;
       LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
       ndbrequire(list.prev(baseop));
       Uint32 sz = sizeof(baseop.p->m_oprec_ptr.p->m_opType);
@@ -14694,7 +14694,7 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
   {
-    LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+    LocalAttributeRecord_list alist(c_attributeRecordPool,
                                            tabPtr.p->m_attributes);
     AttributeRecordPtr attrPtr;
     for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
@@ -14795,7 +14795,7 @@ Dbdict::copyData_complete(Signal* signal, SchemaOpPtr op_ptr)
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
   {
-    LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+    LocalAttributeRecord_list alist(c_attributeRecordPool,
                                            tabPtr.p->m_attributes);
     AttributeRecordPtr attrPtr;
     for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
@@ -17819,7 +17819,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
 
   // connect to new DictObject
   {
-    Ptr<DictObject> obj_ptr;
+    DictObjectPtr obj_ptr;
     seizeDictObject(op_ptr, obj_ptr, triggerPtr.p->triggerName);
 
     obj_ptr.p->m_id = impl_req->triggerId; // wl3600_todo id
@@ -17901,7 +17901,7 @@ Dbdict::createTrigger_parse_endpoint(Signal* signal,
     return;
   }
 
-  Ptr<TriggerRecord> triggerPtr;
+  TriggerRecordPtr triggerPtr;
   c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
   switch(TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo)){
   case TriggerType::REORG_TRIGGER:
@@ -19107,7 +19107,7 @@ Dbdict::getTableKeyList(TableRecordPtr tablePtr,
   jam();
   list.sz = 0;
   list.id[list.sz++] = AttributeHeader::FRAGMENT;
-  LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+  LocalAttributeRecord_list alist(c_attributeRecordPool,
                                          tablePtr.p->m_attributes);
   AttributeRecordPtr attrPtr;
   for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr)) {
@@ -19137,7 +19137,7 @@ Dbdict::getIndexAttr(TableRecordPtr indexPtr, Uint32 itAttr, Uint32* id)
     tmp.copy(name);
     len = tmp.size();
   }
-  LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+  LocalAttributeRecord_list alist(c_attributeRecordPool,
 					 tablePtr.p->m_attributes);
   for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr)){
     ConstRope tmp(c_rope_pool, attrPtr.p->attributeName);
@@ -19157,7 +19157,7 @@ Dbdict::getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list)
   memset(list.id, 0, sizeof(list.id));
   ndbrequire(indexPtr.p->noOfAttributes >= 2);
 
-  LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+  LocalAttributeRecord_list alist(c_attributeRecordPool,
                                          indexPtr.p->m_attributes);
   AttributeRecordPtr attrPtr;
   for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr)) {
@@ -19183,7 +19183,7 @@ Dbdict::getIndexAttrMask(TableRecordPtr indexPtr, AttributeMask& mask)
   ndbrequire(indexPtr.p->noOfAttributes >= 2);
 
   AttributeRecordPtr attrPtr, currPtr;
-  LocalDLFifoList<AttributeRecord> alist(c_attributeRecordPool,
+  LocalAttributeRecord_list alist(c_attributeRecordPool,
 					 indexPtr.p->m_attributes);
 
 
@@ -20650,7 +20650,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   }
   SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
 
-  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
+  DictObjectPtr obj_ptr; obj_ptr.setNull();
   FilePtr filePtr; filePtr.setNull();
 
   DictFilegroupInfo::File f; f.init();
@@ -21370,7 +21370,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   }
   SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
 
-  Ptr<DictObject> obj_ptr; obj_ptr.setNull();
+  DictObjectPtr obj_ptr; obj_ptr.setNull();
   FilegroupPtr fg_ptr; fg_ptr.setNull();
 
   DictFilegroupInfo::Filegroup fg; fg.init();
@@ -21466,7 +21466,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
 #endif
     fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
 
-    Ptr<Filegroup> lg_ptr;
+    FilegroupPtr lg_ptr;
     if (!c_filegroup_hash.find(lg_ptr, fg.TS_LogfileGroupId))
     {
       jam();
@@ -22442,7 +22442,7 @@ Dbdict::dropFilegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
   if (fg_ptr.p->m_type == DictTabInfo::LogfileGroup)
   {
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-    Ptr<File> filePtr;
+    FilePtr filePtr;
     Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
     for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
     {
@@ -22481,7 +22481,7 @@ Dbdict::dropFilegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   {
     jam();
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-    Ptr<File> filePtr;
+    FilePtr filePtr;
     Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
     for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
     {
@@ -22526,7 +22526,7 @@ Dbdict::dropFilegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
      */
     XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
 
-    Ptr<File> filePtr;
+    FilePtr filePtr;
     Local_file_list list(c_file_pool, fg_ptr.p->m_logfilegroup.m_files);
     for(list.first(filePtr); !filePtr.isNull(); list.next(filePtr))
     {
@@ -28246,10 +28246,10 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
   ErrorInfo error;
   do {
     SchemaOpPtr op_ptr;
-    CreateHashMapRecPtr createHashMapPtr;
+    CreateHashMapRecPtr createHashMapRecordPtr;
     CreateHashMapImplReq* impl_req;
 
-    startClientReq(op_ptr, createHashMapPtr, req, impl_req, error);
+    startClientReq(op_ptr, createHashMapRecordPtr, req, impl_req, error);
     if (hasError(error)) {
       jam();
       break;
@@ -28300,9 +28300,9 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
 {
 
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-  CreateHashMapRecPtr createHashMapPtr;
-  getOpRec(op_ptr, createHashMapPtr);
-  CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+  CreateHashMapRecPtr createHashMapRecordPtr;
+  getOpRec(op_ptr, createHashMapRecordPtr);
+  CreateHashMapImplReq* impl_req = &createHashMapRecordPtr.p->m_request;
 
   jam();
 
@@ -28441,7 +28441,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
       return;
     }
 
-    HashMapPtr hm_ptr;
+    HashMapRecordPtr hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, objptr->m_id));
 
     impl_req->objectId = objptr->m_id;
@@ -28481,7 +28481,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   Uint32 errCode = 0;
   Uint32 errLine = 0;
   DictObjectPtr obj_ptr; obj_ptr.setNull();
-  HashMapPtr hm_ptr; hm_ptr.setNull();
+  HashMapRecordPtr hm_ptr; hm_ptr.setNull();
   Ptr<Hash2FragmentMap> map_ptr; map_ptr.setNull();
 
   if (master)
@@ -28666,9 +28666,9 @@ Dbdict::createHashMap_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createHashMap_abortParse" << *op_ptr.p);
 
-  CreateHashMapRecPtr createHashMapPtr;
-  getOpRec(op_ptr, createHashMapPtr);
-  CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+  CreateHashMapRecPtr createHashMapRecordPtr;
+  getOpRec(op_ptr, createHashMapRecordPtr);
+  CreateHashMapImplReq* impl_req = &createHashMapRecordPtr.p->m_request;
 
   if (impl_req->requestType & CreateHashMapReq::CreateIfNotExists)
   {
@@ -28680,7 +28680,7 @@ Dbdict::createHashMap_abortParse(Signal* signal, SchemaOpPtr op_ptr)
   {
     jam();
 
-    Ptr<HashMapRecord> hm_ptr;
+    HashMapRecordPtr hm_ptr;
     ndbrequire(c_hash_map_hash.find(hm_ptr, impl_req->objectId));
 
     release_object(hm_ptr.p->m_obj_ptr_i);
@@ -28706,9 +28706,9 @@ Dbdict::createHashMap_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
   D("createHashMap_reply");
 
   SchemaTransPtr& trans_ptr = op_ptr.p->m_trans_ptr;
-  CreateHashMapRecPtr createHashMapPtr;
-  getOpRec(op_ptr, createHashMapPtr);
-  const CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+  CreateHashMapRecPtr createHashMapRecordPtr;
+  getOpRec(op_ptr, createHashMapRecordPtr);
+  const CreateHashMapImplReq* impl_req = &createHashMapRecordPtr.p->m_request;
 
   if (!hasError(error)) {
     CreateHashMapConf* conf = (CreateHashMapConf*)signal->getDataPtrSend();
@@ -28745,9 +28745,9 @@ Dbdict::createHashMap_prepare(Signal* signal, SchemaOpPtr op_ptr)
   jam();
   D("createHashMap_prepare");
 
-  CreateHashMapRecPtr createHashMapPtr;
-  getOpRec(op_ptr, createHashMapPtr);
-  CreateHashMapImplReq* impl_req = &createHashMapPtr.p->m_request;
+  CreateHashMapRecPtr createHashMapRecordPtr;
+  getOpRec(op_ptr, createHashMapRecordPtr);
+  CreateHashMapImplReq* impl_req = &createHashMapRecordPtr.p->m_request;
 
   if (impl_req->requestType & CreateHashMapReq::CreateIfNotExists)
   {
@@ -28768,8 +28768,8 @@ void
 Dbdict::createHashMap_writeObjConf(Signal* signal, Uint32 op_key, Uint32 ret)
 {
   SchemaOpPtr op_ptr;
-  CreateHashMapRecPtr createHashMapPtr;
-  findSchemaOp(op_ptr, createHashMapPtr, op_key);
+  CreateHashMapRecPtr createHashMapRecordPtr;
+  findSchemaOp(op_ptr, createHashMapRecordPtr, op_key);
 
   ndbrequire(!op_ptr.isNull());
 
@@ -28784,8 +28784,8 @@ Dbdict::createHashMap_commit(Signal* signal, SchemaOpPtr op_ptr)
   jam();
   D("createHashMap_commit");
 
-  CreateHashMapRecPtr createHashMapPtr;
-  getOpRec(op_ptr, createHashMapPtr);
+  CreateHashMapRecPtr createHashMapRecordPtr;
+  getOpRec(op_ptr, createHashMapRecordPtr);
 
   sendTransConf(signal, op_ptr);
 }
@@ -28811,7 +28811,7 @@ Dbdict::createHashMap_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 
 void
 Dbdict::packHashMapIntoPages(SimpleProperties::Writer & w,
-                             Ptr<HashMapRecord> hm_ptr)
+                             HashMapRecordPtr hm_ptr)
 {
   DictHashMapInfo::HashMap hm; hm.init();
 
@@ -29119,7 +29119,7 @@ Dbdict::check_consistency_index(TableRecordPtr indexPtr)
     break;
   }
 
-  Ptr<TriggerRecord> triggerPtr;
+  TriggerRecordPtr triggerPtr;
   triggerPtr.i = indexPtr.p->triggerId;
   ndbrequire(triggerPtr.i != RNIL);
   c_triggerRecordPool.getPtr(triggerPtr);
