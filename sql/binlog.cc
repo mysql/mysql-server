@@ -23,6 +23,7 @@
 #include "sql_plugin.h"
 #include "rpl_handler.h"
 #include "rpl_info_factory.h"
+#include "debug_sync.h"
 
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -3739,27 +3740,30 @@ err:
   DBUG_RETURN(error);
 }
 
-
 /**
+  The method executes rotation when LOCK_log is already acquired
+  by the caller.
+
+  @param force_rotate  caller can request the log rotation
+  @param check_purge   is set to true if rotation took place
+
   @note
     If rotation fails, for instance the server was unable 
     to create a new log file, we still try to write an 
     incident event to the current log.
 
   @retval
-    nonzero - error 
+    nonzero - error in rotating routine.
 */
-int MYSQL_BIN_LOG::rotate_and_purge(uint flags)
+int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 {
   int error= 0;
-  DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
-#ifdef HAVE_REPLICATION
-  bool check_purge= false;
-#endif
-  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
-    mysql_mutex_lock(&LOCK_log);
-  if ((flags & RP_FORCE_ROTATE) ||
-      (my_b_tell(&log_file) >= (my_off_t) max_size))
+  DBUG_ENTER("MYSQL_BIN_LOG::rotate");
+
+  //todo: fix the macro def and restore safe_mutex_assert_owner(&LOCK_log);
+  *check_purge= false;
+
+  if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
     if ((error= new_file_without_locking()))
       /** 
@@ -3774,27 +3778,59 @@ int MYSQL_BIN_LOG::rotate_and_purge(uint flags)
       if (!write_incident(current_thd, FALSE))
         flush_and_sync(0);
 
-#ifdef HAVE_REPLICATION
-    check_purge= true;
-#endif
-    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
-      checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
+    *check_purge= true;
   }
-  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
-    mysql_mutex_unlock(&LOCK_log);
+  DBUG_RETURN(error);
+}
 
+/**
+  The method executes logs purging routine.
+
+  @retval
+    nonzero - error in rotating routine.
+*/
+void MYSQL_BIN_LOG::purge()
+{
 #ifdef HAVE_REPLICATION
-  /*
-    NOTE: Run purge_logs wo/ holding LOCK_log
-          as it otherwise will deadlock in ndbcluster_binlog_index_purge_file
-  */
-  if (!error && check_purge && expire_logs_days)
+  if (expire_logs_days)
   {
+    DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
     time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
     if (purge_time >= 0)
+    {
       purge_logs_before_date(purge_time);
+    }
   }
 #endif
+}
+
+/**
+  The method is a shortcut of @c rotate() and @c purge().
+  LOCK_log is acquired prior to rotate and is released after it.
+
+  @param force_rotate  caller can request the log rotation
+
+  @retval
+    nonzero - error in rotating routine.
+*/
+int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
+{
+  int error= 0;
+  DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
+  bool check_purge= false;
+
+  //todo: fix the macro def and restore safe_mutex_assert_not_owner(&LOCK_log);
+  mysql_mutex_lock(&LOCK_log);
+  error= rotate(force_rotate, &check_purge);
+  /*
+    NOTE: Run purge_logs wo/ holding LOCK_log because it does not need
+          the mutex. Otherwise causes various deadlocks.
+  */
+  mysql_mutex_unlock(&LOCK_log);
+
+  if (!error && check_purge)
+    purge();
+
   DBUG_RETURN(error);
 }
 
@@ -4105,16 +4141,20 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool lock)
   {
     if (!error && !(error= flush_and_sync(0)))
     {
+      bool check_purge= false;
       signal_update();
-      error= rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED |
-                              RP_FORCE_ROTATE);
+      error= rotate(true, &check_purge);
+      mysql_mutex_unlock(&LOCK_log);
+      if (!error && check_purge)
+        purge();
     }
-    mysql_mutex_unlock(&LOCK_log);
+    else
+    {
+      mysql_mutex_unlock(&LOCK_log);
+    }
   }
-
   DBUG_RETURN(error);
 }
-
 /**
   Creates an incident event and writes it to the binary log.
 
@@ -4163,11 +4203,13 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, bool incident, bool prepared)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
-  mysql_mutex_lock(&LOCK_log);
 
   DBUG_ASSERT(is_open());
   if (likely(is_open()))                       // Should always be true
   {
+    bool check_purge;
+
+    mysql_mutex_lock(&LOCK_log);
     /*
       We only bother to write to the binary log if there is anything
       to write.
@@ -4224,12 +4266,17 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, bool incident, bool prepare
       mysql_mutex_lock(&LOCK_prep_xids);
       prepared_xids++;
       mysql_mutex_unlock(&LOCK_prep_xids);
+      mysql_mutex_unlock(&LOCK_log);
     }
     else
-      if (rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED))
+    {
+      if (rotate(false, &check_purge))
         goto err;
+      mysql_mutex_unlock(&LOCK_log);
+      if (check_purge) 
+        purge();
+    }
   }
-  mysql_mutex_unlock(&LOCK_log);
 
   DBUG_RETURN(0);
 
