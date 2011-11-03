@@ -75,15 +75,14 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     key_parts,unique_key_parts,base_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name[FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
-  uchar *disk_cache, *disk_pos, *end_pos;
-  MI_INFO info,*m_info,*old_info;
+  uchar *UNINIT_VAR(disk_cache), *disk_pos, *end_pos;
+  MI_INFO info,*UNINIT_VAR(m_info),*old_info;
   MYISAM_SHARE share_buff,*share;
   ulong *rec_per_key_part= 0;
   my_off_t *key_root, *key_del;
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
-  LINT_INIT(m_info);
   kfile= -1;
   lock_error=1;
   errpos=0;

@@ -1738,7 +1738,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
     if (action->wait_for.length())
     {
       mysql_mutex_t *old_mutex;
-      mysql_cond_t  *old_cond;
+      mysql_cond_t  *UNINIT_VAR(old_cond);
       int             error= 0;
       struct timespec abstime;
 
