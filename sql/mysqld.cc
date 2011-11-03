@@ -6015,7 +6015,7 @@ enum options_mysqld
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
-  OPT_BINLOG_FORMAT,
+  OPT_BINLOG_FORMAT,           OPT_DEBUG_BINLOG_FSYNC_SLEEP,
   OPT_BINLOG_ANNOTATE_ROWS_EVENTS,
   OPT_REPLICATE_ANNOTATE_ROWS_EVENTS,
 #ifndef DBUG_OFF
@@ -6241,6 +6241,12 @@ struct my_option my_long_options[] =
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    &my_bind_addr_str, &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+  {"debug-binlog-fsync-sleep", OPT_DEBUG_BINLOG_FSYNC_SLEEP,
+    "Extra sleep (in microseconds) to add to binlog fsync(), for debugging",
+    &opt_binlog_dbug_fsync_sleep, &opt_binlog_dbug_fsync_sleep,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+#endif
   {"binlog_format", OPT_BINLOG_FORMAT,
    "Does not have any effect without '--log-bin'. "
    "Tell the master the form of binary logging to use: either 'row' for "
