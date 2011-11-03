@@ -142,17 +142,28 @@ ut_cpuid(
 	ib_uint32_t*	features_edx)	/*!< out: CPU features edx */
 {
 	ib_uint32_t	sig;
-	asm("cpuid" : "=b" (vend[0]), "=c" (vend[2]), "=d" (vend[1]) : "a" (0));
-	asm("cpuid" : "=a" (sig), "=c" (*features_ecx), "=d" (*features_edx)
-	    : "a" (1)
-	    : "ebx");
+	asm volatile (
+		"mov %%ebx, %%edi;"	/* Save %ebx */
+		"cpuid;"
+		"mov %%ebx, %%esi;"
+		"mov %%edi, %%ebx;"
+		: "=S" (vend[0]), "=c" (vend[2]), "=d" (vend[1])
+		: "a" (0)
+		: "edi");
+	asm volatile (
+		"mov %%ebx, %%edi;"	/* Save %ebx */
+		"cpuid;"
+		"mov %%edi, %%ebx;"
+		: "=a" (sig), "=c" (*features_ecx), "=d" (*features_edx)
+		: "a" (1)
+		: "edi");
 
 	*model = ((sig >> 4) & 0xF);
 	*family = ((sig >> 8) & 0xF);
 	*stepping = (sig & 0xF);
 
-	if (memcmp(vend, "GenuineIntel", 12) == 0 ||
-	    (memcmp(vend, "AuthenticAMD", 12) == 0 && *family == 0xF)) {
+	if (memcmp(vend, "GenuineIntel", 12) == 0
+	    || (memcmp(vend, "AuthenticAMD", 12) == 0 && *family == 0xF)) {
 
 		*model += (((sig >> 16) & 0xF) << 4);
 		*family += ((sig >> 20) & 0xFF);
