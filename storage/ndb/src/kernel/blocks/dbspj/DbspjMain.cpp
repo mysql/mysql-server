@@ -2705,6 +2705,23 @@ Dbspj::lookup_build(Build_context& ctx,
   const QN_LookupParameters * param = (const QN_LookupParameters*)qp;
   do
   {
+    err = DbspjErr::InvalidTreeNodeSpecification;
+    if (unlikely(node->len < QN_LookupNode::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
+    err = DbspjErr::InvalidTreeParametersSpecification;
+    DEBUG("param len: " << param->len);
+    if (unlikely(param->len < QN_LookupParameters::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
     {
@@ -2756,13 +2773,6 @@ Dbspj::lookup_build(Build_context& ctx,
       dst->requestInfo = requestInfo;
     }
 
-    err = DbspjErr::InvalidTreeNodeSpecification;
-    if (unlikely(node->len < QN_LookupNode::NodeSize))
-    {
-      DEBUG_CRASH();
-      break;
-    }
-
     if (treeBits & QN_LookupNode::L_UNIQUE_INDEX)
     {
       jam();
@@ -2774,14 +2784,6 @@ Dbspj::lookup_build(Build_context& ctx,
 
     Uint32 tableSchemaVersion = tableId + ((schemaVersion << 16) & 0xFFFF0000);
     dst->tableSchemaVersion = tableSchemaVersion;
-
-    err = DbspjErr::InvalidTreeParametersSpecification;
-    DEBUG("param len: " << param->len);
-    if (unlikely(param->len < QN_LookupParameters::NodeSize))
-    {
-      DEBUG_CRASH();
-      break;
-    }
 
     ctx.m_resultData = param->resultData;
     treeNodePtr.p->m_lookup_data.m_api_resultRef = ctx.m_resultRef;
@@ -3765,6 +3767,24 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
   do
   {
+    err = DbspjErr::InvalidTreeNodeSpecification;
+    DEBUG("scanFrag_build: len=" << node->len);
+    if (unlikely(node->len < QN_ScanFragNode::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
+    err = DbspjErr::InvalidTreeParametersSpecification;
+    DEBUG("param len: " << param->len);
+    if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
       break;
@@ -3810,23 +3830,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
     dst->requestInfo = requestInfo;
-
-    err = DbspjErr::InvalidTreeNodeSpecification;
-    DEBUG("scanFrag_build: len=" << node->len);
-    if (unlikely(node->len < QN_ScanFragNode::NodeSize))
-      break;
-
     dst->tableId = node->tableId;
     dst->schemaVersion = node->tableVersion;
-
-    err = DbspjErr::InvalidTreeParametersSpecification;
-    DEBUG("param len: " << param->len);
-    if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
-    {
-      jam();
-      DEBUG_CRASH();
-      break;
-    }
 
     ctx.m_resultData = param->resultData;
 
@@ -4315,6 +4320,24 @@ Dbspj::scanIndex_build(Build_context& ctx,
 
   do
   {
+    err = DbspjErr::InvalidTreeNodeSpecification;
+    DEBUG("scanIndex_build: len=" << node->len);
+    if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
+    err = DbspjErr::InvalidTreeParametersSpecification;
+    DEBUG("param len: " << param->len);
+    if (unlikely(param->len < QN_ScanIndexParameters::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
       break;
@@ -4355,23 +4378,8 @@ Dbspj::scanIndex_build(Build_context& ctx,
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
     ScanFragReq::setCorrFactorFlag(requestInfo, 1);
     dst->requestInfo = requestInfo;
-
-    err = DbspjErr::InvalidTreeNodeSpecification;
-    DEBUG("scanIndex_build: len=" << node->len);
-    if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
-      break;
-
     dst->tableId = node->tableId;
     dst->schemaVersion = node->tableVersion;
-
-    err = DbspjErr::InvalidTreeParametersSpecification;
-    DEBUG("param len: " << param->len);
-    if (unlikely(param->len < QN_ScanIndexParameters::NodeSize))
-    {
-      jam();
-      DEBUG_CRASH();
-      break;
-    }
 
     ctx.m_resultData = param->resultData;
 
@@ -5735,7 +5743,7 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
 
       DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex
             << treeNodePtr.p->m_send.m_ref
-              << ", m_node_no=" << treeNodePtr.p->m_node_no
+            << ", m_node_no=" << treeNodePtr.p->m_node_no
             << ", senderData: " << req->senderData);
 
 #ifdef DEBUG_SCAN_FRAGREQ
