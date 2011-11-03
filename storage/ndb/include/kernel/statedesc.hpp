@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-package com.mysql.clusterj.core.store;
+#ifndef NDB_STATE_DESC_H
+#define NDB_STATE_DESC_H
 
-/**
- *
- */
-public interface Dictionary {
+struct ndbkernel_state_desc
+{
+  unsigned value;
+  const char * name;
+  const char * friendly_name;
+  const char * description;
+};
 
-    public Index getIndex(String indexName, String tableName, String indexAlias);
+extern struct ndbkernel_state_desc g_dbtc_apiconnect_state_desc[];
+extern struct ndbkernel_state_desc g_dblqh_tcconnect_state_desc[];
 
-    public Table getTable(String tableName);
-
-    public void removeCachedTable(String tableName);
-
-}
+#endif

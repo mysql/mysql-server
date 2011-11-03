@@ -13788,6 +13788,15 @@ void Dblqh::execBACKUP_FRAGMENT_REF(Signal* signal)
 void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal) 
 {
   jamEntry();
+
+  if (ERROR_INSERTED(5073))
+  {
+    ndbout_c("Delaying BACKUP_FRAGMENT_CONF");
+    sendSignalWithDelay(reference(), GSN_BACKUP_FRAGMENT_CONF, signal, 500,
+                        signal->getLength());
+    return;
+  }
+
   //BackupFragmentConf* conf= (BackupFragmentConf*)signal->getDataPtr();
 
   lcpPtr.i = 0;

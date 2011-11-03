@@ -18,6 +18,7 @@
 #ifndef DBTC_H
 #define DBTC_H
 
+#ifndef DBTC_STATE_EXTRACT
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
@@ -37,6 +38,7 @@
 #include <signaldata/EventReport.hpp>
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
+#endif
 
 #ifdef DBTC_C
 /*
@@ -143,14 +145,20 @@
 #define ZTRANS_TOO_BIG 261
 #endif
 
-class Dbtc: public SimulatedBlock {
+class Dbtc
+#ifndef DBTC_STATE_EXTRACT
+  : public SimulatedBlock
+#endif
+{
 public:
 
+#ifndef DBTC_STATE_EXTRACT
   /**
    * Incase of mt-TC...only one instance will perform actual take-over
    *   let this be TAKE_OVER_INSTANCE
    */
   STATIC_CONST( TAKE_OVER_INSTANCE = 1 );
+#endif
 
   enum ConnectionState {
     CS_CONNECTED = 0,
@@ -188,6 +196,7 @@ public:
     CS_WAIT_FIRE_TRIG_REQ = 27
   };
 
+#ifndef DBTC_STATE_EXTRACT
   enum OperationState {
     OS_CONNECTED = 1,
     OS_OPERATING = 2,
@@ -2103,6 +2112,7 @@ private:
 #endif
   Uint32 m_deferred_enabled;
   Uint32 m_max_writes_per_trans;
+#endif
 };
 
 #endif
