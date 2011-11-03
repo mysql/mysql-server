@@ -45,6 +45,7 @@ typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_fsize; /* how big is the underlying file                                                         */
   u_int64_t bt_create_time_sec; /* Creation time, in seconds */
   u_int64_t bt_modify_time_sec; /* Time of last serialization, in seconds */
+  u_int64_t bt_verify_time_sec; /* Time of last verification, in seconds */
 } DB_BTREE_STAT64;
 typedef struct __toku_loader DB_LOADER;
 struct __toku_loader_internal;

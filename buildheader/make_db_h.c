@@ -433,6 +433,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     // 4018
     printf("  u_int64_t bt_create_time_sec; /* Creation time, in seconds */\n");
     printf("  u_int64_t bt_modify_time_sec; /* Time of last serialization, in seconds */\n");
+    printf("  u_int64_t bt_verify_time_sec; /* Time of last verification, in seconds */\n");
     printf("} DB_BTREE_STAT64;\n");
 
     //bulk loader

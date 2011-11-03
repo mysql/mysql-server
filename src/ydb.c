@@ -5550,6 +5550,7 @@ toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
         // 4018
         s->bt_create_time_sec = brtstat.create_time_sec;
         s->bt_modify_time_sec = brtstat.modify_time_sec;
+        s->bt_verify_time_sec = brtstat.verify_time_sec;
     }
     return r;
 }

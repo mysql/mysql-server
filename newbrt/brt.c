@@ -4225,6 +4225,7 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
     uint64_t now = (uint64_t) time(NULL);
     t->h->time_of_creation = now;
     t->h->time_of_last_modification = now;
+    t->h->time_of_last_verification = 0;
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
 
@@ -6894,6 +6895,7 @@ int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     // 4018
     s->create_time_sec = brt->h->time_of_creation;
     s->modify_time_sec = brt->h->time_of_last_modification;
+    s->verify_time_sec = brt->h->time_of_last_verification;
     
     int r = toku_cachetable_unpin(brt->cf, root, fullhash, CACHETABLE_CLEAN, 0);
     if (r!=0) return r;

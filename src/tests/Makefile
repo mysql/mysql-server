@@ -142,6 +142,7 @@ BDB_DONTRUN_TESTS = \
         keyrange-dupsort \
         keyrange-dupsort-unflat \
         keyrange-unflat \
+	last-verify-time \
         loader-cleanup-test \
 	loader-create-abort \
 	loader-create-close \
