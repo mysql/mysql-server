@@ -769,7 +769,9 @@ IF(NOT HAVE_FCNTL_NONBLOCK)
 ENDIF()
 
 #
-# Test for how the C compiler does inline, if at all
+# Test for how the C compiler does inline.
+# If both of these tests fail, then there is probably something wrong
+# in the environment (flags and/or compiling and/or linking).
 #
 CHECK_C_SOURCE_COMPILES("
 static inline int foo(){return 0;}
@@ -781,6 +783,12 @@ IF(NOT C_HAS_inline)
   int main(int argc, char *argv[]){return 0;}"
                             C_HAS___inline)
   SET(C_INLINE __inline)
+ENDIF()
+
+IF(NOT C_HAS_inline AND NOT C_HAS___inline)
+  MESSAGE(FATAL_ERROR "It seems like ${CMAKE_C_COMPILER} does not support "
+    "inline or __inline. Please verify compiler and flags. "
+    "See CMakeFiles/CMakeError.log for why the test failed to compile/link.")
 ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
