@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _decimal_h
 #define _decimal_h
@@ -21,6 +21,15 @@ typedef enum
   decimal_round_mode;
 typedef int32 decimal_digit_t;
 
+/**
+    intg is the number of *decimal* digits (NOT number of decimal_digit_t's !)
+         before the point
+    frac is the number of decimal digits after the point
+    len  is the length of buf (length of allocated space) in decimal_digit_t's,
+         not in bytes
+    sign false means positive, true means negative
+    buf  is an array of decimal_digit_t's
+ */
 typedef struct st_decimal_t {
   int    intg, frac, len;
   my_bool sign;

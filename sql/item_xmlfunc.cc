@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1982,6 +1982,9 @@ static int my_xpath_parse_UnionExpr(MY_XPATH *xpath)
 static int
 my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(MY_XPATH *xpath)
 {
+  Item *context= xpath->context;
+  int rc;
+
   if (!my_xpath_parse_FilterExpr(xpath))
     return 0;
 
@@ -1995,8 +1998,22 @@ my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(MY_XPATH *xpath)
     return 0;
   }
 
-  my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH);
-  return my_xpath_parse_RelativeLocationPath(xpath);
+  /*
+    The context for the next relative path is the nodeset
+    returned by FilterExpr
+  */
+  xpath->context= xpath->item;
+
+  /* treat double slash (//) as /descendant-or-self::node()/ */
+  if (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
+    xpath->context= new Item_nodeset_func_descendantbyname(xpath->context,
+                                                           "*", 1, xpath->pxml, 1);
+  rc= my_xpath_parse_RelativeLocationPath(xpath);
+
+  /* push back the context and restore the item */
+  xpath->item= xpath->context;
+  xpath->context= context;
+  return rc;
 }
 static int my_xpath_parse_PathExpr(MY_XPATH *xpath)
 {

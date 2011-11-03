@@ -196,6 +196,10 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Install dynamic library
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${INSTALL_PLUGINDIR} COMPONENT Server)
     INSTALL_DEBUG_TARGET(${target} DESTINATION ${INSTALL_PLUGINDIR}/debug)
+    # Add installed files to list for RPMs
+    FILE(APPEND ${CMAKE_BINARY_DIR}/support-files/plugins.files
+            "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/${ARG_MODULE_OUTPUT_NAME}.so\n"
+            "%attr(755, root, root) %{_prefix}/${INSTALL_PLUGINDIR}/debug/${ARG_MODULE_OUTPUT_NAME}.so\n")
     # For internal testing in PB2, append collections files
     IF(DEFINED ENV{PB2WORKDIR})
       PLUGIN_APPEND_COLLECTIONS(${plugin})

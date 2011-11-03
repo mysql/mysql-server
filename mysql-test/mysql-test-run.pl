@@ -186,9 +186,11 @@ my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
+our $exe_mysql_plugin;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
+our $exe_mysql_embedded;
 
 our $opt_big_test= 0;
 our $opt_staging_run= 0;
@@ -197,6 +199,8 @@ our @opt_combinations;
 
 our @opt_extra_mysqld_opt;
 our @opt_mysqld_envs;
+
+my $opt_stress;
 
 my $opt_compress;
 my $opt_ssl;
@@ -237,10 +241,13 @@ our %gprof_dirs;
 our $glob_debugger= 0;
 our $opt_gdb;
 our $opt_client_gdb;
+my $opt_boot_gdb;
 our $opt_dbx;
 our $opt_client_dbx;
+my $opt_boot_dbx;
 our $opt_ddd;
 our $opt_client_ddd;
+my $opt_boot_ddd;
 our $opt_manual_gdb;
 our $opt_manual_dbx;
 our $opt_manual_ddd;
@@ -404,6 +411,7 @@ sub main {
       }
     }
   }
+  mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
   print "vardir: $opt_vardir\n";
   initialize_servers();
@@ -469,8 +477,8 @@ sub main {
   }
   $ENV{MTR_PARALLEL} = $opt_parallel;
 
-  if ($opt_parallel > 1 && $opt_start_exit) {
-    mtr_warning("Parallel and --start-and-exit cannot be combined\n" .
+  if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress)) {
+    mtr_warning("Parallel cannot be used with --start-and-exit or --stress\n" .
                "Setting parallel to 1");
     $opt_parallel= 1;
   }
@@ -693,8 +701,9 @@ sub run_test_server ($$$) {
 			 my $core_file= $File::Find::name;
 			 my $core_name= basename($core_file);
 
-			 if ($core_name =~ /^core/ or  # Starting with core
-			     (IS_WINDOWS and $core_name =~ /\.dmp$/)){
+			 # Name beginning with core, not ending in .gz
+			 if (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
+			     or (IS_WINDOWS and $core_name =~ /\.dmp$/)){
                                                        # Ending with .dmp
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
@@ -1167,14 +1176,17 @@ sub command_line_setup {
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
+	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
              'manual-ddd'               => \$opt_manual_ddd,
+	     'boot-ddd'                 => \$opt_boot_ddd,
              'dbx'                      => \$opt_dbx,
 	     'client-dbx'               => \$opt_client_dbx,
 	     'manual-dbx'               => \$opt_manual_dbx,
 	     'debugger=s'               => \$opt_debugger,
+	     'boot-dbx'                 => \$opt_boot_dbx,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace'			=> \$opt_strace,
              'strace-client:s'          => \$opt_strace_client,
@@ -1247,6 +1259,7 @@ sub command_line_setup {
 	     'default-myisam!'          => \&collect_option,
 	     'report-times'             => \$opt_report_times,
 	     'result-file'              => \$opt_resfile,
+	     'stress=s'                 => \$opt_stress,
 
              'help|h'                   => \$opt_usage,
 	     # list-options is internal, not listed in help
@@ -1690,6 +1703,21 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Gather stress-test options and modify behavior
+  # --------------------------------------------------------------------------
+
+  if ($opt_stress)
+  {
+    $opt_stress=~ s/,/ /g;
+    $opt_user_args= 1;
+    mtr_error("--stress cannot be combined with named ordinary suites or tests")
+      if $opt_suites || @opt_cases;
+    $opt_suites="stress";
+    @opt_cases= ("wrapper");
+    $ENV{MST_OPTIONS}= $opt_stress;
+  }
+
+  # --------------------------------------------------------------------------
   # Check timeout arguments
   # --------------------------------------------------------------------------
 
@@ -2025,6 +2053,9 @@ sub executable_setup () {
   # Look for the client binaries
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+  $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
+
+  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
   {
@@ -2243,8 +2274,10 @@ sub find_plugin($$)
   my $lib_plugin=
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
+                    "$basedir/lib64/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
+                    "$basedir/lib64/mysql/plugin/".$plugin_filename,
                     );
   return $lib_plugin;
 }
@@ -2354,12 +2387,6 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
-  # Used for guessing default plugin dir, we can't really know for sure
-  $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
-  # Override if this does not exist, but lib64 does (best effort)
-  if (! -d "$basedir/lib" && -d "$basedir/lib64") {
-    $ENV{'MYSQL_LIBDIR'}=     "$basedir/lib64";
-  }
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
@@ -2427,6 +2454,14 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=               client_arguments("mysqladmin");
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
+  $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
+  $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
+
+  my $exe_mysqld= find_mysqld($basedir);
+  $ENV{'MYSQLD'}= $exe_mysqld;
+  my $extra_opts= join (" ", @opt_extra_mysqld_opt);
+  $ENV{'MYSQLD_CMD'}= "$exe_mysqld --defaults-group-suffix=.1 ".
+    "--defaults-file=$path_config_file $extra_opts";
 
   # ----------------------------------------------------
   # bug25714 executable may _not_ exist in
@@ -3474,6 +3509,19 @@ sub mysql_install_db {
   # Create the bootstrap.sql file
   # ----------------------------------------------------------------------
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
+
+  if ($opt_boot_gdb) {
+    gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
+		  $bootstrap_sql_file);
+  }
+  if ($opt_boot_dbx) {
+    dbx_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
+		  $bootstrap_sql_file);
+  }
+  if ($opt_boot_ddd) {
+    ddd_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
+		  $bootstrap_sql_file);
+  }
 
   my $path_sql= my_find_file($install_basedir,
 			     ["mysql", "sql/share", "share/mariadb",
@@ -4577,6 +4625,11 @@ sub extract_server_log ($$) {
       else
       {
 	push(@lines, $line);
+	if (scalar(@lines) > 1000000) {
+	  $Ferr = undef;
+	  mtr_warning("Too much log from test, bailing out from extracting");
+	  return ();
+	}
       }
     }
     else
@@ -5906,16 +5959,19 @@ sub gdb_arguments {
   my $args= shift;
   my $exe=  shift;
   my $type= shift;
+  my $input= shift;
 
-  # Write $args to gdb init file
-  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  $input = $input ? "< $input" : "";
+
   # write init file for mysqld or client
-  mtr_tofile($gdb_init_file, "set args $str\n");
+  mtr_tofile($gdb_init_file, "set args $str $input\n");
 
   if ( $opt_manual_gdb )
   {
@@ -5954,16 +6010,19 @@ sub ddd_arguments {
   my $args= shift;
   my $exe=  shift;
   my $type= shift;
+  my $input= shift;
 
-  # Write $args to ddd init file
-  my $str= join " ", map { s/"/\\"/g; "\"$_\""; } @$$args;
   my $gdb_init_file= "$opt_vardir/tmp/gdbinit.$type";
 
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
+  # Put $args into a single string
+  my $str= join(" ", @$$args);
+  $input = $input ? "< $input" : "";
+
   # write init file for mysqld or client
-  mtr_tofile($gdb_init_file, "file $$exe\nset args $str\n");
+  mtr_tofile($gdb_init_file, "file $$exe\nset args $str $input\n");
 
   if ( $opt_manual_ddd )
   {
@@ -5999,14 +6058,16 @@ sub dbx_arguments {
   my $args= shift;
   my $exe=  shift;
   my $type= shift;
+  my $input= shift;
 
   # Put $args into a single string
   my $str= join " ", @$$args;
+  my $runline= $input ? "run $str < $input" : "run $str";
 
   if ( $opt_manual_dbx ) {
     print "\nTo start dbx for $type, type in another window:\n";
     print "cd $glob_mysql_test_dir; dbx -c \"stop in main; " .
-          "run $str\" $$exe\n";
+          "$runline\" $$exe\n";
 
     # Indicate the exe should not be started
     $$exe= undef;
@@ -6025,7 +6086,7 @@ sub dbx_arguments {
 
   mtr_add_arg($$args, "dbx");
   mtr_add_arg($$args, "-c");
-  mtr_add_arg($$args, "stop in main; run $str");
+  mtr_add_arg($$args, "stop in main; $runline");
   mtr_add_arg($$args, "$$exe");
 
   $$exe= "xterm";
@@ -6319,11 +6380,15 @@ Options to run test on running server
 
 Options for debugging the product
 
+  boot-dbx              Start bootstrap server in dbx
+  boot-ddd              Start bootstrap server in ddd
+  boot-gdb              Start bootstrap server in gdb
+  client-dbx            Start mysqltest client in dbx
   client-ddd            Start mysqltest client in ddd
   client-debugger=NAME  Start mysqltest in the selected debugger
   client-gdb            Start mysqltest client in gdb
-  client-dbx            Start mysqltest client in dbx
-  ddd                   Start mysqld in ddd
+  dbx                   Start the mysqld(s) in dbx
+  ddd                   Start the mysqld(s) in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
                         "query,info,error,enter,exit"
@@ -6331,7 +6396,6 @@ Options for debugging the product
                         tracing
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
-  dbx                   Start the mysqld(s) in dbx
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
@@ -6446,6 +6510,8 @@ Misc options
                         engine to InnoDB.
   report-times          Report how much time has been spent on different
                         phases of test execution.
+  stress=ARGS           Run stress test, providing options to
+                        mysql-stress-test.pl. Options are separated by comma.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

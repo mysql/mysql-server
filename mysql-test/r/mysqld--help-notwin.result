@@ -44,9 +44,6 @@ The following options may be given as the first argument:
  Type of BINLOG_CHECKSUM_ALG. Include checksum for log
  events in the binary log. Possible values are NONE and
  CRC32; default is NONE.
- --binlog-dbug-fsync-sleep=# 
- Extra sleep (in microseconds) to add to binlog fsync(),
- for debugging
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -864,7 +861,6 @@ bind-address (No default value)
 binlog-annotate-rows-events FALSE
 binlog-cache-size 32768
 binlog-checksum NONE
-binlog-dbug-fsync-sleep 0
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-optimize-thread-scheduling TRUE

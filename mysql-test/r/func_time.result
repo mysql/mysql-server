@@ -1426,6 +1426,12 @@ NULL
 SELECT WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1);
 WEEK(DATE_ADD(FROM_DAYS(1),INTERVAL 1 MONTH), 1)
 NULL
+#
+# Bug#12584302 AFTER FIX FOR #12403504: ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0,
+#
+DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
+Warnings:
+Warning	1292	Truncated incorrect date value: '0000-00-00'
 End of 5.1 tests
 #
 # Bug#57039: constant subtime expression returns incorrect result.

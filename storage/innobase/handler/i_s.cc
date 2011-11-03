@@ -638,7 +638,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_locks */
@@ -904,7 +908,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_locks =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_lock_waits */
@@ -1087,7 +1095,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /*******************************************************************//**
@@ -1420,7 +1432,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
@@ -1470,7 +1486,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /* Fields of the dynamic table information_schema.innodb_cmpmem. */
@@ -1711,7 +1731,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
@@ -1761,7 +1785,11 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 
 	/* reserved for dependency checking */
 	/* void* */
-	STRUCT_FLD(__reserved1, NULL)
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
 };
 
 /*******************************************************************//**

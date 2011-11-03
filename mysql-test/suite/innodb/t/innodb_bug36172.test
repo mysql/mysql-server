@@ -14,7 +14,6 @@ SET storage_engine=InnoDB;
 -- disable_result_log
 
 let $file_format=`select @@innodb_file_format`;
-let $file_format_max=`select @@innodb_file_format_max`;
 let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
@@ -27,5 +26,4 @@ INSERT IGNORE INTO `table0` SET `col19` = '19940127002709', `col20` = 2383927.90
 CHECK TABLE table0 EXTENDED;
 DROP TABLE table0;
 EVAL SET GLOBAL innodb_file_format=$file_format;
-EVAL SET GLOBAL innodb_file_format_max=$file_format_max;
 EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

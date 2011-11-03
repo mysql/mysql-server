@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (C) 2007-2008 MySQL AB
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if defined(__IBMC__) || defined(__IBMCPP__)
 /* Further down, "next_in_lock" and "next_in_context" have the same type,
@@ -153,11 +153,24 @@ enum enum_mdl_type {
 
 /** Duration of metadata lock. */
 
-enum enum_mdl_duration { MDL_STATEMENT= 0,
-                         MDL_TRANSACTION,
-                         MDL_EXPLICIT,
-                         /* This should be the last ! */
-                         MDL_DURATION_END };
+enum enum_mdl_duration {
+  /**
+    Locks with statement duration are automatically released at the end
+    of statement or transaction.
+  */
+  MDL_STATEMENT= 0,
+  /**
+    Locks with transaction duration are automatically released at the end
+    of transaction.
+  */
+  MDL_TRANSACTION,
+  /**
+    Locks with explicit duration survive the end of statement and transaction.
+    They have to be released explicitly by calling MDL_context::release_lock().
+  */
+  MDL_EXPLICIT,
+  /* This should be the last ! */
+  MDL_DURATION_END };
 
 
 /** Maximal length of key for metadata locking subsystem. */

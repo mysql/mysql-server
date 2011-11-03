@@ -1,3 +1,14 @@
+# ----------------------------------------------------------------------------
+# $mysql_errno contains the return code of the last command
+# sent to the server.
+# ----------------------------------------------------------------------------
+# get $mysql_errno before the first statement
+#     $mysql_errno should be -1
+# get $mysql_errname as well
+
+echo $mysql_errno before test;
+echo $mysql_errname before test;
+
 -- source include/have_log_bin.inc
 
 # This test should work in embedded server after mysqltest is fixed
@@ -40,15 +51,6 @@ SET GLOBAL max_connections = 1000;
 #     as a comment and will be ended by new line character
 #
 # ============================================================================
-
-# ----------------------------------------------------------------------------
-# $mysql_errno contains the return code of the last command
-# sent to the server.
-# ----------------------------------------------------------------------------
-# get $mysql_errno before the first statement
-#     $mysql_errno should be -1
-eval select $mysql_errno as "before_use_test" ;
-
 
 # ----------------------------------------------------------------------------
 # Positive case(statement)
@@ -142,6 +144,7 @@ select friedrich from (select 1 as otto) as t1;
 # check mysql_errno = 0 after successful statement
 # ----------------------------------------------------------------------------
 select otto from (select 1 as otto) as t1;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_stmt_errno" ;
 
 #----------------------------------------------------------------------------
@@ -150,6 +153,7 @@ eval select $mysql_errno as "after_successful_stmt_errno" ;
 --error ER_PARSE_ERROR
 
 garbage ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_wrong_syntax_errno" ;
 
 # ----------------------------------------------------------------------------
@@ -159,6 +163,7 @@ eval select $mysql_errno as "after_wrong_syntax_errno" ;
 
 garbage ;
 let $my_var= 'abc' ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_let_var_equal_value" ;
 
 # ----------------------------------------------------------------------------
@@ -168,6 +173,7 @@ eval select $mysql_errno as "after_let_var_equal_value" ;
 
 garbage ;
 set @my_var= 'abc' ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_set_var_equal_value" ;
 
 # ----------------------------------------------------------------------------
@@ -178,6 +184,7 @@ eval select $mysql_errno as "after_set_var_equal_value" ;
 
 garbage ;
 --disable_warnings
+echo $mysql_errname;
 eval select $mysql_errno as "after_disable_warnings_command" ;
 
 # ----------------------------------------------------------------------------
@@ -190,6 +197,7 @@ drop table if exists t1 ;
 
 garbage ;
 drop table if exists t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_disable_warnings" ;
 --enable_warnings
 
@@ -202,6 +210,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 select 3 from t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_minus_masked" ;
 --error ER_PARSE_ERROR
 
@@ -209,6 +218,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 select 3 from t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_!_masked" ;
 
 # ----------------------------------------------------------------------------
@@ -230,6 +240,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 prepare stmt from "select 3 from t1" ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_prepare" ;
 create table t1 ( f1 char(10));
 
@@ -238,6 +249,7 @@ create table t1 ( f1 char(10));
 
 garbage ;
 prepare stmt from "select 3 from t1" ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_prepare" ;
 
 # successful execute
@@ -245,6 +257,7 @@ eval select $mysql_errno as "after_successful_prepare" ;
 
 garbage ;
 execute stmt;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_execute" ;
 
 # failing execute (table has been dropped)
@@ -255,6 +268,7 @@ garbage ;
 --error ER_NO_SUCH_TABLE
 
 execute stmt;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # failing execute (unknown statement)
@@ -264,6 +278,7 @@ garbage ;
 --error ER_UNKNOWN_STMT_HANDLER
 
 execute __stmt_;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_execute" ;
 
 # successful deallocate
@@ -271,6 +286,7 @@ eval select $mysql_errno as "after_failing_execute" ;
 
 garbage ;
 deallocate prepare stmt;
+echo $mysql_errname;
 eval select $mysql_errno as "after_successful_deallocate" ;
 
 # failing deallocate ( statement handle does not exist )
@@ -280,6 +296,7 @@ garbage ;
 --error ER_UNKNOWN_STMT_HANDLER
 
 deallocate prepare __stmt_;
+echo $mysql_errname;
 eval select $mysql_errno as "after_failing_deallocate" ;
 
 
@@ -307,6 +324,7 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 
 garbage ;
 --disable_abort_on_error
+echo $mysql_errname;
 eval select $mysql_errno as "after_--disable_abort_on_error" ;
 
 # ----------------------------------------------------------------------------
@@ -324,6 +342,7 @@ select 3 from t1 ;
 --error ER_NO_SUCH_TABLE
 
 select 3 from t1 ;
+echo $mysql_errname;
 eval select $mysql_errno as "after_!errno_masked_error" ;
 # expected error <> response
 # --error 1000
@@ -343,12 +362,21 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 EOF
 
 # ----------------------------------------------------------------------------
+# Check backtick and query_get_value, result should be empty
+# ----------------------------------------------------------------------------
+let $empty= `garbage`;
+echo $empty is empty;
+let $empty= query_get_value(nonsense, blabla, 1);
+echo $empty is empty;
+
+# ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
 --error ER_PARSE_ERROR
 
 garbage ;
 --enable_abort_on_error
+echo $mysql_errname;
 eval select $mysql_errno as "after_--enable_abort_on_error" ;
 
 # ----------------------------------------------------------------------------
@@ -371,6 +399,71 @@ select 3 from t1 ;
 --error 1
 --exec echo "disable_abort_on_error; enable_abort_on_error; error 1064; select 3 from t1; select 3 from t1;" | $MYSQL_TEST  2>&1
 
+# ----------------------------------------------------------------------------
+# Test --enable and --disable with ONCE
+# ----------------------------------------------------------------------------
+
+--disable_abort_on_error ONCE
+garbage;
+--disable_abort_on_error ONCE
+--remove_file DoesNotExist
+
+--disable_result_log
+select 2;
+--enable_result_log ONCE
+select 3;
+select 5;
+--enable_result_log
+
+# ----------------------------------------------------------------------------
+# Test cumulative ONCE
+# ----------------------------------------------------------------------------
+
+--disable_abort_on_error ONCE
+--disable_query_log ONCE
+select 3 from t1;
+select 7;
+
+--error 1
+--exec echo "--disable_info OCNE" | $MYSQL_TEST 2>&1
+
+--enable_connect_log ONCE
+connect (con1,localhost,root,,);
+connection default;
+disconnect con1;
+
+# ----------------------------------------------------------------------------
+# Test ONCE can be combined with --error or modifiers like lowercase
+# ----------------------------------------------------------------------------
+
+--disable_result_log ONCE
+--error ER_NO_SUCH_TABLE
+select 5 from t1;
+
+--disable_query_log ONCE
+--lowercase_result
+select "CASE" as "LOWER";
+
+--sorted_result
+--disable_query_log ONCE
+select "xyz" as name union select "abc" as name order by name desc;
+
+# ----------------------------------------------------------------------------
+# Test --error with backtick operator or query_get_value
+# ----------------------------------------------------------------------------
+
+--error 0,ER_NO_SUCH_TABLE
+let $empty= `SELECT foo from bar`;
+echo $empty is empty;
+
+--error 0,ER_BAD_FIELD_ERROR
+let $empty= query_get_value(SELECT bar as foo, baz, 1);
+echo $empty is empty;
+
+--error 0,ER_NO_SUCH_TABLE
+if (!`SELECT foo from bar`) {
+  echo "Yes it's empty";
+}
 
 # ----------------------------------------------------------------------------
 # Test comments
@@ -940,10 +1033,9 @@ while ($outer)
     --source $MYSQLTEST_VARDIR/tmp/sourced.inc
     --error ER_NO_SUCH_TABLE
     SELECT * from nowhere;
-    --disable_abort_on_error
+    --disable_abort_on_error ONCE
 # Statement giving a different error, to make sure we don't mask it
     SELECT * FROM nowhere else;
-    --enable_abort_on_error
   }
   dec $outer;
   inc $ifval;
@@ -1092,9 +1184,8 @@ system echo "hej" > /dev/null;
 --error 1
 --exec echo "system $NONEXISTSINFVAREABLI;" | $MYSQL_TEST 2>&1
 
---disable_abort_on_error
+--disable_abort_on_error ONCE
 system NonExistsinfComamdn 2> /dev/null;
---enable_abort_on_error
 
 
 # ----------------------------------------------------------------------------
@@ -2513,10 +2604,9 @@ INSERT INTO t1 SELECT f1 - 64 FROM t1;
 INSERT INTO t1 SELECT f1 - 128 FROM t1;
 INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
---disable_result_log
+--disable_result_log ONCE
 --sorted_result
 SELECT * FROM t1;
---enable_result_log
 DROP TABLE t1;
 
 # ----------------------------------------------------------------------------
@@ -2564,11 +2654,9 @@ SELECT 0 as "WILL NOT lower case ÄËÐ";
 --exec $MYSQL_TEST --help 2>&1 > /dev/null
 --exec $MYSQL_TEST --version 2>&1 > /dev/null
 --enable_query_log
---disable_abort_on_error
+--disable_abort_on_error ONCE
 --error 1
 --exec $MYSQL_TEST a b c 2>&1 > /dev/null
---enable_abort_on_error
---enable_query_log
 
 # ----------------------------------------------------------------------------
 # test for query_get_value

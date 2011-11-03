@@ -1,7 +1,6 @@
 -- source include/not_embedded.inc
 
 let $innodb_file_format_orig=`select @@innodb_file_format`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 
 select @@innodb_file_format;
 select @@innodb_file_format_check;
@@ -38,4 +37,3 @@ set global innodb_file_format_max=antelope;
 set global innodb_file_format_check=off;
 
 eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;

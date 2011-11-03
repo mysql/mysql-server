@@ -7642,22 +7642,6 @@ TC_LOG_BINLOG::set_status_variables(THD *thd)
 struct st_mysql_storage_engine binlog_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-mysql_declare_plugin(binlog)
-{
-  MYSQL_STORAGE_ENGINE_PLUGIN,
-  &binlog_storage_engine,
-  "binlog",
-  "MySQL AB",
-  "This is a pseudo storage engine to represent the binlog in a transaction",
-  PLUGIN_LICENSE_GPL,
-  binlog_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
-  0x0100 /* 1.0 */,
-  binlog_status_vars_top,     /* status variables                */
-  binlog_sys_vars,            /* system variables                */
-  NULL                        /* config options                  */
-}
-mysql_declare_plugin_end;
 maria_declare_plugin(binlog)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,

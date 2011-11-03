@@ -222,9 +222,9 @@ GetOptions("server-host=s", "server-logs-dir=s", "server-port=s",
            "test-duration=i", "test-suffix=s", "check-tests-file", 
            "verbose", "log-error-details", "cleanup", "mysqltest=s", 
            # OBN: (changing 'abort-on-error' to numberic for WL-4626/4685) 
-           "abort-on-error=i" => \$opt_abort_on_error, "help") || usage();
+           "abort-on-error=i" => \$opt_abort_on_error, "help") || usage(1);
 
-usage() if ($opt_help);
+usage(0) if ($opt_help);
 
 #$opt_abort_on_error=1;
 
@@ -1115,6 +1115,7 @@ sub sig_TERM_handler
 
 sub usage
 {
+  my $retcode= shift;
   print <<EOF;
 
 The MySQL Stress suite Ver $stress_suite_version
@@ -1218,7 +1219,7 @@ perl mysql-stress-test.pl \
 --cleanup \
 
 EOF
-exit(0);
+exit($retcode);
 }
 
 

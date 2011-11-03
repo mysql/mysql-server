@@ -6120,62 +6120,6 @@ static struct st_mysql_sys_var* pbxt_system_variables[] = {
 };
 #endif
 
-#ifdef DRIZZLED
-drizzle_declare_plugin(pbxt)
-#else
-mysql_declare_plugin(pbxt)
-#endif
-{
-#ifndef DRIZZLED
-	MYSQL_STORAGE_ENGINE_PLUGIN,
-	&pbxt_storage_engine,
-#endif
-	"PBXT",
-#ifdef DRIZZLED
-	"1.0",
-#endif
-	"Paul McCullagh, PrimeBase Technologies GmbH",
-	"High performance, multi-versioning transactional engine",
-	PLUGIN_LICENSE_GPL,
-	pbxt_init, /* Plugin Init */
-	pbxt_end, /* Plugin Deinit */
-#ifndef DRIZZLED
-	0x0001 /* 0.1 */,
-#endif
-	NULL,                       /* status variables                */
-#if MYSQL_VERSION_ID >= 50118
-	pbxt_system_variables,		/* system variables                */
-#else
-	NULL,
-#endif
-	NULL						/* config options                  */
-},
-{
-#ifndef DRIZZLED
-	MYSQL_INFORMATION_SCHEMA_PLUGIN,
-	&pbxt_statitics,
-#endif
-	"PBXT_STATISTICS",
-#ifdef DRIZZLED
-	"1.0",
-#endif
-	"Paul McCullagh, PrimeBase Technologies GmbH",
-	"PBXT internal system statitics",
-	PLUGIN_LICENSE_GPL,
-	pbxt_init_statistics,						/* plugin init */
-	pbxt_exit_statistics,						/* plugin deinit */
-#ifndef DRIZZLED
-	0x0005,
-#endif
-	NULL,										/* status variables */
-	NULL,										/* system variables */
-	NULL										/* config options */
-}
-#ifdef DRIZZLED
-drizzle_declare_plugin_end;
-#else
-mysql_declare_plugin_end;
-#if defined(MARIADB_BASE_VERSION) && MYSQL_VERSION_ID > 50200
 maria_declare_plugin(pbxt)
 { /* PBXT */
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -6208,8 +6152,6 @@ maria_declare_plugin(pbxt)
   MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
 }
 maria_declare_plugin_end;
-#endif
-#endif
 
 #if defined(XT_WIN) && defined(XT_COREDUMP)
 

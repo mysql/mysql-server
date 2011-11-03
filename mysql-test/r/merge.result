@@ -904,7 +904,8 @@ SELECT * FROM tm1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 CHECK TABLE tm1;
 Table	Op	Msg_type	Msg_text
-test.tm1	check	Error	Table 'test.t1' doesn't exist
+test.tm1	check	Error	Table 'test.t1' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	error	Corrupt
 CREATE TABLE t1(a INT);
@@ -912,7 +913,7 @@ SELECT * FROM tm1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 CHECK TABLE tm1;
 Table	Op	Msg_type	Msg_text
-test.tm1	check	Error	Table 'test.t2' doesn't exist
+test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	error	Corrupt
 CREATE TABLE t2(a BLOB);
@@ -920,7 +921,7 @@ SELECT * FROM tm1;
 ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 CHECK TABLE tm1;
 Table	Op	Msg_type	Msg_text
-test.tm1	check	Warning	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.tm1	check	error	Corrupt
 ALTER TABLE t2 MODIFY a INT;
@@ -3618,7 +3619,7 @@ test.t1	analyze	Error	Unable to open underlying table which is differently defin
 test.t1	analyze	error	Corrupt
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	Error	Table 'test.t_not_exists' doesn't exist
+test.t1	check	Error	Table 'test.t_not_exists' is differently defined or of non-MyISAM type or doesn't exist
 test.t1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.t1	check	error	Corrupt
 CHECKSUM TABLE t1;
@@ -3634,7 +3635,7 @@ test.t1	optimize	Error	Unable to open underlying table which is differently defi
 test.t1	optimize	error	Corrupt
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	Table 'test.t_not_exists' doesn't exist
+test.t1	repair	Error	Table 'test.t_not_exists' is differently defined or of non-MyISAM type or doesn't exist
 test.t1	repair	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.t1	repair	error	Corrupt
 REPAIR TABLE t1 USE_FRM;
@@ -3660,4 +3661,37 @@ ALTER TABLE t1 engine=myisam;
 ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
 DROP TABLE m1, t1;
-End of 6.0 tests
+#
+# Test for bug #11754210 - "45777: CHECK TABLE DOESN'T SHOW ALL
+#                           PROBLEMS FOR MERGE TABLE COMPLIANCE IN 5.1"
+#
+drop tables if exists t1, t2, t3, t4, m1;
+create table t1(id int) engine=myisam;
+create view t3 as select 1 as id;
+create table t4(id int) engine=memory;
+create table m1(id int) engine=merge union=(t1,t2,t3,t4);
+select * from m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+# The below CHECK and REPAIR TABLE statements should
+# report all problems with underlying tables: 
+# - absence of 't2',
+# - missing base table for 't3',
+# - wrong engine of 't4'.
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	Error	Table 'test.t3' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	Error	Table 'test.t4' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	error	Corrupt
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Table 'test.t3' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Table 'test.t4' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	error	Corrupt
+# Clean-up.
+drop tables m1, t1, t4;
+drop view t3;
+End of 5.5 tests

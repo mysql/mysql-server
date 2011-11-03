@@ -12,6 +12,11 @@
 #  - insert into two autoinc columns;
 #  - statements using UDF's.
 #  - statements reading from log tables in the mysql database.
+#  - INSERT ... SELECT ... ON DUPLICATE KEY UPDATE
+#  - REPLACE ... SELECT
+#  - CREATE TABLE [IGNORE/REPLACE] SELECT
+#  - INSERT IGNORE...SELECT
+#  - UPDATE IGNORE
 #
 # Note that statements that use stored functions, stored procedures,
 # triggers, views, or prepared statements that invoke unsafe
@@ -79,6 +84,7 @@
 # BUG#45785: LIMIT in SP does not cause RBL if binlog_format=MIXED
 # BUG#47995: Mark user functions as unsafe
 # BUG#49222: Mark RAND() unsafe
+# BUG#11758262: MARK INSERT...SEL...ON DUP KEY UPD,REPLACE...SEL,CREATE...[IGN|REPL] SEL
 #
 # ==== Related test cases ====
 #
@@ -700,5 +706,47 @@ INSERT INTO t1 VALUES
 SELECT * FROM t1;
 
 DROP TABLE t1;
+#
+#BUG#11758262-50439: MARK INSERT...SEL...ON DUP KEY UPD,REPLACE..
+#The following statement may be unsafe when logged in statement format.
+#INSERT IGNORE...SELECT 
+#INSERT ... SELECT ... ON DUPLICATE KEY UPDATE 
+#REPLACE ... SELECT 
+#UPDATE IGNORE 
+#CREATE TABLE... IGNORE SELECT 
+#CREATE TABLE... REPLACE SELECT
+
+#setup tables
+CREATE TABLE filler_table (a INT, b INT);
+INSERT INTO filler_table values (1,1),(1,2);
+CREATE TABLE insert_table (a INT, b INT, PRIMARY KEY(a));
+CREATE TABLE replace_table (a INT, b INT, PRIMARY KEY(a));
+INSERT INTO replace_table values (1,1),(2,2);
+CREATE TABLE update_table (a INT, b INT, PRIMARY KEY(a));
+INSERT INTO update_table values (1,1),(2,2);
+
+#INSERT IGNORE... SELECT
+INSERT IGNORE INTO insert_table SELECT * FROM filler_table;
+TRUNCATE TABLE insert_table;
+#INSERT ... SELECT ... ON DUPLICATE KEY UPDATE 
+INSERT INTO insert_table SELECT * FROM filler_table ON DUPLICATE KEY UPDATE a = 1;
+TRUNCATE TABLE insert_table;
+#REPLACE...SELECT
+REPLACE INTO replace_table SELECT * FROM filler_table;
+#UPDATE IGNORE
+UPDATE IGNORE update_table SET a=2;
+#CREATE TABLE [IGNORE/REPLACE] SELECT
+CREATE TABLE create_ignore_test (a INT, b INT, PRIMARY KEY(b)) IGNORE SELECT * FROM filler_table;
+CREATE TABLE create_replace_test (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
+#temporary tables should not throw the warning.
+CREATE TEMPORARY TABLE temp1 (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
+
+###clean up
+DROP TABLE filler_table;
+DROP TABLE insert_table;
+DROP TABLE update_table;
+DROP TABLE replace_table;
+DROP TABLE create_ignore_test;
+DROP TABLE create_replace_test;
 
 --echo "End of tests"

@@ -388,6 +388,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   uint       UNINIT_VAR(key_parts);
   uint       min_keys;
   my_bool    bad_children= FALSE;
+  my_bool    first_child= TRUE;
   DBUG_ENTER("myrg_attach_children");
   DBUG_PRINT("myrg", ("handle_locking: %d", handle_locking));
 
@@ -402,16 +403,26 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   errpos= 0;
   file_offset= 0;
   min_keys= 0;
-  child_nr= 0;
-  while ((myisam= (*callback)(callback_param)))
+  for (child_nr= 0; child_nr < m_info->tables; child_nr++)
   {
+    if (! (myisam= (*callback)(callback_param)))
+    {
+      if (handle_locking & HA_OPEN_FOR_REPAIR)
+      {
+        /* An appropriate error should've been already pushed by callback. */
+        bad_children= TRUE;
+        continue;
+      }
+      goto bad_children;
+    }
+
     DBUG_PRINT("myrg", ("child_nr: %u  table: '%s'",
                         child_nr, myisam->filename));
-    DBUG_ASSERT(child_nr < m_info->tables);
 
     /* Special handling when the first child is attached. */
-    if (!child_nr)
+    if (first_child)
     {
+      first_child= FALSE;
       m_info->reclength= myisam->s->base.reclength;
       min_keys=  myisam->s->base.keys;
       key_parts= myisam->s->base.key_parts;
@@ -461,14 +472,11 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     for (idx= 0; idx < key_parts; idx++)
       m_info->rec_per_key_part[idx]+= (myisam->s->state.rec_per_key_part[idx] /
                                        m_info->tables);
-    child_nr++;
   }
 
   if (bad_children)
     goto bad_children;
-  /* Note: callback() resets my_errno, so it is safe to check it here */
-  if (my_errno == HA_ERR_WRONG_MRG_TABLE_DEF)
-    goto err;
+
   if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
   {
     my_errno= HA_ERR_RECORD_FILE_FULL;

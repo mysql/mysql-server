@@ -122,6 +122,7 @@ struct st_mysql_plugin
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;
+  unsigned long flags;
 };
 struct st_maria_plugin
 {

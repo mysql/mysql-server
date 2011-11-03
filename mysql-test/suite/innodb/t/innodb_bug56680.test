@@ -5,7 +5,6 @@
 SET @tx_isolation_orig = @@tx_isolation;
 SET @innodb_file_per_table_orig = @@innodb_file_per_table;
 SET @innodb_file_format_orig = @@innodb_file_format;
-SET @innodb_file_format_max_orig = @@innodb_file_format_max;
 # The flag innodb_change_buffering_debug is only available in debug builds.
 # It instructs InnoDB to try to evict pages from the buffer pool when
 # change buffering is possible, so that the change buffer will be used
@@ -135,6 +134,5 @@ DROP TABLE bug56680;
 SET GLOBAL tx_isolation = @tx_isolation_orig;
 SET GLOBAL innodb_file_per_table = @innodb_file_per_table_orig;
 SET GLOBAL innodb_file_format = @innodb_file_format_orig;
-SET GLOBAL innodb_file_format_max = @innodb_file_format_max_orig;
 -- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
 SET GLOBAL innodb_change_buffering_debug = @innodb_change_buffering_debug_orig;

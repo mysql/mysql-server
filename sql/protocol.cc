@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates.
-   Copyright (c) 2011 Monty Program Ab
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -368,9 +368,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
     buff[]: sql_errno:2 + ('#':1 + SQLSTATE_LENGTH:5) + MYSQL_ERRMSG_SIZE:512
   */
   uint error;
-  uchar converted_err[MYSQL_ERRMSG_SIZE];
-  uint32 converted_err_len;
-  uchar buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
+  char converted_err[MYSQL_ERRMSG_SIZE];
+  char buff[2+1+SQLSTATE_LENGTH+MYSQL_ERRMSG_SIZE], *pos;
 
   DBUG_ENTER("send_error_packet");
 
@@ -390,19 +389,16 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   {
     /* The first # is to make the protocol backward compatible */
     buff[2]= '#';
-    pos= (uchar*) strmov((char*) buff+3, sqlstate);
+    pos= strmov(buff+3, sqlstate);
   }
 
-  converted_err_len= convert_error_message((char*)converted_err,
-                                           sizeof(converted_err),
-                                           thd->variables.character_set_results,
-                                           err, strlen(err),
-                                           system_charset_info, &error);
-  length= (uint) (strmake((char*) pos, (char*)converted_err,
-                          MYSQL_ERRMSG_SIZE - 1) - (char*) buff);
-  err= (char*) buff;
+  convert_error_message(converted_err, sizeof(converted_err),
+                        thd->variables.character_set_results,
+                        err, strlen(err), system_charset_info, &error);
+  /* Converted error message is always null-terminated. */
+  length= (uint) (strmake(pos, converted_err, MYSQL_ERRMSG_SIZE - 1) - buff);
 
-  DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) err,
+  DBUG_RETURN(net_write_command(net,(uchar) 255, (uchar*) "", 0, (uchar*) buff,
                                 length));
 }
 
@@ -1038,7 +1034,7 @@ bool Protocol_text::store(const char *from, size_t length,
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %.*s", field_pos,
-                      field_count, (int) length, (length == 0? "" : from)));
+                      field_count, (int) length, (length == 0 ? "" : from)));
   DBUG_ASSERT(field_pos < field_count);
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||

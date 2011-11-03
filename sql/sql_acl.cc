@@ -9201,7 +9201,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
     /* and send it to the client */
     if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
-      return CR_ERROR;
+      DBUG_RETURN(CR_ERROR);
   }
 
   /* reply and authenticate */
@@ -9251,12 +9251,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 #endif
 
   if (pkt_len == 0) /* no password */
-  {
-    if (info->auth_string[0])
-      DBUG_RETURN(CR_ERROR);
-    else
-      DBUG_RETURN(CR_OK);
-  }
+    DBUG_RETURN(info->auth_string[0] ? CR_ERROR : CR_OK);
 
   info->password_used= PASSWORD_USED_YES;
   if (pkt_len == SCRAMBLE_LENGTH)
@@ -9358,7 +9353,8 @@ mysql_declare_plugin(mysql_password)
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
-  NULL                                          /* config options   */
+  NULL,                                         /* config options   */
+  0,                                            /* flags            */
 },
 {
   MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
@@ -9372,7 +9368,8 @@ mysql_declare_plugin(mysql_password)
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
   NULL,                                         /* system variables */
-  NULL                                          /* config options   */
+  NULL,                                         /* config options   */
+  0,                                            /* flags            */
 }
 mysql_declare_plugin_end;
 

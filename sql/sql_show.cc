@@ -3573,6 +3573,10 @@ end:
   */
   thd->temporary_tables= NULL;
   close_thread_tables(thd);
+  /*
+    Release metadata lock we might have acquired.
+    See comment in fill_schema_table_from_frm() for details.
+  */
   thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
 
   thd->lex= old_lex;
@@ -3755,6 +3759,9 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
   @param[in]      schema_table_idx         I_S table index
+  @param[in]      open_tables_state_backup Open_tables_state object which is used
+                                           to save/restore original state of metadata
+                                           locks.
   @param[in]      can_deadlock             Indicates that deadlocks are possible
                                            due to metadata locks, so to avoid
                                            them we should not wait in case if
@@ -3772,6 +3779,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
                                       LEX_STRING *db_name,
                                       LEX_STRING *table_name,
                                       enum enum_schema_tables schema_table_idx,
+                                      Open_tables_backup *open_tables_state_backup,
                                       bool can_deadlock)
 {
   TABLE *table= tables->table;
@@ -3916,13 +3924,27 @@ end_share:
 
 end_unlock:
   mysql_mutex_unlock(&LOCK_open);
-  /*
-    Don't release the MDL lock, it can be part of a transaction.
-    If it is not, it will be released by the call to
-    MDL_context::rollback_to_savepoint() in the caller.
-  */
 
 end:
+  /*
+    Release metadata lock we might have acquired.
+
+    Without this step metadata locks acquired for each table processed
+    will be accumulated. In situation when a lot of tables are processed
+    by I_S query this will result in transaction with too many metadata
+    locks. As result performance of acquisition of new lock will suffer.
+
+    Of course, the fact that we don't hold metadata lock on tables which
+    were processed till the end of I_S query makes execution less isolated
+    from concurrent DDL. Consequently one might get 'dirty' results from
+    such a query. But we have never promised serializability of I_S queries
+    anyway.
+
+    We don't have any tables open since we took backup, so rolling back to
+    savepoint is safe.
+  */
+  DBUG_ASSERT(thd->open_tables == NULL);
+  thd->mdl_context.rollback_to_savepoint(open_tables_state_backup->mdl_system_tables_svp);
   thd->clear_error();
   return res;
 }
@@ -4173,6 +4195,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               int res= fill_schema_table_from_frm(thd, tables, schema_table,
                                                   db_name, table_name,
                                                   schema_table_idx,
+                                                  &open_tables_state_backup,
                                                   can_deadlock);
 
               thd->pop_internal_handler();

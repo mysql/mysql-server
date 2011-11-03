@@ -13486,7 +13486,10 @@ static void test_truncation()
              ")";
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
-  stmt_text= "insert into t1 VALUES ("
+
+  {
+    const char insert_text[]= 
+             "insert into t1 VALUES ("
              "-10, "                            /* i8 */
              "200, "                            /* ui8 */
              "32000, "                          /* i16 */
@@ -13502,8 +13505,9 @@ static void test_truncation()
              "'12345.67 	      ', "      /* tx_1 */
              "'12345.67abc'"                    /* ch_2 */
              ")";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
-  myquery(rc);
+    rc= mysql_real_query(mysql, insert_text, strlen(insert_text));
+    myquery(rc);
+  }
 
   stmt_text= "select i8 c1, i8 c2, ui8 c3, i16_1 c4, ui16 c5, "
              "       i16 c6, ui16 c7, i32 c8, i32_1 c9, i32_1 c10, "
@@ -18638,11 +18642,8 @@ static void test_bug38486(void)
 static void test_bug33831(void)
 {
   MYSQL *l_mysql;
-  my_bool error;
 
   DBUG_ENTER("test_bug33831");
-  
-  error= 0;
 
   if (!(l_mysql= mysql_client_init(NULL)))
   {
@@ -18665,9 +18666,8 @@ static void test_bug33831(void)
     DIE_UNLESS(0);
   }
 
-
   mysql_close(l_mysql);
-  
+
   DBUG_VOID_RETURN;
 }
 
@@ -19774,6 +19774,34 @@ static void test_bug12337762()
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  BUG 11754979 - 46675: ON DUPLICATE KEY UPDATE AND UPDATECOUNT() POSSIBLY WRONG
+*/
+
+static void test_bug11754979()
+{
+  MYSQL* conn;
+  DBUG_ENTER("test_bug11754979");
+
+  myheader("test_bug11754979");
+  DIE_UNLESS((conn= mysql_client_init(NULL)));
+  DIE_UNLESS(mysql_real_connect(conn, opt_host, opt_user,
+             opt_password, opt_db ? opt_db:"test", opt_port,
+             opt_unix_socket,  CLIENT_FOUND_ROWS));
+  myquery(mysql_query(conn, "DROP TABLE IF EXISTS t1"));
+  myquery(mysql_query(conn, "CREATE TABLE t1(id INT, label CHAR(1), PRIMARY KEY(id))"));
+  myquery(mysql_query(conn, "INSERT INTO t1(id, label) VALUES (1, 'a')"));
+  myquery(mysql_query(conn, "INSERT INTO t1(id, label) VALUES (1, 'a') "
+                            "ON DUPLICATE KEY UPDATE id = 4"));
+  DIE_UNLESS(mysql_affected_rows(conn) == 2);
+  myquery(mysql_query(conn, "DROP TABLE t1"));
+  mysql_close(conn);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -20119,6 +20147,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug11766854", test_bug11766854 },
   { "test_bug12337762", test_bug12337762 },
   { "test_progress_reporting", test_progress_reporting },
+  { "test_bug11754979", test_bug11754979 },
   { 0, 0 }
 };
 

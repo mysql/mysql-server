@@ -16,9 +16,6 @@ char *argv[];
 {
   register int result, ix;
   extern int factorial(int);
-#if defined(HAVE_PTHREAD_INIT)
-  pthread_init();			/* Must be called before DBUG_ENTER */
-#endif
   my_thread_global_init();
 
   {

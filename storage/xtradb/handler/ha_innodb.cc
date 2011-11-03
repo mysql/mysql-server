@@ -8602,6 +8602,8 @@ ha_innobase::info_low(
 
 	if (flag & HA_STATUS_VARIABLE) {
 
+		ulint	page_size;
+
 		dict_table_stats_lock(ib_table, RW_S_LATCH);
 
 		n_rows = ib_table->stat_n_rows;
@@ -8644,14 +8646,19 @@ ha_innobase::info_low(
 			prebuilt->autoinc_last_value = 0;
 		}
 
+		page_size = dict_table_zip_size(ib_table);
+		if (page_size == 0) {
+			page_size = UNIV_PAGE_SIZE;
+		}
+
 		stats.records = (ha_rows)n_rows;
 		stats.deleted = 0;
-		stats.data_file_length = ((ulonglong)
-				ib_table->stat_clustered_index_size)
-					* UNIV_PAGE_SIZE;
-		stats.index_file_length = ((ulonglong)
-				ib_table->stat_sum_of_other_index_sizes)
-					* UNIV_PAGE_SIZE;
+		stats.data_file_length
+			= ((ulonglong) ib_table->stat_clustered_index_size)
+			* page_size;
+		stats.index_file_length =
+			((ulonglong) ib_table->stat_sum_of_other_index_sizes)
+			* page_size;
 
 		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 
@@ -12383,44 +12390,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   NULL
 };
 
-mysql_declare_plugin(xtradb)
-{
-  MYSQL_STORAGE_ENGINE_PLUGIN,
-  &innobase_storage_engine,
-  innobase_hton_name,
-  plugin_author,
-  "Percona-XtraDB, Supports transactions, row-level locking, and foreign keys",
-  PLUGIN_LICENSE_GPL,
-  innobase_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
-  INNODB_VERSION_SHORT,
-  innodb_status_variables_export,/* status variables             */
-  innobase_system_variables, /* system variables */
-  NULL /* reserved */
-},
-i_s_innodb_rseg,
-i_s_innodb_trx,
-i_s_innodb_locks,
-i_s_innodb_lock_waits,
-i_s_innodb_cmp,
-i_s_innodb_cmp_reset,
-i_s_innodb_cmpmem,
-i_s_innodb_cmpmem_reset,
-i_s_innodb_sys_tables,
-i_s_innodb_sys_tablestats,
-i_s_innodb_sys_indexes,
-i_s_innodb_sys_columns,
-i_s_innodb_sys_fields,
-i_s_innodb_sys_foreign,
-i_s_innodb_sys_foreign_cols,
-i_s_innodb_sys_stats,
-i_s_innodb_table_stats,
-i_s_innodb_index_stats,
-i_s_innodb_buffer_pool_pages,
-i_s_innodb_buffer_pool_pages_index,
-i_s_innodb_buffer_pool_pages_blob,
-i_s_innodb_admin_command
-mysql_declare_plugin_end;
 maria_declare_plugin(xtradb)
 { /* InnoDB */
   MYSQL_STORAGE_ENGINE_PLUGIN,

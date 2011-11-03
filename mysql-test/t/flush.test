@@ -668,3 +668,36 @@ ALTER TABLE t1 COMMENT 'test';
 
 UNLOCK TABLES;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Test for bug #12641342 - "61401: UPDATE PERFORMANCE DEGRADES
+--echo #                           GRADUALLY IF A TRIGGER EXISTS".
+--echo #
+--echo # One of side-effects of this bug was that a transaction which
+--echo # involved DML statements requiring prelocking blocked concurrent
+--echo # FLUSH TABLES WITH READ LOCK for the whole its duration, while
+--echo # correct behavior in this case is to block FTWRL only for duration
+--echo # of individual DML statements.
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (id INT PRIMARY KEY, value INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW SET @var = "a";
+BEGIN;
+UPDATE t1 SET value= value + 1 WHERE id = 1;
+
+--echo # Switching to connection 'con1'.
+connect(con1, localhost, root);
+--echo # The below FLUSH TABLES WITH READ LOCK should succeed and
+--echo # should not be blocked by the transaction in default connection.
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Switching to connection 'default'.
+connection default;
+COMMIT;
+DROP TABLE t1;

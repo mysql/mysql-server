@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ ADD_CUSTOM_TARGET(GenFixPrivs
 
 IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 
-   "cd ${CMAKE_BINARY_DIR} && '${CMAKE_CPACK_COMMAND}' -G TGZ --config CPackConfig.cmake" )
+   "cd ${CMAKE_BINARY_DIR} && '${CMAKE_CPACK_COMMAND}' -G TGZ --config CPackConfig.cmake\n" )
  EXECUTE_PROCESS(
   COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution
 )
@@ -104,11 +104,11 @@ IF(UNIX)
   # FIND_PROC and CHECK_PID are used by mysqld_safe
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET (FIND_PROC 
-    "ps wwwp $PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"$MYSQLD\" > /dev/null")
+    "ps wwwp $PID | grep -v mysqld_safe | grep -- $MYSQLD > /dev/null")
 ENDIF()
 IF(NOT FIND_PROC AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
   SET (FIND_PROC 
-    "ps -p $PID | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"$MYSQLD\" > /dev/null")
+    "ps -p $PID | grep -v mysqld_safe | grep -- $MYSQLD > /dev/null")
 ENDIF()
 
 IF(NOT FIND_PROC)
@@ -116,7 +116,7 @@ IF(NOT FIND_PROC)
   EXECUTE_PROCESS(COMMAND ps -uaxww OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result)
   IF(result MATCHES 0) 
      SET( FIND_PROC
-        "ps -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"$MYSQLD\" | grep \" $PID \" > /dev/null")
+       "ps -uaxww | grep -v mysqld_safe | grep -- $MYSQLD | grep $PID > /dev/null")
   ENDIF()
 ENDIF()
 
@@ -124,7 +124,7 @@ IF(NOT FIND_PROC)
   # SysV style
   EXECUTE_PROCESS(COMMAND ps -ef OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result)
   IF(result MATCHES 0)
-    SET( FIND_PROC "ps -ef | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"$MYSQLD\" | grep \" $PID \" > /dev/null")
+    SET( FIND_PROC "ps -ef | grep -v mysqld_safe | grep -- $MYSQLD | grep $PID > /dev/null")
   ENDIF()
 ENDIF()
   

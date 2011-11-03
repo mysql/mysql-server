@@ -1,5 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
+   Copyright (c) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -428,6 +429,7 @@ mysql_declare_plugin(semi_sync_master)
   0x0100 /* 1.0 */,
   semi_sync_master_status_vars,	/* status variables */
   semi_sync_master_system_vars,	/* system variables */
-  NULL                        /* config options                  */
+  NULL,                         /* config options */
+  0,                            /* flags */
 }
 mysql_declare_plugin_end;

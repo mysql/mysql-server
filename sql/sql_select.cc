@@ -445,7 +445,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
-    thd->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables();
   }
   return false;
 }
@@ -465,19 +465,18 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
   int res;
   nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
   /* 
-    Need to save the value, so we can turn off only the new NON_AGG_FIELD
+    Need to save the value, so we can turn off only any new non_agg_field_used
     additions coming from the WHERE
   */
-  uint8 saved_flag= thd->lex->current_select->full_group_by_flag;
+  const bool saved_non_agg_field_used=
+    thd->lex->current_select->non_agg_field_used();
   DBUG_ENTER("setup_without_group");
 
   thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
 
   /* it's not wrong to have non-aggregated columns in a WHERE */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
-    thd->lex->current_select->full_group_by_flag= saved_flag |
-      (thd->lex->current_select->full_group_by_flag & ~NON_AGG_FIELD_USED);
+  thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
 
   thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
@@ -715,7 +714,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     aggregate functions with implicit grouping (there is no GROUP BY).
   */
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY && !group_list &&
-      select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
+      select_lex->non_agg_field_used() &&
+      select_lex->agg_func_used())
   {
     my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
                ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
@@ -2898,7 +2898,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE);
     thd_proc_info(thd, "init");
-    thd->used_tables=0;                         // Updated by setup_fields
+    thd->lex->used_tables=0;                         // Updated by setup_fields
     if ((err= join->prepare(rref_pointer_array, tables, wild_num,
                             conds, og_num, order, group, having, proc_param,
                             select_lex, unit)))
@@ -3041,6 +3041,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
+
     if (error)
     {
       table->file->print_error(error, MYF(0));

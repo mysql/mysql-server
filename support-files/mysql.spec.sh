@@ -127,55 +127,74 @@
       %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         oel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-      %define distro_requires           chkconfig coreutils grep procps shadow-utils
+      %define distro_requires           chkconfig coreutils grep procps shadow-utils net-tools
     %else
       %if "%oelver" == "5"
         %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       oel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Enterprise Linux %{oelver} is unsupported}
       %endif
     %endif
   %else
-    %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-      %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-      %if "%rhelver" == "4"
-        %define distro_description      Red Hat Enterprise Linux 4
-        %define distro_releasetag       rhel4
-        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+    %if %(test -f /etc/oracle-release && echo 1 || echo 0)
+      %define elver %(rpm -qf --qf '%%{version}\\n' /etc/oracle-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+      %if "%elver" == "6"
+        %define distro_description      Oracle Linux 6
+        %define distro_releasetag       el6
+        %define distro_buildreq         gcc-c++ ncurses-devel perl readline-devel time zlib-devel
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
-        %if "%rhelver" == "5"
-          %define distro_description    Red Hat Enterprise Linux 5
-          %define distro_releasetag     rhel5
-          %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-          %define distro_requires       chkconfig coreutils grep procps shadow-utils
-        %else
-          %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
-        %endif
+        %{error:Oracle Linux %{elver} is unsupported}
       %endif
     %else
-      %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-        %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
-        %if "%susever" == "10"
-          %define distro_description    SUSE Linux Enterprise Server 10
-          %define distro_releasetag     sles10
-          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-          %define distro_requires       aaa_base coreutils grep procps pwdutils
+      %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+        %define rhelver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+        %if "%rhelver" == "4"
+          %define distro_description      Red Hat Enterprise Linux 4
+          %define distro_releasetag       rhel4
+          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+          %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
         %else
-          %if "%susever" == "11"
-            %define distro_description  SUSE Linux Enterprise Server 11
-            %define distro_releasetag   sles11
-            %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-            %define distro_requires     aaa_base coreutils grep procps pwdutils
+          %if "%rhelver" == "5"
+            %define distro_description    Red Hat Enterprise Linux 5
+            %define distro_releasetag     rhel5
+            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+            %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
           %else
-            %{error:SuSE %{susever} is unsupported}
+            %if "%rhelver" == "6"
+              %define distro_description    Red Hat Enterprise Linux 6
+              %define distro_releasetag     rhel6
+              %define distro_buildreq       gcc-c++ ncurses-devel perl readline-devel time zlib-devel
+              %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
+            %else
+              %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
+            %endif
           %endif
         %endif
       %else
-        %{error:Unsupported distribution}
+        %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+          %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+          %if "%susever" == "10"
+            %define distro_description    SUSE Linux Enterprise Server 10
+            %define distro_releasetag     sles10
+            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+            %define distro_requires       aaa_base coreutils grep procps pwdutils
+          %else
+            %if "%susever" == "11"
+              %define distro_description  SUSE Linux Enterprise Server 11
+              %define distro_releasetag   sles11
+              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+              %define distro_requires     aaa_base coreutils grep procps pwdutils
+            %else
+              %{error:SuSE %{susever} is unsupported}
+            %endif
+          %endif
+        %else
+          %{error:Unsupported distribution}
+        %endif
       %endif
     %endif
   %endif
@@ -225,10 +244,10 @@ Group:          Applications/Databases
 Version:        @MYSQL_RPM_VERSION@
 Release:        %{release}%{?distro_releasetag:.%{distro_releasetag}}
 Distribution:   %{distro_description}
-License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
+License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
 Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
-Packager:       MySQL Build Team <build@mysql.com>
+Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Provides:       msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
@@ -261,11 +280,13 @@ documentation and the manual for more information.
 ##############################################################################
 
 %package -n MySQL-server%{product_suffix}
-Summary:        MySQL: a very fast and reliable SQL database server
-Group:          Applications/Databases
-Requires:       %{distro_requires}
-Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
-Obsoletes:      MySQL mysql mysql-server MySQL-server MySQL-server-community
+Summary:	MySQL: a very fast and reliable SQL database server
+Group:		Applications/Databases
+Requires:	%{distro_requires}
+Provides:	msqlormysql mysql MySQL mysql-server MySQL-server
+Obsoletes:	mysql MySQL mysql-server MySQL-server
+Obsoletes:	MySQL-server-classic MySQL-server-community MySQL-server-enterprise
+Obsoletes:	MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 
 %description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -293,10 +314,12 @@ package "MySQL-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-client%{product_suffix}
-Summary:        MySQL - Client
-Group:          Applications/Databases
-Obsoletes:      mysql-client MySQL-client MySQL-client-community
-Provides:       mysql-client MySQL-client
+Summary:	MySQL - Client
+Group:		Applications/Databases
+Provides:	mysql-client MySQL-client
+Obsoletes:	mysql-client MySQL-client
+Obsoletes:	MySQL-client-classic MySQL-client-community MySQL-client-enterprise
+Obsoletes:	MySQL-client-advanced MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
 
 %description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -305,12 +328,15 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-test%{product_suffix}
-Requires:       MySQL-client%{product_suffix} perl
-Summary:        MySQL - Test suite
-Group:          Applications/Databases
-Provides:       mysql-test
-Obsoletes:      mysql-bench mysql-test MySQL-test-community
-AutoReqProv:    no
+Summary:	MySQL - Test suite
+Group:		Applications/Databases
+Requires:	MySQL-client perl
+Provides:	mysql-test MySQL-test
+Obsoletes:	mysql-test MySQL-test
+Obsoletes:	mysql-bench MySQL-bench
+Obsoletes:	MySQL-test-classic MySQL-test-community MySQL-test-enterprise
+Obsoletes:	MySQL-test-advanced MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
+AutoReqProv:	no
 
 %description -n MySQL-test%{product_suffix}
 This package contains the MySQL regression test suite.
@@ -319,10 +345,12 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-devel%{product_suffix}
-Summary:        MySQL - Development header files and libraries
-Group:          Applications/Databases
-Provides:       mysql-devel
-Obsoletes:      mysql-devel MySQL-devel-community
+Summary:	MySQL - Development header files and libraries
+Group:		Applications/Databases
+Provides:	mysql-devel MySQL-devel
+Obsoletes:	mysql-devel MySQL-devel
+Obsoletes:	MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
+Obsoletes:	MySQL-devel-advanced MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
 
 %description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -332,10 +360,14 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-shared%{product_suffix}
-Summary:        MySQL - Shared libraries
-Group:          Applications/Databases
-Provides:       mysql-shared
-Obsoletes:      MySQL-shared-community
+Summary:	MySQL - Shared libraries
+Group:		Applications/Databases
+Provides:	mysql-shared MySQL-shared
+Obsoletes:	mysql-shared MySQL-shared-standard MySQL-shared-pro
+Obsoletes:	MySQL-shared-pro-cert MySQL-shared-pro-gpl
+Obsoletes:	MySQL-shared-pro-gpl-cert MySQL-shared
+Obsoletes:	MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
+Obsoletes:	MySQL-shared-advanced MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
 
 %description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -343,10 +375,14 @@ and applications need to dynamically load and use MySQL.
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-embedded%{product_suffix}
-Summary:        MySQL - embedded library
-Group:          Applications/Databases
-Requires:       MySQL-devel%{product_suffix}
-Obsoletes:      mysql-embedded MySQL-embedded-community
+Summary:	MySQL - Embedded library
+Group:		Applications/Databases
+Requires:	MySQL-devel
+Provides:	mysql-embedded MySQL-embedded
+Obsoletes:	mysql-embedded MySQL-embedded
+Obsoletes:	MySQL-embedded-pro
+Obsoletes:	MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
+Obsoletes:	MySQL-embedded-advanced MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
 
 %description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -421,7 +457,7 @@ mkdir debug
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
-           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
@@ -436,32 +472,13 @@ mkdir release
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make ${MAKE_JFLAG} VERBOSE=1
 )
-
-# Use the build root for temporary storage of the shared libraries.
-RBR=$RPM_BUILD_ROOT
-
-# Clean up the BuildRoot first
-[ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
-
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
-# needs to be during build phase as $CC is not set during install.
-if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    mkdir -p $RBR%{_libdir}/mysql
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-  fi
-fi
 
 ##############################################################################
 %install
@@ -483,6 +500,23 @@ install -d $RBR%{_sbindir}
 (
   cd $MBD/release
   make DESTDIR=$RBR install
+)
+
+# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  Do
+# this in a sub-shell to ensure we don't pollute the install environment
+# with compiler bits.
+(
+  PATH=${MYSQL_BUILD_PATH:-$PATH}
+  CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
+  CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
+  if "${CC}" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1; then
+    libgcc=`${CC} ${CFLAGS} --print-libgcc-file`
+    if [ -f ${libgcc} ]; then
+      mkdir -p $RBR%{_libdir}/mysql
+      install -m 644 ${libgcc} $RBR%{_libdir}/mysql/libmygcc.a
+      echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
+    fi
+  fi
 )
 
 # FIXME: at some point we should stop doing this and just install everything
@@ -516,7 +550,7 @@ install -m 644 "%{malloc_lib_source}" \
 
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
-rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+# This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -721,13 +755,12 @@ else
 fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
-	mkdir $mysql_datadir/mysql;
+	mkdir $mysql_datadir/mysql $mysql_datadir/test
 	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
 else
 	# If the directory exists, we may assume it is an upgrade.
 	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
 fi
-if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
@@ -762,7 +795,12 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
+	# Fix bug#45415: no "mysql_install_db" on an upgrade
+	# Do this as a negative to err towards more "install" runs
+	# rather than to miss one.
+	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi
 
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
@@ -940,7 +978,7 @@ echo "====="                                     >> $STATUS_HISTORY
 #  Files section
 ##############################################################################
 
-%files -n MySQL-server%{product_suffix}
+%files -n MySQL-server%{product_suffix} -f release/support-files/plugins.files
 %defattr(-,root,root,0755)
 
 %if %{defined license_files_server}
@@ -966,6 +1004,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqldumpslow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_secure_installation.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_setpermission.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
@@ -980,6 +1019,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -992,10 +1032,12 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_install_db
+%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
+%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -1011,28 +1053,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1117,6 +1138,7 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
+%attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 
@@ -1126,6 +1148,59 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace
+  the RPMs of any configuration (of the current or the preceding release series)
+  by the new ones. This is done by not using the implicitly generated capabilities
+  (which include the configuration name) and relying on more generic ones which
+  just list the function ("server", "client", ...).
+  The implicit generation cannot be prevented, so all these capabilities must be
+  explicitly listed in "Obsoletes:"
+
+* Tue Sep 13 2011 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- Add support for Oracle Linux 6 and Red Hat Enterprise Linux 6.  Due to
+  changes in RPM behaviour ($RPM_BUILD_ROOT is removed prior to install)
+  this necessitated a move of the libmygcc.a installation to the install
+  phase, which is probably where it belonged in the first place.
+
+* Tue Sep 13 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- "make_win_bin_dist" and its manual are dropped, cmake does it different.
+
+* Thu Sep 08 2011 Daniel Fischer <daniel.fischer@oracle.com>
+
+- Add mysql_plugin man page.
+
+* Tue Aug 30 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Add the manual page for "mysql_plugin" to the server package.
+
+* Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Null-upmerge the fix of bug#37165: This spec file is not affected.
+- Replace "/var/lib/mysql" by the spec file variable "%{mysqldatadir}".
+
+* Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
+
+- Source plugin library files list from cmake-generated file.
+
+* Mon Jul 25 2011 Chuck Bell <chuck.bell@oracle.com>
+
+- Added the mysql_plugin client - enables or disables plugins.
+
+* Thu Jul 21 2011 Sunanda Menon <sunanda.menon@oracle.com>
+
+- Fix bug#12561297: Added the MySQL embedded binary
+
+* Thu Jul 07 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#45415: "rpm upgrade recreates test database"
+  Let the creation of the "test" database happen only during a new installation,
+  not in an RPM upgrade.
+  This affects both the "mkdir" and the call of "mysql_install_db".
+
 * Thu Feb 09 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix bug#56581: If an installation deviates from the default file locations

@@ -2786,5 +2786,40 @@ format(123,2,'no_NO')
 123,00
 DROP TABLE t1;
 #
+# Bug#12985030 SIMPLE QUERY WITH DECIMAL NUMBERS LEAKS MEMORY
+#
+SELECT (rpad(1.0,2048,1)) IS NOT FALSE;
+(rpad(1.0,2048,1)) IS NOT FALSE
+1
+SELECT ((+0) IN
+((0b111111111111111111111111111111111111111111111111111),(rpad(1.0,2048,1)),
+(32767.1)));
+((+0) IN
+((0b111111111111111111111111111111111111111111111111111),(rpad(1.0,2048,1)),
+(32767.1)))
+0
+SELECT ((rpad(1.0,2048,1)) = ('4(') ^ (0.1));
+((rpad(1.0,2048,1)) = ('4(') ^ (0.1))
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '4('
+SELECT
+pow((rpad(10.0,2048,1)),(b'1111111111111111111111111111111111111111111'));
+ERROR 22003: DOUBLE value is out of range in 'pow(rpad(10.0,2048,1),0x07ffffffffff)'
+SELECT ((rpad(1.0,2048,1)) + (0) ^ ('../'));
+((rpad(1.0,2048,1)) + (0) ^ ('../'))
+1.011111111111111
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '../'
+SELECT stddev_samp(rpad(1.0,2048,1));
+stddev_samp(rpad(1.0,2048,1))
+NULL
+SELECT ((127.1) not in ((rpad(1.0,2048,1)),(''),(-1.1)));
+((127.1) not in ((rpad(1.0,2048,1)),(''),(-1.1)))
+1
+SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
+((0xf3) * (rpad(1.0,2048,1)) << (0xcc))
+0
+#
 # End of 5.5 tests
 #

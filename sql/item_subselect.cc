@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -38,6 +39,7 @@
 #include "set_var.h"
 #include "sql_select.h"
 #include "sql_parse.h"                          // check_stack_overrun
+#include "sql_test.h"
 
 double get_post_group_estimate(JOIN* join, double join_op_rows);
 
@@ -2617,7 +2619,8 @@ subselect_single_select_engine(THD *thd_arg, st_select_lex *select,
 			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(thd_arg, item_arg, result_arg),
-   prepared(0), executed(0), select_lex(select), join(0)
+   prepared(0), executed(0), optimize_error(0),
+   select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
 }
@@ -2630,7 +2633,7 @@ int subselect_single_select_engine::get_identifier()
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= executed= 0;
+  prepared= executed= optimize_error= 0;
   join= 0;
   result->cleanup();
   select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
@@ -2861,6 +2864,10 @@ int join_read_next_same_or_null(READ_RECORD *info);
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+
+  if (optimize_error)
+    DBUG_RETURN(1);
+
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
@@ -2872,7 +2879,7 @@ int subselect_single_select_engine::exec()
     if (join->optimize())
     {
       thd->where= save_where;
-      executed= 1;
+      optimize_error= 1;
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }

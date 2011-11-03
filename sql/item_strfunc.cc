@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
   @file
@@ -2317,7 +2319,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (isnan(nr))
+    if (isnan(nr) || my_isinf(nr))
       return str;
     str_length=str->length();
   }
@@ -2373,6 +2375,7 @@ String *Item_func_format::val_str_ascii(String *str)
       For short values without thousands (<1000)
       replace decimal point to localized value.
     */
+    DBUG_ASSERT(dec_length <= str_length);
     ((char*) str->ptr())[str_length - dec_length]= lc->decimal_point;
   }
   return str;

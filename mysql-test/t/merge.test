@@ -2809,7 +2809,32 @@ UNLOCK TABLES;
 DROP TABLE m1, t1;
 
 
---echo End of 6.0 tests
+--echo #
+--echo # Test for bug #11754210 - "45777: CHECK TABLE DOESN'T SHOW ALL
+--echo #                           PROBLEMS FOR MERGE TABLE COMPLIANCE IN 5.1"
+--echo #
+--disable_warnings
+drop tables if exists t1, t2, t3, t4, m1;
+--enable_warnings
+create table t1(id int) engine=myisam;
+create view t3 as select 1 as id;
+create table t4(id int) engine=memory;
+create table m1(id int) engine=merge union=(t1,t2,t3,t4);
+--error ER_WRONG_MRG_TABLE
+select * from m1;
+--echo # The below CHECK and REPAIR TABLE statements should
+--echo # report all problems with underlying tables: 
+--echo # - absence of 't2',
+--echo # - missing base table for 't3',
+--echo # - wrong engine of 't4'.
+check table m1;
+repair table m1;
+--echo # Clean-up.
+drop tables m1, t1, t4;
+drop view t3;
+
+
+--echo End of 5.5 tests
 
 --disable_result_log
 --disable_query_log

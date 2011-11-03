@@ -28,7 +28,7 @@ a DIV 1
 0
 20101211002003
 20101211010203
-20101211030406
+20101211030405
 20101211154711
 select group_concat(distinct a) from t1;
 group_concat(distinct a)

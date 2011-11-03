@@ -1861,7 +1861,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
                          const char *name,const char *end,int append)
 {
   FILE *fp;
-  BOOLEAN newfile;
 
   if (name != NULL)
   {
@@ -1890,7 +1889,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
       }
       else
       {
-        newfile= !EXISTS(name);
         if (!(fp= fopen(name, append ? "a+" : "w")))
         {
           (void) fprintf(stderr, ERR_OPEN, cs->process, name);

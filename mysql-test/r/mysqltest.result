@@ -1,7 +1,6 @@
+-1 before test
+<No error> before test
 SET GLOBAL max_connections = 1000;
-select 0 as "before_use_test" ;
-before_use_test
-0
 select otto from (select 1 as otto) as t1;
 otto
 1
@@ -25,27 +24,32 @@ mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' fai
 select otto from (select 1 as otto) as t1;
 otto
 1
+
 select 0 as "after_successful_stmt_errno" ;
 after_successful_stmt_errno
 0
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
 select 1064 as "after_wrong_syntax_errno" ;
 after_wrong_syntax_errno
 1064
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
 select 1064 as "after_let_var_equal_value" ;
 after_let_var_equal_value
 1064
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 set @my_var= 'abc' ;
+
 select 0 as "after_set_var_equal_value" ;
 after_set_var_equal_value
 0
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
 select 1064 as "after_disable_warnings_command" ;
 after_disable_warnings_command
 1064
@@ -53,6 +57,7 @@ drop table if exists t1 ;
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 drop table if exists t1 ;
+
 select 0 as "after_disable_warnings" ;
 after_disable_warnings
 0
@@ -60,6 +65,7 @@ garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
 select 1146 as "after_minus_masked" ;
 after_minus_masked
 1146
@@ -67,6 +73,7 @@ garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
 select 1146 as "after_!_masked" ;
 after_!_masked
 1146
@@ -79,6 +86,7 @@ garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 prepare stmt from "select 3 from t1" ;
 ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
 select 1146 as "after_failing_prepare" ;
 after_failing_prepare
 1146
@@ -86,6 +94,7 @@ create table t1 ( f1 char(10));
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 prepare stmt from "select 3 from t1" ;
+
 select 0 as "after_successful_prepare" ;
 after_successful_prepare
 0
@@ -93,6 +102,7 @@ garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 execute stmt;
 3
+
 select 0 as "after_successful_execute" ;
 after_successful_execute
 0
@@ -101,6 +111,7 @@ garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 execute stmt;
 ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
 select 1146 as "after_failing_execute" ;
 after_failing_execute
 1146
@@ -108,12 +119,14 @@ garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 execute __stmt_;
 ERROR HY000: Unknown prepared statement handler (__stmt_) given to EXECUTE
+ER_UNKNOWN_STMT_HANDLER
 select 1243 as "after_failing_execute" ;
 after_failing_execute
 1243
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 deallocate prepare stmt;
+
 select 0 as "after_successful_deallocate" ;
 after_successful_deallocate
 0
@@ -121,11 +134,13 @@ garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 deallocate prepare __stmt_;
 ERROR HY000: Unknown prepared statement handler (__stmt_) given to DEALLOCATE PREPARE
+ER_UNKNOWN_STMT_HANDLER
 select 1243 as "after_failing_deallocate" ;
 after_failing_deallocate
 1243
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
 select 1064 as "after_--disable_abort_on_error" ;
 after_--disable_abort_on_error
 1064
@@ -135,13 +150,19 @@ select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
+ER_NO_SUCH_TABLE
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
 select 3 from t1;
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1000...
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ is empty
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'nonsense' at line 1
+ is empty
 garbage ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+ER_PARSE_ERROR
 select 1064 as "after_--enable_abort_on_error" ;
 after_--enable_abort_on_error
 1064
@@ -149,6 +170,28 @@ select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
 select 3 from t1;
 mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064...
+garbage;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 2;
+select 3;
+3
+3
+select 5;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 7;
+7
+7
+mysqltest: At line 1: End of line junk detected: "OCNE"
+connect  con1,localhost,root,,;
+select 5 from t1;
+lower
+case
+name
+abc
+xyz
+ is empty
+ is empty
+"Yes it's empty"
 hello
 hello
 ;;;;;;;;
@@ -321,7 +364,7 @@ insert into t1 values ('$dollar');
 $dollar
 `select 42`
 drop table t1;
-mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
+mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": 
@@ -859,7 +902,7 @@ mysqltest: At line 1: Could not find column 'column_not_exists' in the result of
 mysqltest: At line 1: Query 'SET @A = 1' didn't return a result set
 mysqltest: At line 1: Could not find column '1 AS B' in the result of 'SELECT 1 AS A'
 value= No such row
-mysqltest: At line 1: Error running query 'SHOW COLNS FROM t1': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+mysqltest: At line 1: query 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
 
 Field Type Null Key Default Extra
 a int(11) YES -><- NULL 

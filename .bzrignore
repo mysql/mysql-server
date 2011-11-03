@@ -145,8 +145,6 @@ COPYING
 COPYING.LIB
 core
 core.*
-CPackConfig.cmake
-CPackSourceConfig.cmake
 cscope.in.out
 cscope.out
 cscope.po.out
@@ -1098,6 +1096,8 @@ sql/share/slovak
 sql/share/spanish
 sql/share/swedish
 sql/share/ukrainian
+CPackConfig.cmake
+CPackSourceConfig.cmake
 Docs/INFO_BIN
 Docs/INFO_SRC
 tags
@@ -1131,3 +1131,6 @@ storage/maria/aria_log_control
 scripts/mytop
 include/*.h.tmp
 cmd-line-utils/libedit/emacs.h
+mysql-test/collections/default.release
+support-files/plugins.files
+client/mysql_plugin

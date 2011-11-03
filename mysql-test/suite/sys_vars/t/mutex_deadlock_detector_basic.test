@@ -1,3 +1,4 @@
+--source include/have_debug.inc
 # bool readonly
 
 #

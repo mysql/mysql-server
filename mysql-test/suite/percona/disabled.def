@@ -15,7 +15,8 @@ percona_sql_no_fcache:                Feature not merged into MariaDB
 percona_status_wait_query_cache_mutex: Feature not merged into MariaDB
 percona_slave_innodb_stats:           Feature not merged into MariaDB
 percona_query_response_time-replication: Feature not merged into MariaDB
-percona_server_variables:             Feature not merged into MariaDB
+percona_server_variables_debug:       Feature not merged into MariaDB
+percona_server_variables_release:     Feature not merged into MariaDB
 percona_slow_query_log-log_slow_verbosity:    InnoDB filtering information not fully merged into MariaDB
 percona_innodb_buffer_pool_shm:       Requires big shmmax not default on many systems
 percona_log_warnings_suppress:          Feature not merged into MariaDB

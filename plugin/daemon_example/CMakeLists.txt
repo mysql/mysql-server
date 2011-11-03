@@ -15,3 +15,5 @@
 
 MYSQL_ADD_PLUGIN(daemon_example daemon_example.cc
   MODULE_ONLY MODULE_OUTPUT_NAME "libdaemon_example")
+
+INSTALL(FILES daemon_example.ini DESTINATION ${INSTALL_PLUGINDIR})

@@ -10,3 +10,5 @@
 #
 ##############################################################################
 
+innodb-index             : the fix is not in XtraDB yet
+innodb_corrupt_bit       : the fix is not in XtraDB yet

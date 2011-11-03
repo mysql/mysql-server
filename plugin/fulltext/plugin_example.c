@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -267,7 +267,8 @@ mysql_declare_plugin(ftexample)
   0x0001,                     /* version                         */
   simple_status,              /* status variables                */
   simple_system_variables,    /* system variables                */
-  NULL
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

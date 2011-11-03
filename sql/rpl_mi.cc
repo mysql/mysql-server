@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h> // For HAVE_REPLICATION
 #include "sql_priv.h"
@@ -23,6 +24,8 @@
 #ifdef HAVE_REPLICATION
 
 #define DEFAULT_CONNECT_RETRY 60
+
+static void init_master_log_pos(Master_info* mi);
 
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
@@ -94,6 +97,16 @@ bool Master_info::shall_ignore_server_id(ulong s_id)
                    ignore_server_ids.elements, sizeof(ulong),
                    (int (*) (const void*, const void*)) change_master_server_id_cmp)
       != NULL;
+}
+
+void Master_info::clear_in_memory_info(bool all)
+{
+  init_master_log_pos(this);
+  if (all)
+  {
+    port= MYSQL_PORT;
+    host[0] = 0; user[0] = 0; password[0] = 0;
+  }
 }
 
 void init_master_log_pos(Master_info* mi)
@@ -230,7 +243,7 @@ file '%s')", fname);
     }
 
     mi->fd = fd;
-    init_master_log_pos(mi);
+    mi->clear_in_memory_info(false);
 
   }
   else // file exists

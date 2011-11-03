@@ -1,3 +1,5 @@
+--source include/have_debug.inc
+
 # ulong global
 
 SET @start_global_value = @@global.binlog_dbug_fsync_sleep;

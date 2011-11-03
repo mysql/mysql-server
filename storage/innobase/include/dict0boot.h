@@ -137,8 +137,10 @@ dict_create(void);
 					header is created */
 /*-------------------------------------------------------------*/
 
-/* The field number of the page number field in the sys_indexes table
-clustered index */
+/* The field numbers in the SYS_TABLES clustered index */
+#define DICT_SYS_TABLES_TYPE_FIELD		5
+
+/* The field numbers in the SYS_INDEXES clustered index */
 #define DICT_SYS_INDEXES_PAGE_NO_FIELD	 8
 #define DICT_SYS_INDEXES_SPACE_NO_FIELD	 7
 #define DICT_SYS_INDEXES_TYPE_FIELD	 6

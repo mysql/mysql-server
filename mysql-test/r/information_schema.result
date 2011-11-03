@@ -1814,5 +1814,119 @@ unlock tables;
 drop table t1;
 drop view v1;
 #
+# Test for bug #12828477 - "MDL SUBSYSTEM CREATES BIG OVERHEAD FOR
+#                           CERTAIN QUERIES TO INFORMATION_SCHEMA".
+#
+# Check that metadata locks which are acquired during the process
+# of opening tables/.FRMs/.TRG files while filling I_S table are
+# not kept to the end of statement. Keeping the locks has caused
+# performance problems in cases when big number of tables (.FRMs
+# or .TRG files) were scanned as cost of new lock acquisition has
+# increased linearly.
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table t0 (i int);
+create table t1 (j int);
+create table t2 (k int);
+#
+# Test that we don't keep locks in case when we to fill
+# I_S table we perform full-blown table open.
+#
+# Acquire lock on 't2' so upcoming RENAME is
+# blocked.
+lock tables t2 read;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# The below RENAME should wait on 't2' while
+# keeping X lock on 't1'.
+rename table t1 to t3, t2 to t1, t3 to t2;
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Wait while the above RENAME is blocked.
+# Issue query to I_S which will open 't0' and get
+# blocked on 't1' because of RENAME.
+select table_name, auto_increment from information_schema.tables where table_schema='mysqltest';
+#
+# Switching to connection 'con12828477_3'. 
+#
+# Wait while the above SELECT is blocked.
+#
+# Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+#
+# Switching to connection 'default'.
+#
+#
+# Unblock the first RENAME.
+unlock tables;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# Reap the first RENAME
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Reap SELECT to I_S.
+table_name	auto_increment
+t0	NULL
+t1	NULL
+t2	NULL
+#
+# Switching to connection 'default'.
+#
+#
+# Now test that we don't keep locks in case when we to fill
+# I_S table we read .FRM or .TRG file only (this was the case
+# for which problem existed).
+#
+rename table t4 to t0;
+# Acquire lock on 't2' so upcoming RENAME is
+# blocked.
+lock tables t2 read;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# The below RENAME should wait on 't2' while
+# keeping X lock on 't1'.
+rename table t1 to t3, t2 to t1, t3 to t2;
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Wait while the above RENAME is blocked.
+# Issue query to I_S which will open 't0' and get
+# blocked on 't1' because of RENAME.
+select event_object_table, trigger_name from information_schema.triggers where event_object_schema='mysqltest';
+#
+# Switching to connection 'con12828477_3'. 
+#
+# Wait while the above SELECT is blocked.
+#
+# Check that it holds no lock on 't0' so it can be renamed.
+rename table t0 to t4;
+#
+# Switching to connection 'default'.
+#
+#
+# Unblock the first RENAME.
+unlock tables;
+#
+# Switching to connection 'con12828477_1'. 
+#
+# Reap the first RENAME
+#
+# Switching to connection 'con12828477_2'. 
+#
+# Reap SELECT to I_S.
+event_object_table	trigger_name
+#
+# Switching to connection 'default'.
+#
+#
+# Clean-up.
+drop database mysqltest;
+#
 # End of 5.5 tests
 #

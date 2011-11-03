@@ -2352,6 +2352,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
 UPDATE t1 SET a=1 LIMIT 1;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
@@ -2368,6 +2369,7 @@ END|
 CALL p1();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
@@ -2650,4 +2652,40 @@ a
 13:46:40
 1970-01-12 13:46:40
 DROP TABLE t1;
+CREATE TABLE filler_table (a INT, b INT);
+INSERT INTO filler_table values (1,1),(1,2);
+CREATE TABLE insert_table (a INT, b INT, PRIMARY KEY(a));
+CREATE TABLE replace_table (a INT, b INT, PRIMARY KEY(a));
+INSERT INTO replace_table values (1,1),(2,2);
+CREATE TABLE update_table (a INT, b INT, PRIMARY KEY(a));
+INSERT INTO update_table values (1,1),(2,2);
+INSERT IGNORE INTO insert_table SELECT * FROM filler_table;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
+TRUNCATE TABLE insert_table;
+INSERT INTO insert_table SELECT * FROM filler_table ON DUPLICATE KEY UPDATE a = 1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave.
+TRUNCATE TABLE insert_table;
+REPLACE INTO replace_table SELECT * FROM filler_table;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+UPDATE IGNORE update_table SET a=2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
+CREATE TABLE create_ignore_test (a INT, b INT, PRIMARY KEY(b)) IGNORE SELECT * FROM filler_table;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
+CREATE TABLE create_replace_test (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+CREATE TEMPORARY TABLE temp1 (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+DROP TABLE filler_table;
+DROP TABLE insert_table;
+DROP TABLE update_table;
+DROP TABLE replace_table;
+DROP TABLE create_ignore_test;
+DROP TABLE create_replace_test;
 "End of tests"
