@@ -636,9 +636,6 @@ mc_again:
 	el->el_cursor.h = where;		/* now where is here */
 }
 
-#ifdef WIDECHAR
-int wcwidth(wchar_t);                           // Signature.
-#endif
 
 /* terminal_overwrite():
  *	Overstrike num characters
