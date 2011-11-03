@@ -395,8 +395,9 @@
 #cmakedefine WORDS_BIGENDIAN 1 
 #endif
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler calls
-   it, or to nothing if 'inline' is not supported under any name.  */
+/*
+  Define to `__inline__' or `__inline' if that's what the C compiler calls it.
+*/
 #cmakedefine C_HAS_inline 1
 #if !(C_HAS_inline)
 #ifndef __cplusplus
