@@ -83,6 +83,12 @@ struct PSI_thread;
 struct PSI_file;
 
 /**
+  Interface for an instrumented socket descriptor.
+  This is an opaque structure.
+*/
+struct PSI_socket;
+
+/**
   Interface for an instrumented table operation.
   This is an opaque structure.
 */
@@ -95,10 +101,10 @@ struct PSI_table_locker;
 struct PSI_statement_locker;
 
 /**
-  Interface for an instrumented socket descriptor.
+  Interface for an instrumented idle operation.
   This is an opaque structure.
 */
-struct PSI_socket;
+struct PSI_idle_locker;
 
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
@@ -259,12 +265,6 @@ struct PSI_bootstrap
 #define USE_PSI_1
 #endif
 #endif
-
-/**
-  Interface for an instrumented idle operation.
-  This is an opaque structure.
-*/
-struct PSI_idle_locker;
 
 /**
   Interface for an instrumented mutex operation.

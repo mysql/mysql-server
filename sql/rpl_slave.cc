@@ -337,6 +337,8 @@ int init_slave()
   /* If server id is not set, start_slave_thread() will say it */
   if (active_mi->host[0] && !opt_skip_slave_start)
   {
+    /* same as in start_slave() cache the global var value into rli's member */
+    active_mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
     if (start_slave_threads(1 /* need mutex */,
                             0 /* no wait for start*/,
                             active_mi,

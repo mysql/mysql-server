@@ -246,14 +246,14 @@ Inserts a ELEM2 after ELEM1 in a list.
 @param NAME	list name
 @param N	pointer to the node that was removed */
 # define UT_LIST_REMOVE_CLEAR(N)					\
-	*(void**) &(N).next = (void*) -1;				\
+	(N).next = (Type*) -1;						\
 	(N).prev = (N).next
 #else
 /** Invalidate the pointers in a list node.
 @param NAME	list name
 @param N	pointer to the node that was removed */
 # define UT_LIST_REMOVE_CLEAR(N)
-#endif
+#endif /* UNIV_LIST_DEBUG */
 
 /*******************************************************************//**
 Removes a node from a two-way linked list.
@@ -289,7 +289,7 @@ ut_list_remove(
 		list.start = elem_node.next;
 	}
 
-	UT_LIST_REMOVE_CLEAR(elem);
+	UT_LIST_REMOVE_CLEAR(elem_node);
 
 	--list.count;
 }
