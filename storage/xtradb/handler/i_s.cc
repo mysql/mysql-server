@@ -3910,19 +3910,19 @@ i_s_innodb_buffer_pool_pages_index_fill(
 
 			if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
 				index_id = btr_page_get_index_id(frame);
-				table->field[0]->store(index_id);
-				table->field[1]->store(block->page.space);
-				table->field[2]->store(block->page.offset);
-				table->field[3]->store(page_get_n_recs(frame));
-				table->field[4]->store(page_get_data_size(frame));
-				table->field[5]->store(block->is_hashed);
-				table->field[6]->store(block->page.access_time);
-				table->field[7]->store(block->page.newest_modification != 0);
-				table->field[8]->store(block->page.oldest_modification != 0);
-				table->field[9]->store(block->page.old);
-				table->field[10]->store(0);
-				table->field[11]->store(block->page.buf_fix_count);
-				table->field[12]->store(block->page.flush_type);
+				table->field[0]->store(index_id, TRUE);
+				table->field[1]->store(block->page.space, TRUE);
+				table->field[2]->store(block->page.offset, TRUE);
+				table->field[3]->store(page_get_n_recs(frame), TRUE);
+				table->field[4]->store(page_get_data_size(frame), TRUE);
+				table->field[5]->store(block->is_hashed, TRUE);
+				table->field[6]->store(block->page.access_time, TRUE);
+				table->field[7]->store(block->page.newest_modification != 0, TRUE);
+				table->field[8]->store(block->page.oldest_modification != 0, TRUE);
+				table->field[9]->store(block->page.old, TRUE);
+				table->field[10]->store(0, TRUE);
+				table->field[11]->store(block->page.buf_fix_count, TRUE);
+				table->field[12]->store(block->page.flush_type, TRUE);
 
 				if (schema_table_store_record(thd, table)) {
 					status = 1;

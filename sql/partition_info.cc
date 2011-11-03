@@ -2088,7 +2088,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
       {
         uchar *val_ptr;
         uint len= field->pack_length();
-        ulong save_sql_mode;
+        ulonglong save_sql_mode;
         bool save_got_warning;
 
         if (!(column_item= get_column_item(column_item,

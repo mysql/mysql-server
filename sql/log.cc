@@ -1334,7 +1334,7 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
   return general_log_write(thd, command, message_buff, message_buff_len);
 }
 
-void LOGGER::init_error_log(uint error_log_printer)
+void LOGGER::init_error_log(ulonglong error_log_printer)
 {
   if (error_log_printer & LOG_NONE)
   {
@@ -1357,7 +1357,7 @@ void LOGGER::init_error_log(uint error_log_printer)
   }
 }
 
-void LOGGER::init_slow_log(uint slow_log_printer)
+void LOGGER::init_slow_log(ulonglong slow_log_printer)
 {
   if (slow_log_printer & LOG_NONE)
   {
@@ -1382,7 +1382,7 @@ void LOGGER::init_slow_log(uint slow_log_printer)
   }
 }
 
-void LOGGER::init_general_log(uint general_log_printer)
+void LOGGER::init_general_log(ulonglong general_log_printer)
 {
   if (general_log_printer & LOG_NONE)
   {
@@ -1495,9 +1495,9 @@ bool Log_to_csv_event_handler::init()
   return 0;
 }
 
-int LOGGER::set_handlers(uint error_log_printer,
-                         uint slow_log_printer,
-                         uint general_log_printer)
+int LOGGER::set_handlers(ulonglong error_log_printer,
+                         ulonglong slow_log_printer,
+                         ulonglong general_log_printer)
 {
   /* error log table is not supported yet */
   DBUG_ASSERT(error_log_printer < LOG_TABLE);
@@ -5946,7 +5946,8 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
       {
         if (!current->error &&
             RUN_HOOK(binlog_storage, after_flush,
-                (current->thd, log_file_name, log_file.pos_in_file, synced)))
+                (current->thd, log_file_name,
+                 current->cache_mngr->last_commit_pos_offset, synced)))
         {
           current->error= ER_ERROR_ON_WRITE;
           current->commit_errno= -1;
@@ -6828,7 +6829,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   mysql_mutex_init(key_LOCK_pool, &LOCK_pool, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_active, &COND_active, 0);
   mysql_cond_init(key_COND_pool, &COND_pool, 0);
-  mysql_cond_init(key_COND_queue_busy, &COND_queue_busy, 0);
+  mysql_cond_init(key_TC_LOG_MMAP_COND_queue_busy, &COND_queue_busy, 0);
 
   inited=6;
 

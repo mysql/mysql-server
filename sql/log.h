@@ -539,12 +539,14 @@ public:
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
-                    PSI_file_key key_file_log_index)
+                    PSI_file_key key_file_log_index,
+                    PSI_file_key key_COND_queue_busy)
   {
     m_key_LOCK_index= key_LOCK_index;
     m_key_update_cond= key_update_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
+    m_key_COND_queue_busy= key_COND_queue_busy;
   }
 #endif
 
@@ -818,12 +820,12 @@ public:
                          const char *query, uint query_length);
 
   /* we use this function to setup all enabled log event handlers */
-  int set_handlers(uint error_log_printer,
-                   uint slow_log_printer,
-                   uint general_log_printer);
-  void init_error_log(uint error_log_printer);
-  void init_slow_log(uint slow_log_printer);
-  void init_general_log(uint general_log_printer);
+  int set_handlers(ulonglong error_log_printer,
+                   ulonglong slow_log_printer,
+                   ulonglong general_log_printer);
+  void init_error_log(ulonglong error_log_printer);
+  void init_slow_log(ulonglong slow_log_printer);
+  void init_general_log(ulonglong general_log_printer);
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
   MYSQL_QUERY_LOG *get_slow_log_file_handler() const

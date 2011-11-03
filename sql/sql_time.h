@@ -36,18 +36,18 @@ ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month, uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error_code);
 bool str_to_time_with_warn(CHARSET_INFO *cs, const char *str, uint length,
-                           MYSQL_TIME *l_time, ulong fuzzydate);
+                           MYSQL_TIME *l_time, ulonglong fuzzydate);
 timestamp_type str_to_datetime_with_warn(CHARSET_INFO *cs, const char *str,
                                          uint length, MYSQL_TIME *l_time,
-                                         ulong flags);
+                                         ulonglong flags);
 bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
-                                  ulong fuzzydate,
+                                  ulonglong fuzzydate,
                                   const char *name);
 bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
-                                   ulong fuzzydate,
+                                   ulonglong fuzzydate,
                                    const char *name);
 bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
-                               ulong fuzzydate,
+                               ulonglong fuzzydate,
                                const char *name);
 
 void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
@@ -87,11 +87,11 @@ bool parse_date_time_format(timestamp_type format_type,
                             DATE_TIME_FORMAT *date_time_format);
 /* Character set-aware version of str_to_time() */
 timestamp_type str_to_time(CHARSET_INFO *cs, const char *str,uint length,
-                 MYSQL_TIME *l_time, ulong fuzzydate, int *warning);
+                 MYSQL_TIME *l_time, ulonglong fuzzydate, int *warning);
 /* Character set-aware version of str_to_datetime() */
 timestamp_type str_to_datetime(CHARSET_INFO *cs,
                                const char *str, uint length,
-                               MYSQL_TIME *l_time, uint flags, int *was_cut);
+                               MYSQL_TIME *l_time, ulonglong flags, int *was_cut);
 
 /* convenience wrapper */
 inline bool parse_date_time_format(timestamp_type format_type, 

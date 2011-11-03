@@ -1,5 +1,5 @@
 use performance_schema;
-select name from mutex_instances where name not rlike '/(DEBUG_SYNC::mutex|LOCK_des_key_file)$' group by name;
+select name from mutex_instances where name not rlike '/(DEBUG_SYNC::mutex)$' group by name;
 name
 wait/synch/mutex/archive/archive_mutex
 wait/synch/mutex/aria/LOCK_trn_list
@@ -42,6 +42,7 @@ wait/synch/mutex/sql/LOCK_crypt
 wait/synch/mutex/sql/LOCK_delayed_create
 wait/synch/mutex/sql/LOCK_delayed_insert
 wait/synch/mutex/sql/LOCK_delayed_status
+wait/synch/mutex/sql/LOCK_des_key_file
 wait/synch/mutex/sql/LOCK_error_log
 wait/synch/mutex/sql/LOCK_error_messages
 wait/synch/mutex/sql/LOCK_event_queue
@@ -120,7 +121,9 @@ wait/synch/cond/sql/Master_info::data_cond
 wait/synch/cond/sql/Master_info::start_cond
 wait/synch/cond/sql/Master_info::stop_cond
 wait/synch/cond/sql/MDL_context::COND_wait_status
+wait/synch/cond/sql/MYSQL_BIN_LOG::COND_queue_busy
 wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond
+wait/synch/cond/sql/MYSQL_RELAY_LOG::COND_queue_busy
 wait/synch/cond/sql/MYSQL_RELAY_LOG::update_cond
 wait/synch/cond/sql/Query_cache::COND_cache_status_changed
 wait/synch/cond/sql/Relay_log_info::data_cond

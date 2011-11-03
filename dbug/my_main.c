@@ -3,10 +3,6 @@
   fixed so that it could compile and run in MySQL source tree
 */
 
-#ifdef DBUG_OFF				/* We are testing dbug */
-#undef DBUG_OFF
-#endif
-
 #include <my_global.h>	/* This includes dbug.h */
 #include <my_pthread.h>
 

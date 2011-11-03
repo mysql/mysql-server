@@ -1225,7 +1225,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
 
-    ulong saved_mode= thd->variables.sql_mode;
+    ulonglong saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
       + MODE_PIPES_AS_CONCAT          affect expression parsing

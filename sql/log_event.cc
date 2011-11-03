@@ -2881,7 +2881,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
     cache_type= Log_event::EVENT_STMT_CACHE;
   DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
-  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
+  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %llu",
                      (ulong) flags2, sql_mode));
 }
 #endif /* MYSQL_CLIENT */
@@ -8228,7 +8228,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       Don't allow generation of auto_increment value when processing
       rows event by setting 'MODE_NO_AUTO_VALUE_ON_ZERO'.
     */
-    ulong saved_sql_mode= thd->variables.sql_mode;
+    ulonglong saved_sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode= MODE_NO_AUTO_VALUE_ON_ZERO;
 
     // row processing loop

@@ -489,7 +489,7 @@ err:
 
 enum enum_mysql_timestamp_type
 str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
-            ulong fuzzydate, int *warning)
+            ulonglong fuzzydate, int *warning)
 {
   ulong date[5];
   ulonglong value;

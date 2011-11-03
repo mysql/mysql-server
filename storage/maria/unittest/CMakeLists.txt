@@ -16,7 +16,7 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/unittest/mytap)
-LINK_LIBRARIES(aria myisam mytap mysys ${DBUG_LIBRARY} strings ${ZLIB_LIBRARY})
+LINK_LIBRARIES(aria myisam mytap mysys dbug strings ${ZLIB_LIBRARY})
 
 MY_ADD_TESTS(ma_control_file trnman)
 

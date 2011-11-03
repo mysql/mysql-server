@@ -274,7 +274,7 @@ ok1(int const pass)
 }
 
 void
-skip(int how_many, char const *fmt, ...)
+skip(int how_many, char const * const fmt, ...)
 {
   char reason[80];
   if (fmt && *fmt)

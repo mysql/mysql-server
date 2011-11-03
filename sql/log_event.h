@@ -690,7 +690,7 @@ typedef struct st_print_event_info
   bool flags2_inited;
   uint32 flags2;
   bool sql_mode_inited;
-  ulong sql_mode;		/* must be same as THD.variables.sql_mode */
+  ulonglong sql_mode;		/* must be same as THD.variables.sql_mode */
   ulong auto_increment_increment, auto_increment_offset;
   bool charset_inited;
   char charset[6]; // 3 variables, each of them storable in 2 bytes
@@ -1754,7 +1754,7 @@ public:
 
   uint32 flags2;
   /* In connections sql_mode is 32 bits now but will be 64 bits soon */
-  ulong sql_mode;
+  ulonglong sql_mode;
   ulong auto_increment_increment, auto_increment_offset;
   char charset[6];
   uint time_zone_len; /* 0 means uninited */

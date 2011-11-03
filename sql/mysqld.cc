@@ -474,9 +474,9 @@ ulong slave_exec_mode_options;
 ulonglong slave_type_conversions_options;
 ulong thread_cache_size=0;
 ulong binlog_cache_size=0;
-ulonglong  max_binlog_cache_size=0;
+ulong max_binlog_cache_size=0;
 ulong binlog_stmt_cache_size=0;
-ulonglong  max_binlog_stmt_cache_size=0;
+ulong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -811,7 +811,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
 };
 
 #ifdef HAVE_MMAP
-PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool, key_COND_queue_busy;
+PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 #endif /* HAVE_MMAP */
 
 PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
@@ -823,8 +823,11 @@ PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
-  key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
+  key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache,
+  key_BINLOG_COND_queue_busy;
 PSI_cond_key key_RELAYLOG_update_cond, key_COND_wakeup_ready;
+PSI_cond_key key_RELAYLOG_COND_queue_busy;
+PSI_cond_key key_TC_LOG_MMAP_COND_queue_busy;
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -835,10 +838,13 @@ static PSI_cond_info all_server_conds[]=
   { &key_PAGE_cond, "PAGE::cond", 0},
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
   { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0},
+  { &key_TC_LOG_MMAP_COND_queue_busy, "TC_LOG_MMAP::COND_queue_busy", 0},
 #endif /* HAVE_MMAP */
   { &key_BINLOG_COND_prep_xids, "MYSQL_BIN_LOG::COND_prep_xids", 0},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
+  { &key_BINLOG_COND_queue_busy, "MYSQL_BIN_LOG::COND_queue_busy", 0},
   { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
+  { &key_RELAYLOG_COND_queue_busy, "MYSQL_RELAY_LOG::COND_queue_busy", 0},
   { &key_COND_wakeup_ready, "THD::COND_wakeup_ready", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
@@ -2213,7 +2219,7 @@ static void network_init(void)
       extra_ip_sock= activate_tcp_port(mysqld_extra_port);
   }
 
-#ifdef __NT__
+#ifdef _WIN32
   /* create named pipe */
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
@@ -3543,7 +3549,8 @@ static int init_common_variables()
   mysql_bin_log.set_psi_keys(key_BINLOG_LOCK_index,
                              key_BINLOG_update_cond,
                              key_file_binlog,
-                             key_file_binlog_index);
+                             key_file_binlog_index,
+                             key_BINLOG_COND_queue_busy);
 #endif
 
   /*
@@ -5110,6 +5117,7 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
   mysqld_exit(0);
+  return 0;
 }
 
 #endif /* !EMBEDDED_LIBRARY */

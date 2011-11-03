@@ -35,6 +35,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0sync.ic"
 #endif
 
+/* disable timed_mutexes - obsolete feature that doesn't link on windows */
+#define timed_mutexes 0
+
 #include "sync0rw.h"
 #include "buf0buf.h"
 #include "srv0srv.h"

@@ -4402,7 +4402,7 @@ null:
 }
 
 
-bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   DYNAMIC_COLUMN_VALUE val;
   char buff[STRING_BUFFER_USUAL_SIZE];

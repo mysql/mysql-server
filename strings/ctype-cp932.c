@@ -197,7 +197,7 @@ static uint mbcharlen_cp932(CHARSET_INFO *cs __attribute__((unused)),uint c)
 #define cp932code(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
 
-static const MY_UNICASE_INFO c81[256]=
+static MY_UNICASE_INFO c81[256]=
 {
   /* 8100-810F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -407,7 +407,7 @@ static const MY_UNICASE_INFO c81[256]=
 };
 
 
-static const MY_UNICASE_INFO c82[256]=
+static MY_UNICASE_INFO c82[256]=
 {
   /* 8200-820F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -615,7 +615,7 @@ static const MY_UNICASE_INFO c82[256]=
 };
 
 
-static const MY_UNICASE_INFO c83[256]=
+static MY_UNICASE_INFO c83[256]=
 {
   /* 8300-830F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -825,7 +825,7 @@ static const MY_UNICASE_INFO c83[256]=
 };
 
 
-static const MY_UNICASE_INFO c84[256]=
+static MY_UNICASE_INFO c84[256]=
 {
   /* 8400-840F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1035,7 +1035,7 @@ static const MY_UNICASE_INFO c84[256]=
 };
 
 
-static const MY_UNICASE_INFO c87[256]=
+static MY_UNICASE_INFO c87[256]=
 {
   /* 8700-870F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1245,7 +1245,7 @@ static const MY_UNICASE_INFO c87[256]=
 };
 
 
-static const MY_UNICASE_INFO cEE[256]=
+static MY_UNICASE_INFO cEE[256]=
 {
   /* EE00-EE0F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1456,7 +1456,7 @@ static const MY_UNICASE_INFO cEE[256]=
 };
 
 
-static const MY_UNICASE_INFO cFA[256]=
+static MY_UNICASE_INFO cFA[256]=
 {
   /* FA00-FA0F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1666,7 +1666,7 @@ static const MY_UNICASE_INFO cFA[256]=
 };
 
 
-static const MY_UNICASE_INFO *my_caseinfo_cp932[256]=
+static MY_UNICASE_INFO *my_caseinfo_cp932[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,

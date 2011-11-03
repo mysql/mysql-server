@@ -526,7 +526,7 @@ public:
   }
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
-  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  virtual bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   bool get_time(MYSQL_TIME *ltime) { return get_date(ltime, TIME_TIME_ONLY); }
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual CHARSET_INFO *charset_for_protocol(void) const
@@ -792,7 +792,7 @@ public:
   Item_result result_type () const { return REAL_RESULT; }
   int store_decimal(const my_decimal *);
   int  store_time_dec(MYSQL_TIME *ltime, uint dec);
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   my_decimal *val_decimal(my_decimal *);
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
@@ -1257,7 +1257,7 @@ public:
   {
     int4store(ptr,timestamp);
   }
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   timestamp_auto_set_type get_auto_set_type() const;
   uchar *pack(uchar *to, const uchar *from,
               uint max_length __attribute__((unused)))
@@ -1327,7 +1327,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   bool send_binary(Protocol *protocol);
   uint32 max_display_length() { return field_length; }
   void sql_type(String &str) const;
@@ -1420,7 +1420,7 @@ public:
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
 };
 
 
@@ -1443,7 +1443,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
@@ -1476,7 +1476,7 @@ public:
   double val_real(void);
   String *val_str(String*,String *);
   int reset(void);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
   void sort_string(uchar *buff,uint length);
@@ -1507,7 +1507,7 @@ public:
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   uchar *pack(uchar* to, const uchar *from,
               uint max_length __attribute__((unused)))
   {
@@ -1548,7 +1548,7 @@ public:
   void sort_string(uchar *buff,uint length);
   uint32 pack_length() const;
   void sql_type(String &str) const;
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   uchar *pack(uchar *to, const uchar *from, uint max_length)
   { return Field::pack(to, from, max_length); }
   const uchar *unpack(uchar* to, const uchar *from, uint param_data)

@@ -1025,7 +1025,7 @@ public:
   double val_real();
   my_decimal *val_decimal(my_decimal *);
   bool get_dyn_value(DYNAMIC_COLUMN_VALUE *val, String *tmp);
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   void print(String *str, enum_query_type query_type);
 };
 

@@ -970,7 +970,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
   enum_field_types field_type() const { return cached_field_type; }

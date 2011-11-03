@@ -43,11 +43,11 @@ create_string(THD *thd, String *buf,
 	      st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode);
+              ulonglong sql_mode);
 
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+                ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx);
@@ -542,7 +542,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   bool saved_time_zone_used= thd->time_zone_used;
-  ulong sql_mode, saved_mode= thd->variables.sql_mode;
+  ulonglong sql_mode, saved_mode= thd->variables.sql_mode;
   Open_tables_backup open_tables_state_backup;
   Stored_program_creation_ctx *creation_ctx;
 
@@ -716,11 +716,11 @@ Silence_deprecated_warning::handle_condition(
     @retval   0                     error
 */
 
-static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
+static sp_head *sp_compile(THD *thd, String *defstr, ulonglong sql_mode,
                            Stored_program_creation_ctx *creation_ctx)
 {
   sp_head *sp;
-  ulong old_sql_mode= thd->variables.sql_mode;
+  ulonglong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   Silence_deprecated_warning warning_handler;
@@ -798,7 +798,7 @@ Bad_db_error_handler::handle_condition(THD *thd,
 
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+                ulonglong sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx)
@@ -971,7 +971,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  ulong saved_mode= thd->variables.sql_mode;
+  ulonglong saved_mode= thd->variables.sql_mode;
   MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
@@ -2127,7 +2127,6 @@ int sp_cache_routine(THD *thd, int type, sp_name *name,
     Returns TRUE on success, FALSE on (alloc) failure.
 */
 static bool
-
 create_string(THD *thd, String *buf,
               int type,
               const char *db, ulong dblen,
@@ -2138,9 +2137,9 @@ create_string(THD *thd, String *buf,
               st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode)
+              ulonglong sql_mode)
 {
-  ulong old_sql_mode= thd->variables.sql_mode;
+  ulonglong old_sql_mode= thd->variables.sql_mode;
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +

@@ -61,7 +61,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
   relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
                          key_RELAYLOG_update_cond,
                          key_file_relaylog,
-                         key_file_relaylog_index);
+                         key_file_relaylog_index,
+                         key_RELAYLOG_COND_queue_busy);
 #endif
 
   group_relay_log_name[0]= event_relay_log_name[0]=
