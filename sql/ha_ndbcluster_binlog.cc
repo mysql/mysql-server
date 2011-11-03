@@ -2354,7 +2354,6 @@ class Ndb_schema_event_handler {
     int retries= 100;
     int retry_sleep= 30; /* 30 milliseconds, transaction */
     const NDBCOL *col[SCHEMA_SIZE];
-    unsigned sz[SCHEMA_SIZE];
 
     MY_BITMAP slock;
     uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
@@ -2374,8 +2373,7 @@ class Ndb_schema_event_handler {
         col[i]= ndbtab->getColumn(i);
         if (i != SCHEMA_QUERY_I)
         {
-          sz[i]= col[i]->getLength();
-          DBUG_ASSERT(sz[i] <= sizeof(tmp_buf));
+          DBUG_ASSERT(col[i]->getLength() <= sizeof(tmp_buf));
         }
       }
     }
