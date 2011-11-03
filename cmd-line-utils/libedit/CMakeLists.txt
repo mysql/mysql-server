@@ -156,6 +156,7 @@ ${CURSES_INCLUDE_PATH}
 
 SET(LIBEDIT_SOURCES
   chared.c 
+  chartype.c
   el.c 
   eln.c 
   history.c
