@@ -2014,6 +2014,20 @@ event_object_table	trigger_name
 # Switching to connection 'default'.
 #
 #
+# Test case to test DATETIME_PRECISION of information_schema.columns table
+# 
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table mysqltest.t1(a int, b date, c time, d datetime, e timestamp);
+select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
+TABLE_NAME	COLUMN_NAME	DATA_TYPE	DATETIME_PRECISION
+t1	a	int	NULL
+t1	b	date	NULL
+t1	c	time	0
+t1	d	datetime	0
+t1	e	timestamp	0
+#
 # Clean-up.
 drop database mysqltest;
 #
