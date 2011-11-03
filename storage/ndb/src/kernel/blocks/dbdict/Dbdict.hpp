@@ -217,9 +217,9 @@ public:
     Uint32 prevList;
     Uint32 nextHash;
     Uint32 prevHash;
- 
+
     Uint32 hashValue() const { return attributeName.hashValue();}
-    bool equal(const AttributeRecord& obj) const { 
+    bool equal(const AttributeRecord& obj) const {
       if(obj.hashValue() == hashValue()){
 	ConstRope r(* m_key.m_pool, obj.attributeName);
 	return r.compare(m_key.m_name_ptr, m_key.m_name_len) == 0;
@@ -228,14 +228,25 @@ public:
     }
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
-  ArrayPool<AttributeRecord> c_attributeRecordPool;
-  DLHashTable<AttributeRecord> c_attributeRecordHash;
+  typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
+  typedef DLHashTable<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_hash;
+  typedef DLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_list;
+  typedef LocalDLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> LocalAttributeRecord_list;
+
+  AttributeRecord_pool c_attributeRecordPool;
+  AttributeRecord_hash c_attributeRecordHash;
   RSS_AP_SNAPSHOT(c_attributeRecordPool);
 
   /**
    * Shared table / index record.  Most of this is permanent data stored
    * on disk.  Index trigger ids are volatile.
    */
+  struct TableRecord;
+  typedef Ptr<TableRecord> TableRecordPtr;
+  typedef ArrayPool<TableRecord> TableRecord_pool;
+  typedef DLFifoList<TableRecord,TableRecord,TableRecord_pool> TableRecord_list;
+  typedef LocalDLFifoList<TableRecord,TableRecord,TableRecord_pool> LocalTableRecord_list;
+
   struct TableRecord {
     TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
     Uint32 maxRowsLow;
@@ -344,7 +355,7 @@ public:
     bool isNonUniqueIndex() const;
     bool isHashIndex() const;
     bool isOrderedIndex() const;
-    
+
     /****************************************************
      *    Support variables for table handling
      ****************************************************/
@@ -353,7 +364,7 @@ public:
     Uint32 filePtr[2];
 
     /**    Pointer to first attribute in table */
-    DLFifoList<AttributeRecord>::Head m_attributes;
+    AttributeRecord_list::Head m_attributes;
 
     Uint32 nextPool;
 
@@ -390,9 +401,9 @@ public:
       Uint32 updateTriggerId;
       Uint32 deleteTriggerId;
     } m_upgrade_trigger_handling;
-    
+
     Uint32 noOfNullBits;
-    
+
     /**  frm data for this table */
     RopeHandle frmData;
     RopeHandle ngData;
@@ -402,7 +413,7 @@ public:
     Uint32 m_tablespace_id;
 
     /** List of indexes attached to table */
-    DLFifoList<TableRecord>::Head m_indexes;
+    TableRecord_list::Head m_indexes;
     Uint32 nextList, prevList;
 
     /*
@@ -423,8 +434,7 @@ public:
     Uint32 indexStatBgRequest;
   };
 
-  typedef Ptr<TableRecord> TableRecordPtr;
-  ArrayPool<TableRecord> c_tableRecordPool;
+  TableRecord_pool c_tableRecordPool;
   RSS_AP_SNAPSHOT(c_tableRecordPool);
 
   /**  Node Group and Tablespace id+version + range or list data.
@@ -447,7 +457,7 @@ public:
     TriggerRecord() {}
 
     /** Trigger state */
-    enum TriggerState { 
+    enum TriggerState {
       TS_NOT_DEFINED = 0,
       TS_DEFINING = 1,
       TS_OFFLINE  = 2,   // created globally in DICT
@@ -458,7 +468,7 @@ public:
     };
     TriggerState triggerState;
 
-    /** Trigger name, used by DICT to identify the trigger */ 
+    /** Trigger name, used by DICT to identify the trigger */
     RopeHandle triggerName;
 
     /** Trigger id, used by TRIX, TC, LQH, and TUP to identify the trigger */
@@ -486,10 +496,12 @@ public:
     /** Pointer to the next attribute used by ArrayPool */
     Uint32 nextPool;
   };
-  
-  Uint32 c_maxNoOfTriggers;
+
   typedef Ptr<TriggerRecord> TriggerRecordPtr;
-  ArrayPool<TriggerRecord> c_triggerRecordPool;
+  typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
+
+  Uint32 c_maxNoOfTriggers;
+  TriggerRecord_pool c_triggerRecordPool;
   RSS_AP_SNAPSHOT(c_triggerRecordPool);
 
   /**
@@ -527,9 +539,10 @@ public:
     /** Used by Array Pool for free list handling */
     Uint32 nextPool;
   };
-  
+
   typedef Ptr<FsConnectRecord> FsConnectRecordPtr;
-  ArrayPool<FsConnectRecord> c_fsConnectRecordPool;
+  typedef ArrayPool<FsConnectRecord> FsConnectRecord_pool;
+  FsConnectRecord_pool c_fsConnectRecordPool;
 
   /**
    * This record stores all the information about a node and all its attributes
@@ -567,11 +580,11 @@ public:
   typedef Ptr<NodeRecord> NodeRecordPtr;
   CArray<NodeRecord> c_nodes;
   NdbNodeBitmask c_aliveNodes;
-  
+
   struct PageRecord {
     Uint32 word[8192];
   };
-  
+
   typedef Ptr<PageRecord> PageRecordPtr;
   CArray<PageRecord> c_pageRecordArray;
 
@@ -591,7 +604,7 @@ public:
 
   struct File {
     File() {}
-    
+
     Uint32 key;
     Uint32 m_magic;
     Uint32 m_version;
@@ -601,7 +614,7 @@ public:
     Uint64 m_file_size;
     Uint64 m_file_free;
     RopeHandle m_path;
-    
+
     Uint32 nextList;
     union {
       Uint32 prevList;
@@ -617,14 +630,14 @@ public:
   typedef DLListImpl<File_pool, File> File_list;
   typedef LocalDLListImpl<File_pool, File> Local_file_list;
   typedef KeyTableImpl<File_pool, File> File_hash;
-  
+
   struct Filegroup {
     Filegroup(){}
 
     Uint32 key;
     Uint32 m_obj_ptr_i;
     Uint32 m_magic;
-    
+
     Uint32 m_type;
     Uint32 m_version;
     RopeHandle m_name;
@@ -634,13 +647,13 @@ public:
 	Uint32 m_extent_size;
 	Uint32 m_default_logfile_group_id;
       } m_tablespace;
-      
+
       struct {
 	Uint32 m_undo_buffer_size;
 	File_list::HeadPOD m_files;
       } m_logfilegroup;
     };
-    
+
     union {
       Uint32 nextPool;
       Uint32 nextList;
@@ -654,12 +667,12 @@ public:
   typedef Ptr<Filegroup> FilegroupPtr;
   typedef RecordPool<Filegroup, RWPool> Filegroup_pool;
   typedef KeyTableImpl<Filegroup_pool, Filegroup> Filegroup_hash;
-  
+
   File_pool c_file_pool;
   Filegroup_pool c_filegroup_pool;
   File_hash c_file_hash;
   Filegroup_hash c_filegroup_hash;
-  
+
   RopePool c_rope_pool;
   RSS_AP_SNAPSHOT(c_rope_pool);
 
@@ -671,7 +684,7 @@ public:
     Uint32 m_id;
     Uint32 m_type;
     Uint32 m_ref_count;
-    RopeHandle m_name;  
+    RopeHandle m_name;
     union {
       struct {
 	Uint32 m_name_len;
@@ -683,9 +696,9 @@ public:
     };
     Uint32 nextHash;
     Uint32 prevHash;
-    
+
     Uint32 hashValue() const { return m_name.hashValue();}
-    bool equal(const DictObject& obj) const { 
+    bool equal(const DictObject& obj) const {
       if(obj.hashValue() == hashValue()){
 	ConstRope r(* m_key.m_pool, obj.m_name);
 	return r.compare(m_key.m_name_ptr, m_key.m_name_len) == 0;
@@ -702,20 +715,23 @@ public:
   };
 
   typedef Ptr<DictObject> DictObjectPtr;
-  
-  DLHashTable<DictObject> c_obj_hash; // Name
-  ArrayPool<DictObject> c_obj_pool;
+  typedef ArrayPool<DictObject> DictObject_pool;
+  typedef DLHashTable<DictObject,DictObject,DictObject_pool> DictObject_hash;
+  typedef SLList<DictObject> DictObject_list;
+
+  DictObject_hash c_obj_hash; // Name
+  DictObject_pool c_obj_pool;
   RSS_AP_SNAPSHOT(c_obj_pool);
-  
+
   // 1
   DictObject * get_object(const char * name){
     return get_object(name, Uint32(strlen(name) + 1));
   }
-  
+
   DictObject * get_object(const char * name, Uint32 len){
-    return get_object(name, len, Rope::hash(name, len));
+    return get_object(name, len, LocalRope::hash(name, len));
   }
-  
+
   DictObject * get_object(const char * name, Uint32 len, Uint32 hash);
 
   //2
@@ -724,7 +740,7 @@ public:
   }
 
   bool get_object(DictObjectPtr& obj_ptr, const char * name, Uint32 len){
-    return get_object(obj_ptr, name, len, Rope::hash(name, len));
+    return get_object(obj_ptr, name, len, LocalRope::hash(name, len));
   }
 
   bool get_object(DictObjectPtr&, const char* name, Uint32 len, Uint32 hash);
@@ -732,7 +748,7 @@ public:
   void release_object(Uint32 obj_ptr_i){
     release_object(obj_ptr_i, c_obj_pool.getPtr(obj_ptr_i));
   }
-  
+
   void release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p);
 
   void increase_ref_count(Uint32 obj_ptr_i);
@@ -747,7 +763,7 @@ private:
 
   // Signal receivers
   void execDICTSTARTREQ(Signal* signal);
-  
+
   void execGET_TABINFOREQ(Signal* signal);
   void execGET_TABLEDID_REQ(Signal* signal);
   void execGET_TABINFO_REF(Signal* signal);
@@ -869,12 +885,12 @@ private:
   void execDROP_TRIG_IMPL_REF(Signal* signal);
 
   void execDROP_TABLE_REQ(Signal* signal);
-  
+
   void execPREP_DROP_TAB_REQ(Signal* signal);
-  void execPREP_DROP_TAB_REF(Signal* signal);  
+  void execPREP_DROP_TAB_REF(Signal* signal);
   void execPREP_DROP_TAB_CONF(Signal* signal);
 
-  void execDROP_TAB_REF(Signal* signal);  
+  void execDROP_TAB_REF(Signal* signal);
   void execDROP_TAB_CONF(Signal* signal);
 
   void execCREATE_TABLE_REQ(Signal* signal);
@@ -894,7 +910,7 @@ private:
   void execLQHADDATTREF(Signal* signal);
   void execLQHADDATTCONF(Signal* signal);
   void execCREATE_TAB_REF(Signal* signal);
-  void execCREATE_TAB_CONF(Signal* signal);  
+  void execCREATE_TAB_CONF(Signal* signal);
   void execALTER_TAB_REF(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
   void execALTER_TABLE_REF(Signal* signal);
@@ -949,7 +965,7 @@ private:
    */
 
   /**
-   * This record stores all the state needed 
+   * This record stores all the state needed
    * when the schema page is being sent to other nodes
    ***************************************************************************/
   struct SendSchemaRecord {
@@ -960,7 +976,7 @@ private:
 
     Uint32 nodeId;
     SignalCounter m_SCHEMAINFO_Counter;
-    
+
     Uint32 noOfWordsCurrentlySent;
     Uint32 noOfSignalsSentSinceDelay;
 
@@ -969,7 +985,7 @@ private:
   SendSchemaRecord c_sendSchemaRecord;
 
   /**
-   * This record stores all the state needed 
+   * This record stores all the state needed
    * when a table file is being read from disk
    ****************************************************************************/
   struct ReadTableRecord {
@@ -979,14 +995,14 @@ private:
     Uint32 pageId;
     /** Table Id of read table */
     Uint32 tableId;
-    
+
     bool inUse;
     Callback m_callback;
   };
   ReadTableRecord c_readTableRecord;
 
   /**
-   * This record stores all the state needed 
+   * This record stores all the state needed
    * when a table file is being written to disk
    ****************************************************************************/
   struct WriteTableRecord {
@@ -1013,7 +1029,7 @@ private:
   WriteTableRecord c_writeTableRecord;
 
   /**
-   * This record stores all the state needed 
+   * This record stores all the state needed
    * when a schema file is being read from disk
    ****************************************************************************/
   struct ReadSchemaRecord {
@@ -1034,7 +1050,7 @@ private:
   ReadSchemaRecord c_readSchemaRecord;
 
   /**
-   * This record stores all the state needed 
+   * This record stores all the state needed
    * when a schema file is being written to disk
    ****************************************************************************/
   struct WriteSchemaRecord {
@@ -1055,7 +1071,7 @@ private:
   WriteSchemaRecord c_writeSchemaRecord;
 
   /**
-   * This record stores all the information needed 
+   * This record stores all the information needed
    * when a file is being read from disk
    ****************************************************************************/
   struct RestartRecord {
@@ -1081,20 +1097,20 @@ private:
   RestartRecord c_restartRecord;
 
   /**
-   * This record stores all the information needed 
+   * This record stores all the information needed
    * when a file is being read from disk
    ****************************************************************************/
   struct RetrieveRecord {
     RetrieveRecord(){ noOfWaiters = 0;}
-    
+
     /**    Only one retrieve table definition at a time       */
     bool busyState;
-    
+
     /**
      * No of waiting in time queue
      */
     Uint32 noOfWaiters;
-    
+
     /**    Block Reference of retriever       */
     BlockReference blockRef;
 
@@ -1129,9 +1145,9 @@ private:
   RetrieveRecord c_retrieveRecord;
 
   /**
-   * This record stores all the information needed 
+   * This record stores all the information needed
    * when a file is being read from disk
-   * 
+   *
    * This is the info stored in one entry of the schema
    * page. Each table has 4 words of info.
    * Word 1: Schema version (upper 16 bits)
@@ -1152,7 +1168,7 @@ private:
 
     /**    Old Schema file first page (used at node restart)    */
     Uint32 oldSchemaPage;
-    
+
     Callback m_callback;
   };
   SchemaRecord c_schemaRecord;
@@ -1198,7 +1214,7 @@ private:
   /* ----------------------------------------------------------------------- */
 
   struct PackTable {
-    
+
     enum PackTableState {
       PTS_IDLE = 0,
       PTS_GET_TAB = 3
@@ -1222,7 +1238,7 @@ private:
     DictTabInfo::RequestType requestType;
     Uint32 errorCode;
     Uint32 errorLine;
-    
+
     SimpleProperties::UnpackStatus status;
     Uint32 errorKey;
     TableRecordPtr tablePtr;
@@ -1235,7 +1251,7 @@ private:
   copyRope(RopeHandle& rh_dst, const RopeHandle& rh_src)
   {
     char buf[sz];
-    Rope r_dst(c_rope_pool, rh_dst);
+    LocalRope r_dst(c_rope_pool, rh_dst);
     ConstRope r_src(c_rope_pool, rh_src);
     ndbrequire(r_src.size() <= sz);
     r_src.copy(buf);
@@ -1256,7 +1272,7 @@ private:
     return str;
   }
 #endif
- 
+
   // Operation records
 
   /**
@@ -1318,7 +1334,7 @@ private:
                 Uint32 key = 0,
                 const char * name = 0);
 
-  void setError(ErrorInfo&, 
+  void setError(ErrorInfo&,
                 Uint32 code,
                 Uint32 line,
                 const char * name);
@@ -1504,7 +1520,7 @@ private:
       case OS_ABORTING_PARSE:
         return 4;
       //case OS_ABORTED_PARSE    = 9,  // Not used, op released
-        //return 3: 
+        //return 3:
       case OS_COMMITTING:
         return 10;
       case OS_COMMITTED:
@@ -1596,9 +1612,9 @@ private:
   };
 
   typedef RecordPool<SchemaOp,ArenaPool> SchemaOp_pool;
-  typedef LocalDLFifoList<SchemaOp,SchemaOp,SchemaOp_pool> LocalSchemaOp_list;
   typedef DLHashTable<SchemaOp,SchemaOp,SchemaOp_pool> SchemaOp_hash;
   typedef DLFifoList<SchemaOp,SchemaOp,SchemaOp_pool>::Head  SchemaOp_head;
+  typedef LocalDLFifoList<SchemaOp,SchemaOp,SchemaOp_pool> LocalSchemaOp_list;
 
   SchemaOp_pool c_schemaOpPool;
   SchemaOp_hash c_schemaOpHash;
@@ -1681,7 +1697,7 @@ private:
     /*
       Store node id in high 8 bits to make op_key globally unique
      */
-    Uint32 op_key = 
+    Uint32 op_key =
       (getOwnNodeId() << 24) +
       ((c_opRecordSequence + 1) & 0x00FFFFFF);
     if (seizeSchemaOp<T>(trans_ptr, op_ptr, op_key, linked)) {
@@ -1959,9 +1975,12 @@ private:
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
+  typedef DLHashTable<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_hash;
+  typedef DLFifoList<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_list;
+
   SchemaTrans_pool c_schemaTransPool;
-  DLHashTable<SchemaTrans,SchemaTrans,SchemaTrans_pool> c_schemaTransHash;
-  DLFifoList<SchemaTrans,SchemaTrans,SchemaTrans_pool> c_schemaTransList;
+  SchemaTrans_hash c_schemaTransHash;
+  SchemaTrans_list c_schemaTransList;
   Uint32 c_schemaTransCount;
 
   bool seizeSchemaTrans(SchemaTransPtr&, Uint32 trans_key);
@@ -2226,8 +2245,11 @@ private:
 #endif
   };
 
-  ArrayPool<TxHandle> c_txHandlePool;
-  DLHashTable<TxHandle> c_txHandleHash;
+  typedef ArrayPool<TxHandle> TxHandle_pool;
+  typedef DLHashTable<TxHandle,TxHandle,TxHandle_pool> TxHandle_hash;
+
+  TxHandle_pool c_txHandlePool;
+  TxHandle_hash c_txHandleHash;
 
   bool seizeTxHandle(TxHandlePtr&);
   bool findTxHandle(TxHandlePtr&, Uint32 tx_key);
@@ -2932,12 +2954,12 @@ private:
     bool equal(const HashMapRecord& obj) const { return key == obj.key;}
 
   };
-  typedef Ptr<HashMapRecord> HashMapPtr;
-  typedef ArrayPool<HashMapRecord> HashMap_pool;
-  typedef KeyTableImpl<HashMap_pool, HashMapRecord> HashMap_hash;
+  typedef Ptr<HashMapRecord> HashMapRecordPtr;
+  typedef ArrayPool<HashMapRecord> HashMapRecord_pool;
+  typedef KeyTableImpl<HashMapRecord_pool, HashMapRecord> HashMapRecord_hash;
 
-  HashMap_pool c_hash_map_pool;
-  HashMap_hash c_hash_map_hash;
+  HashMapRecord_pool c_hash_map_pool;
+  HashMapRecord_hash c_hash_map_hash;
   RSS_AP_SNAPSHOT(c_hash_map_pool);
   RSS_AP_SNAPSHOT(g_hash_map);
 
@@ -3612,18 +3634,23 @@ private:
     Uint32 u_opSignalUtil   [PTR_ALIGN(opSignalUtilSize)];
     Uint32 nextPool;
   };
-  ArrayPool<OpRecordUnion> c_opRecordPool;
-  
+  typedef ArrayPool<OpRecordUnion> OpRecordUnion_pool;
+  OpRecordUnion_pool c_opRecordPool;
+
   // Operation records
-  KeyTable2C<OpCreateEvent, OpRecordUnion> c_opCreateEvent;
-  KeyTable2C<OpSubEvent, OpRecordUnion> c_opSubEvent;
-  KeyTable2C<OpDropEvent, OpRecordUnion> c_opDropEvent;
-  KeyTable2C<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
+  typedef KeyTable2C<OpCreateEvent, OpRecordUnion> OpCreateEvent_pool;
+  typedef KeyTable2C<OpSubEvent, OpRecordUnion> OpSubEvent_pool;
+  typedef KeyTable2C<OpDropEvent, OpRecordUnion> OpDropEvent_pool;
+  typedef KeyTable2C<OpSignalUtil, OpRecordUnion> OpSignalUtil_pool;
+  OpCreateEvent_pool c_opCreateEvent;
+  OpSubEvent_pool c_opSubEvent;
+  OpDropEvent_pool c_opDropEvent;
+  OpSignalUtil_pool c_opSignalUtil;
 
   // Unique key for operation  XXX move to some system table
   Uint32 c_opRecordSequence;
 
-  void handleNdbdFailureCallback(Signal* signal, 
+  void handleNdbdFailureCallback(Signal* signal,
                                  Uint32 failedNodeId,
                                  Uint32 ignoredRc);
   void handleApiFailureCallback(Signal* signal,
@@ -3637,17 +3664,17 @@ private:
   void sendSTTORRY(Signal* signal);
   void sendNDB_STTORRY(Signal* signal);
   void initSchemaFile(Signal* signal);
-  
+
   /* ------------------------------------------------------------ */
   // Drop Table Handling
   /* ------------------------------------------------------------ */
   void releaseTableObject(Uint32 tableId, bool removeFromHash = true);
-  
+
   /* ------------------------------------------------------------ */
   // General Stuff
   /* ------------------------------------------------------------ */
   Uint32 getFreeObjId(Uint32 minId, bool both = false);
-  Uint32 getFreeTableRecord(Uint32 primaryTableId);
+  Uint32 getFreeTableRecord();
   Uint32 getFreeTriggerRecord();
   bool getNewAttributeRecord(TableRecordPtr tablePtr,
 			     AttributeRecordPtr & attrPtr);
@@ -3658,13 +3685,13 @@ private:
 			      const Uint32 undo_free_hi,
 			      const Uint32 undo_free_lo);
   void packFileIntoPages(SimpleProperties::Writer &, FilePtr, const Uint32);
-  
+
   void sendGET_TABINFOREQ(Signal* signal,
                           Uint32 tableId);
   void sendTC_SCHVERREQ(Signal* signal,
                         Uint32 tableId,
                         BlockReference tcRef);
-  
+
   /* ------------------------------------------------------------ */
   // System Restart Handling
   /* ------------------------------------------------------------ */
@@ -3672,7 +3699,7 @@ private:
   void sendSchemaData(Signal* signal);
   Uint32 sendSCHEMA_INFO(Signal* signal, Uint32 nodeId, Uint32* pagePointer);
   void sendDIHSTARTTAB_REQ(Signal* signal);
-  
+
   /* ------------------------------------------------------------ */
   // Receive Table Handling
   /* ------------------------------------------------------------ */
@@ -3682,21 +3709,21 @@ private:
 			 bool checkExist = true);
   void handleTabInfo(SimpleProperties::Reader & it, ParseDictTabInfoRecord *,
 		     DictTabInfo::Table & tableDesc);
-  
+
   void handleAddTableFailure(Signal* signal,
                              Uint32 failureLine,
                              Uint32 tableId);
   bool verifyTableCorrect(Signal* signal, Uint32 tableId);
-  
+
   /* ------------------------------------------------------------ */
   // Add Fragment Handling
   /* ------------------------------------------------------------ */
   void sendLQHADDATTRREQ(Signal*, SchemaOpPtr, Uint32 attributePtrI);
-  
+
   /* ------------------------------------------------------------ */
   // Read/Write Schema and Table files
   /* ------------------------------------------------------------ */
-  void updateSchemaState(Signal* signal, Uint32 tableId, 
+  void updateSchemaState(Signal* signal, Uint32 tableId,
 			 SchemaFile::TableEntry*, Callback*,
                          bool savetodisk = 1, bool dicttrans = 0);
   void startWriteSchemaFile(Signal* signal);
@@ -3712,13 +3739,13 @@ private:
   void closeWriteSchemaConf(Signal* signal,
                                FsConnectRecordPtr fsPtr);
   void initSchemaFile_conf(Signal* signal, Uint32 i, Uint32 returnCode);
-  
-  void writeTableFile(Signal* signal, Uint32 tableId, 
+
+  void writeTableFile(Signal* signal, Uint32 tableId,
 		      SegmentedSectionPtr tabInfo, Callback*);
   void writeTableFile(Signal* signal, SchemaOpPtr op_ptr, Uint32 tableId,
 		      OpSection opSection, Callback*);
   void startWriteTableFile(Signal* signal, Uint32 tableId);
-  void openTableFile(Signal* signal, 
+  void openTableFile(Signal* signal,
                      Uint32 fileNo,
                      Uint32 fsPtr,
                      Uint32 tableId,
@@ -3754,12 +3781,12 @@ private:
   /* ------------------------------------------------------------ */
   // Get table definitions
   /* ------------------------------------------------------------ */
-  void sendGET_TABINFOREF(Signal* signal, 
+  void sendGET_TABINFOREF(Signal* signal,
 			  GetTabInfoReq*,
 			  GetTabInfoRef::ErrorCode errorCode,
                           Uint32 errorLine);
 
-  void sendGET_TABLEID_REF(Signal* signal, 
+  void sendGET_TABLEID_REF(Signal* signal,
 			   GetTableIdReq * req,
 			   GetTableIdRef::ErrorCode errorCode);
 
@@ -3780,19 +3807,19 @@ private:
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
 
   // Events
-  void 
+  void
   createEventUTIL_PREPARE(Signal* signal,
 			  Uint32 callbackData,
 			  Uint32 returnCode);
-  void 
-  createEventUTIL_EXECUTE(Signal *signal, 
+  void
+  createEventUTIL_EXECUTE(Signal *signal,
 			  Uint32 callbackData,
 			  Uint32 returnCode);
-  void 
+  void
   dropEventUTIL_PREPARE_READ(Signal* signal,
 			     Uint32 callbackData,
 			     Uint32 returnCode);
-  void 
+  void
   dropEventUTIL_EXECUTE_READ(Signal* signal,
 			     Uint32 callbackData,
 			     Uint32 returnCode);
@@ -3800,8 +3827,8 @@ private:
   dropEventUTIL_PREPARE_DELETE(Signal* signal,
 			       Uint32 callbackData,
 			       Uint32 returnCode);
-  void 
-  dropEventUTIL_EXECUTE_DELETE(Signal *signal, 
+  void
+  dropEventUTIL_EXECUTE_DELETE(Signal *signal,
 			       Uint32 callbackData,
 			       Uint32 returnCode);
   void
@@ -3814,10 +3841,10 @@ private:
 			  Uint32 returnCode);
   int
   sendSignalUtilReq(Callback *c,
-		    BlockReference ref, 
-		    GlobalSignalNumber gsn, 
-		    Signal* signal, 
-		    Uint32 length, 
+		    BlockReference ref,
+		    GlobalSignalNumber gsn,
+		    Signal* signal,
+		    Uint32 length,
 		    JobBufferLevel jbuf,
 		    LinearSectionPtr ptr[3],
 		    Uint32 noOfSections);
@@ -3827,7 +3854,7 @@ private:
   void completeSubStartReq(Signal* signal, Uint32 ptrI,	Uint32 returnCode);
   void completeSubStopReq(Signal* signal, Uint32 ptrI, Uint32 returnCode);
   void completeSubRemoveReq(Signal* signal, Uint32 ptrI, Uint32 returnCode);
-  
+
   void dropEvent_sendReply(Signal* signal,
 			   OpDropEventPtr evntRecPtr);
 
@@ -3867,7 +3894,7 @@ private:
 				 const Uint32 prepareId,
 				 UtilPrepareReq::OperationTypeValue prepReq);
   void executeTransaction(Callback *c,
-			  Signal* signal, 
+			  Signal* signal,
 			  Uint32 senderData,
 			  Uint32 prepareId,
 			  Uint32 noAttr,
@@ -3878,7 +3905,7 @@ private:
   bool upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const;
 
   // support
-  void getTableKeyList(TableRecordPtr, 
+  void getTableKeyList(TableRecordPtr,
 		       Id_array<MAX_ATTRIBUTES_IN_INDEX+1>& list);
   void getIndexAttr(TableRecordPtr indexPtr, Uint32 itAttr, Uint32* id);
   void getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list);
@@ -3938,7 +3965,7 @@ private:
 public:
   void send_drop_file(Signal*, Uint32, Uint32, DropFileImplReq::RequestInfo);
   void send_drop_fg(Signal*, Uint32, Uint32, DropFilegroupImplReq::RequestInfo);
-  
+
   int checkSingleUserMode(Uint32 senderRef);
 
   friend NdbOut& operator<<(NdbOut& out, const ErrorInfo&);
@@ -3969,7 +3996,7 @@ public:
    */
   struct DictLockType;
   friend struct DictLockType;
-  
+
   struct DictLockType {
     DictLockReq::LockType lockType;
     const char* text;
@@ -3981,7 +4008,7 @@ public:
 
   Uint32 dict_lock_trylock(const DictLockReq* req);
   Uint32 dict_lock_unlock(Signal* signal, const DictLockReq* req);
-  
+
   LockQueue::Pool m_dict_lock_pool;
   LockQueue m_dict_lock;
 
