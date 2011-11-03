@@ -70,8 +70,46 @@ ENDIF()
 # Use stlport rather than Rogue Wave.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-    SET(CMAKE_CXX_FLAGS 
+    SET(CMAKE_CXX_FLAGS
       "${CMAKE_CXX_FLAGS} -library=stlport4")
+  ENDIF()
+ENDIF()
+
+MACRO(DIRNAME IN OUT)
+  GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
+ENDMACRO()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+  SET(STLPORT_SUFFIX "lib/stlport4")
+  IF(CMAKE_CXX_FLAGS MATCHES "-m64")
+    SET(STLPORT_SUFFIX "lib/stlport4/v9")
+  ENDIF()
+
+  FIND_LIBRARY(STL_LIBRARY_NAME
+    NAMES "stlport"
+    PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
+  )
+  MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
+  IF(STL_LIBRARY_NAME)
+    DIRNAME(${STL_LIBRARY_NAME} STLPORT_PATH)
+    # We re-distribute libstlport.so which is a symlink to libstlport.so.1
+    # There is no 'readlink' on solaris, sigh ..., so we use perl to find it:
+    SET(PERLSCRIPT
+      "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
+    EXECUTE_PROCESS(
+      COMMAND perl -e "${PERLSCRIPT}" ${STL_LIBRARY_NAME}
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE real_library
+    )
+    MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
+    INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
+            DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
+    # Using the $ORIGIN token with the -R option to locate the libraries
+    # on a path relative to the executable:
+    SET(CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${STLPORT_PATH}")
+    MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
   ENDIF()
 ENDIF()
 
