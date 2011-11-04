@@ -1,3 +1,8 @@
+2011-10-27	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug #12884631 62146: TABLES ARE LOST FOR DDL
+
 2011-10-25	The InnoDB Team
 
 	* handler/ha_innodb.cc, row/row0ins.c:
