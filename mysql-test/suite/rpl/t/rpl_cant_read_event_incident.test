@@ -14,6 +14,11 @@
 
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
+#
+# Bug#13050593 swallows `\' from  Last_IO_Error
+# todo: uncomment the filter once the bug is fixed.
+#
+--source include/not_windows.inc
 
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 
