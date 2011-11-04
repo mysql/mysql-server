@@ -302,7 +302,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool mysql_socket_idle; /* Perfschema: True when socket state is IDLE */
+  my_bool unused1; /* Please remove with the next incompatible ABI change */
   my_bool unused2; /* Please remove with the next incompatible ABI change */
   my_bool compress;
   my_bool unused3; /* Please remove with the next incompatible ABI change. */
@@ -323,6 +323,14 @@ typedef struct st_net {
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
   char sqlstate[SQLSTATE_LENGTH+1];
+  /**
+    Extension pointer, for the caller private use.
+    Any program linking with the networking library can use this pointer,
+    which is handy when private connection specific data needs to be
+    maintained.
+    The mysqld server process uses this pointer internally,
+    to maintain the server internal instrumentation for the connection.
+  */
   void *extension;
 } NET;
 
