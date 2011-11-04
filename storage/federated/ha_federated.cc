@@ -386,6 +386,11 @@
 
 #include <mysql/plugin.h>
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
 mysql_mutex_t federated_mutex;                // To init the hash
@@ -572,8 +577,8 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   size_t buf_len;
   DBUG_ENTER("ha_federated parse_url_error");
 
-  buf_len= min(table->s->connect_string.length,
-               FEDERATED_QUERY_BUFFER_SIZE-1);
+  buf_len= min<size_t>(table->s->connect_string.length,
+                       FEDERATED_QUERY_BUFFER_SIZE-1);
   strmake(buf, table->s->connect_string.str, buf_len);
   my_error(error_num, MYF(0), buf);
   DBUG_RETURN(error_num);
