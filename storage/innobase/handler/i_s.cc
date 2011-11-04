@@ -1381,7 +1381,7 @@ i_s_cmp_fill_low(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
-	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
+	for (uint i = 0; i < PAGE_ZIP_SSIZE_MAX; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 
 		table->field[0]->store(UNIV_ZIP_SIZE_MIN << i);
@@ -3285,6 +3285,10 @@ i_s_innodb_buffer_page_fill(
 			OK(field_store_string(fields[IDX_BUFFER_PAGE_IO_FIX],
 					      "IO_WRITE"));
 			break;
+		case BUF_IO_PIN:
+			OK(field_store_string(fields[IDX_BUFFER_PAGE_IO_FIX],
+					      "IO_PIN"));
+			break;
 		}
 
 		OK(field_store_string(fields[IDX_BUFFER_PAGE_IS_OLD],
@@ -3408,7 +3412,7 @@ i_s_innodb_buffer_page_get_info(
 
 			block = reinterpret_cast<const buf_block_t*>(bpage);
 			frame = block->frame;
-			page_info->hashed = block->is_hashed;
+			page_info->hashed = (block->index != NULL);
 		} else {
 			ut_ad(page_info->zip_ssize);
 			frame = bpage->zip.data;

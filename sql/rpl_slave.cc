@@ -59,6 +59,9 @@
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
 
+using std::min;
+using std::max;
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 #define MAX_SLAVE_RETRY_PAUSE 5
@@ -337,6 +340,8 @@ int init_slave()
   /* If server id is not set, start_slave_thread() will say it */
   if (active_mi->host[0] && !opt_skip_slave_start)
   {
+    /* same as in start_slave() cache the global var value into rli's member */
+    active_mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
     if (start_slave_threads(1 /* need mutex */,
                             0 /* no wait for start*/,
                             active_mi,
@@ -407,8 +412,8 @@ int init_recovery(Master_info* mi, const char** errmsg)
   group_master_log_name= const_cast<char *>(rli->get_group_master_log_name());
   if (!error && group_master_log_name[0])
   {
-    mi->set_master_log_pos(max(BIN_LOG_HEADER_SIZE,
-                           rli->get_group_master_log_pos()));
+    mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                               rli->get_group_master_log_pos()));
     mi->set_master_log_name(rli->get_group_master_log_name());
 
     sql_print_warning("Recovery from master pos %ld and file %s.",
@@ -425,11 +430,10 @@ int init_recovery(Master_info* mi, const char** errmsg)
 
 int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 {
-  int error= 0;
-  int necessary_to_configure= 0;
-
   DBUG_ENTER("init_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
+  int init_error= 0;
+  enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -445,26 +449,30 @@ int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
     SLAVE_SQL thread is being started or was not initialized as it is
     required by the SLAVE_IO thread.
   */
-  necessary_to_configure= mi->check_info();
-  if (!(ignore_if_no_info && necessary_to_configure))
+  check_return= mi->check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+    goto end;
+
+  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
-    if ((thread_mask & SLAVE_IO) != 0 &&
-        mi->init_info())
-      error= 1;
+    if ((thread_mask & SLAVE_IO) != 0 && mi->init_info())
+      init_error= 1;
   }
 
-  necessary_to_configure= mi->rli->check_info();
-  if (!(ignore_if_no_info && necessary_to_configure))
+  check_return= mi->rli->check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+    goto end;
+  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
-     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
-         && mi->rli->init_info())
-    error= 1;
+    if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
+        && mi->rli->init_info())
+      init_error= 1;
   }
 
+end:
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-
-  DBUG_RETURN(error);
+  DBUG_RETURN(check_return == ERROR_CHECKING_REPOSITORY || init_error);
 }
 
 void end_info(Master_info* mi)
@@ -742,7 +750,10 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the relay log info regardles of the sync_relay_log_info option.
     */
     if (mi->rli->flush_info(TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     mysql_mutex_unlock(log_lock);
   }
@@ -767,14 +778,20 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the master info regardles of the sync_master_info option.
     */
     if (mi->flush_info(TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     /*
       Flushes the relay log regardles of the sync_relay_log option.
     */
     if (mi->rli->relay_log.is_open() &&
         mi->rli->relay_log.flush_and_sync(0, TRUE))
+    {
+      mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    }
 
     mysql_mutex_unlock(log_lock);
   }
@@ -2011,7 +2028,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
       if (flush_master_info(mi, TRUE))
-        sql_print_error("Failed to flush master info file");
+        sql_print_error("Failed to flush master info file.");
       delete ev;
     }
     else
@@ -2312,7 +2329,7 @@ bool show_master_info(THD* thd, Master_info* mi)
         special marker to say "consider we have caught up".
       */
       protocol->store((longlong)(mi->rli->last_master_timestamp ?
-                                 max(0, time_diff) : 0));
+                                 max(0L, time_diff) : 0));
     }
     else
     {
@@ -2917,20 +2934,19 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
   if (exec_res == 0)
   {
     /*
-      Positions are not updated here when an XID is processed and the relay
-      log info is stored in a transactional engine such as Innodb. To make
-      a slave crash-safe, positions must be updated while processing a XID
-      event and as such do not need to be updated here again.
+      Positions are not updated here when an XID is processed. To make
+      a slave crash-safe, positions must be updated while processing a
+      XID event and as such do not need to be updated here again.
 
-      However, if the event needs to be skipped, this means that it will not
-      be processed and then positions need to be updated here.
+      However, if the event needs to be skipped, this means that it
+      will not be processed and then positions need to be updated here.
 
       See sql/rpl_rli.h for further details.
     */
     int error= 0;
     if (*ptr_ev &&
-        (!(ev->get_type_code() == XID_EVENT && rli->is_transactional()) ||
-         skip_event || (rli->is_mts_recovery() && 
+        (ev->get_type_code() != XID_EVENT ||
+         skip_event || (rli->is_mts_recovery() &&
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
@@ -3209,7 +3225,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             exec_res= 0;
             rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
-            slave_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
+            slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock); // because of SHOW STATUS
             rli->trans_retries++;
@@ -3398,7 +3414,7 @@ pthread_handler_t handle_slave_io(void *arg)
     goto err;
   }
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
   mi->slave_running = 1;
   mi->abort_slave = 0;
@@ -3644,7 +3660,9 @@ Stopping slave I/O thread due to out-of-memory error from master");
       mysql_mutex_lock(&mi->data_lock);
       if (flush_master_info(mi, FALSE))
       {
-        sql_print_error("Failed to flush master info file");
+        mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                   ER(ER_SLAVE_FATAL_ERROR),
+                   "Failed to flush master info.");
         mysql_mutex_unlock(&mi->data_lock);
         goto err;
       }
@@ -3821,7 +3839,7 @@ pthread_handler_t handle_slave_worker(void *arg)
   }
   thd->init_for_queries();
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
 
   if (w->update_is_transactional())
@@ -3943,6 +3961,9 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
   LOG_INFO linfo;
   my_off_t offset= 0;
 
+  DBUG_ENTER("mts_recovery_groups");
+  DBUG_ASSERT(rli->recovery_parallel_workers > 0);
+
   /*
     Save relay log position to compare with worker's position.
   */
@@ -3952,8 +3973,10 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
     rli->get_group_master_log_pos()
   };
 
-  DBUG_ENTER("mts_recovery_groups");
-  DBUG_ASSERT(rli->recovery_parallel_workers > 0);
+  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
+
+  if (!p_fdle->is_valid())
+    DBUG_RETURN(TRUE);
 
   /*
     Gathers information on valuable workers and stores it in 
@@ -3966,6 +3989,13 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
   {
     Slave_worker *worker=
       Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli);
+
+    if (!worker)
+    {
+      error= TRUE;
+      goto err;
+    }
+
     worker->init_info();
     LOG_POS_COORD w_last= { const_cast<char*>(worker->get_group_master_log_name()),
                             worker->get_group_master_log_pos() };
@@ -4010,13 +4040,6 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
         while(!eof);
         continue;
   */
-  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
-
-  if (!p_fdle->is_valid())
-  {
-    error= TRUE;
-    goto err;
-  }
 
   bitmap_clear_all(groups);
   rli->mts_recovery_group_cnt= 0;
@@ -4640,7 +4663,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
 
   /* MTS: starting the worker pool */
@@ -6041,8 +6064,8 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
     relay_log_pos       Current log pos
     pending             Number of bytes already processed from the event
   */
-  rli->set_event_relay_log_pos(max(rli->get_event_relay_log_pos(),
-                                   BIN_LOG_HEADER_SIZE));
+  rli->set_event_relay_log_pos(max<ulonglong>(rli->get_event_relay_log_pos(),
+                                              BIN_LOG_HEADER_SIZE));
   my_b_seek(cur_log,rli->get_event_relay_log_pos());
   DBUG_RETURN(cur_log);
 }
@@ -7205,8 +7228,8 @@ bool change_master(THD* thd, Master_info* mi)
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else
-    mi->heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                      (slave_net_timeout/2.0));
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
   mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
   /*
     reset the last time server_id list if the current CHANGE MASTER 
@@ -7310,8 +7333,8 @@ bool change_master(THD* thd, Master_info* mi)
        of replication is not 100% clear, so we guard against problems using
        max().
       */
-     mi->set_master_log_pos(max(BIN_LOG_HEADER_SIZE,
-                           mi->rli->get_group_master_log_pos()));
+     mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                           mi->rli->get_group_master_log_pos()));
      mi->set_master_log_name(mi->rli->get_group_master_log_name());
   }
   /*

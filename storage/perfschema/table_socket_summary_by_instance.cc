@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 /**
   @file storage/perfschema/table_socket_summary_by_instance.cc
-  Table SOCKET_INSTANCES (implementation).
+  Table SOCKET_SUMMARY_BY_INSTANCE (implementation).
 */
 
 #include "my_global.h"
@@ -367,4 +367,3 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
 
   return 0;
 }
-

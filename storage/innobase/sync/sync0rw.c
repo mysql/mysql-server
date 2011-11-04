@@ -315,14 +315,19 @@ rw_lock_free_func(
 /*==============*/
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
+	mutex_t*	mutex;
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
+
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_free(rw_lock_get_mutex(lock));
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-
 	mutex_enter(&rw_lock_list_mutex);
+
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
+	mutex = rw_lock_get_mutex(lock);
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
+
 	os_event_free(lock->event);
 
 	os_event_free(lock->wait_ex_event);
@@ -337,6 +342,12 @@ rw_lock_free_func(
 	mutex_exit(&rw_lock_list_mutex);
 
 	ut_d(lock->magic_n = 0);
+
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
+	/* We have merely removed the rw_lock from the list, the memory
+	has not been freed. Therefore the pointer to mutex is valid. */
+	mutex_free(mutex);
+#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
 #ifdef UNIV_DEBUG
@@ -631,6 +642,9 @@ rw_lock_x_lock_func(
 	ibool		spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	i = 0;
 
@@ -719,7 +733,7 @@ mutex. */
 UNIV_INTERN
 void
 rw_lock_debug_mutex_enter(void)
-/*==========================*/
+/*===========================*/
 {
 loop:
 	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
@@ -948,11 +962,13 @@ rw_lock_list_print_info(
 				putc('\n', file);
 			}
 
+			rw_lock_debug_mutex_enter();
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
 				rw_lock_debug_print(file, info);
 				info = UT_LIST_GET_NEXT(list, info);
 			}
+			rw_lock_debug_mutex_exit();
 		}
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 		mutex_exit(&(lock->mutex));
@@ -996,11 +1012,13 @@ rw_lock_print(
 			putc('\n', stderr);
 		}
 
+		rw_lock_debug_mutex_enter();
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
 			rw_lock_debug_print(stderr, info);
 			info = UT_LIST_GET_NEXT(list, info);
 		}
+		rw_lock_debug_mutex_exit();
 	}
 }
 

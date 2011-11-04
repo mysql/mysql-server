@@ -105,7 +105,7 @@ let $MYSQL_PLUGIN_CMD= $MYSQL_PLUGIN --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD
 --echo #
 --echo # Ensure the plugin isn't loaded.
 --echo #
-SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 
 --echo #
 --echo # Enable the plugin...
@@ -139,10 +139,21 @@ EOF
 --source include/wait_until_connected_again.inc
 
 --echo #
+--echo # Simulate loading a plugin libary with multiple entry points.
+--echo # This will test the DISABLE to ensure all rows are removed.
+--echo #
+--replace_regex /\.dll/.so/
+eval INSERT INTO mysql.plugin VALUES ('wicky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
+eval INSERT INTO mysql.plugin VALUES ('wacky', '$DAEMONEXAMPLE'); 
+--replace_regex /\.dll/.so/
+eval INSERT INTO mysql.plugin VALUES ('wonky', '$DAEMONEXAMPLE'); 
+
+--echo #
 --echo # Ensure the plugin is now loaded.
 --echo #
 --replace_regex /\.dll/.so/
-SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 
 --echo #
 --echo # Disable the plugin...
@@ -173,7 +184,7 @@ EOF
 --echo #
 --echo # Ensure the plugin isn't loaded.
 --echo #
-SELECT * FROM mysql.plugin WHERE name = 'daemon_example' ORDER BY name;
+SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 
 #
 # Stop the server for error conditions

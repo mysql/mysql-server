@@ -6656,9 +6656,11 @@ lock_table_locks_check(
 
 			if (lock_get_type_low(lock) == LOCK_REC) {
 				if (lock->index->table == table) {
+					mutex_exit(&trx_sys->mutex);
 					return(lock);
 				}
 			} else if (lock->un_member.tab_lock.table == table) {
+				mutex_exit(&trx_sys->mutex);
 				return(lock);
 			}
 		}

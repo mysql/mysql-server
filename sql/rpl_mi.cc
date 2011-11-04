@@ -20,6 +20,9 @@
 #include "rpl_mi.h"
 #include "rpl_slave.h"                          // SLAVE_MAX_HEARTBEAT_PERIOD
 
+using std::min;
+using std::max;
+
 #ifdef HAVE_REPLICATION
 
 enum {
@@ -190,8 +193,8 @@ void Master_info::init_master_log_pos()
     if CHANGE MASTER did not specify it.  (no data loss in conversion
     as hb period has a max)
   */
-  heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                (slave_net_timeout/2.0));
+  heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                               (slave_net_timeout/2.0));
   DBUG_ASSERT(heartbeat_period > (float) 0.001
               || heartbeat_period == 0);
 
@@ -246,6 +249,9 @@ int Master_info::flush_info(bool force)
   DBUG_ENTER("Master_info::flush_info");
   DBUG_PRINT("enter",("master_pos: %lu", (ulong) master_log_pos));
 
+  if (!inited)
+    DBUG_RETURN(0);
+
   /*
     We update the sync_period at this point because only here we
     now that we are handling a master info. This needs to be
@@ -263,7 +269,7 @@ int Master_info::flush_info(bool force)
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error writing master configuration");
+  sql_print_error("Error writing master configuration.");
   DBUG_RETURN(1);
 }
 
@@ -274,35 +280,39 @@ void Master_info::set_relay_log_info(Relay_log_info* info)
 
 int Master_info::init_info()
 {
-  DBUG_ENTER("Master_info::init_info");
-
-  if (inited)
-    DBUG_RETURN(0);
-
   /*
     The init_info() is used to either create or read information
     from the repository, in order to initialize the Master_info.
   */
+  DBUG_ENTER("Master_info::init_info");
+  enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
+
+  if (inited)
+    DBUG_RETURN(0);
+
   mysql= 0; file_id= 1;
-  int necessary_to_configure= check_info();
+  check_return= check_info();
+  if (check_return == ERROR_CHECKING_REPOSITORY)
+    goto err;
   
   if (handler->init_info(uidx, nidx))
     goto err;
 
-  if (necessary_to_configure)
+  if (check_return == REPOSITORY_DOES_NOT_EXIST)
   {
     init_master_log_pos();
   }
   else if (read_info(handler))
     goto err;
 
+  inited= 1;
   if (flush_info(TRUE))
     goto err;
 
-  inited= 1;
   DBUG_RETURN(0);
 
 err:
+  inited= 0;
   sql_print_error("Error reading master configuration.");
   DBUG_RETURN(1);
 }

@@ -115,22 +115,19 @@ static int thr_lock_errno_to_mysql[]=
 static int
 lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
 {
-  uint system_count, i;
-  bool is_superuser;
+  uint system_count= 0, i= 0;
+  bool is_superuser= false;
   /*
     Identifies if the executed sql command can updated either a log
     or rpl info table.
   */
-  bool log_table_write_query, rpl_info_table_write_query;
+  bool log_table_write_query= false;
 
   DBUG_ENTER("lock_tables_check");
 
-  system_count= 0;
   is_superuser= thd->security_ctx->master_access & SUPER_ACL;
   log_table_write_query=
      is_log_table_write_query(thd->lex->sql_command);
-  rpl_info_table_write_query=
-     is_rpl_info_table_write_query(thd->lex->sql_command);
 
   for (i=0 ; i<count; i++)
   {
@@ -145,23 +142,6 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
       When a user is requesting a lock, the following
       constraints are enforced:
     */
-    if (t->s->table_category == TABLE_CATEGORY_RPL_INFO &&
-        (flags & MYSQL_LOCK_RPL_INFO_TABLE) == 0 &&
-        !rpl_info_table_write_query)
-    {
-      /*
-        A user should not be able to prevent writes,
-        or hold any type of lock in a session,
-        since this would be a DOS attack.
-      */
-      if ((t->reginfo.lock_type >= TL_READ_NO_INSERT ||
-          thd->lex->sql_command == SQLCOM_LOCK_TABLES))
-      {
-          my_error(ER_CANT_LOCK_RPL_INFO_TABLE, MYF(0));
-          DBUG_RETURN(1);
-      }
-    }
-
     if (t->s->table_category == TABLE_CATEGORY_LOG &&
         (flags & MYSQL_LOCK_LOG_TABLE) == 0 &&
         !log_table_write_query)

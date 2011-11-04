@@ -786,13 +786,17 @@ dict_stats_analyze_index_below_cur(
 	ib_uint64_t	n_diff; /* the result */
 	ulint		size;
 
-	index = cur->index;
+	index = btr_cur_get_index(cur);
 
 	/* Allocate offsets for the record and the node pointer, for
 	node pointer records. In a secondary index, the node pointer
 	record will consist of all index fields followed by a child
-	page number. */
-	size = REC_OFFS_HEADER_SIZE + 1 + dict_index_get_n_fields(index);
+	page number.
+	Allocate space for the offsets header (the allocation size at
+	offsets[0] and the REC_OFFS_HEADER_SIZE bytes), and n_fields + 1,
+	so that this will never be less than the size calculated in
+	rec_get_offsets_func(). */
+	size = (1 + REC_OFFS_HEADER_SIZE) + 1 + dict_index_get_n_fields(index);
 
 	heap = mem_heap_create(size * (sizeof *offsets1 + sizeof *offsets2));
 	offsets1 = mem_heap_alloc(heap, size * sizeof *offsets1);

@@ -263,7 +263,6 @@ performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
 	{&autoinc_mutex_key, "autoinc_mutex", 0},
-	{&btr_search_enabled_mutex_key, "btr_search_enabled_mutex", 0},
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	{&buffer_block_mutex_key, "buffer_block_mutex", 0},
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
@@ -2877,7 +2876,6 @@ innobase_change_buffering_inited_ok:
 	/* Turn on monitor counters that are default on */
 	srv_mon_default_on();
 
-	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
 	DBUG_RETURN(TRUE);
@@ -3414,24 +3412,15 @@ ha_innobase::get_row_type() const
 	if (prebuilt && prebuilt->table) {
 		const ulint	flags = prebuilt->table->flags;
 
-		if (UNIV_UNLIKELY(!flags)) {
+		switch (dict_tf_get_rec_format(flags)) {
+		case REC_FORMAT_REDUNDANT:
 			return(ROW_TYPE_REDUNDANT);
-		}
-
-		ut_ad(flags & DICT_TF_COMPACT);
-
-		switch (flags & DICT_TF_FORMAT_MASK) {
-		case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
+		case REC_FORMAT_COMPACT:
 			return(ROW_TYPE_COMPACT);
-		case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT:
-			if (flags & DICT_TF_ZSSIZE_MASK) {
-				return(ROW_TYPE_COMPRESSED);
-			} else {
-				return(ROW_TYPE_DYNAMIC);
-			}
-#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
-# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
-#endif
+		case REC_FORMAT_COMPRESSED:
+			return(ROW_TYPE_COMPRESSED);
+		case REC_FORMAT_DYNAMIC:
+			return(ROW_TYPE_DYNAMIC);
 		}
 	}
 	ut_ad(0);
@@ -3453,7 +3442,7 @@ ha_innobase::table_flags() const
 	ulong const tx_isolation = thd_tx_isolation(ha_thd());
 
 	if (tx_isolation <= ISO_READ_COMMITTED) {
-		return int_table_flags;
+		return(int_table_flags);
 	}
 
 	return(int_table_flags | HA_BINLOG_STMT_CAPABLE);
@@ -3576,18 +3565,29 @@ ha_innobase::primary_key_is_clustered()
 	return(true);
 }
 
+/** Always normalize table name to lower case on Windows */
+#ifdef __WIN__
+#define normalize_table_name(norm_name, name)		\
+	normalize_table_name_low(norm_name, name, TRUE)
+#else
+#define normalize_table_name(norm_name, name)           \
+        normalize_table_name_low(norm_name, name, FALSE)
+#endif /* __WIN__ */
+
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
 test/mytable. On Windows normalization puts both the database name and the
-table name always to lower case. */
+table name always to lower case if "set_lower_case" is set to TRUE. */
 static
 void
-normalize_table_name(
-/*=================*/
+normalize_table_name_low(
+/*=====================*/
 	char*		norm_name,	/*!< out: normalized name as a
 					null-terminated string */
-	const char*	name)		/*!< in: table name string */
+	const char*	name,		/*!< in: table name string */
+	ibool		set_lower_case)	/*!< in: TRUE if we want to set name
+					to lower case */
 {
 	char*	name_ptr;
 	char*	db_ptr;
@@ -3617,9 +3617,9 @@ normalize_table_name(
 
 	norm_name[name_ptr - db_ptr - 1] = '/';
 
-#ifdef __WIN__
-	innobase_casedn_str(norm_name);
-#endif
+	if (set_lower_case) {
+		innobase_casedn_str(norm_name);
+	}
 }
 
 /********************************************************************//**
@@ -4023,6 +4023,8 @@ ha_innobase::open(
 	THD*		thd;
 	ulint		retries = 0;
 	char*		is_part = NULL;
+	ibool		par_case_name_set = FALSE;
+	char		par_case_name[MAX_FULL_NAME_LEN + 1];
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -4069,16 +4071,88 @@ ha_innobase::open(
 	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
 	at support issue https://support.mysql.com/view.php?id=21080
 	for more details. */
+#ifdef __WIN__
+	is_part = strstr(norm_name, "#p#");
+#else
 	is_part = strstr(norm_name, "#P#");
+#endif /* __WIN__ */
+
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_open_on_name(norm_name, FALSE);
 
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
-			++retries;
-			os_thread_sleep(100000);
-			goto retry;
+			/* MySQL partition engine hard codes the file name
+			separator as "#P#". The text case is fixed even if
+			lower_case_table_names is set to 1 or 2. This is true
+			for sub-partition names as well. InnoDB always
+			normalises file names to lower case on Windows, this
+			can potentially cause problems when copying/moving
+			tables between platforms.
+
+			1) If boot against an installation from Windows
+			platform, then its partition table name could
+			be all be in lower case in system tables. So we
+			will need to check lower case name when load table.
+
+			2) If  we boot an installation from other case
+			sensitive platform in Windows, we might need to
+			check the existence of table name without lowering
+			case them in the system table. */
+			if (innobase_get_lower_case_table_names() == 1) {
+
+				if (!par_case_name_set) {
+#ifndef __WIN__
+					/* Check for the table using lower
+					case name, including the partition
+					separator "P" */
+					memcpy(par_case_name, norm_name,
+					       strlen(norm_name));
+					par_case_name[strlen(norm_name)] = 0;
+					innobase_casedn_str(par_case_name);
+#else
+					/* On Windows platfrom, check
+					whether there exists table name in
+					system table whose name is
+					not being normalized to lower case */
+					normalize_table_name_low(
+						par_case_name, name, FALSE);
+#endif
+					par_case_name_set = TRUE;
+				}
+
+				ib_table = dict_table_open_on_name(
+					par_case_name, FALSE);
+			}
+
+			if (!ib_table) {
+				++retries;
+				os_thread_sleep(100000);
+				goto retry;
+			} else {
+#ifndef __WIN__
+				sql_print_warning("Partition table %s opened "
+						  "after converting to lower "
+						  "case. The table may have "
+						  "been moved from a case "
+						  "in-sensitive file system. "
+						  "Please recreate table in "
+						  "the current file system\n",
+						  norm_name);
+#else
+				sql_print_warning("Partition table %s opened "
+						  "after skipping the step to "
+						  "lower case the table name. "
+						  "The table may have been "
+						  "moved from a case sensitive "
+						  "file system. Please "
+						  "recreate table in the "
+						  "current file system\n",
+						  norm_name);
+#endif
+				goto table_opened;
+			}
 		}
 
 		if (is_part) {
@@ -4108,6 +4182,8 @@ retry:
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+table_opened:
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -6344,13 +6420,13 @@ ha_innobase::innobase_get_index(
 			table. Only print message if the index translation
 			table exists */
 			if (share->idx_trans_tbl.index_mapping) {
-				sql_print_error("InnoDB could not find "
-						"index %s key no %u for "
-						"table %s through its "
-						"index translation table",
-						key ? key->name : "NULL",
-						keynr,
-						prebuilt->table->name);
+				sql_print_warning("InnoDB could not find "
+						  "index %s key no %u for "
+						  "table %s through its "
+						  "index translation table",
+						  key ? key->name : "NULL",
+						  keynr,
+						  prebuilt->table->name);
 			}
 
 			index = dict_table_get_index_on_name(prebuilt->table,
@@ -7323,14 +7399,20 @@ ha_innobase::create(
 	char		norm_name[FN_REFLEN];
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
+	ibool		zip_allowed = TRUE;
+	enum row_type	row_format;
+	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
+
+	/* Zip Shift Size - log2 - 9 of compressed page size,
+	zero for uncompressed */
+	ulint		zip_ssize = 0;
 	ulint		flags = 0;
 	ulint		flags2 = 0;
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
-	const ulint	file_format = srv_file_format;
+	const ulint	file_format_allowed = srv_file_format;
 	const char*	stmt;
 	size_t		stmt_len;
-	enum row_type	row_format;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -7380,44 +7462,41 @@ ha_innobase::create(
 	}
 
 	if (create_info->key_block_size) {
-		/* Determine the page_zip.ssize corresponding to the
-		requested page size (key_block_size) in kilobytes. */
-
-		ulint	ssize, ksize;
-		ulint	key_block_size = create_info->key_block_size;
-
-		/*  Set 'flags' to the correct key_block_size.
-		It will be zero if key_block_size is an invalid number.*/
-		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
-		     ssize++, ksize <<= 1) {
-			if (key_block_size == ksize) {
-				flags = ssize << DICT_TF_ZSSIZE_SHIFT
-					| DICT_TF_COMPACT
-					| UNIV_FORMAT_B
-					  << DICT_TF_FORMAT_SHIFT;
+		/* The requested compressed page size (key_block_size)
+		is given in kilobytes. If it is a valid number, store
+		that value as the number of log2 shifts from 512 in
+		zip_ssize. Zero means it is not compressed. */
+		ulint zssize;		/* Zip Shift Size */
+		ulint kbsize;		/* Key Block Size */
+		for (zssize = kbsize = 1;
+		     zssize <= PAGE_ZIP_SSIZE_MAX;
+		     zssize++, kbsize <<= 1) {
+			if (kbsize == create_info->key_block_size) {
+				zip_ssize = zssize;
 				break;
 			}
 		}
 
+		/* Make sure compressed row format is allowed. */
 		if (!srv_file_per_table) {
 			push_warning(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_per_table.");
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 
-		if (file_format < UNIV_FORMAT_B) {
+		if (file_format_allowed < UNIV_FORMAT_B) {
 			push_warning(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_format > Antelope.");
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 
-		if (!flags) {
+		if (!zip_allowed || zssize > PAGE_ZIP_SSIZE_MAX) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7428,7 +7507,7 @@ ha_innobase::create(
 
 	row_format = form->s->row_type;
 
-	if (flags) {
+	if (zip_ssize && zip_allowed) {
 		/* if ROW_FORMAT is set to default,
 		automatically change it to COMPRESSED.*/
 		if (row_format == ROW_TYPE_DEFAULT) {
@@ -7446,28 +7525,24 @@ ha_innobase::create(
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
 				" unless ROW_FORMAT=COMPRESSED.",
 				create_info->key_block_size);
-			flags = 0;
+			zip_allowed = FALSE;
 		}
 	} else {
-		/* flags == 0 means no KEY_BLOCK_SIZE.*/
-		if (row_format == ROW_TYPE_COMPRESSED) {
+		/* zip_ssize == 0 means no KEY_BLOCK_SIZE.*/
+		if (row_format == ROW_TYPE_COMPRESSED && zip_allowed) {
 			/* ROW_FORMAT=COMPRESSED without
 			KEY_BLOCK_SIZE implies half the
 			maximum KEY_BLOCK_SIZE. */
-			flags = (DICT_TF_ZSSIZE_MAX - 1)
-				<< DICT_TF_ZSSIZE_SHIFT
-				| DICT_TF_COMPACT
-				| UNIV_FORMAT_B
-				<< DICT_TF_FORMAT_SHIFT;
-#if DICT_TF_ZSSIZE_MAX < 1
-# error "DICT_TF_ZSSIZE_MAX < 1"
-#endif
+			zip_ssize = PAGE_ZIP_SSIZE_MAX - 1;
 		}
 	}
 
+	/* Validate the row format.  Correct it if necessary */
 	switch (row_format) {
 	case ROW_TYPE_REDUNDANT:
+		innodb_row_format = REC_FORMAT_REDUNDANT;
 		break;
+
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
 		if (!srv_file_per_table) {
@@ -7477,7 +7552,7 @@ ha_innobase::create(
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_format));
-		} else if (file_format < UNIV_FORMAT_B) {
+		} else if (file_format_allowed == UNIV_FORMAT_A) {
 			push_warning_printf(
 				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7485,13 +7560,13 @@ ha_innobase::create(
 				" innodb_file_format > Antelope.",
 				get_row_format_name(row_format));
 		} else {
-			flags |= DICT_TF_COMPACT
-			         | (UNIV_FORMAT_B
-			            << DICT_TF_FORMAT_SHIFT);
+			innodb_row_format = (row_format == ROW_TYPE_DYNAMIC
+					     ? REC_FORMAT_DYNAMIC
+					     : REC_FORMAT_COMPRESSED);
 			break;
 		}
-
-		/* fall through */
+		zip_allowed = FALSE;
+		/* fall through to set row_format = COMPACT */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
@@ -7500,20 +7575,25 @@ ha_innobase::create(
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: assuming ROW_FORMAT=COMPACT.");
 	case ROW_TYPE_DEFAULT:
+		/* If we fell through, set row format to Compact. */
+		row_format = ROW_TYPE_COMPACT;
 	case ROW_TYPE_COMPACT:
-		flags = DICT_TF_COMPACT;
 		break;
 	}
 
-	/* Look for a primary key */
+	/* Set the table flags */
+	if (!zip_allowed) {
+		zip_ssize = 0;
+	}
+	dict_tf_set(&flags, innodb_row_format, zip_ssize);
 
+	/* Look for a primary key */
 	primary_key_no = (form->s->primary_key != MAX_KEY ?
 			 (int) form->s->primary_key :
 			 -1);
 
 	/* Our function innobase_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
-
 	ut_a(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Check for name conflicts (with reserved name) for
@@ -7827,6 +7907,39 @@ ha_innobase::delete_table(
 					 thd_sql_command(thd)
 					 == SQLCOM_DROP_DB);
 
+
+	if (error == DB_TABLE_NOT_FOUND
+	    && innobase_get_lower_case_table_names() == 1) {
+		char*	is_part = NULL;
+#ifdef __WIN__
+		is_part = strstr(norm_name, "#p#");
+#else
+		is_part = strstr(norm_name, "#P#");
+#endif /* __WIN__ */
+
+		if (is_part) {
+			char	par_case_name[MAX_FULL_NAME_LEN + 1];
+
+#ifndef __WIN__
+			/* Check for the table using lower
+			case name, including the partition
+			separator "P" */
+			memcpy(par_case_name, norm_name, strlen(norm_name));
+			par_case_name[strlen(norm_name)] = 0;
+			innobase_casedn_str(par_case_name);
+#else
+			/* On Windows platfrom, check
+			whether there exists table name in
+			system table whose name is
+			not being normalized to lower case */
+			normalize_table_name_low(par_case_name, name, FALSE);
+#endif
+			error = row_drop_table_for_mysql(par_case_name, trx,
+							 thd_sql_command(thd)
+							 == SQLCOM_DROP_DB);
+		}
+	}
+
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
@@ -7952,13 +8065,67 @@ innobase_rename_table(
 		norm_from, norm_to, trx, lock_and_commit);
 
 	if (error != DB_SUCCESS) {
-		FILE* ef = dict_foreign_err_file;
+		if (error == DB_TABLE_NOT_FOUND
+		    && innobase_get_lower_case_table_names() == 1) {
+			char*	is_part = NULL;
+#ifdef __WIN__
+			is_part = strstr(norm_from, "#p#");
+#else
+			is_part = strstr(norm_from, "#P#");
+#endif /* __WIN__ */
 
-		fputs("InnoDB: Renaming table ", ef);
-		ut_print_name(ef, trx, TRUE, norm_from);
-		fputs(" to ", ef);
-		ut_print_name(ef, trx, TRUE, norm_to);
-		fputs(" failed!\n", ef);
+			if (is_part) {
+				char	par_case_name[MAX_FULL_NAME_LEN + 1];
+
+#ifndef __WIN__
+				/* Check for the table using lower
+				case name, including the partition
+				separator "P" */
+				memcpy(par_case_name, norm_from,
+				       strlen(norm_from));
+				par_case_name[strlen(norm_from)] = 0;
+				innobase_casedn_str(par_case_name);
+#else
+				/* On Windows platfrom, check
+				whether there exists table name in
+				system table whose name is
+				not being normalized to lower case */
+				normalize_table_name_low(par_case_name,
+							 from, FALSE);
+#endif
+				error = row_rename_table_for_mysql(
+					par_case_name, norm_to, trx,
+					lock_and_commit);
+
+			}
+		}
+
+		if (error != DB_SUCCESS) {
+			FILE* ef = dict_foreign_err_file;
+
+			fputs("InnoDB: Renaming table ", ef);
+			ut_print_name(ef, trx, TRUE, norm_from);
+			fputs(" to ", ef);
+			ut_print_name(ef, trx, TRUE, norm_to);
+			fputs(" failed!\n", ef);
+		} else {
+#ifndef __WIN__
+			sql_print_warning("Rename partition table %s "
+					  "succeeds after converting to lower "
+					  "case. The table may have "
+					  "been moved from a case "
+					  "in-sensitive file system.\n",
+					  norm_from);
+#else
+			sql_print_warning("Rename partition table %s "
+					  "succeeds after skipping the step to "
+					  "lower case the table name. "
+					  "The table may have been "
+					  "moved from a case sensitive "
+					  "file system.\n",
+					  norm_from);
+#endif /* __WIN__ */
+		}
 	}
 
 	if (lock_and_commit) {
@@ -7974,7 +8141,7 @@ innobase_rename_table(
 	my_free(norm_to);
 	my_free(norm_from);
 
-	return error;
+	return(error);
 }
 
 /*********************************************************************//**
@@ -8849,7 +9016,10 @@ ha_innobase::check(
 		putc('\n', stderr);
 #endif
 
-		if (!btr_validate_index(index, prebuilt->trx)) {
+		/* If this is an index being created, break */
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			break;
+		}  else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(

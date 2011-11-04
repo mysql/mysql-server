@@ -1313,19 +1313,25 @@ drop procedure test_signal $$
 #
 # Test where SIGNAL can be used
 #
+
+# RETURN statement clears Diagnostics Area, thus
+# the warnings raised in a stored function are not
+# visible outsidef the stored function. So, we're using
+# @@warning_count variable to check that SIGNAL succeeded.
+
 create function test_signal_func() returns integer
 begin
+DECLARE v INT;
 DECLARE warn CONDITION FOR SQLSTATE "01XXX";
 SIGNAL warn SET
 MESSAGE_TEXT = "This function SIGNAL a warning",
 MYSQL_ERRNO = 1012;
-return 5;
+SELECT @@warning_count INTO v;
+return v;
 end $$
 select test_signal_func() $$
 test_signal_func()
-5
-Warnings:
-Warning	1012	This function SIGNAL a warning
+1
 drop function test_signal_func $$
 create function test_signal_func() returns integer
 begin
@@ -2163,15 +2169,18 @@ CALL peter_p2() $$
 1
 1
 Level	Code	Message
+Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
 2
 2
 Level	Code	Message
 Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	1232	Variable 'sql_mode' can't be set to the value of 'NULL'
 3
 3
 Level	Code	Message
 Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
 Error	1232	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	9999	Variable 'sql_mode' can't be set to the value of 'NULL'
 ERROR 42000: Hi, I am a useless error message
 show warnings $$
 Level	Code	Message

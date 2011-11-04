@@ -1867,18 +1867,19 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 
   DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
 
+#ifndef DBUG_OFF
   {
     /*
-      IN/SOME/ALL/ANY subqueries aren't support LIMIT clause. Without it
-      ORDER BY clause becomes meaningless thus we drop it here.
+      IN/SOME/ALL/ANY subqueries don't support LIMIT clause. Without
+      it, ORDER BY becomes meaningless and should already have been
+      removed in resolve_subquery()
     */
     SELECT_LEX *sl= current->master_unit()->first_select();
     for (; sl; sl= sl->next_select())
-    {
       if (sl->join)
-        sl->join->order= 0;
-    }
+        DBUG_ASSERT(!sl->join->order);
   }
+#endif
 
   if (changed)
     DBUG_RETURN(RES_OK);
@@ -2171,7 +2172,7 @@ subselect_single_select_engine(st_select_lex *select,
 			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg),
-   prepared(0), executed(0), select_lex(select), join(0)
+   prepared(0), executed(0), optimize_error(0), select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
 }
@@ -2180,7 +2181,7 @@ subselect_single_select_engine(st_select_lex *select,
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= executed= 0;
+  prepared= executed= optimize_error= false;
   join= 0;
   result->cleanup();
   DBUG_VOID_RETURN;
@@ -2392,6 +2393,10 @@ int join_read_next_same_or_null(READ_RECORD *info);
 bool subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+
+  if (optimize_error)
+    DBUG_RETURN(true);
+
   int rc= 0;
   THD * const thd= item->unit->thd;
   char const *save_where= thd->where;
@@ -2402,9 +2407,13 @@ bool subselect_single_select_engine::exec()
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
 
     unit->set_limit(unit->global_parameters);
+
+    DBUG_EXECUTE_IF("bug11747970_simulate_error",
+                    DBUG_SET("+d,bug11747970_raise_error"););
+
     if (join->optimize())
     {
-      executed= true;
+      optimize_error= true;
       rc= join->error ? join->error : 1;
       goto exit;
     }

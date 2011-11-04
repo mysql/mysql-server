@@ -147,45 +147,44 @@ struct PFS_cond_stat
   ulonglong m_broadcast_count;
 };
 
-/** Statistics for FILE IO usage. */
+/** Statistics for FILE IO. Used for both waits and byte counts. */
 struct PFS_file_io_stat
 {
-  /** Count of READ operations. */
-  ulonglong m_count_read;
-  /** Count of WRITE operations. */
-  ulonglong m_count_write;
-  /** Number of bytes read. */
-  ulonglong m_read_bytes;
-  /** Number of bytes written. */
-  ulonglong m_write_bytes;
+  /** READ statistics */
+  PFS_byte_stat m_read;
+  /** WRITE statistics */
+  PFS_byte_stat m_write;
+  /** Miscelleanous statistics */
+  PFS_byte_stat m_misc;
 
-  /** Reset file statistic. */
   inline void reset(void)
   {
-    m_count_read= 0;
-    m_count_write= 0;
-    m_read_bytes= 0;
-    m_write_bytes= 0;
+    m_read.reset();
+    m_write.reset();
+    m_misc.reset();
   }
 
   inline void aggregate(const PFS_file_io_stat *stat)
   {
-    m_count_read+= stat->m_count_read;
-    m_count_write+= stat->m_count_write;
-    m_read_bytes+= stat->m_read_bytes;
-    m_write_bytes+= stat->m_write_bytes;
+    m_read.aggregate(&stat->m_read);
+    m_write.aggregate(&stat->m_write);
+    m_misc.aggregate(&stat->m_misc);
   }
 
-  inline void aggregate_read(ulonglong bytes)
+  /* Sum waits and byte counts */
+  inline void sum(PFS_byte_stat *stat)
   {
-    m_count_read++;
-    m_read_bytes+= bytes;
+    stat->aggregate(&m_read);
+    stat->aggregate(&m_write);
+    stat->aggregate(&m_misc);
   }
 
-  inline void aggregate_write(ulonglong bytes)
+  /* Sum waits only */
+  inline void sum_waits(PFS_single_stat *stat)
   {
-    m_count_write++;
-    m_write_bytes+= bytes;
+    stat->aggregate(&m_read);
+    stat->aggregate(&m_write);
+    stat->aggregate(&m_misc);
   }
 };
 
@@ -196,6 +195,12 @@ struct PFS_file_stat
   ulong m_open_count;
   /** File IO statistics. */
   PFS_file_io_stat m_io_stat;
+
+  /** Reset file statistics. */
+  inline void reset(void)
+  {
+    m_io_stat.reset();
+  }
 };
 
 /** Statistics for stage usage. */

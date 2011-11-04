@@ -40,6 +40,9 @@
 #include "log_event.h"                 // append_query_string
 #include "sql_test.h"                  // print_where
 
+using std::min;
+using std::max;
+
 const String my_null_string("NULL", 4, default_charset_info);
 
 /****************************************************************************/
@@ -88,8 +91,8 @@ void
 Hybrid_type_traits_decimal::fix_length_and_dec(Item *item, Item *arg) const
 {
   item->decimals= arg->decimals;
-  item->max_length= min(arg->max_length + DECIMAL_LONGLONG_DIGITS,
-                        DECIMAL_MAX_STR_LENGTH);
+  item->max_length= min<uint32>(arg->max_length + DECIMAL_LONGLONG_DIGITS,
+                                DECIMAL_MAX_STR_LENGTH);
 }
 
 
@@ -487,9 +490,9 @@ uint Item::decimal_precision() const
     uint prec= 
       my_decimal_length_to_precision(max_char_length(), decimals,
                                      unsigned_flag);
-    return min(prec, DECIMAL_MAX_PRECISION);
+    return min<uint>(prec, DECIMAL_MAX_PRECISION);
   }
-  return min(max_char_length(), DECIMAL_MAX_PRECISION);
+  return min<uint>(max_char_length(), DECIMAL_MAX_PRECISION);
 }
 
 
@@ -595,18 +598,6 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
    field_name(field_name_arg),
    alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
    cached_table(0), depended_from(0)
-{
-  name = (char*) field_name_arg;
-}
-
-
-Item_ident::Item_ident(TABLE_LIST *view_arg, const char *field_name_arg)
-  :orig_db_name(NullS), orig_table_name(view_arg->table_name),
-   orig_field_name(field_name_arg), context(&view_arg->view->select_lex.context),
-   db_name(NullS), table_name(view_arg->alias),
-   field_name(field_name_arg),
-   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
-   cached_table(NULL), depended_from(NULL)
 {
   name = (char*) field_name_arg;
 }
@@ -804,7 +795,7 @@ void Item::set_name(const char *str, uint length, const CHARSET_INFO *cs)
 				   &res_length);
   }
   else
-    name= sql_strmake(str, (name_length= min(length,MAX_ALIAS_NAME)));
+    name= sql_strmake(str, (name_length= min<size_t>(length, MAX_ALIAS_NAME)));
 }
 
 
@@ -903,11 +894,26 @@ Item *Item_static_float_func::safe_charset_converter(const CHARSET_INFO *tocs)
 
 Item *Item_string::safe_charset_converter(const CHARSET_INFO *tocs)
 {
+  return charset_converter(tocs, true);
+}
+
+
+/**
+  Convert a string item into the requested character set.
+
+  @param tocs       Character set to to convert the string to.
+  @param lossless   Whether data loss is acceptable.
+
+  @return A new item representing the converted string.
+*/
+Item *Item_string::charset_converter(const CHARSET_INFO *tocs, bool lossless)
+{
   Item_string *conv;
   uint conv_errors;
   char *ptr;
   String tmp, cstr, *ostr= val_str(&tmp);
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  conv_errors= lossless && conv_errors;
   if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
                                              cstr.charset(),
                                              collation.derivation)))
@@ -2379,6 +2385,9 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
                                    st_select_lex *removed_select,
                                    Item **ref)
 {
+  DBUG_ASSERT(context->select_lex == NULL ||
+              context->select_lex != depended_from);
+
   if (context->select_lex == removed_select ||
       context->select_lex == parent_select)
   {
@@ -5871,7 +5880,7 @@ longlong Item_hex_string::val_int()
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
   char *end=(char*) str_value.ptr()+str_value.length(),
-       *ptr=end-min(str_value.length(),sizeof(longlong));
+       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
 
   ulonglong value=0;
   for (; ptr != end ; ptr++)
@@ -5926,7 +5935,7 @@ warn:
 void Item_hex_string::print(String *str, enum_query_type query_type)
 {
   char *end= (char*) str_value.ptr() + str_value.length(),
-       *ptr= end - min(str_value.length(), sizeof(longlong));
+       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
   str->append("0x");
   for (; ptr != end ; ptr++)
   {
@@ -6288,20 +6297,6 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   alias_name_used= alias_name_used_arg;
   /*
     This constructor used to create some internals references over fixed items
-  */
-  if (ref && *ref && (*ref)->fixed)
-    set_properties();
-}
-
-
-Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
-                   const char *field_name_arg, bool alias_name_used_arg)
-  :Item_ident(view_arg, field_name_arg),
-   result_field(NULL), ref(item)
-{
-  alias_name_used= alias_name_used_arg;
-  /*
-    This constructor is used to create some internal references over fixed items
   */
   if (ref && *ref && (*ref)->fixed)
     set_properties();
@@ -8393,14 +8388,14 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     /* fix variable decimals which always is NOT_FIXED_DEC */
     if (Field::result_merge_type(fld_type) == INT_RESULT)
       item_decimals= 0;
-    decimals= max(decimals, item_decimals);
+    decimals= max<int>(decimals, item_decimals);
   }
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
-    decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
+    decimals= min<int>(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
     int item_int_part= item->decimal_int_part();
     int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
-    int precision= min(item_prec, DECIMAL_MAX_PRECISION);
+    int precision= min<uint>(item_prec, DECIMAL_MAX_PRECISION);
     unsigned_flag&= item->unsigned_flag;
     max_length= my_decimal_precision_to_length_no_truncation(precision,
                                                              decimals,

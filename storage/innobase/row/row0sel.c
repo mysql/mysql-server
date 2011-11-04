@@ -107,7 +107,7 @@ row_sel_sec_rec_is_for_blob(
 {
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
-	ulint	zip_size = dict_table_flags_to_zip_size(table->flags);
+	ulint	zip_size = dict_tf_get_zip_size(table->flags);
 
 	/* This function should never be invoked on an Antelope format
 	table, because they should always contain enough prefix in the
@@ -1400,11 +1400,9 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			if (!btr_search_fully_disabled) {
-				rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_lock(&btr_search_latch);
 
-				search_latch_locked = TRUE;
-			}
+			search_latch_locked = TRUE;
 		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
@@ -3880,8 +3878,7 @@ row_search_for_mysql(
 			hash index semaphore! */
 
 #ifndef UNIV_SEARCH_DEBUG
-			if (!trx->has_search_latch
-			    &&(!btr_search_fully_disabled)) {
+			if (!trx->has_search_latch) {
 				rw_lock_s_lock(&btr_search_latch);
 				trx->has_search_latch = TRUE;
 			}
