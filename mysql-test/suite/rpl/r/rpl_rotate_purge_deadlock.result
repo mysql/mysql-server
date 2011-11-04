@@ -1,0 +1,30 @@
+include/master-slave.inc
+[connection master]
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+create table t1 (f text) engine=innodb;
+SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+insert into t1 set f=repeat('a', 4096);
+*** there must be two logs in the list ***
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+master-bin.000002	#
+insert into t1 set f=repeat('b', 4096);
+*** there must be three logs in the list ***
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+master-bin.000002	#
+master-bin.000003	#
+SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'at_purge_logs_before_date WAIT_FOR rotated';
+insert into t1 set f=repeat('b', 4096);
+SET DEBUG_SYNC = 'now SIGNAL rotated';
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+drop table t1;
+include/rpl_end.inc

@@ -1030,12 +1030,9 @@ err:
        detailing the fatal error message with coordinates 
        of the last position read.
     */
-    char b_start[FN_REFLEN], b_end[FN_REFLEN];
-    fn_format(b_start, coord->file_name, "", "", MY_REPLACE_DIR);
-    fn_format(b_end,   log_file_name,    "", "", MY_REPLACE_DIR);
     my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
-                b_start, (llstr(coord->pos, llbuff1), llbuff1),
-                b_end, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+                coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
+                log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
   }
   else
     strcpy(error_text, errmsg);

@@ -161,9 +161,6 @@ typedef struct st_user_var_events
   bool unsigned_flag;
 } BINLOG_USER_VAR_EVENT;
 
-#define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
-#define RP_FORCE_ROTATE               2
-
 /*
   The COPY_INFO structure is used by INSERT/REPLACE code.
   The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
