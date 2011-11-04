@@ -649,8 +649,10 @@ fts_add_index(
 		index_cache = fts_cache_index_cache_create(table, index);
 	}
 
-	if (cache->get_docs) {
+	if (cache->get_docs && !fts_get_index_get_doc(cache, index)) {
 		fts_get_doc_t*  get_doc;
+
+		ut_a(!fts_get_index_get_doc(cache, index));
 		get_doc = ib_vector_push(cache->get_docs, NULL);
 		memset(get_doc, 0x0, sizeof(*get_doc));
 		get_doc->index_cache = index_cache;
@@ -841,7 +843,9 @@ fts_cache_index_cache_create(
 
 	ut_a(cache != NULL);
 
-	rw_lock_x_lock(&cache->init_lock);
+#ifdef UNIV_SYNC_DEBUG50
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+#endif
 
 	/* Must not already exist in the cache vector. */
 	ut_a(fts_find_index_cache(cache, index) == NULL);
@@ -863,8 +867,6 @@ fts_cache_index_cache_create(
 	memset(index_cache->sel_graph, 0x0, n_bytes);
 
 	fts_index_cache_init(cache->sync_heap, index_cache);
-
-	rw_lock_x_unlock(&cache->init_lock);
 
 	return(index_cache);
 }
@@ -1010,8 +1012,7 @@ fts_get_index_get_doc(
 	ulint			i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX)
-	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
 #endif
 
 	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
@@ -1124,7 +1125,7 @@ fts_cache_node_add_positions(
 		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
 	}
 #endif
-	ut_ad(doc_id > node->last_doc_id);
+	ut_ad(doc_id >= node->last_doc_id);
 
 	/* Calculate the space required to store the ilist. */
 	doc_id_delta = (ulint)(doc_id - node->last_doc_id);
@@ -2783,11 +2784,13 @@ fts_commit_table(
 
 	ftt->fts_trx->trx = trx;
 
-	rw_lock_x_lock(&cache->lock);
 	if (cache->get_docs == NULL) {
-		cache->get_docs = fts_get_docs_create(cache);
+		rw_lock_x_lock(&cache->init_lock);
+		if (cache->get_docs == NULL) {
+			cache->get_docs = fts_get_docs_create(cache);
+		}
+		rw_lock_x_unlock(&cache->init_lock);
 	}
-	rw_lock_x_unlock(&cache->lock);
 	
 	for (node = rbt_first(rows);
 	     node && error == DB_SUCCESS;
@@ -4281,7 +4284,7 @@ fts_get_docs_create(
 	ib_vector_t*	get_docs;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
 #endif
 	/* We need one instance of fts_get_doc_t per index. */
 	get_docs = ib_vector_create(
@@ -4295,6 +4298,10 @@ fts_get_docs_create(
 		fts_get_doc_t*	get_doc;
 
 		index = ib_vector_get(cache->indexes, i);
+
+		if (*(*index)->name == TEMP_INDEX_PREFIX) {
+			continue;
+		}
 
 		get_doc = ib_vector_push(get_docs, NULL);
 
@@ -6050,9 +6057,11 @@ fts_init_index(
 		rw_lock_x_lock(&cache->lock);
 	}
 
+	rw_lock_x_lock(&cache->init_lock);
 	if (cache->get_docs == NULL) {
 		cache->get_docs = fts_get_docs_create(cache);
 	}
+	rw_lock_x_unlock(&cache->init_lock);
 
 	if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
 		goto func_exit;

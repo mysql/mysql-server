@@ -309,7 +309,7 @@ fts_zip_create(
 	memset(zip, 0, sizeof(*zip));
 
 	zip->word.f_str = mem_heap_alloc(heap, FTS_MAX_WORD_LEN + 1);
-	memset(zip->word.f_str, 0, FTS_MAX_WORD_LEN);
+	memset(zip->word.f_str, 0, FTS_MAX_WORD_LEN + 1);
 
 	zip->block_sz = block_sz;
 
@@ -441,7 +441,7 @@ fts_optimize_index_fetch_node(
 	void*		data = dfield_get_data(dfield);
 	ulint		dfield_len = dfield_get_len(dfield);
 
-	ut_a(dfield_len < FTS_MAX_WORD_LEN);
+	ut_a(dfield_len <= FTS_MAX_WORD_LEN);
 
 	if (ib_vector_size(words) == 0) {
 
@@ -616,7 +616,7 @@ fts_zip_read_word(
 		case Z_OK:
 			if (zip->zp->avail_out == 0 && len > 0) {
 
-				ut_a(len < FTS_MAX_WORD_LEN);
+				ut_a(len <= FTS_MAX_WORD_LEN);
 				ptr[len] = 0;
 
 				zip->zp->next_out = ptr;
@@ -755,7 +755,7 @@ fts_zip_deflate_end(
 
 		ut_a(zip->zp->avail_out == 0);
 
-		block = ut_malloc(FTS_MAX_WORD_LEN);
+		block = ut_malloc(FTS_MAX_WORD_LEN + 1);
 		ib_vector_push(zip->blocks, &block);
 
 		zip->zp->next_out = block;

@@ -857,7 +857,7 @@ fts_cache_find_wildcard(
 	ib_rbt_bound_t		parent;
 	const ib_vector_t*	nodes = NULL;
 	fts_string_t		srch_text;
-	byte			term[FTS_MAX_WORD_LEN];
+	byte			term[FTS_MAX_WORD_LEN + 1];
 	ulint			num_word = 0;
 
 	srch_text.f_len = (token->f_str[token->f_len - 1] == '%')
@@ -2711,7 +2711,7 @@ fts_query_read_node(
 	ib_rbt_bound_t		parent;
 	fts_word_freq_t*	word_freq;
 	ibool			skip = FALSE;
-	byte			term[FTS_MAX_WORD_LEN];
+	byte			term[FTS_MAX_WORD_LEN + 1];
 
 	ut_a(query->cur_node->type == FTS_AST_TERM ||
 	     query->cur_node->type == FTS_AST_TEXT);
@@ -2821,7 +2821,7 @@ fts_query_index_fetch_nodes(
 	key.f_str = data;
 	key.f_len = dfield_len;
 
-	ut_a(dfield_len < FTS_MAX_WORD_LEN);
+	ut_a(dfield_len <= FTS_MAX_WORD_LEN);
 
 	fts_query_read_node(query, &key, que_node_get_next(exp));
 

@@ -391,7 +391,7 @@ row_merge_fts_doc_tokenize(
 
 		t_str.f_len = innobase_fts_casedn_str(
 			doc->charset, (char*) str.f_str, str.f_len,
-			(char*) &str_buf, FTS_MAX_WORD_LEN);
+			(char*) &str_buf, FTS_MAX_WORD_LEN + 1);
 
 		t_str.f_str = (byte*) &str_buf;
 

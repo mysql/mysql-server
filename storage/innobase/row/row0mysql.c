@@ -3323,6 +3323,7 @@ row_drop_table_for_mysql(
 	ibool		locked_dictionary	= FALSE;
 	ibool		fts_bg_thread_exited	= FALSE;
 	pars_info_t*    info			= NULL;
+	ibool		rm_aux_table		= FALSE;
 
 	ut_a(name != NULL);
 
@@ -3455,6 +3456,11 @@ retry:
 			fts_optimize_remove_table(table);
 			row_mysql_lock_data_dictionary(trx);
 		}
+	}
+
+	if (dict_table_has_fts_index(table)
+            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+		rm_aux_table = TRUE;
 	}
 
 	/* Move the table the the non-LRU list so that it isn't
@@ -3705,8 +3711,19 @@ check_next_foreign:
 			is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		}
 
-		if (dict_table_has_fts_index(table)
-		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
+		dict_table_remove_from_cache(table);
+
+		if (dict_load_table(name, TRUE, DICT_ERR_IGNORE_NONE) != NULL) {
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Error: not able to remove table ",
+			      stderr);
+			ut_print_name(stderr, trx, TRUE, name);
+			fputs(" from the dictionary cache!\n", stderr);
+			err = DB_ERROR;
+		}
+
+		if (err == DB_SUCCESS && rm_aux_table) {
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
@@ -3719,18 +3736,8 @@ check_next_foreign:
 
 				goto funct_exit;
 			}
+
 			fts_free(table);
-		}
-
-		dict_table_remove_from_cache(table);
-
-		if (dict_load_table(name, TRUE, DICT_ERR_IGNORE_NONE) != NULL) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: not able to remove table ",
-			      stderr);
-			ut_print_name(stderr, trx, TRUE, name);
-			fputs(" from the dictionary cache!\n", stderr);
-			err = DB_ERROR;
 		}
 
 		/* Do not drop possible .ibd tablespace if something went
