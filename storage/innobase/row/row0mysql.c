@@ -3711,19 +3711,7 @@ check_next_foreign:
 			is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		}
 
-
-		dict_table_remove_from_cache(table);
-
-		if (dict_load_table(name, TRUE, DICT_ERR_IGNORE_NONE) != NULL) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: not able to remove table ",
-			      stderr);
-			ut_print_name(stderr, trx, TRUE, name);
-			fputs(" from the dictionary cache!\n", stderr);
-			err = DB_ERROR;
-		}
-
-		if (err == DB_SUCCESS && rm_aux_table) {
+		if (rm_aux_table) {
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
@@ -3738,6 +3726,17 @@ check_next_foreign:
 			}
 
 			fts_free(table);
+		}
+
+		dict_table_remove_from_cache(table);
+
+		if (dict_load_table(name, TRUE, DICT_ERR_IGNORE_NONE) != NULL) {
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Error: not able to remove table ",
+			      stderr);
+			ut_print_name(stderr, trx, TRUE, name);
+			fputs(" from the dictionary cache!\n", stderr);
+			err = DB_ERROR;
 		}
 
 		/* Do not drop possible .ibd tablespace if something went
