@@ -3660,7 +3660,6 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
     
     set_main_dict_put_flags(thd, &put_flags, true);
 
-    //XXX Get rid of the lock retry logic
     error = share->file->put(
         share->file, 
         txn, 
@@ -3684,7 +3683,6 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
     
-    //XXX: Get rid of the lock retry logic
     error = db_env->put_multiple(
         db_env, 
         share->key_file[primary_key], 
@@ -4012,7 +4010,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
 
-    //XXX: Get rid of the lock retry logic
     error = db_env->update_multiple(
         db_env, 
         share->key_file[primary_key], 
@@ -4094,7 +4091,6 @@ int ha_tokudb::delete_row(const uchar * record) {
         goto cleanup;
     }
 
-    //XXX: Get rid of the lock retry logic
     error = db_env->del_multiple(
         db_env, 
         share->key_file[primary_key], 
@@ -4227,7 +4223,6 @@ int ha_tokudb::prepare_index_key_scan(const uchar * key, uint key_len) {
     pack_key(&end_key, active_index, prelocked_right_range, key, key_len, COL_POS_INF);
     prelocked_right_range_size = end_key.size;
 
-    //XXX: Get rid of the lock retry logic
     error = cursor->c_pre_acquire_range_lock(
         cursor, 
         &start_key, 
@@ -4501,7 +4496,6 @@ int ha_tokudb::read_full_row(uchar * buf) {
     // assumes key is stored in this->last_key
     //
 
-    //XXX: Get rid of the lock retry logic
     error = share->file->getf_set(
         share->file, 
         transaction, 
@@ -4609,7 +4603,6 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
 
-    //XXX: Get rid of the lock retry logic
         error = cursor->c_getf_set_range(cursor, flags,
                 &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
         if (ir_info.cmp) {
@@ -4618,19 +4611,16 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
-    //XXX: Get rid of the lock retry logic
         error = cursor->c_getf_set_range(cursor, flags,
                 &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
-    //XXX: Get rid of the lock retry logic
         error = cursor->c_getf_set_range_reverse(cursor, flags, 
                 &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
-    //XXX: Get rid of the lock retry logic
         error = cursor->c_getf_set_range(cursor, flags,
                 &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
@@ -4640,7 +4630,6 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     case HA_READ_KEY_OR_PREV: /* Record or previous */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
-    //XXX: Get rid of the lock retry logic
         error = cursor->c_getf_set_range(cursor, flags,
                 &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
         if (error == DB_NOTFOUND) {
@@ -4652,14 +4641,12 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
-    //XXX: Get rid of the lock retry logic
         error = cursor->c_getf_set_range_reverse(cursor, flags, 
                     &lookup_key, SMART_DBT_CALLBACK, &info);
         break;
     case HA_READ_PREFIX_LAST:
         pack_key(&lookup_key, active_index, key_buff3, key, key_len, COL_POS_INF);
         ir_info.orig_key = &lookup_key;
-    //XXX: Get rid of the lock retry logic
         error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK, &ir_info);
         if (ir_info.cmp) {
             error = DB_NOTFOUND;
@@ -5019,12 +5006,10 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             // call c_getf_next with purpose of filling in range_query_buff
             //
             if (direction > 0) {
-    //XXX: Get rid of the lock retry logic
                 error = cursor->c_getf_next(cursor, flags,
                         smart_dbt_bf_callback, &bf_info);
             }
             else {
-    //XXX: Get rid of the lock retry logic
                 error = cursor->c_getf_prev(cursor, flags,
                         smart_dbt_bf_callback, &bf_info);
             }
@@ -5043,7 +5028,6 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             info.buf = buf;
             info.keynr = active_index;
             
-    //XXX: Get rid of the lock retry logic
             error = cursor->c_getf_next(cursor, flags,
                     SMART_DBT_CALLBACK, &info);
             error = handle_cursor_error(error, HA_ERR_END_OF_FILE, 
@@ -5133,7 +5117,6 @@ int ha_tokudb::index_first(uchar * buf) {
     info.buf = buf;
     info.keynr = active_index;
 
-    //XXX: Get rid of the lock retry logic
     error = cursor->c_getf_first(cursor, flags,
             SMART_DBT_CALLBACK, &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
@@ -5177,7 +5160,6 @@ int ha_tokudb::index_last(uchar * buf) {
     info.buf = buf;
     info.keynr = active_index;
 
-    //XXX: Get rid of the lock retry logic
     error = cursor->c_getf_last(cursor, flags,
             SMART_DBT_CALLBACK, &info);
     error = handle_cursor_error(error,HA_ERR_END_OF_FILE,active_index);
@@ -5339,7 +5321,6 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     info.buf = buf;
     info.keynr = primary_key;
 
-    //XXX: Get rid of the lock retry logic
     error = share->file->getf_set(share->file, transaction, 
             get_cursor_isolation_flags(lock.type, ha_thd()), 
             key, smart_dbt_callback_rowread_ptquery, &info);
@@ -5397,7 +5378,6 @@ int ha_tokudb::prelock_range( const key_range *start_key, const key_range *end_k
         prelocked_right_range_size = 0;
     }
 
-    //XXX: Get rid of the lock retry logic
     error = cursor->c_pre_acquire_range_lock(
         cursor, 
         start_key ? &start_dbt_key : share->key_file[active_index]->dbt_neg_infty(), 
@@ -5712,6 +5692,8 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     int error;
     ulong tx_isolation = thd_tx_isolation(thd);
     HA_TOKU_ISO_LEVEL toku_iso_level = tx_to_toku_iso(tx_isolation);
+    bool is_autocommit = !thd_test_options(
+            thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
 
     /* First table lock, start transaction */
     if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) && 
@@ -5742,6 +5724,9 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     u_int32_t txn_begin_flags;
     if (trx->all == NULL) {
         txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
+        if (txn_begin_flags == 0 && is_autocommit) {
+            txn_begin_flags = DB_TXN_SNAPSHOT;
+        }
     }
     else {
         txn_begin_flags = DB_INHERIT_ISOLATION;
@@ -7260,7 +7245,6 @@ int ha_tokudb::tokudb_add_index(
         // first a global read lock on the main DB, because
         // we intend to scan the entire thing
         //
-    //XXX: Get rid of the lock retry logic
         error = tmp_cursor->c_pre_acquire_range_lock(
             tmp_cursor,
             share->file->dbt_neg_infty(),
