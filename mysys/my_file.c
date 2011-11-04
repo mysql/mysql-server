@@ -98,7 +98,7 @@ uint my_set_max_open_files(uint files)
   DBUG_PRINT("enter",("files: %u  my_file_limit: %u", files, my_file_limit));
 
   files+= MY_FILE_MIN;
-  files= set_max_open_files(min(files, OS_FILE_LIMIT));
+  files= set_max_open_files(MY_MIN(files, OS_FILE_LIMIT));
   if (files <= MY_NFILE)
     DBUG_RETURN(files);
 
@@ -108,9 +108,9 @@ uint my_set_max_open_files(uint files)
 
   /* Copy any initialized files */
   memcpy((char*) tmp, (char*) my_file_info,
-         sizeof(*tmp) * min(my_file_limit, files));
+         sizeof(*tmp) * MY_MIN(my_file_limit, files));
   memset((tmp + my_file_limit), 0, 
-        max((int) (files- my_file_limit), 0)*sizeof(*tmp));
+        MY_MAX((int) (files - my_file_limit), 0) * sizeof(*tmp));
   my_free_open_file_info();			/* Free if already allocated */
   my_file_info= tmp;
   my_file_limit= files;
