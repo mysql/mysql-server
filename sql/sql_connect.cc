@@ -35,6 +35,11 @@
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -483,8 +488,8 @@ static int check_connection(THD *thd)
       if (thd->main_security_ctx.host)
       {
         if (thd->main_security_ctx.host != my_localhost)
-          thd->main_security_ctx.host[min(strlen(thd->main_security_ctx.host),
-                                          HOSTNAME_LENGTH)]= 0;
+          thd->main_security_ctx.host[min<size_t>(strlen(thd->main_security_ctx.host),
+                                                  HOSTNAME_LENGTH)]= 0;
         thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
       }
       if (connect_errors > max_connect_errors)

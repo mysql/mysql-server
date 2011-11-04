@@ -151,7 +151,7 @@ debug_cflags="$debug_cflags -DSAFE_MUTEX"
 error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
-base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
+base_cxxflags="-felide-constructors"
 #
 # Flags for optimizing builds.
 # Be as fast as we can be without losing our ability to backtrace.
@@ -215,7 +215,7 @@ if test -z "$CC" ; then
 fi
 
 if test -z "$CXX" ; then
-  CXX=gcc
+  CXX=g++
 fi
 
 # If ccache (a compiler cache which reduces build time)
