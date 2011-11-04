@@ -337,6 +337,8 @@ int init_slave()
   /* If server id is not set, start_slave_thread() will say it */
   if (active_mi->host[0] && !opt_skip_slave_start)
   {
+    /* same as in start_slave() cache the global var value into rli's member */
+    active_mi->rli->opt_slave_parallel_workers= opt_mts_slave_parallel_workers;
     if (start_slave_threads(1 /* need mutex */,
                             0 /* no wait for start*/,
                             active_mi,
@@ -3952,6 +3954,9 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
   LOG_INFO linfo;
   my_off_t offset= 0;
 
+  DBUG_ENTER("mts_recovery_groups");
+  DBUG_ASSERT(rli->recovery_parallel_workers > 0);
+
   /*
     Save relay log position to compare with worker's position.
   */
@@ -3961,8 +3966,10 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
     rli->get_group_master_log_pos()
   };
 
-  DBUG_ENTER("mts_recovery_groups");
-  DBUG_ASSERT(rli->recovery_parallel_workers > 0);
+  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
+
+  if (!p_fdle->is_valid())
+    DBUG_RETURN(TRUE);
 
   /*
     Gathers information on valuable workers and stores it in 
@@ -3975,6 +3982,13 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
   {
     Slave_worker *worker=
       Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli);
+
+    if (!worker)
+    {
+      error= TRUE;
+      goto err;
+    }
+
     worker->init_info();
     LOG_POS_COORD w_last= { const_cast<char*>(worker->get_group_master_log_name()),
                             worker->get_group_master_log_pos() };
@@ -4019,13 +4033,6 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
         while(!eof);
         continue;
   */
-  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
-
-  if (!p_fdle->is_valid())
-  {
-    error= TRUE;
-    goto err;
-  }
 
   bitmap_clear_all(groups);
   rli->mts_recovery_group_cnt= 0;
