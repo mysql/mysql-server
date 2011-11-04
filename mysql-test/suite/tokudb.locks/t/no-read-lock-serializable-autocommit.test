@@ -33,6 +33,21 @@ insert ignore t values (3);
 connection default;
 commit;
 
+# further, if the main client has an open transaction
+# reading the table, a second client should be able
+# to grab write locks, since we're not supposed to
+# be grabbing read locks.
+connection default;
+begin;
+select * from t;
+
+connection conn1;
+select * from t for update;
+
+# back to the main client, commit the transaction
+connection default;
+commit;
+
 # cleanup
 drop table t;
 set global transaction isolation level repeatable read;
