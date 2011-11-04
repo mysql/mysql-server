@@ -668,3 +668,32 @@ WHERE (6, 234) IN (
 
 DROP TABLE t1,t2,t3,t4;
 set optimizer_switch= @tmp_778434;
+
+--echo #
+--echo # Bug#885168: ICP for one index + potential ORDER BY for another
+--echo #
+
+CREATE TABLE t1 (a varchar(64), b varchar(10), INDEX(a), INDEX(b)) ;
+INSERT INTO t1 VALUES 
+  ('Ohio','Iowa'), ('k','d'), ('bdkpj','mbdkpjdanp'), ('d','xdmbdkpjda'),
+  ('fkxdmbdkpjdanpje','o'), ('f','Pennsylvan'), ('Virginia','ei');
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT * FROM t1 
+  WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+  ORDER BY a;
+SELECT * FROM t1 
+  WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+  ORDER BY a;
+
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+EXPLAIN
+SELECT * FROM t1 
+  WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+  ORDER BY a;
+SELECT * FROM t1 
+  WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
+  ORDER BY a;
+
+DROP TABLE t1;

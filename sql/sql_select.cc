@@ -17932,8 +17932,10 @@ check_reverse_order:
           condition are not relevant anymore
         */
         if (tab->select && tab->select->pre_idx_push_select_cond)
+	{
           tab->set_cond(tab->select->pre_idx_push_select_cond);
-
+           tab->table->file->cancel_pushed_idx_cond();
+        }
         /*
           TODO: update the number of records in join->best_positions[tablenr]
         */
@@ -17994,6 +17996,9 @@ skipped_filesort:
   }
   if (orig_cond_saved && !changed_key)
     tab->set_cond(orig_cond);
+  if (!no_changes && changed_key && table->file->pushed_idx_cond)
+    table->file->cancel_pushed_idx_cond();
+
   DBUG_RETURN(1);
 
 use_filesort:
@@ -18004,10 +18009,7 @@ use_filesort:
     select->quick= save_quick;
   }
   if (orig_cond_saved)
-  {
-    tab->table->file->cancel_pushed_idx_cond();
     tab->set_cond(orig_cond);
-  }
 
   DBUG_RETURN(0);
 }
