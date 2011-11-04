@@ -2117,7 +2117,7 @@ xtBool XTDatabaseLog::xlog_seq_next(XTXactSeqReadPtr seq, XTXactLogBufferDPtr *r
 	size_t				rec_offset;
 	size_t				max_rec_len;
 	size_t				size;
-	u_int				check_size = 1;
+	u_int				check_size __attribute__ ((unused))= 1;
 
 	/* Go to the next record (xseq_record_len must be initialized
 	 * to 0 for this to work.
@@ -2629,7 +2629,7 @@ static void *xlog_wr_run_thread(XTThreadPtr self)
 {
 	XTDatabaseHPtr	db = (XTDatabaseHPtr) self->t_data;
 	int				count;
-	void			*mysql_thread;
+	void			*mysql_thread __attribute__ ((unused));
 
 	mysql_thread = myxt_create_thread();
 

@@ -3534,7 +3534,7 @@ os_aio_simulated_wake_handler_thread(
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
-	ulint		segment;
+	ulint		segment __attribute__ ((unused));
 	ulint		n;
 	ulint		i;
 
@@ -4020,7 +4020,7 @@ os_aio_simulated_handle(
 	ulint*	space_id)
 {
 	os_aio_array_t*	array;
-	ulint		segment;
+	ulint		segment __attribute__ ((unused));
 	os_aio_slot_t*	slot;
 	os_aio_slot_t*	slot2;
 	os_aio_slot_t*	consecutive_ios[OS_AIO_MERGE_N_CONSECUTIVE];

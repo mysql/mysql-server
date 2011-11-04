@@ -33,14 +33,13 @@ LF_HASH lf_hash;
 pthread_handler_t test_lf_pinbox(void *arg)
 {
   int    m= *(int *)arg;
-  int32 x= 0;
   LF_PINS *pins;
 
   my_thread_init();
 
   pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
 
-  for (x= ((int)(intptr)(&m)); m ; m--)
+  for (; m ; m--)
   {
     lf_pinbox_put_pins(pins);
     pins= lf_pinbox_get_pins(&lf_allocator.pinbox);

@@ -94,17 +94,21 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 	xtBool			xn_set = FALSE;
 	xtXactID		xn_id = 0;
 	char			buffer[200];
+#ifdef TRACE_RECORD_DATA
 	XTTabRecExtDPtr	rec_buf;
-	XTTabRecExtDPtr	ext_rec;
 	XTTabRecFixDPtr	fix_rec;
 	u_int			rec_len;
+#endif
+	XTTabRecExtDPtr	ext_rec;
 	xtLogID			log_id = 0;
 	xtLogOffset		log_offset = 0;
 
+#ifdef TRACE_RECORD_DATA
 	rec_buf = NULL;
-	ext_rec = NULL;
 	fix_rec = NULL;
 	rec_len = 0;
+#endif
+	ext_rec = NULL;
 	switch (record->xl.xl_status_1) {
 		case XT_LOG_ENT_REC_MODIFIED:
 		case XT_LOG_ENT_UPDATE:
@@ -118,10 +122,12 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 			rec_id = XT_GET_DISK_4(record->xu.xu_rec_id_4);
 			xn_id = XT_GET_DISK_4(record->xu.xu_xact_id_4);
 			row_id = XT_GET_DISK_4(record->xu.xu_row_id_4);
-			rec_len = XT_GET_DISK_2(record->xu.xu_size_2);
 			xn_set = TRUE;
 			type="rec";
+#ifdef TRACE_RECORD_DATA
+			rec_len = XT_GET_DISK_2(record->xu.xu_size_2);
 			rec_buf = (XTTabRecExtDPtr) &record->xu.xu_rec_type_1;
+#endif
 			ext_rec = (XTTabRecExtDPtr) &record->xu.xu_rec_type_1;
 			if (XT_REC_IS_EXT_DLOG(ext_rec->tr_rec_type_1)) {
 				log_id = XT_GET_DISK_2(ext_rec->re_log_id_2);
@@ -129,7 +135,9 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 			}
 			else {
 				ext_rec = NULL;
+#ifdef TRACE_RECORD_DATA
 				fix_rec = (XTTabRecFixDPtr) &record->xu.xu_rec_type_1;
+#endif
 			}
 			break;
 		case XT_LOG_ENT_UPDATE_FL:
@@ -143,10 +151,12 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 			rec_id = XT_GET_DISK_4(record->xf.xf_rec_id_4);
 			xn_id = XT_GET_DISK_4(record->xf.xf_xact_id_4);
 			row_id = XT_GET_DISK_4(record->xf.xf_row_id_4);
-			rec_len = XT_GET_DISK_2(record->xf.xf_size_2);
 			xn_set = TRUE;
 			type="rec";
+#ifdef TRACE_RECORD_DATA
+			rec_len = XT_GET_DISK_2(record->xf.xf_size_2);
 			rec_buf = (XTTabRecExtDPtr) &record->xf.xf_rec_type_1;
+#endif
 			ext_rec = (XTTabRecExtDPtr) &record->xf.xf_rec_type_1;
 			if (XT_REC_IS_EXT_DLOG(ext_rec->tr_rec_type_1)) {
 				log_id = XT_GET_DISK_2(ext_rec->re_log_id_2);
@@ -154,7 +164,9 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 			}
 			else {
 				ext_rec = NULL;
+#ifdef TRACE_RECORD_DATA
 				fix_rec = (XTTabRecFixDPtr) &record->xf.xf_rec_type_1;
+#endif
 			}
 			break;
 		case XT_LOG_ENT_REC_FREED:
@@ -173,10 +185,12 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 			rec_id = XT_GET_DISK_4(record->rb.rb_rec_id_4);
 			xn_id = XT_GET_DISK_4(record->rb.rb_xact_id_4);
 			row_id = XT_GET_DISK_4(record->rb.rb_row_id_4);
-			rec_len = XT_GET_DISK_2(record->rb.rb_size_2);
 			xn_set = TRUE;
 			type="rec";
+#ifdef TRACE_RECORD_DATA
+			rec_len = XT_GET_DISK_2(record->rb.rb_size_2);
 			rec_buf = (XTTabRecExtDPtr) &record->rb.rb_rec_type_1;
+#endif
 			ext_rec = (XTTabRecExtDPtr) &record->rb.rb_rec_type_1;
 			if (XT_REC_IS_EXT_DLOG(record->rb.rb_rec_type_1)) {
 				log_id = XT_GET_DISK_2(ext_rec->re_log_id_2);
@@ -184,7 +198,9 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 			}
 			else {
 				ext_rec = NULL;
+#ifdef TRACE_RECORD_DATA
 				fix_rec = (XTTabRecFixDPtr) &record->rb.rb_rec_type_1;
+#endif
 			}
 			break;
 		case XT_LOG_ENT_REC_MOVED:
@@ -967,7 +983,8 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 			xtLogID			data_log_id = 0;
 			xtLogOffset		data_log_offset = 0;
 			u_int			cols_required = 0;
-			xtBool			record_loaded;
+			xtBool			record_loaded
+                          __attribute__ ((unused));
 			size_t			rec_size;		
 
 			rec_id = XT_GET_DISK_4(record->rb.rb_rec_id_4);
