@@ -2292,5 +2292,59 @@ pk1	pk1	pk2	pk2
 3	3	0	0
 4	3	0	0
 drop table t;
+create table mytable(i int, s varchar(255) ) engine = ndb;
+insert into mytable values(0,"Text Hej"),(1, "xText aaja");
+set engine_condition_pushdown=1;
+select * from mytable where s like concat("%Text","%") or s like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like concat("%Text1","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like "%Text1%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s not like concat("%Text","%") or s not like concat("%Text","%") order by i;
+i	s
+select * from mytable where s not like concat("%Text1","%") or s not like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s not like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text1","%") or s not like "%Text%" order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") and s like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") and s like concat("%Text1","%") order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s like "%Text1%" order by i;
+i	s
+select * from mytable where s not like concat("%Text","%") and s not like concat("%Text","%") order by i;
+i	s
+select * from mytable where s not like concat("%Text","%") and s not like concat("%Text1","%") order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+drop table mytable;
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

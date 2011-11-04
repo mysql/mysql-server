@@ -2368,6 +2368,32 @@ select table1.pk1, table2.pk1, table1.pk2, table2.pk2
 
 drop table t;
 
+# Bug#11765142 58073: CONCAT AND OR GIVE INCORRECT QUERY RESULTS
+create table mytable(i int, s varchar(255) ) engine = ndb;
+insert into mytable values(0,"Text Hej"),(1, "xText aaja");
+set engine_condition_pushdown=1;
+
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text1","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text1","%") or s not like "%Text%" order by i;
+
+
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+
+drop table mytable;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
 
