@@ -24,22 +24,6 @@ ELSE()
   SET(HAVE_CMAKE_2_8 1)
 ENDIF() 
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  # MySQL is often compiled/linked with gcc rather than g++
-  # (to avoid dependencies on libstdc++.so)
-  # This does not work for googletest binaries.
-  # If we are building with ccache, we need to change arg1.
-  IF(CMAKE_CXX_COMPILER_ARG1)
-    IF(${CMAKE_CXX_COMPILER_ARG1} MATCHES "gcc")
-      SET(CMAKE_CXX_COMPILER_ARG1 "g++")
-    ENDIF()
-  # If we are building with gcc, substitute gcc with g++
-  ELSEIF(${CMAKE_CXX_COMPILER} MATCHES ".*/gcc")
-    STRING(REGEX REPLACE "/gcc$" "/g++" PATH_TO_GCC ${CMAKE_CXX_COMPILER})
-    CMAKE_FORCE_CXX_COMPILER(${PATH_TO_GCC} "GNU g++")
-  ENDIF()
-ENDIF()
-
 IF(MSVC)
   # Restore exception handling flags to avoid tons of warnings when using STL.
   ADD_DEFINITIONS(/EHcs)
@@ -218,8 +202,6 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-# We use -fno-rtti with gcc, so disable RTTI in gtest as well.
-ADD_DEFINITIONS(-DGTEST_HAS_RTTI=0)
 # /opt/studio12/SUNWspro/bin/CC complains about
 #   iterator_traits is not a member of std
 IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
@@ -240,6 +222,7 @@ SET(TESTS
   sql_list
   sql_plist
   thread_utils
+  stdcxx
   )
 
 # Add tests (link them with gunit library and the server libraries) 

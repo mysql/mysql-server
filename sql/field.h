@@ -81,7 +81,11 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw () {
     return alloc_root(mem_root, size);
   }
-  static void operator delete(void *ptr_arg, size_t size) { TRASH(ptr_arg, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  { DBUG_ASSERT(false); /* never called */ }
+
+  static void operator delete(void *ptr_arg, size_t size) throw()
+  { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
   /**
