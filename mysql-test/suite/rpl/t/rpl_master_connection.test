@@ -3,6 +3,8 @@
 # in the context of the WL#4143 work as specified. The following properties
 # are verified:
 #
+# 0 - This aims at checking syntax.
+#
 # 1 - If START SLAVE works with regular users and different combinations
 #     of USER and PASSWORD.
 #
@@ -56,6 +58,72 @@ SET SQL_LOG_BIN=1;
 --connection slave
 --let $slave_io_errno= 2059
 --let $show_slave_io_error= 0
+
+#
+# Check Property 0
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--error ER_SQLTHREAD_WITH_SECURE_SALVE
+--eval START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password'
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--error ER_SQLTHREAD_WITH_SECURE_SALVE
+--eval START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--error ER_SQLTHREAD_WITH_SECURE_SALVE
+--eval START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+--replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
+--source include/wait_for_slave_io_to_start.inc
+--source include/stop_slave_io.inc
+
+#
+# Check Property 1.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'regular_user_p' PASSWORD= 'password'
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
+
+#
+# Check Property 1.
+#
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--eval START SLAVE USER= 'regular_user_wp' PASSWORD= ''
+--source include/wait_for_slave_to_start.inc
+--source include/check_slave_is_running.inc
 
 #
 # Check Property 1.

@@ -6951,7 +6951,22 @@ slave:
           slave_until
           {}
           slave_connection_opts
-          {}
+          {
+            /*
+              It is not possible to set user's information when
+              one is trying to start the SQL Thread.
+            */
+            if ((Lex->slave_thd_opt & SLAVE_SQL) == SLAVE_SQL &&
+                (Lex->slave_thd_opt & SLAVE_IO) != SLAVE_IO &&
+                (Lex->slave_connection.user ||
+                 Lex->slave_connection.password ||
+                 Lex->slave_connection.plugin_auth ||
+                 Lex->slave_connection.plugin_dir))
+            {
+              my_error(ER_SQLTHREAD_WITH_SECURE_SALVE, MYF(0));
+              MYSQL_YYABORT;
+            }
+          }
         | STOP_SYM SLAVE slave_thread_opts
           {
             LEX *lex=Lex;
