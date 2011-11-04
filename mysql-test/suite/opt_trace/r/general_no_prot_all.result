@@ -1062,20 +1062,20 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `test`.`t6` where ((`test`.`t6`.`d` = ifnull(`test`.`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
                 }
               ] /* steps */
@@ -1317,7 +1317,7 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-14165
+14121
 set optimizer_trace_max_mem_size=13500;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
@@ -1326,7 +1326,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
 c
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
 (@missing_bytes:=missing_bytes_beyond_max_mem_size)
-777
+735
 select (@query2:=QUERY)+NULL,(@trace2:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query2:=QUERY)+NULL	(@trace2:=TRACE)+NULL
 NULL	NULL
@@ -1334,7 +1334,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13388	1	1
+13386	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -1595,17 +1595,16 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                 "semijoin_strategy_choice": [
                   {
                     "strategy": "FirstMatch",
-                    "recompute_best_access_paths": {
-                      "cause": "join_buffering_not_possible",
+                    "recalculate_access_paths_and_cost": {
                       "tables": [
                       ] /* tables */
-                    } /* recompute_best_access_paths */,
+                    } /* recalculate_access_paths_and_cost */,
                     "cost": 1,
                     "rows": 1,
                     "chosen": true
                   },
                   {
-                    "strategy": "MaterializationLookup",
+                    "strategy": "MaterializeLookup",
                     "cost": 1.3,
                     "rows": 1,
                     "duplicate_tables_left": false,
@@ -1620,6 +1619,13 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                   }
                 ] /* semijoin_strategy_choice */,
                 "chosen": true
+              },
+              {
+                "final_semijoin_strategy": "FirstMatch",
+                "recalculate_access_paths_and_cost": {
+                  "tables": [
+                  ] /* tables */
+                } /* recalculate_access_paths_and_cost */
               }
             ] /* considered_execution_plans */
           },
@@ -1713,20 +1719,20 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`t5`.`c` + 1),(`test`.`t5`.`c` + 1) in (/* select#2 */ select (`test`.`t6`.`d` + 1) from `test`.`t6` where isnull(`test`.`t6`.`d`)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`t5`.`c` + 1),(`test`.`t5`.`c` + 1) in (/* select#2 */ select (`test`.`t6`.`d` + 1) from `test`.`t6` where isnull(`test`.`t6`.`d`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`t5`.`c` + 1),(`test`.`t5`.`c` + 1) in (/* select#2 */ select (`test`.`t6`.`d` + 1) from `test`.`t6` where isnull(`test`.`t6`.`d`)))"
                 }
               ] /* steps */
@@ -2007,20 +2013,20 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<nop>((`test`.`t1`.`s1` > (/* select#2 */ select min(`test`.`t1`.`s2`) from `test`.`t1`)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<nop>((`test`.`t1`.`s1` > (/* select#2 */ select min(`test`.`t1`.`s2`) from `test`.`t1`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<nop>((`test`.`t1`.`s1` > (/* select#2 */ select min(`test`.`t1`.`s2`) from `test`.`t1`)))"
                 }
               ] /* steps */
@@ -2241,20 +2247,20 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<nop>((`test`.`t1`.`s1` > <min>(/* select#2 */ select max(`test`.`t1`.`s2`) from `test`.`t1`)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<nop>((`test`.`t1`.`s1` > <min>(/* select#2 */ select max(`test`.`t1`.`s2`) from `test`.`t1`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<nop>((`test`.`t1`.`s1` > <min>(/* select#2 */ select max(`test`.`t1`.`s2`) from `test`.`t1`)))"
                 }
               ] /* steps */
@@ -2493,20 +2499,20 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t1`.`s1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t1`.`s1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t1`.`s1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`)))"
                 }
               ] /* steps */
@@ -2769,20 +2775,20 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`t1`.`s1`,`test`.`t1`.`s2`),<exists>(/* select#2 */ select `test`.`t1`.`s2`,`test`.`t1`.`s1` from `test`.`t1` where ((<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`) and (<cache>(`test`.`t1`.`s2`) = `test`.`t1`.`s1`))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`t1`.`s1`,`test`.`t1`.`s2`),<exists>(/* select#2 */ select `test`.`t1`.`s2`,`test`.`t1`.`s1` from `test`.`t1` where ((<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`) and (<cache>(`test`.`t1`.`s2`) = `test`.`t1`.`s1`))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>((`test`.`t1`.`s1`,`test`.`t1`.`s2`),<exists>(/* select#2 */ select `test`.`t1`.`s2`,`test`.`t1`.`s1` from `test`.`t1` where ((<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`) and (<cache>(`test`.`t1`.`s2`) = `test`.`t1`.`s1`))))"
                 }
               ] /* steps */
@@ -3383,20 +3389,20 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "<in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`))))"
                 }
               ] /* steps */
@@ -3679,20 +3685,20 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`c2` = 1) and (<cache>(`test`.`t2`.`c2`) = `test`.`t2`.`c2`)))) and multiple equal(`test`.`t1`.`c1`, `test`.`t2`.`c2`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`c2` = 1) and (<cache>(`test`.`t2`.`c2`) = `test`.`t2`.`c2`)))) and multiple equal(`test`.`t1`.`c1`, `test`.`t2`.`c2`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`c2` = 1) and (<cache>(`test`.`t2`.`c2`) = `test`.`t2`.`c2`)))) and multiple equal(`test`.`t1`.`c1`, `test`.`t2`.`c2`))"
                 }
               ] /* steps */
@@ -4412,20 +4418,20 @@ concat(c1,'y') IN
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(<in_optimizer>(concat(`test`.`t1`.`c1`,'x'),concat(`test`.`t1`.`c1`,'x') in (/* select#2 */ select left(`test`.`t2`.`c2`,8) from `test`.`t2`)) and <in_optimizer>(concat(`test`.`t1`.`c1`,'y'),concat(`test`.`t1`.`c1`,'y') in (/* select#3 */ select left(`test`.`t2`.`c2`,9) from `test`.`t2`)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(<in_optimizer>(concat(`test`.`t1`.`c1`,'x'),concat(`test`.`t1`.`c1`,'x') in (/* select#2 */ select left(`test`.`t2`.`c2`,8) from `test`.`t2`)) and <in_optimizer>(concat(`test`.`t1`.`c1`,'y'),concat(`test`.`t1`.`c1`,'y') in (/* select#3 */ select left(`test`.`t2`.`c2`,9) from `test`.`t2`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(<in_optimizer>(concat(`test`.`t1`.`c1`,'x'),concat(`test`.`t1`.`c1`,'x') in (/* select#2 */ select left(`test`.`t2`.`c2`,8) from `test`.`t2`)) and <in_optimizer>(concat(`test`.`t1`.`c1`,'y'),concat(`test`.`t1`.`c1`,'y') in (/* select#3 */ select left(`test`.`t2`.`c2`,9) from `test`.`t2`)))"
                 }
               ] /* steps */
@@ -5210,11 +5216,50 @@ trace
                         "rows_for_plan": 1,
                         "semijoin_strategy_choice": [
                           {
+                            "strategy": "FirstMatch",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "database": "test",
+                                  "table": "t1",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 1,
+                                        "cost": 2.0017,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                },
+                                {
+                                  "database": "test",
+                                  "table": "t2",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "using_join_cache": true,
+                                        "rows": 1,
+                                        "cost": 2.0018,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 5.2036,
+                            "rows": 1,
+                            "chosen": true
+                          },
+                          {
                             "strategy": "DuplicatesWeedout",
                             "cost": 5.3036,
                             "rows": 1,
-                            "duplicate_tables_left": true,
-                            "chosen": true
+                            "duplicate_tables_left": false,
+                            "chosen": false
                           }
                         ] /* semijoin_strategy_choice */,
                         "pruned_by_cost": true
@@ -5242,6 +5287,9 @@ trace
                     "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
+              },
+              {
+                "final_semijoin_strategy": "DuplicateWeedout"
               }
             ] /* considered_execution_plans */
           }
@@ -5602,11 +5650,50 @@ trace
                         "rows_for_plan": 1,
                         "semijoin_strategy_choice": [
                           {
+                            "strategy": "FirstMatch",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "database": "test",
+                                  "table": "t1",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 1,
+                                        "cost": 2.0017,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                },
+                                {
+                                  "database": "test",
+                                  "table": "t2",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "using_join_cache": true,
+                                        "rows": 1,
+                                        "cost": 2.0018,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 5.2036,
+                            "rows": 1,
+                            "chosen": true
+                          },
+                          {
                             "strategy": "DuplicatesWeedout",
                             "cost": 5.3036,
                             "rows": 1,
-                            "duplicate_tables_left": true,
-                            "chosen": true
+                            "duplicate_tables_left": false,
+                            "chosen": false
                           }
                         ] /* semijoin_strategy_choice */,
                         "pruned_by_cost": true
@@ -5634,6 +5721,9 @@ trace
                     "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
+              },
+              {
+                "final_semijoin_strategy": "DuplicateWeedout"
               }
             ] /* considered_execution_plans */
           }
@@ -5907,20 +5997,20 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "subselect_equality_propagation": [
-                  ] /* subselect_equality_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select `test`.`t2`.`c`,`test`.`t2`.`d` from `test`.`t2` where ((`test`.`t2`.`c` > 0) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`) or isnull(`test`.`t2`.`c`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`b`) = `test`.`t2`.`d`) or isnull(`test`.`t2`.`d`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`c`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`d`), true))))))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "subselect_constant_propagation": [
-                  ] /* subselect_constant_propagation */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select `test`.`t2`.`c`,`test`.`t2`.`d` from `test`.`t2` where ((`test`.`t2`.`c` > 0) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`) or isnull(`test`.`t2`.`c`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`b`) = `test`.`t2`.`d`) or isnull(`test`.`t2`.`d`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`c`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`d`), true))))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "subselect_cond_removal": [
-                  ] /* subselect_cond_removal */,
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
                   "resulting_condition": "(not(<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select `test`.`t2`.`c`,`test`.`t2`.`d` from `test`.`t2` where ((`test`.`t2`.`c` > 0) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`) or isnull(`test`.`t2`.`c`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`b`) = `test`.`t2`.`d`) or isnull(`test`.`t2`.`d`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`c`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`d`), true))))))"
                 }
               ] /* steps */
@@ -6369,6 +6459,28 @@ trace
       "join_execution": {
         "select#": 1,
         "steps": [
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "database": "",
+                "table": "",
+                "field": "a"
+              }
+            ] /* filesort_information */,
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            } /* filesort_priority_queue_optimization */,
+            "filesort_execution": [
+            ] /* filesort_execution */,
+            "filesort_summary": {
+              "rows": 2,
+              "examined_rows": 2,
+              "number_of_tmp_files": 0,
+              "sort_mode": "<sort_key, rowid>"
+            } /* filesort_summary */
+          }
         ] /* steps */
       } /* join_execution */
     }
@@ -7614,8 +7726,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                     "semijoin_strategy_choice": [
                       {
                         "strategy": "FirstMatch",
-                        "recompute_best_access_paths": {
-                          "cause": "join_buffering_not_possible",
+                        "recalculate_access_paths_and_cost": {
                           "tables": [
                             {
                               "database": "test",
@@ -7633,13 +7744,13 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                               } /* best_access_path */
                             }
                           ] /* tables */
-                        } /* recompute_best_access_paths */,
+                        } /* recalculate_access_paths_and_cost */,
                         "cost": 3.2213,
                         "rows": 1,
                         "chosen": true
                       },
                       {
-                        "strategy": "MaterializationLookup",
+                        "strategy": "MaterializeLookup",
                         "cost": 4.0212,
                         "rows": 1,
                         "duplicate_tables_left": false,
@@ -7656,25 +7767,29 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                     "chosen": true
                   }
                 ] /* rest_of_plan */
+              },
+              {
+                "final_semijoin_strategy": "FirstMatch",
+                "recalculate_access_paths_and_cost": {
+                  "tables": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "rows": 3,
+                            "cost": 2.0212,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */
+                    }
+                  ] /* tables */
+                } /* recalculate_access_paths_and_cost */
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "reconsidering_access_paths_for_semijoin": {
-              "strategy": "FirstMatch",
-              "database": "test",
-              "table": "t2",
-              "best_access_path": {
-                "considered_access_paths": [
-                  {
-                    "access_type": "scan",
-                    "rows": 3,
-                    "cost": 2.0212,
-                    "chosen": true
-                  }
-                ] /* considered_access_paths */
-              } /* best_access_path */
-            } /* reconsidering_access_paths_for_semijoin */
           },
           {
             "attaching_conditions_to_tables": {
@@ -8303,8 +8418,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                     "semijoin_strategy_choice": [
                       {
                         "strategy": "FirstMatch",
-                        "recompute_best_access_paths": {
-                          "cause": "join_buffering_not_possible",
+                        "recalculate_access_paths_and_cost": {
                           "tables": [
                             {
                               "database": "test",
@@ -8322,13 +8436,13 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                               } /* best_access_path */
                             }
                           ] /* tables */
-                        } /* recompute_best_access_paths */,
+                        } /* recalculate_access_paths_and_cost */,
                         "cost": 3.2213,
                         "rows": 1,
                         "chosen": true
                       },
                       {
-                        "strategy": "MaterializationLookup",
+                        "strategy": "MaterializeLookup",
                         "cost": 4.0212,
                         "rows": 1,
                         "duplicate_tables_left": false,
@@ -8345,25 +8459,29 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                     "chosen": true
                   }
                 ] /* rest_of_plan */
+              },
+              {
+                "final_semijoin_strategy": "FirstMatch",
+                "recalculate_access_paths_and_cost": {
+                  "tables": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "rows": 3,
+                            "cost": 2.0212,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */
+                    }
+                  ] /* tables */
+                } /* recalculate_access_paths_and_cost */
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "reconsidering_access_paths_for_semijoin": {
-              "strategy": "FirstMatch",
-              "database": "test",
-              "table": "t2",
-              "best_access_path": {
-                "considered_access_paths": [
-                  {
-                    "access_type": "scan",
-                    "rows": 3,
-                    "cost": 2.0212,
-                    "chosen": true
-                  }
-                ] /* considered_access_paths */
-              } /* best_access_path */
-            } /* reconsidering_access_paths_for_semijoin */
           },
           {
             "attaching_conditions_to_tables": {
@@ -9854,8 +9972,7 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                     "semijoin_strategy_choice": [
                       {
                         "strategy": "FirstMatch",
-                        "recompute_best_access_paths": {
-                          "cause": "join_buffering_not_possible",
+                        "recalculate_access_paths_and_cost": {
                           "tables": [
                             {
                               "database": "test",
@@ -9873,13 +9990,13 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                               } /* best_access_path */
                             }
                           ] /* tables */
-                        } /* recompute_best_access_paths */,
+                        } /* recalculate_access_paths_and_cost */,
                         "cost": 3.2496,
                         "rows": 1,
                         "chosen": true
                       },
                       {
-                        "strategy": "MaterializationLookup",
+                        "strategy": "MaterializeLookup",
                         "cost": 5.0496,
                         "rows": 1,
                         "duplicate_tables_left": false,
@@ -9915,25 +10032,29 @@ select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('a
                 "semijoin_strategy_choice": [
                 ] /* semijoin_strategy_choice */,
                 "pruned_by_cost": true
+              },
+              {
+                "final_semijoin_strategy": "FirstMatch",
+                "recalculate_access_paths_and_cost": {
+                  "tables": [
+                    {
+                      "database": "test",
+                      "table": "t2",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "rows": 7,
+                            "cost": 2.0496,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */
+                    }
+                  ] /* tables */
+                } /* recalculate_access_paths_and_cost */
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "reconsidering_access_paths_for_semijoin": {
-              "strategy": "FirstMatch",
-              "database": "test",
-              "table": "t2",
-              "best_access_path": {
-                "considered_access_paths": [
-                  {
-                    "access_type": "scan",
-                    "rows": 7,
-                    "cost": 2.0496,
-                    "chosen": true
-                  }
-                ] /* considered_access_paths */
-              } /* best_access_path */
-            } /* reconsidering_access_paths_for_semijoin */
           },
           {
             "attaching_conditions_to_tables": {

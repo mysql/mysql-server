@@ -1599,7 +1599,7 @@ DROP TABLE t1,t2;
 # Bug#12910006: MRR initialization on a derived table caused crash.
 #
 SET @save_switch= @@SESSION.optimizer_switch;
-SET @@SESSION.optimizer_switch="batch_key_access=on";
+SET @@SESSION.optimizer_switch="batched_key_access=on";
 CREATE TABLE t1 ( pk integer auto_increment,
 col_blob_key blob, primary key (pk)) ENGINE=innodb;
 CREATE TABLE t2 (col_tinytext tinytext null,
@@ -1614,4 +1614,31 @@ ORDER BY field1,field2 ASC;
 field1	field2
 SET @@SESSION.optimizer_switch= @save_switch;
 DROP TABLE t1, t2;
+#
+# Bug#13106350: MRR initialization on a derived table caused crash.
+#
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
+INSERT INTO t1 VALUES(7, 'seven'), (13, 'thirteen');
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, vc1 VARCHAR(20), vc2 VARCHAR(20));
+INSERT INTO t2 VALUES(7, 'seven', 's'), (14, 'fourteen', 'f');
+CREATE TABLE t3 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
+INSERT INTO t3 VALUES(5, 'f'), (6, 's'), (7, 's');
+explain SELECT derived.vc
+FROM (SELECT * FROM t1) AS derived
+WHERE derived.vc IN (
+SELECT t2.vc1
+FROM t2 JOIN t3 ON t2.vc2=t3.vc);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT derived.vc
+FROM (SELECT * FROM t1) AS derived
+WHERE derived.vc IN (
+SELECT t2.vc1
+FROM t2 JOIN t3 ON t2.vc2=t3.vc);
+vc
+seven
+DROP TABLE t1, t2, t3;
 #

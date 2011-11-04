@@ -849,7 +849,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                                     &err_ptr, &err_len);
       if (err_len)
       {
-        strmake(buff, err_ptr, min(sizeof(buff) - 1, err_len));
+        strmake(buff, err_ptr, MY_MIN(sizeof(buff) - 1, err_len));
         fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
         exit(1);
       }
@@ -914,13 +914,7 @@ static int get_options(int *argc, char ***argv)
       my_hash_insert(&ignore_table,
                      (uchar*) my_strdup("mysql.general_log", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.slow_log", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.slave_master_info", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.slave_relay_log_info", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.slave_worker_info", MYF(MY_WME))))
+                     (uchar*) my_strdup("mysql.slow_log", MYF(MY_WME))))
     return(EX_EOM);
 
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
@@ -4678,7 +4672,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
 
       for (; pos != end && *pos != ','; pos++) ;
       var_len= (uint) (pos - start);
-      strmake(buff, start, min(sizeof(buff) - 1, var_len));
+      strmake(buff, start, MY_MIN(sizeof(buff) - 1, var_len));
       find= find_type(buff, lib, FIND_TYPE_BASIC);
       if (!find)
       {

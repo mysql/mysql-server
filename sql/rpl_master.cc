@@ -629,7 +629,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error";
-  const char *fmt= "%s; the last event was read from %s at %s, the last byte read was read from %s at %s.";
+  const char *fmt= "%s; the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
   char llbuff1[22], llbuff2[22];
   char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
@@ -958,6 +958,19 @@ impossible position";
       else if (event_type == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
+      /*
+        Introduced this code to make the gcc 4.6.1 compiler happy. When
+        warnings are converted to errors, the compiler complains about
+        the fact that binlog_can_be_corrupted is defined but never used.
+
+        We need to check if this is a dead code or if someone removed any
+        code by mistake.
+
+        /Alfranio
+      */
+      if (binlog_can_be_corrupted)
+         sql_print_information("The binlog may be corrupted.");
+
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
                    (thd, flags, packet, log_file_name, pos)))
@@ -1253,6 +1266,7 @@ end:
 err:
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   if (my_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG && my_b_inited(&log))
+  {
     /* 
        detailing the fatal error message with coordinates 
        of the last position read.
@@ -1260,6 +1274,7 @@ err:
     my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
                 coord->file_name, (llstr(coord->pos, llbuff1), llbuff1),
                 log_file_name, (llstr(my_b_tell(&log), llbuff2), llbuff2));
+  }
   else
     strcpy(error_text, errmsg);
   end_io_cache(&log);

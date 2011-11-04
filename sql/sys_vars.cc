@@ -289,6 +289,7 @@ static Sys_var_ulong Sys_pfs_events_stages_history_size(
   Variable performance_schema_max_statement_classes.
   The default number of statement classes is the sum of:
   - COM_END for all regular "statement/com/...",
+  - 1 for "statement/com/new_packet", for unknown enum_server_command
   - 1 for "statement/com/Error", for invalid enum_server_command
   - SQLCOM_END for all regular "statement/sql/...",
   - 1 for "statement/sql/error", for invalid enum_sql_command.
@@ -298,7 +299,7 @@ static Sys_var_ulong Sys_pfs_max_statement_classes(
        "Maximum number of statement instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 2),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 3),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_events_statements_history_long_size(
@@ -1663,7 +1664,7 @@ static const char *optimizer_switch_names[]=
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
   "index_condition_pushdown" , "mrr", "mrr_cost_based",
-  "block_nested_loop", "batch_key_access",
+  "block_nested_loop", "batched_key_access",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
 #endif
@@ -1689,7 +1690,7 @@ static Sys_var_flagset Sys_optimizer_switch(
        ", materialization, "
        "semijoin, loosescan, firstmatch"
 #endif
-       ", block_nested_loop, batch_key_access"
+       ", block_nested_loop, batched_key_access"
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
@@ -2212,15 +2213,18 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
+  bool check_purge= false;
+
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
-    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
-      (binlog_checksum_options != (uint) var->save_result.ulonglong_value?
-       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
-    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+    bool alg_changed=
+      (binlog_checksum_options != (uint) var->save_result.ulonglong_value);
+    if (alg_changed)
       mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
-    mysql_bin_log.rotate_and_purge(flags);
+    mysql_bin_log.rotate(true, &check_purge);
+    if (alg_changed)
+      mysql_bin_log.checksum_alg_reset= BINLOG_CHECKSUM_ALG_UNDEF; // done
   }
   else
   {
@@ -2229,6 +2233,10 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
   DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  
+  if (check_purge)
+    mysql_bin_log.purge();
+
   return 0;
 }
 
@@ -2258,7 +2266,7 @@ static Sys_var_ulong Sys_sort_buffer(
        "sort_buffer_size",
        "Each thread that needs to do a sort allocates a buffer of this size",
        SESSION_VAR(sortbuff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(MAX_SORT_MEMORY),
+       VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)

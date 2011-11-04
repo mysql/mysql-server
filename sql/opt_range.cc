@@ -115,6 +115,9 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 
+using std::min;
+using std::max;
+
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
 #define test_use_count(A) {}
@@ -1049,7 +1052,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
 {
   keys_map= arg->keys_map;
   type= arg->type;
-  for (int idx= 0; idx < MAX_KEY; idx++)
+  for (uint idx= 0; idx < MAX_KEY; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
       keys[idx]->increment_use_count(1);
@@ -6088,8 +6091,21 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   if (cond_func->functype() == Item_func::BETWEEN ||
       cond_func->functype() == Item_func::IN_FUNC)
     inv= ((Item_func_opt_neg *) cond_func)->negated;
-  else if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
-    DBUG_RETURN(0);			       
+  else
+  {
+    /*
+      During the cond_func->select_optimize() evaluation we can come across a
+      subselect item which may allocate memory on the thd->mem_root and assumes
+      all the memory allocated has the same life span as the subselect item
+      itself. So we have to restore the thread's mem_root here.
+    */
+    MEM_ROOT *tmp_root= param->mem_root;
+    param->thd->mem_root= param->old_root;
+    Item_func::optimize_type opt_type= cond_func->select_optimize();
+    param->thd->mem_root= tmp_root;
+    if (opt_type == Item_func::OPTIMIZE_NONE)
+      DBUG_RETURN(NULL);
+  }
 
   param->cond= cond;
 
@@ -8608,7 +8624,7 @@ walk_up_n_right:
   }
 
   seq->param->range_count++;
-  seq->param->max_key_part=max(seq->param->max_key_part,key_tree->part);
+  seq->param->max_key_part=max<uint>(seq->param->max_key_part,key_tree->part);
 
   return 0;
 }
@@ -9337,7 +9353,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   doing_pk_scan= FALSE;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(FALSE);
-  init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
+  if (init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1, TRUE))
+    DBUG_RETURN(1);
   DBUG_RETURN(result);
 }
 
@@ -11434,7 +11451,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
       p_overlap= (blocks_per_group * (keys_per_subgroup - 1)) / keys_per_group;
       p_overlap= min(p_overlap, 1.0);
     }
-    io_cost= (double) min(num_groups * (1 + p_overlap), num_blocks);
+    io_cost= min<double>(num_groups * (1 + p_overlap), num_blocks);
   }
   else
     io_cost= (keys_per_group > keys_per_block) ?

@@ -446,8 +446,6 @@ create table t1 (a1 int key);
 create table t2 (b1 int);
 insert into t1 values (5);
 
-# The queries below do not give correct result when executed with subquery 
-# materialization (Bug#40037). Execution with semijoin is correct
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 explain select min(a1) from t1 where 7 in (select b1 from t2);

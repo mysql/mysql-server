@@ -60,12 +60,17 @@
 
 #include <mysql/psi/mysql_statement.h>
 
+using std::min;
+using std::max;
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
 */
 char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
+
+LEX_STRING EMPTY_STR= { (char *) "", 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
 
@@ -342,7 +347,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
     my_micro_time();
-  threads.append(thd);
+  threads.push_front(thd);
   thd_unlock_thread_count(thd);
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
@@ -782,6 +787,8 @@ THD::THD(bool enable_plugins)
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
    m_statement_psi(NULL),
+   m_idle_psi(NULL),
+   m_server_idle(false),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -2077,7 +2084,7 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
   change= new (change_mem) Item_change_record;
   change->place= place;
   change->old_value= old_value;
-  change_list.append(change);
+  change_list.push_front(change);
 }
 
 

@@ -39,6 +39,7 @@ IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_audit.h
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_ftparser.h
     ${CMAKE_SOURCE_DIR}/include/mysql.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v0.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v2.h
     ${CMAKE_SOURCE_DIR}/include/mysql/client_plugin.h

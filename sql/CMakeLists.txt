@@ -112,6 +112,7 @@ SET(SQL_SHARED_SOURCES
   sql_derived.cc
   sql_do.cc 
   sql_error.cc
+  sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
   sql_insert.cc
@@ -293,6 +294,7 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
+
 IF(DEBUG_EXTNAME)
   INSTALL_DEBUG_TARGET(mysqld 
     DESTINATION ${INSTALL_SBINDIR} 
@@ -349,7 +351,7 @@ ADD_CUSTOM_TARGET(
 SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
-  ADD_LIBRARY(udf_example MODULE udf_example.c)
+  ADD_LIBRARY(udf_example MODULE udf_example.cc)
   SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
   # udf_example depends on strings 
   IF(WIN32)

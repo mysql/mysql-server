@@ -98,6 +98,10 @@
 #include "opt_explain.h"
 #include "sql_rewrite.h"
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
@@ -302,8 +306,7 @@ void init_update_queries(void)
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS |
-                                            CF_WRITE_RPL_INFO_COMMAND;
+                                            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
                                             CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -418,7 +421,6 @@ void init_update_queries(void)
                                                 CF_SHOW_TABLE_COMMAND |
                                                 CF_REEXECUTION_FRAGILE);
 
-
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
@@ -435,6 +437,9 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
+  /* Does not change the contents of the diagnostics area. */
+  sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
+
   /*
     (1): without it, in "CALL some_proc((subq))", subquery would not be
     traced.
@@ -448,14 +453,10 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
-  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
-  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
-  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
-                                       CF_WRITE_RPL_INFO_COMMAND;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
@@ -558,17 +559,6 @@ bool is_log_table_write_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
-}
-
-/**
-  Check if a sql command is allowed to write to rpl info tables.
-  @param command The SQL command
-  @return true if writing is allowed
-*/
-bool is_rpl_info_table_write_query(enum enum_sql_command command)
-{
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
-  return (sql_command_flags[command] & CF_WRITE_RPL_INFO_COMMAND) != 0;
 }
 
 void execute_init_command(THD *thd, LEX_STRING *init_command,
@@ -847,15 +837,20 @@ bool do_command(THD *thd)
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
 
-  #ifdef HAVE_PSI_INTERFACE
-  net->mysql_socket_idle= TRUE;
-  #endif
-
+  /*
+    Because of networking layer callbacks in place,
+    this call will maintain the following instrumentation:
+    - IDLE events
+    - SOCKET events
+    - STATEMENT events
+    - STAGE events
+    when reading a new network packet.
+    In particular, a new instrumented statement is started.
+    See init_net_server_extension()
+  */
+  thd->m_server_idle= true;
   packet_length= my_net_read(net);
-
-  #ifdef HAVE_PSI_INTERFACE
-  net->mysql_socket_idle= FALSE;
-  #endif
+  thd->m_server_idle= false;
 
   if (packet_length == packet_error)
   {
@@ -863,11 +858,19 @@ bool do_command(THD *thd)
 		       net->error,
 		       vio_description(net->vio)));
 
+    /* Instrument this broken statement as "statement/com/error" */
+    thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                 com_statement_info[COM_END].m_key);
+
     /* Check if we can continue without closing the connection */
 
     /* The error must be set. */
     DBUG_ASSERT(thd->is_error());
     thd->protocol->end_statement();
+
+    /* Mark the statement completed. */
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= NULL;
 
     if (net->error != 3)
     {
@@ -915,6 +918,8 @@ bool do_command(THD *thd)
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
 
 out:
+  /* The statement instrumentation must be closed in all cases. */
+  DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_RETURN(return_value);
 }
 #endif  /* EMBEDDED_LIBRARY */
@@ -1011,10 +1016,6 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_statement_locker_state state;
-#endif
-
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
@@ -1031,10 +1032,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       (char *) thd->security_ctx->host_or_ip);
 
   /* Performance Schema Interface instrumentation, begin */
-  thd->m_statement_psi= MYSQL_START_STATEMENT(& state, com_statement_info[command].m_key,
-                                              thd->db, thd->db_length);
-  THD_STAGE_INFO(thd, stage_init);
-  
+  thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                               com_statement_info[command].m_key);
+
   thd->set_command(command);
   /*
     Commands which always take a long time are logged into
@@ -1219,6 +1219,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
 /* PSI end */
       MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+      thd->m_statement_psi= NULL;
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
@@ -1244,7 +1245,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
 /* PSI begin */
-      thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
+      thd->m_statement_psi= MYSQL_START_STATEMENT(& thd->m_statement_state,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length);
       THD_STAGE_INFO(thd, stage_init);
@@ -1349,7 +1350,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     */
     thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
 
+    // See comment in opt_trace_disable_if_no_security_context_access()
+    Opt_trace_start ots(thd, &table_list, thd->lex->sql_command, NULL,
+                        NULL, 0, NULL, NULL);
+
     mysqld_list_fields(thd,&table_list,fields);
+
     thd->lex->unit.cleanup();
     /* No need to rollback statement transaction, it's not started. */
     DBUG_ASSERT(thd->transaction.stmt.is_empty());
@@ -1588,6 +1594,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
+
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   dec_thread_running();
@@ -1637,8 +1644,6 @@ void log_slow_statement(THD *thd)
   */
   if (thd->enable_slow_log)
   {
-    ulonglong end_utime_of_query= thd->current_utime();
-
     if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
@@ -1651,11 +1656,9 @@ void log_slow_statement(THD *thd)
       if (thd->rewritten_query.length())
         slow_log_print(thd,
                        thd->rewritten_query.c_ptr_safe(),
-                       thd->rewritten_query.length(), 
-                       end_utime_of_query);
+                       thd->rewritten_query.length());
       else
-        slow_log_print(thd, thd->query(), thd->query_length(), 
-                       end_utime_of_query);
+        slow_log_print(thd, thd->query(), thd->query_length());
     }
   }
   DBUG_VOID_RETURN;
@@ -4612,6 +4615,7 @@ create_sp_error:
     /* fall through */
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
+  case SQLCOM_GET_DIAGNOSTICS:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -5425,7 +5429,7 @@ bool check_stack_overrun(THD *thd, long margin,
       Do not use stack for the message buffer to ensure correct
       behaviour in cases we have close to no stack left.
     */
-    char* ebuff= new char[MYSQL_ERRMSG_SIZE];
+    char* ebuff= new (std::nothrow) char[MYSQL_ERRMSG_SIZE];
     if (ebuff) {
       my_snprintf(ebuff, MYSQL_ERRMSG_SIZE, ER(ER_STACK_OVERRUN_NEED_MORE),
                   stack_used, my_thread_stack_size, margin);
@@ -5773,15 +5777,14 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     mysql_rewrite_query(thd);
 
     if (thd->rewritten_query.length())
+      lex->safe_to_cache_query= FALSE; // see comments below 
+
+    if (!thd->slave_thread && !opt_log_raw)
     {
-      lex->safe_to_cache_query= FALSE; // see comments below
-      if (!opt_log_raw)
+      if (thd->rewritten_query.length())
         general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
                                           thd->rewritten_query.length());
-    }
-    else
-    {
-      if (!opt_log_raw)
+      else
         general_log_write(thd, COM_QUERY, thd->query(), qlen);
     }
 
@@ -6786,7 +6789,7 @@ bool check_simple_select()
     char command[80];
     Lex_input_stream *lip= & thd->m_parser_state->m_lip;
     strmake(command, lip->yylval->symbol.str,
-	    min(lip->yylval->symbol.length, sizeof(command)-1));
+	    min<size_t>(lip->yylval->symbol.length, sizeof(command)-1));
     my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
     return 1;
   }
