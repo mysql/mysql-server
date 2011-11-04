@@ -6914,16 +6914,18 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                  ER(ER_SLAVE_WAS_RUNNING));
   }
 
+  /*
+    Clean up start information if there was an attempt to start
+    the IO thread to avoid any security issue.
+  */
+  if (slave_errno &&
+      (thread_mask & SLAVE_IO) == SLAVE_IO)
+    mi->reset_start_info();
+
   unlock_slave_threads(mi);
 
   if (slave_errno)
   {
-    /*
-      Clean up start information if there was an attempt to start
-      the IO thread to avoid any security issue.
-    */
-    if (thread_mask & SLAVE_IO)
-      mi->reset_start_info();
     if (net_report)
       my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);
