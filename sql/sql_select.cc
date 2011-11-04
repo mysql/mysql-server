@@ -18468,6 +18468,8 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
     if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo,
                                 options, big_tables))
       return TRUE;
+    // Make empty record so random data is not written to disk
+    empty_record(table);
   }
   if (open_tmp_table(table))
     return TRUE;

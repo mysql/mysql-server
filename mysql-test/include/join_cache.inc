@@ -1961,3 +1961,26 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug#12997905: VALGRIND: SYSCALL PARAM PWRITE64(BUF) 
+--echo #               POINTS TO UNINITIALISED BYTE(S)
+--echo #
+
+CREATE TABLE t1 (
+  col1 varchar(10),
+  col2 varchar(1024)
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES ('a','a');
+
+CREATE TABLE t2 (i varchar(10)) ENGINE=innodb;
+INSERT INTO t2 VALUES ('a');
+
+SELECT t1.col1
+FROM t1 JOIN t2 ON t1.col1 = t2.i 
+GROUP BY t1.col2;
+
+DROP TABLE t1,t2;
+
+--echo # End of Bug#12997905
