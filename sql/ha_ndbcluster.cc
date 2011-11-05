@@ -13838,25 +13838,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
     found= my_hash_delete(&ndbcluster_open_tables, (uchar*) *share) == 0;
   }
   assert(found);
-  thr_lock_delete(&(*share)->lock);
-  pthread_mutex_destroy(&(*share)->mutex);
 
-#ifdef HAVE_NDB_BINLOG
-  if ((*share)->m_cfn_share && (*share)->m_cfn_share->m_ex_tab && g_ndb)
-  {
-    NDBDICT *dict= g_ndb->getDictionary();
-    dict->removeTableGlobal(*(*share)->m_cfn_share->m_ex_tab, 0);
-    (*share)->m_cfn_share->m_ex_tab= 0;
-  }
-#endif
-  (*share)->new_op= 0;
-  if ((*share)->event_data)
-  {
-    delete (*share)->event_data;
-    (*share)->event_data= 0;
-  }
-  free_root(&(*share)->mem_root, MYF(0));
-  my_free((uchar*) *share, MYF(0));
+  NDB_SHARE::destroy(*share);
   *share= 0;
 
   dbug_print_open_tables();

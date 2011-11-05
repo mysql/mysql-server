@@ -187,6 +187,8 @@ struct NDB_SHARE {
   char *old_names; // for rename table
   MY_BITMAP *subscriber_bitmap;
   class NdbEventOperation *new_op;
+
+  static void destroy(NDB_SHARE* share);
 };
 
 
