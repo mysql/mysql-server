@@ -283,15 +283,6 @@ fts_add_doc_by_id(
 	doc_id_t	doc_id,		/*!< in: doc id */
 	ib_vector_t*	fts_indexes __attribute__((unused)));
 					/*!< in: affected fts indexes */
-/*********************************************************************//**
-Search the index cache for a get_doc structure.
-@return the fts_get_doc_t item else NULL */
-static
-fts_get_doc_t*
-fts_get_index_get_doc(
-/*==================*/
-	fts_cache_t*		cache,	/*!< in: cache to search */
-	const dict_index_t*	index);	/*!< in: index to search for */
 /****************************************************************//**
 Check whether a particular word (term) exists in the FTS index.
 @return DB_SUCCESS if all went fine */
@@ -628,8 +619,8 @@ UNIV_INTERN
 void
 fts_add_index(
 /*==========*/
-        dict_index_t*	index,		/*!< FTS index to be added */
-        dict_table_t*	table)		/*!< table */
+	dict_index_t*	index,		/*!< FTS index to be added */
+	dict_table_t*	table)		/*!< table */
 {
 	fts_t*			fts = table->fts;
 	fts_cache_t*		cache;
@@ -649,15 +640,37 @@ fts_add_index(
 		index_cache = fts_cache_index_cache_create(table, index);
 	}
 
-	if (cache->get_docs && !fts_get_index_get_doc(cache, index)) {
-		fts_get_doc_t*  get_doc;
+	rw_lock_x_unlock(&cache->init_lock);
+}
 
-		ut_a(!fts_get_index_get_doc(cache, index));
+/*******************************************************************//**
+recalibrate get_doc structure after index_cache in cache->indexes changed */
+static
+void
+fts_reset_get_doc(
+/*==============*/
+	fts_cache_t*	cache)	/*!< in: FTS index cache */
+{
+	fts_get_doc_t*  get_doc;
+	int		i;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+#endif
+	ib_vector_reset(cache->get_docs);
+
+	for (i = 0; i < ib_vector_size(cache->indexes); i++) {
+		fts_index_cache_t*	ind_cache;
+
+		ind_cache = ib_vector_get(cache->indexes, i);
+
 		get_doc = ib_vector_push(cache->get_docs, NULL);
 		memset(get_doc, 0x0, sizeof(*get_doc));
-		get_doc->index_cache = index_cache;
-        }
-	rw_lock_x_unlock(&cache->init_lock);
+		get_doc->index_cache = ind_cache;
+	}
+
+	ut_ad(ib_vector_size(cache->get_docs)
+	      == ib_vector_size(cache->indexes));
 }
 
 /*******************************************************************//**
@@ -712,20 +725,10 @@ fts_drop_index(
 		index_cache = (fts_index_cache_t*) fts_find_index_cache(
 			cache, index);
 
-		if (index_cache) {
-			if (cache->get_docs) {
-				fts_get_doc_t*  get_doc;
+		ib_vector_remove(cache->indexes, *(void**)index_cache);
 
-				get_doc = fts_get_index_get_doc(cache, index);
-
-				if (get_doc) {
-					ib_vector_remove(
-						cache->get_docs,
-						*(void**) get_doc);
-				}
-			}
-
-			ib_vector_remove(cache->indexes, *(void**)index_cache);
+		if (cache->get_docs) {
+			fts_reset_get_doc(cache);
 		}
 
 		rw_lock_x_unlock(&cache->init_lock);
@@ -843,7 +846,7 @@ fts_cache_index_cache_create(
 
 	ut_a(cache != NULL);
 
-#ifdef UNIV_SYNC_DEBUG50
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
 #endif
 
@@ -867,6 +870,10 @@ fts_cache_index_cache_create(
 	memset(index_cache->sel_graph, 0x0, n_bytes);
 
 	fts_index_cache_init(cache->sync_heap, index_cache);
+
+	if (cache->get_docs) {
+		fts_reset_get_doc(cache);
+        }
 
 	return(index_cache);
 }
@@ -918,10 +925,6 @@ fts_cache_clear(
 					word cache. */
 {
 	ulint		i;
-
-#ifdef UNIV_SYNC_DEBUG50
-	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
-#endif
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		ulint			j;
@@ -999,6 +1002,7 @@ fts_get_index_cache(
 	return(NULL);
 }
 
+#ifdef FTS_DEBUG
 /*********************************************************************//**
 Search the index cache for a get_doc structure.
 @return the fts_get_doc_t item else NULL */
@@ -1028,6 +1032,7 @@ fts_get_index_get_doc(
 
 	return(NULL);
 }
+#endif
 
 /**********************************************************************//**
 Free the FTS cache. */
@@ -4987,24 +4992,7 @@ fts_free(
 
 	mutex_free(&fts->bg_threads_mutex);
 
-	if (fts->add_wq) {
-		/* We need to free the items in the work queue. */
-		ib_list_node_t*	node = ib_list_get_first(fts->add_wq->items);
-
-		while (node != NULL) {
-
-			/* Since the node is allocated from the same heap
-			as the fts_doc_ids_t, we first remove the node from
-			the list then free the heap. */
-			ib_list_remove(fts->add_wq->items, node);
-
-			fts_doc_ids_free(node->data);
-
-			node = ib_list_get_first(fts->add_wq->items);
-		}
-
-		ib_wqueue_free(fts->add_wq);
-	}
+	ut_ad(!fts->add_wq);
 
 	if (fts->cache) {
 		fts_cache_clear(fts->cache, TRUE);

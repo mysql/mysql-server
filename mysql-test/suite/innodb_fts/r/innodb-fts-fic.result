@@ -49,6 +49,21 @@ SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
 id	title	body
 5	MySQL vs. YourSQL	In the following database comparison ...
+DROP INDEX idx ON articles;
+CREATE FULLTEXT INDEX idx on articles (title, body);
+CREATE FULLTEXT INDEX idx1 on articles (title);
+SELECT * FROM articles WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP INDEX idx ON articles;
+DROP INDEX idx1 ON articles;
+CREATE FULLTEXT INDEX idx1 on articles (title);
+SELECT * FROM articles WHERE MATCH (title)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
 drop table articles;
 CREATE TABLE articles (
 FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,

@@ -21,7 +21,6 @@ INSERT INTO articles (title,body) VALUES
 # Create the FTS index
 CREATE FULLTEXT INDEX idx on articles (title, body);
 
-# "the" is in the default stopword, it would not be selected
 SELECT * FROM articles WHERE MATCH (title, body)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
@@ -51,7 +50,27 @@ SELECT * FROM articles WHERE MATCH (title,body)
 SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
 
+DROP INDEX idx ON articles;
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+CREATE FULLTEXT INDEX idx1 on articles (title);
+
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP INDEX idx ON articles;
+
+DROP INDEX idx1 ON articles;
+
+CREATE FULLTEXT INDEX idx1 on articles (title);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
 drop table articles;
+
 # Create FTS table
 CREATE TABLE articles (
 	FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,

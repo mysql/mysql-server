@@ -3323,7 +3323,6 @@ row_drop_table_for_mysql(
 	ibool		locked_dictionary	= FALSE;
 	ibool		fts_bg_thread_exited	= FALSE;
 	pars_info_t*    info			= NULL;
-	ibool		rm_aux_table		= FALSE;
 
 	ut_a(name != NULL);
 
@@ -3456,11 +3455,6 @@ retry:
 			fts_optimize_remove_table(table);
 			row_mysql_lock_data_dictionary(trx);
 		}
-	}
-
-	if (dict_table_has_fts_index(table)
-            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
-		rm_aux_table = TRUE;
 	}
 
 	/* Move the table the the non-LRU list so that it isn't
@@ -3711,7 +3705,9 @@ check_next_foreign:
 			is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		}
 
-		if (rm_aux_table) {
+		if (dict_table_has_fts_index(table)
+		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+			ut_ad(table->n_ref_count == 0);
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
