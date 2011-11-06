@@ -105,9 +105,9 @@ cast("2011-02-03 10:11:12.123456" as datetime(6))
 select cast("2011-02-03 10:11:12" as datetime(6));
 cast("2011-02-03 10:11:12" as datetime(6))
 2011-02-03 10:11:12.000000
-select cast(cast(20010203101112.1 as double) as datetime(1));
-cast(cast(20010203101112.1 as double) as datetime(1))
-2001-02-03 10:11:12.1
+select cast(cast(20010203101112.5 as double) as datetime(1));
+cast(cast(20010203101112.5 as double) as datetime(1))
+2001-02-03 10:11:12.5
 select cast(cast(010203101112.12 as double) as datetime(2));
 cast(cast(010203101112.12 as double) as datetime(2))
 0001-02-03 10:11:12.12

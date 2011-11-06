@@ -339,6 +339,7 @@ void lex_start(THD *thd)
   lex->event_parse_data= NULL;
   lex->profile_options= PROFILE_NONE;
   lex->nest_level=0 ;
+  lex->select_lex.nest_level_base= &lex->unit;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
   lex->protect_against_global_read_lock= FALSE;

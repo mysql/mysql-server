@@ -684,6 +684,13 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
+
+  /*
+    nest_levels are local to the query or VIEW,
+    and that view merge procedure does not re-calculate them.
+    So we also have to remember unit against which we count levels.
+  */
+  SELECT_LEX_UNIT *nest_level_base;
   int nest_level;     /* nesting level of select */
   Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
   uint with_wild; /* item list contain '*' */

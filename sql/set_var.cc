@@ -265,6 +265,9 @@ static sys_var_thd_ulong sys_deadlock_timeout_long(&vars,
                                  &SV::wt_timeout_long);
 #ifndef DBUG_OFF
 static sys_var_thd_dbug        sys_dbug(&vars, "debug");
+static sys_var_long_ptr        sys_var_debug_binlog_fsync_sleep(&vars,
+                                        "debug_binlog_fsync_sleep",
+                                        &opt_binlog_dbug_fsync_sleep);
 #endif
 static sys_var_enum		sys_delay_key_write(&vars, "delay_key_write",
 					    &delay_key_write_options,

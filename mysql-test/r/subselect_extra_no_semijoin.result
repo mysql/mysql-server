@@ -1,3 +1,5 @@
+set @subselect_extra_no_sj_tmp=@@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 drop table if exists t1,t2,t3,t4;
 drop view if exists v1,v2,v3;
 # From explain.test:
@@ -473,3 +475,4 @@ a	b
 DROP VIEW v2;
 DROP TABLE t1,t2;
 set optimizer_switch= @tmp_subselect_extra_derived;
+set optimizer_switch= @subselect_extra_no_sj_tmp;

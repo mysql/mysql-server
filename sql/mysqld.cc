@@ -484,11 +484,11 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_condition_pushdown=off,"
                                         "derived_merge=off,"
                                         "derived_with_keys=off,"
-                                        "firstmatch=off,"
-                                        "loosescan=off,"
+                                        "firstmatch=on,"
+                                        "loosescan=on,"
                                         "materialization=off,"
                                         "in_to_exists=on,"
-                                        "semijoin=off,"
+                                        "semijoin=on,"
                                         "partial_match_rowid_merge=on,"
                                         "partial_match_table_scan=on,"
                                         "subquery_cache=on,"
@@ -707,6 +707,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+const char *opt_basename;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 int mysql_unpacked_real_data_home_len;
 uint reg_ext_length;
@@ -3509,7 +3510,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   char buff[FN_REFLEN], *s;
-  const char *basename;
   umask(((~my_umask) & 0666));
   tzset();			// Set tzname
 
@@ -3569,13 +3569,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
     strmake(glob_hostname, STRING_WITH_LEN("localhost"));
     sql_print_warning("gethostname failed, using '%s' as hostname",
                         glob_hostname);
-    basename= "mysql";
+    opt_basename= "mysql";
   }
   else
   {
-    basename= glob_hostname;
+    opt_basename= glob_hostname;
   }
-  strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
+  strmake(pidfile_name, opt_basename, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
@@ -4305,11 +4305,13 @@ a file name for --log-bin-index option", opt_binlog_index_name);
         require a name. But as we don't want to break many existing setups, we
         only give warning, not error.
       */
-      sql_print_warning("No argument was provided to --log-bin, and "
-                        "--log-bin-index was not used; so replication "
-                        "may break when this MySQL server acts as a "
-                        "master and has his hostname changed!! Please "
-                        "use '--log-bin=%s' to avoid this problem.", ln);
+      sql_print_warning("No argument was provided to --log-bin and "
+                        "neither --log-basename or --log-bin-index where "
+                        "used;  This may cause repliction to break when this "
+                        "server acts as a master and has its hostname "
+                        "changed!! Please use '--log-basename=%s' or "
+                        "'--log-bin=%s' to avoid this problem.",
+                        opt_basename, ln);
     }
     if (ln == buf)
     {
@@ -6015,7 +6017,7 @@ enum options_mysqld
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
-  OPT_BINLOG_FORMAT,
+  OPT_BINLOG_FORMAT,           OPT_DEBUG_BINLOG_FSYNC_SLEEP,
   OPT_BINLOG_ANNOTATE_ROWS_EVENTS,
   OPT_REPLICATE_ANNOTATE_ROWS_EVENTS,
 #ifndef DBUG_OFF
@@ -6241,6 +6243,12 @@ struct my_option my_long_options[] =
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    &my_bind_addr_str, &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+  {"debug-binlog-fsync-sleep", OPT_DEBUG_BINLOG_FSYNC_SLEEP,
+    "Extra sleep (in microseconds) to add to binlog fsync(), for debugging",
+    &opt_binlog_dbug_fsync_sleep, &opt_binlog_dbug_fsync_sleep,
+   0, GET_ULONG, REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+#endif
   {"binlog_format", OPT_BINLOG_FORMAT,
    "Does not have any effect without '--log-bin'. "
    "Tell the master the form of binary logging to use: either 'row' for "

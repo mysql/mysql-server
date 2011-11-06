@@ -1749,7 +1749,7 @@ INSERT INTO t3 VALUES (5,0),(7,0);
 CREATE TABLE t4 (a int);
 INSERT INTO t4 VALUES (2),(8);
 
-set @@optimizer_switch='in_to_exists=on,materialization=off,subquery_cache=off';
+set @@optimizer_switch='semijoin=off,in_to_exists=on,materialization=off,subquery_cache=off';
 
 SELECT * FROM t2
 WHERE t2.b IN (SELECT b FROM t3 WHERE t3.a = t2.a AND a < SOME (SELECT * FROM t4))

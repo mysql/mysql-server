@@ -609,7 +609,10 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE |\
+                                    OPTIMIZER_SWITCH_SEMIJOIN | \
+                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                    OPTIMIZER_SWITCH_LOOSE_SCAN )
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -2160,7 +2163,7 @@ extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
-extern ulong max_binlog_size, max_relay_log_size;
+extern ulong max_binlog_size, max_relay_log_size, opt_binlog_dbug_fsync_sleep;
 extern ulong opt_binlog_rows_event_max_size;
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;

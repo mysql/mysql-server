@@ -70,7 +70,7 @@ static LEX_STRING const write_error_msg=
 static my_bool opt_optimize_thread_scheduling= TRUE;
 ulong binlog_checksum_options;
 #ifndef DBUG_OFF
-static ulong opt_binlog_dbug_fsync_sleep= 0;
+ulong opt_binlog_dbug_fsync_sleep= 0;
 #endif
 
 static my_bool mutexes_inited;
@@ -7067,27 +7067,10 @@ static MYSQL_SYSVAR_ENUM(
   BINLOG_CHECKSUM_ALG_OFF,
   &binlog_checksum_typelib);
 
-#ifndef DBUG_OFF
-static MYSQL_SYSVAR_ULONG(
-  dbug_fsync_sleep,
-  opt_binlog_dbug_fsync_sleep,
-  PLUGIN_VAR_RQCMDARG,
-  "Extra sleep (in microseconds) to add to binlog fsync(), for debugging",
-  NULL,
-  NULL,
-  0,
-  0,
-  ULONG_MAX,
-  0);
-#endif
-
 static struct st_mysql_sys_var *binlog_sys_vars[]=
 {
   MYSQL_SYSVAR(optimize_thread_scheduling),
   MYSQL_SYSVAR(checksum),
-#ifndef DBUG_OFF
-  MYSQL_SYSVAR(dbug_fsync_sleep),
-#endif
   NULL
 };
 
