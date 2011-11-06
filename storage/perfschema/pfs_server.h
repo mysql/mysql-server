@@ -123,6 +123,8 @@ struct PFS_global_param
   bool m_consumer_events_waits_history_long_enabled;
   bool m_consumer_global_instrumentation_enabled;
   bool m_consumer_thread_instrumentation_enabled;
+
+  char *m_pfs_instrument; //cwp test
   /**
     Maximum number of instrumented mutex classes.
     @sa mutex_class_lost.
@@ -258,6 +260,17 @@ initialize_performance_schema(const PFS_global_param *param);
 void initialize_performance_schema_acl(bool bootstrap);
 
 void check_performance_schema();
+
+/**
+  Initialize the dynamic array holding individual instrument settings collected
+  from the server configuration options.
+*/
+void init_pfs_instrument_array();
+
+/**
+  Process one PFS_INSTRUMENT configuration string.
+*/
+bool add_pfs_instr_to_array(const char* instr_arg);
 
 /**
   Shutdown the performance schema.

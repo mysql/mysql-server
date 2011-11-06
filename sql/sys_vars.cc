@@ -85,6 +85,15 @@ static Sys_var_mybool Sys_pfs_enabled(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
+static Sys_var_charptr Sys_pfs_instrument(
+       "pfs_instrument",
+       "Enable pfs instrument.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_instrument),
+       CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT),
+       IN_FS_CHARSET,
+       DEFAULT(""),
+       PFS_TRAILING_PROPERTIES);
+
 static Sys_var_mybool Sys_pfs_consumer_events_stages_current(
        "performance_schema_consumer_events_stages_current",
        "Enable the events_stages_current consumer.",

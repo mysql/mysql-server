@@ -4761,8 +4761,14 @@ int mysqld_main(int argc, char **argv)
   my_getopt_error_reporter= buffered_option_error_reporter;
   my_charset_error_reporter= buffered_option_error_reporter;
 
+  /*
+    Initialize the array of performance schema instrument configurations.
+  */
+  init_pfs_instrument_array();
+
   ho_error= handle_options(&remaining_argc, &remaining_argv,
-                           (my_option*)(all_early_options.buffer), NULL);
+                           (my_option*)(all_early_options.buffer),
+                           mysqld_get_one_option);
   delete_dynamic(&all_early_options);
   if (ho_error == 0)
   {
@@ -7826,6 +7832,12 @@ mysqld_get_one_option(int optid,
     /* fall through */
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
+    break;
+
+  case OPT_PFS_INSTRUMENT:
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+    add_pfs_instr_to_array(argument);
+#endif
     break;
   }
   return 0;
