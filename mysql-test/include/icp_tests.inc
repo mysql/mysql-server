@@ -697,3 +697,30 @@ SELECT * FROM t1
   ORDER BY a;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#886145: join with ICP + ORDER BY  
+--echo #
+
+CREATE TABLE t1 (b int NOT NULL, c int, a varchar(1024), PRIMARY KEY (b));
+INSERT INTO t1 VALUES (1,4,'Ill');
+
+CREATE TABLE t2 (a varchar(1024), KEY (a(512)));
+INSERT INTO t2 VALUES
+  ('Ill'), ('eckqzsflbzaffti'), ('w'), ('she'), ('gxbwypqtjzwywwer'), ('w');
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0 
+  HAVING t1.c != 5 ORDER BY t1.c;
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0
+  HAVING t1.c != 5 ORDER BY t1.c;
+
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+EXPLAIN
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0
+  HAVING t1.c != 5 ORDER BY t1.c;
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0
+  HAVING t1.c != 5 ORDER BY t1.c;
+
+DROP TABLE t1,t2;

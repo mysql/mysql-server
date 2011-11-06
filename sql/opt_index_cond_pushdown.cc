@@ -239,11 +239,9 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
 }
 
 
-Item *make_cond_remainder(Item *cond, bool exclude_index)
+Item *make_cond_remainder(Item *cond, TABLE *table, uint keyno,
+                          bool other_tbls_ok, bool exclude_index)
 {
-  if (exclude_index && cond->marker == ICP_COND_USES_INDEX_ONLY)
-    return 0; /* Already checked */
-
   if (cond->type() == Item::COND_ITEM)
   {
     table_map tbl_map= 0;
@@ -257,7 +255,8 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_remainder(item, exclude_index);
+	Item *fix= make_cond_remainder(item, table, keyno,
+                                       other_tbls_ok, exclude_index);
 	if (fix)
         {
 	  new_cond->argument_list()->push_back(fix);
@@ -284,7 +283,8 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_remainder(item, FALSE);
+	Item *fix= make_cond_remainder(item, table, keyno, 
+                                       other_tbls_ok, FALSE);
 	if (!fix)
 	  return (COND*) 0;
 	new_cond->argument_list()->push_back(fix);
@@ -296,7 +296,14 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
       return new_cond;
     }
   }
-  return cond;
+  else
+  {
+    if (exclude_index && 
+        uses_index_fields_only(cond, table, keyno, other_tbls_ok))
+      return 0;
+    else
+      return cond;
+  }
 }
 
 
@@ -368,7 +375,8 @@ void push_index_cond(JOIN_TAB *tab, uint keyno)
         tab->ref.disable_cache= TRUE;
 
       Item *row_cond= tab->idx_cond_fact_out ? 
-                        make_cond_remainder(tab->select_cond, TRUE) :
+	                make_cond_remainder(tab->select_cond, tab->table, keyno,
+			                    tab->icp_other_tables_ok, TRUE) :
 	                tab->pre_idx_push_select_cond;
 
       DBUG_EXECUTE("where",

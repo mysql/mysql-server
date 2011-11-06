@@ -510,7 +510,7 @@ SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
 WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Rowid-ordered scan; Using join buffer (flat, BNL join)
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
 WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
@@ -652,13 +652,44 @@ SELECT * FROM t1
 WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
   ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	13	NULL	2	Using index condition; Rowid-ordered scan; Using filesort
+1	SIMPLE	t1	range	b	b	13	NULL	2	Using index condition; Using where; Rowid-ordered scan; Using filesort
 SELECT * FROM t1 
 WHERE NOT(b = 'Texas') AND b BETWEEN 'wy' AND 'y' OR b = 'Pennsylvania'
   ORDER BY a;
 a	b
 d	xdmbdkpjda
 DROP TABLE t1;
+#
+# Bug#886145: join with ICP + ORDER BY  
+#
+CREATE TABLE t1 (b int NOT NULL, c int, a varchar(1024), PRIMARY KEY (b));
+INSERT INTO t1 VALUES (1,4,'Ill');
+CREATE TABLE t2 (a varchar(1024), KEY (a(512)));
+INSERT INTO t2 VALUES
+('Ill'), ('eckqzsflbzaffti'), ('w'), ('she'), ('gxbwypqtjzwywwer'), ('w');
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0 
+HAVING t1.c != 5 ORDER BY t1.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t2	ref	a	a	515	const	1	Using where
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0
+HAVING t1.c != 5 ORDER BY t1.c;
+b	c
+1	4
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+EXPLAIN
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0
+HAVING t1.c != 5 ORDER BY t1.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t2	ref	a	a	515	const	1	Using where
+SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0
+HAVING t1.c != 5 ORDER BY t1.c;
+b	c
+1	4
+DROP TABLE t1,t2;
 drop table if exists t0, t1, t1i, t1m;
 #
 # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed

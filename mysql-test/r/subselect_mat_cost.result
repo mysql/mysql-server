@@ -285,7 +285,7 @@ WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English
 AND (CountryLanguage.Language = 'French' OR CountryLanguage.Language = 'Spanish')
 AND Code = Country;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	CountryLanguage	range	PRIMARY,Language	Language	30	NULL	45	Using index condition; Rowid-ordered scan
+1	PRIMARY	CountryLanguage	range	PRIMARY,Language	Language	30	NULL	45	Using index condition; Using where; Rowid-ordered scan
 1	PRIMARY	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using index condition
 2	SUBQUERY	CountryLanguage	ref	PRIMARY,Language	Language	30	const	47	Using index condition
 SELECT Country.Name
@@ -348,7 +348,7 @@ FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
 AND Language IN ('English','Spanish');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	CountryLanguage	range	Language	Language	30	NULL	72	Using index condition; Using where; Rowid-ordered scan
-2	DEPENDENT SUBQUERY	City	ref	CityName	CityName	35	func	2	Using index condition
+2	DEPENDENT SUBQUERY	City	ref	CityName	CityName	35	func	2	Using index condition; Using where
 2	DEPENDENT SUBQUERY	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	1	Using where; Using index
 select count(*)
 from CountryLanguage
