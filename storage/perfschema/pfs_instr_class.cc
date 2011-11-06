@@ -46,6 +46,8 @@
 */
 my_bool pfs_enabled= TRUE;
 
+DYNAMIC_ARRAY pfs_instr_init_array;
+
 /**
   Current number of elements in mutex_class_array.
   This global variable is written to during:
@@ -585,6 +587,29 @@ static void init_instr_class(PFS_instr_class *klass,
   klass->m_type= class_type;
 }
 
+/**
+  Set user-defined configuration values for an instrument
+*/
+static void config_instr_class(PFS_instr_class *entry)
+{
+  for (uint i= 0; i < pfs_instr_init_array.elements; i++)
+  {
+    PFS_instr_init* e;
+    get_dynamic(&pfs_instr_init_array, (uchar*)&e, i);
+
+    if (!e->m_set && (e->m_name_length == entry->m_name_length))
+    {
+      if (!strncmp(e->m_name, entry->m_name, e->m_name_length))
+      {
+        entry->m_enabled= e->m_enabled;
+        entry->m_timed= e->m_timed;
+        e->m_set= true;
+        break;
+      }
+    }
+  }
+}
+
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
   for (INDEX= 0; INDEX < MAX; INDEX++)                                 \
   {                                                                    \
@@ -650,6 +675,10 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     entry->m_lock_stat.reset();
     entry->m_event_name_index= mutex_class_start + index;
     entry->m_singleton= NULL;
+
+    /* Set user-defined configuration options for this instrument */
+    config_instr_class(entry);
+
     /*
       Now that this entry is populated, advertise it
 

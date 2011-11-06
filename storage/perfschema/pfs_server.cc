@@ -109,7 +109,6 @@ initialize_performance_schema(const PFS_global_param *param)
 
   /** Default values for SETUP_CONSUMERS */
   flag_events_stages_current=          param->m_consumer_events_stages_current_enabled;
-  flag_events_stages_current=          param->m_consumer_events_stages_current_enabled;
   flag_events_stages_history=          param->m_consumer_events_stages_history_enabled;
   flag_events_stages_history_long=     param->m_consumer_events_stages_history_long_enabled;
   flag_events_statements_current=      param->m_consumer_events_statements_current_enabled;
@@ -188,4 +187,80 @@ void shutdown_performance_schema(void)
   }
 }
 
+/**
+  Initialize the dynamic array used to hold PFS_INSTRUMENT configuration
+  options.
+*/
+void init_pfs_instrument_array()
+{
+  my_init_dynamic_array(&pfs_instr_init_array, sizeof(PFS_instr_init*), 10, 10);
+}
+
+/**
+  Process one PFS_INSTRUMENT configuration string. Isolate the instrument name,
+  evaluate the option value, and store both in a dynamic array.
+*/
+bool add_pfs_instr_to_array(const char* instr_arg)
+{
+  const char* eq = strchr(instr_arg, '=');
+  if (!eq) return 1;
+  int arg_len= strlen(instr_arg);
+  int name_length= eq - instr_arg;      /* instrument name without '=' */
+  int value_length= arg_len - name_length - 1;
+  if (value_length <= 0) return 1;      /* option value required */
+    
+  /* Allocate structure plus string buffer plus null terminator */
+  PFS_instr_init* e = (PFS_instr_init*)my_malloc(sizeof(PFS_instr_init)
+                       + arg_len + 1, MYF(MY_WME));
+  if (!e) return 1;
+  
+  /* Copy the entire argument string into the string buffer */
+  e->m_name= (char*)e + sizeof(PFS_instr_init);
+  memcpy(e->m_name, instr_arg, arg_len);
+  e->m_name_length= name_length;
+  
+  /* Process the option value */
+  e->m_value= e->m_name + e->m_name_length + 1; /* one char past the '=' */
+  e->m_value_length= value_length;
+
+  /* Set null terminators */
+  e->m_name[e->m_name_length]= '\0'; /* zap '=' */
+  e->m_value[e->m_value_length]= '\0';
+  
+  /* Set flags accordingly */
+  e->m_enabled= true;
+  e->m_timed= true;
+  e->m_set= false;
+
+  if (!my_strcasecmp(&my_charset_latin1, e->m_value, "counted"))
+  {
+    e->m_enabled= true;
+    e->m_timed= false;
+  }
+  else
+  if (!my_strcasecmp(&my_charset_latin1, e->m_value, "true") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "on") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "1") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "enabled"))
+  {
+    e->m_enabled= true;
+    e->m_timed= true;
+  }
+  else
+  if (!my_strcasecmp(&my_charset_latin1, e->m_value, "false") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "off") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "0") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "disabled"))
+  {
+    e->m_enabled= false;
+    e->m_timed= false;
+  }
+
+  if (insert_dynamic(&pfs_instr_init_array, &e))
+  {
+    my_free(e);
+    return 1;
+  }
+  return 0;
+}
 
