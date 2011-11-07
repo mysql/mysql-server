@@ -9101,11 +9101,9 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_EQ_REF:
     if (cache_level <=2 || (no_hashed_cache && no_bka_cache))
       goto no_join_cache;
-    for (uint i= 0; i < tab->ref.key_parts; i++)
-    {
-      if (tab->ref.cond_guards[i])
-        goto no_join_cache;
-    }
+    if (tab->ref.is_access_triggered())
+      goto no_join_cache;
+      
     if (!tab->is_ref_for_hash_join())
     {
       flags= HA_MRR_NO_NULL_ENDPOINTS | HA_MRR_SINGLE_POINT;
@@ -9396,9 +9394,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         table->key_read=1;
         table->file->extra(HA_EXTRA_KEYREAD);
       }
-      else if (!jcl || jcl > 4) 
+      else if ((!jcl || jcl > 4) && !tab->ref.is_access_triggered())
         push_index_cond(tab, tab->ref.key);
-        break;
+      break;
     case JT_EQ_REF:
       tab->read_record.unlock_row= join_read_key_unlock_row;
       /* fall through */
@@ -9408,7 +9406,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
-      else if (!jcl || jcl > 4) 
+      else if ((!jcl || jcl > 4) && !tab->ref.is_access_triggered())
         push_index_cond(tab, tab->ref.key);
       break;
     case JT_REF_OR_NULL:
@@ -9423,7 +9421,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
         table->enable_keyread();
-      else if (!jcl || jcl > 4)
+      else if ((!jcl || jcl > 4) && !tab->ref.is_access_triggered())
         push_index_cond(tab, tab->ref.key);
       break;
     case JT_ALL:
@@ -9777,6 +9775,22 @@ bool TABLE_REF::tmp_table_index_lookup_init(THD *thd,
   key_err= 1;
   key_parts= tmp_key_parts;
   DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Check if ref access uses "Full scan on NULL key" (i.e. it actually alternates
+  between ref access and full table scan)
+*/
+
+bool TABLE_REF::is_access_triggered()
+{
+  for (uint i = 0; i < key_parts; i++)
+  {
+    if (cond_guards[i])
+      return TRUE;
+  }
+  return FALSE;
 }
 
 
@@ -16656,13 +16670,8 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
       between ref access and full table scan), then no equality can be
       guaranteed to be true.
     */
-    for (uint i = 0; i < join_tab->ref.key_parts; i++)
-    {
-      if (join_tab->ref.cond_guards[i])
-      {
-        return FALSE;
-      }
-    }
+    if (join_tab->ref.is_access_triggered())
+      return FALSE;
 
     Item *ref_item=part_of_refkey(field->table,field);
     if (ref_item && (ref_item->eq(right_item,1) || 

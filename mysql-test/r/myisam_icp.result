@@ -727,4 +727,34 @@ SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
 a	MIN(c)
 5	y
 DROP TABLE t1;
+#
+# BUG#887026: Wrong result with ICP, outer join, subquery in maria-5.3-icp
+#
+CREATE TABLE t1 (c varchar(1));
+INSERT INTO t1 VALUES ('c'), ('c');
+CREATE TABLE t2 (c varchar(1), b int);
+INSERT INTO t2 VALUES ('d', NULL),('d', NULL);
+CREATE TABLE t3 (c varchar(1));
+INSERT INTO t3 VALUES ('c');
+INSERT INTO t3 VALUES ('c');
+CREATE TABLE t4 ( b int, c varchar(1), KEY (b));
+INSERT INTO t4 VALUES (7,'c');
+INSERT INTO t4 VALUES (7,'c');
+# Must be t1,t2,t3,t4, with t4 having Full-scan-on-NULL but not Using index condition
+explain 
+SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
+WHERE 
+t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t4	ref_or_null	b	b	5	func	2	Using where; Full scan on NULL key
+SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
+WHERE 
+t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
+c	c	b
+c	NULL	NULL
+c	NULL	NULL
+DROP TABLE t1,t2,t3,t4;
 set optimizer_switch=@myisam_icp_tmp;

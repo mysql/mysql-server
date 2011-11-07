@@ -136,6 +136,7 @@ typedef struct st_table_ref
 
   bool tmp_table_index_lookup_init(THD *thd, KEY *tmp_key, Item_iterator &it,
                                    bool value, uint skip= 0);
+  bool is_access_triggered();
 } TABLE_REF;
 
 
