@@ -16,6 +16,7 @@
 #include "filesort_utils.h"
 #include "sql_const.h"
 #include "sql_sort.h"
+#include "table.h"
 
 
 namespace {
@@ -82,3 +83,36 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
 }
 
 
+uchar **Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
+{
+  DBUG_ENTER("alloc_sort_buffer");
+
+  DBUG_EXECUTE_IF("alloc_sort_buffer_fail",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
+  if (m_idx_array.is_null())
+  {
+    uchar **sort_keys=
+      (uchar**) my_malloc(num_records * (record_length + sizeof(uchar*)),
+                          MYF(0));
+    m_idx_array= Idx_array(sort_keys, num_records);
+    m_record_length= record_length;
+    uchar **start_of_data= m_idx_array.array() + m_idx_array.size();
+    m_start_of_data= reinterpret_cast<uchar*>(start_of_data);
+  }
+  else
+  {
+    DBUG_ASSERT(num_records == m_idx_array.size());
+    DBUG_ASSERT(record_length == m_record_length);
+  }
+  DBUG_RETURN(m_idx_array.array());
+}
+
+
+void Filesort_buffer::free_sort_buffer()
+{
+  my_free(m_idx_array.array());
+  m_idx_array= Idx_array();
+  m_record_length= 0;
+  m_start_of_data= NULL;
+}
