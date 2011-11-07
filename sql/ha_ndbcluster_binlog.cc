@@ -3127,13 +3127,12 @@ class Ndb_schema_event_handler {
           share->op= tmp_op;
           pthread_mutex_unlock(&share->mutex);
 
-          if (share)
-          {
-            free_share(&share);
-          }
-
           if (opt_ndb_extra_logging > 9)
             sql_print_information("NDB Binlog: handeling online alter/rename done");
+        }
+        if (share)
+        {
+          free_share(&share);
         }
         break;
       }
