@@ -114,6 +114,7 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 #include "opt_trace.h"
+#include "filesort.h"         // filesort_free_buffers
 
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
@@ -9296,7 +9297,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
                        thd->variables.sortbuff_size);
   }
   else
+  {
     unique->reset();
+    filesort_free_buffers(head, true);
+  }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
   DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
