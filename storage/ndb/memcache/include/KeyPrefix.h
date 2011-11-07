@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 
-/***** This section defines a data structures available to C. ***/
+/***** This section defines data structures available to C. ***/
 /* The prefix_info_t is the compacted form of the parts of the 
    KeyPrefix that must be available to C code. 
 */
