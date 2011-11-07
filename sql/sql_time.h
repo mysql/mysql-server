@@ -53,6 +53,15 @@ inline void datetime_to_time(MYSQL_TIME *ltime)
   ltime->year= ltime->month= ltime->day= 0;
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
 }
+inline void datetime_to_date(MYSQL_TIME *ltime)
+{
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
+}
+inline void date_to_datetime(MYSQL_TIME *ltime)
+{
+  ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
+}
 void make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_warning_level level,
                                   ErrConvString val,
