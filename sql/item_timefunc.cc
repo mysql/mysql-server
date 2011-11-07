@@ -1800,62 +1800,64 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
 void MYSQL_TIME_cache::set_time(MYSQL_TIME *ltime, uint8 dec_arg)
 {
-  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_TIME);
   time= *ltime;
   time_packed= TIME_to_longlong_time_packed(&time);
   dec= dec_arg;
+  reset_string();
 }
 
 
 void MYSQL_TIME_cache::set_date(MYSQL_TIME *ltime)
 {
-  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATE);
   time= *ltime;
   time_packed= TIME_to_longlong_date_packed(&time);
+  dec= 0;
+  reset_string();
 }
 
 
 void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg)
 {
-  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATETIME);
   time= *ltime;
   time_packed= TIME_to_longlong_datetime_packed(&time);
   dec= dec_arg;
+  reset_string();
 }
 
 
 void MYSQL_TIME_cache::set_datetime(struct timeval tv, uint8 dec_arg,
                                     Time_zone *tz)
 {
-  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   tz->gmt_sec_to_TIME(&time, tv);
   time_packed= TIME_to_longlong_datetime_packed(&time);
   dec= dec_arg;
+  reset_string();
 }
 
 
 void MYSQL_TIME_cache::set_date(struct timeval tv, Time_zone *tz)
 {
-  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   tz->gmt_sec_to_TIME(&time, (my_time_t) tv.tv_sec);
   time.time_type= MYSQL_TIMESTAMP_DATE;
   /* We don't need to set second_part and neg because they are already 0 */
   time.hour= time.minute= time.second= 0;
   time_packed= TIME_to_longlong_date_packed(&time);
+  dec= 0;
+  reset_string();
 }
 
 
 void MYSQL_TIME_cache::set_time(struct timeval tv, uint8 dec_arg,
                                 Time_zone *tz)
 {
-  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   tz->gmt_sec_to_TIME(&time, tv);
   datetime_to_time(&time);
   time_packed= TIME_to_longlong_time_packed(&time);
   dec= dec_arg;
+  reset_string();
 }
 
 
