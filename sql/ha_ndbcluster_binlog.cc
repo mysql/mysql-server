@@ -2930,8 +2930,6 @@ class Ndb_schema_event_handler {
 
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
-      char key[FN_REFLEN + 1];
-      build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
       if (schema_type == SOT_CLEAR_SLOCK)
       {
         handle_clear_slock(schema, true);
