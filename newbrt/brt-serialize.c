@@ -1441,6 +1441,7 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
 	    assert(BP_STATE(node,i) == PT_ON_DISK);
 	    toku_deserialize_bp_from_disk(node, i, fd, bfe);
+            BP_TOUCH_CLOCK(node,i);
         }
     }
 
