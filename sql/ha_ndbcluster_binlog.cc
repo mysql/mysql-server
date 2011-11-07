@@ -2920,7 +2920,7 @@ class Ndb_schema_event_handler {
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     Ndb *ndb= thd_ndb->ndb;
     NDBDICT *dict= ndb->getDictionary();
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
+
     DBUG_PRINT("info",
                ("%s.%s: log query_length: %d  query: '%s'  type: %d",
                 schema->db, schema->name,
@@ -3016,7 +3016,6 @@ class Ndb_schema_event_handler {
           free_share(&share);
         }
 
-        thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
         if (ndbcluster_check_if_local_table(schema->db, schema->name) &&
            !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
                                                           schema->name))
@@ -3184,7 +3183,7 @@ class Ndb_schema_event_handler {
             free_share(&share);
             share= 0;
           }
-          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
