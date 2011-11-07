@@ -45,3 +45,4 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   free_root(&share->mem_root, MYF(0));
   my_free(share);
 }
+
