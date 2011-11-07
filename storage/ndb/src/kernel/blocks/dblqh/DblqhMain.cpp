@@ -11205,7 +11205,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
     tdata4 += sendKeyinfo20(signal, scanptr.p, tcConnectptr.p);
   }//if
   ndbrequire(scanptr.p->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
-  scanptr.p->m_curr_batch_size_bytes+= tdata4;
+  scanptr.p->m_curr_batch_size_bytes+= tdata4 * sizeof(Uint32);
   scanptr.p->m_curr_batch_size_rows = rows + 1;
   scanptr.p->m_last_row = tdata5;
   if (scanptr.p->check_scan_batch_completed() | tdata5){
@@ -11832,6 +11832,7 @@ void Dblqh::releaseScanrec(Signal* signal)
 /* ------------------------------------------------------------------------
  * -------              SEND KEYINFO20 TO API                       ------- 
  *
+ * Return: Length in number of Uint32 words
  * ------------------------------------------------------------------------  */
 Uint32 Dblqh::sendKeyinfo20(Signal* signal, 
 			    ScanRecord * scanP, 
@@ -11968,7 +11969,9 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted) 
 {
   Uint32 completed_ops= scanptr.p->m_curr_batch_size_rows;
-  Uint32 total_len= scanptr.p->m_curr_batch_size_bytes;
+  Uint32 total_len= scanptr.p->m_curr_batch_size_bytes / sizeof(Uint32);
+  ndbassert((scanptr.p->m_curr_batch_size_bytes % sizeof(Uint32)) == 0);
+
   scanptr.p->scanTcWaiting = 0;
 
   if(ERROR_INSERTED(5037)){
