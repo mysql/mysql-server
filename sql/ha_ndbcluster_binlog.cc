@@ -2717,6 +2717,7 @@ class Ndb_schema_event_handler {
     NDB_SHARE *share= get_share(schema);
     if (share)
     {
+      pthread_mutex_lock(&share->mutex);
       if (share->op)
       {
         Ndb_event_data *event_data=
@@ -2731,6 +2732,8 @@ class Ndb_schema_event_handler {
         share->op= 0;
         free_share(&share);
       }
+      pthread_mutex_unlock(&share->mutex);
+
       free_share(&share);
     }
 
