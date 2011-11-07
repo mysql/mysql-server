@@ -85,8 +85,10 @@ TableSpec::TableSpec(const char *sqltable,
 {
   nkeycols = build_column_list(key_columns, keycols);
   if(nkeycols) must_free.first_key = 1;
+  
   nvaluecols = build_column_list(value_columns, valcols);
-  must_free.first_val = (nvaluecols);
+  if(nvaluecols) must_free.first_val = 1;
+  
   if(sqltable) {
     char *sqltabname = strdup(sqltable);
     schema_name = sqltabname;
@@ -98,6 +100,7 @@ TableSpec::TableSpec(const char *sqltable,
       *s = '\0' ;
       table_name = s+1;
     }
+    must_free.none = 0;
     must_free.table_name = must_free.all_val_cols = must_free.special_cols = 0;
   }
 }
@@ -134,14 +137,17 @@ TableSpec::~TableSpec() {
   if(! must_free.none) {
     if(must_free.schema_name && schema_name) free((void *) schema_name);
     if(must_free.table_name && table_name) free((void *) table_name);
+
     if(must_free.first_key)  free((void *) key_columns[0]);
     else if(must_free.all_key_cols)
       for(int i = 0 ; i < nkeycols ; i++)
         free((void *) key_columns[i]);
+
     if(must_free.first_val) free((void *) value_columns[0]);
     else if(must_free.all_val_cols)
       for(int i = 0 ; i < nvaluecols ; i++) 
         free((void *) value_columns[i]);
+
     if(must_free.special_cols) {
       if(flags_column) free((void *) flags_column);
       if(math_column)  free((void *) math_column);
