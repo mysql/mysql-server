@@ -2752,7 +2752,6 @@ class Ndb_schema_event_handler {
       {
         THD* thd= m_thd; // Code compatibility
         Thd_ndb *thd_ndb= get_thd_ndb(thd);
-        Ndb *ndb= thd_ndb->ndb;
         Thd_ndb_options_guard thd_ndb_options(thd_ndb);
 
         int post_epoch_unlock= 0;
