@@ -3575,8 +3575,8 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
             // so, because we know for sure the child is not
             // reactive, we can unpin the parent
             //
-            toku_unpin_brtnode(brt, parent);
             place_node_and_bnc_on_background_thread(brt, child, bnc);
+            toku_unpin_brtnode(brt, parent);
         }
         else {
             // because the child may be reactive, we need to
