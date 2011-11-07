@@ -662,34 +662,65 @@ public:
   
   - MYSQL_TIME representation (time) is initialized during set_XXX().
   - Packed representation (time_packed) is also initialized during set_XXX().
-  - String representation (string_buff) is not initialized during set_XXX(),
-    It's initialized only if val_str() or cptr() are called.
+  - String representation (string_buff) is not initialized during set_XXX();
+    it's initialized only if val_str() or cptr() are called.
 */
 class MYSQL_TIME_cache
 {
-  MYSQL_TIME time;                              // MYSQL_TIME representation
-  longlong time_packed;                         // packed representation
-  char string_buff[MAX_DATE_STRING_REP_LENGTH]; // string representation
-  uint string_length;                           // length of string
-  uint8 dec;                                    // Number of decimals
-  void cache_string(); // Store string representation to string_buff
+  MYSQL_TIME time;                              ///< MYSQL_TIME representation
+  longlong time_packed;                         ///< packed representation
+  char string_buff[MAX_DATE_STRING_REP_LENGTH]; ///< string representation
+  uint string_length;                           ///< length of string
+  uint8 dec;                                    ///< Number of decimals
+  /**
+    Cache string representation from the cached MYSQL_TIME representation.
+    If string representation has already been cached, then nothing happens.
+  */
+  void cache_string();
 public:
+
   MYSQL_TIME_cache()
   {
+    reset();
+  }
+  /**
+    Reset all members.
+  */
+  void reset()
+  {
     time.time_type= MYSQL_TIMESTAMP_NONE;
+    time_packed= 0;
     string_length= 0;
     string_buff[0]= '\0';
     dec= 0;
   }
-  // Initialize time and time_packed from MYSQL_TIME parameter.
+  /**
+    Set time and time_packed from a DATE value.
+  */
   void set_date(MYSQL_TIME *ltime);
+  /**
+    Set time and time_packed from a TIME value.
+  */
   void set_time(MYSQL_TIME *ltime, uint8 dec_arg);
+  /**
+    Set time and time_packed from a DATETIME value.
+  */
   void set_datetime(MYSQL_TIME *ltime, uint8 dec_arg);
-  // Initialize time and time_packed from "struct timeval" and time zone.
+  /**
+    Set time and time_packed according to DATE value
+    in "struct timeval" representation and its time zone.
+  */
   void set_date(struct timeval tv, Time_zone *tz);
+  /**
+    Set time and time_packed according to TIME value
+    in "struct timeval" representation and its time zone.
+  */
   void set_time(struct timeval tv, uint8 dec_arg, Time_zone *tz);
+  /**
+    Set time and time_packed according to DATETIME value
+    in "struct timeval" representation and its time zone.
+  */
   void set_datetime(struct timeval tv, uint8 dec_arg, Time_zone *tz);
-
   /**
     Test if cached value is equal to another MYSQL_TIME_cache value.
   */
@@ -726,7 +757,7 @@ public:
   /**
     Return pointer to MYSQL_TIME representation.
   */
-  MYSQL_TIME *get_TIME()
+  MYSQL_TIME *get_TIME_ptr()
   {
     DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
     return &time;
