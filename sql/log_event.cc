@@ -2365,23 +2365,19 @@ void Log_event::print_base64(IO_CACHE* file,
 void Log_event::print_timestamp(IO_CACHE* file, time_t *ts)
 {
   struct tm *res;
+  /*
+    In some Windows versions timeval.tv_sec is defined as "long",
+    not as "time_t" and can be of a different size.
+    Let's use a temporary time_t variable to execute localtime()
+    with a correct argument type.
+  */
+  time_t ts_tmp= ts ? *ts : when.tv_sec;
   DBUG_ENTER("Log_event::print_timestamp");
-  if (!ts)
-  {
-    /*
-      In some Windows versions
-      timeval.tv_sec is defined as "long", not as "time_t".
-      Let's use explicit cast and make sure we don't cast
-      to a different integer size.
-    */
-    DBUG_ASSERT(sizeof(time_t) == sizeof(when.tv_sec));
-    ts= (time_t *) &when.tv_sec;
-  }
 #ifdef MYSQL_SERVER				// This is always false
   struct tm tm_tmp;
-  localtime_r(ts,(res= &tm_tmp));
+  localtime_r(&ts_tmp, (res= &tm_tmp));
 #else
-  res=localtime(ts);
+  res= localtime(&ts_tmp);
 #endif
 
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
