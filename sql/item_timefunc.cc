@@ -1798,11 +1798,9 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
-/**
-  Set time and time_packed from a TIME value.
-*/
 void MYSQL_TIME_cache::set_time(MYSQL_TIME *ltime, uint8 dec_arg)
 {
+  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_TIME);
   time= *ltime;
   time_packed= TIME_to_longlong_time_packed(&time);
@@ -1810,22 +1808,18 @@ void MYSQL_TIME_cache::set_time(MYSQL_TIME *ltime, uint8 dec_arg)
 }
 
 
-/**
-  Set time and time_packed from a DATE value.
-*/
 void MYSQL_TIME_cache::set_date(MYSQL_TIME *ltime)
 {
+  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATE);
   time= *ltime;
   time_packed= TIME_to_longlong_date_packed(&time);
 }
 
 
-/**
-  Set time and time_packed from a DATETIME value.
-*/
 void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg)
 {
+  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATETIME);
   time= *ltime;
   time_packed= TIME_to_longlong_datetime_packed(&time);
@@ -1833,25 +1827,19 @@ void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg)
 }
 
 
-/**
-  Set time and time_packed according to DATETIME value
-  in "struct timeval" representation and its time zone.
-*/
 void MYSQL_TIME_cache::set_datetime(struct timeval tv, uint8 dec_arg,
                                     Time_zone *tz)
 {
+  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   tz->gmt_sec_to_TIME(&time, tv);
   time_packed= TIME_to_longlong_datetime_packed(&time);
   dec= dec_arg;
 }
 
 
-/**
-  Set time and time_packed according to DATE value
-  in "struct timeval" representation and its time zone.
-*/
 void MYSQL_TIME_cache::set_date(struct timeval tv, Time_zone *tz)
 {
+  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   tz->gmt_sec_to_TIME(&time, (my_time_t) tv.tv_sec);
   time.time_type= MYSQL_TIMESTAMP_DATE;
   /* We don't need to set second_part and neg because they are already 0 */
@@ -1860,13 +1848,10 @@ void MYSQL_TIME_cache::set_date(struct timeval tv, Time_zone *tz)
 }
 
 
-/**
-  Set time and time_packed according to TIME value
-  in "struct timeval" representation and its time zone.
-*/
 void MYSQL_TIME_cache::set_time(struct timeval tv, uint8 dec_arg,
                                 Time_zone *tz)
 {
+  DBUG_ASSERT(string_buff[0] == '\0' && string_length == 0);
   tz->gmt_sec_to_TIME(&time, tv);
   datetime_to_time(&time);
   time_packed= TIME_to_longlong_time_packed(&time);
@@ -1874,21 +1859,14 @@ void MYSQL_TIME_cache::set_time(struct timeval tv, uint8 dec_arg,
 }
 
 
-/**
-  Cache string representation from the cached MYSQL_TIME representation.
-  If string representation has already been cached, then nothing happens.
-*/
 void MYSQL_TIME_cache::cache_string()
 {
   DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
-  if (!string_length)
+  if (string_length == 0)
     string_length= my_TIME_to_str(&time, string_buff, decimals());
 }
 
 
-/**
-  Cache string representation (if needed) and return it as C string.
-*/
 const char *MYSQL_TIME_cache::cptr()
 {
   cache_string();
@@ -1896,9 +1874,6 @@ const char *MYSQL_TIME_cache::cptr()
 }
 
 
-/**
-  Cache string representation (if needed) and return it as String.
-*/
 String *MYSQL_TIME_cache::val_str(String *str)
 {
   cache_string();
@@ -1937,7 +1912,7 @@ void Item_func_curtime::fix_length_and_dec()
   cached_time.set_time(thd->query_start_timeval_trunc(decimals), decimals,
                        time_zone());
   /*
-    We use 8 instead of MAX_TIME_WIDTH (which is 10) becase:
+    We use 8 instead of MAX_TIME_WIDTH (which is 10) because:
     - there is no sign 
     - hour is in the 2-digit range
   */
@@ -1985,7 +1960,7 @@ Time_zone *Item_func_now_utc::time_zone()
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
-  return to->store_time(cached_time.get_TIME(), decimals);
+  return to->store_time(cached_time.get_TIME_ptr(), decimals);
 }
 
 
