@@ -2533,6 +2533,7 @@ class Ndb_schema_event_handler {
   log_after_epoch(Ndb_schema_op* schema)
   {
     DBUG_ENTER("log_after_epoch");
+    assert(!is_post_epoch()); // Only before epoch
     m_post_epoch_log_list.push_back(schema, m_mem_root);
     DBUG_VOID_RETURN;
   }
@@ -2542,6 +2543,7 @@ class Ndb_schema_event_handler {
   unlock_after_epoch(Ndb_schema_op* schema)
   {
     DBUG_ENTER("unlock_after_epoch");
+    assert(!is_post_epoch()); // Only before epoch
     m_post_epoch_unlock_list.push_back(schema, m_mem_root);
     DBUG_VOID_RETURN;
   }
@@ -2627,9 +2629,9 @@ class Ndb_schema_event_handler {
   }
 
 
-  void handle_clear_slock(Ndb_schema_op* schema, bool post_epoch)
+  void handle_clear_slock(Ndb_schema_op* schema)
   {
-    if (!post_epoch)
+    if (!is_post_epoch())
     {
       /*
         handle slock after epoch is completed to ensure that
@@ -2703,6 +2705,8 @@ class Ndb_schema_event_handler {
   void
   handle_offline_alter_table_commit(Ndb_schema_op* schema)
   {
+    assert(is_post_epoch()); // Always after epoch
+
     if (schema->node_id == own_nodeid())
       return;
 
@@ -2762,6 +2766,8 @@ class Ndb_schema_event_handler {
   void
   handle_online_alter_table_prepare(Ndb_schema_op* schema)
   {
+    assert(is_post_epoch()); // Always after epoch
+
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
 
@@ -2866,6 +2872,8 @@ class Ndb_schema_event_handler {
   void
   handle_online_alter_table_commit(Ndb_schema_op* schema)
   {
+    assert(is_post_epoch()); // Always after epoch
+
     NDB_SHARE *share= get_share(schema);
     if (share)
     {
@@ -2925,7 +2933,7 @@ class Ndb_schema_event_handler {
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
-        handle_clear_slock(schema, false);
+        handle_clear_slock(schema);
         DBUG_RETURN(0);
 
       case SOT_ALTER_TABLE_COMMIT:
@@ -3130,7 +3138,7 @@ class Ndb_schema_event_handler {
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
-        handle_clear_slock(schema, true);
+        handle_clear_slock(schema);
         break;
 
       case SOT_DROP_DB:
@@ -3264,6 +3272,9 @@ class Ndb_schema_event_handler {
   THD* m_thd;
   MEM_ROOT* m_mem_root;
   uint m_own_nodeid;
+  bool m_post_epoch;
+
+  bool is_post_epoch(void) const { return m_post_epoch; };
 
   List<Ndb_schema_op> m_post_epoch_log_list;
   List<Ndb_schema_op> m_post_epoch_unlock_list;
@@ -3273,7 +3284,8 @@ public:
   Ndb_schema_event_handler(const Ndb_schema_event_handler&); // Not implemented
 
   Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid):
-    m_thd(thd), m_mem_root(mem_root), m_own_nodeid(own_nodeid)
+    m_thd(thd), m_mem_root(mem_root), m_own_nodeid(own_nodeid),
+    m_post_epoch(false)
   {
   }
 
@@ -3428,6 +3440,9 @@ public:
   {
     if (m_post_epoch_log_list.elements > 0)
     {
+      // Set the flag used to check that functions are called at correct time
+      m_post_epoch= true;
+
       handle_schema_log_post_epoch(&m_post_epoch_log_list);
       // NOTE post_epoch_unlock_list may not be handled!
       handle_schema_unlock_post_epoch(&m_post_epoch_unlock_list);
