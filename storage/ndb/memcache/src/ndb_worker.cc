@@ -103,6 +103,9 @@ status_block status_block_bad_add =
 status_block status_block_bad_replace =
   { ENGINE_NOT_STORED, "Tuple not found"              };
   
+status_block status_block_idx_insert = 
+  { ENGINE_NOT_STORED, "Cannot insert via unique index" };
+  
 
 void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {  
   /* Be careful here --  ndbmc_atomic32_t might be a signed type.
@@ -350,23 +353,33 @@ op_status_t worker_do_read(workitem *wqitem, bool server_cas) {
   NdbTransaction *tx = op.startTransaction(wqitem->ndb_instance->db);
   DEBUG_ASSERT(tx);
 
-  if(! op.readTuple(tx)) {
+  bool op_is_read_before_write;
+  ndb_async_callback *next_op;
+  
+  if (wqitem->base.verb == OPERATION_APPEND || wqitem->base.verb == OPERATION_PREPEND) {
+    op_is_read_before_write = true;
+    next_op = rewrite_callback;
+  }
+  else {
+    op_is_read_before_write = false;
+    next_op = DB_callback;
+  }
+
+  /* Simple primary key reads use a SimpleRead lock.  
+     Unique index reads need a Read lock. 
+     APPEND and PREPEND need an Exclusive lock. */
+  NdbOperation::LockMode lockmode = NdbOperation::LM_SimpleRead;
+  if(op_is_read_before_write) lockmode = NdbOperation::LM_Exclusive;
+  else if(! plan->pk_access)  lockmode = NdbOperation::LM_Read;
+  
+  if(! op.readTuple(tx, lockmode)) {
     logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
     tx->close();
     return op_failed;
   }
 
   /* Save the workitem in the transaction and prepare for async execution */   
-  if(wqitem->base.verb == OPERATION_APPEND || wqitem->base.verb == OPERATION_PREPEND) 
-  {
-    DEBUG_PRINT("In read() portion of APPEND.  Value = %s", 
-                hash_item_get_data(wqitem->cache_item));
-    tx->executeAsynchPrepare(NdbTransaction::NoCommit, rewrite_callback, (void *) wqitem);
-  }
-  else 
-  {
-    tx->executeAsynchPrepare(NdbTransaction::Commit, DB_callback, (void *) wqitem);
-  }
+  tx->executeAsynchPrepare(NdbTransaction::NoCommit, next_op, (void *) wqitem);
 
   return op_async_prepared;
 }
@@ -550,6 +563,10 @@ void DB_callback(int result, NdbTransaction *tx, void *itemptr) {
     DEBUG_PRINT("Duplicate key on insert.");
     if(wqitem->cas) * wqitem->cas = 0ULL;
     return_status = & status_block_bad_add;    
+  }
+  /* Attempt to insert via unique index access */
+  else if(tx->getNdbError().code == 897) {
+    return_status = & status_block_idx_insert;
   }
   /* Some other error */
   else  {
@@ -916,7 +933,7 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
       Ndb_cluster_connection *conn = pool->getMainConnection();
       NdbInstance inst(conn, 128);
       QueryPlan plan(inst.db, pfx->table);
-      if(plan.keyIsPrimaryKey()) {
+      if(plan.pk_access) {
         // To flush, scan the table and delete every row
         DEBUG_PRINT("prefix %d - deleting from %s", i, pfx->table->table_name);
         scan_delete(&inst, &plan);

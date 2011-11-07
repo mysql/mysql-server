@@ -47,16 +47,16 @@ class QueryPlan {
   QueryPlan() : initialized(0)  {};  
   QueryPlan(Ndb *, const TableSpec *, PlanOpts opts = NoOptions); 
   ~QueryPlan();
-  bool keyIsPrimaryKey() const;
   void debug_dump() const;
    
   /* public instance variables */
   bool initialized;
-  bool dup_numbers;
+  bool dup_numbers;                /* dup_numbers mode for ascii incr/decr */
+  bool pk_access;                  /* access by primary key */
+  bool is_scan;
   const TableSpec *spec;
   NdbDictionary::Dictionary *dict;
   const NdbDictionary::Table *table;
-  bool is_scan;
   short cas_column_id;
   short math_column_id;
   unsigned int static_flags;
@@ -74,6 +74,7 @@ class QueryPlan {
   private:
   /* Private methods */
   const NdbDictionary::Index * chooseIndex();
+  bool keyIsPrimaryKey() const;
 
   /* Private instance variables */
   Ndb *db;
