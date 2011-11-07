@@ -23,7 +23,6 @@
 function label(name)  {
    if(thr == "event") event[name] += $1;
    else if(thr == "commit") commit[name] += $1;
-   else if(thr == "broker") broker[name] += $1;
    else if(thr == "send")   send[name]   += $1;
    else if(thr == "poll")   poll[name]   += $1;
 }   
@@ -33,9 +32,7 @@ function label(name)  {
                                        { thr="x" }   # undetermined
 
 /event_base_loop,worker_libevent/      { event["total"]  += $1; thr="event" } 
-/run_commit_thread/                    { commit["total"] += $1; thr="commit" }
 /run_ndb_commit_thread/                { commit["total"] += $1; thr="commit" }
-/run_broker_thread/                    { broker["total"] += $1; thr="broker" }
 /run_ndb_send_thread/                  { send["total"] += $1  ; thr="send"   }
 /run_ndb_poll_thread/                  { poll["total"] += $1  ; thr="poll"   }
 
@@ -80,11 +77,6 @@ END {
        printf("%s\t%.2f%%\t%s\n", 
               "Event", (event[i] / event["total"]) * 100, i)
       printf("\n");
-
-      for(i in broker) if (i != "total")
-       printf("%s\t%.2f%%\t%s\n", 
-              "Broker", (broker[i] / broker["total"]) * 100, i)
-      if(broker["total"]) printf("\n");
 
       for(i in commit) if(i != "total")
        printf("%s\t%.2f%%\t%s\n", 
