@@ -4730,10 +4730,10 @@ finish:
 #endif
 
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)
-#ifdef HAVE_UGID
-      || (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
-          thd->variables.ugid_commit)
-#endif
+// #ifdef HAVE_UGID
+//      || (opt_bin_log && lex->is_binloggable() && !thd->in_sub_stmt &&
+//          thd->variables.ugid_commit)
+//#endif
       )
   {
     implicit_commit_after(thd);

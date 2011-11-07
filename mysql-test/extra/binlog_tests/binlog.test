@@ -305,7 +305,7 @@ BINLOG '
 
 # Show binlog events to check that server ids are correct.
 --replace_column 1 # 2 # 5 #
---replace_regex /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+--replace_regex /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/ /SET @@SESSION.UGID_NEXT=.*$/SET @@SESSION.UGID_NEXT= 'UGID';/
 SHOW BINLOG EVENTS;
 
 DROP TABLE t1;

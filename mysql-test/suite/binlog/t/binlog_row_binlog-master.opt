@@ -1,1 +1,1 @@
---max_binlog_size=4096 --default-storage-engine=MyISAM
+--max_binlog_size=8192 --default-storage-engine=MyISAM

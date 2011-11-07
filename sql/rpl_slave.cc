@@ -2871,8 +2871,8 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
           for (uint i= rli->curr_group_assigned_parts.elements; i > 0; i--)
             delete_dynamic_element(&rli->
                                    curr_group_assigned_parts, i - 1);
-          // reset the B-group marker
-          rli->curr_group_seen_begin= FALSE;
+          // reset the B-group and Ugid-group marker
+          rli->curr_group_seen_begin= rli->curr_group_seen_ugid= false;
           rli->last_assigned_worker= NULL;
         }
 
@@ -3942,7 +3942,7 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
   Log_event *ev= NULL;
   const char *errmsg= NULL;
   bool error= FALSE;
-  bool curr_group_seen_begin= FALSE;
+  bool flag_group_seen_begin= FALSE;
   uint recovery_group_cnt= 0;
   bool not_reached_commit= true;
   DYNAMIC_ARRAY above_lwm_jobs;
@@ -4111,14 +4111,14 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
 
         if (ev->starts_group())
         {
-          curr_group_seen_begin= TRUE;
+          flag_group_seen_begin= TRUE;
         }
-        if (ev->ends_group() || !curr_group_seen_begin)
+        if (ev->ends_group() || !flag_group_seen_begin)
         {
           int ret= 0;
           LOG_POS_COORD ev_coord= { (char *) rli->get_group_master_log_name(),
                                       ev->log_pos };
-          curr_group_seen_begin= FALSE;
+          flag_group_seen_begin= FALSE;
           recovery_group_cnt++;
 
           sql_print_information("Group Recoverying relay log info "
@@ -4434,7 +4434,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n)
   rli->mts_wq_oversize= FALSE;
   rli->mts_coordinator_basic_nap= mts_coordinator_basic_nap;
   rli->mts_worker_underrun_level= mts_worker_underrun_level;
-  rli->curr_group_seen_begin= FALSE;
+  rli->curr_group_seen_begin= rli->curr_group_seen_ugid= false;
   rli->curr_group_isolated= FALSE;
   rli->checkpoint_seqno= 0;
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
@@ -6939,6 +6939,9 @@ int reset_slave(THD *thd, Master_info* mi)
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
+  #ifdef HAVE_UGID
+  mysql_bin_log.sid_lock.rdlock();
+#endif
   init_thread_mask(&thread_mask,mi,0 /* not inverse */);
   if (thread_mask) // We refuse if any slave thread is running
   {
@@ -6968,8 +6971,19 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
+#ifdef HAVE_UGID
+  mysql_bin_log.group_log_state.clear();
+  if (mysql_bin_log.sid_map.clear() != RETURN_STATUS_OK ||
+      mysql_bin_log.init_sid_map() != 0 ||
+      mysql_bin_log.group_log_state.ensure_sidno() != RETURN_STATUS_OK)
+    goto err;
+#endif
+
   (void) RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
 err:
+#ifdef HAVE_UGID
+  mysql_bin_log.sid_lock.unlock();
+#endif
   unlock_slave_threads(mi);
   if (error)
     my_error(sql_errno, MYF(0), errmsg);

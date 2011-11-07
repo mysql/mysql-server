@@ -674,6 +674,7 @@ enum Log_event_type
   IGNORABLE_LOG_EVENT= 28,
   ROWS_QUERY_LOG_EVENT= 29,
 
+  UGID_LOG_EVENT= 30,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -787,13 +788,6 @@ typedef struct st_print_event_info
   IO_CACHE body_cache;
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
-
-#ifdef HAVE_UGID
-  Subgroup last_subgroup;
-  bool last_subgroup_printed;
-  bool skip_ugids;
-  Sid_map *sid_map;
-#endif
 } PRINT_EVENT_INFO;
 #endif
 
@@ -1165,9 +1159,6 @@ public:
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
   : temp_buf(0), event_cache_type(cache_type_arg),
     event_logging_type(logging_type_arg)
-#ifdef HAVE_UGID
-    , subgroup(NULL)
-#endif
   { }
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
@@ -1181,24 +1172,7 @@ protected:
                     bool is_more);
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
-#ifdef HAVE_UGID
-private:
-  /// Print 'SET UGID_*' statements.
-  void print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *print_event_info);
 public:
-  /**
-    The end of the event in *this* binary log.  This is not written to
-    the binary log and it is not subject to any transformations in
-    relay logs etc.  It is only used by mysqlbinlog.
-  */
-  rpl_binlog_pos event_end_position;
-  /**
-    Group information for the subgroup that this event is part of.
-  */
-  Subgroup *subgroup;
-#else
-public:
-#endif // ifdef HAVE_UGID
 #endif // ifdef MYSQL_SERVER ... else
   /* 
      The value is set by caller of FD constructor and
@@ -4562,6 +4536,91 @@ bool sqlcom_can_generate_row_events(const THD *thd);
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
+
+#ifdef HAVE_UGID
+class Ugid_log_event : public Ignorable_log_event {
+public:
+#ifndef MYSQL_CLIENT
+  Ugid_log_event(THD* thd_arg);
+  Ugid_log_event(THD* thd_arg, uchar type_arg, char* ugid_arg,
+                 uchar flags_arg, uint64 group_size_arg);
+#endif
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+  Ugid_log_event(const char *buf, uint event_len,
+                 const Format_description_log_event *descr_event);
+
+  virtual ~Ugid_log_event();
+
+  Log_event_type get_type_code() { return UGID_LOG_EVENT; }
+
+  int get_data_size()
+  {
+    return UGID_TYPE_INFO_LEN + UGID_FLAGS_INFO_LEN +
+           GROUP_SIZE_INFO_LEN + THREAD_ID_INFO_LEN +
+           UGID_SIZE_INFO_LEN + NAME_LEN;
+  }
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+#ifdef MYSQL_SERVER
+  bool write_data_header(IO_CACHE *file);
+  bool write_data_body(IO_CACHE *file);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli);
+#endif
+
+  bool starts_group() { return true; }
+
+  uchar get_ugid_type() const;
+
+  const char* get_ugid() const;
+
+  uchar get_ugid_flags() const;
+
+  uint64 get_group_size() const;
+
+  uint32 get_thread_id() const;
+
+  const char* get_db();
+
+  static const int UGID_TYPE_INFO_LEN= 1;
+
+  static const int UGID_FLAGS_INFO_LEN= 1;
+
+  static const int GROUP_SIZE_INFO_LEN= 8;
+
+  static const int THREAD_ID_INFO_LEN= 4;
+
+  static const int UGID_SIZE_INFO_LEN= 64;
+
+private:
+  uchar ugid_type;
+
+  /*
+    This is a temporary solution until I understand Sven's
+    code. This will be stored as two distinct integer or
+    similar to integer fields.
+
+    /Alfranio
+  */
+  char ugid[UGID_SIZE_INFO_LEN];
+  
+  uchar ugid_flags;
+
+  uint64 group_size;
+
+  uint32 thread_id;
+
+  char db[NAME_LEN];
+};
+#endif
 
 /**
   @} (end of group Replication)
