@@ -787,6 +787,10 @@ class Item_date_literal :public Item_date_func
 {
   MYSQL_TIME_cache cached_time;
 public:
+  /**
+    Constructor for Item_date_literal.
+    @param ltime  DATE value.
+  */
   Item_date_literal(MYSQL_TIME *ltime) :Item_date_func()
   {
     cached_time.set_date(ltime);
@@ -839,6 +843,11 @@ class Item_time_literal :public Item_time_func
 {
   MYSQL_TIME_cache cached_time;
 public:
+  /**
+    Constructor for Item_time_literal.
+    @param ltime    TIME value.
+    @param dec_arg  number of fractional digits in ltime.
+  */
   Item_time_literal(MYSQL_TIME *ltime, uint dec_arg) :Item_time_func()
   {
     decimals= min(dec_arg, DATETIME_MAX_DECIMALS);
@@ -892,6 +901,11 @@ class Item_datetime_literal :public Item_datetime_func
 {
   MYSQL_TIME_cache cached_time;
 public:
+  /**
+    Constructor for Item_datetime_literal.
+    @param ltime    DATETIME value.
+    @param dec_arg  number of fractional digits in ltime.
+  */
   Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg) :Item_datetime_func()
   {
     decimals= min(dec_arg, DATETIME_MAX_DECIMALS);
@@ -947,6 +961,10 @@ protected:
   // Abstract method that defines which time zone is used for conversion.
   virtual Time_zone *time_zone()= 0;
 public:
+  /**
+    Constructor for Item_func_curtime.
+    @param dec_arg  Number of fractional digits.
+  */
   Item_func_curtime(uint8 dec_arg) :Item_time_func() { decimals= dec_arg; }
   void fix_length_and_dec();
   longlong val_time_temporal()
@@ -1045,6 +1063,10 @@ class Item_func_now :public Item_datetime_func
 protected:
   virtual Time_zone *time_zone()= 0;
 public:
+  /**
+    Constructor for Item_func_now.
+    @param dec_arg  Number of fractional digits.
+  */
   Item_func_now(uint8 dec_arg) :Item_datetime_func() { decimals= dec_arg; }
   void fix_length_and_dec();
   int save_in_field(Field *to, bool no_conversions);

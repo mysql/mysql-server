@@ -4863,7 +4863,7 @@ Field_temporal::convert_number_to_datetime(longlong nr, bool unsigned_val,
     Note, number_to_datetime can return a result different from nr:
     e.g. 111111 -> 20111111000000
   */
-  longlong tmp= number_to_datetime(nr, ltime, check_flags(), warnings);
+  longlong tmp= number_to_datetime(nr, ltime, date_flags(), warnings);
   if (tmp == LL(-1))
     reset();
   return tmp;
@@ -5054,7 +5054,7 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
   {
   case MYSQL_TIMESTAMP_DATETIME:
   case MYSQL_TIMESTAMP_DATE:
-    if (check_date(ltime, non_zero_date(ltime), check_flags(), &warnings))
+    if (check_date(ltime, non_zero_date(ltime), date_flags(), &warnings))
     {
       reset();
       error= 1;
@@ -5091,7 +5091,7 @@ Field_temporal_with_date::convert_str_to_TIME(const char *str, uint len,
                                               MYSQL_TIME *ltime,
                                               MYSQL_TIME_STATUS *status)
 {
-  return str_to_datetime(cs, str, len, ltime, check_flags(), status);
+  return str_to_datetime(cs, str, len, ltime, date_flags(), status);
 }
 
 
@@ -5296,8 +5296,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 				 const char *field_name_arg,
 				 TABLE_SHARE *share)
   :Field_temporal_with_date_and_time(ptr_arg, null_ptr_arg, null_bit_arg,
-                                     unireg_check_arg, field_name_arg,
-                                     MAX_DATETIME_WIDTH, 0)
+                                     unireg_check_arg, field_name_arg, 0)
 {
   init_timestamp_flags_and_share(share);
 }
@@ -5307,8 +5306,7 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                  const char *field_name_arg)
   :Field_temporal_with_date_and_time((uchar *) 0,
                                      maybe_null_arg ? (uchar *) "" : 0, 0,
-                                     NONE, field_name_arg,
-                                     MAX_DATETIME_WIDTH, 0)
+                                     NONE, field_name_arg, 0)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
   flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
@@ -5317,7 +5315,7 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
 }
 
 
-ulonglong Field_timestamp::check_flags(const THD *thd)
+ulonglong Field_timestamp::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   return (thd->variables.sql_mode & MODE_NO_ZERO_DATE) | MODE_NO_ZERO_IN_DATE;
@@ -5478,7 +5476,7 @@ Field_timestampf::Field_timestampf(uchar *ptr_arg,
                                    uint8 dec_arg)
   :Field_temporal_with_date_and_timef(ptr_arg, null_ptr_arg, null_bit_arg,
                                       unireg_check_arg, field_name_arg,
-                                      MAX_DATETIME_WIDTH, dec_arg)
+                                      dec_arg)
 {
   init_timestamp_flags_and_share(share);
 }
@@ -5489,8 +5487,7 @@ Field_timestampf::Field_timestampf(bool maybe_null_arg,
                                    uint8 dec_arg)
   :Field_temporal_with_date_and_timef((uchar*) 0,
                                       maybe_null_arg ? (uchar*) "": 0, 0,
-                                      NONE, field_name_arg,
-                                      MAX_DATETIME_WIDTH, dec_arg)
+                                      NONE, field_name_arg, dec_arg)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
   flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
@@ -5499,7 +5496,7 @@ Field_timestampf::Field_timestampf(bool maybe_null_arg,
 }
 
 
-ulonglong Field_timestampf::check_flags(const THD *thd)
+ulonglong Field_timestampf::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   return (thd->variables.sql_mode & MODE_NO_ZERO_DATE) | MODE_NO_ZERO_IN_DATE;
@@ -6049,7 +6046,7 @@ void Field_year::sql_type(String &res) const
 ** In number context: YYYYMMDD
 ****************************************************************************/
 
-ulonglong Field_newdate::check_flags(const THD *thd)
+ulonglong Field_newdate::date_flags(const THD *thd)
 {
   return TIME_FUZZY_DATE | thd->datetime_flags();
 }
@@ -6189,7 +6186,7 @@ void Field_newdate::sql_type(String &res) const
 ****************************************************************************/
 
 
-ulonglong Field_datetime::check_flags(const THD *thd)
+ulonglong Field_datetime::date_flags(const THD *thd)
 {
   return TIME_FUZZY_DATE | thd->datetime_flags();
 }
@@ -6381,7 +6378,7 @@ void Field_datetime::sql_type(String &res) const
 ****************************************************************************/
 
 
-ulonglong Field_datetimef::check_flags(const THD *thd)
+ulonglong Field_datetimef::date_flags(const THD *thd)
 {
   return TIME_FUZZY_DATE | thd->datetime_flags();
 }

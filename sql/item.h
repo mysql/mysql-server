@@ -639,7 +639,7 @@ public:
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
   /**
-    Result type when an item aprear in a numeric context.
+    Result type when an item appear in a numeric context.
     See Field::numeric_context_result_type() for more comments.
   */
   virtual enum Item_result numeric_context_result_type() const
@@ -739,8 +739,9 @@ public:
     return val_date_temporal();
   }
   /**
-    Get date or time value in packed longlong format,
-    rounded to "dec" fractional digits.
+    Get date or time value in packed longlong format.
+    Before conversion from MYSQL_TIME to packed format,
+    the MYSQL_TIME value is rounded to "dec" fractional digits.
   */
   longlong val_temporal_with_round(enum_field_types type, uint8 dec);
 
@@ -3062,11 +3063,24 @@ public:
 };
 
 
+/*
+  Item_datetime_with_ref is used to optimize queries like:
+    SELECT ... FROM t1 WHERE date_or_datetime_column = 20110101101010;
+  The numeric constant is replaced to Item_datetime_with_ref
+  by convert_constant_item().
+*/
 class Item_datetime_with_ref :public Item_temporal_with_ref
 {
 private:
   enum_field_types cached_field_type;
 public:
+  /**
+    Constructor for Item_datetime_with_ref.
+    @param    field_type_arg Data type: MYSQL_TYPE_DATE or MYSQL_TYPE_DATETIME
+    @param    decimals_arg   Number of fractional digits.
+    @param    i              Temporal value in packed format.
+    @param    ref_arg        Pointer to the original numeric Item.
+  */
   Item_datetime_with_ref(enum_field_types field_type_arg,
                          uint8 decimals_arg, longlong i, Item *ref_arg):
     Item_temporal_with_ref(field_type_arg, decimals_arg, i, ref_arg, true),
@@ -3083,9 +3097,21 @@ public:
 };
 
 
+/*
+  Item_time_with_ref is used to optimize queries like:
+    SELECT ... FROM t1 WHERE time_column = 20110101101010;
+  The numeric constant is replaced to Item_time_with_ref
+  by convert_constant_item().
+*/
 class Item_time_with_ref :public Item_temporal_with_ref
 {
 public:
+  /**
+    Constructor for Item_time_with_ref.
+    @param    decimals_arg   Number of fractional digits.
+    @param    i              Temporal value in packed format.
+    @param    ref_arg        Pointer to the original numeric Item.
+  */
   Item_time_with_ref(uint8 decimals_arg, longlong i, Item *ref_arg):
     Item_temporal_with_ref(MYSQL_TYPE_TIME, decimals_arg, i, ref_arg, 0)
   {

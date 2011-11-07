@@ -1863,7 +1863,7 @@ protected:
     @param  thd  THD
     @retval      sql_mode flags mixed with the field type flags.
   */
-  virtual ulonglong check_flags(const THD *thd)
+  virtual ulonglong date_flags(const THD *thd)
   {
     return 0;
   }
@@ -1872,9 +1872,9 @@ protected:
     check_date(), number_to_datetime(), str_to_datetime().
     Similar to the above when we don't have a THD value.
   */
-  inline ulonglong check_flags()
+  inline ulonglong date_flags()
   {
-    return check_flags(table ? table->in_use : current_thd);
+    return date_flags(table ? table->in_use : current_thd);
   }
 
   /**
@@ -1890,6 +1890,16 @@ protected:
                             ErrConvString str,
                             timestamp_type ts_type, int cuted_increment);
 public:
+  /**
+    Constructor for Field_temporal
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param len_arg           Number of characters in the integer part.
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_temporal(uchar *ptr_arg,
                  uchar *null_ptr_arg, uchar null_bit_arg,
                  enum utype unireg_check_arg, const char *field_name_arg,
@@ -1899,6 +1909,13 @@ public:
            null_ptr_arg, null_bit_arg,
            unireg_check_arg, field_name_arg)
     { flags|= BINARY_FLAG; }
+  /**
+    Constructor for Field_temporal
+    @param maybe_null_arg    See Field definition
+    @param field_name_arg    See Field definition
+    @param len_arg           Number of characters in the integer part.
+    @param dec_arg           Number of second fraction digits, 0..6
+  */
   Field_temporal(bool maybe_null_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field((uchar *) 0, 
@@ -1958,6 +1975,16 @@ protected:
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status);
   int store_internal_with_round(MYSQL_TIME *ltime, int *warnings);
 public:
+  /**
+    Constructor for Field_temporal
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param len_arg           Number of characters in the integer part.
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_temporal_with_date(uchar *ptr_arg, uchar *null_ptr_arg,
                            uchar null_bit_arg,
                            enum utype unireg_check_arg,
@@ -1967,6 +1994,13 @@ public:
                     unireg_check_arg, field_name_arg,
                     int_length_arg, dec_arg)
     { }
+  /**
+    Constructor for Field_temporal
+    @param maybe_null_arg    See Field definition
+    @param field_name_arg    See Field definition
+    @param len_arg           Number of characters in the integer part.
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_temporal_with_date(bool maybe_null_arg, const char *field_name_arg,
                            uint int_length_arg, uint8 dec_arg)
     :Field_temporal((uchar*) 0, maybe_null_arg ? (uchar*) "": 0, 0,
@@ -2001,20 +2035,37 @@ private:
     return 0;
   }
 protected:
+  /**
+    Initialize flags and share for timestamp column.
+  */
   void init_timestamp_flags_and_share(TABLE_SHARE *share);
+  /**
+    Store "struct timeval" value into field.
+    The value must be properly rounded or truncated according
+    to the number of fractional second digits.
+  */
   virtual void store_timestamp_internal(const struct timeval *tm)= 0;
   bool convert_TIME_to_timestamp(THD *thd, const MYSQL_TIME *ltime,
                                  struct timeval *tm, int *error);
 
 public:
+  /**
+    Constructor for Field_temporal_with_date_and_time
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_temporal_with_date_and_time(uchar *ptr_arg, uchar *null_ptr_arg,
                                     uchar null_bit_arg,
                                     enum utype unireg_check_arg,
                                     const char *field_name_arg,
-                                    uint8 int_length_arg, uint8 dec_arg)
+                                    uint8 dec_arg)
     :Field_temporal_with_date(ptr_arg, null_ptr_arg, null_bit_arg,
                               unireg_check_arg, field_name_arg,
-                              int_length_arg, dec_arg)
+                              MAX_DATETIME_WIDTH, dec_arg)
     { }
   void set_time();
   void store_timestamp(const struct timeval *tm);
@@ -2034,22 +2085,36 @@ private:
     return 1;
   }
 public:
+  /**
+    Constructor for Field_temporal_with_date_and_timef
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_temporal_with_date_and_timef(uchar *ptr_arg, uchar *null_ptr_arg,
                                      uchar null_bit_arg,
                                      enum utype unireg_check_arg,
                                      const char *field_name_arg,
-                                     uint8 int_length_arg, uint8 dec_arg)
+                                     uint8 dec_arg)
     :Field_temporal_with_date_and_time(ptr_arg, null_ptr_arg, null_bit_arg,
                                        unireg_check_arg, field_name_arg,
-                                       int_length_arg, dec_arg)
+                                       dec_arg)
     { }
+  /**
+    Constructor for Field_temporal_with_date_and_timef
+    @param maybe_null_arg    See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_temporal_with_date_and_timef(bool maybe_null_arg,
                                      const char *field_name_arg,
-                                     uint int_length_arg, uint8 dec_arg)
+                                     uint8 dec_arg)
     :Field_temporal_with_date_and_time((uchar *) 0,
                                        maybe_null_arg ? (uchar*) "" : 0, 0,
-                                       NONE, field_name_arg, int_length_arg,
-                                       dec_arg)
+                                       NONE, field_name_arg, dec_arg)
     { }
 
   uint decimals() const { return dec; }
@@ -2070,9 +2135,13 @@ public:
 };
 
 
+/*
+  Field implementing TIMESTAMP data type without fractional seconds.
+  We will be removed eventually.
+*/
 class Field_timestamp :public Field_temporal_with_date_and_time {
 protected:
-  ulonglong check_flags(const THD *thd);
+  ulonglong date_flags(const THD *thd);
   int store_internal(const MYSQL_TIME *ltime, int *error);
   bool get_date_internal(MYSQL_TIME *ltime);
   void store_timestamp_internal(const struct timeval *tm);
@@ -2125,16 +2194,35 @@ public:
 };
 
 
+/*
+  Field implementing TIMESTAMP(N) data type, where N=0..6.
+*/
 class Field_timestampf :public Field_temporal_with_date_and_timef {
 protected:
   bool get_date_internal(MYSQL_TIME *ltime);
   int store_internal(const MYSQL_TIME *ltime, int *error);
-  ulonglong check_flags(const THD *thd);
+  ulonglong date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm);
 public:
+  /**
+    Field_timestampf constructor
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param share             Table share.
+    @param dec_arg           Number of fractional second digits, 0..6.
+  */
   Field_timestampf(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
                    enum utype unireg_check_arg, const char *field_name_arg,
                    TABLE_SHARE *share, uint8 dec_arg);
+  /**
+    Field_timestampf constructor
+    @param maybe_null_arg    See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of fractional second digits, 0..6.
+  */
   Field_timestampf(bool maybe_null_arg, const char *field_name_arg,
                    uint8 dec_arg);
   Field_timestampf *clone(MEM_ROOT *mem_root) const
@@ -2181,16 +2269,6 @@ public:
 };
 
 
-inline Field *new_Field_timestamp(bool maybe_null_arg,
-                                  const char *name_arg,
-                                  uint8 dec_arg)
-{
-  return dec_arg > 0 ?
-    (Field *) new Field_timestampf(maybe_null_arg, name_arg, dec_arg) :
-    (Field *) new Field_timestamp(maybe_null_arg, name_arg);
-}
-
-
 class Field_year :public Field_tiny {
 public:
   Field_year(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
@@ -2223,7 +2301,7 @@ public:
 
 class Field_newdate :public Field_temporal_with_date {
 protected:
-  ulonglong check_flags(const THD *thd);
+  ulonglong date_flags(const THD *thd);
   bool get_date_internal(MYSQL_TIME *ltime);
   int store_internal(const MYSQL_TIME *ltime, int *error);
 
@@ -2278,21 +2356,48 @@ protected:
                            MYSQL_TIME *ltime, MYSQL_TIME_STATUS *status);
   int convert_number_to_TIME(longlong nr, bool unsigned_val, int nanoseconds,
                              MYSQL_TIME *ltime, int *warning);
+  /**
+    Low-level function to store MYSQL_TIME value.
+    The value must be rounded or truncated according to decimals().
+  */
   virtual int store_internal(const MYSQL_TIME *ltime, int *error)= 0;
+  /**
+    Low-level function to store time value in lldiv_t format.
+    The value must be rounded or truncated according to decimals().
+  */
   virtual int store_internal(const lldiv_t *lld)= 0;
+  /**
+    Function to store time value.
+    The value is rounded according to decimals().
+  */
   virtual int store_internal_with_round(MYSQL_TIME *ltime, int *warnings);
 public:
+  /**
+    Constructor for Field_time_common
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_time_common(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
-	            enum utype unireg_check_arg, const char *field_name_arg,
-	            uint32 int_len_arg, uint8 dec_arg)
+                    enum utype unireg_check_arg, const char *field_name_arg,
+                    uint8 dec_arg)
     :Field_temporal(ptr_arg, null_ptr_arg, null_bit_arg,
                     unireg_check_arg, field_name_arg,
-                    int_len_arg, dec_arg)
+                    MAX_TIME_WIDTH, dec_arg)
     { }
+  /**
+    Constructor for Field_time_common
+    @param maybe_null_arg    See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_time_common(bool maybe_null_arg, const char *field_name_arg,
-                    uint32 int_len_arg, uint8 dec_arg)
+                    uint8 dec_arg)
     :Field_temporal((uchar *) 0, maybe_null_arg ? (uchar *) "" : 0, 0,
-                    NONE, field_name_arg, int_len_arg, dec_arg)
+                    NONE, field_name_arg, MAX_TIME_WIDTH, dec_arg)
     { }
   int store_time(MYSQL_TIME *ltime, uint8 dec);
   String *val_str(String*, String *);
@@ -2302,6 +2407,10 @@ public:
 };
 
 
+/*
+  Field implementing TIME data type without fractional seconds.
+  We will be removed eventually.
+*/
 class Field_time :public Field_time_common {
 protected:
   int store_internal(const MYSQL_TIME *ltime, int *error);
@@ -2310,11 +2419,11 @@ public:
   Field_time(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg)
     :Field_time_common(ptr_arg, null_ptr_arg, null_bit_arg,
-                       unireg_check_arg, field_name_arg, MAX_TIME_WIDTH, 0)
+                       unireg_check_arg, field_name_arg, 0)
     { }
   Field_time(bool maybe_null_arg, const char *field_name_arg)
     :Field_time_common((uchar *) 0, maybe_null_arg ? (uchar *) "" : 0, 0,
-                       NONE, field_name_arg, MAX_TIME_WIDTH, 0)
+                       NONE, field_name_arg, 0)
     { }
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
@@ -2339,6 +2448,9 @@ public:
 };
 
 
+/*
+  Field implementing TIME(N) data type, where N=0..6.
+*/
 class Field_timef :public Field_time_common {
 private:
   int do_save_field_metadata(uchar *metadata_ptr)
@@ -2350,17 +2462,30 @@ protected:
   int store_internal(const MYSQL_TIME *ltime, int *error);
   int store_internal(const lldiv_t *lld);
 public:
+  /**
+    Constructor for Field_timef
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_timef(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
               enum utype unireg_check_arg, const char *field_name_arg,
               uint8 dec_arg)
     :Field_time_common(ptr_arg, null_ptr_arg, null_bit_arg,
-                       unireg_check_arg, field_name_arg,
-                       MAX_TIME_WIDTH, dec_arg)
+                       unireg_check_arg, field_name_arg, dec_arg)
   { }
+  /**
+    Constructor for Field_timef
+    @param maybe_null_arg    See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_timef(bool maybe_null_arg, const char *field_name_arg, uint8 dec_arg)
     :Field_time_common((uchar *) 0, maybe_null_arg ? (uchar *) "" : 0, 0,
-                       NONE, field_name_arg,
-                       MAX_TIME_WIDTH, dec_arg)
+                       NONE, field_name_arg, dec_arg)
   { }
   Field_timef *clone(MEM_ROOT *mem_root) const
   {
@@ -2409,22 +2534,15 @@ public:
 };
 
 
-inline Field *new_Field_time(bool maybe_null_arg,
-                             const char *name_arg,
-                             uint8 dec_arg)
-{
-  DBUG_ASSERT(dec_arg <= DATETIME_MAX_DECIMALS);
-  return dec_arg ?
-         (Field *) new Field_timef(maybe_null_arg, name_arg, dec_arg) :
-         (Field *) new Field_time(maybe_null_arg, name_arg);
-}
-
-
+/*
+  Field implementing DATETIME data type without fractional seconds.
+  We will be removed eventually.
+*/
 class Field_datetime :public Field_temporal_with_date_and_time {
 protected:
   int store_internal(const MYSQL_TIME *ltime, int *error);
   bool get_date_internal(MYSQL_TIME *ltime);
-  ulonglong check_flags(const THD *thd);
+  ulonglong date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm)
   {
     DBUG_ASSERT(0);
@@ -2433,14 +2551,12 @@ public:
   Field_datetime(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
                  enum utype unireg_check_arg, const char *field_name_arg)
     :Field_temporal_with_date_and_time(ptr_arg, null_ptr_arg, null_bit_arg,
-                                       unireg_check_arg, field_name_arg,
-                                       MAX_DATETIME_WIDTH, 0)
+                                       unireg_check_arg, field_name_arg, 0)
     { }
   Field_datetime(bool maybe_null_arg, const char *field_name_arg)
     :Field_temporal_with_date_and_time((uchar *) 0,
                                        maybe_null_arg ? (uchar *) "" : 0,
-                                       0, NONE, field_name_arg,
-                                       MAX_DATETIME_WIDTH, 0)
+                                       0, NONE, field_name_arg, 0)
     { }
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
@@ -2486,29 +2602,47 @@ public:
 };
 
 
+/*
+  Field implementing DATETIME(N) data type, where N=0..6.
+*/
 class Field_datetimef :public Field_temporal_with_date_and_timef {
 protected:
   bool get_date_internal(MYSQL_TIME *ltime);
   int store_internal(const MYSQL_TIME *ltime, int *error);
-  ulonglong check_flags(const THD *thd);
+  ulonglong date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm)
   {
     DBUG_ASSERT(0);
   }
 public:
+  /**
+    Constructor for Field_datetimef
+    @param ptr_arg           See Field definition
+    @param null_ptr_arg      See Field definition
+    @param null_bit_arg      See Field definition
+    @param unireg_check_arg  See Field definition
+    @param field_name_arg    See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_datetimef(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
                  enum utype unireg_check_arg, const char *field_name_arg,
                  uint8 dec_arg)
     :Field_temporal_with_date_and_timef(ptr_arg, null_ptr_arg, null_bit_arg,
                                         unireg_check_arg, field_name_arg,
-                                        MAX_DATETIME_WIDTH, dec_arg)
+                                        dec_arg)
     { }
+  /**
+    Constructor for Field_datetimef
+    @param maybe_null_arg    See Field definition
+    @param field_name_arg    See Field definition
+    @param len_arg           See Field definition
+    @param dec_arg           Number of second fraction digits, 0..6.
+  */
   Field_datetimef(bool maybe_null_arg, const char *field_name_arg,
                   uint8 dec_arg)
     :Field_temporal_with_date_and_timef((uchar *) 0,
                                         maybe_null_arg ? (uchar *) "" : 0, 0,
-                                        NONE, field_name_arg,
-                                        MAX_DATETIME_WIDTH, dec_arg)
+                                        NONE, field_name_arg, dec_arg)
     { }
   Field_datetimef *clone(MEM_ROOT *mem_root) const
   {
@@ -2542,16 +2676,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   void sql_type(String &str) const;
 };
-
-
-inline Field *new_Field_datetime(bool maybe_null_arg,
-                                 const char *name_arg,
-                                 uint8 dec_arg)
-{
-  return dec_arg > 0 ?
-    (Field *) new Field_datetimef(maybe_null_arg, name_arg, dec_arg) :
-    (Field *) new Field_datetime(maybe_null_arg, name_arg);
-}
 
 
 class Field_string :public Field_longstr {
