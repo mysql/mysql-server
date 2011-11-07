@@ -5070,17 +5070,14 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
   DBUG_ASSERT(strlen(key) == key_len);
 
-  pthread_mutex_lock(&ndbcluster_mutex);
-  NDB_SHARE * share = get_share(key, table, TRUE, TRUE);
+  NDB_SHARE* share= get_share(key, table, true, false);
   if (share == 0)
   {
     /**
      * Failed to create share
      */
-    pthread_mutex_unlock(&ndbcluster_mutex);
     DBUG_RETURN(-1);
   }
-  pthread_mutex_unlock(&ndbcluster_mutex);
 
   pthread_mutex_lock(&share->mutex);
   if (get_binlog_nologging(share) || share->op != 0 || share->new_op != 0)
