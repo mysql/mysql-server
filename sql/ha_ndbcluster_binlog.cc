@@ -2553,7 +2553,8 @@ class Ndb_schema_event_handler {
   }
 
 
-  void ndbapi_invalidate_table(const char* db_name, const char* table_name)
+  void
+  ndbapi_invalidate_table(const char* db_name, const char* table_name) const
   {
     Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
     Ndb *ndb= thd_ndb->ndb;
@@ -2564,7 +2565,8 @@ class Ndb_schema_event_handler {
   }
 
 
-  void mysqld_close_cached_table(const char* db_name, const char* table_name)
+  void
+  mysqld_close_cached_table(const char* db_name, const char* table_name) const
   {
      // Just mark table as "need reopen"
     const bool wait_for_refresh = false;
@@ -2579,6 +2581,7 @@ class Ndb_schema_event_handler {
     close_cached_tables(m_thd, &table_list,
                         wait_for_refresh, timeout);
   }
+
 
   NDB_SHARE* get_share(Ndb_schema_op* schema) const
   {
@@ -2622,6 +2625,7 @@ class Ndb_schema_event_handler {
 
     DBUG_RETURN(false);
   }
+
 
   void handle_clear_slock(Ndb_schema_op* schema, bool post_epoch)
   {
@@ -2908,6 +2912,7 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(0);
   }
 
+
   void
   handle_schema_op_post_epoch(Ndb_schema_op* schema)
   {
@@ -3192,6 +3197,7 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
+
   /*
     process any operations that should be done after
     the epoch is complete
@@ -3240,12 +3246,14 @@ public:
   {
   }
 
+
   ~Ndb_schema_event_handler()
   {
     // There should be no work left todo...
     DBUG_ASSERT(m_post_epoch_log_list.elements == 0);
     DBUG_ASSERT(m_post_epoch_unlock_list.elements == 0);
   }
+
 
   void handle_event(Ndb* s_ndb, NdbEventOperation *pOp)
   {
@@ -3383,6 +3391,7 @@ public:
 
     DBUG_VOID_RETURN;
   }
+
 
   void post_epoch()
   {
