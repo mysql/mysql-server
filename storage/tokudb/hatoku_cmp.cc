@@ -1521,7 +1521,7 @@ exit:
     return ret_val;
 }
 
-int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
+int tokudb_cmp_dbt_key(DB* file, const DBT *keya, const DBT *keyb) {
     int cmp;
     if (file->descriptor->dbt.size == 0) {
         int num_bytes_cmp = keya->size < keyb->size ? 

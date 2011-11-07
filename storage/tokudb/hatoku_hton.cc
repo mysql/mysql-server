@@ -189,6 +189,8 @@ pthread_mutex_t tokudb_mutex;
 pthread_mutex_t tokudb_meta_mutex;
 
 static ulonglong tokudb_lock_timeout;
+static ulong tokudb_cleaner_period;
+static ulong tokudb_cleaner_iterations;
 
 //my_bool tokudb_shared_data = FALSE;
 static u_int32_t tokudb_init_flags = 
@@ -444,6 +446,10 @@ static int tokudb_init_func(void *p) {
 
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
     assert(!r);
+    r = db_env->cleaner_set_period(db_env, tokudb_cleaner_period);
+    assert(r == 0);
+    r = db_env->cleaner_set_iterations(db_env, tokudb_cleaner_iterations);
+    assert(r == 0);
 
     r = db_env->set_lock_timeout(db_env, tokudb_lock_timeout);
     assert(r == 0);
@@ -1158,6 +1164,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("checkpoints taken  ", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.checkpoint_count_fail);
       STATPRINT("checkpoints failed", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.cleaner_period);
+      STATPRINT("cleaner period", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.cleaner_iterations);
+      STATPRINT("cleaner iterations", buf);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_begin);
       STATPRINT("txn begin", buf);
@@ -1306,6 +1316,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("cachetable size_leaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_nonleaf);  
       STATPRINT("cachetable size_nonleaf", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_rollback);  
+      STATPRINT("cachetable size_rollback", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_cachepressure);  
+      STATPRINT("cachetable size_cachepressure", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.cachetable_size_writing);  
       STATPRINT("cachetable size_writing", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.get_and_pin_footprint);  
@@ -1608,6 +1622,48 @@ static MYSQL_SYSVAR_ULONGLONG(lock_timeout, tokudb_lock_timeout,
         0, "TokuDB lock timeout", 
         NULL, tokudb_lock_timeout_update, DEFAULT_LOCK_TIMEOUT_MSEC,
         0, ~0LL, 0);
+
+
+
+static void tokudb_cleaner_period_update(THD * thd,
+        struct st_mysql_sys_var * sys_var, 
+        void * var, const void * save)
+{
+    ulong * cleaner_period = (ulong *) var;
+
+    *cleaner_period = *(const ulong *) save;
+    int r = db_env->cleaner_set_period(db_env, *cleaner_period);
+    assert(r==0);
+}
+
+#define DEFAULT_CLEANER_PERIOD 1
+
+static MYSQL_SYSVAR_ULONG(cleaner_period, tokudb_cleaner_period,
+        0, "TokuDB cleaner_period", 
+        NULL, tokudb_cleaner_period_update, DEFAULT_CLEANER_PERIOD,
+        0, ~0LL, 0);
+
+
+static void tokudb_cleaner_iterations_update(THD * thd,
+        struct st_mysql_sys_var * sys_var, 
+        void * var, const void * save)
+{
+    ulong * cleaner_iterations = (ulong *) var;
+
+    *cleaner_iterations = *(const ulong *) save;
+    int r = db_env->cleaner_set_iterations(db_env, *cleaner_iterations);
+    assert(r==0);
+}
+
+#define DEFAULT_CLEANER_ITERATIONS 1
+
+static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
+        0, "TokuDB cleaner_iterations", 
+        NULL, tokudb_cleaner_iterations_update, DEFAULT_CLEANER_ITERATIONS,
+        0, ~0LL, 0);
+
+
+
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
         PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
         0, ~0LL, 0);
@@ -1640,6 +1696,8 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     // called tokudb_lock_timeout. this variable defines the maximum
     // time that threads will wait for a lock to be acquired
     MYSQL_SYSVAR(lock_timeout),
+    MYSQL_SYSVAR(cleaner_period),
+    MYSQL_SYSVAR(cleaner_iterations),
 
     // XXX remove the old tokudb_read_lock_wait session variable
     // XXX remove the old tokudb_write_lock_wait session variable
