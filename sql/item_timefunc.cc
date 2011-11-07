@@ -2373,6 +2373,17 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
   if (date_sub_interval)
     interval.neg = !interval.neg;
 
+  /*
+    Make sure we return proper time_type.
+    It's important for val_str().
+  */
+  if (cached_field_type == MYSQL_TYPE_DATE &&
+      ltime->time_type == MYSQL_TIMESTAMP_DATETIME)
+    datetime_to_date(ltime);
+  else if (cached_field_type == MYSQL_TYPE_DATETIME &&
+           ltime->time_type == MYSQL_TIMESTAMP_DATE)
+    date_to_datetime(ltime);
+
   if ((null_value= date_add_interval(ltime, int_type, interval)))
     return true;
   return false;
