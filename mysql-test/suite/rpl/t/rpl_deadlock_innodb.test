@@ -1,6 +1,5 @@
 -- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
-# --slave-transaction-retries=0 in MTS
 -- source include/not_mts_slave_parallel_workers.inc
 
 let $engine_type=innodb;

@@ -419,60 +419,7 @@ public:
   }
   static const my_off_t PREVIOUS_POSITION= ~(my_off_t)0;
   static const my_off_t NO_REWIND= (~(my_off_t)0) - 1;
-protected:
-  /**
-    Reads length bytes starting at offset from the given File into
-    buffer, and on success advances the read position of this Reader
-    by the length.
-
-    This auxiliary function is intended to be used by subclasses that
-    use a File as (part of) the back-end.
-
-    @param fd File descriptor to read from.
-    @param buffer Buffer to write to.
-    @param length Number of bytes to read.
-    @param offset Offset to start reading from.
-    @return READ_OK or READ_TRUNCATED or READ_EOF or READ_ERROR.
-  */
-  enum_read_status file_pread(File fd, uchar *buffer,
-                              size_t length, my_off_t offset);
-  /**
-    Check if the given position is before the end of the file.
-
-    This auxiliary function is intended to be used by subclasses that
-    use a File as (part of) the back-end.  It does not actually move
-    the read position (normally, subclasses of Reader use pread() and
-    keep track of the reading position manually).
-
-    @param fd File to check.
-    @param old_position Current position in the file.
-    @param new_position New position in the file.
-    @return RETURN_STATUS_REPORTED_ERROR if there is an error or if
-    the position is beyond the end of the file; otherwise
-    RETURN_STATUS_OK
-  */
-  enum_read_status file_seek(File fd, my_off_t old_position,
-                             my_off_t new_position);
-
-
-#define READER_CHECK_FORMAT(READER, CONDITION)                          \
-    do                                                                  \
-    {                                                                   \
-      if (!(CONDITION))                                                 \
-      {                                                                 \
-        Reader *_reader_check_format_reader= (READER);                  \
-        my_off_t ofs;                                                   \
-        _reader_check_format_reader->tell(&ofs);                        \
-        BINLOG_ERROR(("File '%.200s' has an unknown format at position %lld, " \
-                      "it may be corrupt.",                             \
-                      (READER)->get_source_name(), ofs),                \
-                     (ER_FILE_FORMAT, MYF(0),                           \
-                      (READER)->get_source_name(), ofs));               \
-        DBUG_RETURN(READ_ERROR);                                        \
-      }                                                                 \
-    } while (0)
 };
-
 
 class Appender
 {
@@ -2718,12 +2665,6 @@ ugid_before_statement(THD *thd, Checkable_rwlock *lock,
 */
 int ugid_before_flush_trx_cache(THD *thd, Checkable_rwlock *lock,
                                 Group_log_state *gls, Group_cache *gc);
-int ugid_flush_group_cache(THD *thd, Checkable_rwlock *lock,
-                           Group_log_state *gls,
-                           Group_log *gl,
-                           Group_cache *gc, Group_cache *trx_cache,
-                           rpl_binlog_no binlog_no, rpl_binlog_pos binlog_pos,
-                           rpl_binlog_pos offset_after_last_statement);
 #endif // ifndef MYSQL_CLIENT
 
 

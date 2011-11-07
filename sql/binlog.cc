@@ -541,19 +541,79 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
 {
   DBUG_ENTER("write_event_to_cache");
   IO_CACHE *file= &cache_data->cache_log;
-#ifdef HAVE_UGID
-  my_off_t start_pos= my_b_tell(file);
-#endif
   if (ev->write(file) != 0)
     DBUG_RETURN(1);
-#ifdef HAVE_UGID  // This is not the best place to update the group cache. // ALFRANIO.
-  PROPAGATE_REPORTED_ERROR_INT(
-    cache_data->group_cache.add_logged_subgroup(thd,
-                                                my_b_tell(file) - start_pos));
-#endif
   DBUG_RETURN(0);
 }
 
+#ifdef HAVE_UGID
+int ugid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
+{
+  char* buffer= NULL;
+  size_t buffer_size= 0;
+  
+  DBUG_ENTER("ugid_flush_group_cache");
+  mysql_bin_log.sid_lock.rdlock();
+
+  Group_cache* group_cache= &cache_data->group_cache;
+  Group_set group_set(&mysql_bin_log.sid_map, &mysql_bin_log.sid_lock);
+ 
+  if (group_cache->add_logged_subgroup(thd, cache_data->get_byte_position()) !=
+      RETURN_STATUS_OK)
+  {
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN(1);
+  }
+
+  if (group_cache->generate_automatic_gno(thd, &mysql_bin_log.group_log_state) !=
+      RETURN_STATUS_OK)
+  {
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN(1); 
+  }
+
+  if (group_cache->get_ended_groups(&group_set) != RETURN_STATUS_OK)
+  {
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN(1); 
+  }
+
+  if (group_cache->update_group_log_state(thd, &mysql_bin_log.group_log_state) !=
+      RETURN_STATUS_OK)
+  {
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN(1); 
+  }
+
+  buffer_size= group_set.get_string_length();
+  if (!(buffer= (char *) my_malloc(buffer_size + 1, MYF(0))))
+  {
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN(1); 
+  }
+  group_set.to_string(buffer);
+  mysql_bin_log.sid_lock.unlock();
+
+  /*
+    In what follows, We need to replace the information at this point with
+    valid stuff.
+  */
+  size_t before_pos= my_b_tell(&cache_data->cache_log);
+  my_b_seek(&cache_data->cache_log, 0);
+  /*
+    Check with Sven how to get information on the flags and create
+    an assertion with them. Create also an assertion that the group
+    set has one single element.  /Alfranio /Sven
+  */
+  Ugid_log_event uinfo(thd, 1, buffer, 1, before_pos);
+  write_event_to_cache(thd, &uinfo, cache_data);
+  my_b_seek(&cache_data->cache_log, before_pos);
+
+  my_free(buffer);
+
+  DBUG_RETURN(0);
+}
+#endif
 
 /**
   This function flushes a cache upon commit/rollback.
@@ -586,6 +646,11 @@ binlog_flush_cache(THD *thd, binlog_cache_mngr *cache_mngr,
  
     my_off_t offset_after_last_statement=
       cache_data->get_byte_position() - before_commit_event;
+
+#ifdef HAVE_UGID
+    if (ugid_flush_group_cache(thd, cache_data))
+      DBUG_RETURN(1);
+#endif
 
     /*
       Doing a commit or a rollback including non-transactional tables,
@@ -783,13 +848,6 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     cache_mngr->reset_trx_cache();
     DBUG_RETURN(error);
   }
-
-#ifdef HAVE_UGID
-  if (!error)
-    error= ugid_before_flush_trx_cache(thd, &mysql_bin_log.sid_lock,
-                                       &mysql_bin_log.group_log_state,
-                                       &cache_mngr->trx_cache.group_cache);
-#endif
 
   /*
     We commit the transaction if:
@@ -3826,6 +3884,9 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
 err:
     if (event_info->is_using_immediate_logging())
     {
+#ifdef HAVE_UGID
+      error |= ugid_flush_group_cache(thd, cache_data);
+#endif
       error |= mysql_bin_log.write_cache(thd, cache_mngr, cache_data, FALSE,
                                          0/*offset_after_last_statement*/);
       cache_data->reset();
@@ -4701,11 +4762,6 @@ int MYSQL_BIN_LOG::log_xid(THD *thd, my_xid xid)
     note that the return value is inverted.
    */
   int ret= (!binlog_commit_flush_stmt_cache(thd, cache_mngr) &&
-#ifdef HAVE_UGID
-            !ugid_before_flush_trx_cache(thd, &mysql_bin_log.sid_lock,
-                                         &mysql_bin_log.group_log_state,
-                                         &cache_mngr->trx_cache.group_cache) &&
-#endif
             !binlog_commit_flush_trx_cache(thd, cache_mngr, xid));
   DBUG_RETURN(ret);
 }
@@ -4815,7 +4871,6 @@ err1:
   return 1;
 }
 
-
 #ifdef HAVE_UGID
 Group_cache *THD::get_group_cache(bool is_transactional)
 {
@@ -4837,7 +4892,6 @@ Group_cache *THD::get_group_cache(bool is_transactional)
   DBUG_RETURN(&cache_data->group_cache);
 }
 #endif
-
 
 /*
   These functions are placed in this file since they need access to
@@ -4913,19 +4967,26 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     DBUG_RETURN(1);
 
   /*
-    If the event is requesting immediatly logging, there is no need to go
-    further and set savepoint and register callbacks.
-  */ 
-  if (start_event->is_using_immediate_logging())
-    DBUG_RETURN(0);
-
-  /*
     Retrieve the appropriated cache.
   */
   bool is_transactional= start_event->is_using_trans_cache();
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
-  binlog_cache_data *cache= cache_mngr->get_binlog_cache_data(is_transactional);
+  binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(is_transactional);
  
+  /*
+    If the event is requesting immediatly logging, there is no need to go
+    further down and set savepoint and register callbacks.
+  */ 
+  if (start_event->is_using_immediate_logging())
+  {
+#ifdef HAVE_UGID
+    Ugid_log_event uinfo(thd);
+    if (write_event_to_cache(thd, &uinfo, cache_data))
+      DBUG_RETURN(1);
+#endif
+    DBUG_RETURN(0);
+  }
+
   /*
     If this is the first call to this funciton while processing a statement,
     the transactional cache does not have a savepoint defined. So, in what
@@ -4966,12 +5027,15 @@ inline int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     Here, a transaction is either a BEGIN..COMMIT/ROLLBACK block or a single
     statement in autocommit mode.
   */
-  if (cache->is_binlog_empty())
+  if (cache_data->is_binlog_empty())
   {
-    binlog_cache_data *cache_data=
-      cache_mngr->get_binlog_cache_data(is_transactional);
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
                           is_transactional, FALSE, TRUE, 0, TRUE);
+#ifdef HAVE_UGID
+    Ugid_log_event uinfo(thd);
+    if (write_event_to_cache(thd, &uinfo, cache_data))
+      DBUG_RETURN(1);
+#endif
     if (write_event_to_cache(thd, &qinfo, cache_data))
       DBUG_RETURN(1);
   }
