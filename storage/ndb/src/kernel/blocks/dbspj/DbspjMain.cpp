@@ -5420,6 +5420,7 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
 
   Uint32 rows = conf->completedOps;
   Uint32 done = conf->fragmentCompleted;
+  Uint32 bytes = conf->total_len * sizeof(Uint32);
 
   Uint32 state = fragPtr.p->m_state;
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
@@ -5435,9 +5436,9 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
 
   requestPtr.p->m_rows += rows;
   data.m_totalRows += rows;
-  data.m_totalBytes += conf->total_len;
+  data.m_totalBytes += bytes;
   data.m_largestBatchRows = MAX(data.m_largestBatchRows, rows);
-  data.m_largestBatchBytes = MAX(data.m_largestBatchBytes, conf->total_len);
+  data.m_largestBatchBytes = MAX(data.m_largestBatchBytes, bytes);
 
   if (!treeNodePtr.p->isLeaf())
   {

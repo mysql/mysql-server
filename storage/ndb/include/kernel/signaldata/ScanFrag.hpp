@@ -177,7 +177,7 @@ public:
   Uint32 fragmentCompleted;
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 total_len;
+  Uint32 total_len;  // Total #Uint32 returned as TRANSID_AI
 };
 
 class ScanFragRef {
