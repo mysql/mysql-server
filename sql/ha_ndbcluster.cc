@@ -12762,7 +12762,27 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   if (error == HA_ERR_NO_PARTITION_FOUND)
     m_part_info->print_no_partition_found(table);
   else
+  {
+    if (error == HA_ERR_FOUND_DUPP_KEY &&
+        (table == NULL || table->file == NULL))
+    {
+      /*
+        This is a sideffect of 'ndbcluster_print_error' (called from
+        'ndbcluster_commit' and 'ndbcluster_rollback') which realises
+        that it "knows nothing" and creates a brand new ha_ndbcluster
+        in order to be able to call the print_error() function.
+        Unfortunately the new ha_ndbcluster hasn't been open()ed
+        and thus table pointer etc. is not set. Since handler::print_error()
+        will use that pointer without checking for NULL(it naturally
+        assumes an error can only be returned when the handler is open)
+        this would crash the mysqld unless it's handled here.
+      */
+      my_error(ER_DUP_KEY, errflag, table_share->table_name.str, error);
+      DBUG_VOID_RETURN;
+    }
+
     handler::print_error(error, errflag);
+  }
   DBUG_VOID_RETURN;
 }
 
