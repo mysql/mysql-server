@@ -2555,6 +2555,34 @@ class Ndb_schema_event_handler {
   }
 
 
+  void ndbapi_invalidate_table(const char* db_name, const char* table_name)
+  {
+    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+    Ndb *ndb= thd_ndb->ndb;
+
+    ndb->setDatabaseName(db_name);
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+    ndbtab_g.invalidate();
+  }
+
+
+  void mysqld_close_cached_table(const char* db_name, const char* table_name)
+  {
+     // Just mark table as "need reopen"
+    const bool wait_for_refresh = false;
+    // Not waiting -> no timeout needed
+    const ulong timeout = 0;
+
+    TABLE_LIST table_list;
+    memset(&table_list, 0, sizeof(table_list));
+    table_list.db= (char*)db_name;
+    table_list.alias= table_list.table_name= (char*)table_name;
+
+    close_cached_tables(m_thd, &table_list,
+                        wait_for_refresh, timeout);
+  }
+
+
   bool
   check_if_local_tables_in_db(const char *dbname) const
   {
@@ -2760,16 +2788,8 @@ class Ndb_schema_event_handler {
           // invalidation already handled by binlog thread
           if (!share || !share->op)
           {
-            {
-              ndb->setDatabaseName(schema->db);
-              Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
-              ndbtab_g.invalidate();
-            }
-            TABLE_LIST table_list;
-            memset(&table_list, 0, sizeof(table_list));
-            table_list.db= schema->db;
-            table_list.alias= table_list.table_name= schema->name;
-            close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+            ndbapi_invalidate_table(schema->db, schema->name);
+            mysqld_close_cached_table(schema->db, schema->name);
           }
           /* ndb_share reference temporary free */
           if (share)
@@ -2936,18 +2956,8 @@ class Ndb_schema_event_handler {
 
       case SOT_DROP_TABLE:
         write_schema_op_to_binlog(thd, schema);
-        {
-          ndb->setDatabaseName(schema->db);
-          Ndb_table_guard ndbtab_g(dict, schema->name);
-          ndbtab_g.invalidate();
-        }
-        {
-          TABLE_LIST table_list;
-          memset(&table_list, 0, sizeof(table_list));
-          table_list.db= schema->db;
-          table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
-        }
+        ndbapi_invalidate_table(schema->db, schema->name);
+        mysqld_close_cached_table(schema->db, schema->name);
         break;
 
       case SOT_RENAME_TABLE:
@@ -2968,18 +2978,8 @@ class Ndb_schema_event_handler {
         if (schema->node_id == g_ndb_cluster_connection->node_id())
           break;
         write_schema_op_to_binlog(thd, schema);
-        {
-          ndb->setDatabaseName(schema->db);
-          Ndb_table_guard ndbtab_g(dict, schema->name);
-          ndbtab_g.invalidate();
-        }
-        {
-          TABLE_LIST table_list;
-          memset(&table_list, 0, sizeof(table_list));
-          table_list.db= schema->db;
-          table_list.alias= table_list.table_name= schema->name;
-          close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
-        }
+        ndbapi_invalidate_table(schema->db, schema->name);
+        mysqld_close_cached_table(schema->db, schema->name);
         if (share)
         {
           if (share->op)
@@ -3029,23 +3029,14 @@ class Ndb_schema_event_handler {
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
       {
         int error= 0;
-        ndb->setDatabaseName(schema->db);
-        {
-          Ndb_table_guard ndbtab_g(dict, schema->name);
-          ndbtab_g.get_table();
-          ndbtab_g.invalidate();
-        }
+        ndbapi_invalidate_table(schema->db, schema->name);
         Ndb_table_guard ndbtab_g(dict, schema->name);
         const NDBTAB *ndbtab= ndbtab_g.get_table();
         /*
           Refresh local frm file and dictionary cache if
           remote on-line alter table
         */
-        TABLE_LIST table_list;
-        memset(&table_list, 0, sizeof(table_list));
-        table_list.db= (char *)schema->db;
-        table_list.alias= table_list.table_name= (char *)schema->name;
-        close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
+        mysqld_close_cached_table(schema->db, schema->name);
 
         if (schema->node_id != g_ndb_cluster_connection->node_id())
         {
