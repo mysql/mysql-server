@@ -22,6 +22,14 @@
 #include <my_global.h>
 
 
+/**
+  Check if schema distribution has been initialized and is
+  ready. Will return true when the component is properly setup
+  to receive schema op events from the cluster.
+*/
+bool ndb_schema_dist_is_ready(void);
+
+
 /*
   The numbers below must not change as they
   are passed between mysql servers, and if changed

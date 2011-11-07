@@ -10001,13 +10001,13 @@ int ha_ndbcluster::create(const char *name,
   
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
-  /*
-    Don't allow table creation unless
-    schema distribution table is setup
-    ( unless it is a creation of the schema dist table itself )
-  */
-  if (!ndb_schema_share)
+
+  if (!ndb_schema_dist_is_ready())
   {
+    /*
+      Don't allow table creation unless schema distribution is ready
+      ( unless it is a creation of the schema dist table itself )
+    */
     if (!(strcmp(m_dbname, NDB_REP_DB) == 0 &&
           strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
     {
@@ -10534,7 +10534,7 @@ cleanup_failed:
                          get_binlog_full(share));
       int do_event_op= ndb_binlog_running;
 
-      if (!ndb_schema_share &&
+      if (!ndb_schema_dist_is_ready() &&
           strcmp(share->db, NDB_REP_DB) == 0 &&
           strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
         do_event_op= 1;
@@ -11089,13 +11089,10 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   NDBDICT *dict= ndb->getDictionary();
   int ndb_table_id= 0;
   int ndb_table_version= 0;
-  /*
-    Don't allow drop table unless
-    schema distribution table is setup
-  */
-  if (!ndb_schema_share)
+
+  if (!ndb_schema_dist_is_ready())
   {
-    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    /* Don't allow drop table unless schema distribution is ready */
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
   /* ndb_share reference temporary */
@@ -11245,15 +11242,10 @@ int ha_ndbcluster::delete_table(const char *name)
   set_dbname(name);
   set_tabname(name);
 
-  /*
-    Don't allow drop table unless
-    schema distribution table is setup
-  */
-  if (!ndb_schema_share)
+  if (!ndb_schema_dist_is_ready())
   {
-    DBUG_PRINT("info", ("Schema distribution table not setup"));
-    error= HA_ERR_NO_CONNECTION;
-    goto err;
+    /* Don't allow drop table unless schema distribution is ready */
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
   if (check_ndb_connection(thd))
@@ -12100,15 +12092,13 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
 {
   THD *thd= current_thd;
   DBUG_ENTER("ndbcluster_drop_database");
-  /*
-    Don't allow drop database unless
-    schema distribution table is setup
-  */
-  if (!ndb_schema_share)
+
+  if (!ndb_schema_dist_is_ready())
   {
-    DBUG_PRINT("info", ("Schema distribution table not setup"));
+    /* Don't allow drop database unless schema distribution is ready */
     DBUG_VOID_RETURN;
   }
+
   ndbcluster_drop_database_impl(thd, path);
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
@@ -13723,32 +13713,17 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 }
 
 
-/*
-  Get a share object for key
-
-  Returns share for key, and increases the refcount on the share.
-
-  create_if_not_exists == TRUE:
-    creates share if it does not alreade exist
-    returns 0 only due to out of memory, and then sets my_error
-
-  create_if_not_exists == FALSE:
-    returns 0 if share does not exist
-
-  have_lock == TRUE, pthread_mutex_lock(&ndbcluster_mutex) already taken
-*/
-
+static inline
 NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
-                                bool create_if_not_exists,
-                                bool have_lock)
+                                bool create_if_not_exists)
 {
   NDB_SHARE *share;
   uint length= (uint) strlen(key);
   DBUG_ENTER("ndbcluster_get_share");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
+  safe_mutex_assert_owner(&ndbcluster_mutex);
+
   if (!(share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                            (const uchar*) key,
                                            length)))
@@ -13756,8 +13731,6 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
     if (!create_if_not_exists)
     {
       DBUG_PRINT("error", ("get_share: %s does not exist", key));
-      if (!have_lock)
-        pthread_mutex_unlock(&ndbcluster_mutex);
       DBUG_RETURN(0);
     }
     if ((share= (NDB_SHARE*) my_malloc(sizeof(*share),
@@ -13779,8 +13752,6 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
         free_root(&share->mem_root, MYF(0));
         my_free((uchar*) share, 0);
         *root_ptr= old_root;
-        if (!have_lock)
-          pthread_mutex_unlock(&ndbcluster_mutex);
         DBUG_RETURN(0);
       }
       thr_lock_init(&share->lock);
@@ -13796,8 +13767,6 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
         DBUG_PRINT("error", ("get_share: %s could not init share", key));
         ndbcluster_real_free_share(&share);
         *root_ptr= old_root;
-        if (!have_lock)
-          pthread_mutex_unlock(&ndbcluster_mutex);
         DBUG_RETURN(0);
       }
       *root_ptr= old_root;
@@ -13805,8 +13774,6 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
     else
     {
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
-      if (!have_lock)
-        pthread_mutex_unlock(&ndbcluster_mutex);
       my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
       DBUG_RETURN(0);
     }
@@ -13817,8 +13784,36 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
 
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
+  DBUG_RETURN(share);
+}
+
+
+/**
+  Get NDB_SHARE for key
+
+  Returns share for key, and increases the refcount on the share.
+
+  @param create_if_not_exists, creates share if it does not already exist
+  @param have_lock, ndbcluster_mutex already locked
+*/
+
+NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
+                                bool create_if_not_exists,
+                                bool have_lock)
+{
+  NDB_SHARE *share;
+  DBUG_ENTER("ndbcluster_get_share");
+  DBUG_PRINT("enter", ("key: '%s', create_if_not_exists: %d, have_lock: %d",
+                       key, create_if_not_exists, have_lock));
+
+  if (!have_lock)
+    pthread_mutex_lock(&ndbcluster_mutex);
+
+  share= ndbcluster_get_share(key, table, create_if_not_exists);
+
   if (!have_lock)
     pthread_mutex_unlock(&ndbcluster_mutex);
+
   DBUG_RETURN(share);
 }
 
@@ -13843,25 +13838,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
     found= my_hash_delete(&ndbcluster_open_tables, (uchar*) *share) == 0;
   }
   assert(found);
-  thr_lock_delete(&(*share)->lock);
-  pthread_mutex_destroy(&(*share)->mutex);
 
-#ifdef HAVE_NDB_BINLOG
-  if ((*share)->m_cfn_share && (*share)->m_cfn_share->m_ex_tab && g_ndb)
-  {
-    NDBDICT *dict= g_ndb->getDictionary();
-    dict->removeTableGlobal(*(*share)->m_cfn_share->m_ex_tab, 0);
-    (*share)->m_cfn_share->m_ex_tab= 0;
-  }
-#endif
-  (*share)->new_op= 0;
-  if ((*share)->event_data)
-  {
-    delete (*share)->event_data;
-    (*share)->event_data= 0;
-  }
-  free_root(&(*share)->mem_root, MYF(0));
-  my_free((uchar*) *share, MYF(0));
+  NDB_SHARE::destroy(*share);
   *share= 0;
 
   dbug_print_open_tables();
