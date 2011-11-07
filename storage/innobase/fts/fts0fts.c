@@ -2639,8 +2639,6 @@ fts_delete(
 	is re-established and sync-ed */
 	if (table->fts->fts_status & ADDED_TABLE_SYNCED
 	    && doc_id > cache->synced_doc_id) {
-		fts_update_t*	update;
-
 		mutex_enter(&table->fts->cache->deleted_lock);
 
 		/* The Doc ID could belong to those left in
@@ -2656,16 +2654,6 @@ fts_delete(
 
 		/* Only if the row was really deleted. */
 		ut_a(row->state == FTS_DELETE || row->state == FTS_MODIFY);
-
-		mutex_enter(&cache->deleted_lock);
-
-		/* Add the doc id to the cache deleted doc id vector. */
-		update = ib_vector_push(cache->deleted_doc_ids, NULL);
-
-		update->doc_id = doc_id;
-		update->fts_indexes = row->fts_indexes;
-
-		mutex_exit(&cache->deleted_lock);
 	}
 
 	/* Note the deleted document for OPTIMIZE to purge. */
@@ -3247,9 +3235,15 @@ fts_add_doc_by_id(
 
 			fts_doc_free(&doc);
 		}
+
+		if (!is_id_cluster) {
+			btr_pcur_close(doc_pcur);
+		}
         }
 func_exit:
 	mtr_commit(&mtr);
+
+	btr_pcur_close(&pcur);
 
 	mem_heap_free(heap);
 	return(TRUE);
@@ -4163,6 +4157,7 @@ fts_process_token(
 	fts_doc_t*	result_doc;
 
 	str.f_str = buf;
+	str.f_n_char = 0;
 
 	/* Determine where to save the result. */
 	result_doc = (result) ? result : doc;

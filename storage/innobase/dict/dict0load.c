@@ -1445,6 +1445,13 @@ dict_load_indexes(
 			}
 		}
 
+		if (index->type & DICT_FTS
+		    && !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS)) {
+			/* This should have been created by now. */
+			ut_a(table->fts != NULL);
+			DICT_TF2_FLAG_SET(table, DICT_TF2_FTS);
+		}
+
 		/* We check for unsupported types first, so that the
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
@@ -1520,14 +1527,7 @@ corrupted:
 
 				goto func_exit;
 			}
-
-			if (index->type == DICT_FTS) {
-				/* This should have been created by now. */
-				ut_a(table->fts != NULL);
-				DICT_TF2_FLAG_SET(table, DICT_TF2_FTS);
-			}
 		}
-
 next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}

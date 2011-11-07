@@ -3323,6 +3323,9 @@ fts_query_free_result(
 			rbt_free(result->rankings_by_rank);
 			result->rankings_by_rank = NULL;
 		}
+
+		ut_free(result);
+		result = NULL;
 	}
 }
 
