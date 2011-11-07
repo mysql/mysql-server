@@ -103,6 +103,8 @@ inline TableSpec::TableSpec(const char *db, const char *tab,
 inline void TableSpec::setTable(const char *db, const char *table) {
   schema_name = db;
   table_name = table;
+  must_free.schema_name = 1;
+  must_free.table_name  = 1;
 }
 
 
