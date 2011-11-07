@@ -2338,5 +2338,59 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` = (select max(`test`.`t`.`i`) from `test`.`t`))
 drop table t,subq;
+create table mytable(i int, s varchar(255) ) engine = ndb;
+insert into mytable values(0,"Text Hej"),(1, "xText aaja");
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+select * from mytable where s like concat("%Text","%") or s like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like concat("%Text1","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like "%Text1%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s not like concat("%Text","%") or s not like concat("%Text","%") order by i;
+i	s
+select * from mytable where s not like concat("%Text1","%") or s not like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s not like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text1","%") or s not like "%Text%" order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") and s like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") and s like concat("%Text1","%") order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s like "%Text1%" order by i;
+i	s
+select * from mytable where s not like concat("%Text","%") and s not like concat("%Text","%") order by i;
+i	s
+select * from mytable where s not like concat("%Text","%") and s not like concat("%Text1","%") order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+drop table mytable;
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

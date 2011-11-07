@@ -1352,18 +1352,27 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_LIKE_FUNC:
     {
       if (!value || !field) break;
-      if ((value->qualification.value_type != Item::STRING_ITEM) &&
-          (value->qualification.value_type != Item::VARBIN_ITEM))
-          break;
+      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
+      bool is_varbin= (value->qualification.value_type == Item::VARBIN_ITEM);
+      if (!is_string && !is_varbin)
+        break;
       // Save value in right format for the field type
-      value->save_in_field(field);
+      uint32 len= value->save_in_field(field);
+      char buff[MAX_FIELD_WIDTH];
+      String str(buff,sizeof(buff),field->get_field_charset());
+      field->get_field_val_str(&str);
+      const char *val=
+        ((value->is_const_func() || value->is_cached()) && is_string)?
+        str.ptr()
+        : value->get_val();
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
-                          field->get_field_no(), value->get_val(), 
-                          value->pack_length()));
+                          field->get_field_no(),
+                          val,
+                          len));
       if (filter->cmp(NdbScanFilter::COND_LIKE, 
                       field->get_field_no(),
-                      value->get_val(),
-                      value->pack_length()) == -1)
+                      val,
+                      len) == -1)
         DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
@@ -1371,18 +1380,27 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_NOTLIKE_FUNC:
     {
       if (!value || !field) break;
-      if ((value->qualification.value_type != Item::STRING_ITEM) &&
-          (value->qualification.value_type != Item::VARBIN_ITEM))
-          break;
+      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
+      bool is_varbin= (value->qualification.value_type == Item::VARBIN_ITEM);
+      if (!is_string && !is_varbin)
+        break;
       // Save value in right format for the field type
-      value->save_in_field(field);
+      uint32 len= value->save_in_field(field);
+      char buff[MAX_FIELD_WIDTH];
+      String str(buff,sizeof(buff),field->get_field_charset());
+      field->get_field_val_str(&str);
+      const char *val=
+        ((value->is_const_func() || value->is_cached()) && is_string)?
+        str.ptr()
+        : value->get_val();
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
-                          field->get_field_no(), value->get_val(), 
-                          value->pack_length()));
+                          field->get_field_no(),
+                          (value->pack_length() > len)?value->get_val():val,
+                          (value->pack_length() > len)?value->pack_length():len));
       if (filter->cmp(NdbScanFilter::COND_NOT_LIKE, 
                       field->get_field_no(),
-                      value->get_val(),
-                      value->pack_length()) == -1)
+                      (value->pack_length() > len)?value->get_val():val,
+                      (value->pack_length() > len)?value->pack_length():len) == -1)
         DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
