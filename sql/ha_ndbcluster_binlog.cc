@@ -2941,7 +2941,6 @@ class Ndb_schema_event_handler {
                               schema->db ? schema->db : "(null)",
                               schema->name ? schema->name : "(null)");
 
-      NDB_SHARE *share= get_share(schema);
       switch (schema_type)
       {
       case SOT_DROP_DB:
@@ -2955,25 +2954,39 @@ class Ndb_schema_event_handler {
         break;
 
       case SOT_RENAME_TABLE:
+      {
         write_schema_op_to_binlog(thd, schema);
+        NDB_SHARE *share= get_share(schema);
         if (share)
         {
           ndbcluster_rename_share(thd, share);
+          free_share(&share);
         }
         break;
+      }
 
       case SOT_RENAME_TABLE_PREPARE:
-        if (share &&
-            schema->node_id != g_ndb_cluster_connection->node_id())
+      {
+        if (schema->node_id == own_nodeid())
+          break;
+        NDB_SHARE *share= get_share(schema);
+        if (share)
+        {
           ndbcluster_prepare_rename_share(share, schema->query);
+          free_share(&share);
+        }
         break;
+      }
 
       case SOT_ALTER_TABLE_COMMIT:
-        if (schema->node_id == g_ndb_cluster_connection->node_id())
+      {
+        if (schema->node_id == own_nodeid())
           break;
         write_schema_op_to_binlog(thd, schema);
         ndbapi_invalidate_table(schema->db, schema->name);
         mysqld_close_cached_table(schema->db, schema->name);
+
+        NDB_SHARE *share= get_share(schema);
         if (share)
         {
           if (share->op)
@@ -3001,7 +3014,6 @@ class Ndb_schema_event_handler {
           DBUG_PRINT("NDB_SHARE", ("%s early free, use_count: %u",
                                    share->key, share->use_count));
           free_share(&share);
-          share= 0;
         }
 
         thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -3019,6 +3031,7 @@ class Ndb_schema_event_handler {
           print_could_not_discover_error(thd, schema);
         }
         break;
+      }
 
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
       {
@@ -3032,7 +3045,7 @@ class Ndb_schema_event_handler {
         */
         mysqld_close_cached_table(schema->db, schema->name);
 
-        if (schema->node_id != g_ndb_cluster_connection->node_id())
+        if (schema->node_id != own_nodeid())
         {
           char key[FN_REFLEN];
           uchar *data= 0, *pack_data= 0;
@@ -3067,6 +3080,7 @@ class Ndb_schema_event_handler {
           my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
           my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
         }
+        NDB_SHARE *share= get_share(schema);
         if (share)
         {
           if (opt_ndb_extra_logging > 9)
@@ -3114,6 +3128,11 @@ class Ndb_schema_event_handler {
           share->op= tmp_op;
           pthread_mutex_unlock(&share->mutex);
 
+          if (share)
+          {
+            free_share(&share);
+          }
+
           if (opt_ndb_extra_logging > 9)
             sql_print_information("NDB Binlog: handeling online alter/rename done");
         }
@@ -3122,6 +3141,7 @@ class Ndb_schema_event_handler {
 
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
       {
+        NDB_SHARE *share= get_share(schema);
         if (share)
         {
           pthread_mutex_lock(&share->mutex);
@@ -3140,12 +3160,16 @@ class Ndb_schema_event_handler {
             free_share(&share);
           }
           pthread_mutex_unlock(&share->mutex);
+
+          free_share(&share);
         }
         break;
       }
 
       case SOT_RENAME_TABLE_NEW:
+      {
         write_schema_op_to_binlog(thd, schema);
+        NDB_SHARE *share= get_share(schema);
         if (ndb_binlog_running && (!share || !share->op))
         {
           /*
@@ -3175,19 +3199,15 @@ class Ndb_schema_event_handler {
             print_could_not_discover_error(thd, schema);
           }
         }
+        if (share)
+        {
+          free_share(&share);
+        }
         break;
+      }
 
       default:
         DBUG_ASSERT(FALSE);
-      }
-
-      if (share)
-      {
-        /* ndb_share reference temporary free */
-        DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                 share->key, share->use_count));
-        free_share(&share);
-        share= 0;
       }
     }
 
