@@ -139,13 +139,6 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
                               enum ha_stat_type stat_type);
 
 /*
-  prototypes for ndb handler utility function also needed by
-  the ndb binlog code
-*/
-int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
-            size_t pack_length);
-
-/*
   Helper functions
 */
 bool
