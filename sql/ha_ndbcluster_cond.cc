@@ -1219,7 +1219,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       String str(buff,sizeof(buff),field->get_field_charset());
       field->get_field_val_str(&str);
       const char *val=
-        (value->is_const_func() & is_string)?
+        (value->is_const_func() && is_string)?
         str.ptr()
         : value->get_val();
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
@@ -1247,7 +1247,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       String str(buff,sizeof(buff),field->get_field_charset());
       field->get_field_val_str(&str);
       const char *val=
-        (value->is_const_func() & is_string)?
+        (value->is_const_func() && is_string)?
         str.ptr()
         : value->get_val();
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
