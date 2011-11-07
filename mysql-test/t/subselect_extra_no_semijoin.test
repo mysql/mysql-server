@@ -1,5 +1,5 @@
 set @subselect_extra_no_sj_tmp=@@optimizer_switch;
-set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='semijoin=off,firstmatch=off,loosescan=off';
 
 --source t/subselect_extra.test
 
