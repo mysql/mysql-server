@@ -4713,6 +4713,7 @@ ha_innobase::index_read(
 					index,
 					(byte*) key_ptr,
 					(ulint) key_len, prebuilt->trx);
+		DBUG_ASSERT(prebuilt->search_tuple->n_fields > 0);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -6168,6 +6169,7 @@ ha_innobase::records_in_range(
 	void*		heap2;
 
 	DBUG_ENTER("records_in_range");
+	DBUG_ASSERT(min_key || max_key);
 
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -6198,6 +6200,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (min_key ? min_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(min_key
+		    ? range_start->n_fields > 0
+		    : range_start->n_fields == 0);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
@@ -6206,6 +6211,9 @@ ha_innobase::records_in_range(
 					 (const uchar*) 0),
 				(ulint) (max_key ? max_key->length : 0),
 				prebuilt->trx);
+	DBUG_ASSERT(max_key
+		    ? range_end->n_fields > 0
+		    : range_end->n_fields == 0);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
 						HA_READ_KEY_EXACT);
