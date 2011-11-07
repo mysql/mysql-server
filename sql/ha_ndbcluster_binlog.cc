@@ -265,7 +265,7 @@ static void run_query(THD *thd, char *buf, char *end,
 }
 
 static void
-ndb_binlog_close_shadow_table(THD *thd, NDB_SHARE *share)
+ndb_binlog_close_shadow_table(NDB_SHARE *share)
 {
   DBUG_ENTER("ndb_binlog_close_shadow_table");
   Ndb_event_data *event_data= share->event_data;
@@ -2700,6 +2700,198 @@ class Ndb_schema_event_handler {
   }
 
 
+  void
+  handle_offline_alter_table_commit(Ndb_schema_op* schema)
+  {
+    if (schema->node_id == own_nodeid())
+      return;
+
+    write_schema_op_to_binlog(m_thd, schema);
+    ndbapi_invalidate_table(schema->db, schema->name);
+    mysqld_close_cached_table(schema->db, schema->name);
+
+    NDB_SHARE *share= get_share(schema);
+    if (share)
+    {
+      if (share->op)
+      {
+        Ndb_event_data *event_data=
+          (Ndb_event_data *) share->op->getCustomData();
+        if (event_data)
+          delete event_data;
+        share->op->setCustomData(NULL);
+        {
+          Mutex_guard injector_mutex_g(injector_mutex);
+          injector_ndb->dropEventOperation(share->op);
+        }
+        share->op= 0;
+        free_share(&share);
+      }
+      free_share(&share);
+    }
+
+    if (share)
+    {
+      /*
+        Free the share pointer early, ndb_create_table_from_engine()
+        may delete what share is pointing to as a sideeffect
+      */
+      DBUG_PRINT("NDB_SHARE", ("%s early free, use_count: %u",
+                               share->key, share->use_count));
+      free_share(&share);
+    }
+
+    if (ndbcluster_check_if_local_table(schema->db, schema->name) &&
+       !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
+                                                      schema->name))
+    {
+      sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' "
+                      "from binlog schema event '%s' from node %d.",
+                      schema->db, schema->name, schema->query,
+                      schema->node_id);
+      return;
+    }
+
+    if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
+    {
+      print_could_not_discover_error(m_thd, schema);
+    }
+  }
+
+
+  void
+  handle_online_alter_table_prepare(Ndb_schema_op* schema)
+  {
+    ndbapi_invalidate_table(schema->db, schema->name);
+    mysqld_close_cached_table(schema->db, schema->name);
+
+    int error= 0;
+    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+    Ndb *ndb= thd_ndb->ndb;
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (schema->node_id != own_nodeid())
+    {
+      char key[FN_REFLEN];
+      uchar *data= 0, *pack_data= 0;
+      size_t length, pack_length;
+
+      DBUG_PRINT("info", ("Detected frm change of table %s.%s",
+                          schema->db, schema->name));
+      write_schema_op_to_binlog(m_thd, schema);
+      build_table_filename(key, FN_LEN-1, schema->db, schema->name, NullS, 0);
+      /*
+        If the there is no local table shadowing the altered table and
+        it has an frm that is different than the one on disk then
+        overwrite it with the new table definition
+      */
+      if (!ndbcluster_check_if_local_table(schema->db, schema->name) &&
+          readfrm(key, &data, &length) == 0 &&
+          packfrm(data, length, &pack_data, &pack_length) == 0 &&
+          cmp_frm(ndbtab, pack_data, pack_length))
+      {
+        DBUG_DUMP("frm", (uchar*) ndbtab->getFrmData(),
+                  ndbtab->getFrmLength());
+        my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+        data= NULL;
+        if ((error= unpackfrm(&data, &length,
+                              (const uchar*) ndbtab->getFrmData())) ||
+            (error= writefrm(key, data, length)))
+        {
+          sql_print_error("NDB: Failed write frm for %s.%s, error %d",
+                          schema->db, schema->name, error);
+        }
+      }
+      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    }
+    NDB_SHARE *share= get_share(schema);
+    if (share)
+    {
+      if (opt_ndb_extra_logging > 9)
+        sql_print_information("NDB Binlog: handeling online alter/rename");
+
+      pthread_mutex_lock(&share->mutex);
+      ndb_binlog_close_shadow_table(share);
+
+      if ((error= ndb_binlog_open_shadow_table(m_thd, share)))
+        sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
+                        schema->db, schema->name);
+      if (error)
+        pthread_mutex_unlock(&share->mutex);
+    }
+    if (!error && share)
+    {
+      if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
+        share->flags|= NSF_HIDDEN_PK;
+      /*
+        Refresh share->flags to handle added BLOB columns
+      */
+      if (share->event_data->shadow_table->s->blob_fields != 0)
+        share->flags|= NSF_BLOB_FLAG;
+
+      /*
+        Start subscribing to data changes to the new table definition
+      */
+      String event_name(INJECTOR_EVENT_LEN);
+      ndb_rep_event_name(&event_name, schema->db, schema->name,
+                         get_binlog_full(share));
+      NdbEventOperation *tmp_op= share->op;
+      share->new_op= 0;
+      share->op= 0;
+
+      if (ndbcluster_create_event_ops(m_thd, share, ndbtab, event_name.c_ptr()))
+      {
+        sql_print_error("NDB Binlog:"
+                        "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
+                        event_name.c_ptr());
+      }
+      else
+      {
+        share->new_op= share->op;
+      }
+      share->op= tmp_op;
+      pthread_mutex_unlock(&share->mutex);
+
+      if (opt_ndb_extra_logging > 9)
+        sql_print_information("NDB Binlog: handeling online alter/rename done");
+    }
+    if (share)
+    {
+      free_share(&share);
+    }
+  }
+
+
+  void
+  handle_online_alter_table_commit(Ndb_schema_op* schema)
+  {
+    NDB_SHARE *share= get_share(schema);
+    if (share)
+    {
+      pthread_mutex_lock(&share->mutex);
+      if (share->op && share->new_op)
+      {
+        Ndb_event_data *event_data=
+          (Ndb_event_data *) share->op->getCustomData();
+        if (event_data)
+          delete event_data;
+        share->op->setCustomData(NULL);
+        {
+          Mutex_guard injector_mutex_g(injector_mutex);
+          injector_ndb->dropEventOperation(share->op);
+        }
+        share->op= share->new_op;
+        share->new_op= 0;
+        free_share(&share);
+      }
+      pthread_mutex_unlock(&share->mutex);
+
+      free_share(&share);
+    }
+  }
+
+
   int
   handle_schema_op(Ndb_schema_op* schema)
   {
@@ -2977,190 +3169,16 @@ class Ndb_schema_event_handler {
       }
 
       case SOT_ALTER_TABLE_COMMIT:
-      {
-        if (schema->node_id == own_nodeid())
-          break;
-        write_schema_op_to_binlog(thd, schema);
-        ndbapi_invalidate_table(schema->db, schema->name);
-        mysqld_close_cached_table(schema->db, schema->name);
-
-        NDB_SHARE *share= get_share(schema);
-        if (share)
-        {
-          if (share->op)
-          {
-            Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
-            if (event_data)
-              delete event_data;
-            share->op->setCustomData(NULL);
-            {
-              Mutex_guard injector_mutex_g(injector_mutex);
-              injector_ndb->dropEventOperation(share->op);
-            }
-            share->op= 0;
-            free_share(&share);
-          }
-          free_share(&share);
-        }
-
-        if (share)
-        {
-          /*
-            Free the share pointer early, ndb_create_table_from_engine()
-            may delete what share is pointing to as a sideeffect
-          */
-          DBUG_PRINT("NDB_SHARE", ("%s early free, use_count: %u",
-                                   share->key, share->use_count));
-          free_share(&share);
-        }
-
-        if (ndbcluster_check_if_local_table(schema->db, schema->name) &&
-           !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
-                                                          schema->name))
-        {
-          sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' "
-                          "from binlog schema event '%s' from node %d.",
-                          schema->db, schema->name, schema->query,
-                          schema->node_id);
-        }
-        else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
-        {
-          print_could_not_discover_error(thd, schema);
-        }
+        handle_offline_alter_table_commit(schema);
         break;
-      }
 
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
-      {
-        int error= 0;
-        ndbapi_invalidate_table(schema->db, schema->name);
-        Ndb_table_guard ndbtab_g(dict, schema->name);
-        const NDBTAB *ndbtab= ndbtab_g.get_table();
-        /*
-          Refresh local frm file and dictionary cache if
-          remote on-line alter table
-        */
-        mysqld_close_cached_table(schema->db, schema->name);
-
-        if (schema->node_id != own_nodeid())
-        {
-          char key[FN_REFLEN];
-          uchar *data= 0, *pack_data= 0;
-          size_t length, pack_length;
- 
-          DBUG_PRINT("info", ("Detected frm change of table %s.%s",
-                              schema->db, schema->name));
-          write_schema_op_to_binlog(thd, schema);
-          build_table_filename(key, FN_LEN-1, schema->db, schema->name, NullS, 0);
-          /*
-            If the there is no local table shadowing the altered table and 
-            it has an frm that is different than the one on disk then 
-            overwrite it with the new table definition
-          */
-          if (!ndbcluster_check_if_local_table(schema->db, schema->name) &&
-              readfrm(key, &data, &length) == 0 &&
-              packfrm(data, length, &pack_data, &pack_length) == 0 &&
-              cmp_frm(ndbtab, pack_data, pack_length))
-          {
-            DBUG_DUMP("frm", (uchar*) ndbtab->getFrmData(), 
-                      ndbtab->getFrmLength());
-            my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-            data= NULL;
-            if ((error= unpackfrm(&data, &length,
-                                  (const uchar*) ndbtab->getFrmData())) ||
-                (error= writefrm(key, data, length)))
-            {
-              sql_print_error("NDB: Failed write frm for %s.%s, error %d",
-                              schema->db, schema->name, error);
-            }
-          }
-          my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-          my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
-        }
-        NDB_SHARE *share= get_share(schema);
-        if (share)
-        {
-          if (opt_ndb_extra_logging > 9)
-            sql_print_information("NDB Binlog: handeling online alter/rename");
-
-          pthread_mutex_lock(&share->mutex);
-          ndb_binlog_close_shadow_table(thd, share);
-
-          if ((error= ndb_binlog_open_shadow_table(thd, share)))
-            sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
-                            schema->db, schema->name);
-          if (error)
-            pthread_mutex_unlock(&share->mutex);
-        }
-        if (!error && share)
-        {
-          if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
-            share->flags|= NSF_HIDDEN_PK;
-          /*
-            Refresh share->flags to handle added BLOB columns
-          */
-          if (share->event_data->shadow_table->s->blob_fields != 0)
-            share->flags|= NSF_BLOB_FLAG;
-
-          /*
-            Start subscribing to data changes to the new table definition
-          */
-          String event_name(INJECTOR_EVENT_LEN);
-          ndb_rep_event_name(&event_name, schema->db, schema->name,
-                             get_binlog_full(share));
-          NdbEventOperation *tmp_op= share->op;
-          share->new_op= 0;
-          share->op= 0;
-
-          if (ndbcluster_create_event_ops(thd, share, ndbtab, event_name.c_ptr()))
-          {
-            sql_print_error("NDB Binlog:"
-                            "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
-                            event_name.c_ptr());
-          }
-          else
-          {
-            share->new_op= share->op;
-          }
-          share->op= tmp_op;
-          pthread_mutex_unlock(&share->mutex);
-
-          if (opt_ndb_extra_logging > 9)
-            sql_print_information("NDB Binlog: handeling online alter/rename done");
-        }
-        if (share)
-        {
-          free_share(&share);
-        }
+        handle_online_alter_table_prepare(schema);
         break;
-      }
 
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
-      {
-        NDB_SHARE *share= get_share(schema);
-        if (share)
-        {
-          pthread_mutex_lock(&share->mutex);
-          if (share->op && share->new_op)
-          {
-            Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
-            if (event_data)
-              delete event_data;
-            share->op->setCustomData(NULL);
-            {
-              Mutex_guard injector_mutex_g(injector_mutex);
-              injector_ndb->dropEventOperation(share->op);
-            }
-            share->op= share->new_op;
-            share->new_op= 0;
-            free_share(&share);
-          }
-          pthread_mutex_unlock(&share->mutex);
-
-          free_share(&share);
-        }
+        handle_online_alter_table_commit(schema);
         break;
-      }
 
       case SOT_RENAME_TABLE_NEW:
       {
