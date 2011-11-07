@@ -2580,6 +2580,20 @@ class Ndb_schema_event_handler {
                         wait_for_refresh, timeout);
   }
 
+  NDB_SHARE* get_share(Ndb_schema_op* schema) const
+  {
+    char key[FN_REFLEN + 1];
+    build_table_filename(key, sizeof(key) - 1,
+                         schema->db, schema->name, "", 0);
+    NDB_SHARE *share= ndbcluster_get_share(key, 0, FALSE, FALSE);
+    if (share)
+    {
+      DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
+                               share->key, share->use_count));
+    }
+    return share;
+  }
+
 
   bool
   check_if_local_tables_in_db(const char *dbname) const
@@ -2773,29 +2787,15 @@ class Ndb_schema_event_handler {
           // Fall through
 	case SOT_TRUNCATE_TABLE:
         {
-          char key[FN_REFLEN + 1];
-          build_table_filename(key, sizeof(key) - 1,
-                               schema->db, schema->name, "", 0);
-          /* ndb_share reference temporary, free below */
-          NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
-          if (share)
-          {
-            DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                                     share->key, share->use_count));
-          }
+          NDB_SHARE *share= get_share(schema);
           // invalidation already handled by binlog thread
           if (!share || !share->op)
           {
             ndbapi_invalidate_table(schema->db, schema->name);
             mysqld_close_cached_table(schema->db, schema->name);
           }
-          /* ndb_share reference temporary free */
           if (share)
-          {
-            DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                     share->key, share->use_count));
             free_share(&share);
-          }
         }
         if (schema_type != SOT_TRUNCATE_TABLE)
           break;
@@ -2939,13 +2939,7 @@ class Ndb_schema_event_handler {
                               schema->db ? schema->db : "(null)",
                               schema->name ? schema->name : "(null)");
 
-      /* ndb_share reference temporary, free below */
-      NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
-      if (share)
-      {
-        DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                                 share->key, share->use_count));
-      }
+      NDB_SHARE *share= get_share(schema);
       switch (schema_type)
       {
       case SOT_DROP_DB:
