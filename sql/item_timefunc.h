@@ -677,11 +677,13 @@ class MYSQL_TIME_cache
     If string representation has already been cached, then nothing happens.
   */
   void cache_string();
-public:
-
-  MYSQL_TIME_cache()
+  /**
+    Reset string representation.
+  */
+  void reset_string()
   {
-    reset();
+    string_length= 0;
+    string_buff[0]= '\0';
   }
   /**
     Reset all members.
@@ -690,9 +692,14 @@ public:
   {
     time.time_type= MYSQL_TIMESTAMP_NONE;
     time_packed= 0;
-    string_length= 0;
-    string_buff[0]= '\0';
+    reset_string();
     dec= 0;
+  }
+public:
+
+  MYSQL_TIME_cache()
+  {
+    reset();
   }
   /**
     Set time and time_packed from a DATE value.

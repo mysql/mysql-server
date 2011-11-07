@@ -414,7 +414,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
   str= cache.val_str(&str_buff);
   EXPECT_STREQ("2011-11-07 10:20:30.123456", str->c_ptr_safe());
   EXPECT_STREQ("2011-11-07 10:20:30.123456", cache.cptr());
-  cache.reset();
   cache.set_datetime(&datetime6, 6);
   // Now call the other way around: cptr() then val_str()
   EXPECT_STREQ("2011-11-07 10:20:30.123456", cache.cptr());
@@ -446,7 +445,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
      Testing DATETIME(6).
      Initializing from "struct timeval".
   */
-  cache.reset();
   cache.set_datetime(tv6, 6, my_tz_UTC);
   EXPECT_EQ(1840440237558456896LL, cache.val_packed());
   EXPECT_EQ(6, cache.decimals());
@@ -458,7 +456,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
     Testing TIME(6).
     Initializing from MYSQL_TIME.
   */
-  cache.reset();
   cache.set_time(&time6, 6);
   EXPECT_EQ(709173043776LL, cache.val_packed());
   EXPECT_EQ(6, cache.decimals());
@@ -471,7 +468,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
     Testing TIME(6).
     Initializing from "struct timeval".
   */
-  cache.reset();
   cache.set_time(tv6, 6, my_tz_UTC);
   EXPECT_EQ(709173043776LL, cache.val_packed());
   EXPECT_EQ(6, cache.decimals());
@@ -482,7 +478,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
   /*
     Testing DATETIME(5)
   */
-  cache.reset();
   MYSQL_TIME datetime5=
   { 2011, 11, 7, 10, 20, 30, 123450, 0, MYSQL_TIMESTAMP_DATETIME };
   cache.set_datetime(&datetime5, 5);
@@ -492,7 +487,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
   str= cache.val_str(&str_buff);
   EXPECT_STREQ("2011-11-07 10:20:30.12345", str->c_ptr_safe());
   EXPECT_STREQ("2011-11-07 10:20:30.12345", cache.cptr());
-  cache.reset();
   cache.set_datetime(&datetime5, 5);
   /* Now call the other way around: cptr() then val_str() */
   EXPECT_STREQ("2011-11-07 10:20:30.12345", cache.cptr());
@@ -502,7 +496,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
     Testing DATE.
     Initializing from MYSQL_TIME.
   */
-  cache.reset();
   MYSQL_TIME date=
   { 2011, 11, 7, 0, 0, 0, 0, 0, MYSQL_TIMESTAMP_DATE };
   cache.set_date(&date);
@@ -516,7 +509,6 @@ TEST_F(ItemTest, MYSQL_TIME_cache)
     Testing DATE.
     Initializing from "struct tm".
   */
-  cache.reset();
   cache.set_date(tv6, my_tz_UTC);
   EXPECT_EQ(1840439528385413120LL, cache.val_packed());
   EXPECT_EQ(0, cache.decimals());
