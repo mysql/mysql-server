@@ -2929,12 +2929,6 @@ class Ndb_schema_event_handler {
 
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
-      if (schema_type == SOT_CLEAR_SLOCK)
-      {
-        handle_clear_slock(schema, true);
-        DBUG_VOID_RETURN;
-      }
-
       if (opt_ndb_extra_logging > 9)
         sql_print_information("%s - %s.%s",
                               get_schema_type_name(schema_type),
@@ -2943,6 +2937,10 @@ class Ndb_schema_event_handler {
 
       switch (schema_type)
       {
+      case SOT_CLEAR_SLOCK:
+        handle_clear_slock(schema, true);
+        break;
+
       case SOT_DROP_DB:
         write_schema_op_to_binlog(thd, schema);
         break;
