@@ -69,7 +69,10 @@ class TableSpec {
     unsigned all_val_cols : 1;
     unsigned special_cols : 1;   
   } must_free;
-    
+
+  /* private instance methods */
+  void initialize_flags(void);
+
   /* private class methods */
   static int build_column_list(const char ** const &array, const char *list);  
 };

@@ -74,6 +74,18 @@ int TableSpec::build_column_list(const char ** const &col_array,
 }
 
 
+void TableSpec::initialize_flags() {
+  must_free.none         = 0;
+  must_free.schema_name  = 0;
+  must_free.table_name   = 0;
+  must_free.first_key    = 0;
+  must_free.all_key_cols = 0;
+  must_free.first_val    = 0;
+  must_free.all_val_cols = 0;
+  must_free.special_cols = 0;
+}
+
+
 /* This constructor takes comma-separated lists of key-columns and value columns
 */
 TableSpec::TableSpec(const char *sqltable,
@@ -83,6 +95,8 @@ TableSpec::TableSpec(const char *sqltable,
   key_columns(new const char *[MAX_KEY_COLUMNS]) ,
   value_columns(new const char *[MAX_VAL_COLUMNS]) 
 {
+  initialize_flags();
+  
   nkeycols = build_column_list(key_columns, keycols);
   if(nkeycols) must_free.first_key = 1;
   
@@ -100,8 +114,6 @@ TableSpec::TableSpec(const char *sqltable,
       *s = '\0' ;
       table_name = s+1;
     }
-    must_free.none = 0;
-    must_free.table_name = must_free.all_val_cols = must_free.special_cols = 0;
   }
 }
 
@@ -116,6 +128,8 @@ TableSpec::TableSpec(const TableSpec &t) :
   key_columns(new const char *[t.nkeycols]) ,
   value_columns(new const char *[t.nvaluecols])
 { 
+   initialize_flags();
+   
    must_free.schema_name = must_free.table_name = 1;
    must_free.special_cols = 1;
    if(nkeycols) {
@@ -128,7 +142,6 @@ TableSpec::TableSpec(const TableSpec &t) :
        value_columns[i] = strdup(t.value_columns[i]);
      must_free.all_val_cols = 1;
   }
-  must_free.first_key = must_free.first_val = 0;
 }
 
 
