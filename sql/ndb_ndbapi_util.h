@@ -38,4 +38,15 @@ int get_ndb_blobs_value(struct TABLE* table, NdbValue* value_array,
 char *ndb_pack_varchar(const NdbDictionary::Column *col,
                        char *buf, const char *str, int sz);
 
+/**
+  Check that frm-file blob in pack_data is equal
+  to frm-file of the NdbDictionary::Table.
+
+  @retval
+    0    ok
+*/
+
+int cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
+            size_t pack_length);
+
 #endif

@@ -43,6 +43,21 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col, char *buf,
 }
 
 
+int
+cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
+        size_t pack_length)
+{
+  DBUG_ENTER("cmp_frm");
+  /*
+    Compare the NDB tables FrmData with frm file blob in pack_data.
+  */
+  if ((pack_length != ndbtab->getFrmLength()) ||
+      (memcmp(pack_data, ndbtab->getFrmData(), pack_length)))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+
 #ifndef MYSQL_SERVER
 #define MYSQL_SERVER
 #endif
