@@ -215,6 +215,7 @@ SET(TESTS
   dbug
   decimal
   dynarray
+  filesort_buffer
   mdl
   mdl_mytap
   my_bitmap
