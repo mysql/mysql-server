@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-#ifdef WORDS_BIGENDIAN
-
 #define sint3korr(A)  ((Int32) ((((Uint8) (A)[2]) & 128) ? \
                                 (((Uint32) 255L << 24) | \
                                  (((Uint32) (Uint8) (A)[2]) << 16) |\
@@ -32,20 +30,4 @@
 #define uint3korr(A)  (Uint32) (((Uint32) ((Uint8) (A)[0])) +\
                                 (((Uint32) ((Uint8) (A)[1])) << 8) +\
                                 (((Uint32) ((Uint8) (A)[2])) << 16))
-#else
-
-#define sint3korr(A)	((Int32) ((((Uint8) (A)[2]) & 128) ? \
-				  (((Uint32) 255L << 24) | \
-				   (((Uint32) (Uint8) (A)[2]) << 16) |\
-				   (((Uint32) (Uint8) (A)[1]) << 8) | \
-				   ((Uint32) (Uint8) (A)[0])) : \
-				  (((Uint32) (Uint8) (A)[2]) << 16) |\
-				  (((Uint32) (Uint8) (A)[1]) << 8) | \
-				  ((Uint32) (Uint8) (A)[0])))
-
-#define uint3korr(A)	(Uint32) (((Uint32) ((Uint8) (A)[0])) +\
-				  (((Uint32) ((Uint8) (A)[1])) << 8) +\
-				  (((Uint32) ((Uint8) (A)[2])) << 16))
-
-
-#endif
+                                
