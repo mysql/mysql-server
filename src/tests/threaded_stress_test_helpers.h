@@ -510,6 +510,16 @@ static int UU() remove_and_recreate_me(DB_ENV *env, DB **dbp, DB_TXN *UU(txn), A
     return 0;
 }
 
+static int UU() truncate_me(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG UU(arg)) {
+    int r;
+    u_int32_t row_count = 0;
+    r = (*dbp)->truncate(*dbp, txn, &row_count, 0);
+    assert(r == 0);
+    return 0;
+}
+
+
+
 struct test_time_extra {
     int num_seconds;
     bool crash_at_end;
@@ -581,6 +591,8 @@ static int create_table(DB_ENV **env_res, DB **db_res,
                         int (*bt_compare)(DB *, const DBT *, const DBT *),
                         u_int32_t cachesize,
                         u_int32_t checkpointing_period,
+                        u_int32_t cleaner_period,
+                        u_int32_t cleaner_iterations,
                         u_int32_t pagesize,
                         u_int32_t readpagesize,
                         char *envdir) {
@@ -598,8 +610,9 @@ static int create_table(DB_ENV **env_res, DB **db_res,
     r = env->set_cachesize(env, 0, cachesize, 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
     r = env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
-    r = env->checkpointing_set_period(env, checkpointing_period);
-    CKERR(r);
+    r = env->checkpointing_set_period(env, checkpointing_period); CKERR(r);
+    r = env->cleaner_set_period(env, cleaner_period); CKERR(r);
+    r = env->cleaner_set_iterations(env, cleaner_iterations); CKERR(r);
 
     DB *db;
     r = db_create(&db, env, 0);
@@ -676,6 +689,8 @@ static int open_table(DB_ENV **env_res, DB **db_res,
                       int (*bt_compare)(DB *, const DBT *, const DBT *),
                       u_int64_t cachesize,
                       u_int32_t checkpointing_period,
+                      u_int32_t cleaner_period,
+                      u_int32_t cleaner_iterations,
                       test_update_callback_f f,
                       char *envdir) {
     int r;
@@ -690,8 +705,9 @@ static int open_table(DB_ENV **env_res, DB **db_res,
     r = env->set_cachesize(env, cachesize / (1 << 30), cachesize % (1 << 30), 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
     r = env->open(env, envdir, DB_RECOVER|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
-    r = env->checkpointing_set_period(env, checkpointing_period);
-    CKERR(r);
+    r = env->checkpointing_set_period(env, checkpointing_period); CKERR(r);
+    r = env->cleaner_set_period(env, cleaner_period); CKERR(r);
+    r = env->cleaner_set_iterations(env, cleaner_iterations); CKERR(r);
 
     DB *db;
     r = db_create(&db, env, 0);
@@ -720,6 +736,8 @@ struct cli_args {
     bool only_create;
     bool only_stress;
     int checkpointing_period;
+    int cleaner_period;
+    int cleaner_iterations;
     int update_broadcast_period_ms;
     int num_ptquery_threads;
     test_update_callback_f update_function;
@@ -737,6 +755,8 @@ static const struct cli_args DEFAULT_ARGS = {
     .only_create = false,
     .only_stress = false,
     .checkpointing_period = 10,
+    .cleaner_period = 1,
+    .cleaner_iterations = 1,
     .update_broadcast_period_ms = 2000,
     .num_ptquery_threads = 1,
     .update_function = update_op_callback,
@@ -765,6 +785,8 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             fprintf(stderr, "\t--basement_node_size       INT (default %d bytes)\n", DEFAULT_ARGS.basement_node_size);
             fprintf(stderr, "\t--cachetable_size          INT (default %ld bytes)\n", DEFAULT_ARGS.cachetable_size);
             fprintf(stderr, "\t--checkpointing_period     INT (default %ds)\n",      DEFAULT_ARGS.checkpointing_period);
+            fprintf(stderr, "\t--cleaner_period           INT (default %ds)\n",      DEFAULT_ARGS.cleaner_period);
+            fprintf(stderr, "\t--cleaner_iterations       INT (default %ds)\n",      DEFAULT_ARGS.cleaner_iterations);
             fprintf(stderr, "\t--update_broadcast_period  INT (default %dms)\n",     DEFAULT_ARGS.update_broadcast_period_ms);
             fprintf(stderr, "\t--num_ptquery_threads      INT (default %d threads)\n", DEFAULT_ARGS.num_ptquery_threads);
             exit(resultcode);
@@ -792,6 +814,14 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         else if (strcmp(argv[1], "--checkpointing_period") == 0) {
             argc--; argv++;
             args->checkpointing_period = atoi(argv[1]);
+        }
+        else if (strcmp(argv[1], "--cleaner_period") == 0) {
+            argc--; argv++;
+            args->cleaner_period = atoi(argv[1]);
+        }
+        else if (strcmp(argv[1], "--cleaner_iterations") == 0) {
+            argc--; argv++;
+            args->cleaner_iterations = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--update_broadcast_period") == 0) {
             argc--; argv++;
@@ -844,6 +874,8 @@ stress_test_main(struct cli_args *args)
             int_dbt_cmp,
             args->cachetable_size,
             args->checkpointing_period,
+            args->cleaner_period,
+            args->cleaner_iterations,
             args->node_size,
             args->basement_node_size,
             args->envdir);
@@ -856,7 +888,9 @@ stress_test_main(struct cli_args *args)
                        int_dbt_cmp,
                        args->cachetable_size, //cachetable size
                        args->checkpointing_period, // checkpoint period
-                       args->update_function, 
+                       args->cleaner_period,
+                       args->cleaner_iterations,
+                       args->update_function,
                        args->envdir));
         stress_table(env, &db, args);
         CHK(close_table(env, db));
@@ -872,6 +906,8 @@ UU() stress_recover(struct cli_args *args) {
                    int_dbt_cmp,
                    args->cachetable_size, //cachetable size
                    args->checkpointing_period, // checkpoint period
+                   args->cleaner_period,
+                   args->cleaner_iterations,
                    args->update_function, 
                    args->envdir));
 

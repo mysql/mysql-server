@@ -11,7 +11,7 @@ static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 static char fname[] = __FILE__ ".brt";
 
-static int dummy_cmp(DB *e __attribute__((unused)),
+static int dummy_cmp(DB *db __attribute__((unused)),
                      const DBT *a, const DBT *b) {
     int c;
     if (a->size > b->size) {
@@ -116,7 +116,7 @@ insert_random_message_to_leaf(BRT t, BRTNODE leaf, int childnum, BASEMENTNODE bl
     int r = apply_msg_to_leafentry(result, NULL, &memsize, &disksize, save, NULL, NULL);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t, blb, &BP_SUBTREE_EST(leaf, childnum), result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb, &BP_SUBTREE_EST(leaf, childnum), result, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
     }
@@ -150,11 +150,11 @@ insert_same_message_to_leaves(BRT t, BRTNODE leaf1, BRTNODE leaf2, int childnum,
     int r = apply_msg_to_leafentry(result, NULL, &memsize, &disksize, save, NULL, NULL);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t, blb1, &BP_SUBTREE_EST(leaf1, childnum), result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb1, &BP_SUBTREE_EST(leaf1, childnum), result, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
     }
-    brt_leaf_put_cmd(t, blb2, &BP_SUBTREE_EST(leaf2, childnum), result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb2, &BP_SUBTREE_EST(leaf2, childnum), result, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb2->max_msn_applied.msn) {
         blb2->max_msn_applied = msn;
     }
@@ -166,7 +166,7 @@ struct orthopush_flush_update_fun_extra {
 };
 
 static int
-orthopush_flush_update_fun(DB *UU(db), const DBT *UU(key), const DBT *UU(old_val), const DBT *extra,
+orthopush_flush_update_fun(DB * UU(db), const DBT *UU(key), const DBT *UU(old_val), const DBT *extra,
                            void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra) {
     struct orthopush_flush_update_fun_extra *e = extra->data;
     (*e->num_applications)++;
@@ -252,7 +252,7 @@ flush_to_internal(BRT t) {
     set_BNC(child, 0, child_bnc);
     BP_STATE(child, 0) = PT_AVAIL;
 
-    toku_bnc_flush_to_child(t, parent_bnc, child);
+    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child);
 
     int parent_messages_present[num_parent_messages];
     int child_messages_present[num_child_messages];
@@ -386,7 +386,7 @@ flush_to_internal_multiple(BRT t) {
         }
     }
 
-    toku_bnc_flush_to_child(t, parent_bnc, child);
+    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child);
 
     int total_messages = 0;
     for (i = 0; i < 8; ++i) {
@@ -550,7 +550,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
                 bool made_change;
-                toku_apply_cmd_to_leaf(t, child, parent_messages[i], &made_change, NULL, NULL, NULL);
+                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child, parent_messages[i], &made_change, NULL, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -571,7 +571,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     }
 
     if (use_flush) {
-        toku_bnc_flush_to_child(t, parent_bnc, child);
+        toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child);
         destroy_nonleaf_childinfo(parent_bnc);
     } else {
         BRTNODE XMALLOC(parentnode);
@@ -768,7 +768,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
             if (dummy_cmp(NULL, parent_messages[i]->u.id.key, &childkeys[7]) <= 0 &&
                 !parent_messages_is_fresh[i]) {
                 bool made_change;
-                toku_apply_cmd_to_leaf(t, child, parent_messages[i], &made_change, NULL, NULL, NULL);
+                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child, parent_messages[i], &made_change, NULL, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -948,8 +948,8 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
                 bool made_change;
-                toku_apply_cmd_to_leaf(t, child1, parent_messages[i], &made_change, NULL, NULL, NULL);
-                toku_apply_cmd_to_leaf(t, child2, parent_messages[i], &made_change, NULL, NULL, NULL);
+                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child1, parent_messages[i], &made_change, NULL, NULL, NULL);
+                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child2, parent_messages[i], &made_change, NULL, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -963,7 +963,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
         }
     }
 
-    toku_bnc_flush_to_child(t, parent_bnc, child1);
+    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child1);
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };

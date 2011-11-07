@@ -12,39 +12,14 @@ static const int item_size = 1;
 
 static int n_flush, n_write_me, n_keep_me, n_fetch;
 
-static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *extraargs, long size, long* UU(new_size), BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
+static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *extraargs, PAIR_ATTR size, PAIR_ATTR* UU(new_size), BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
     cf = cf; key = key; value = value; extraargs = extraargs; 
     // assert(key == make_blocknum((long)value));
-    assert(size == item_size);
+    assert(size.size == item_size);
     n_flush++;
     if (write_me) n_write_me++;
     if (keep_me) n_keep_me++;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
 
 static int callback_was_called = 0;
 static int callback2_was_called = 0;
@@ -86,10 +61,10 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, 1, flush, pe_est_callback, pe_callback, 0);
+        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
         assert(r == 0);
 
-        r = toku_cachetable_unpin(f1, key, hi, dirty, item_size);
+        r = toku_cachetable_unpin(f1, key, hi, dirty, make_pair_attr(item_size));
         assert(r == 0);
 
         void *v;
@@ -122,7 +97,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
         r = toku_cachetable_maybe_get_and_pin(f1, key, hi, &v);
         if (r != 0) 
             continue;
-        r = toku_cachetable_unpin(f1, key, hi, CACHETABLE_CLEAN, item_size);
+        r = toku_cachetable_unpin(f1, key, hi, CACHETABLE_CLEAN, make_pair_attr(item_size));
         assert(r == 0);
         
         int its_dirty;

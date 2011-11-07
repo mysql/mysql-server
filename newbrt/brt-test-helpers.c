@@ -32,7 +32,7 @@ BOOL ignore_if_was_already_open;
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
     BRTNODE node;
     assert(testsetup_initialized);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, 1);
     BP_STATE(node,0) = PT_AVAIL;
@@ -47,7 +47,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
     BRTNODE node;
     assert(testsetup_initialized);
     assert(n_children<=BRT_FANOUT);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, height, n_children);
     int i;
@@ -56,8 +56,8 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
         BP_STATE(node,i) = PT_AVAIL;
     }
     for (i=0; i+1<n_children; i++) {
-	node->childkeys[i] = kv_pair_malloc(keys[i], keylens[i], 0, 0);
-	node->totalchildkeylens += keylens[i];
+        node->childkeys[i] = kv_pair_malloc(keys[i], keylens[i], 0, 0);
+        node->totalchildkeylens += keylens[i];
     }
     *blocknum = node->thisnodename;
     toku_unpin_brtnode(brt, node);
@@ -66,7 +66,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
 
 int toku_testsetup_root(BRT brt, BLOCKNUM blocknum) {
     assert(testsetup_initialized);
-    int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
+    int r = toku_read_brt_header_and_store_in_cachefile(brt, brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
     if (r!=0) return r;
     brt->h->root = blocknum;
     brt->h->root_hash.valid = FALSE;
@@ -78,7 +78,7 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
     assert(testsetup_initialized);
     void *node_v;
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
+    fill_bfe_for_full_read(&bfe, brt->h);
     int r  = toku_cachetable_get_and_pin(
         brt->cf, diskoff,
         toku_cachetable_hash(brt->cf, diskoff),
@@ -90,6 +90,7 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
         toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+        toku_brtnode_cleaner_callback,
         &bfe,
         brt->h
         );
@@ -106,7 +107,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     assert(testsetup_initialized);
 
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
+    fill_bfe_for_full_read(&bfe, brt->h);
     r = toku_cachetable_get_and_pin(
         brt->cf,
         blocknum,
@@ -119,6 +120,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 	toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+        toku_brtnode_cleaner_callback,
 	&bfe,
 	brt->h
 	);
@@ -143,7 +145,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     assert(r==0);
 
 
-    struct cmd_leafval_heaviside_extra be = {brt, &keydbt};
+    struct cmd_leafval_heaviside_extra be = {brt->compare_fun, &brt->h->descriptor, &keydbt};
     r = toku_omt_find_zero(BLB_BUFFER(node, 0), toku_cmd_leafval_heaviside, &be, &storeddatav, &idx);
 
 
@@ -185,7 +187,7 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     assert(testsetup_initialized);
 
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
+    fill_bfe_for_full_read(&bfe, brt->h);
     r = toku_cachetable_get_and_pin(
         brt->cf,
         blocknum,
@@ -198,6 +200,7 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
 	toku_brtnode_pe_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+	toku_brtnode_cleaner_callback,
 	&bfe,
 	brt->h
         );
@@ -208,7 +211,7 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     DBT k;
     int childnum = toku_brtnode_which_child(node,
                                             toku_fill_dbt(&k, key, keylen),
-                                            brt->db, brt->compare_fun);
+                                            &brt->h->descriptor, brt->compare_fun);
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();

@@ -18,7 +18,7 @@ static int const nodesize = 1<<12, basementnodesize = 1<<9;
 static int const count = 1000;
 
 static int
-string_cmp(DB *UU(db), const DBT *a, const DBT *b)
+string_cmp(DB* UU(db), const DBT *a, const DBT *b)
 {
     return strcmp(a->data, b->data);
 }

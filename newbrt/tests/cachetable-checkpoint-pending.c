@@ -32,10 +32,21 @@ sleep_random (void)
 int expect_value = 42; // initially 42, later 43
 
 static void
-flush (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), void *value, void *UU(extraargs), long size, long* UU(new_size), BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint))
+flush (
+    CACHEFILE UU(thiscf), 
+    int UU(fd), 
+    CACHEKEY UU(key), 
+    void *value, 
+    void *UU(extraargs), 
+    PAIR_ATTR size, 
+    PAIR_ATTR* UU(new_size), 
+    BOOL write_me, 
+    BOOL keep_me, 
+    BOOL UU(for_checkpoint)
+    )
 {
     // printf("f");
-    assert(size == item_size);
+    assert(size.size== item_size);
     int *v = value;
     if (*v!=expect_value) printf("got %d expect %d\n", *v, expect_value);
     assert(*v==expect_value);
@@ -46,44 +57,21 @@ flush (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), void *value, void *UU
 }
 
 static int
-fetch (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), u_int32_t UU(fullhash), void **UU(value), long *UU(sizep), int *UU(dirtyp), void *UU(extraargs))
+fetch (
+    CACHEFILE UU(thiscf), 
+    int UU(fd), 
+    CACHEKEY UU(key), 
+    u_int32_t UU(fullhash), 
+    void **UU(value), 
+    PAIR_ATTR *UU(sizep), 
+    int *UU(dirtyp), 
+    void *UU(extraargs)
+    )
 {
     assert(0); // should not be called
     return 0;
 }
 
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    // placeholder for now
-    return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(FALSE);
-}
 
 static void*
 do_update (void *UU(ignore))
@@ -95,7 +83,7 @@ do_update (void *UU(ignore))
         u_int32_t hi = toku_cachetable_hash(cf, key);
         void *vv;
 	long size;
-        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0);
+        int r = toku_cachetable_get_and_pin(cf, key, hi, &vv, &size, flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
 	//printf("g");
 	assert(r==0);
 	assert(size==sizeof(int));
@@ -103,7 +91,7 @@ do_update (void *UU(ignore))
 	assert(*v==42);
 	*v = 43;
 	//printf("[%d]43\n", i);
-	r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, item_size);
+	r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));
 	sleep_random();
     }
     return 0;
@@ -144,10 +132,10 @@ static void checkpoint_pending(void) {
         CACHEKEY key = make_blocknum(i);
         u_int32_t hi = toku_cachetable_hash(cf, key);
 	values[i] = 42;
-        r = toku_cachetable_put(cf, key, hi, &values[i], sizeof(int), flush, pe_est_callback, pe_callback, 0);
+        r = toku_cachetable_put(cf, key, hi, &values[i], make_pair_attr(sizeof(int)), flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
         assert(r == 0);
 
-        r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, item_size);
+        r = toku_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));
         assert(r == 0);
     }
 

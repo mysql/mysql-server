@@ -120,7 +120,7 @@ static void
 dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     BRTNODE n;
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, h, NULL, NULL);
+    fill_bfe_for_full_read(&bfe, h);
     int r = toku_deserialize_brtnode_from (f, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, &bfe);
     assert(r==0);
     assert(n!=0);
@@ -231,7 +231,7 @@ fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra)
     frag_help_extra *info = extra;
     BRTNODE n;
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, info->h, NULL, NULL);
+    fill_bfe_for_full_read(&bfe, info->h);
     int r = toku_deserialize_brtnode_from(info->f, b, 0 /*pass zero for hash, it doesn't matter*/, &n, &bfe);
     if (r==0) {
         info->blocksizes += size;

@@ -94,15 +94,16 @@ string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 static void
 setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE *dn) {
     int r;
+    brt_h->compare_fun = string_key_cmp;
     if (bft == read_all) {
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt_h, NULL, string_key_cmp);
+        fill_bfe_for_full_read(&bfe, brt_h);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
         assert(r==0);
     }
     else if (bft == read_compressed || bft == read_none) {
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_min_read(&bfe, brt_h, NULL, string_key_cmp);
+        fill_bfe_for_min_read(&bfe, brt_h);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
         assert(r==0);
         // assert all bp's are compressed or on disk.
@@ -112,8 +113,8 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
         // if read_none, get rid of the compressed bp's
         if (bft == read_none) {
             if ((*dn)->height == 0) {
-                long bytes_freed = 0;
-                toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
+                PAIR_ATTR attr;
+                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, NULL);
                 // assert all bp's are on disk
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     if ((*dn)->height == 0) {
@@ -129,34 +130,33 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
                 // first decompress everything, and make sure
                 // that it is available
                 // then run partial eviction to get it compressed
-                fill_bfe_for_full_read(&bfe, brt_h, NULL, string_key_cmp);
+                PAIR_ATTR attr;
+                fill_bfe_for_full_read(&bfe, brt_h);
                 assert(toku_brtnode_pf_req_callback(*dn, &bfe));
-                long size;
-                r = toku_brtnode_pf_callback(*dn, &bfe, fd, &size);
+                r = toku_brtnode_pf_callback(*dn, &bfe, fd, &attr);
                 assert(r==0);
                 // assert all bp's are available
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                 }
-                long bytes_freed = 0;
-                toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
+                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, NULL);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     // assert all bp's are still available, because we touched the clock
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                     // now assert all should be evicted
                     assert(BP_SHOULD_EVICT(*dn, i));
                 }
-                toku_brtnode_pe_callback(*dn, 0xffffffff, &bytes_freed, NULL);
+                toku_brtnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, NULL);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
                 }
             }
         }
         // now decompress them
-        fill_bfe_for_full_read(&bfe, brt_h, NULL, string_key_cmp);
+        fill_bfe_for_full_read(&bfe, brt_h);
         assert(toku_brtnode_pf_req_callback(*dn, &bfe));
-        long size;
-        r = toku_brtnode_pf_callback(*dn, &bfe, fd, &size);
+        PAIR_ATTR attr;
+        r = toku_brtnode_pf_callback(*dn, &bfe, fd, &attr);
         assert(r==0);
         // assert all bp's are available
         for (int i = 0; i < (*dn)->n_children; i++) {

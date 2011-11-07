@@ -41,8 +41,8 @@ static void r_flush (CACHEFILE f      __attribute__((__unused__)),
 		     CACHEKEY k,
 		     void *value,
 		     void *extra      __attribute__((__unused__)),
-		     long size        __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
+		     PAIR_ATTR size        __attribute__((__unused__)),
+        PAIR_ATTR* new_size      __attribute__((__unused__)),
 		     BOOL write_me    __attribute__((__unused__)),
 		     BOOL keep_me,
 		     BOOL for_checkpoint    __attribute__((__unused__))) {
@@ -74,45 +74,12 @@ static int r_fetch (CACHEFILE f        __attribute__((__unused__)),
 		    CACHEKEY key       __attribute__((__unused__)),
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value        __attribute__((__unused__)),
-		    long *sizep        __attribute__((__unused__)),
+		    PAIR_ATTR *sizep        __attribute__((__unused__)),
 		    int  *dirtyp       __attribute__((__unused__)),
 		    void*extraargs     __attribute__((__unused__))) {
     // fprintf(stderr, "Whoops, this should never be called");
     return -42;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-    return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-    assert(FALSE);
-}
-
 
 static void test_rename (void) {
     CACHETABLE t;
@@ -134,8 +101,8 @@ static void test_rename (void) {
 	    if (verbose) printf("n_keys=%d Insert %08" PRIx64 "\n", n_keys, nkey.b);
 	    u_int32_t hnkey = toku_cachetable_hash(f, nkey);
 	    r = toku_cachetable_put(f, nkey, hnkey,
-				    (void*)nval, 1,
-				    r_flush, pe_est_callback, pe_callback, 0);
+				    (void*)nval, make_pair_attr(1),
+				    r_flush, def_pe_est_callback, def_pe_callback, def_cleaner_callback, 0);
 	    assert(r==0);
             test_mutex_lock();
             while (n_keys >= KEYLIMIT) {
@@ -148,7 +115,7 @@ static void test_rename (void) {
 	    vals[n_keys] = (void*)nval;
 	    n_keys++;
             test_mutex_unlock();
-	    r = toku_cachetable_unpin(f, nkey, hnkey, CACHETABLE_DIRTY, 1);
+	    r = toku_cachetable_unpin(f, nkey, hnkey, CACHETABLE_DIRTY, make_pair_attr(1));
 	    assert(r==0);
 	} else if (ra==2 && n_keys>0) {
 	    // Rename something
@@ -160,7 +127,7 @@ static void test_rename (void) {
 	    void *current_value;
 	    long current_size;
 	    if (verbose) printf("Rename %" PRIx64 " to %" PRIx64 "\n", okey.b, nkey.b);
-	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, r_flush, r_fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, 0, 0);
+	    r = toku_cachetable_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &current_value, &current_size, r_flush, r_fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 0, 0);
 	    if (r == -42) continue;
             assert(r==0);
 	    r = toku_cachetable_rename(f, okey, nkey);
@@ -175,7 +142,7 @@ static void test_rename (void) {
             assert(j < n_keys);
 	    keys[j]=nkey;
             test_mutex_unlock();
-	    r = toku_cachetable_unpin(f, nkey, toku_cachetable_hash(f, nkey), CACHETABLE_DIRTY, 1);
+	    r = toku_cachetable_unpin(f, nkey, toku_cachetable_hash(f, nkey), CACHETABLE_DIRTY, make_pair_attr(1));
 	}
     }
 
@@ -187,7 +154,7 @@ static void test_rename (void) {
         r = toku_cachetable_maybe_get_and_pin(f, okey, toku_cachetable_hash(f, okey), &v);
         if (r != 0)
             break;
-        r = toku_cachetable_unpin(f, okey, toku_cachetable_hash(f, okey), CACHETABLE_CLEAN, 1);
+        r = toku_cachetable_unpin(f, okey, toku_cachetable_hash(f, okey), CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
     }
     nkey = make_blocknum(random());

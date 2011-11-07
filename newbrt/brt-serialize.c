@@ -849,7 +849,7 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
 
 static void
 deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
-                         DB *cmp_extra, brt_compare_func cmp) {
+                         DESCRIPTOR desc, brt_compare_func cmp) {
     int r;
     int n_bytes_in_buffer = 0;
     int n_in_this_buffer = rbuf_int(rbuf);
@@ -903,7 +903,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
     invariant(rbuf->ndone == rbuf->size);
 
     if (cmp) {
-        struct toku_fifo_entry_key_msn_cmp_extra extra = { .cmp_extra = cmp_extra, .cmp = cmp, .fifo = bnc->buffer };
+        struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer };
         r = mergesort_r(fresh_offsets, nfresh, sizeof fresh_offsets[0], &extra, toku_fifo_entry_key_msn_cmp);
         assert_zero(r);
         toku_omt_destroy(&bnc->fresh_message_tree);
@@ -1199,11 +1199,10 @@ static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* b
         // we can possibly require is a single basement node
         // we find out what basement node the query cares about
         // and check if it is available
-        assert(bfe->cmp);
         assert(bfe->search);
         bfe->child_to_read = toku_brt_search_which_child(
-            bfe->cmp_extra,
-            bfe->cmp,
+            &bfe->h->descriptor,
+            bfe->h->compare_fun,
             node,
             bfe->search
             );
@@ -1252,7 +1251,7 @@ deserialize_brtnode_partition(
     struct sub_block *sb,
     BRTNODE node,
     int index,
-    DB *cmp_extra,
+    DESCRIPTOR desc,
     brt_compare_func cmp
     )
 {
@@ -1267,7 +1266,7 @@ deserialize_brtnode_partition(
     if (node->height > 0) {
         unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_FIFO_MSG);
-        deserialize_child_buffer(BNC(node, index), &rb, cmp_extra, cmp);
+        deserialize_child_buffer(BNC(node, index), &rb, desc, cmp);
         BP_WORKDONE(node, index) = 0;
     }
     else {
@@ -1297,11 +1296,11 @@ deserialize_brtnode_partition(
 }
 
 static void
-decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, BRTNODE node, int child, DB *cmp_extra, brt_compare_func cmp)
+decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, BRTNODE node, int child, DESCRIPTOR desc, brt_compare_func cmp)
 {
     read_and_decompress_sub_block(&curr_rbuf, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
-    deserialize_brtnode_partition(&curr_sb, node, child, cmp_extra, cmp);
+    deserialize_brtnode_partition(&curr_sb, node, child, desc, cmp);
     toku_free(curr_sb.uncompressed_ptr);
 }
 
@@ -1564,7 +1563,7 @@ deserialize_brtnode_from_rbuf(
 	switch (BP_STATE(node,i)) {
 	case PT_AVAIL:
 	    //  case where we read and decompress the partition
-            decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, bfe->cmp_extra, bfe->cmp);
+            decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, &bfe->h->descriptor, bfe->h->compare_fun);
 	    continue;
 	case PT_COMPRESSED:
 	    // case where we leave the partition in the compressed state
@@ -1626,7 +1625,7 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
 
     read_and_decompress_sub_block(&rb, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
-    deserialize_brtnode_partition(&curr_sb, node, childnum, bfe->cmp_extra, bfe->cmp);
+    deserialize_brtnode_partition(&curr_sb, node, childnum, &bfe->h->descriptor, bfe->h->compare_fun);
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }
@@ -1638,7 +1637,7 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
 // Take a brtnode partition that is in the compressed state, and make it avail
 void
 toku_deserialize_bp_from_compressed(BRTNODE node, int childnum,
-                                    DB *cmp_extra, brt_compare_func cmp) {
+                                    DESCRIPTOR desc, brt_compare_func cmp) {
     assert(BP_STATE(node, childnum) == PT_COMPRESSED);
     SUB_BLOCK curr_sb = BSB(node, childnum);
 
@@ -1654,7 +1653,7 @@ toku_deserialize_bp_from_compressed(BRTNODE node, int childnum,
         curr_sb->compressed_ptr,
         curr_sb->compressed_size
         );
-    deserialize_brtnode_partition(curr_sb, node, childnum, cmp_extra, cmp);
+    deserialize_brtnode_partition(curr_sb, node, childnum, desc, cmp);
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }

@@ -44,7 +44,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //
 
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 6 + cli_args->num_ptquery_threads;
+    const int num_threads = 7 + cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], n, dbp, env);
@@ -84,8 +84,12 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[5].sleep_ms = 2000; // maybe make this a runtime param at some point
     myargs[5].operation = remove_and_recreate_me;
 
+    myargs[6].lock_type = STRESS_LOCK_EXCL;
+    myargs[6].sleep_ms = 2000; // maybe make this a runtime param at some point
+    myargs[6].operation = truncate_me;
+
     // make the guy that does point queries
-    for (int i = 6; i < num_threads; i++) {
+    for (int i = 7; i < num_threads; i++) {
         myargs[i].lock_type = STRESS_LOCK_SHARED;
         myargs[i].bounded_update_range = false;
         myargs[i].operation = ptquery_op_no_check;

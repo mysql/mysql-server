@@ -175,7 +175,7 @@ toku_verify_brtnode (BRT brt,
     u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
     {
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt->h, brt->db, brt->compare_fun);
+        fill_bfe_for_full_read(&bfe, brt->h);
         int r = toku_cachetable_get_and_pin(
             brt->cf, 
             blocknum, 
@@ -188,6 +188,7 @@ toku_verify_brtnode (BRT brt,
             toku_brtnode_pe_callback, 
             toku_brtnode_pf_req_callback,
             toku_brtnode_pf_callback,
+            toku_brtnode_cleaner_callback,
             &bfe, 
             brt->h
             );
@@ -332,7 +333,7 @@ toku_verify_brtnode (BRT brt,
     }
 done:
     {
-    int r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, 0);
+    int r = toku_cachetable_unpin(brt->cf, blocknum, fullhash, CACHETABLE_CLEAN, make_brtnode_pair_attr(node));
     assert_zero(r); // this is a bad failure if it happens.
     }
     

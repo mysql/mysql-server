@@ -37,7 +37,7 @@ typedef enum {
     TOKU_LT_INCONSISTENT=-1,  /**< The member data are in an inconsistent state */
 } TOKU_LT_ERROR;
 
-typedef int (*toku_dbt_cmp)(DB*,const DBT*,const DBT*);
+typedef int (*toku_dbt_cmp)(DB *,const DBT*,const DBT*);
 
 /** Convert error codes into a human-readable error message */
 char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */) 
@@ -105,7 +105,7 @@ struct __toku_lock_tree {
     /** Function to retrieve the key compare function from the database. */
     toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
     /** The key compare function */
-    int               (*compare_fun)(DB*,const DBT*,const DBT*);
+    toku_dbt_cmp compare_fun;
     /** The panic function */
     int               (*panic)(DB*, int);
     /** The number of references held by DB instances and transactions to this lock tree*/

@@ -1,4 +1,4 @@
-#ident "$Id: cachetable-simple-verify.c 35106 2011-09-27 18:30:11Z zardosht $"
+#ident "$Id$"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
@@ -29,8 +29,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
-       long s      __attribute__((__unused__)),
-        long* new_size      __attribute__((__unused__)),
+       PAIR_ATTR s      __attribute__((__unused__)),
+       PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL write_me,
        BOOL keep_me,
        BOOL checkpoint_me
@@ -55,7 +55,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k,
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
-       long *sizep,
+       PAIR_ATTR *sizep,
        int  *dirtyp,
        void *extraargs    __attribute__((__unused__))
        ) {
@@ -67,42 +67,9 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     usleep(10);
     *data_val = data[data_index];
     *value = data_val;
-    *sizep = 8;
+    *sizep = make_pair_attr(8);
     return 0;
 }
-
-static void 
-pe_est_callback(
-    void* UU(brtnode_pv), 
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
-    void* UU(write_extraargs)
-    )
-{
-    *bytes_freed_estimate = 0;
-    *cost = PE_CHEAP;
-}
-
-static int 
-pe_callback (
-    void *brtnode_pv __attribute__((__unused__)), 
-    long bytes_to_free __attribute__((__unused__)), 
-    long* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
-{
-    *bytes_freed = bytes_to_free;
-    return 0;
-}
-
-static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {
-  return FALSE;
-}
-
-static int pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), long* UU(sizep)) {
-  assert(FALSE);
-}
-
 
 static void *test_time(void *arg) {
     //
@@ -115,12 +82,6 @@ static void *test_time(void *arg) {
     }
     if (verbose) printf("should be ending test now\n");
     return arg;
-}
-
-static void fake_ydb_lock(void) {
-}
-
-static void fake_ydb_unlock(void) {
 }
 
 CACHETABLE ct;
@@ -163,7 +124,7 @@ static void *move_numbers(void *arg) {
             less,
             &v1,
             &s1,
-            flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback,
+            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
             NULL,
             NULL,
             0, //num_dependent_pairs
@@ -185,7 +146,7 @@ static void *move_numbers(void *arg) {
             greater,
             &v1,
             &s1,
-            flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback,
+            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
             NULL,
             NULL,
             1, //num_dependent_pairs
@@ -203,7 +164,7 @@ static void *move_numbers(void *arg) {
         usleep(10);
         (*first_val)++;
         (*second_val)--;
-        r = toku_cachetable_unpin(f1, less_key, less_fullhash, less_dirty, 8);
+        r = toku_cachetable_unpin(f1, less_key, less_fullhash, less_dirty, make_pair_attr(8));
 
         int third = 0;
         int num_possible_values = (NUM_ELEMENTS-1) - greater;
@@ -219,7 +180,7 @@ static void *move_numbers(void *arg) {
                 third,
                 &v1,
                 &s1,
-                flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback,
+                flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback,
                 NULL,
                 NULL,
                 1, //num_dependent_pairs
@@ -235,9 +196,9 @@ static void *move_numbers(void *arg) {
             usleep(10);
             (*second_val)++;
             (*third_val)--;
-            r = toku_cachetable_unpin(f1, third_key, third_fullhash, third_dirty, 8);
+            r = toku_cachetable_unpin(f1, third_key, third_fullhash, third_dirty, make_pair_attr(8));
         }
-        r = toku_cachetable_unpin(f1, greater_key, greater_fullhash, greater_dirty, 8);
+        r = toku_cachetable_unpin(f1, greater_key, greater_fullhash, greater_dirty, make_pair_attr(8));
     }
     return arg;
 }
@@ -254,13 +215,13 @@ static void *read_random_numbers(void *arg) {
             rand_key1,
             &v1,
             &s1,
-            flush, fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback,
+            flush, fetch, def_pe_est_callback, def_pe_callback, def_pf_req_callback, def_pf_callback, def_cleaner_callback, 
             NULL,
             NULL,
             NULL
             );
         if (r1 == 0) {
-            r1 = toku_cachetable_unpin(f1, make_blocknum(rand_key1), rand_key1, CACHETABLE_CLEAN, 8);
+            r1 = toku_cachetable_unpin(f1, make_blocknum(rand_key1), rand_key1, CACHETABLE_CLEAN, make_pair_attr(8));
             assert(r1 == 0);
         }
     }

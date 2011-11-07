@@ -111,6 +111,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compare_fun = long_key_cmp;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -140,7 +141,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     printf("serialize leaf:   %0.05lf\n", dt);
 
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h, NULL, long_key_cmp);
+    fill_bfe_for_full_read(&bfe, brt_h);
     gettimeofday(&t[0], NULL);
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);
@@ -241,6 +242,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
+    brt_h->compare_fun = long_key_cmp;
     toku_blocktable_create_new(&brt_h->blocktable);
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
@@ -270,7 +272,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     printf("serialize nonleaf:   %0.05lf\n", dt);
 
     struct brtnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h, NULL, long_key_cmp);
+    fill_bfe_for_full_read(&bfe, brt_h);
     gettimeofday(&t[0], NULL);
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
     assert(r==0);

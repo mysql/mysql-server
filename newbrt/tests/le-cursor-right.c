@@ -16,7 +16,7 @@ static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
 static int 
-test_keycompare(DB *UU(db), const DBT *a, const DBT *b) {
+test_keycompare(DB* UU(desc), const DBT *a, const DBT *b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
