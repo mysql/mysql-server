@@ -1095,7 +1095,8 @@ run_again:
 	} else {
 		err = lock_table(
 			0, prebuilt->table,
-			static_cast<enum lock_mode>(prebuilt->select_lock_type),
+			static_cast<enum lock_mode>(
+				prebuilt->select_lock_type),
 			thr);
 	}
 
