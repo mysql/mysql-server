@@ -5299,8 +5299,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     },
                     {
                       "access_type": "range",
-                      "rows": 1,
-                      "cost": 1.1,
+                      "cause": "covering_index_better_than_full_scan",
                       "chosen": false
                     }
                   ] /* considered_access_paths */

@@ -93,7 +93,7 @@ static int safe_print_str(const char *addr, int max_len)
   /* Read up to the maximum number of bytes. */
   while (total)
   {
-    count= min(sizeof(buf), total);
+    count= MY_MIN(sizeof(buf), total);
 
     if ((nbytes= pread(fd, buf, count, offset)) < 0)
     {
@@ -321,7 +321,7 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 
   if (!stack_bottom || (uchar*) stack_bottom > (uchar*) &fp)
   {
-    ulong tmp= min(0x10000,thread_stack);
+    ulong tmp= MY_MIN(0x10000, thread_stack);
     /* Assume that the stack starts at the previous even 65K */
     stack_bottom= (uchar*) (((ulong) &fp + tmp) &
 			  ~(ulong) 0xFFFF);

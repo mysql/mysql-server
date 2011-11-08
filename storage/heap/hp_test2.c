@@ -132,7 +132,9 @@ int main(int argc, char *argv[])
 
   for (i=0 ; i < recant ; i++)
   {
-    n1=rnd(1000); n2=rnd(100); n3=rnd(min(recant*5,MAX_RECORDS));
+    n1= rnd(1000);
+    n2= rnd(100);
+    n3= rnd(MY_MIN(recant * 5, MAX_RECORDS));
     make_record(record,n1,n2,n3,"Pos",write_count);
 
     if (heap_write(file,record))
@@ -208,7 +210,9 @@ int main(int argc, char *argv[])
   printf("- Update\n");
   for (i=0 ; i < write_count/10 ; i++)
   {
-    n1=rnd(1000); n2=rnd(100); n3=rnd(min(recant*2,MAX_RECORDS));
+    n1= rnd(1000);
+    n2= rnd(100);
+    n3= rnd(MY_MIN(recant * 2, MAX_RECORDS));
     make_record(record2, n1, n2, n3, "XXX", update);
     if (rnd(2) == 1)
     {

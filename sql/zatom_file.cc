@@ -22,10 +22,12 @@
 
 #include <mysqld_error.h>
 #include <my_dir.h>
+#include <algorithm>
 
+using std::min;
+using std::max;
 
 const char *Atom_file::OVERWRITE_FILE_SUFFIX= ".overwrite";
-
 
 enum_return_status Atom_file::open(const char *filename_arg, bool writable_arg)
 {
@@ -129,7 +131,7 @@ enum_return_status Atom_file::commit(my_off_t offset, my_off_t length)
     
     while (length > 0)
     {
-      size_t chunk_length= min(length, 65536);
+      size_t chunk_length= min<my_off_t>(length, 65536);
       if (my_read(ofd, buf, chunk_length, MYF(MY_WME)) != chunk_length)
         goto error_close;
       if (my_write(fd, buf, chunk_length, MYF(MY_WME)) != chunk_length)
