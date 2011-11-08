@@ -1588,7 +1588,7 @@ typedef struct st_position : public Sql_alloc
   
   
   /* These form a stack of partial join order costs and output sizes */
-  COST_VECT prefix_cost;
+  Cost_estimate prefix_cost;
   double    prefix_record_count;
 
   /*
