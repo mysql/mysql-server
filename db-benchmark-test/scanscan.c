@@ -156,7 +156,7 @@ static inline uint64_t mysql_get_bigint(unsigned char *d) {
     return r;
 }
 
-static int mysql_key_compare(DESCRIPTOR desc __attribute__((unused)),
+static int mysql_key_compare(DB* file __attribute__((unused)),
                                const DBT *adbt, const DBT *bdbt) {
     unsigned char *adata = adbt->data;
     unsigned char *bdata = bdbt->data;
