@@ -308,12 +308,14 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
   if (*r == 0)
     DBUG_RETURN(-1);
 
+  bool found= false;
   const uint imax= Ndb_index_stat_opt::Imax;
   for (uint i= 0; i < imax; i++)
   {
     Ndb_index_stat_opt::Val& v= opt.val[i];
     if (strcmp(p, v.name) != 0)
       continue;
+    found= true;
 
     char *s;
     for (s= r; *s != 0; s++)
@@ -400,6 +402,9 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
       break;
     }
   }
+
+  if (!found)
+    DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
