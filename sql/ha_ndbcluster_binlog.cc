@@ -2669,6 +2669,12 @@ class Ndb_schema_event_handler {
   }
 
 
+  bool is_local_table(const char* db_name, const char* table_name) const
+  {
+    return ndbcluster_check_if_local_table(db_name, table_name);
+  }
+
+
   void handle_clear_slock(Ndb_schema_op* schema)
   {
     if (!is_post_epoch())
@@ -2788,7 +2794,7 @@ class Ndb_schema_event_handler {
       free_share(&share);
     }
 
-    if (ndbcluster_check_if_local_table(schema->db, schema->name) &&
+    if (is_local_table(schema->db, schema->name) &&
        !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
                                                       schema->name))
     {
@@ -2817,7 +2823,7 @@ class Ndb_schema_event_handler {
     if (schema->node_id != own_nodeid())
     {
       write_schema_op_to_binlog(m_thd, schema);
-      if (!ndbcluster_check_if_local_table(schema->db, schema->name))
+      if (!is_local_table(schema->db, schema->name))
       {
         mysqld_write_frm_from_ndb(schema->db, schema->name);
       }
@@ -2972,7 +2978,7 @@ class Ndb_schema_event_handler {
         case SOT_RENAME_TABLE_NEW:
         case SOT_DROP_TABLE:
         {
-          if (! ndbcluster_check_if_local_table(schema->db, schema->name))
+          if (!is_local_table(schema->db, schema->name))
           {
             thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
             const int no_print_error[2]=
@@ -3024,7 +3030,7 @@ class Ndb_schema_event_handler {
             free_share(&share);
 
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-          if (ndbcluster_check_if_local_table(schema->db, schema->name))
+          if (is_local_table(schema->db, schema->name))
           {
             sql_print_error("NDB Binlog: Skipping locally defined table "
                             "'%s.%s' from binlog schema event '%s' from "
@@ -3042,7 +3048,7 @@ class Ndb_schema_event_handler {
 
         case SOT_CREATE_TABLE:
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-          if (ndbcluster_check_if_local_table(schema->db, schema->name))
+          if (is_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
                                 schema->db, schema->name));
@@ -3238,7 +3244,7 @@ class Ndb_schema_event_handler {
             share= 0;
           }
 
-          if (ndbcluster_check_if_local_table(schema->db, schema->name))
+          if (is_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
                                 schema->db, schema->name));
