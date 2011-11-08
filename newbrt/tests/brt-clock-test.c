@@ -75,6 +75,7 @@ test1(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     }
     // should sweep and NOT get rid of anything
     PAIR_ATTR attr;
+    memset(&attr,0,sizeof(attr));
     toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
@@ -170,6 +171,7 @@ test2(int fd, struct brt_header *brt_h, BRTNODE *dn) {
     assert(BP_SHOULD_EVICT(*dn, 0));
     assert(!BP_SHOULD_EVICT(*dn, 1));
     PAIR_ATTR attr;
+    memset(&attr,0,sizeof(attr));
     toku_brtnode_pe_callback(*dn, attr, &attr, NULL);
     assert(BP_STATE(*dn, 0) == (is_leaf) ? PT_ON_DISK : PT_COMPRESSED);
     assert(BP_STATE(*dn, 1) == PT_AVAIL);
