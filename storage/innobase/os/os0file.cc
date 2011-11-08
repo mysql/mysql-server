@@ -4897,8 +4897,8 @@ consecutive_loop:
 
 	if (os_aio_print_debug) {
 		fprintf(stderr,
-			"InnoDB: doing i/o of type %lu at offset "UINT64PF","
-			" length %lu\n",
+			"InnoDB: doing i/o of type %lu at offset " UINT64PF
+			", length %lu\n",
 			(ulong) slot->type, slot->offset, (ulong) total_len);
 	}
 
