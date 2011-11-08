@@ -1,7 +1,12 @@
+2011-11-08	The InnoDB Team
+
+	* btr/btr0pcur.c, include/btr0pcur.h, include/btr0pcur.ic:
+	Fix Bug#13358468 ASSERTION FAILURE IN BTR_PCUR_GET_BLOCK
+
 2011-10-27	The InnoDB Team
 
 	* row/row0mysql.c:
-	Fix Bug #12884631 62146: TABLES ARE LOST FOR DDL
+	Fix Bug#12884631 62146: TABLES ARE LOST FOR DDL
 
 2011-10-20	The InnoDB Team
 
