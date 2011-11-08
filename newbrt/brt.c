@@ -234,6 +234,10 @@ nonleaf_node_is_gorged (BRTNODE node) {
 	    (!buffers_are_empty));
 }
 
+static inline void add_to_brt_status(u_int64_t* val, u_int64_t data) {
+    (*val) += data;
+}
+
 static void brtnode_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
@@ -2232,7 +2236,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
     if (cmd->type == BRT_UPDATE) {
         // key is passed in with command (should be same as from le)
         // update function extra is passed in with command
-        brt_status.updates++;
+        add_to_brt_status(&brt_status.updates,1);
         keyp = cmd->u.id.key;
         update_function_extra = cmd->u.id.val;
     } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
@@ -2241,7 +2245,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
         assert(le);  // for broadcast updates, we just hit all leafentries
                      // so this cannot be null
         assert(cmd->u.id.key->size == 0);
-        brt_status.updates_broadcast++;
+        add_to_brt_status(&brt_status.updates_broadcast,1);
         keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
         update_function_extra = cmd->u.id.val;
     } else {
@@ -3478,7 +3482,7 @@ void toku_apply_cmd_to_leaf(
                                  snapshot_txnids,
                                  live_list_reverse);
             } else {
-                brt_status.msn_discards++;
+                add_to_brt_status(&brt_status.msn_discards,1);
             }
         }
     }
@@ -3502,7 +3506,7 @@ void toku_apply_cmd_to_leaf(
                                      live_list_reverse);
                     if (bn_made_change) *made_change = 1;
                 } else {
-                    brt_status.msn_discards++;
+                    add_to_brt_status(&brt_status.msn_discards,1);
                 }
             }
         }
@@ -5741,7 +5745,7 @@ do_brt_leaf_put_cmd(BRT t, BASEMENTNODE bn, SUBTREE_EST se, BRTNODE ancestor, in
         }
         brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, bn, se, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), snapshot_txnids, live_list_reverse);
     } else {
-        brt_status.msn_discards++;
+        add_to_brt_status(&brt_status.msn_discards,1);
     }
 }
 
