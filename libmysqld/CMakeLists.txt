@@ -147,6 +147,17 @@ ENDIF()
 
 IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysqld SHARED mysqlserver EXPORTS ${CLIENT_API_FUNCTIONS}
-  COMPONENT Embedded VERSION ${SHARED_LIB_MAJOR_VERSION})
-  SET_TARGET_PROPERTIES(libmysqld PROPERTIES PREFIX "")
+  COMPONENT Embedded) 
+  IF(UNIX)
+    # Name the shared library, handle versioning (provides same api as client
+    # library hence the same version)
+    SET_TARGET_PROPERTIES(libmysqld PROPERTIES 
+      OUTPUT_NAME mysqld 
+      SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
+    # Clean direct output flags, as 2 targets have the same base name
+    # libmysqld
+    SET_TARGET_PROPERTIES(libmysqld PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    SET_TARGET_PROPERTIES(mysqlserver PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  ENDIF()
 ENDIF()
+
