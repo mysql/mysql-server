@@ -2971,6 +2971,7 @@ class Ndb_schema_event_handler {
         case SOT_RENAME_TABLE:
         case SOT_RENAME_TABLE_NEW:
         case SOT_DROP_TABLE:
+        {
           if (! ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -2997,7 +2998,19 @@ class Ndb_schema_event_handler {
                             schema->node_id);
             write_schema_op_to_binlog(thd, schema);
           }
-          // Fall through
+
+          NDB_SHARE *share= get_share(schema);
+          // invalidation already handled by binlog thread
+          if (!share || !share->op)
+          {
+            ndbapi_invalidate_table(schema->db, schema->name);
+            mysqld_close_cached_table(schema->db, schema->name);
+          }
+          if (share)
+            free_share(&share);
+          break;
+        }
+
 	case SOT_TRUNCATE_TABLE:
         {
           NDB_SHARE *share= get_share(schema);
@@ -3009,10 +3022,24 @@ class Ndb_schema_event_handler {
           }
           if (share)
             free_share(&share);
-        }
-        if (schema_type != SOT_TRUNCATE_TABLE)
+
+          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+          if (ndbcluster_check_if_local_table(schema->db, schema->name))
+          {
+            sql_print_error("NDB Binlog: Skipping locally defined table "
+                            "'%s.%s' from binlog schema event '%s' from "
+                            "node %d. ",
+                            schema->db, schema->name, schema->query,
+                            schema->node_id);
+          }
+          else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
+          {
+            print_could_not_discover_error(thd, schema);
+          }
+          write_schema_op_to_binlog(thd, schema);
           break;
-        // fall through
+        }
+
         case SOT_CREATE_TABLE:
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
