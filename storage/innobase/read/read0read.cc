@@ -338,6 +338,7 @@ struct	CreateView {
 
 	void	operator()(const trx_t* trx)
 	{
+		ut_ad(mutex_own(&trx_sys->mutex));
 		ut_ad(trx->in_trx_list);
 
 		/* trx->state cannot change from or to NOT_STARTED
