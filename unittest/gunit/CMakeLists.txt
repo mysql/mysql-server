@@ -233,8 +233,6 @@ SET(SERVER_TESTS
   opt_range
   opt_trace
   get_diagnostics
-  rpl_group_set
-  rpl_compact_coder
 )
 
 FOREACH(test ${TESTS})

@@ -144,22 +144,11 @@ enum Exit_status {
   OK_STOP
 };
 
-
 #ifdef HAVE_UGID
-static Checkable_rwlock sid_lock;
-static Sid_map sid_map(&sid_lock);
-static Group_log group_log(&sid_map);
-static bool have_group_log= false;
-Group_log::Group_log_reader group_log_reader(&group_log, &sid_map);
-
-static Group_set include_groups(&sid_map), exclude_groups(&sid_map);
-static bool include_anonymous= true, exclude_anonymous= false;
 static char *opt_include_ugids_str, *opt_exclude_ugids_str;
 static char *opt_first_lgid_str= NULL, *opt_last_lgid_str= NULL;
-static rpl_lgid opt_first_lgid= -1, opt_last_lgid= -1;
 static my_bool opt_skip_ugids= 0;
 #endif
-
 
 static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           const char* logname);
@@ -1519,10 +1508,6 @@ static Exit_status dump_log_entries(const char* logname)
   strmov(print_event_info.delimiter, "/*!*/;");
   
   print_event_info.verbose= short_form ? 0 : verbose;
-#ifdef HAVE_UGID
-  print_event_info.skip_ugids= opt_skip_ugids;
-  print_event_info.sid_map= &sid_map;
-#endif
 
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
@@ -1535,12 +1520,6 @@ static Exit_status dump_log_entries(const char* logname)
             "using a --stop-position or --stop-datetime that refers "
             "to an event in the middle of a statement. The event(s) "
             "from the partial statement have not been written to output.");
-
-#ifdef HAVE_UGID
-  if (print_event_info.last_subgroup_printed)
-    fprintf(result_file, "SET UGID_NEXT='AUTOMATIC'%s\n",
-            print_event_info.delimiter);
-#endif
 
   /* Set delimiter back to semicolon */
   if (!raw_mode)
@@ -1654,7 +1633,6 @@ err:
 */
 static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                            const char* logname)
-
 {
   uchar buf[128];
   ulong len;
@@ -2073,88 +2051,6 @@ static Exit_status check_header(IO_CACHE* file,
 }
 
 
-#ifdef HAVE_UGID
-
-
-static Exit_status open_group_log(const char *binlog_filename)
-{
-  DBUG_ENTER("open_group_log");
-  // avoid assertion in sid_map
-  sid_lock.rdlock();
-
-  // open Sid_map
-  char sid_map_file[FN_REFLEN];
-  fn_format(sid_map_file, binlog_filename, "", "-sids", MY_REPLACE_EXT);
-  if (sid_map.open(sid_map_file, false) != RETURN_STATUS_OK)
-    DBUG_RETURN(OK_CONTINUE);
-
-  // open Group_log
-  char group_log_file[FN_REFLEN];
-  fn_format(group_log_file, binlog_filename, "", "-grp", MY_REPLACE_EXT);
-  if (group_log.open(group_log_file, false) != RETURN_STATUS_OK)
-    DBUG_RETURN(OK_CONTINUE);
-
-  // add include-ugids
-  if (opt_include_ugids_str != NULL)
-  {
-    if (include_groups.add(opt_include_ugids_str, &include_anonymous) !=
-        RETURN_STATUS_OK)
-    {
-      sid_lock.unlock();
-      error("Error adding include-groups '%s'.", opt_include_ugids_str);
-      DBUG_RETURN(ERROR_STOP);
-    }
-  }
-
-  // add include-ugids
-  if (opt_exclude_ugids_str != NULL)
-  {
-    if (exclude_groups.add(opt_exclude_ugids_str, &exclude_anonymous) !=
-        RETURN_STATUS_OK)
-    {
-      sid_lock.unlock();
-      error("Error adding exclude-groups '%s'.", opt_exclude_ugids_str);
-      DBUG_RETURN(ERROR_STOP);
-    }
-  }
-
-  // seek in group log
-  if (opt_include_ugids_str != NULL)
-    group_log_reader.seek(&include_groups, false, include_anonymous,
-                          opt_first_lgid, opt_last_lgid,
-                          0, start_position_mot);
-  else if (opt_exclude_ugids_str != NULL)
-    group_log_reader.seek(&exclude_groups, true, !exclude_anonymous,
-                          opt_first_lgid, opt_last_lgid,
-                          0, start_position_mot);
-  else
-    group_log_reader.seek(NULL, false, true,
-                          opt_first_lgid, opt_last_lgid,
-                          0, start_position_mot);
-
-  have_group_log= true;
-  DBUG_RETURN(OK_CONTINUE);
-}
-
-
-static void close_group_log()
-{
-  include_groups.clear();
-  exclude_groups.clear();
-  if (sid_map.is_open())
-  {
-    sid_map.close();
-    sid_map.clear();
-  }
-  if (group_log.is_open())
-    group_log.close();
-  sid_lock.unlock();
-}
-
-
-#endif // ifdef HAVE_UGID
-
-
 /**
   Reads a local binlog and prints the events it sees.
 
@@ -2177,34 +2073,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   uchar tmp_buff[BIN_LOG_HEADER_SIZE];
   Exit_status retval= OK_CONTINUE;
   bool opened_iocache= false;
-#ifdef HAVE_UGID
-  Subgroup subgroup;
-  Subgroup *subgroup_p= NULL;
-#endif
 
   if (logname && strcmp(logname, "-") != 0)
   {
-#ifdef HAVE_UGID
-    /* read from normal file */
-    if ((retval= open_group_log(logname)) != OK_CONTINUE)
-      goto end;
-    if (have_group_log)
-    {
-      /*
-        If using the group log, the first subgroup may appear after
-        --start-position (e.g. if start-position is before the initial
-        FD event, which is not part of any subgroup; or if
-        --include-ugids or --exclude-ugids causes the first subgroup
-        after start-position to be skipped).  So we change
-        start_position to the position of the first subgroup.
-      */
-      Subgroup *first_subgroup;
-      if (group_log_reader.peek_subgroup(&first_subgroup) != READ_OK)
-        goto end;
-      start_position= first_subgroup->binlog_pos;
-    }
-#endif
-
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
       goto err;
     if (init_io_cache(file, fd, 0, READ_CACHE, start_position_mot, 0,
@@ -2278,23 +2149,6 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-#ifdef HAVE_UGID
-    if (have_group_log && old_off >= start_position_mot &&
-        (subgroup_p == NULL ||
-         old_off >= (my_off_t)(subgroup_p->binlog_pos +
-                               subgroup_p->binlog_length)))
-    {
-      switch (group_log_reader.read_subgroup(&subgroup))
-      {
-      case READ_OK: break;
-      case READ_ERROR: case READ_TRUNCATED: goto err;
-      case READ_EOF: goto end;
-      }
-      subgroup_p= &subgroup;
-      my_b_seek(file, subgroup.binlog_pos);
-    }
-#endif
-
     Log_event* ev = Log_event::read_log_event(file, glob_description_event,
                                               opt_verify_binlog_checksum);
     if (!ev)
@@ -2316,11 +2170,6 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       goto end;
     }
 
-#ifdef HAVE_UGID
-    ev->subgroup= subgroup_p;
-    ev->event_end_position= my_b_tell(file);
-#endif
-
     if ((retval= process_event(print_event_info, ev, old_off, logname)) !=
         OK_CONTINUE)
       goto end;
@@ -2336,9 +2185,6 @@ end:
     my_close(fd, MYF(MY_WME));
   if (opened_iocache)
     end_io_cache(file);
-#ifdef HAVE_UGID
-  close_group_log();
-#endif
   DBUG_RETURN(retval);
 }
 
@@ -2372,43 +2218,6 @@ static int args_post_process(void)
       DBUG_RETURN(ERROR_STOP);
     }
   }
-
-#ifdef HAVE_UGID
-  if (opt_exclude_ugids_str != NULL && opt_include_ugids_str != NULL)
-  {
-    error("--exclude-ugids and --include-ugids cannot be combined.");
-    DBUG_RETURN(ERROR_STOP);
-  }
-
-  if (opt_first_lgid_str != NULL)
-  {
-    char *endp;
-    opt_first_lgid= strtoll(opt_first_lgid_str, &endp, 0);
-    if (*endp != 0 || opt_first_lgid <= 0 || opt_first_lgid == LLONG_MAX)
-    {
-      error("--first-lgid must be a positive integer.");
-      DBUG_RETURN(ERROR_STOP);
-    }
-  }
-
-  if (opt_last_lgid_str != NULL)
-  {
-    char *endp;
-    opt_last_lgid= strtoll(opt_last_lgid_str, &endp, 0);
-    if (*endp != 0 || opt_last_lgid <= 0 || opt_last_lgid == LLONG_MAX)
-    {
-      error("--last-lgid must be a positive integer.");
-      DBUG_RETURN(ERROR_STOP);
-    }
-  }
-
-  if (opt_first_lgid != -1 && opt_last_lgid != -1 &&
-      opt_first_lgid > opt_last_lgid)
-  {
-    error("--first-lgid must be smaller than or equal to --last-lgid.");
-    DBUG_RETURN(ERROR_STOP);
-  }
-#endif // ifdef HAVE_UGID
 
   DBUG_RETURN(OK_CONTINUE);
 }
@@ -2550,12 +2359,7 @@ int main(int argc, char** argv)
 #include "rpl_utility.cc"
 
 #include "zsid_map.cc"
-#include "zgroup_log.cc"
-#include "zreader.cc"
-#include "zappender.cc"
-#include "zrot_file.cc"
 #include "zreturn.cc"
-#include "zcompact.cc"
 #include "zsubgroup_coder.cc"
 #include "zuuid.cc"
 #include "zgroup_set.cc"

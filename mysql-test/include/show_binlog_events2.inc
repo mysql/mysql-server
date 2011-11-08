@@ -8,5 +8,5 @@ if (!$binlog_start)
 }
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 5 #
---replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/ /SET @@SESSION.UGID_NEXT=.*$/SET @@SESSION.UGID_NEXT= 'UGID';/
 --eval show binlog events from $binlog_start

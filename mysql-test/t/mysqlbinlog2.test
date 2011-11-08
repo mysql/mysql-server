@@ -23,7 +23,7 @@ insert into t1 values(null, "b");
 set timestamp=@a+2;
 --let $binlog_pos_760=query_get_value(SHOW MASTER STATUS, Position, 1)
 insert into t1 values(null, "c");
---let $binlog_pos_951=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000001' from $binlog_pos_760, Pos, 4)
+--let $binlog_pos_951=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000001' from $binlog_pos_760, Pos, 5)
 set timestamp=@a+4;
 insert into t1 values(null, "d");
 insert into t1 values(null, "e");
@@ -31,8 +31,8 @@ insert into t1 values(null, "e");
 flush logs;
 set timestamp=@a+1; # this could happen on a slave
 insert into t1 values(null, "f");
---let $binlog_pos_135=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000002', Pos, 3)
---let $binlog_pos_203=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000002', Pos, 4)
+--let $binlog_pos_135=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000002', Pos, 4)
+--let $binlog_pos_203=query_get_value(SHOW BINLOG EVENTS in 'master-bin.000002', Pos, 5)
 
 # delimiters are for easier debugging in future
 
@@ -44,25 +44,32 @@ select "--- Local --" as "";
 # be time dependent (the Start events). Better than nothing.
 #
 let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --base64-output=never $MYSQLD_DATADIR/master-bin.000001 
 
 --disable_query_log ONCE
 select "--- offset --" as "";
---exec $MYSQL_BINLOG --short-form --offset=2 $MYSQLD_DATADIR/master-bin.000001 
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
+--exec $MYSQL_BINLOG --short-form --offset=3 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log ONCE
 select "--- start-position --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log ONCE
 select "--- stop-position --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_760 $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log ONCE
 select "--- start and stop positions ---" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --stop-position=$binlog_pos_951  $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log ONCE
 select "--- start-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 
 --disable_query_log ONCE
 select "--- stop-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 
 
 --disable_query_log ONCE
@@ -71,71 +78,85 @@ select "--- Local with 2 binlogs on command line --" as "";
 # This is to verify that some options apply only to first, or last binlog
 
 flush logs;
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 
 --disable_query_log ONCE
 select "--- offset --" as "";
---exec $MYSQL_BINLOG --short-form --offset=2 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
+--exec $MYSQL_BINLOG --short-form --offset=3 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log ONCE
 select "--- start-position --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log ONCE
 select "--- stop-position --" as "";
---exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_203 $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
---disable_query_log ONCE
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 select "--- start-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 --disable_query_log ONCE
 select "--- stop-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.000002
 
 --disable_query_log ONCE
 select "--- Remote --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 
 --disable_query_log ONCE
 select "--- offset --" as "";
---exec $MYSQL_BINLOG --short-form --offset=2 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
+--exec $MYSQL_BINLOG --short-form --offset=3 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 --disable_query_log ONCE
 select "--- start-position --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 --disable_query_log ONCE
 select "--- stop-position --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 --disable_query_log ONCE
 select "--- start and stop positions ---" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --stop-position=$binlog_pos_951 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 --disable_query_log ONCE
 select "--- start-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--start-datetime=2020-01-21 15:32:24" --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 --disable_query_log ONCE
 select "--- stop-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--stop-datetime=2020-01-21 15:32:24" --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
-
 --disable_query_log ONCE
 select "--- Remote with 2 binlogs on command line --" as "";
-
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 master-bin.000002
-
 --disable_query_log ONCE
+
 select "--- offset --" as "";
---exec $MYSQL_BINLOG --short-form --offset=2 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
+--exec $MYSQL_BINLOG --short-form --offset=3 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
 --disable_query_log ONCE
 select "--- start-position --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --start-position=$binlog_pos_760 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
 --disable_query_log ONCE
 select "--- stop-position --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --stop-position=$binlog_pos_135 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
 --disable_query_log ONCE
 select "--- start-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--start-datetime=20200121153224" --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 master-bin.000002
 --disable_query_log ONCE
-select "--- stop-datetime --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form "--stop-datetime=2020/01/21 15@32@24" --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 master-bin.000002
-
 --disable_query_log ONCE
-select "--- to-last-log --" as "";
 
+select "--- to-last-log --" as "";
+--replace_regex /SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
 --exec $MYSQL_BINLOG --short-form --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --to-last-log master-bin.000001
 
 # clean up

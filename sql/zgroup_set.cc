@@ -21,6 +21,7 @@
 
 
 #include <ctype.h>
+#include <algorithm>
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include <algorithm>
