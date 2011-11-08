@@ -2817,10 +2817,6 @@ class Ndb_schema_event_handler {
     mysqld_close_cached_table(schema->db, schema->name);
 
     int error= 0;
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Ndb *ndb= thd_ndb->ndb;
-    Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
-    const NDBTAB *ndbtab= ndbtab_g.get_table();
     if (schema->node_id != own_nodeid())
     {
       write_schema_op_to_binlog(m_thd, schema);
@@ -2864,6 +2860,10 @@ class Ndb_schema_event_handler {
       share->new_op= 0;
       share->op= 0;
 
+      Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+      Ndb *ndb= thd_ndb->ndb;
+      Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
+      const NDBTAB *ndbtab= ndbtab_g.get_table();
       if (ndbcluster_create_event_ops(m_thd, share, ndbtab, event_name.c_ptr()))
       {
         sql_print_error("NDB Binlog:"
