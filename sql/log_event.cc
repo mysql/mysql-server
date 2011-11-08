@@ -642,6 +642,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case INCIDENT_EVENT: return "Incident";
   case IGNORABLE_LOG_EVENT: return "Ignorable";
   case ROWS_QUERY_LOG_EVENT: return "Rows_query";
+  case UGID_LOG_EVENT: return "Ugid_log_event";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -704,9 +705,6 @@ Log_event::Log_event(const char* buf,
   event_cache_type(EVENT_INVALID_CACHE),
   event_logging_type(EVENT_INVALID_LOGGING),
   crc(0),
-#if defined(HAVE_UGID) && defined(MYSQL_CLIENT)
-  subgroup(NULL),
-#endif
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
 #ifndef MYSQL_CLIENT
@@ -1522,6 +1520,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case ROWS_QUERY_LOG_EVENT:
       ev= new Rows_query_log_event(buf, event_len, description_event);
       break;
+    case UGID_LOG_EVENT:
+      ev= new Ugid_log_event(buf, event_len, description_event);
+      break;
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.
@@ -1586,82 +1587,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 #ifdef MYSQL_CLIENT
 
-
-#ifdef HAVE_UGID
-void Log_event::print_subgroup_info(IO_CACHE *out, PRINT_EVENT_INFO *pei)
-{
-  if (pei->skip_ugids)
-    return;
-
-  if (subgroup == NULL)
-  {
-    if (!pei->last_subgroup_printed ||
-        pei->last_subgroup.type != ANONYMOUS_SUBGROUP)
-      my_b_printf(out, "SET UGID_NEXT='ANONYMOUS'%s\n", pei->delimiter);
-    return;
-  }
-
-  bool force= !pei->last_subgroup_printed;
-  bool printed_header= false;
-  Subgroup *prev= &pei->last_subgroup;
-
-  char header[2 + Subgroup::MAX_TEXT_LENGTH + 5 + 1]= "# ";
-  strcpy(header + 2 + subgroup->to_string(header + 2, pei->sid_map), "\nSET ");
-
-#define PRINT_HEADER                                            \
-  (my_b_printf(out, "%s", printed_header ? ", " : header),      \
-   printed_header= true)
-  if (force || subgroup->type != prev->type ||
-      (subgroup->type != ANONYMOUS_SUBGROUP &&
-       (subgroup->sidno != prev->sidno || subgroup->gno != prev->gno)))
-  {
-    PRINT_HEADER;
-    my_b_printf(out, "UGID_NEXT='");
-    switch (subgroup->type)
-    {
-    case ANONYMOUS_SUBGROUP:
-      my_b_printf(out, "ANONYMOUS");
-      break;
-    case DUMMY_SUBGROUP:
-      my_b_printf(out, "AUTOMATIC");
-      break;
-    case NORMAL_SUBGROUP:
-      Group g= { subgroup->sidno, subgroup->gno };
-      char buf[Group::MAX_TEXT_LENGTH + 1];
-      g.to_string(&sid_map, buf);
-      my_b_printf(out, "%s", buf);
-      break;
-    }
-    my_b_printf(out, "'");
-    prev->type= subgroup->type;
-    prev->sidno= subgroup->sidno;
-    prev->gno= subgroup->gno;
-  }
-  bool is_last_event=
-    event_end_position >= (subgroup->binlog_pos + subgroup->binlog_length -
-                           subgroup->binlog_offset_after_last_statement);
-  bool group_commit= subgroup->group_commit && is_last_event;
-  bool group_end= subgroup->group_end && is_last_event;
-  if (force || group_end != prev->group_end)
-  {
-    PRINT_HEADER;
-    my_b_printf(out, "UGID_END=%d", group_end ? 1 : 0);
-    prev->group_end= group_end;
-  }
-  if (force || group_commit != prev->group_commit)
-  {
-    PRINT_HEADER;
-    my_b_printf(out, "UGID_COMMIT=%d", group_commit ? 1 : 0);
-    prev->group_commit= group_commit;
-  }
-  if (printed_header)
-    my_b_printf(out, "%s\n", pei->delimiter);
-
-  pei->last_subgroup_printed= true;
-}
-#endif // ifdef HAVE_UGID
-
-
 /*
   Log_event::print_header()
 */
@@ -1673,10 +1598,6 @@ void Log_event::print_header(IO_CACHE* file,
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;
   DBUG_ENTER("Log_event::print_header");
-
-#ifdef HAVE_UGID
-  print_subgroup_info(file, print_event_info);
-#endif
 
   my_b_printf(file, "#");
   print_timestamp(file);
@@ -2498,7 +2419,7 @@ bool Log_event::contains_partition_info()
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
   Slave_job_group group, *ptr_group;
-  bool is_b_event;
+  bool is_s_event;
   int  num_dbs= 0;
   Slave_worker *ret_worker= NULL;
   char llbuff[22];
@@ -2509,10 +2430,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
   /* checking partioning properties and perform corresponding actions */
 
-  // Beginning of a group designated explicitly with BEGIN
-  if ((is_b_event= starts_group()) ||
+  // Beginning of a group designated explicitly with BEGIN or UGID
+  if ((is_s_event= starts_group()) || get_type_code() == UGID_LOG_EVENT ||
       // or DDL:s or autocommit queries possibly associated with own p-events
-      (!rli->curr_group_seen_begin &&
+      (!rli->curr_group_seen_begin && !rli->curr_group_seen_ugid &&
        /*
          the following is a special case of B-free still multi-event group like
          { p_1,p_2,...,p_k, g }.
@@ -2524,34 +2445,50 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         gaq->get_job_group(rli->gaq->assigned_group_index)->
         worker_id != MTS_WORKER_UNDEF)))
   {
-    ulong gaq_idx;
-    rli->mts_groups_assigned++;
+    if (!rli->curr_group_seen_ugid)
+    {
+      ulong gaq_idx;
+      rli->mts_groups_assigned++;
 
-    rli->curr_group_isolated= FALSE;
-    group.reset(log_pos, rli->mts_groups_assigned);
-    // the last occupied GAQ's array index
-    gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
+      rli->curr_group_isolated= FALSE;
+      group.reset(log_pos, rli->mts_groups_assigned);
+      // the last occupied GAQ's array index
+      gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
     
-    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
-    DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
-                group_relay_log_name == NULL);
-    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
-    DBUG_ASSERT(rli->last_assigned_worker == NULL);
+      DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
+      DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
+                  group_relay_log_name == NULL);
+      DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
+      DBUG_ASSERT(rli->last_assigned_worker == NULL);
 
-    if (is_b_event)
+      if (is_s_event || get_type_code() == UGID_LOG_EVENT)
+      {
+        Log_event *ptr_curr_ev= this;
+        // B-event is appended to the Deferred Array associated with GCAP
+        insert_dynamic(&rli->curr_group_da,
+                       (uchar*) &ptr_curr_ev);
+
+        DBUG_ASSERT(rli->curr_group_da.elements == 1);
+
+        if (starts_group())
+          // mark the current group as started with explicit B-event
+          rli->curr_group_seen_begin= true;
+     
+        if (get_type_code() == UGID_LOG_EVENT)
+          // mark the current group as started with explicit Ugid-event
+          rli->curr_group_seen_ugid= true;
+      }
+    }
+    else
     {
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da,
-                     (uchar*) &ptr_curr_ev);
-
-      DBUG_ASSERT(rli->curr_group_da.elements == 1);
-
-      // mark the current group as started with explicit B-event
-      rli->curr_group_seen_begin= TRUE;
-
-      return ret_worker;
-    } 
+      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
+      rli->curr_group_seen_begin= true;
+      DBUG_ASSERT(rli->curr_group_da.elements == 2);
+      DBUG_ASSERT(starts_group());
+    }
+    return ret_worker;
   }
 
   // mini-group representative
@@ -2635,7 +2572,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == USER_VAR_EVENT ||
             get_type_code() == ROWS_QUERY_LOG_EVENT ||
             get_type_code() == BEGIN_LOAD_QUERY_EVENT ||
-            get_type_code() == APPEND_BLOCK_EVENT))
+            get_type_code() == APPEND_BLOCK_EVENT)) 
       {
         DBUG_ASSERT(!ret_worker);
         
@@ -2650,24 +2587,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       
-      if (!rli->curr_group_seen_begin)
-      {
-        /*
-          This is a case of B/T-less group like
-          `set @user_var, select f()' that are logged w/o B-event.
-          Notice, while the select-f() can be mended in the current
-          master version, the old server binlogs can't since it bring in
-          the same B/T-less {p, g} group.
-        */
-        DBUG_ASSERT(rli->curr_group_da.elements > 0);
-      }
-      else
-      {
-        DBUG_ASSERT(rli->curr_group_da.elements > 1);
-      }
-
       DBUG_ASSERT(!ret_worker);
-
       return ret_worker;
     }
   }
@@ -2864,8 +2784,8 @@ int Log_event::apply_event(Relay_log_info *rli)
   }
 
   DBUG_ASSERT(actual_exec_mode == EVENT_EXEC_PARALLEL);
-  DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
-              rli->last_assigned_worker);
+  //DBUG_ASSERT(!(rli->curr_group_seen_begin && ends_group()) ||
+  //            rli->last_assigned_worker);
 
   worker= NULL;
   rli->mts_group_status= Relay_log_info::MTS_IN_GROUP;
@@ -4941,6 +4861,10 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[UGID_LOG_EVENT-1]= Ugid_log_event::UGID_TYPE_INFO_LEN +
+                                         Ugid_log_event::UGID_FLAGS_INFO_LEN +
+                                         Ugid_log_event::GROUP_SIZE_INFO_LEN +
+                                         Ugid_log_event::THREAD_ID_INFO_LEN;
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -11593,6 +11517,232 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 }
 #endif
 
+#ifdef HAVE_UGID
+Ugid_log_event::Ugid_log_event(const char *buf, uint event_len,
+                               const Format_description_log_event *descr_event)
+  : Ignorable_log_event(buf, descr_event)
+{
+  DBUG_ENTER("Ugid_log_event::Ugid_log_event");
+  uint8 const common_header_len=
+    descr_event->common_header_len;
+  uint8 const post_header_len=
+    descr_event->post_header_len[UGID_LOG_EVENT - 1];
+
+  DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
+                     event_len, common_header_len, post_header_len));
+
+  char const *ptr= buf + common_header_len;
+  char const *const str_end= buf + event_len;
+
+  ugid_type= *ptr;
+  ptr+= UGID_TYPE_INFO_LEN;  
+
+  ugid_flags= *ptr;
+  ptr+= UGID_FLAGS_INFO_LEN;
+
+  group_size= uint8korr(ptr);
+  ptr+= GROUP_SIZE_INFO_LEN;
+
+  thread_id= uint4korr(ptr);
+  ptr+= THREAD_ID_INFO_LEN;
+
+  /*
+    This constructs a null-terminated string: db.
+  */
+  strncpy(db, ptr, sizeof(db));
+  ptr+= sizeof(db);
+
+  /*
+    This constructs a null-terminated string: ugid.
+  */
+  strncpy(ugid, ptr, sizeof(ugid));
+  ptr+= sizeof(ugid);
+
+  DBUG_ASSERT(str_end == (char *) ptr);
+
+  DBUG_VOID_RETURN;
+}
+
+#ifndef MYSQL_CLIENT
+Ugid_log_event::Ugid_log_event(THD* thd_arg)
+: Ignorable_log_event(thd_arg), ugid_type(0),
+  ugid_flags(0), group_size(0), thread_id(0)
+{
+  ugid[0]= 0;
+  db[0]= 0;
+}
+
+Ugid_log_event::Ugid_log_event(THD* thd_arg, uchar ugid_type_arg,
+                               char* ugid_arg, uchar ugid_flags_arg,
+                               uint64 group_size_arg)
+: Ignorable_log_event(thd_arg), ugid_type(ugid_type_arg),
+  ugid_flags(ugid_flags_arg), group_size(group_size_arg),
+  thread_id(thd_arg->thread_id)
+{
+  /*
+    This is expecting null-terminated strings whose size
+    cannot be greater than ugid or db respectively.
+  */
+  strncpy(ugid, ugid_arg, sizeof(ugid));
+  if (thd->db)
+    strncpy(db, thd->db, sizeof(db));
+  else
+    db[0]= 0;
+}
+#endif
+
+Ugid_log_event::~Ugid_log_event()
+{
+}
+
+#ifndef MYSQL_CLIENT
+void Ugid_log_event::pack_info(Protocol *protocol)
+{
+  char buffer[120 + UGID_SIZE_INFO_LEN + NAME_LEN];
+  char *ptr= buffer;
+
+  if (db[0])
+  {
+    size_t db_len= strlen(db);
+    ptr= strmov(buffer, "use `");
+    memcpy(ptr, db, db_len);
+    ptr= strmov(ptr + db_len, "`; ");
+  }
+
+  size_t ugid_len= strlen(ugid);
+  ptr= strmov(ptr, "SET @@SESSION.UGID_NEXT= '");
+  memcpy(ptr, ugid, ugid_len);
+  ptr= strmov(ptr + ugid_len, "';");
+
+  protocol->store(buffer, ptr - buffer, &my_charset_bin);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+void
+Ugid_log_event::print(FILE *file,
+                      PRINT_EVENT_INFO *print_event_info)
+{
+  int different_db= 0;
+  IO_CACHE *const head= &print_event_info->head_cache;
+ 
+  if (!print_event_info->short_form)
+  {
+    print_header(head, print_event_info, FALSE);
+    my_b_printf(head, "\tUgid\tthread_id=%lu\n", (ulong) thread_id);
+  }
+
+  if (db && db[0])
+  {
+    size_t db_len= strlen(db);
+    different_db= memcmp(print_event_info->db, db, db_len + 1);
+    if (different_db)
+      memcpy(print_event_info->db, db, db_len + 1);
+    if (different_db)
+      my_b_printf(head, "use %s%s\n", db, print_event_info->delimiter);
+  }
+
+  my_b_printf(head, "SET @@SESSION.UGID_NEXT= '%s'%s\n", ugid,
+              print_event_info->delimiter);
+}
+#endif
+
+#ifdef MYSQL_SERVER
+bool Ugid_log_event::write_data_header(IO_CACHE *file)
+{
+  DBUG_ENTER("Ugid_log_event::write_data_header");
+  char buffer[UGID_TYPE_INFO_LEN + UGID_FLAGS_INFO_LEN +
+              GROUP_SIZE_INFO_LEN + THREAD_ID_INFO_LEN];
+  char* ptr_buffer= buffer;
+
+  *ptr_buffer= ugid_type;
+  ptr_buffer+= UGID_TYPE_INFO_LEN;
+
+  *ptr_buffer= ugid_flags;
+  ptr_buffer+= UGID_FLAGS_INFO_LEN;
+
+  int8store(ptr_buffer, group_size);
+  ptr_buffer+= GROUP_SIZE_INFO_LEN;
+
+  int4store(ptr_buffer, thread_id);
+  ptr_buffer+= THREAD_ID_INFO_LEN;
+
+#ifndef MYSQL_CLIENT
+  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
+#else
+   DBUG_RETURN(my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
+#endif
+}
+
+bool Ugid_log_event::write_data_body(IO_CACHE *file)
+{
+  DBUG_ENTER("Ugid_log_event::write_data_body");
+
+#ifndef MYSQL_CLIENT
+  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar* ) db, sizeof(db)) ||
+              wrapper_my_b_safe_write(file, (uchar* ) ugid, sizeof(ugid)));
+#else
+   DBUG_RETURN(my_b_safe_write(file, (uchar* ) db, sizeof(db)) ||
+               my_b_safe_write(file, (uchar* ) ugid, sizeof(ugid)));
+#endif
+}
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+int Ugid_log_event::do_apply_event(Relay_log_info const *rli)
+{
+  DBUG_ENTER("Ugid_log_event::do_apply_event");
+  DBUG_ASSERT(rli->info_thd == thd);
+
+  mysql_bin_log.sid_lock.rdlock();
+  if (thd->variables.ugid_next.parse(ugid) != RETURN_STATUS_OK)
+  {
+    mysql_bin_log.sid_lock.unlock();
+    DBUG_RETURN(1);
+  }
+  mysql_bin_log.sid_lock.unlock();
+  /*
+    I need to talk with sven to figure out how to correctly
+    set up the parameters that follow and define assertions.
+  */
+  // thd->variables.ugid_next_list=
+  thd->variables.ugid_has_ongoing_super_group= false;
+  thd->variables.ugid_end= true;
+  thd->variables.ugid_commit= true;
+  DBUG_RETURN(0);
+}
+#endif
+
+uchar Ugid_log_event::get_ugid_type() const
+{
+  return ugid_type;
+}
+
+const char* Ugid_log_event::get_ugid() const
+{
+  return ugid;
+}
+
+uchar Ugid_log_event::get_ugid_flags() const
+{
+  return ugid_flags;
+}
+
+uint64 Ugid_log_event::get_group_size() const
+{
+  return group_size;
+}
+
+const char* Ugid_log_event::get_db()
+{
+  return db;
+}
+
+uint32 Ugid_log_event::get_thread_id() const
+{
+  return thread_id;
+}
+#endif // HAVE_UGID
 
 #ifdef MYSQL_CLIENT
 /**
@@ -11608,9 +11758,6 @@ st_print_event_info::st_print_event_info()
    thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
    have_unflushed_events(FALSE)
-#ifdef HAVE_UGID
- , last_subgroup_printed(false), skip_ugids(false), sid_map(NULL)
-#endif
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at

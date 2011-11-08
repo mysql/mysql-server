@@ -20,6 +20,7 @@ insert into t1 values(null, "f");
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -31,6 +32,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -41,6 +43,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -51,6 +54,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -61,6 +65,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -71,6 +76,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -91,6 +97,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -103,13 +111,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -120,6 +128,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -130,6 +139,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -140,6 +150,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -160,6 +171,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -172,13 +185,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -189,6 +202,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -210,6 +224,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -221,6 +236,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -231,6 +247,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -251,6 +268,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -263,7 +282,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -277,6 +295,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -289,13 +309,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -306,6 +326,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -327,6 +348,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -338,6 +360,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -348,6 +371,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -370,6 +394,7 @@ flush logs;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -381,6 +406,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -391,6 +417,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -401,6 +428,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -411,6 +439,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -421,6 +450,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -433,6 +463,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -445,7 +477,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -462,6 +493,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -474,13 +507,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -491,6 +524,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -501,6 +535,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -511,6 +546,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -523,6 +559,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -535,7 +573,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -552,6 +589,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -564,13 +603,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -581,6 +620,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -593,6 +633,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -605,7 +647,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -623,6 +664,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -634,6 +676,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -644,6 +687,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -654,6 +698,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -664,6 +709,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -674,6 +720,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -686,6 +733,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -708,6 +757,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -720,13 +771,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -737,6 +788,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -749,6 +801,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -761,7 +815,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -779,6 +832,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -790,6 +844,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -800,6 +855,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -821,6 +877,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -832,6 +889,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -842,6 +900,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -852,6 +911,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -862,6 +922,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -872,6 +933,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -892,6 +954,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -904,13 +968,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -921,6 +985,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -931,6 +996,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -941,6 +1007,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -960,6 +1027,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -972,13 +1041,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -989,6 +1058,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1010,6 +1080,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1021,6 +1092,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1031,6 +1103,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1050,6 +1123,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1062,7 +1137,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -1076,6 +1150,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1088,13 +1164,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1105,6 +1181,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1126,6 +1203,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1137,6 +1215,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1147,6 +1226,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1168,6 +1248,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1179,6 +1260,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1189,6 +1271,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1199,6 +1282,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -1209,6 +1293,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1219,6 +1304,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1231,6 +1317,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1243,7 +1331,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1260,6 +1347,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1272,13 +1361,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1289,6 +1378,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -1299,6 +1389,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1309,6 +1400,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1321,6 +1413,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1333,7 +1427,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1349,6 +1442,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1361,13 +1456,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1378,6 +1473,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1390,6 +1486,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1402,7 +1500,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1420,6 +1517,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1431,6 +1529,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1441,6 +1540,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1451,6 +1551,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -1461,6 +1562,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1471,6 +1573,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1483,6 +1586,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1504,6 +1609,8 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1516,13 +1623,13 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1533,6 +1640,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1545,6 +1653,8 @@ COMMIT
 /*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1557,7 +1667,6 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1575,6 +1684,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1586,6 +1696,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1596,6 +1707,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1617,6 +1729,7 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1628,6 +1741,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1638,6 +1752,7 @@ insert into t1 values(null, "a")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609942/*!*/;
 BEGIN
 /*!*/;
@@ -1648,6 +1763,7 @@ insert into t1 values(null, "b")
 SET TIMESTAMP=1579609942/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609944/*!*/;
 BEGIN
 /*!*/;
@@ -1658,6 +1774,7 @@ insert into t1 values(null, "c")
 SET TIMESTAMP=1579609944/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1668,6 +1785,7 @@ insert into t1 values(null, "d")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609946/*!*/;
 BEGIN
 /*!*/;
@@ -1678,6 +1796,7 @@ insert into t1 values(null, "e")
 SET TIMESTAMP=1579609946/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=1579609943/*!*/;
 BEGIN
 /*!*/;

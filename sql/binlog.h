@@ -329,7 +329,6 @@ public:
   Sid_map sid_map;
   Group_log_state group_log_state;
   rpl_sidno server_uuid_sidno;
-  Group_log group_log;
 #endif
 };
 

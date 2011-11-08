@@ -65,16 +65,10 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_record.cc
   ../sql/rpl_reporting.cc
   ../sql/rpl_utility.cc
-  ../sql/zreader.cc
-  ../sql/zappender.cc
-  ../sql/zcompact.cc
-  ../sql/zatom_file.cc
-  ../sql/zrot_file.cc
   ../sql/zstring_appender.cc
   ../sql/zuuid.cc
   ../sql/zgroup.cc
   ../sql/zreturn.cc
-  ../sql/zgroup_log.cc
   ../sql/zsubgroup_coder.cc
   ../sql/zowner_id.cc
   ../sql/zsid_map.cc
