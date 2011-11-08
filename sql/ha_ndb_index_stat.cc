@@ -1493,6 +1493,13 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
     Ndb_index_stat *st= st_loop;
     st_loop= st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
+
+    // adjust global counters at drop
+    pthread_mutex_lock(&ndb_index_stat_stat_mutex);
+    ndb_index_stat_force_update(st, false);
+    ndb_index_stat_no_stats(st, false);
+    pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
+
     ndb_index_stat_proc_evict(pr, st);
     ndb_index_stat_list_remove(st);
     delete st->is;
