@@ -75,6 +75,7 @@ struct Ndb_index_stat {
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
   struct NDB_SHARE *share;
+  bool to_delete;       /* detached from share and marked for delete */
   Ndb_index_stat();
 };
 
@@ -662,6 +663,7 @@ Ndb_index_stat::Ndb_index_stat()
   list_next= 0;
   list_prev= 0;
   share= 0;
+  to_delete= false;
 }
 
 void
@@ -954,9 +956,15 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   return st;
 }
 
+/*
+  Prepare to delete index stat entry.  Remove it from per-share
+  list and set "to_delete" flag.  Stats thread does real delete.
+*/
+
 void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
+  DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_list_mutex);
   NDB_SHARE *share= st->share;
@@ -970,10 +978,13 @@ ndb_index_stat_free(Ndb_index_stat *st)
   {
     if (st == st_loop)
     {
+      DBUG_PRINT("index_stat", ("st %s stat free one", st->id));
+      st->share_next= 0;
       st->share= 0;
       assert(st->lt != 0);
       assert(st->lt != Ndb_index_stat::LT_Delete);
-      ndb_index_stat_list_move(st, Ndb_index_stat::LT_Delete);
+      assert(!st->to_delete);
+      st->to_delete= true;
       st_loop= st_loop->share_next;
       assert(!found);
       found++;
@@ -996,26 +1007,32 @@ ndb_index_stat_free(Ndb_index_stat *st)
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_list_mutex);
+  DBUG_VOID_RETURN;
 }
 
 void
 ndb_index_stat_free(NDB_SHARE *share)
 {
+  DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_list_mutex);
   Ndb_index_stat *st;
   while ((st= share->index_stat_list) != 0)
   {
+    DBUG_PRINT("index_stat", ("st %s stat free all", st->id));
     share->index_stat_list= st->share_next;
+    st->share_next= 0;
     st->share= 0;
     assert(st->lt != 0);
     assert(st->lt != Ndb_index_stat::LT_Delete);
-    ndb_index_stat_list_move(st, Ndb_index_stat::LT_Delete);
+    assert(!st->to_delete);
+    st->to_delete= true;
   }
   pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_list_mutex);
+  DBUG_VOID_RETURN;
 }
 
 /* Find entry across shares */
@@ -1267,9 +1284,15 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     st->check_time == 0 ? 0 : st->check_time + check_delay - pr.now;
 
   DBUG_PRINT("index_stat", ("st %s check wait:%lds force update:%u"
-                            " clean wait:%lds cache clean:%d",
+                            " clean wait:%lds cache clean:%d to delete:%d",
                             st->id, (long)check_wait, st->force_update,
-                            (long)clean_wait, st->cache_clean));
+                            (long)clean_wait, st->cache_clean, st->to_delete));
+
+  if (st->to_delete)
+  {
+    pr.lt= Ndb_index_stat::LT_Delete;
+    return;
+  }
 
   if (!st->cache_clean && clean_wait <= 0)
   {
@@ -1567,6 +1590,12 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   const int error_delay= opt.get(Ndb_index_stat_opt::Ierror_delay);
   const time_t error_wait= st->error_time + error_delay - pr.now;
 
+  if (st->to_delete)
+  {
+    pr.lt= Ndb_index_stat::LT_Delete;
+    return;
+  }
+
   if (error_wait <= 0 ||
       /* Analyze issued after previous error */
       st->force_update)
@@ -1712,6 +1741,41 @@ ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
 
 #ifndef DBUG_OFF
 void
+ndb_index_stat_entry_verify(const Ndb_index_stat *st)
+{
+  const NDB_SHARE *share= st->share;
+  if (st->to_delete)
+  {
+    assert(st->share_next == 0);
+    assert(share == 0);
+  }
+  else
+  {
+    assert(share != 0);
+    const Ndb_index_stat *st2= share->index_stat_list;
+    assert(st2 != 0);
+    uint found= 0;
+    while (st2 != 0)
+    {
+      assert(st2->share == share);
+      const Ndb_index_stat *st3= st2->share_next;
+      uint guard= 0;
+      while (st3 != 0)
+      {
+        assert(st2 != st3);
+        guard++;
+        assert(guard <= 1000); // MAX_INDEXES
+        st3= st3->share_next;
+      }
+      if (st == st2)
+        found++;
+      st2= st2->share_next;
+    }
+    assert(found == 1);
+  }
+}
+
+void
 ndb_index_stat_list_verify(int lt)
 {
   const Ndb_index_stat_list &list= ndb_index_stat_list[lt];
@@ -1756,6 +1820,7 @@ ndb_index_stat_list_verify(int lt)
       assert(guard <= list.count);
       st2= st2->list_next;
     }
+    ndb_index_stat_entry_verify(st);
     st= st->list_next;
   }
   assert(count == list.count);
