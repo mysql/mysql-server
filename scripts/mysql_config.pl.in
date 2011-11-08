@@ -44,7 +44,6 @@ use strict;
 my @exclude_cflags =
   qw/DDBUG_OFF DSAFE_MUTEX DFORCE_INIT_OF_VARS
      DEXTRA_DEBUG DHAVE_purify O O[0-9] xO[0-9] W[-A-Za-z]*
-     Xa xstrconst xc99=none
      unroll2 ip mp restrict/;
 
 my @exclude_libs = qw/lmtmalloc static-libcxa i-static static-intel/;
@@ -205,11 +204,10 @@ $flags->{embedded_libs} =
 
 $flags->{include} = ["-I$pkgincludedir"];
 $flags->{cflags}  = [@{$flags->{include}},split(" ",'@CFLAGS@')];
+$flags->{cxxflags}= [@{$flags->{include}},split(" ",'@CXXFLAGS@')];
 
 # ----------------------------------------------------------------------
 # Remove some options that a client doesn't have to care about
-# FIXME until we have a --cxxflags, we need to remove -Xa
-#       and -xstrconst to make --cflags usable for Sun Forte C++
 # ----------------------------------------------------------------------
 
 my $filter = join("|", @exclude_cflags);
@@ -218,6 +216,12 @@ $flags->{cflags} = [];                  # Clear it
 foreach my $cflag ( @tmp )
 {
   push(@{$flags->{cflags}}, $cflag) unless $cflag =~ m/^($filter)$/o;
+}
+@tmp = @{$flags->{cxxflags}};           # Copy the flag list
+$flags->{cxxflags} = [];                # Clear it
+foreach my $cxxflag ( @tmp )
+{
+  push(@{$flags->{cxxflags}}, $cxxflag) unless $cxxflag =~ m/^($filter)$/o;
 }
 
 # Same for --libs(_r)
@@ -234,6 +238,7 @@ foreach my $lib_type ( "libs","libs_r","embedded_libs" )
 
 my $include =       quote_options(@{$flags->{include}});
 my $cflags  =       quote_options(@{$flags->{cflags}});
+my $cxxflags=       quote_options(@{$flags->{cxxflags}});
 my $libs    =       quote_options(@{$flags->{libs}});
 my $libs_r  =       quote_options(@{$flags->{libs_r}});
 my $embedded_libs = quote_options(@{$flags->{embedded_libs}});
@@ -250,6 +255,7 @@ sub usage
 Usage: $0 [OPTIONS]
 Options:
         --cflags         [$cflags]
+        --cxxflags       [$cxxflags]
         --include        [$include]
         --libs           [$libs]
         --libs_r         [$libs_r]
@@ -271,6 +277,7 @@ EOF
 
 GetOptions(
            "cflags"  => sub { print "$cflags\n" },
+           "cxxflags"=> sub { print "$cxxflags\n" },
            "include" => sub { print "$include\n" },
            "libs"    => sub { print "$libs\n" },
            "libs_r"  => sub { print "$libs_r\n" },

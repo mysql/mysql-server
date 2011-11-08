@@ -110,6 +110,9 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
             DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
     # Using the $ORIGIN token with the -R option to locate the libraries
     # on a path relative to the executable:
+    # We need an extra backslash to pass $ORIGIN to the mysql_config script...
+    SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${STLPORT_PATH}")
     SET(CMAKE_CXX_LINK_FLAGS
       "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${STLPORT_PATH}")
     MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
