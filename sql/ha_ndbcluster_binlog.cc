@@ -3293,7 +3293,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           DBUG_PRINT("info", ("Detected frm change of table %s.%s",
                               schema->db, schema->name));
           log_query= 1;
-          build_table_filename(key, FN_LEN-1, schema->db, schema->name, NullS, 0);
+          build_table_filename(key, sizeof(key)-1, schema->db, schema->name, NullS, 0);
           /*
             If the there is no local table shadowing the altered table and 
             it has an frm that is different than the one on disk then 
@@ -5055,8 +5055,8 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   char ndb_file[FN_REFLEN + 1];
 
   DBUG_ENTER("ndbcluster_check_if_local_table");
-  build_table_filename(key, FN_LEN-1, dbname, tabname, reg_ext, 0);
-  build_table_filename(ndb_file, FN_LEN-1, dbname, tabname, ha_ndb_ext, 0);
+  build_table_filename(key, sizeof(key)-1, dbname, tabname, reg_ext, 0);
+  build_table_filename(ndb_file, sizeof(ndb_file)-1, dbname, tabname, ha_ndb_ext, 0);
   /* Check that any defined table is an ndb table */
   DBUG_PRINT("info", ("Looking for file %s and %s", key, ndb_file));
   if ((! my_access(key, F_OK)) && my_access(ndb_file, F_OK))
