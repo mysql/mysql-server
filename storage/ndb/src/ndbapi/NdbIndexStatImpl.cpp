@@ -878,6 +878,11 @@ NdbIndexStatImpl::sys_read_head(Con& con, bool commit)
     return -1;
   if (sys_head_getvalue(con) == -1)
     return -1;
+  if (con.m_op->setAbortOption(NdbOperation::AbortOnError) == -1)
+  {
+    setError(con, __LINE__);
+    return -1;
+  }
   if (con.execute(commit) == -1)
   {
     setError(con, __LINE__);
