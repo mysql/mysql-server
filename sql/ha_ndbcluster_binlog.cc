@@ -3120,15 +3120,9 @@ class Ndb_schema_event_handler {
   {
     DBUG_ENTER("handle_schema_op_post_epoch");
     THD* thd = m_thd; // Code compatibility
-    Thd_ndb *thd_ndb= get_thd_ndb(thd);
-    Ndb *ndb= thd_ndb->ndb;
-    NDBDICT *dict= ndb->getDictionary();
-
-    DBUG_PRINT("info",
-               ("%s.%s: log query_length: %d  query: '%s'  type: %d",
-                schema->db, schema->name,
-                schema->query_length, schema->query,
-                schema->type));
+    DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d",
+                         schema->db, schema->name,
+                         schema->query, schema->type));
 
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
