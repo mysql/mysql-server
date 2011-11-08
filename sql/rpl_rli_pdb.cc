@@ -1686,7 +1686,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 
   if (ev->starts_group())
   {
-    worker->curr_group_seen_begin= TRUE; // The current group is started with B-event // ALFRANIO CHECK THIS
+    worker->curr_group_seen_begin= true; // The current group is started with B-event // ALFRANIO CHECK THIS
   } 
   else
   {

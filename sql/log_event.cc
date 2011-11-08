@@ -2424,15 +2424,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 #endif
   Slave_committed_queue *gaq= rli->gaq;
 
-
-  // Set group_identifier..... when a group indentifier is set. // ALFRANIO
-
-  
-
   /* checking partioning properties and perform corresponding actions */
 
   // Beginning of a group designated explicitly with BEGIN or UGID
-  if (!rli->curr_group_seen_ugid && ((is_s_event= starts_group()) ||
+  if ((is_s_event= starts_group()) || get_type_code() == UGID_LOG_EVENT ||
       // or DDL:s or autocommit queries possibly associated with own p-events
       (!rli->curr_group_seen_begin && !rli->curr_group_seen_ugid &&
        /*
@@ -2444,41 +2439,52 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
        */
        (gaq->empty() ||
         gaq->get_job_group(rli->gaq->assigned_group_index)->
-        worker_id != MTS_WORKER_UNDEF))))
+        worker_id != MTS_WORKER_UNDEF)))
   {
-    ulong gaq_idx;
-    rli->mts_groups_assigned++;
+    if (!rli->curr_group_seen_ugid)
+    {
+      ulong gaq_idx;
+      rli->mts_groups_assigned++;
 
-    rli->curr_group_isolated= FALSE;
-    group.reset(log_pos, rli->mts_groups_assigned);
-    // the last occupied GAQ's array index
-    gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
+      rli->curr_group_isolated= FALSE;
+      group.reset(log_pos, rli->mts_groups_assigned);
+      // the last occupied GAQ's array index
+      gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
     
-    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
-    DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
-                group_relay_log_name == NULL);
-    DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
-    DBUG_ASSERT(rli->last_assigned_worker == NULL);
+      DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
+      DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
+                  group_relay_log_name == NULL);
+      DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF);  // gaq must have room
+      DBUG_ASSERT(rli->last_assigned_worker == NULL);
 
-    if (is_s_event)
+      if (is_s_event || get_type_code() == UGID_LOG_EVENT)
+      {
+        Log_event *ptr_curr_ev= this;
+        // B-event is appended to the Deferred Array associated with GCAP
+        insert_dynamic(&rli->curr_group_da,
+                       (uchar*) &ptr_curr_ev);
+
+        DBUG_ASSERT(rli->curr_group_da.elements == 1);
+
+        if (starts_group())
+          // mark the current group as started with explicit B-event
+          rli->curr_group_seen_begin= true;
+     
+        if (get_type_code() == UGID_LOG_EVENT)
+          // mark the current group as started with explicit Ugid-event
+          rli->curr_group_seen_ugid= true;
+      }
+    }
+    else
     {
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
-      insert_dynamic(&rli->curr_group_da,
-                     (uchar*) &ptr_curr_ev);
-
-      DBUG_ASSERT(rli->curr_group_da.elements == 1);
-
-      if (get_type_code() == QUERY_EVENT)
-        // mark the current group as started with explicit B-event
-        rli->curr_group_seen_begin= true;
-     
-      if (get_type_code() == UGID_LOG_EVENT)
-        // mark the current group as started with explicit Ugid-event
-        rli->curr_group_seen_ugid= true;
-
-      return ret_worker;
-    } 
+      insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
+      rli->curr_group_seen_begin= true;
+      DBUG_ASSERT(rli->curr_group_da.elements == 2);
+      DBUG_ASSERT(starts_group());
+    }
+    return ret_worker;
   }
 
   // mini-group representative
@@ -2562,7 +2568,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == USER_VAR_EVENT ||
             get_type_code() == ROWS_QUERY_LOG_EVENT ||
             get_type_code() == BEGIN_LOAD_QUERY_EVENT ||
-            get_type_code() == APPEND_BLOCK_EVENT))
+            get_type_code() == APPEND_BLOCK_EVENT)) 
       {
         DBUG_ASSERT(!ret_worker);
         
