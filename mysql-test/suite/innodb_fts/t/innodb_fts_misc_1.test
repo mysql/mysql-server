@@ -207,6 +207,217 @@ SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 
 DROP TABLE t2 , t1;
 
+#------------------------------------------------------------------------------
+# FTS with FK+transactions and UPDATE casecade with transaction
+#-------------------------------------------------------------------------------
+--disable_warnings
+DROP TABLE IF EXISTS t2,t1;
+--enable_warnings
+
+SET NAMES utf8;
+
+# Create FTS table
+CREATE TABLE t1 (
+        id1 INT ,
+        a1 VARCHAR(200) PRIMARY KEY,
+        b1 TEXT ,
+        FULLTEXT KEY (a1,b1)
+        ) CHARACTER SET = utf8 , ENGINE = InnoDB;
+
+CREATE TABLE t2 (
+        id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a2 VARCHAR(200),
+        b2 TEXT ,
+        FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
+        FULLTEXT KEY (b2,a2)
+        ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        (2,'How To Use MySQL Well','After you went through a ...'),
+        (3,'Optimizing MySQL','In this tutorial we will show ...');
+
+# Insert rows in t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+START TRANSACTION;
+# Insert rows
+INSERT INTO t1 (id1,a1,b1) VALUES
+        (4,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        (5,'MySQL vs. YourSQL','In the following database comparison ...'),
+        (6,'MySQL Security','When configured properly, MySQL ...');
+
+# Insert rows t2 fk table
+INSERT INTO t2 (a2,b2) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# error on violating fk constraint
+--error 1452
+INSERT INTO t2 (a2,b2) VALUES
+        ('MySQL Tricks','1. Never run mysqld as root. 2. ...');
+
+# error on DELETE FROM parent table
+--error 1451
+DELETE FROM t1;
+
+# records expected
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial') ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+
+# no records as data not COMMITted.
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root') ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('root') ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('mysqld (+root)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('mysqld (-root)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root' WITH QUERY EXPANSION) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('root' WITH QUERY EXPANSION) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"database comparison"@09' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"database comparison"@09' IN BOOLEAN MODE) ;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+COMMIT;
+
+START TRANSACTION;
+# Updating parent table hence child table should get updated due to 'UPDATE cascade' clause
+UPDATE t1 SET a1 = "changing column - on UPDATE cascade" , b1 = "to check foreign constraint" WHERE
+MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+COMMIT;
+
+# no records expected
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
+
+# it shows updated record
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
+
+DROP TABLE t2 , t1;
+
+
+# FTS with FK+transactions - UPDATE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions -  on DELETE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1  WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions -  DELETE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1 WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+# FTS with FK+transactions -  UPDATE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+COMMIT;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+#-----------------------------------------------------------------------------
+
+# FTS with FK+transactions - UPDATE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions - DELETE cascade
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE cascade) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1  WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+# FTS with FK+transactions - DELETE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on DELETE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+DELETE FROM t1 WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
+
+# FTS with FK+transactions - UPDATE SET NULL
+CREATE TABLE t1 (s1 INT, s2 VARCHAR(200), PRIMARY KEY (s1,s2)) ENGINE = InnoDB;
+CREATE TABLE t2 (s1 INT, s2 VARCHAR(200),
+  FULLTEXT KEY(s2),
+  FOREIGN KEY (s1,s2) REFERENCES t1 (s1,s2) on UPDATE SET NULL) ENGINE = InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1,'Sunshine'),(2,'Lollipops');
+INSERT INTO t2 VALUES (1,'Sunshine'),(2,'Lollipops');
+UPDATE t1 set s2 = 'Rainbows' WHERE s2 <> 'Sunshine';
+ROLLBACK;
+SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
+DROP TABLE t2 , t1;
+
 
 #------------------------------------------------------------------------------
 # FTS index with compressed row format
