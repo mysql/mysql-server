@@ -3551,8 +3551,8 @@ bitmap_fail:
 		field = dtuple_get_nth_field(
 			ibuf_entry, IBUF_REC_FIELD_METADATA);
 		mach_write_to_2(
-			dfield_get_data(field) + IBUF_REC_OFFSET_COUNTER,
-			counter);
+			(byte*) dfield_get_data(field)
+			+ IBUF_REC_OFFSET_COUNTER, counter);
 	}
 
 	/* Set the bitmap bit denoting that the insert buffer contains
