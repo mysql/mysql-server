@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file mtr/mtr0log.c
+@file mtr/mtr0log.cc
 Mini-transaction log routines
 
 Created 12/7/1995 Heikki Tuuri

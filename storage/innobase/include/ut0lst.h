@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -38,7 +38,7 @@ Return offset of F in POD T.
 /* This module implements the two-way linear list which should be used
 if a list is used in the database. Note that a single struct may belong
 to two or more lists, provided that the list are given different names.
-An example of the usage of the lists can be found in fil0fil.c. */
+An example of the usage of the lists can be found in fil0fil.cc. */
 
 /*******************************************************************//**
 This macro expands to the unnamed type definition of a struct which acts
@@ -55,7 +55,7 @@ struct ut_list_base {
 	TYPE*	end;	/*!< pointer to list end, NULL if empty */
 };
 
-#define UT_LIST_BASE_NODE_T(TYPE)	ut_list_base<TYPE>	
+#define UT_LIST_BASE_NODE_T(TYPE)	ut_list_base<TYPE>
 
 /*******************************************************************//**
 This macro expands to the unnamed type definition of a struct which
@@ -121,14 +121,14 @@ ut_list_prepend(
 	size_t		offset)
 {
 	ut_list_node<Type>&	elem_node = ut_elem_get_node(elem, offset);
-        
+
  	elem_node.prev = 0;
  	elem_node.next = list.start;
- 
+
 	if (list.start != 0) {
 		ut_list_node<Type>&	base_node =
 			ut_elem_get_node(*list.start, offset);
- 
+
 		ut_ad(list.start != &elem);
 
 		base_node.prev = &elem;
@@ -164,7 +164,7 @@ ut_list_append(
 	size_t		offset)
 {
 	ut_list_node<Type>&	elem_node = ut_elem_get_node(elem, offset);
-       
+
 	elem_node.next = 0;
 	elem_node.prev = list.end;
 
@@ -268,8 +268,8 @@ ut_list_remove(
 	size_t		offset)
 {
 	ut_list_node<Type>&	elem_node = ut_elem_get_node(elem, offset);
- 
-	ut_a(list.count > 0);	
+
+	ut_a(list.count > 0);
 
 	if (elem_node.next != NULL) {
 		ut_list_node<Type>&	next_node =
@@ -301,7 +301,7 @@ Removes a node from a two-way linked list.
 @param ELEM	node to be removed from the list */
 #define UT_LIST_REMOVE(NAME, LIST, ELEM)				\
 	ut_list_remove(LIST, *ELEM, IB_OFFSETOF(ELEM, NAME))
-  
+
 /********************************************************************//**
 Gets the next node in a two-way list.
 @param NAME	list name

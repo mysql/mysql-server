@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1627,7 +1627,7 @@ struct buf_block_struct{
 	- we know that buf_block_struct::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
-	in the buffer pool in buf0buf.c.
+	in the buffer pool in buf0buf.cc.
 
 	Another exception is that assigning block->index = NULL
 	is allowed whenever holding an x-latch on btr_search_latch. */

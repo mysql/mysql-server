@@ -18,7 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /***************************************************************//**
-@file ut/ut0crc32.c
+@file ut/ut0crc32.cc
 CRC32 implementation from Facebook, based on the zlib implementation.
 
 Created Aug 8, 2011, Vasil Dimov, based on mysys/my_crc32.c and
@@ -58,7 +58,7 @@ mysys/my_perf.c, contributed by Facebook under the following license.
    more details.
 
    You should have received a copy of the GNU General Public License along with
-   this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+   this program; if not, write to the Free Software Foundation, Inc.,
    Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* The below CRC32 implementation is based on the implementation included with

@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file row/row0vers.c
+@file row/row0vers.cc
 Row versions
 
 Created 2/6/1997 Heikki Tuuri
@@ -290,7 +290,7 @@ row_vers_impl_x_locked(
 
 	if (UNIV_UNLIKELY(!clust_rec)) {
 		/* In a rare case it is possible that no clust rec is found
-		for a secondary index record: if in row0umod.c
+		for a secondary index record: if in row0umod.cc
 		row_undo_mod_remove_clust_low() we have already removed the
 		clust rec, while purge is still cleaning and removing
 		secondary index records associated with earlier versions of

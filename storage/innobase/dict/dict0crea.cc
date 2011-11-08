@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file dict/dict0crea.c
+@file dict/dict0crea.cc
 Database object creation
 
 Created 1/8/1996 Heikki Tuuri

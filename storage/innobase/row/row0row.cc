@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file row/row0row.c
+@file row/row0row.cc
 General row routines
 
 Created 4/20/1996 Heikki Tuuri
@@ -369,7 +369,7 @@ row_rec_to_index_entry_low(
 	ulint		rec_len;
 
 	ut_ad(rec && heap && index);
-	/* Because this function may be invoked by row0merge.c
+	/* Because this function may be invoked by row0merge.cc
 	on a record whose header is in different format, the check
 	rec_offs_validate(rec, index, offsets) must be avoided here. */
 	ut_ad(n_ext);

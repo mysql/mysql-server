@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /*******************************************************************//**
-@file rem/rem0cmp.c
+@file rem/rem0cmp.cc
 Comparison services for records
 
 Created 7/1/1994 Heikki Tuuri
@@ -29,6 +29,7 @@ Created 7/1/1994 Heikki Tuuri
 #include "rem0cmp.ic"
 #endif
 
+#include "ha_prototypes.h"
 #include "srv0srv.h"
 
 /*		ALPHABETICAL ORDER
@@ -73,23 +74,6 @@ cmp_debug_dtuple_rec_with_match(
 				returns, contains the value for current
 				comparison */
 #endif /* UNIV_DEBUG */
-/*************************************************************//**
-This function is used to compare two data fields for which the data type
-is such that we must use MySQL code to compare them. The prototype here
-must be a copy of the one in ha_innobase.cc!
-@return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern
-int
-innobase_mysql_cmp(
-/*===============*/
-	int		mysql_type,	/*!< in: MySQL type */
-	uint		charset_number,	/*!< in: number of the charset */
-	const unsigned char* a,		/*!< in: data field */
-	unsigned int	a_length,	/*!< in: data field length,
-					not UNIV_SQL_NULL */
-	const unsigned char* b,		/*!< in: data field */
-	unsigned int	b_length);	/*!< in: data field length,
-					not UNIV_SQL_NULL */
 /*********************************************************************//**
 Transforms the character code so that it is ordered appropriately for the
 language. This is only used for the latin1 char set. MySQL does the

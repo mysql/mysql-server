@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file ut/ut0bh.c
+@file ut/ut0bh.cc
 Binary min-heap implementation.
 
 Created 2010-05-28 by Sunny Bains

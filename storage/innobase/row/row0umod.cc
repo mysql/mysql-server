@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file row/row0umod.c
+@file row/row0umod.cc
 Undo modify of a row
 
 Created 2/27/1997 Heikki Tuuri
@@ -420,7 +420,7 @@ Delete marks or removes a secondary index entry if found.
 NOTE that if we updated the fields of a delete-marked secondary index record
 so that alphabetically they stayed the same, e.g., 'abc' -> 'aBc', we cannot
 return to the original values because we do not know them. But this should
-not cause problems because in row0sel.c, in queries we always retrieve the
+not cause problems because in row0sel.cc, in queries we always retrieve the
 clustered index record or an earlier version of it, if the secondary index
 record through which we do the search is delete-marked.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
@@ -714,7 +714,7 @@ row_undo_mod_upd_exist_sec(
 			'abc' -> 'aBc', we cannot return to the
 			original values because we do not know them.
 			But this should not cause problems because
-			in row0sel.c, in queries we always retrieve
+			in row0sel.cc, in queries we always retrieve
 			the clustered index record or an earlier
 			version of it, if the secondary index record
 			through which we do the search is

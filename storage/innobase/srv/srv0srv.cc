@@ -32,7 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file srv/srv0srv.c
+@file srv/srv0srv.cc
 The database server main program
 
 Created 10/8/1995 Heikki Tuuri

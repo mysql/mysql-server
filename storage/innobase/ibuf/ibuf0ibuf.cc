@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file ibuf/ibuf0ibuf.c
+@file ibuf/ibuf0ibuf.cc
 Insert buffer
 
 Created 7/19/1997 Heikki Tuuri

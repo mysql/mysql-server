@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file que/que0que.c
+@file que/que0que.cc
 Query graph
 
 Created 5/27/1996 Heikki Tuuri
@@ -805,7 +805,7 @@ que_thr_dec_refer_count(
 /**********************************************************************//**
 A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
 query thread is stopped and made inactive, except in the case where
-it was put to the lock wait state in lock0lock.c, but the lock has already
+it was put to the lock wait state in lock0lock.cc, but the lock has already
 been granted or the transaction chosen as a victim in deadlock resolution. */
 UNIV_INTERN
 void

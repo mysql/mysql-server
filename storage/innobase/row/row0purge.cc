@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file row/row0purge.c
+@file row/row0purge.cc
 Purge obsolete records
 
 Created 3/14/1997 Heikki Tuuri

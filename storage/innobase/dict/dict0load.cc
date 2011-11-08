@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file dict/dict0load.c
+@file dict/dict0load.cc
 Loads to the memory cache database object definitions
 from dictionary tables
 
