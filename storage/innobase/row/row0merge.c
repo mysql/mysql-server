@@ -2246,6 +2246,10 @@ row_merge_drop_indexes(
 	ulint	key_num;
 
 	for (key_num = 0; key_num < num_created; key_num++) {
+		if (index[key_num]->type & DICT_FTS) {
+			fts_drop_index(table, index[key_num], trx);
+		}
+
 		row_merge_drop_index(index[key_num], table, trx);
 	}
 }

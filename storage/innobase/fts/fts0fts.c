@@ -652,7 +652,7 @@ fts_reset_get_doc(
 	fts_cache_t*	cache)	/*!< in: FTS index cache */
 {
 	fts_get_doc_t*  get_doc;
-	int		i;
+	ulint		i;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
@@ -689,9 +689,9 @@ fts_drop_index(
 
 	ut_a(indexes);
 
-	if (ib_vector_size(indexes) == 1) {
-		ut_ad(index == (dict_index_t*) ib_vector_getp(
-			table->fts->indexes, 0));
+	if (ib_vector_size(indexes) == 1
+	    && (index == (dict_index_t*) ib_vector_getp(
+		table->fts->indexes, 0))) {
 
 		/* If we are dropping the only FTS index of the table,
 		remove it from optimize thread */
@@ -4298,10 +4298,6 @@ fts_get_docs_create(
 		fts_get_doc_t*	get_doc;
 
 		index = ib_vector_get(cache->indexes, i);
-
-		if (*(*index)->name == TEMP_INDEX_PREFIX) {
-			continue;
-		}
 
 		get_doc = ib_vector_push(get_docs, NULL);
 

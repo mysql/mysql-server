@@ -564,7 +564,7 @@ dict_sys_tables_type_validate(
 		}
 
 		/* Validate that the number is within allowed range. */
-		if (zip_ssize <= PAGE_ZIP_SSIZE_MAX) {
+		if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
 			return(ULINT_UNDEFINED);
 		}
 	}
