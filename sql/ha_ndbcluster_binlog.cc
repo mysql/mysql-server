@@ -2585,6 +2585,48 @@ class Ndb_schema_event_handler {
   }
 
 
+  void
+  mysqld_write_frm_from_ndb(const char* db_name,
+                            const char* table_name) const
+  {
+    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+    Ndb *ndb= thd_ndb->ndb;
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+
+    char key[FN_REFLEN];
+    build_table_filename(key, sizeof(key)-1,
+                         db_name, table_name, NullS, 0);
+
+    uchar *data= 0, *pack_data= 0;
+    size_t length, pack_length;
+
+    if (readfrm(key, &data, &length) == 0 &&
+        packfrm(data, length, &pack_data, &pack_length) == 0 &&
+        cmp_frm(ndbtab, pack_data, pack_length))
+    {
+      DBUG_PRINT("info", ("Detected frm change of table %s.%s",
+                          db_name, table_name));
+
+      DBUG_DUMP("frm", (uchar*) ndbtab->getFrmData(),
+                        ndbtab->getFrmLength());
+      my_free(data);
+      data= NULL;
+
+      int error;
+      if ((error= unpackfrm(&data, &length,
+                            (const uchar*) ndbtab->getFrmData())) ||
+          (error= writefrm(key, data, length)))
+      {
+        sql_print_error("NDB: Failed write frm for %s.%s, error %d",
+                        db_name, table_name, error);
+      }
+    }
+    my_free(data);
+    my_free(pack_data);
+  }
+
+
   NDB_SHARE* get_share(Ndb_schema_op* schema) const
   {
     char key[FN_REFLEN + 1];
@@ -2781,39 +2823,11 @@ class Ndb_schema_event_handler {
     const NDBTAB *ndbtab= ndbtab_g.get_table();
     if (schema->node_id != own_nodeid())
     {
-      char key[FN_REFLEN];
-      uchar *data= 0, *pack_data= 0;
-      size_t length, pack_length;
-
-      DBUG_PRINT("info", ("Detected frm change of table %s.%s",
-                          schema->db, schema->name));
       write_schema_op_to_binlog(m_thd, schema);
-      build_table_filename(key, sizeof(key)-1,
-                           schema->db, schema->name, NullS, 0);
-      /*
-        If the there is no local table shadowing the altered table and
-        it has an frm that is different than the one on disk then
-        overwrite it with the new table definition
-      */
-      if (!ndbcluster_check_if_local_table(schema->db, schema->name) &&
-          readfrm(key, &data, &length) == 0 &&
-          packfrm(data, length, &pack_data, &pack_length) == 0 &&
-          cmp_frm(ndbtab, pack_data, pack_length))
+      if (!ndbcluster_check_if_local_table(schema->db, schema->name))
       {
-        DBUG_DUMP("frm", (uchar*) ndbtab->getFrmData(),
-                  ndbtab->getFrmLength());
-        my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-        data= NULL;
-        if ((error= unpackfrm(&data, &length,
-                              (const uchar*) ndbtab->getFrmData())) ||
-            (error= writefrm(key, data, length)))
-        {
-          sql_print_error("NDB: Failed write frm for %s.%s, error %d",
-                          schema->db, schema->name, error);
-        }
+        mysqld_write_frm_from_ndb(schema->db, schema->name);
       }
-      my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-      my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
     }
     NDB_SHARE *share= get_share(schema);
     if (share)
