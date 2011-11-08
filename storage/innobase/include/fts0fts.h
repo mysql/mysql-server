@@ -1022,5 +1022,15 @@ fts_drop_index(
 	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
 	dict_index_t*	index,	/*!< in: Index to be dropped */
 	trx_t*		trx);	/*!< in: Transaction for the drop */
+
+/*******************************************************************//**
+Check indexes in the fts->indexes is also present in index cache and
+table->indexes list
+@return TRUE if all indexes match */
+UNIV_INTERN
+ibool
+fts_check_cached_index(
+/*===================*/
+	dict_table_t*	table);  /*!< in: Table where indexes are dropped */
 #endif /*!< fts0fts.h */
 

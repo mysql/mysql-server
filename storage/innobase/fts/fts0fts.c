@@ -674,6 +674,91 @@ fts_reset_get_doc(
 }
 
 /*******************************************************************//**
+Check an index is in the table->indexes list
+@return TRUE if it exists */
+static
+ibool
+fts_in_dict_index(
+/*==============*/
+	dict_table_t*	table,		/*!< in: Table */
+	dict_index_t*	index_check)	/*!< in: index to be checked */
+{
+	dict_index_t*	index;
+
+	for (index = dict_table_get_first_index(table);
+             index != NULL;
+             index = dict_table_get_next_index(index)) {
+
+		if (index == index_check) {
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/*******************************************************************//**
+Check an index is in the fts->cache->indexes list
+@return TRUE if it exists */
+static
+ibool
+fts_in_index_cache(
+/*===============*/
+	dict_table_t*	table,	/*!< in: Table */
+	dict_index_t*	index)	/*!< in: index to be checked */
+{
+	ulint	i;
+
+	for (i = 0; i < ib_vector_size(table->fts->cache->indexes); i++) {
+		fts_index_cache_t*      index_cache;
+
+		index_cache = ib_vector_get(table->fts->cache->indexes, i);
+
+		if (index_cache->index == index) {
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/*******************************************************************//**
+Check indexes in the fts->indexes is also present in index cache and
+table->indexes list
+@return TRUE if all indexes match */
+UNIV_INTERN
+ibool
+fts_check_cached_index(
+/*===================*/
+	dict_table_t*	table)	/*!< in: Table where indexes are dropped */
+{
+	ulint	i;
+
+	if (!table->fts || !table->fts->cache) {
+		return(TRUE);
+	}
+
+	ut_a(ib_vector_size(table->fts->indexes)
+	      == ib_vector_size(table->fts->cache->indexes));
+
+	for (i = 0; i < ib_vector_size(table->fts->indexes); i++) {
+		dict_index_t*	index;
+
+		index = ib_vector_getp(table->fts->indexes, i);
+
+		if (!fts_in_index_cache(table, index)) {
+			return(FALSE);
+		}
+
+		if (!fts_in_dict_index(table, index)) {
+			return(FALSE);
+		}
+	}
+
+	return(TRUE);
+}
+
+/*******************************************************************//**
 Drop auxiliary tables related to an FTS index
 @return DB_SUCCESS or error number */
 UNIV_INTERN
