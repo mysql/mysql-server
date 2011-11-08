@@ -5425,13 +5425,9 @@ end|
 select func_20028_a()|
 func_20028_a()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_b()|
 func_20028_b()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_c()|
 ERROR 22012: Division by 0
 call proc_20028_a()|
@@ -5484,13 +5480,9 @@ end|
 select func_20028_a()|
 func_20028_a()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_b()|
 func_20028_b()
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 select func_20028_c()|
 func_20028_c()
 NULL
@@ -6110,8 +6102,6 @@ END|
 SELECT bug5274_f2()|
 bug5274_f2()
 x
-Warnings:
-Warning	1265	Data truncated for column 'bug5274_f1' at row 1
 DROP FUNCTION bug5274_f1|
 DROP FUNCTION bug5274_f2|
 drop procedure if exists proc_21513|
@@ -6204,19 +6194,13 @@ c1
 SELECT f1(2);
 f1(2)
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 PREPARE s1 FROM 'SELECT f1(2)';
 EXECUTE s1;
 f1(2)
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 EXECUTE s1;
 f1(2)
 0
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP FUNCTION f1;

@@ -310,9 +310,8 @@ drop table t1;
 create table t1 (a timestamp not null);
 prepare stmt from "insert into t1 (a) values (?)";
 execute stmt using @var;
---disable_result_log
+--disable_result_log ONCE
 select * from t1;
---enable_result_log
 deallocate prepare stmt;
 drop table t1;
 
@@ -822,15 +821,13 @@ drop table t1;
 
 prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
 execute stmt;
---disable_warnings
+--disable_warnings ONCE
 insert into t1 (a) values (repeat('a', 20));
---enable_warnings
 select length(a) from t1;
 drop table t1;
 execute stmt;
---disable_warnings
+--disable_warnings ONCE
 insert into t1 (a) values (repeat('a', 20));
---enable_warnings
 # Check that the data is truncated to the same length
 select length(a) from t1;
 drop table t1;
@@ -1137,9 +1134,8 @@ DROP TABLE t1;
 # The cause of a bug was that cached LEX::create_list was modified,
 # and then together with LEX::key_list was reset.
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2;
---enable_warnings
 
 CREATE TABLE t1 (i INT);
 
@@ -1193,9 +1189,8 @@ deallocate prepare stmt2;
 # CREATE TABLE with DATA DIRECTORY option
 #
 --disable_warnings
---disable_query_log
+--disable_query_log ONCE
 eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
---enable_query_log
 execute stmt;
 #
 # DATA DIRECTORY option does not always work: if the operating
@@ -1204,15 +1199,12 @@ execute stmt;
 # In this case DATA DIRECTORY is silently ignored when
 # creating a table, and is not output by SHOW CREATE TABLE.
 #
---disable_result_log
+--disable_result_log ONCE
 show create table t1;
---enable_result_log
 drop table t1;
 execute stmt;
---disable_result_log
+--disable_result_log ONCE
 show create table t1;
---enable_result_log
---enable_warnings
 drop table t1;
 deallocate prepare stmt;
 #
@@ -1596,9 +1588,8 @@ use test;
 # registered and went unnoticed, which resulted in preliminary freeing
 # of used memory.
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2, t3;
---enable_warnings
 
 CREATE TABLE t1 (i BIGINT, j BIGINT);
 CREATE TABLE t2 (i BIGINT);
@@ -1619,9 +1610,8 @@ DROP TABLE IF EXISTS t1, t2, t3;
 #
 # BUG#21081: SELECT inside stored procedure returns wrong results
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2;
---enable_warnings
 
 CREATE TABLE t1 (i INT KEY);
 CREATE TABLE t2 (i INT);
@@ -1669,9 +1659,8 @@ DROP TABLE t1;
 #
 # BUG#21856: Prepared Statments: crash if bad create
 #
---disable_warnings
+--disable_warnings ONCE
 DROP PROCEDURE IF EXISTS p1;
---enable_warnings
 
 let $iterations= 100;
 --disable_query_log
@@ -1729,9 +1718,8 @@ DROP TABLE t1,t2;
 # fails with weird error", however ALTER TABLE is not re-execution friendly
 # and that caused a valgrind warning. Check that the warning is gone.
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (s1 char(20));
 prepare stmt from "alter table t1 modify s1 int";
 execute stmt;
@@ -1742,9 +1730,8 @@ deallocate prepare stmt;
 #
 # Bug#6895 "Prepared Statements: ALTER TABLE DROP COLUMN does nothing"
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a int, b int);
 prepare s_6895 from "alter table t1 drop column b";
 execute s_6895;
@@ -1798,9 +1785,8 @@ set @@character_set_server= @old_character_set_server;
 #
 # BUG#24491 "using alias from source table in insert ... on duplicate key"
 #
---disable_warnings
+--disable_warnings ONCE
 drop tables if exists t1;
---enable_warnings
 create table t1 (id int primary key auto_increment, value varchar(10));
 insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
 # Let us prepare INSERT ... SELECT ... ON DUPLICATE KEY UPDATE statement
@@ -1835,9 +1821,8 @@ drop table t1;
 #
 # Bug#33798: prepared statements improperly handle large unsigned ints
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
 prepare stmt from "insert into t1 values (?,?)";
 set @a= 9999999999999999;
@@ -2441,9 +2426,8 @@ execute abc;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists a;
---enable_warnings
 create procedure a() select 42;
 create procedure proc_1(a char(2)) show create procedure a;
 call proc_1("bb");
@@ -2466,9 +2450,8 @@ deallocate prepare abc;
 drop procedure a;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop function if exists a;
---enable_warnings
 create function a() returns int return 42+13;
 create procedure proc_1(a char(2)) show create function a;
 call proc_1("bb");
@@ -2491,9 +2474,8 @@ deallocate prepare abc;
 drop function a;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists tab1;
---enable_warnings
 create table tab1(a int, b char(1), primary key(a,b));
 create procedure proc_1() show create table tab1;
 call proc_1();
@@ -2597,9 +2579,8 @@ execute abc;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop database if exists mysqltest_xyz;
---enable_warnings
 create procedure proc_1() create database mysqltest_xyz;
 call proc_1();
 drop database if exists mysqltest_xyz;
@@ -2630,9 +2611,8 @@ drop database if exists mysqltest_xyz;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a int, b char(5));
 insert into t1 values (1, "one"), (2, "two"), (3, "three");
 create procedure proc_1() checksum table xyz;
@@ -2685,9 +2665,8 @@ drop user pstest_xyz@localhost;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop event if exists xyz;
---enable_warnings
 #create procedure proc_1() create event xyz on schedule every 5 minute disable do select 123;
 #call proc_1();
 #drop event xyz;
@@ -2895,9 +2874,8 @@ deallocate prepare stmt2;
 #
 # BUG#18326: Do not lock table for writing during prepare of statement
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2;
---enable_warnings
 
 CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (1);
@@ -2970,9 +2948,8 @@ drop table t1;
 # Test that there is an error for prepared delete just like for the normal
 # one.
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1, t2;
---enable_warnings
 create table t1 (a int, b int);
 create table t2 like t1;
 
@@ -3002,9 +2979,8 @@ drop table t1, t2;
 --echo # This part of the test doesn't work in embedded server, this is
 --echo # why it's here. For the main test see ps_ddl*.test
 --echo
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a int);
 prepare stmt from "show events where (1) in (select * from t1)";
 execute stmt;
@@ -3278,9 +3254,8 @@ DROP PROCEDURE p2;
 --echo # WL#4284: Transactional DDL locking
 --echo #
 
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 CREATE TABLE t1 (a INT);
 BEGIN;
 SELECT * FROM t1;
@@ -3299,9 +3274,8 @@ DROP TABLE t1;
 
 connect(con1,localhost,root,,);
 connection default;
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 CREATE TABLE t1 (a INT);
 connection con1;
 BEGIN;
@@ -3425,9 +3399,8 @@ DROP TABLE t1, t2;
 
 --echo # Note: This test case should be run with --ps-protocol
 
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1 (col1 INT);
 

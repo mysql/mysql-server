@@ -190,8 +190,6 @@ END;
 SELECT f1_insert_select(2);
 f1_insert_select(2)
 1
-Warnings:
-Warning	1048	Column 'f2' cannot be null
 SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 2	0
@@ -267,8 +265,6 @@ END;
 SELECT f1_insert_with_two_rows();
 f1_insert_with_two_rows()
 1
-Warnings:
-Warning	1048	Column 'f2' cannot be null
 SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 10	0
