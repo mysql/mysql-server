@@ -33,6 +33,12 @@
 #include "sql_audit.h"
 #include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
@@ -566,7 +572,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     for (i=0;
          (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
          i++)
-      memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+      memcpy(cur+i, old, min<size_t>(sizeof(cur[i]), sizeof_st_plugin));
 
     sym= cur;
   }
@@ -3547,7 +3553,7 @@ err:
 ****************************************************************************/
 
 
-void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root)
+void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root)
 {
   struct st_plugin_int *p;
   my_option *opt;
@@ -3565,7 +3571,7 @@ void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root)
     /* Only options with a non-NULL comment are displayed in help text */
     for (;opt->name; opt++)
       if (opt->comment)
-        insert_dynamic(options, opt);
+        options->push_back(*opt);
   }
 }
 
