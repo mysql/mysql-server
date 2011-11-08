@@ -6961,7 +6961,7 @@ ha_innobase::create(
 
 	if (srv_file_per_table
 	    && !mysqld_embedded
-	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
 		if ((name[1] == ':')
 		    || (name[0] == '\\' && name[1] == '\\')) {
