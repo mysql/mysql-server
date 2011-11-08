@@ -814,34 +814,47 @@ eval_func(
 		arg = que_node_get_next(arg);
 	}
 
-	if (fclass == PARS_FUNC_CMP) {
+	switch (fclass) {
+	case PARS_FUNC_CMP:
 		eval_cmp(func_node);
-	} else if (fclass == PARS_FUNC_ARITH) {
+		return;
+	case PARS_FUNC_ARITH:
 		eval_arith(func_node);
-	} else if (fclass == PARS_FUNC_AGGREGATE) {
+		return;
+	case PARS_FUNC_AGGREGATE:
 		eval_aggregate(func_node);
-	} else if (fclass == PARS_FUNC_PREDEFINED) {
-
-		if (func == PARS_NOTFOUND_TOKEN) {
+		return;
+	case PARS_FUNC_PREDEFINED:
+		switch (func) {
+		case PARS_NOTFOUND_TOKEN:
 			eval_notfound(func_node);
-		} else if (func == PARS_SUBSTR_TOKEN) {
+			return;
+		case PARS_SUBSTR_TOKEN:
 			eval_substr(func_node);
-		} else if (func == PARS_REPLSTR_TOKEN) {
+			return;
+		case PARS_REPLSTR_TOKEN:
 			eval_replstr(func_node);
-		} else if (func == PARS_INSTR_TOKEN) {
+			return;
+		case PARS_INSTR_TOKEN:
 			eval_instr(func_node);
-		} else if (func == PARS_BINARY_TO_NUMBER_TOKEN) {
+			return;
+		case PARS_BINARY_TO_NUMBER_TOKEN:
 			eval_binary_to_number(func_node);
-		} else if (func == PARS_CONCAT_TOKEN) {
+			return;
+		case PARS_CONCAT_TOKEN:
 			eval_concat(func_node);
-		} else if (func == PARS_TO_BINARY_TOKEN) {
+			return;
+		case PARS_TO_BINARY_TOKEN:
 			eval_to_binary(func_node);
-		} else {
+			return;
+		default:
 			eval_predefined(func_node);
+			return;
 		}
-	} else {
-		ut_ad(fclass == PARS_FUNC_LOGICAL);
-
+	case PARS_FUNC_LOGICAL:
 		eval_logical(func_node);
+		return;
 	}
+
+	ut_error;
 }
