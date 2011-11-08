@@ -188,6 +188,9 @@ struct NDB_SHARE {
   MY_BITMAP *subscriber_bitmap;
   class NdbEventOperation *new_op;
 
+  static NDB_SHARE* create(const char* key, size_t key_length,
+                         struct TABLE* table, const char* db_name,
+                         const char* table_name);
   static void destroy(NDB_SHARE* share);
 };
 

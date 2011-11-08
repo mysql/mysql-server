@@ -13709,6 +13709,52 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 }
 
 
+
+NDB_SHARE*
+NDB_SHARE::create(const char* key, size_t key_length,
+                  TABLE* table, const char* db_name, const char* table_name)
+{
+  NDB_SHARE* share;
+  if (!(share= (NDB_SHARE*) my_malloc(sizeof(*share),
+                                      MYF(MY_WME | MY_ZEROFILL))))
+    return NULL;
+
+  MEM_ROOT **root_ptr=
+    my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  MEM_ROOT *old_root= *root_ptr;
+
+  init_sql_alloc(&share->mem_root, 1024, 0);
+  *root_ptr= &share->mem_root; // remember to reset before return
+  share->flags= 0;
+  share->state= NSS_INITIAL;
+  /* Allocate enough space for key, db, and table_name */
+  share->key= (char*) alloc_root(*root_ptr, 2 * (key_length + 1));
+  share->key_length= key_length;
+  strmov(share->key, key);
+  share->db= share->key + key_length + 1;
+  strmov(share->db, db_name);
+  share->table_name= share->db + strlen(share->db) + 1;
+  strmov(share->table_name, table_name);
+  thr_lock_init(&share->lock);
+  pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+  share->commit_count= 0;
+  share->commit_count_lock= 0;
+
+  if (ndbcluster_binlog_init_share(current_thd, share, table))
+  {
+    DBUG_PRINT("error", ("get_share: %s could not init share", key));
+    free_root(&share->mem_root, MYF(0));
+    my_free(share, 0);
+    *root_ptr= old_root;
+    return NULL;
+  }
+
+  *root_ptr= old_root;
+
+  return share;
+}
+
+
 static inline
 NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
                                 bool create_if_not_exists)
@@ -13729,48 +13775,28 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_PRINT("error", ("get_share: %s does not exist", key));
       DBUG_RETURN(0);
     }
-    if ((share= (NDB_SHARE*) my_malloc(sizeof(*share),
-                                       MYF(MY_WME | MY_ZEROFILL))))
-    {
-      MEM_ROOT **root_ptr=
-        my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
-      MEM_ROOT *old_root= *root_ptr;
-      init_sql_alloc(&share->mem_root, 1024, 0);
-      *root_ptr= &share->mem_root; // remember to reset before return
-      share->flags= 0;
-      share->state= NSS_INITIAL;
-      /* enough space for key, db, and table_name */
-      share->key= (char*) alloc_root(*root_ptr, 2 * (length + 1));
-      share->key_length= length;
-      strmov(share->key, key);
-      if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
-      {
-        free_root(&share->mem_root, MYF(0));
-        my_free((uchar*) share, 0);
-        *root_ptr= old_root;
-        DBUG_RETURN(0);
-      }
-      thr_lock_init(&share->lock);
-      pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
-      share->commit_count= 0;
-      share->commit_count_lock= 0;
-      share->db= share->key + length + 1;
-      ha_ndbcluster::set_dbname(key, share->db);
-      share->table_name= share->db + strlen(share->db) + 1;
-      ha_ndbcluster::set_tabname(key, share->table_name);
-      if (ndbcluster_binlog_init_share(current_thd, share, table))
-      {
-        DBUG_PRINT("error", ("get_share: %s could not init share", key));
-        ndbcluster_real_free_share(&share);
-        *root_ptr= old_root;
-        DBUG_RETURN(0);
-      }
-      *root_ptr= old_root;
-    }
-    else
+
+    /*
+      Extract db and table name from key (to avoid that NDB_SHARE
+      dependens on ha_ndbcluster)
+    */
+    char db_name_buf[FN_HEADLEN];
+    char table_name_buf[FN_HEADLEN];
+    ha_ndbcluster::set_dbname(key, db_name_buf);
+    ha_ndbcluster::set_tabname(key, table_name_buf);
+
+    if (!(share= NDB_SHARE::create(key, length, table,
+                                   db_name_buf, table_name_buf)))
     {
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
+      DBUG_RETURN(0);
+    }
+
+    // Insert the new share in list of open shares
+    if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
+    {
+      NDB_SHARE::destroy(share);
       DBUG_RETURN(0);
     }
   }
