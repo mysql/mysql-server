@@ -26,6 +26,9 @@
 #include "sql_class.h"                          // THD
 #include <stdarg.h>
 
+using std::min;
+using std::max;
+
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
 /* Declared non-static only because of the embedded library. */
 bool net_send_error_packet(THD *, uint, const char *, const char *);
@@ -230,7 +233,7 @@ net_send_ok(THD *thd,
     pos+=2;
 
     /* We can only return up to 65535 warnings in two bytes */
-    uint tmp= min(statement_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535U);
     int2store(pos, tmp);
     pos+= 2;
   }
@@ -326,7 +329,7 @@ static bool write_eof_packet(THD *thd, NET *net,
       Don't send warn count during SP execution, as the warn_list
       is cleared between substatements, and mysqltest gets confused
     */
-    uint tmp= min(statement_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535U);
     buff[0]= 254;
     int2store(buff+1, tmp);
     /*

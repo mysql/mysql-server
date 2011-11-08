@@ -25,3 +25,8 @@ EXPORTS
   is_const_init
   check_const_len
   check_const_len_init
+  my_median_init
+  my_median_deinit
+  my_median_add
+  my_median_clear
+  my_median

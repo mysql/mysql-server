@@ -16,7 +16,19 @@
 #ifndef MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 #define MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 
-#ifndef _global_h
+#ifdef EMBEDDED_LIBRARY
+#define DISABLE_PSI_MUTEX
+#define DISABLE_PSI_RWLOCK
+#define DISABLE_PSI_COND
+#define DISABLE_PSI_FILE
+#define DISABLE_PSI_TABLE
+#define DISABLE_PSI_SOCKET
+#define DISABLE_PSI_STAGE
+#define DISABLE_PSI_STATEMENT
+#define DISABLE_PSI_IDLE
+#endif /* EMBEDDED_LIBRARY */
+
+#ifndef MY_GLOBAL_INCLUDED
 /*
   Make sure a .c or .cc file contains an include to my_global.h first.
   When this include is missing, all the #ifdef HAVE_XXX have no effect,

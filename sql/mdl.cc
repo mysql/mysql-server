@@ -92,7 +92,7 @@ void MDL_key::init_psi_keys()
 {
   int i;
   int count;
-  PSI_stage_info *info;
+  PSI_stage_info *info __attribute__((unused));
 
   count= array_elements(MDL_key::m_namespace_to_wait_state_name);
   for (i= 0; i<count; i++)
@@ -849,9 +849,9 @@ inline MDL_lock *MDL_lock::create(const MDL_key *mdl_key)
     case MDL_key::GLOBAL:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
-      return new MDL_scoped_lock(mdl_key);
+      return new (std::nothrow) MDL_scoped_lock(mdl_key);
     default:
-      return new MDL_object_lock(mdl_key);
+      return new (std::nothrow) MDL_object_lock(mdl_key);
   }
 }
 
@@ -876,7 +876,8 @@ MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
 #endif
                                )
 {
-  return new MDL_ticket(ctx_arg, type_arg
+  return new (std::nothrow)
+             MDL_ticket(ctx_arg, type_arg
 #ifndef DBUG_OFF
                         , duration_arg
 #endif
