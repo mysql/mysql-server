@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file trx/trx0purge.c
+@file trx/trx0purge.cc
 Purge old versions
 
 Created 3/26/1996 Heikki Tuuri
@@ -375,7 +375,7 @@ trx_purge_free_segment(
 		/* Here we assume that a file segment with just the header
 		page can be freed in a few steps, so that the buffer pool
 		is not flooded with bufferfixed pages: see the note in
-		fsp0fsp.c. */
+		fsp0fsp.cc. */
 
 	} while(!fseg_free_step(seg_hdr + TRX_UNDO_FSEG_HEADER, &mtr));
 
@@ -586,7 +586,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_enter(&trx_sys->mutex);
 
 		/* Add debug code to track history list corruption reported
-		on the MySQL mailing list on Nov 9, 2004. The fut0lst.c
+		on the MySQL mailing list on Nov 9, 2004. The fut0lst.cc
 		file-based list was corrupt. The prev node pointer was
 		FIL_NULL, even though the list length was over 8 million nodes!
 		We assume that purge truncates the history list in large

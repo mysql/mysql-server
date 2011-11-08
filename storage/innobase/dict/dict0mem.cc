@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file dict/dict0mem.c
+@file dict/dict0mem.cc
 Data dictionary memory object creation
 
 Created 1/8/1996 Heikki Tuuri

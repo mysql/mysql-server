@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file dict/dict0boot.c
+@file dict/dict0boot.cc
 Data dictionary creation and booting
 
 Created 4/18/1996 Heikki Tuuri

@@ -21,12 +21,12 @@ Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+59 Temple 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 ***********************************************************************/
 
 /**************************************************//**
-@file os/os0file.c
+@file os/os0file.cc
 The interface to the operating system file i/o primitives
 
 Created 10/21/1995 Heikki Tuuri

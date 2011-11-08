@@ -44,7 +44,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "hash0hash.h"
 #include "trx0types.h"
 
-/* Fowrard declaration. */
+/* Forward declaration. */
 typedef struct ib_rbt_struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a

@@ -18,13 +18,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file buf/buf0buf.c
+@file buf/buf0buf.cc
 The database buffer buf_pool
 
 Created 11/5/1995 Heikki Tuuri
@@ -184,7 +184,7 @@ uncompressed pages are accessible via buf_block_t objects that are
 reachable via buf_pool->chunks[].
 
 The chains of free memory blocks (buf_pool->zip_free[]) are used by
-the buddy allocator (buf0buddy.c) to keep track of currently unused
+the buddy allocator (buf0buddy.cc) to keep track of currently unused
 memory blocks of size sizeof(buf_page_t)..UNIV_PAGE_SIZE / 2.  These
 blocks are inside the UNIV_PAGE_SIZE-sized memory blocks of type
 BUF_BLOCK_MEMORY that the buddy allocator requests from the buffer

@@ -24,7 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file btr/btr0cur.c
+@file btr/btr0cur.cc
 The index tree cursor
 
 All changes that row operations make to a B-tree or the records

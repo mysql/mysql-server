@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /***************************************************************//**
-@file ut/ut0ut.c
+@file ut/ut0ut.cc
 Various utilities for Innobase.
 
 Created 5/11/1994 Heikki Tuuri

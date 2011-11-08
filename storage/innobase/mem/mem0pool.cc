@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /********************************************************************//**
-@file mem/mem0pool.c
+@file mem/mem0pool.cc
 The lowest-level memory management
 
 Created 5/12/1997 Heikki Tuuri
@@ -229,7 +229,7 @@ mem_pool_create(
 	pool = static_cast<mem_pool_t*>(ut_malloc(sizeof(mem_pool_t)));
 
 	/* We do not set the memory to zero (FALSE) in the pool,
-	but only when allocated at a higher level in mem0mem.c.
+	but only when allocated at a higher level in mem0mem.cc.
 	This is to avoid masking useful Purify warnings. */
 
 	pool->buf = static_cast<byte*>(ut_malloc_low(size, FALSE, TRUE));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -138,6 +138,23 @@ innobase_mysql_print_thd(
 	uint	max_query_len);	/*!< in: max query length to print, or 0 to
 				   use the default max length */
 
+/*************************************************************//**
+InnoDB uses this function to compare two data fields for which the data type
+is such that we must use MySQL code to compare them.
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+UNIV_INTERN
+int
+innobase_mysql_cmp(
+/*===============*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number,	/*!< in: number of the charset */
+	const unsigned char* a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const unsigned char* b,		/*!< in: data field */
+	unsigned int	b_length)	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file pars/pars0opt.c
+@file pars/pars0opt.cc
 Simple SQL optimizer
 
 Created 12/21/1997 Heikki Tuuri
@@ -1096,7 +1096,7 @@ opt_clust_access(
 		    || dict_index_get_nth_field(clust_index, i)
 		    ->prefix_len != 0) {
 			fprintf(stderr,
-				"InnoDB: Error in pars0opt.c:"
+				"InnoDB: Error in pars0opt.cc:"
 				" table %s has prefix_len != 0\n",
 				index->table_name);
 		}

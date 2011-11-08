@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file page/page0zip.c
+@file page/page0zip.cc
 Compressed page interface
 
 Created June 2005 by Marko Makela
