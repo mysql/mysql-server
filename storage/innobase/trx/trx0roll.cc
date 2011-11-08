@@ -105,7 +105,8 @@ trx_rollback_to_savepoint_low(
 	que_run_threads(roll_node->undo_thr);
 
 	/* Free the memory reserved by the undo graph. */
-	que_graph_free(static_cast<que_t*>(roll_node->undo_thr->common.parent));
+	que_graph_free(static_cast<que_t*>(
+			       roll_node->undo_thr->common.parent));
 
 	if (savept == NULL) {
 		trx_rollback_finish(trx);
@@ -589,7 +590,8 @@ trx_rollback_active(
 	trx_rollback_finish(thr_get_trx(roll_node->undo_thr));
 
 	/* Free the memory reserved by the undo graph */
-	que_graph_free(static_cast<que_t*>(roll_node->undo_thr->common.parent));
+	que_graph_free(static_cast<que_t*>(
+			       roll_node->undo_thr->common.parent));
 
 	ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
 

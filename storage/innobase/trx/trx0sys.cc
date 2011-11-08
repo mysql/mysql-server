@@ -218,7 +218,8 @@ trx_doublewrite_init(
 		ut_malloc((1 + buf_size) * UNIV_PAGE_SIZE));
 
 	trx_doublewrite->write_buf = static_cast<byte*>(
-		ut_align(trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE));
+		ut_align(trx_doublewrite->write_buf_unaligned,
+			 UNIV_PAGE_SIZE));
 
 	trx_doublewrite->buf_block_arr = static_cast<buf_page_t**>(
 		mem_zalloc(buf_size * sizeof(void*)));

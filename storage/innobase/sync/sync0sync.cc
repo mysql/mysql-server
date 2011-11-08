@@ -1577,7 +1577,7 @@ sync_close(void)
 	sync_thread_level_arrays_free();
 #endif /* UNIV_SYNC_DEBUG */
 
-	sync_initialized = FALSE;	
+	sync_initialized = FALSE;
 }
 
 /*******************************************************************//**

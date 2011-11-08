@@ -654,11 +654,10 @@ row_merge_heap_create(
 	mem_heap_t*	heap	= mem_heap_create(2 * i * sizeof **offsets1
 						  + 3 * sizeof **buf);
 
-	*buf = static_cast<mrec_buf_t*>(mem_heap_alloc(heap, 3 * sizeof **buf));
-
+	*buf = static_cast<mrec_buf_t*>(
+		mem_heap_alloc(heap, 3 * sizeof **buf));
 	*offsets1 = static_cast<ulint*>(
 		mem_heap_alloc(heap, i * sizeof **offsets1));
-
 	*offsets2 = static_cast<ulint*>(
 		mem_heap_alloc(heap, i * sizeof **offsets2));
 
