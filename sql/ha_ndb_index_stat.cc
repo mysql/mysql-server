@@ -197,7 +197,7 @@ Ndb_index_stat_opt::Ndb_index_stat_opt(char* buf) :
   ival(error_delay, 60, 0, ~0, Utime, 0);
   ival(evict_batch, 8, 1, ~0, Usize, 0);
   ival(evict_delay, 60, 0, ~0, Utime, 0);
-  ival(cache_limit, 32*1024*1024, 1024*1024, ~0, Usize, 0);
+  ival(cache_limit, 32*1024*1024, 0, ~0, Usize, 0);
   ival(cache_lowpct, 90, 0, 100, Usize, 0);
 #undef ival
 
