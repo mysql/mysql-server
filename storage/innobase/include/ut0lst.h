@@ -369,15 +369,6 @@ ut_list_map(
 
 /********************************************************************//**
 Checks the consistency of a two-way list.
-@param NAME		the name of the list
-@param TYPE		node type
-@param LIST		base node (not a pointer to it)
-@param FUNCTOR		called for each list element */
-#define UT_LIST_MAP(NAME, TYPE, LIST, FUNCTOR)			\
-	ut_list_map(LIST, &TYPE::NAME, FUNCTOR)
-
-/********************************************************************//**
-Checks the consistency of a two-way list.
 @param list	base node (not a pointer to it)
 @param functor	Functor that is called for each element in the list
 @parm  node	pointer to member node within list element */

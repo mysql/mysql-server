@@ -221,7 +221,7 @@ read_view_list_validate(void)
 {
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	UT_LIST_MAP(view_list, read_view_t, trx_sys->view_list, Check());
+	ut_list_map(trx_sys->view_list, &read_view_t::view_list, Check());
 
 	return(TRUE);
 }
