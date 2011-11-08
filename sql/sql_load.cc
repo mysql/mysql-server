@@ -39,6 +39,11 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 class XML_TAG {
 public:
   int level;

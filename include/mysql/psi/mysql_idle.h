@@ -30,24 +30,6 @@
 */
 
 /**
-  @def MYSQL_IDLE_WAIT_VARIABLES
-  Instrumentation helper for idle waits.
-  This instrumentation declares local variables.
-  Do not use a ';' after this macro
-  @param LOCKER the locker
-  @param STATE the locker state
-  @sa MYSQL_START_IDLE_WAIT
-  @sa MYSQL_END_IDLE_WAIT
-*/
-#ifdef HAVE_PSI_INTERFACE
-  #define MYSQL_IDLE_WAIT_VARIABLES(LOCKER, STATE) \
-    struct PSI_idle_locker* LOCKER; \
-    PSI_idle_locker_state STATE;
-#else
-  #define MYSQL_IDLE_WAIT_VARIABLES(LOCKER, STATE)
-#endif
-
-/**
   @def MYSQL_START_IDLE_WAIT
   Instrumentation helper for table io_waits.
   This instrumentation marks the start of a wait event.
@@ -55,7 +37,7 @@
   @param STATE the locker state
   @sa MYSQL_END_IDLE_WAIT.
 */
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_IDLE_INTERFACE
   #define MYSQL_START_IDLE_WAIT(LOCKER, STATE) \
     LOCKER= inline_mysql_start_idle_wait(STATE, __FILE__, __LINE__)
 #else
@@ -70,7 +52,7 @@
   @param LOCKER the locker
   @sa MYSQL_START_IDLE_WAIT.
 */
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_IDLE_INTERFACE
   #define MYSQL_END_IDLE_WAIT(LOCKER) \
     inline_mysql_end_idle_wait(LOCKER)
 #else
@@ -78,7 +60,7 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_IDLE_INTERFACE
 /**
   Instrumentation calls for MYSQL_START_IDLE_WAIT.
   @sa MYSQL_END_IDLE_WAIT.

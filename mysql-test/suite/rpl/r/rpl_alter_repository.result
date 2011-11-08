@@ -152,8 +152,5 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
 - Occurrences: 1
 DROP TABLE t_innodb;
 include/stop_slave.inc
-SET @@global.relay_log_info_repository=FILE;
-SET @@global.master_info_repository=FILE;
-SET @@global.sync_master_info=0;
 include/start_slave.inc
 include/rpl_end.inc

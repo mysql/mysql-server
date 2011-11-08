@@ -2676,6 +2676,8 @@ wait_until_unfixed:
 			}
 
 			if (UNIV_LIKELY_NULL(block)) {
+				block_mutex = buf_page_get_mutex(
+					&block->page);
 				/* The page entered the buffer
 				pool for some reason. Try to
 				evict it again. */

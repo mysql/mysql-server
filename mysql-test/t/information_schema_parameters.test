@@ -45,9 +45,8 @@ DESCRIBE INFORMATION_SCHEMA.PARAMETERS;
 #                     I_S.PARAMETERS view
 ###############################################################################
 -- echo # ========== parameters.2 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -65,9 +64,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 #                                     function / procedure
 ###############################################################################
 -- echo # ========== parameters.3 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -84,9 +82,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 # Testcase parameters.4:  CREATE PROCEDURE - IN
 ###############################################################################
 -- echo # ========== parameters.4 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -106,9 +103,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'testproc';
 # Testcase parameters.5:  CREATE PROCEDURE - INOUT
 ###############################################################################
 -- echo # ========== parameters.5 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -121,9 +117,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_proc';
 # Testcase parameters.6:  CREATE PROCEDURE - OUT
 ###############################################################################
 -- echo # ========== parameters.6 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -142,9 +137,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_proc';
 #                     PARAM NAME and MODE should = NULL for RETURNS parm
 ###############################################################################
 -- echo # ========== parameters.7 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -160,9 +154,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 #                     parameter -- NUMERIC columns should be NULL
 ###############################################################################
 -- echo # ========== parameters.8 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -178,9 +171,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
 #                     parameter -- CHAR columns should be NULL
 ###############################################################################
 -- echo # ========== parameters.9 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -194,9 +186,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func2';
 #                     Verify NUMERIC and CHAR related columns are NULL
 ###############################################################################
 -- echo # ========== parameters.10 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -213,9 +204,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 #                     tested in i_s_routines.test
 ###############################################################################
 -- echo # ========== parameters.11 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
@@ -235,9 +225,8 @@ WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 #                     Normally both values are equal
 ###############################################################################
 -- echo # ========== parameters.12 ==========
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS i_s_parameters_test;
---enable_warnings
 
 CREATE DATABASE i_s_parameters_test CHARACTER SET  utf8;
 USE i_s_parameters_test;

@@ -23,7 +23,10 @@
 #include <ctype.h>
 #include "my_dbug.h"
 #include "mysqld_error.h"
+#include <algorithm>
 
+using std::min;
+using std::max;
 
 //const int Group_set::CHUNK_GROW_SIZE;
 

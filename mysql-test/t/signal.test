@@ -1548,15 +1548,24 @@ drop procedure test_signal $$
 --echo # Test where SIGNAL can be used
 --echo #
 
+--echo
+--echo # RETURN statement clears Diagnostics Area, thus
+--echo # the warnings raised in a stored function are not
+--echo # visible outsidef the stored function. So, we're using
+--echo # @@warning_count variable to check that SIGNAL succeeded.
+--echo
+
 create function test_signal_func() returns integer
 begin
+  DECLARE v INT;
   DECLARE warn CONDITION FOR SQLSTATE "01XXX";
 
   SIGNAL warn SET
     MESSAGE_TEXT = "This function SIGNAL a warning",
     MYSQL_ERRNO = 1012;
 
-  return 5;
+  SELECT @@warning_count INTO v;
+  return v;
 end $$
 
 select test_signal_func() $$

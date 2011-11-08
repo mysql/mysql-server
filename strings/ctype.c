@@ -1035,7 +1035,7 @@ my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
     return my_convert_internal(to, to_length, to_cs,
                                from, from_length, from_cs, errors);
 
-  length= length2= min(to_length, from_length);
+  length= length2= MY_MIN(to_length, from_length);
 
 #if defined(__i386__)
   /*

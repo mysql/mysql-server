@@ -40,7 +40,7 @@ compiler_flags="-g -O3 -fno-omit-frame-pointer"
 
 export CC CXX CFLAGS CXXFLAGS LDFLAGS LIBS
 CC="gcc"
-CXX="gcc"
+CXX="g++"
 CFLAGS="$warning_flags $compiler_flags"
 CXXFLAGS="" 
 LDFLAGS="-O3 -g -static-libgcc"

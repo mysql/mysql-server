@@ -19,9 +19,10 @@
 
 #include "zgroups.h"
 
-
 #ifdef HAVE_UGID
 
+using std::min;
+using std::max;
 
 void test_unsigned(int expected_len, ulonglong n)
 {

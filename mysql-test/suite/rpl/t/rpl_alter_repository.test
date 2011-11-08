@@ -6,6 +6,7 @@
 
 --source include/master-slave.inc
 --source include/have_innodb.inc
+--source include/not_mts_slave_parallel_workers.inc
 --connection slave
 --source include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -228,7 +229,6 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 --echo # Search for occurrences of slave_master_info in the output from mysqldump
 --let $MYSQLD_DATADIR= `select @@datadir`
 --exec $MYSQL_DUMP mysql slave_master_info slave_relay_log_info > $MYSQLTEST_VARDIR/tmp/accessing_repository.sql
---exec $MYSQL_DUMP mysql > accessing_repository.sql
 --let OUTF=$MYSQLTEST_VARDIR/tmp/accessing_repository.sql
 perl;
   use strict;
@@ -248,8 +248,11 @@ DROP TABLE t_innodb;
 --sync_slave_with_master
 
 --source include/stop_slave.inc
---eval SET @@global.relay_log_info_repository=$saved_relay_repo
---eval SET @@global.master_info_repository=$saved_master_repo
+
+--disable_query_log
+--eval SET @@global.relay_log_info_repository="$saved_relay_repo"
+--eval SET @@global.master_info_repository="$saved_master_repo"
 --eval SET @@global.sync_master_info=$saved_sync_master
+--enable_query_log
 --source include/start_slave.inc
 --source include/rpl_end.inc
