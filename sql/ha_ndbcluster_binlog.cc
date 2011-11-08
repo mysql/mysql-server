@@ -3214,6 +3214,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
         if (share)
         {
+          pthread_mutex_lock(&share->mutex);
           if (share->op)
           {
             Ndb_event_data *event_data= (Ndb_event_data *) share->op->getCustomData();
@@ -3227,6 +3228,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share->op= 0;
             free_share(&share);
           }
+          pthread_mutex_unlock(&share->mutex);
           free_share(&share);
         }
 
