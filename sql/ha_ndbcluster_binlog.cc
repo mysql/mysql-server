@@ -342,6 +342,13 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
   /* We can't use 'use_all_columns()' as the file object is not setup yet */
   shadow_table->column_bitmaps_set_no_signal(&shadow_table->s->all_set,
                                              &shadow_table->s->all_set);
+
+  if (shadow_table->s->primary_key == MAX_KEY)
+   share->flags|= NSF_HIDDEN_PK;
+
+  if (shadow_table->s->blob_fields != 0)
+    share->flags|= NSF_BLOB_FLAG;
+
 #ifndef DBUG_OFF
   dbug_print_table("table", shadow_table);
 #endif
@@ -411,17 +418,8 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
     }
     DBUG_RETURN(error);
   }
-  while (1) 
-  {
-    if ((error= ndb_binlog_open_shadow_table(thd, share)))
-      break;
-    if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
-      share->flags|= NSF_HIDDEN_PK;
-    if (share->event_data->shadow_table->s->blob_fields != 0)
-      share->flags|= NSF_BLOB_FLAG;
-    break;
-  }
-  DBUG_RETURN(error);
+
+  DBUG_RETURN(ndb_binlog_open_shadow_table(thd, share));
 }
 
 /*****************************************************************
@@ -2841,14 +2839,6 @@ class Ndb_schema_event_handler {
       }
       else
       {
-        if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
-          share->flags|= NSF_HIDDEN_PK;
-        /*
-          Refresh share->flags to handle added BLOB columns
-        */
-        if (share->event_data->shadow_table->s->blob_fields != 0)
-          share->flags|= NSF_BLOB_FLAG;
-
         /*
           Start subscribing to data changes to the new table definition
         */
