@@ -4576,7 +4576,7 @@ public:
   int do_apply_event(Relay_log_info const *rli);
 #endif
 
-  bool starts_group() { return true; }
+  bool starts_group() { return false; }
 
   uchar get_ugid_type() const;
 
