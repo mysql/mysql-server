@@ -1437,10 +1437,14 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
 
     cilk_for (int i = 0; i < node->n_children; i++) {
 	assert(BP_STATE(node, i) == PT_ON_DISK);
+        // We only touch the clock for basement nodes that the bfe wants,
+        // and not basement nodes that the are being prefetched
+        if (toku_bfe_wants_child_available(bfe, i)) {
+            BP_TOUCH_CLOCK(node,i);
+        }
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
 	    assert(BP_STATE(node,i) == PT_ON_DISK);
 	    toku_deserialize_bp_from_disk(node, i, fd, bfe);
-            BP_TOUCH_CLOCK(node,i);
         }
     }
 
@@ -1629,7 +1633,6 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }
-    BP_INIT_TOUCHED_CLOCK(node,childnum);
     toku_free(curr_sb.uncompressed_ptr);
     toku_free(raw_block);
 }
@@ -1657,7 +1660,6 @@ toku_deserialize_bp_from_compressed(BRTNODE node, int childnum,
     if (node->height == 0) {
         toku_brt_bn_reset_stats(node, childnum);
     }
-    BP_INIT_TOUCHED_CLOCK(node,childnum);
     toku_free(curr_sb->uncompressed_ptr);
     toku_free(curr_sb->compressed_ptr);
     toku_free(curr_sb);
