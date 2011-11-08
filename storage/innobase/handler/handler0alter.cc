@@ -1416,6 +1416,9 @@ ha_innobase::final_add_index(
 	}
 
 	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
+
+	ut_a(fts_check_cached_index(prebuilt->table));
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	trx_free_for_mysql(trx);
@@ -1751,6 +1754,9 @@ ha_innobase::final_drop_index(
 
 func_exit:
 	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
+
+	ut_a(fts_check_cached_index(prebuilt->table));
+
 	trx_commit_for_mysql(trx);
 	trx_commit_for_mysql(prebuilt->trx);
 	row_mysql_unlock_data_dictionary(trx);
