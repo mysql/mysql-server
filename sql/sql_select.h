@@ -2158,6 +2158,21 @@ public:
 
 private:
   /**
+    Execute current query. To be called from @c JOIN::exec.
+
+    If current query is a dependent subquery, this execution is performed on a
+    temporary copy of the original JOIN object in order to be able to restore
+    the original content for re-execution and EXPLAIN. (@note Subqueries may
+    be executed as part of EXPLAIN.) In such cases, execution data that may be
+    reused for later executions will be copied to the original 
+    @c JOIN object (@c parent).
+
+    @param parent Original @c JOIN object when current object is a temporary 
+                  copy. @c NULL, otherwise
+  */
+  void execute(JOIN *parent);
+  
+  /**
     Create table to be used for processing DISTINCT/ORDER BY/GROUP BY.
     This creates the table referred to by @c exec_tmp_table1.
 
