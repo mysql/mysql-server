@@ -2816,7 +2816,6 @@ class Ndb_schema_event_handler {
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
 
-    int error= 0;
     if (schema->node_id != own_nodeid())
     {
       write_schema_op_to_binlog(m_thd, schema);
@@ -2829,56 +2828,59 @@ class Ndb_schema_event_handler {
     if (share)
     {
       if (opt_ndb_extra_logging > 9)
-        sql_print_information("NDB Binlog: handeling online alter/rename");
+        sql_print_information("NDB Binlog: handling online alter/rename");
 
       pthread_mutex_lock(&share->mutex);
       ndb_binlog_close_shadow_table(share);
 
-      if ((error= ndb_binlog_open_shadow_table(m_thd, share)))
+      if (ndb_binlog_open_shadow_table(m_thd, share))
+      {
         sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
                         schema->db, schema->name);
-      if (error)
         pthread_mutex_unlock(&share->mutex);
-    }
-    if (!error && share)
-    {
-      if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
-        share->flags|= NSF_HIDDEN_PK;
-      /*
-        Refresh share->flags to handle added BLOB columns
-      */
-      if (share->event_data->shadow_table->s->blob_fields != 0)
-        share->flags|= NSF_BLOB_FLAG;
-
-      /*
-        Start subscribing to data changes to the new table definition
-      */
-      String event_name(INJECTOR_EVENT_LEN);
-      ndb_rep_event_name(&event_name, schema->db, schema->name,
-                         get_binlog_full(share));
-      NdbEventOperation *tmp_op= share->op;
-      share->new_op= 0;
-      share->op= 0;
-
-      Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-      Ndb *ndb= thd_ndb->ndb;
-      Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
-      const NDBTAB *ndbtab= ndbtab_g.get_table();
-      if (ndbcluster_create_event_ops(m_thd, share, ndbtab, event_name.c_ptr()))
-      {
-        sql_print_error("NDB Binlog:"
-                        "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
-                        event_name.c_ptr());
       }
       else
       {
-        share->new_op= share->op;
-      }
-      share->op= tmp_op;
-      pthread_mutex_unlock(&share->mutex);
+        if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
+          share->flags|= NSF_HIDDEN_PK;
+        /*
+          Refresh share->flags to handle added BLOB columns
+        */
+        if (share->event_data->shadow_table->s->blob_fields != 0)
+          share->flags|= NSF_BLOB_FLAG;
 
-      if (opt_ndb_extra_logging > 9)
-        sql_print_information("NDB Binlog: handeling online alter/rename done");
+        /*
+          Start subscribing to data changes to the new table definition
+        */
+        String event_name(INJECTOR_EVENT_LEN);
+        ndb_rep_event_name(&event_name, schema->db, schema->name,
+                           get_binlog_full(share));
+        NdbEventOperation *tmp_op= share->op;
+        share->new_op= 0;
+        share->op= 0;
+
+        Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+        Ndb *ndb= thd_ndb->ndb;
+        Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
+        const NDBTAB *ndbtab= ndbtab_g.get_table();
+        if (ndbcluster_create_event_ops(m_thd, share, ndbtab,
+                                        event_name.c_ptr()))
+        {
+          sql_print_error("NDB Binlog:"
+                          "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
+                          event_name.c_ptr());
+        }
+        else
+        {
+          share->new_op= share->op;
+        }
+        share->op= tmp_op;
+        pthread_mutex_unlock(&share->mutex);
+
+        if (opt_ndb_extra_logging > 9)
+          sql_print_information("NDB Binlog: handling online "
+                                "alter/rename done");
+      }
     }
     if (share)
     {
@@ -3466,7 +3468,7 @@ public:
 };
 
 /*********************************************************************
-  Internal helper functions for handeling of the cluster replication tables
+  Internal helper functions for handling of the cluster replication tables
   - ndb_binlog_index
   - ndb_apply_status
 *********************************************************************/
