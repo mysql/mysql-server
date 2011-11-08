@@ -4024,7 +4024,6 @@ fts_sync_commit(
 		(double) n_nodes/ (double) elapsed_time);
 
 	trx_free_for_background(trx);
-	sync->trx = NULL;
 
 	return(error);
 }
@@ -4041,9 +4040,9 @@ fts_sync_rollback(
 	fts_cache_t*	cache = sync->table->fts->cache;
 
 	rw_lock_x_unlock(&cache->lock);
+
 	fts_sql_rollback(trx);
 	trx_free_for_background(trx);
-	sync->trx = NULL;
 }
 
 /****************************************************************//**
