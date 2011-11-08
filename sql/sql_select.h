@@ -2158,6 +2158,14 @@ public:
 
 private:
   /**
+    Create table to be used for processing DISTINCT/ORDER BY/GROUP BY.
+    This creates the table referred to by @c exec_tmp_table1.
+
+    @returns 0 on success, non-zero on failure
+  */
+  int create_intermediate_table();
+
+  /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
   */

@@ -2029,7 +2029,6 @@ static int clear_sj_tmp_tables(JOIN *join)
 int
 JOIN::optimize()
 {
-  bool need_distinct;
   ulonglong select_opts_for_readinfo;
   uint no_jbuf_after= UINT_MAX;
 
@@ -2758,150 +2757,11 @@ JOIN::optimize()
   }
 
   tmp_having= having;
-  if (select_options & SELECT_DESCRIBE)
+  if (!(select_options & SELECT_DESCRIBE))
   {
-    error= 0;
-    DBUG_RETURN(0);
+    having= NULL;
   }
-  having= 0;
-
-  /*
-    The loose index scan access method guarantees that all grouping or
-    duplicate row elimination (for distinct) is already performed
-    during data retrieval, and that all MIN/MAX functions are already
-    computed for each group. Thus all MIN/MAX functions should be
-    treated as regular functions, and there is no need to perform
-    grouping in the main execution loop.
-    Notice that currently loose index scan is applicable only for
-    single table queries, thus it is sufficient to test only the first
-    join_tab element of the plan for its access method.
-  */
-  need_distinct= TRUE;
-  if (join_tab->is_using_loose_index_scan())
-  {
-    tmp_table_param.precomputed_group_by= TRUE;
-    if (join_tab->is_using_agg_loose_index_scan())
-    {
-      need_distinct= FALSE;
-      tmp_table_param.precomputed_group_by= FALSE;
-    }
-  }
-
-  /* Create a tmp table if distinct or if the sort is too complicated */
-  if (need_tmp)
-  {
-    DBUG_PRINT("info",("Creating tmp table"));
-    THD_STAGE_INFO(thd, stage_creating_tmp_table);
-
-    init_items_ref_array();
-
-    tmp_table_param.hidden_field_count= (all_fields.elements -
-					 fields_list.elements);
-    ORDER *tmp_group= ((!simple_group && !procedure &&
-                        !(test_flags & TEST_NO_KEY_GROUP)) ? group_list :
-                                                             (ORDER*) 0);
-    /*
-      Pushing LIMIT to the temporary table creation is not applicable
-      when there is ORDER BY or GROUP BY or there is no GROUP BY, but
-      there are aggregate functions, because in all these cases we need
-      all result rows.
-    */
-    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order) &&
-                             !tmp_group &&
-                             !thd->lex->current_select->with_sum_func) ?
-                            m_select_limit : HA_POS_ERROR;
-
-    if (!(exec_tmp_table1=
-	  create_tmp_table(thd, &tmp_table_param, all_fields,
-                           tmp_group, group_list ? 0 : select_distinct,
-			   group_list && simple_group,
-			   select_options, tmp_rows_limit, "")))
-      DBUG_RETURN(1);
-
-    /*
-      We don't have to store rows in temp table that doesn't match HAVING if:
-      - we are sorting the table and writing complete group rows to the
-        temp table.
-      - We are using DISTINCT without resolving the distinct as a GROUP BY
-        on all columns.
-      
-      If having is not handled here, it will be checked before the row
-      is sent to the client.
-    */    
-    if (tmp_having && 
-	(sort_and_group || (exec_tmp_table1->distinct && !group_list)))
-      having= tmp_having;
-
-    /* if group or order on first table, sort first */
-    if (group_list && simple_group)
-    {
-      DBUG_PRINT("info",("Sorting for group"));
-      THD_STAGE_INFO(thd, stage_sorting_for_group);
-      if (create_sort_index(thd, this, group_list,
-			    HA_POS_ERROR, HA_POS_ERROR, FALSE) ||
-	  alloc_group_fields(this, group_list) ||
-          make_sum_func_list(all_fields, fields_list, 1) ||
-          prepare_sum_aggregators(sum_funcs, need_distinct) ||
-          setup_sum_funcs(thd, sum_funcs))
-      {
-        DBUG_RETURN(1);
-      }
-      group_list=0;
-    }
-    else
-    {
-      if (make_sum_func_list(all_fields, fields_list, 0) ||
-          prepare_sum_aggregators(sum_funcs, need_distinct) ||
-          setup_sum_funcs(thd, sum_funcs))
-      {
-        DBUG_RETURN(1);
-      }
-
-      if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
-      {
-        DBUG_PRINT("info",("Sorting for order"));
-        THD_STAGE_INFO(thd, stage_sorting_for_order);
-        if (create_sort_index(thd, this, order,
-                              HA_POS_ERROR, HA_POS_ERROR, TRUE))
-        {
-          DBUG_RETURN(1);
-        }
-        order=0;
-      }
-    }
-    
-    /*
-      Optimize distinct when used on some of the tables
-      SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
-      In this case we can stop scanning t2 when we have found one t1.a
-    */
-
-    if (exec_tmp_table1->distinct)
-    {
-      JOIN_TAB *last_join_tab= join_tab+tables-1;
-      do
-      {
-        if (select_lex->select_list_tables & last_join_tab->table->map)
-          break;
-        last_join_tab->not_used_in_distinct= 1;
-      } while (last_join_tab-- != join_tab);
-      /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
-      if (order && skip_sort_order)
-      {
- 	/* Should always succeed */
-	if (test_if_skip_sort_order(&join_tab[const_tables],
-				    order, unit->select_limit_cnt, 0, 
-                                    &join_tab[const_tables].table->
-                                      keys_in_use_for_order_by))
-	  order=0;
-      }
-    }
-
-    /* If this join belongs to an uncacheable query save the original join */
-    if (select_lex->uncacheable && init_save_join_tab())
-      DBUG_RETURN(-1);                         /* purecov: inspected */
-  }
-
+   
   error= 0;
   DBUG_RETURN(0);
 
@@ -3279,20 +3139,41 @@ JOIN::exec()
   */
   curr_join->examined_rows= 0;
 
+  /*
+    The loose index scan access method guarantees that all grouping or
+    duplicate row elimination (for distinct) is already performed
+    during data retrieval, and that all MIN/MAX functions are already
+    computed for each group. Thus all MIN/MAX functions should be
+    treated as regular functions, and there is no need to perform
+    grouping in the main execution loop.
+    Notice that currently loose index scan is applicable only for
+    single table queries, thus it is sufficient to test only the first
+    join_tab element of the plan for its access method.
+  */
+  if (join_tab && join_tab->is_using_loose_index_scan())
+    tmp_table_param.precomputed_group_by= 
+      !join_tab->is_using_agg_loose_index_scan();
+
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
+    if (!exec_tmp_table1) 
+    {
+      if (create_intermediate_table())
+        DBUG_VOID_RETURN;
+    }
+    curr_tmp_table= exec_tmp_table1;
+
     if (tmp_join)
     {
       /*
-        We are in a non cacheable sub query. Get the saved join structure
-        after optimization.
+        We are in a non-cacheable subquery. Get the saved join structure
+        after creation of temporary table.
         (curr_join may have been modified during last exection and we need
         to reset it)
       */
       curr_join= tmp_join;
     }
-    curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
     THD_STAGE_INFO(thd, stage_copying_to_tmp_table);
@@ -3775,6 +3656,130 @@ JOIN::exec()
                         (ulong) thd->get_examined_row_count()));
 
   DBUG_VOID_RETURN;
+}
+
+/**
+  @todo Investigate how to unify this code with the code for creating a
+        second temporary table, @c exec_tmp_table2. @see JOIN::exec
+*/
+int
+JOIN::create_intermediate_table()
+{
+  DBUG_ENTER("JOIN::create_intermediate_table");
+  THD_STAGE_INFO(thd, stage_creating_tmp_table);
+
+  init_items_ref_array();
+
+  tmp_table_param.hidden_field_count= 
+    all_fields.elements - fields_list.elements;
+  ORDER *tmp_group= 
+    (!simple_group && !procedure && !(test_flags & TEST_NO_KEY_GROUP)) ? 
+    group_list : (ORDER*) NULL;
+
+  /*
+    Pushing LIMIT to the temporary table creation is not applicable
+    when there is ORDER BY or GROUP BY or there is no GROUP BY, but
+    there are aggregate functions, because in all these cases we need
+    all result rows.
+  */
+  ha_rows tmp_rows_limit= ((order == NULL || skip_sort_order) &&
+                           !tmp_group &&
+                           !select_lex->with_sum_func) ?
+    m_select_limit : HA_POS_ERROR;
+
+  if (!(exec_tmp_table1=
+        create_tmp_table(thd, &tmp_table_param, all_fields,
+                         tmp_group, group_list ? false : select_distinct,
+                         group_list && simple_group,
+                         select_options, tmp_rows_limit, "")))
+    DBUG_RETURN(1);
+
+  /*
+    We don't have to store rows in temp table that doesn't match HAVING if:
+    - we are sorting the table and writing complete group rows to the
+      temp table.
+    - We are using DISTINCT without resolving the distinct as a GROUP BY
+      on all columns.
+
+    If having is not handled here, it will be checked before the row
+    is sent to the client.
+  */
+  if (tmp_having &&
+      (sort_and_group || (exec_tmp_table1->distinct && !group_list)))
+    having= tmp_having;
+
+  /* if group or order on first table, sort first */
+  if (group_list && simple_group)
+  {
+    DBUG_PRINT("info",("Sorting for group"));
+    THD_STAGE_INFO(thd, stage_sorting_for_group);
+    if (create_sort_index(thd, this, group_list,
+                          HA_POS_ERROR, HA_POS_ERROR, false) ||
+        alloc_group_fields(this, group_list) ||
+        make_sum_func_list(all_fields, fields_list, true) ||
+        prepare_sum_aggregators(sum_funcs,
+                                !join_tab->is_using_agg_loose_index_scan()) ||
+        setup_sum_funcs(thd, sum_funcs))
+    {
+      DBUG_RETURN(1);
+    }
+    group_list= NULL;
+  }
+  else
+  {
+    if (make_sum_func_list(all_fields, fields_list, false) ||
+        prepare_sum_aggregators(sum_funcs,
+                                !join_tab->is_using_agg_loose_index_scan()) ||
+        setup_sum_funcs(thd, sum_funcs))
+    {
+      DBUG_RETURN(1);
+    }
+
+    if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
+    {
+      DBUG_PRINT("info",("Sorting for order"));
+      THD_STAGE_INFO(thd, stage_sorting_for_order);
+      if (create_sort_index(thd, this, order,
+                            HA_POS_ERROR, HA_POS_ERROR, true))
+      {
+        DBUG_RETURN(1);
+      }
+      order= NULL;
+    }
+  }
+
+  /*
+    Optimize distinct when used on some of the tables
+    SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
+    In this case we can stop scanning t2 when we have found one t1.a
+  */
+
+  if (exec_tmp_table1->distinct)
+  {
+    JOIN_TAB *last_join_tab= join_tab+tables-1;
+    do
+    {
+      if (select_lex->select_list_tables & last_join_tab->table->map)
+        break;
+      last_join_tab->not_used_in_distinct= true;
+    } while (last_join_tab-- != join_tab);
+    /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
+    if (order && skip_sort_order)
+    {
+      /* Should always succeed */
+      if (test_if_skip_sort_order(&join_tab[const_tables],
+                                  order, unit->select_limit_cnt, false,
+                                  &join_tab[const_tables].table->
+                                  keys_in_use_for_order_by))
+        order= NULL;
+    }
+  }
+
+  /* If this join belongs to an uncacheable query save the original join */
+  if (select_lex->uncacheable && init_save_join_tab())
+    DBUG_RETURN(-1);                         /* purecov: inspected */
+
+  DBUG_RETURN(0);
 }
 
 
