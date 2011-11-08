@@ -708,6 +708,7 @@ void set_remaining_args(int argc, char **argv)
 PSI_statement_info stmt_info_new_packet;
 #endif
 
+#ifndef EMBEDDED_LIBRARY
 void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */)
 {
   THD *thd;
@@ -783,6 +784,7 @@ void init_net_server_extension(THD *thd)
   thd->net.extension= NULL;
 #endif
 }
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Since buffered_option_error_reporter is only used currently
