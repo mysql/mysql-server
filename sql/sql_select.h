@@ -2173,12 +2173,30 @@ private:
   void execute(JOIN *parent);
   
   /**
-    Create table to be used for processing DISTINCT/ORDER BY/GROUP BY.
-    This creates the table referred to by @c exec_tmp_table1.
+    Create a temporary table to be used for processing DISTINCT/ORDER
+    BY/GROUP BY.
 
-    @returns 0 on success, non-zero on failure
+    @note Will modify JOIN object wrt sort/group attributes
+
+    @param tmp_table_fields List of items that will be used to define
+                            column types of the table.
+    @param tmp_table_group  Group key to use for temporary table, NULL if none.
+    @param save_sum_fields  If true, do not replace Item_sum items in 
+                            @c tmp_fields list with Item_field items referring 
+                            to fields in temporary table.
+
+    @returns Pointer to temporary table on success, NULL on failure
   */
-  int create_intermediate_table();
+  TABLE* create_intermediate_table(List<Item> *tmp_table_fields,
+                                   ORDER *tmp_table_group, bool save_sum_fields);
+
+  /**
+    Optimize distinct when used on a subset of the tables.
+
+    E.g.,: SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
+    In this case we can stop scanning t2 when we have found one t1.a
+  */
+  void optimize_distinct();
 
   /**
     TRUE if the query contains an aggregate function but has no GROUP
