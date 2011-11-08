@@ -15874,9 +15874,7 @@ void Optimize_table_order::advance_sj_state(
     pos->dups_producing_tables= pos[-1].dups_producing_tables;
 
     // FirstMatch
-    pos->first_firstmatch_table=
-      (pos[-1].sj_strategy == SJ_OPT_FIRST_MATCH) ?
-      MAX_TABLES : pos[-1].first_firstmatch_table;
+    pos->first_firstmatch_table= pos[-1].first_firstmatch_table;
     pos->first_firstmatch_rtbl= pos[-1].first_firstmatch_rtbl;
     pos->firstmatch_need_tables= pos[-1].firstmatch_need_tables;
 
@@ -15898,7 +15896,25 @@ void Optimize_table_order::advance_sj_state(
   }
   
   table_map handled_by_fm_or_ls= 0;
-  /* FirstMatch Strategy */
+  /*
+    FirstMatch Strategy
+    ===================
+
+    FirstMatch requires that all dependent outer tables are in the join prefix.
+    (see "FirstMatch strategy" above setup_semijoin_dups_elimination()).
+    The execution strategy will handle multiple semi-join nests correctly,
+    and the optimizer will pick execution strategy according to these rules:
+    - If tables from multiple semi-join nests are intertwined, they will
+      be processed as one FirstMatch evaluation.
+    - If tables from each semi-join nest are grouped together, each semi-join
+      nest is processed as one FirstMatch evaluation.
+
+    Example: Let's say we have an outer table ot and two semi-join nests with
+    two tables each: it11 and it12, and it21 and it22.
+
+    Intertwined tables: ot - FM(it11 - it21 - it12 - it22)
+    Grouped tables: ot - FM(it11 - it12) - FM(it21 - it22)
+  */
   if (emb_sj_nest &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_FIRSTMATCH))
   {
@@ -15922,12 +15938,15 @@ void Optimize_table_order::advance_sj_state(
     {
       /* Start tracking potential FirstMatch range */
       pos->first_firstmatch_table= idx;
-      pos->firstmatch_need_tables= sj_inner_tables;
+      pos->firstmatch_need_tables= 0;
       pos->first_firstmatch_rtbl= remaining_tables;
     }
 
     if (pos->first_firstmatch_table != MAX_TABLES)
     {
+      /* Record that we need all of this semi-join's inner tables */
+      pos->firstmatch_need_tables|= sj_inner_tables;
+
       if (outer_corr_tables & pos->first_firstmatch_rtbl)
       {
         /*
@@ -15936,13 +15955,7 @@ void Optimize_table_order::advance_sj_state(
         */
         pos->first_firstmatch_table= MAX_TABLES;
       }
-      else
-      {
-        /* Record that we need all of this semi-join's inner tables, too */
-        pos->firstmatch_need_tables|= sj_inner_tables;
-      }
-    
-      if (!(pos->firstmatch_need_tables & remaining_tables))
+      else if (!(pos->firstmatch_need_tables & remaining_tables))
       {
         // Got a complete FirstMatch range. Calculate access paths and cost
         double cost, rowcount;

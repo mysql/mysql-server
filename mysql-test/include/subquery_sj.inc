@@ -4338,4 +4338,37 @@ DROP TABLE t1, t2;
 
 --echo # End of test for bug#13340270.
 
+--echo #
+--echo # Bug#13335319: Seg fault when analyzing FirstMatch semi-join strategy
+--echo #
+
+CREATE TABLE ot1(a INTEGER);
+
+INSERT INTO ot1 VALUES(1), (2), (3);
+
+CREATE TABLE ot2(a INTEGER);
+
+INSERT INTO ot2 VALUES(1), (2), (4), (6), (8), (10);
+
+CREATE TABLE it1(a INTEGER);
+
+INSERT INTO it1 VALUES(1), (3), (5), (7);
+
+CREATE TABLE it2(a INTEGER);
+
+INSERT INTO it2 VALUES(1), (3), (5), (7), (9);
+
+let $query=
+SELECT ot1.a, ot2.a
+FROM ot1, ot2
+WHERE ot1.a IN (SELECT a FROM it1) AND
+      ot2.a IN (SELECT a FROM it2);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE ot1, ot2, it1, it2;
+
+--echo # End of test for bug#13335319.
+
 --echo # End of 5.6 tests
