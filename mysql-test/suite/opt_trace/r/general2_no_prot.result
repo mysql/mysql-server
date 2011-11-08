@@ -1119,7 +1119,7 @@ TRACE
               "rows": 4,
               "examined_rows": 4,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 252,
+              "sort_buffer_size": NNN,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -1355,7 +1355,7 @@ TRACE
                     "rows": 3,
                     "examined_rows": 3,
                     "number_of_tmp_files": 0,
-                    "sort_buffer_size": 273,
+                    "sort_buffer_size": NNN,
                     "sort_mode": "<sort_key, rowid>"
                   } /* filesort_summary */
                 }
@@ -4862,7 +4862,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "rows": 8,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 378,
+              "sort_buffer_size": NNN,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
