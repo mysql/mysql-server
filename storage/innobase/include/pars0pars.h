@@ -106,7 +106,7 @@ pars_sql(
 	const char*	str);	/*!< in: SQL string */
 /*************************************************************//**
 Retrieves characters to the lexical analyzer.
-@return number of characters copied or EOF */
+@return number of characters copied or 0 on EOF */
 UNIV_INTERN
 int
 pars_get_lex_chars(
