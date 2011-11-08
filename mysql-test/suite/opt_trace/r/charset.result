@@ -68,11 +68,11 @@ explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }
@@ -135,11 +135,11 @@ explain extended select '√Å√Ç√É√Ñ√Ö', _latin1'√Å√Ç√É√Ñ√Ö' from t1 limit 1	{
       } /* join_optimization */
     },
     {
-      "join_execution": {
+      "join_explain": {
         "select#": 1,
         "steps": [
         ] /* steps */
-      } /* join_execution */
+      } /* join_explain */
     }
   ] /* steps */
 }
