@@ -3143,14 +3143,32 @@ JOIN::exec()
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
-    if (!exec_tmp_table1) 
+    if (!exec_tmp_table1)
     {
       /*
         Create temporary table on first execution of this join.
         (Will be reused if this is a subquery that is executed several times.)
       */
-      if (create_intermediate_table())
+      init_items_ref_array();
+
+      ORDER *tmp_group= 
+        (!simple_group && !procedure && !(test_flags & TEST_NO_KEY_GROUP)) ? 
+        group_list : NULL;
+      
+      tmp_table_param.hidden_field_count= 
+        all_fields.elements - fields_list.elements;
+
+      exec_tmp_table1= create_intermediate_table(&all_fields, tmp_group, 
+                                                 group_list && simple_group);
+      if (!exec_tmp_table1)
         DBUG_VOID_RETURN;
+
+      if (exec_tmp_table1->distinct)
+        optimize_distinct();
+
+      /* If this join belongs to an uncacheable query save the original join */
+      if (select_lex->uncacheable && init_save_join_tab())
+        DBUG_VOID_RETURN; /* purecov: inspected */
     }
 
     if (tmp_join)
@@ -3303,9 +3321,7 @@ JOIN::execute(JOIN *parent)
         tmp_all_fields1.elements - tmp_fields_list1.elements;
       
       
-      if (exec_tmp_table2)
-	curr_tmp_table= exec_tmp_table2;
-      else
+      if (!exec_tmp_table2)
       {
 	/* group data to new table */
 
@@ -3317,18 +3333,17 @@ JOIN::execute(JOIN *parent)
         if (join_tab->is_using_loose_index_scan())
           tmp_table_param.precomputed_group_by= TRUE;
 
-	if (!(curr_tmp_table=
-	      exec_tmp_table2= create_tmp_table(thd,
-                                                &tmp_table_param,
-						*curr_all_fields,
-                                                (ORDER*) NULL,
-                                                select_distinct && !group_list,
-                                                true, select_options,
-						HA_POS_ERROR, "")))
+        tmp_table_param.hidden_field_count= 
+          curr_all_fields->elements - curr_fields_list->elements;
+
+        if (!(exec_tmp_table2= create_intermediate_table(curr_all_fields,
+                                                         NULL, true)))
 	  DBUG_VOID_RETURN;
-          if (parent)
-            parent->exec_tmp_table2= exec_tmp_table2;
+        if (parent)
+          parent->exec_tmp_table2= exec_tmp_table2;
       }
+      curr_tmp_table= exec_tmp_table2;
+
       if (group_list)
       {
         if (join_tab == main_join->join_tab && main_join->save_join_tab())
@@ -3656,23 +3671,13 @@ JOIN::execute(JOIN *parent)
   DBUG_VOID_RETURN;
 }
 
-/**
-  @todo Investigate how to unify this code with the code for creating a
-        second temporary table, @c exec_tmp_table2. @see JOIN::execute
-*/
-int
-JOIN::create_intermediate_table()
+
+TABLE*
+JOIN::create_intermediate_table(List<Item> *tmp_table_fields,
+                                ORDER *tmp_table_group, bool save_sum_fields)
 {
   DBUG_ENTER("JOIN::create_intermediate_table");
   THD_STAGE_INFO(thd, stage_creating_tmp_table);
-
-  init_items_ref_array();
-
-  tmp_table_param.hidden_field_count= 
-    all_fields.elements - fields_list.elements;
-  ORDER *tmp_group= 
-    (!simple_group && !procedure && !(test_flags & TEST_NO_KEY_GROUP)) ? 
-    group_list : (ORDER*) NULL;
 
   /*
     Pushing LIMIT to the temporary table creation is not applicable
@@ -3681,16 +3686,16 @@ JOIN::create_intermediate_table()
     all result rows.
   */
   ha_rows tmp_rows_limit= ((order == NULL || skip_sort_order) &&
-                           !tmp_group &&
+                           !tmp_table_group &&
                            !select_lex->with_sum_func) ?
     m_select_limit : HA_POS_ERROR;
 
-  if (!(exec_tmp_table1=
-        create_tmp_table(thd, &tmp_table_param, all_fields,
-                         tmp_group, group_list ? false : select_distinct,
-                         group_list && simple_group,
-                         select_options, tmp_rows_limit, "")))
-    DBUG_RETURN(1);
+  TABLE* tab= create_tmp_table(thd, &tmp_table_param, *tmp_table_fields,
+                               tmp_table_group, select_distinct && !group_list,
+                               save_sum_fields, select_options, tmp_rows_limit, 
+                               "");
+  if (!tab)
+    DBUG_RETURN(NULL);
 
   /*
     We don't have to store rows in temp table that doesn't match HAVING if:
@@ -3703,7 +3708,7 @@ JOIN::create_intermediate_table()
     is sent to the client.
   */
   if (tmp_having &&
-      (sort_and_group || (exec_tmp_table1->distinct && !group_list)))
+      (sort_and_group || (tab->distinct && !group_list)))
     having= tmp_having;
 
   /* if group or order on first table, sort first */
@@ -3719,7 +3724,7 @@ JOIN::create_intermediate_table()
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
     {
-      DBUG_RETURN(1);
+      DBUG_RETURN(NULL);
     }
     group_list= NULL;
   }
@@ -3730,54 +3735,46 @@ JOIN::create_intermediate_table()
                                 !join_tab->is_using_agg_loose_index_scan()) ||
         setup_sum_funcs(thd, sum_funcs))
     {
-      DBUG_RETURN(1);
+      DBUG_RETURN(NULL);
     }
 
-    if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
+    if (!group_list && !tab->distinct && order && simple_order)
     {
       DBUG_PRINT("info",("Sorting for order"));
       THD_STAGE_INFO(thd, stage_sorting_for_order);
       if (create_sort_index(thd, this, order,
                             HA_POS_ERROR, HA_POS_ERROR, true))
       {
-        DBUG_RETURN(1);
+        DBUG_RETURN(NULL);
       }
       order= NULL;
     }
   }
+  DBUG_RETURN(tab);
+}
 
-  /*
-    Optimize distinct when used on some of the tables
-    SELECT DISTINCT t1.a FROM t1,t2 WHERE t1.b=t2.b
-    In this case we can stop scanning t2 when we have found one t1.a
-  */
 
-  if (exec_tmp_table1->distinct)
+void
+JOIN::optimize_distinct()
+{
+  JOIN_TAB *last_join_tab= join_tab+tables-1;
+  do
   {
-    JOIN_TAB *last_join_tab= join_tab+tables-1;
-    do
-    {
-      if (select_lex->select_list_tables & last_join_tab->table->map)
-        break;
-      last_join_tab->not_used_in_distinct= true;
-    } while (last_join_tab-- != join_tab);
-    /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
-    if (order && skip_sort_order)
-    {
-      /* Should always succeed */
-      if (test_if_skip_sort_order(&join_tab[const_tables],
-                                  order, unit->select_limit_cnt, false,
-                                  &join_tab[const_tables].table->
-                                  keys_in_use_for_order_by))
-        order= NULL;
-    }
+    if (select_lex->select_list_tables & last_join_tab->table->map)
+      break;
+    last_join_tab->not_used_in_distinct= true;
+  } while (last_join_tab-- != join_tab);
+
+  /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
+  if (order && skip_sort_order)
+  {
+    /* Should always succeed */
+    if (test_if_skip_sort_order(&join_tab[const_tables],
+                                order, unit->select_limit_cnt, false, 
+                                &join_tab[const_tables].table->
+                                keys_in_use_for_order_by))
+      order= NULL;
   }
-
-  /* If this join belongs to an uncacheable query save the original join */
-  if (select_lex->uncacheable && init_save_join_tab())
-    DBUG_RETURN(-1);                         /* purecov: inspected */
-
-  DBUG_RETURN(0);
 }
 
 
@@ -17245,7 +17242,7 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   @param param                a description used as input to create the table
   @param fields               list of items that will be used to define
                               column types of the table (also see NOTES)
-  @param group                TODO document
+  @param group                Group key to use for temporary table, NULL if none
   @param distinct             should table rows be distinct
   @param save_sum_fields      see NOTES
   @param select_options
