@@ -2583,25 +2583,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       
-      /*if (!rli->curr_group_seen_begin)
-      {*/
-        /*
-          This is a case of B/T-less group like
-          `set @user_var, select f()' that are logged w/o B-event.
-          Notice, while the select-f() can be mended in the current
-          master version, the old server binlogs can't since it bring in
-          the same B/T-less {p, g} group.
-        */
-/*
-        DBUG_ASSERT(rli->curr_group_da.elements > 0);
-      }
-      else
-      {
-        DBUG_ASSERT(rli->curr_group_da.elements > 1);
-      }*/
-
       DBUG_ASSERT(!ret_worker);
-
       return ret_worker;
     }
   }
