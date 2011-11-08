@@ -265,7 +265,7 @@ public:
 	ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF* seq,
 					   void* seq_init_param,
 					   uint n_ranges, uint* bufsz,
-					   uint* flags, COST_VECT* cost);
+					   uint* flags, Cost_estimate* cost);
 	/** Initialize multi range read and get information.
 	* @see DsMrr_impl::dsmrr_info
 	* @param keyno
@@ -278,7 +278,7 @@ public:
 	*/
 	ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 				      uint* bufsz, uint* flags,
-				      COST_VECT* cost);
+				      Cost_estimate* cost);
 
 	/** Attempt to push down an index condition.
 	* @param[in] keyno	MySQL key number

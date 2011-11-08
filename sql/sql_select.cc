@@ -5875,10 +5875,16 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
                sizeof(st_position) * n_tables);
 
         sj_nest->nested_join->sjm.expected_rowcount= distinct_rowcount;
+        sj_nest->nested_join->sjm.materialization_cost.reset();
         sj_nest->nested_join->sjm.materialization_cost
-          .convert_from_cost(sjm_cost);
-        sj_nest->nested_join->sjm.scan_cost.convert_from_cost(scan_cost);       
-        sj_nest->nested_join->sjm.lookup_cost.convert_from_cost(row_cost);
+          .add_io(sjm_cost);
+
+        sj_nest->nested_join->sjm.scan_cost.reset();
+        if (sj_nest->nested_join->sjm.expected_rowcount > 0.0)
+          sj_nest->nested_join->sjm.scan_cost.add_io(scan_cost);
+
+        sj_nest->nested_join->sjm.lookup_cost.reset();
+        sj_nest->nested_join->sjm.lookup_cost.add_io(row_cost);
       }
     }
   }
@@ -11980,7 +11986,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
                                  bool *icp_other_tables_ok)
 {
   uint flags;
-  COST_VECT cost;
+  Cost_estimate cost;
   ha_rows rows;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache;
@@ -15847,7 +15853,8 @@ void Optimize_table_order::advance_sj_state(
 
   DBUG_ENTER("Optimize_table_order::advance_sj_state");
 
-  pos->prefix_cost.convert_from_cost(*current_cost);
+  pos->prefix_cost.reset();
+  pos->prefix_cost.add_io(*current_cost);
   pos->prefix_record_count= *current_rowcount;
 
   Opt_trace_array trace_choices(trace, "semijoin_strategy_choice");
@@ -16232,7 +16239,8 @@ void Optimize_table_order::advance_sj_state(
   */
   if (sj_strategy != SJ_OPT_NONE)
   {
-    pos->prefix_cost.convert_from_cost(*current_cost);
+    pos->prefix_cost.reset();
+    pos->prefix_cost.add_io(*current_cost);
     pos->prefix_record_count= *current_rowcount;
   }
 
