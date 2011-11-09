@@ -10,9 +10,9 @@ set names utf8;
 # Create FTS table
 CREATE TABLE t1 (
         id1 INT ,
-        a1 VARCHAR(200) PRIMARY KEY,
+        a1 VARCHAR(200) ,
         b1 TEXT ,
-        FULLTEXT KEY (a1,b1)
+        FULLTEXT KEY (a1,b1), PRIMARY KEY (a1, id1)
         ) CHARACTER SET = utf8 , ENGINE = InnoDB;
 
 CREATE TABLE t2 (
@@ -219,9 +219,9 @@ SET NAMES utf8;
 # Create FTS table
 CREATE TABLE t1 (
         id1 INT ,
-        a1 VARCHAR(200) PRIMARY KEY,
+        a1 VARCHAR(200) ,
         b1 TEXT ,
-        FULLTEXT KEY (a1,b1)
+        FULLTEXT KEY (a1,b1), PRIMARY KEY(a1, id1)
         ) CHARACTER SET = utf8 , ENGINE = InnoDB;
 
 CREATE TABLE t2 (
