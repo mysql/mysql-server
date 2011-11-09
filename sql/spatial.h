@@ -23,6 +23,8 @@
 
 #include "gcalc_tools.h"
 
+#include <algorithm>
+
 const uint SRID_SIZE= 4;
 const uint SIZEOF_STORED_DOUBLE= 8;
 const uint POINT_DATA_SIZE= SIZEOF_STORED_DOUBLE*2; 
@@ -185,6 +187,8 @@ struct MBR
     if (d != mbr->dimension() || d <= 0 || contains(mbr) || within(mbr))
       return 0;
 
+    using std::min;
+    using std::max;
     MBR intersection(max(xmin, mbr->xmin), max(ymin, mbr->ymin),
                      min(xmax, mbr->xmax), min(ymax, mbr->ymax));
 

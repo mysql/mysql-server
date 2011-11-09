@@ -590,20 +590,23 @@ static void init_instr_class(PFS_instr_class *klass,
 /**
   Set user-defined configuration values for an instrument
 */
-static void config_instr_class(PFS_instr_class *entry)
+static void configure_instr_class(PFS_instr_class *entry)
 {
   for (uint i= 0; i < pfs_instr_init_array.elements; i++)
   {
     PFS_instr_init* e;
     get_dynamic(&pfs_instr_init_array, (uchar*)&e, i);
 
-    if (!e->m_set && (e->m_name_length == entry->m_name_length))
+    /**
+      Call it a match if the configuration value equals all or part of the
+      full instrument name.
+    */
+    if (entry->m_name_length >= e->m_name_length)
     {
-      if (!strncmp(e->m_name, entry->m_name, e->m_name_length))
+      if (!strnicmp(entry->m_name, e->m_name, e->m_name_length))
       {
         entry->m_enabled= e->m_enabled;
         entry->m_timed= e->m_timed;
-        e->m_set= true;
         break;
       }
     }
@@ -675,9 +678,11 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     entry->m_lock_stat.reset();
     entry->m_event_name_index= mutex_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
 
     /* Set user-defined configuration options for this instrument */
-    config_instr_class(entry);
+    configure_instr_class(entry);
 
     /*
       Now that this entry is populated, advertise it
@@ -740,6 +745,10 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
     entry->m_write_lock_stat.reset();
     entry->m_event_name_index= rwlock_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&rwlock_class_allocated_count, 1);
     return (index + 1);
   }
@@ -773,6 +782,10 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_COND);
     entry->m_event_name_index= cond_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&cond_class_allocated_count, 1);
     return (index + 1);
   }
@@ -911,6 +924,10 @@ PFS_file_key register_file_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_FILE);
     entry->m_event_name_index= file_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= true; /* enabled by default */
+    entry->m_timed= true;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
     return (index + 1);
   }
@@ -943,6 +960,10 @@ PFS_stage_key register_stage_class(const char *name, uint name_length,
     entry= &stage_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
     entry->m_event_name_index= index;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&stage_class_allocated_count, 1);
 
     return (index + 1);
@@ -976,6 +997,10 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
     entry= &statement_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STATEMENT);
     entry->m_event_name_index= index;
+    entry->m_enabled= true; /* enabled by default */
+    entry->m_timed= true;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&statement_class_allocated_count, 1);
 
     return (index + 1);
@@ -1055,6 +1080,10 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_SOCKET);
     entry->m_event_name_index= socket_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_enabled= false; /* disabled by default */
+    entry->m_timed= false;
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
     PFS_atomic::add_u32(&socket_class_allocated_count, 1);
     return (index + 1);
   }

@@ -54,4 +54,22 @@ loose-performance-schema-events-stages-history-long-size=1000
 loose-performance-schema-events-statements-history-long-size=1000
 loose-performance-schema-max-thread-instances=200
 
+loose-performance-schema-instrument='stage/sql=ON'
+loose-performance-schema-instrument='wait/synch/mutex=ON'
+loose-performance-schema-instrument='wait/synch/cond=ON'
+loose-performance-schema-instrument='wait/synch/rwlock=ON'
+loose-performance-schema-instrument='wait/io/socket=ON'
+
+loose-performance-schema-consumer-events-stages-current=ON
+loose-performance-schema-consumer-events-stages-history=ON
+loose-performance-schema-consumer-events-stages-history-long=ON
+loose-performance-schema-consumer-events-statements-current=ON
+loose-performance-schema-consumer-events-statements-history=ON
+loose-performance-schema-consumer-events-statements-history-long=ON
+loose-performance-schema-consumer-events-waits-current=ON
+loose-performance-schema-consumer-events-waits-history=ON
+loose-performance-schema-consumer-events-waits-history-long=ON
+loose-performance-schema-consumer-global-instrumentation=ON
+loose-performance-schema-consumer-thread-instrumentation=ON
+
 binlog-direct-non-transactional-updates

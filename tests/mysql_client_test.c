@@ -625,7 +625,7 @@ static int my_process_stmt_result(MYSQL_STMT *stmt)
     return row_count;
   }
 
-  field_count= min(mysql_num_fields(result), MAX_RES_FIELDS);
+  field_count= MY_MIN(mysql_num_fields(result), MAX_RES_FIELDS);
 
   memset(buffer, 0, sizeof(buffer));
   memset(length, 0, sizeof(length));

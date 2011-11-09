@@ -14,6 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+
+#include <vector>
+#include <algorithm>
+#include <functional>
+
 #include "sql_priv.h"
 #include "unireg.h"
 #include <signal.h>
@@ -96,6 +101,10 @@
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
+
+using std::min;
+using std::max;
+using std::vector;
 
 #define mysqld_charset &my_charset_latin1
 
@@ -695,8 +704,11 @@ void set_remaining_args(int argc, char **argv)
   remaining_argv= argv;
 }
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info stmt_info_new_packet;
+#endif
 
+#ifndef EMBEDDED_LIBRARY
 void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */)
 {
   THD *thd;
@@ -772,6 +784,7 @@ void init_net_server_extension(THD *thd)
   thd->net.extension= NULL;
 #endif
 }
+#endif /* EMBEDDED_LIBRARY */
 
 /*
   Since buffered_option_error_reporter is only used currently
@@ -1035,7 +1048,7 @@ uint connection_count= 0;
 pthread_handler_t signal_hand(void *arg);
 static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
-static bool add_terminator(DYNAMIC_ARRAY *options);
+static void add_terminator(vector<my_option> *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
@@ -2614,7 +2627,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     fprintf(stderr, "\nTrying to get some variables.\n"
                     "Some pointers may be invalid and cause the dump to abort.\n");
     fprintf(stderr, "Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
+    my_safe_print_str(thd->query(), min(1024U, thd->query_length()));
     fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
 #ifdef OPTIMIZER_TRACE
@@ -3575,7 +3588,7 @@ int init_common_variables()
       can't get max_connections*5 but still got no less than was
       requested (value of wanted_files).
     */
-    max_open_files= max(max(wanted_files, max_connections*5),
+    max_open_files= max(max<ulong>(wanted_files, max_connections*5),
                         open_files_limit);
     files= my_set_max_open_files(max_open_files);
 
@@ -3587,17 +3600,17 @@ int init_common_variables()
           If we have requested too much file handles than we bring
           max_connections in supported bounds.
         */
-        max_connections= (ulong) min(files-10-TABLE_OPEN_CACHE_MIN*2,
-                                     max_connections);
+        max_connections= min<ulong>(files - 10 - TABLE_OPEN_CACHE_MIN * 2,
+                                    max_connections);
         /*
           Decrease table_cache_size according to max_connections, but
           not below TABLE_OPEN_CACHE_MIN.  Outer min() ensures that we
           never increase table_cache_size automatically (that could
           happen if max_connections is decreased above).
         */
-        table_cache_size= (ulong) min(max((files-10-max_connections)/2,
-                                          TABLE_OPEN_CACHE_MIN),
-                                      table_cache_size);
+        table_cache_size= min<ulong>(max<ulong>((files-10-max_connections)/2,
+                                                TABLE_OPEN_CACHE_MIN),
+                                     table_cache_size);
   DBUG_PRINT("warning",
        ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
         files, max_connections, table_cache_size));
@@ -4742,14 +4755,14 @@ int mysqld_main(int argc, char **argv)
     before to-be-instrumented objects of the server are initialized.
   */
   int ho_error;
-  DYNAMIC_ARRAY all_early_options;
+  vector<my_option> all_early_options;
+  all_early_options.reserve(100);
 
   my_getopt_register_get_addr(NULL);
   /* Skip unknown options so that they may be processed later */
   my_getopt_skip_unknown= TRUE;
 
   /* prepare all_early_options array */
-  my_init_dynamic_array(&all_early_options, sizeof(my_option), 100, 25);
   sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
   add_terminator(&all_early_options);
 
@@ -4767,9 +4780,10 @@ int mysqld_main(int argc, char **argv)
   init_pfs_instrument_array();
 
   ho_error= handle_options(&remaining_argc, &remaining_argv,
-                           (my_option*)(all_early_options.buffer),
-                           mysqld_get_one_option);
-  delete_dynamic(&all_early_options);
+                           &all_early_options[0], mysqld_get_one_option);
+  // Swap with an empty vector, i.e. delete elements and free allocated space.
+  vector<my_option>().swap(all_early_options);
+
   if (ho_error == 0)
   {
     /* Add back the program name handle_options removes */
@@ -5617,7 +5631,7 @@ void handle_connections_sockets()
   MYSQL_SOCKET pfs_fds[2]; // for performance schema
 #else
   fd_set readFDs,clientFDs;
-  uint max_used_connection= (uint)(max(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock))+1);
+  uint max_used_connection= max<uint>(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock)) + 1;
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
@@ -6203,7 +6217,7 @@ error:
   Handle start options
 ******************************************************************************/
 
-DYNAMIC_ARRAY all_options;
+vector<my_option> all_options;
 
 /**
   System variables are automatically command-line options (few
@@ -7236,10 +7250,11 @@ SHOW_VAR status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-bool add_terminator(DYNAMIC_ARRAY *options)
+void add_terminator(vector<my_option> *options)
 {
-  my_option empty_element= {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
-  return insert_dynamic(options, &empty_element);
+  my_option empty_element=
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
+  options->push_back(empty_element);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7252,10 +7267,10 @@ static void print_version(void)
 }
 
 /** Compares two options' names, treats - and _ the same */
-static int option_cmp(my_option *a, my_option *b)
+static bool operator<(const my_option &a, const my_option &b)
 {
-  const char *sa= a->name;
-  const char *sb= b->name;
+  const char *sa= a.name;
+  const char *sb= b.name;
   for (; *sa || *sb; sa++, sb++)
   {
     if (*sa < *sb)
@@ -7263,18 +7278,18 @@ static int option_cmp(my_option *a, my_option *b)
       if (*sa == '-' && *sb == '_')
         continue;
       else
-        return -1;
+        return true;
     }
     if (*sa > *sb)
     {
       if (*sa == '_' && *sb == '-')
         continue;
       else
-        return 1;
+        return false;
     }
   }
-  DBUG_ASSERT(a->name == b->name);
-  return 0;
+  DBUG_ASSERT(a.name == b.name);
+  return false;
 }
 
 static void print_help()
@@ -7282,17 +7297,17 @@ static void print_help()
   MEM_ROOT mem_root;
   init_alloc_root(&mem_root, 4096, 4096);
 
-  pop_dynamic(&all_options);
+  all_options.pop_back();
   sys_var_add_options(&all_options, sys_var::PARSE_EARLY);
   add_plugin_options(&all_options, &mem_root);
-  sort_dynamic(&all_options, (qsort_cmp) option_cmp);
+  std::sort(all_options.begin(), all_options.end(), std::less<my_option>());
   add_terminator(&all_options);
 
-  my_print_help((my_option*) all_options.buffer);
-  my_print_variables((my_option*) all_options.buffer);
+  my_print_help(&all_options[0]);
+  my_print_variables(&all_options[0]);
 
   free_root(&mem_root, MYF(0));
-  delete_dynamic(&all_options);
+  vector<my_option>().swap(all_options);  // Deletes the vector contents.
 }
 
 static void usage(void)
@@ -7836,7 +7851,45 @@ mysqld_get_one_option(int optid,
 
   case OPT_PFS_INSTRUMENT:
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-    add_pfs_instr_to_array(argument);
+    /* Parse instrument name and value from argument string */
+    char* name = argument,*p, *val;
+    
+    /* Assignment required */
+    if (!(p= strchr(argument, '=')))
+      return 0;
+    
+    /* Option value */
+    val= p + 1;
+    if (!*val)
+      return 0;
+    
+    /* Trim leading spaces from instrument name */
+    while (*name && my_isspace(mysqld_charset, *name))
+      name++;
+
+    /* Trim trailing spaces and slashes from instrument name */
+    while(p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+      p--;
+    *p= 0;
+
+    if (!*name)
+      return 0;
+
+    /* Trim leading and trailing spaces from option value */
+    while (*val && my_isspace(mysqld_charset, *val))
+      val++;
+
+    p= val + strlen(val);
+
+    while(p > val && my_isspace(mysqld_charset, p[-1]))
+      p--;
+    *p= 0;
+
+    if (!*val)
+      return 0;
+
+    /* Add instrument name and value to array of configuration options */
+    add_pfs_instr_to_array(name, val);
 #endif
     break;
   }
@@ -7916,25 +7969,23 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   my_getopt_error_reporter= option_error_reporter;
 
   /* prepare all_options array */
-  my_init_dynamic_array(&all_options, sizeof(my_option),
-                        array_elements(my_long_options),
-                        array_elements(my_long_options)/4);
+  all_options.reserve(array_elements(my_long_options));
   for (my_option *opt= my_long_options;
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
-    insert_dynamic(&all_options, opt);
+    all_options.push_back(*opt);
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown= TRUE;
 
-  if ((ho_error= handle_options(argc_ptr, argv_ptr, (my_option*)(all_options.buffer),
+  if ((ho_error= handle_options(argc_ptr, argv_ptr, &all_options[0],
                                 mysqld_get_one_option)))
     return ho_error;
 
   if (!opt_help)
-    delete_dynamic(&all_options);
+    vector<my_option>().swap(all_options);  // Deletes the vector contents.
 
   /* Add back the program name handle_options removes */
   (*argc_ptr)++;

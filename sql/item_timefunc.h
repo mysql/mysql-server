@@ -19,6 +19,8 @@
 
 /* Function items used by mysql */
 
+#include <algorithm>
+
 class MY_LOCALE;
 
 enum date_time_format_types 
@@ -96,6 +98,7 @@ public:
 
   bool intro_version(uchar *int_arg)
   {
+    using std::max;
     int *input_version= (int*)int_arg;
     /* This function was introduced in 5.5 */
     int output_version= max(*input_version, 50500);

@@ -2362,15 +2362,18 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
+#ifndef EMBEDDED_LIBRARY
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;
+#endif /* EMBEDDED_LIBRARY */
   /** Idle instrumentation. */
   PSI_idle_locker *m_idle_psi;
+#ifndef EMBEDDED_LIBRARY
   /** Idle instrumentation state. */
   PSI_idle_locker_state m_idle_state;
+#endif /* EMBEDDED_LIBRARY */
   /** True if the server code is IDLE for this connection. */
   bool m_server_idle;
-
 
   /*
     Id of current query. Statement can be reused to execute several queries

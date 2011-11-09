@@ -118,12 +118,8 @@ alter table t1 enable keys;
 select count(*) from t1;
 
 # One row results tests for cases where a single row matches all conditions
---sorted_result
---replace_column 9 #
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
@@ -132,35 +128,25 @@ insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, -1, -1, 'key1
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4-key3');
 
 #  ROR-intersection, not covering
---sorted_result
---replace_column 9 #
 explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
 select key1,key2,filler1 from t1 where key1=100 and key2=100;
 
 #  ROR-intersection, covering
---sorted_result
---replace_column 9 #
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 
 #  ROR-union of ROR-intersections
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 #  3-way ROR-intersection
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
 select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
 
 #  ROR-union(ROR-intersection, ROR-range)
 insert into t1 (key1,key2,key3,key4,filler1) values (101,101,101,101, 'key1234-101');
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
 
@@ -173,22 +159,16 @@ select key1,key2,filler1 from t1 where key2=100 and key2=200;
 
 # ROR-union(ROR-intersection) with one of ROR-intersection giving empty
 # results
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 delete from t1 where key3=100 and key4=100;
 
 # ROR-union with all ROR-intersections giving empty results
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 # ROR-intersection with empty result
---sorted_result
---replace_column 9 #
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 
@@ -198,22 +178,16 @@ insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-2');
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-3');
 
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, -1, 200,'key4');
 
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 200, -1,'key3');
 
---sorted_result
---replace_column 9 #
 explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
@@ -222,16 +196,10 @@ select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=
 ##
 
 # Check that the shortest key is used for ROR-intersection, covering and non-covering.
---sorted_result
---replace_column 9 # 6 #
 explain select * from t1 where st_a=1 and st_b=1;
---sorted_result
---replace_column 9 #
 explain select st_a,st_b from t1 where st_a=1 and st_b=1;
 
 # Check if "ingore index" syntax works
---sorted_result
---replace_column 9 # 6 #
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 
 # Do many tests
@@ -240,49 +208,30 @@ explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 
 # Different value on 32 and 64 bit
 --replace_result sta_swt12a sta_swt21a sta_swt12a, sta_swt12a,
---replace_column 9 #
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 
---sorted_result
---replace_column 9 #
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 
---sorted_result
---replace_column 9 #
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
---sorted_result
---replace_column 9 #
 explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
---sorted_result
---replace_column 9 #
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
---sorted_result
---replace_column 9 #
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
---sorted_result
---replace_column 9 #
 explain select * from t1
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 
---sorted_result
---replace_column 9 #
 explain select * from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
---sorted_result
---replace_column 9 #
 explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
---sorted_result
---replace_column 9 #
 explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
@@ -321,7 +270,6 @@ select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';
 
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
---replace_column 9 #
 explain select a from t2 where a='ab';
 drop table t2;
 
