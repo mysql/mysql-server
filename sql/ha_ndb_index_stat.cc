@@ -75,6 +75,7 @@ struct Ndb_index_stat {
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
   struct NDB_SHARE *share;
+  bool to_delete;       /* detached from share and marked for delete */
   Ndb_index_stat();
 };
 
@@ -134,7 +135,8 @@ struct Ndb_index_stat_opt {
     Umsec = 4
   };
   enum Flag {
-    Freadonly = (1 << 0)
+    Freadonly = (1 << 0),
+    Fcontrol = (1 << 1)
   };
   struct Val {
     const char* name;
@@ -161,7 +163,8 @@ struct Ndb_index_stat_opt {
     Ievict_delay = 13,
     Icache_limit = 14,
     Icache_lowpct = 15,
-    Imax = 16
+    Izero_total = 16,
+    Imax = 17
   };
   Val val[Imax];
   /* Options in string format (SYSVAR ndb_index_stat_option) */
@@ -170,6 +173,10 @@ struct Ndb_index_stat_opt {
   uint get(Idx i) const {
     assert(i < Imax);
     return val[i].val;
+  }
+  void set(Idx i, uint the_val) {
+    assert(i < Imax);
+    val[i].val = the_val;
   }
 };
 
@@ -197,8 +204,9 @@ Ndb_index_stat_opt::Ndb_index_stat_opt(char* buf) :
   ival(error_delay, 60, 0, ~0, Utime, 0);
   ival(evict_batch, 8, 1, ~0, Usize, 0);
   ival(evict_delay, 60, 0, ~0, Utime, 0);
-  ival(cache_limit, 32*1024*1024, 1024*1024, ~0, Usize, 0);
+  ival(cache_limit, 32*1024*1024, 0, ~0, Usize, 0);
   ival(cache_lowpct, 90, 0, 100, Usize, 0);
+  ival(zero_total, 0, 0, 1, Ubool, Fcontrol);
 #undef ival
 
   ndb_index_stat_opt2str(*this, option);
@@ -234,9 +242,9 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
       {
         DBUG_ASSERT(v.val == 0 || v.val == 1);
         if (v.val == 0)
-          my_snprintf(ptr, sz, "%s%s=OFF", sep, v.name);
+          my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else
-          my_snprintf(ptr, sz, "%s%s=ON", sep, v.name);
+          my_snprintf(ptr, sz, "%s%s=1", sep, v.name);
       }
       break;
 
@@ -308,12 +316,14 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
   if (*r == 0)
     DBUG_RETURN(-1);
 
+  bool found= false;
   const uint imax= Ndb_index_stat_opt::Imax;
   for (uint i= 0; i < imax; i++)
   {
     Ndb_index_stat_opt::Val& v= opt.val[i];
     if (strcmp(p, v.name) != 0)
       continue;
+    found= true;
 
     char *s;
     for (s= r; *s != 0; s++)
@@ -400,6 +410,9 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
       break;
     }
   }
+
+  if (!found)
+    DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
 
@@ -503,15 +516,23 @@ struct Ndb_index_stat_glob {
   uint wait_update;
   uint no_stats;
   uint wait_stats;
+  /* Accumulating counters */
+  uint analyze_count;
+  uint analyze_error;
+  uint query_count;
+  uint query_no_stats;
+  uint query_error;
   uint event_ok;          /* Events received for known index */
   uint event_miss;        /* Events received for unknown index */
-  char status[2][512];
-  uint status_i;
+  /* Cache */
   uint cache_query_bytes; /* In use */
   uint cache_clean_bytes; /* Obsolete versions not yet removed */
+  char status[2][512];
+  uint status_i;
 
   Ndb_index_stat_glob();
   void set_status();
+  void zero_total();
 };
 
 Ndb_index_stat_glob::Ndb_index_stat_glob()
@@ -524,12 +545,17 @@ Ndb_index_stat_glob::Ndb_index_stat_glob()
   wait_update= 0;
   no_stats= 0;
   wait_stats= 0;
+  analyze_count= 0;
+  analyze_error= 0;
+  query_count= 0;
+  query_no_stats= 0;
+  query_error= 0;
   event_ok= 0;
   event_miss= 0;
-  memset(status, 0, sizeof(status));
-  status_i= 0;
   cache_query_bytes= 0;
   cache_clean_bytes= 0;
+  memset(status, 0, sizeof(status));
+  status_i= 0;
 }
 
 /* Update status variable (must hold stat_mutex) */
@@ -541,7 +567,7 @@ Ndb_index_stat_glob::set_status()
 
   // stats thread
   th_allow= ndb_index_stat_allow();
-  sprintf(p, "allow:%d,enable:%d,busy:%d,loop:%ums",
+  sprintf(p, "allow:%d,enable:%d,busy:%d,loop:%u",
              th_allow, th_enable, th_busy, th_loop);
   p+= strlen(p);
 
@@ -562,11 +588,19 @@ Ndb_index_stat_glob::set_status()
   // special counters
   sprintf(p, ",analyze:(queue:%u,wait:%u)", force_update, wait_update);
   p+= strlen(p);
-  sprintf(p, ",stats:(none:%u,wait:%u)", no_stats, wait_stats);
+  sprintf(p, ",stats:(nostats:%u,wait:%u)", no_stats, wait_stats);
   p+= strlen(p);
 
-  // events
-  sprintf(p, ",events:(ok:%u,miss:%u)", event_ok, event_miss);
+  // accumulating counters
+  sprintf(p, ",total:(");
+  p+= strlen(p);
+  sprintf(p, "analyze:(all:%u,error:%u)", analyze_count, analyze_error);
+  p+= strlen(p);
+  sprintf(p, ",query:(all:%u,nostats:%u,error:%u)", query_count, query_no_stats, query_error);
+  p+= strlen(p);
+  sprintf(p, ",event:(ok:%u,miss:%u)", event_ok, event_miss);
+  p+= strlen(p);
+  sprintf(p, ")");
   p+= strlen(p);
 
   // cache size
@@ -575,7 +609,7 @@ Ndb_index_stat_glob::set_status()
   double cache_pct= (double)0.0;
   if (cache_limit != 0)
     cache_pct= (double)100.0 * (double)cache_total / (double)cache_limit;
-  sprintf(p, ",cache:(query:%u,clean:%u,total:%.2f%%)",
+  sprintf(p, ",cache:(query:%u,clean:%u,totalpct:%.2f)",
              cache_query_bytes, cache_clean_bytes, cache_pct);
   p+= strlen(p);
 
@@ -586,6 +620,19 @@ Ndb_index_stat_glob::set_status()
   g_ndb_status_index_stat_cache_query= cache_query_bytes;
   g_ndb_status_index_stat_cache_clean= cache_clean_bytes;
   pthread_mutex_unlock(&LOCK_global_system_variables);
+}
+
+/* Zero accumulating counters */
+void
+Ndb_index_stat_glob::zero_total()
+{
+  analyze_count= 0;
+  analyze_error= 0;
+  query_count= 0;
+  query_no_stats= 0;
+  query_error= 0;
+  event_ok= 0;
+  event_miss= 0;
 }
 
 Ndb_index_stat_glob ndb_index_stat_glob;
@@ -616,6 +663,7 @@ Ndb_index_stat::Ndb_index_stat()
   list_next= 0;
   list_prev= 0;
   share= 0;
+  to_delete= false;
 }
 
 void
@@ -908,9 +956,15 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   return st;
 }
 
+/*
+  Prepare to delete index stat entry.  Remove it from per-share
+  list and set "to_delete" flag.  Stats thread does real delete.
+*/
+
 void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
+  DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_list_mutex);
   NDB_SHARE *share= st->share;
@@ -924,10 +978,13 @@ ndb_index_stat_free(Ndb_index_stat *st)
   {
     if (st == st_loop)
     {
+      DBUG_PRINT("index_stat", ("st %s stat free one", st->id));
+      st->share_next= 0;
       st->share= 0;
       assert(st->lt != 0);
       assert(st->lt != Ndb_index_stat::LT_Delete);
-      ndb_index_stat_list_move(st, Ndb_index_stat::LT_Delete);
+      assert(!st->to_delete);
+      st->to_delete= true;
       st_loop= st_loop->share_next;
       assert(!found);
       found++;
@@ -950,26 +1007,32 @@ ndb_index_stat_free(Ndb_index_stat *st)
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_list_mutex);
+  DBUG_VOID_RETURN;
 }
 
 void
 ndb_index_stat_free(NDB_SHARE *share)
 {
+  DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   pthread_mutex_lock(&ndb_index_stat_list_mutex);
   Ndb_index_stat *st;
   while ((st= share->index_stat_list) != 0)
   {
+    DBUG_PRINT("index_stat", ("st %s stat free all", st->id));
     share->index_stat_list= st->share_next;
+    st->share_next= 0;
     st->share= 0;
     assert(st->lt != 0);
     assert(st->lt != Ndb_index_stat::LT_Delete);
-    ndb_index_stat_list_move(st, Ndb_index_stat::LT_Delete);
+    assert(!st->to_delete);
+    st->to_delete= true;
   }
   pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
   pthread_mutex_unlock(&ndb_index_stat_list_mutex);
+  DBUG_VOID_RETURN;
 }
 
 /* Find entry across shares */
@@ -1221,9 +1284,15 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     st->check_time == 0 ? 0 : st->check_time + check_delay - pr.now;
 
   DBUG_PRINT("index_stat", ("st %s check wait:%lds force update:%u"
-                            " clean wait:%lds cache clean:%d",
+                            " clean wait:%lds cache clean:%d to delete:%d",
                             st->id, (long)check_wait, st->force_update,
-                            (long)clean_wait, st->cache_clean));
+                            (long)clean_wait, st->cache_clean, st->to_delete));
+
+  if (st->to_delete)
+  {
+    pr.lt= Ndb_index_stat::LT_Delete;
+    return;
+  }
 
   if (!st->cache_clean && clean_wait <= 0)
   {
@@ -1493,6 +1562,13 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
     Ndb_index_stat *st= st_loop;
     st_loop= st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
+
+    // adjust global counters at drop
+    pthread_mutex_lock(&ndb_index_stat_stat_mutex);
+    ndb_index_stat_force_update(st, false);
+    ndb_index_stat_no_stats(st, false);
+    pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
+
     ndb_index_stat_proc_evict(pr, st);
     ndb_index_stat_list_remove(st);
     delete st->is;
@@ -1513,6 +1589,12 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   const int error_delay= opt.get(Ndb_index_stat_opt::Ierror_delay);
   const time_t error_wait= st->error_time + error_delay - pr.now;
+
+  if (st->to_delete)
+  {
+    pr.lt= Ndb_index_stat::LT_Delete;
+    return;
+  }
 
   if (error_wait <= 0 ||
       /* Analyze issued after previous error */
@@ -1638,7 +1720,61 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
   pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
 }
 
+/* Control options */
+
+void
+ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
+{
+  Ndb_index_stat_glob &glob= ndb_index_stat_glob;
+  Ndb_index_stat_opt &opt= ndb_index_stat_opt;
+
+  /* Request to zero accumulating counters */
+  if (opt.get(Ndb_index_stat_opt::Izero_total) == true)
+  {
+    pthread_mutex_lock(&ndb_index_stat_stat_mutex);
+    glob.zero_total();
+    glob.set_status();
+    opt.set(Ndb_index_stat_opt::Izero_total, false);
+    pthread_mutex_unlock(&ndb_index_stat_stat_mutex);
+  }
+}
+
 #ifndef DBUG_OFF
+void
+ndb_index_stat_entry_verify(const Ndb_index_stat *st)
+{
+  const NDB_SHARE *share= st->share;
+  if (st->to_delete)
+  {
+    assert(st->share_next == 0);
+    assert(share == 0);
+  }
+  else
+  {
+    assert(share != 0);
+    const Ndb_index_stat *st2= share->index_stat_list;
+    assert(st2 != 0);
+    uint found= 0;
+    while (st2 != 0)
+    {
+      assert(st2->share == share);
+      const Ndb_index_stat *st3= st2->share_next;
+      uint guard= 0;
+      while (st3 != 0)
+      {
+        assert(st2 != st3);
+        guard++;
+        assert(guard <= 1000); // MAX_INDEXES
+        st3= st3->share_next;
+      }
+      if (st == st2)
+        found++;
+      st2= st2->share_next;
+    }
+    assert(found == 1);
+  }
+}
+
 void
 ndb_index_stat_list_verify(int lt)
 {
@@ -1684,6 +1820,7 @@ ndb_index_stat_list_verify(int lt)
       assert(guard <= list.count);
       st2= st2->list_next;
     }
+    ndb_index_stat_entry_verify(st);
     st= st->list_next;
   }
   assert(count == list.count);
@@ -1717,6 +1854,9 @@ void
 ndb_index_stat_proc(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_proc");
+
+  ndb_index_stat_proc_control(pr);
+
 #ifndef DBUG_OFF
   ndb_index_stat_list_verify();
   Ndb_index_stat_glob old_glob= ndb_index_stat_glob;
@@ -2161,9 +2301,15 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     if (count == 0)
     {
       if (!from_analyze)
+      {
         glob.wait_stats++;
+        glob.query_count++;
+      }
       else
+      {
         glob.wait_update++;
+        glob.analyze_count++;
+      }
       if (st->lt == Ndb_index_stat::LT_Error && !from_analyze)
       {
         err= Ndb_index_stat_error_HAS_ERROR;
@@ -2175,12 +2321,17 @@ ndb_index_stat_wait(Ndb_index_stat *st,
     {
       /* Have detected no stats now or before */
       err= NdbIndexStat::NoIndexStats;
+      glob.query_no_stats++;
       break;
     }
     if (st->error.code != 0)
     {
       /* A new error has occured */
       err= st->error.code;
+      if (!from_analyze)
+        glob.query_error++;
+      else
+        glob.analyze_error++;
       break;
     }
     if (st->sample_version > sample_version)
