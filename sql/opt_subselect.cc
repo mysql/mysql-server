@@ -411,7 +411,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         in_subs->emb_on_expr_nest &&                                  // 5
         select_lex->outer_select()->join &&                           // 6
         parent_unit->first_select()->leaf_tables.elements &&          // 7
-        !in_subs->in_strategy &&                                      // 8
+        in_subs->in_strategy == SUBS_NOT_TRANSFORMED &&               // 8
         select_lex->outer_select()->leaf_tables.elements &&           // 9
         !((join->select_options |                                     // 10
            select_lex->outer_select()->join->select_options)          // 10
@@ -479,7 +479,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           possible.
         */
         if (optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS) ||
-            !in_subs->in_strategy)
+            in_subs->in_strategy == SUBS_NOT_TRANSFORMED)
         {
           in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
         }
@@ -932,10 +932,6 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     /*
       Revert to the IN->EXISTS strategy in the rare case when the subquery could
       not be flattened.
-      TODO: This is a limitation done for simplicity. Such subqueries could also
-      be executed via materialization. In order to determine this, we should
-      re-run the test for materialization that was done in
-      check_and_do_in_subquery_rewrites.
     */
     in_subq->in_strategy= SUBS_IN_TO_EXISTS;
     if (is_materialization_applicable(thd, in_subq, 
@@ -4515,7 +4511,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   else
     return false;
 
-  DBUG_ASSERT(in_subs->in_strategy); /* A strategy must be chosen earlier. */
+  DBUG_ASSERT(in_subs->in_strategy != SUBS_NOT_TRANSFORMED); /* A strategy must be chosen earlier. */
   DBUG_ASSERT(in_to_exists_where || in_to_exists_having);
   DBUG_ASSERT(!in_to_exists_where || in_to_exists_where->fixed);
   DBUG_ASSERT(!in_to_exists_having || in_to_exists_having->fixed);
