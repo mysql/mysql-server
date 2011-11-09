@@ -3002,7 +3002,6 @@ class Ndb_schema_event_handler {
           if (share)
             free_share(&share);
 
-          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
           if (is_local_table(schema->db, schema->name))
           {
             sql_print_error("NDB Binlog: Skipping locally defined table "
@@ -3020,7 +3019,6 @@ class Ndb_schema_event_handler {
         }
 
         case SOT_CREATE_TABLE:
-          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
           if (is_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
