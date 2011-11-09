@@ -872,11 +872,16 @@ create table t12 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) orde
 create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
 create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
 
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
+
 update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t11, t12, t21, t22;
 
@@ -888,7 +893,7 @@ drop table t1, t11, t12, t21, t22;
 create table t1(a int);
 insert into t1 values (0),(1);
 
-set @@optimizer_switch='firstmatch=off';
+set @@optimizer_switch='firstmatch=off,materialization=off';
 explain 
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
@@ -913,6 +918,9 @@ explain select * from t1 where 2 in (select a from t0);
 select * from t1 where 2 in (select a from t0);
 set @@optimizer_switch=@save_optimizer_switch;
 
+
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
 
 # 
 # FirstMatch referring to a derived table
@@ -942,6 +950,8 @@ explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
 and t4.pk=t1.c);
 
 drop table t1, t3, t4;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # Test if we handle duplicate elimination temptable overflowing to disk
@@ -997,6 +1007,9 @@ explain select * from t1 where a in (select a from t1);
 drop table t1;
 set @@optimizer_switch=@save_optimizer_switch;
 
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
+
 #
 # SJ-Materialization-scan for non-first table
 #
@@ -1040,6 +1053,8 @@ explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 
 drop table t1,t2;
 
+set @@optimizer_switch=@save_optimizer_switch;
+
 #
 # Multi-column sj-materialization with lookups
 #
@@ -1048,7 +1063,7 @@ insert into t1 select a,a from t0;
 create table t2 (a int, b int); 
 insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
 
-set @@optimizer_switch='firstmatch=off';
+set @@optimizer_switch='firstmatch=off,materialization=off';
 explain select * from t1 where (a,b) in (select a,b from t2);
 
 # A smallish test if find_best() still works for semi-join optimization:
@@ -1060,6 +1075,7 @@ set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t0, t1, t2;
 
+set @@optimizer_switch='materialization=off';
 
 #
 # Primitive SJ-Materialization tests for DECIMAL and DATE
@@ -1093,6 +1109,8 @@ insert into t2 select * from t2;
 explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
 
 drop table t0,t1,t2;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 --echo
 --echo BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
@@ -1150,12 +1168,15 @@ create table t3 (
 insert into t3 values (1,1, 'foo'), (2,2,'bar');
 
 --echo The following must be converted to a semi-join:
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off';
 explain extended SELECT a.idIndividual FROM t1 a 
 WHERE a.idIndividual IN 
 	(	SELECT c.idObj FROM t3 cona 
 		INNER JOIN t2 c ON c.idContact=cona.idContact 
 		WHERE cona.postalStripped='T2H3B2'
 	);
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1,t2,t3;
 
 --echo #

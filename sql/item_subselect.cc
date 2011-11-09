@@ -159,8 +159,6 @@ void Item_in_subselect::cleanup()
     left_expr_cache= NULL;
   }
   first_execution= TRUE;
-  if (in_strategy & SUBS_MATERIALIZATION)
-    in_strategy= 0;
   pushed_cond_guards= NULL;
   Item_subselect::cleanup();
   DBUG_VOID_RETURN;
