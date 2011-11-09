@@ -182,12 +182,14 @@ FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -207,12 +209,14 @@ FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (8, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (8, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (8, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -234,12 +238,14 @@ SELECT fc_i_tt_5_suc (9, 1);
 fc_i_tt_5_suc (9, 1)
 fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(9,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(9,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -259,18 +265,22 @@ FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (10, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',10),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',10),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',10),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',10),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -302,6 +312,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (11, 4)
@@ -309,6 +320,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (11, 4)
@@ -343,6 +355,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(12,4)
@@ -350,6 +363,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(12,4)
@@ -382,6 +396,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',13),  NAME_CONST('in_stmt_id',1))
@@ -390,6 +405,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',13),  NAME_CONST('in_stmt_id',1))
@@ -423,6 +439,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (14, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4)
@@ -430,6 +447,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (14, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4)
@@ -464,6 +482,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(15,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4)
@@ -471,6 +490,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(15,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4)
@@ -503,6 +523,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1) + 1)
@@ -511,6 +532,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',16),  NAME_CONST('in_stmt_id',1) + 1)
@@ -532,12 +554,14 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -557,12 +581,14 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (18, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (18, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (18, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -584,12 +610,14 @@ SELECT fc_i_tt_5_suc (19, 1);
 fc_i_tt_5_suc (19, 1)
 fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(19,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(19,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -609,18 +637,22 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (20, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',20),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -652,6 +684,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (21, 4)
@@ -659,6 +692,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (21, 4)
@@ -693,6 +727,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(22,4)
@@ -700,6 +735,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(22,4)
@@ -732,6 +768,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',23),  NAME_CONST('in_stmt_id',1))
@@ -740,6 +777,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',23),  NAME_CONST('in_stmt_id',1))
@@ -773,6 +811,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (24, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4)
@@ -780,6 +819,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (24, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4)
@@ -814,6 +854,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(25,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4)
@@ -821,6 +862,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(25,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4)
@@ -853,6 +895,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1) + 1)
@@ -861,6 +904,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',26),  NAME_CONST('in_stmt_id',1) + 1)
@@ -882,12 +926,14 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -907,12 +953,14 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (28, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (28, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (28, 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -934,12 +982,14 @@ SELECT fc_i_tt_5_suc (29, 1);
 fc_i_tt_5_suc (29, 1)
 fc_i_tt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(29,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(29,1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -959,18 +1009,22 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (30, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',30),  NAME_CONST('in_stmt_id',1) + 1)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -1002,6 +1056,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (31, 4)
@@ -1009,6 +1064,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (31, 4)
@@ -1043,6 +1099,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(32,4)
@@ -1050,6 +1107,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2)
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(32,4)
@@ -1082,6 +1140,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',33),  NAME_CONST('in_stmt_id',1))
@@ -1090,6 +1149,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',33),  NAME_CONST('in_stmt_id',1))
@@ -1123,6 +1183,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4)
@@ -1130,6 +1191,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4)
@@ -1164,6 +1226,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(35,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4)
@@ -1171,6 +1234,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(35,2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4)
@@ -1203,6 +1267,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1) + 1)
@@ -1211,6 +1276,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1))
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_5(trans_id, stmt_id) VALUES ( NAME_CONST('p_trans_id',36),  NAME_CONST('in_stmt_id',1) + 1)
@@ -1236,12 +1302,14 @@ FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (37, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (37, 1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (37, 1)
 master-bin.000001	#	Query	#	#	COMMIT
@@ -1261,12 +1329,14 @@ FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (38, 1);
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (38, 1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_5(trans_id, stmt_id) VALUES (38, 1)
 master-bin.000001	#	Query	#	#	COMMIT
@@ -1288,12 +1358,14 @@ SELECT fc_i_nt_5_suc (39, 1);
 fc_i_nt_5_suc (39, 1)
 fc_i_nt_5_suc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(39,1)
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(39,1)
 master-bin.000001	#	Query	#	#	COMMIT
