@@ -103,6 +103,7 @@ Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 a	b
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search

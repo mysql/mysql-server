@@ -141,6 +141,7 @@ struct fts_query_struct {
 
 	ibool		inited;		/*!< Flag to test whether the query
 					processing has started or not */
+	ibool		multi_exist;	/*!< multiple FTS_EXIST oper */
 };
 
 /** For phrase matching, first we collect the documents and the positions
@@ -707,25 +708,57 @@ fts_query_intersect_doc_id(
 	ib_rbt_bound_t	parent;
 	ulint		size = ib_vector_size(query->deleted->doc_ids);
 	fts_update_t*	array = (fts_update_t*) query->deleted->doc_ids->data;
+	fts_ranking_t*	ranking;
 
 	/* Check if the doc id is deleted and it's in our set */
-	if (fts_bsearch(array, 0, size, doc_id) < 0
-	    && rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
+	if (fts_bsearch(array, 0, size, doc_id) < 0) {
+		/* If this is the first FTS_EXIST we encountered, all of its
+		value must be in intersect list */
+		if (!query->multi_exist) {
+			fts_ranking_t	new_ranking;
 
-		fts_ranking_t*	ranking;
+			if (rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
+				ranking = rbt_value(fts_ranking_t, parent.last);
+				rank += (ranking->rank > 0)
+					? ranking->rank : RANK_UPGRADE;
+				if (rank >= 1.0) {
+					rank = 1.0;
+				}
+			}
 
-		ranking = rbt_value(fts_ranking_t, parent.last);
+			new_ranking.rank = rank;
+			new_ranking.doc_id = doc_id;
+			new_ranking.words = rbt_create(
+				sizeof(byte*), fts_query_strcmp);
+			ranking = &new_ranking;
 
-		ranking->rank = rank;
+			if (rbt_search(query->intersection, &parent,
+				       ranking) != 0) {
+				rbt_add_node(query->intersection,
+					     &parent, ranking);
+			} else {
+				rbt_free(new_ranking.words);
+			}
+		} else {
 
-		if (ranking->words != NULL
-		    && rbt_search(query->intersection, &parent, ranking) != 0) {
+			if (rbt_search(query->doc_ids, &parent, &doc_id) != 0) {
+				return;
+			}
 
-			rbt_add_node(query->intersection, &parent, ranking);
+			ranking = rbt_value(fts_ranking_t, parent.last);
 
-			/* Note that the intersection has taken ownership
-			of the ranking data. */
-			ranking->words = NULL;
+			ranking->rank = rank;
+
+			if (ranking->words != NULL
+			    && rbt_search(query->intersection, &parent,
+					  ranking) != 0) {
+				rbt_add_node(query->intersection, &parent,
+					     ranking);
+
+				/* Note that the intersection has taken
+				ownership of the ranking data. */
+				ranking->words = NULL;
+			}
 		}
 	}
 }
@@ -1066,7 +1099,7 @@ fts_query_intersect(
 
 		/* This is to avoid decompressing the ilist if the
 		node's ilist doc ids are out of range. */
-		if (!rbt_empty(query->doc_ids)) {
+		if (!rbt_empty(query->doc_ids) && query->multi_exist) {
 			const ib_rbt_node_t*	node;
 			doc_id_t*		doc_id;
 
@@ -1138,6 +1171,10 @@ fts_query_intersect(
 			/* Reset the set operation to intersect. */
 			query->oper = FTS_EXIST;
 		}
+	}
+
+	if (!query->multi_exist) {
+		query->multi_exist = TRUE;
 	}
 
 	return(query->error);
@@ -2504,9 +2541,22 @@ fts_ast_visit_sub_exp(
 	/* Restore current result set. */
 	query->doc_ids = parent_doc_ids;
 
+	if (query->oper == FTS_EXIST && !query->inited) {
+		ut_a(rbt_empty(query->doc_ids));
+		/* Since this is the first time we need to convert this
+		intersection query into a union query. Otherwise we
+		will end up with an empty set. */
+		query->oper = FTS_NONE;
+		query->inited = TRUE;
+	}
+
 	/* Merge the sub-expression result with the parent result set. */
 	if (error == DB_SUCCESS && !rbt_empty(subexpr_doc_ids)) {
 		fts_merge_doc_ids(query, subexpr_doc_ids);
+	}
+
+	if (query->oper == FTS_EXIST) {
+		query->multi_exist = TRUE;
 	}
 
 	/* Free current result set. Result already merged into parent. */
