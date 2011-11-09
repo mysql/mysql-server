@@ -603,7 +603,7 @@ static void configure_instr_class(PFS_instr_class *entry)
     */
     if (entry->m_name_length >= e->m_name_length)
     {
-      if (!strnicmp(entry->m_name, e->m_name, e->m_name_length))
+      if (!strncmp(entry->m_name, e->m_name, e->m_name_length))
       {
         entry->m_enabled= e->m_enabled;
         entry->m_timed= e->m_timed;

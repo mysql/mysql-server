@@ -124,7 +124,9 @@ struct PFS_global_param
   bool m_consumer_global_instrumentation_enabled;
   bool m_consumer_thread_instrumentation_enabled;
 
-  char *m_pfs_instrument; //cwp test
+  /** Default instrument configuration option. */
+  char *m_pfs_instrument;
+
   /**
     Maximum number of instrumented mutex classes.
     @sa mutex_class_lost.
