@@ -362,48 +362,9 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
 */
 int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
 {
-  MEM_ROOT *mem_root= &share->mem_root;
-  int do_event_op= ndb_binlog_running;
-  int error= 0;
   DBUG_ENTER("ndbcluster_binlog_init_share");
 
-#ifdef HAVE_NDB_BINLOG
-  share->m_cfn_share= NULL;
-#endif
-
-  share->op= 0;
-  share->new_op= 0;
-  share->event_data= 0;
-
-  if (!ndb_schema_share &&
-      strcmp(share->db, NDB_REP_DB) == 0 &&
-      strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
-    do_event_op= 1;
-  else if (!ndb_apply_status_share &&
-           strcmp(share->db, NDB_REP_DB) == 0 &&
-           strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
-    do_event_op= 1;
-
-  if (Ndb_dist_priv_util::is_distributed_priv_table(share->db,
-                                                    share->table_name))
-  {
-    do_event_op= 0;
-  }
-
-  {
-    int i, no_nodes= g_ndb_cluster_connection->no_db_nodes();
-    share->subscriber_bitmap= (MY_BITMAP*)
-      alloc_root(mem_root, no_nodes * sizeof(MY_BITMAP));
-    for (i= 0; i < no_nodes; i++)
-    {
-      bitmap_init(&share->subscriber_bitmap[i],
-                  (Uint32*)alloc_root(mem_root, max_ndb_nodes/8),
-                  max_ndb_nodes, FALSE);
-      bitmap_clear_all(&share->subscriber_bitmap[i]);
-    }
-  }
-
-  if (!do_event_op)
+  if (!share->need_events(ndb_binlog_running))
   {
     if (_table)
     {
@@ -416,7 +377,7 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
     {
       share->flags|= NSF_NO_BINLOG;
     }
-    DBUG_RETURN(error);
+    DBUG_RETURN(0);
   }
 
   DBUG_RETURN(ndb_binlog_open_shadow_table(thd, share));
@@ -2751,10 +2712,12 @@ class Ndb_schema_event_handler {
   void
   handle_offline_alter_table_commit(Ndb_schema_op* schema)
   {
+    DBUG_ENTER("handle_offline_alter_table_commit");
+
     assert(is_post_epoch()); // Always after epoch
 
     if (schema->node_id == own_nodeid())
-      return;
+      DBUG_VOID_RETURN;
 
     write_schema_op_to_binlog(m_thd, schema);
     ndbapi_invalidate_table(schema->db, schema->name);
@@ -2802,13 +2765,14 @@ class Ndb_schema_event_handler {
                       "from binlog schema event '%s' from node %d.",
                       schema->db, schema->name, schema->query,
                       schema->node_id);
-      return;
+      DBUG_VOID_RETURN;
     }
 
     if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
     {
       print_could_not_discover_error(m_thd, schema);
     }
+    DBUG_VOID_RETURN;
   }
 
 
@@ -5147,7 +5111,6 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    const char *table_name,
                                    TABLE * table)
 {
-  int do_event_op= ndb_binlog_running;
   DBUG_ENTER("ndbcluster_create_binlog_setup");
   DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s",
                       key, key_len, db, table_name));
@@ -5171,25 +5134,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     DBUG_RETURN(0); // replication already setup, or should not
   }
 
-  if (Ndb_dist_priv_util::is_distributed_priv_table(db, table_name))
-  {
-    // The distributed privilege tables are distributed by writing
-    // the CREATE USER, GRANT, REVOKE etc. to ndb_schema -> no need
-    // to listen to events from this table
-    DBUG_PRINT("info", ("Skipping binlogging of table %s/%s", db, table_name));
-    do_event_op= 0;
-  }
-
-  if (!ndb_schema_share &&
-      strcmp(share->db, NDB_REP_DB) == 0 &&
-      strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
-    do_event_op= 1;
-  else if (!ndb_apply_status_share &&
-           strcmp(share->db, NDB_REP_DB) == 0 &&
-           strcmp(share->table_name, NDB_APPLY_TABLE) == 0)
-    do_event_op= 1;
-
-  if (!do_event_op)
+  if (!share->need_events(ndb_binlog_running))
   {
     set_binlog_nologging(share);
     pthread_mutex_unlock(&share->mutex);
@@ -5296,11 +5241,8 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                       ndbtab->getName(), ndbtab->getObjectVersion(),
                       event_name, share ? share->key : "(nil)"));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(ndbtab->getName()));
-  if (!share)
-  {
-    DBUG_PRINT("info", ("share == NULL"));
-    DBUG_RETURN(0);
-  }
+  DBUG_ASSERT(share);
+
   if (get_binlog_nologging(share))
   {
     if (opt_ndb_extra_logging && ndb_binlog_running)
@@ -5480,8 +5422,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   DBUG_ENTER("ndbcluster_create_event_ops");
   DBUG_PRINT("enter", ("table: %s event: %s", ndbtab->getName(), event_name));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(ndbtab->getName()));
-
-  DBUG_ASSERT(share != 0);
+  DBUG_ASSERT(share);
 
   if (get_binlog_nologging(share))
   {
@@ -5495,7 +5436,6 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   assert(!Ndb_dist_priv_util::is_distributed_priv_table(share->db,
                                                         share->table_name));
 
-  Ndb_event_data *event_data= share->event_data;
   int do_ndb_schema_share= 0, do_ndb_apply_status_share= 0;
 #ifdef HAVE_NDB_BINLOG
   uint len= (int)strlen(share->table_name);
@@ -5520,6 +5460,10 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_RETURN(0);
   }
 
+  // Check that the share agrees
+  DBUG_ASSERT(share->need_events(ndb_binlog_running));
+
+  Ndb_event_data *event_data= share->event_data;
   if (share->op)
   {
     event_data= (Ndb_event_data *) share->op->getCustomData();

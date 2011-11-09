@@ -17,6 +17,8 @@
 
 #include "ndb_share.h"
 #include "ndb_event_data.h"
+#include "ndb_dist_priv_util.h"
+#include "ha_ndbcluster_tables.h"
 
 #include <my_sys.h>
 
@@ -46,3 +48,50 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   my_free(share);
 }
 
+
+bool
+NDB_SHARE::need_events(bool default_on) const
+{
+  DBUG_ENTER("NDB_SHARE::need_events");
+  DBUG_PRINT("enter", ("db: %s, table_name: %s",
+                        db, table_name));
+
+  if (default_on)
+  {
+    // Events are on by default, check if it should be turned off
+
+    if (Ndb_dist_priv_util::is_distributed_priv_table(db, table_name))
+    {
+      /*
+        The distributed privilege tables are distributed by writing
+        the CREATE USER, GRANT, REVOKE etc. to ndb_schema -> no need
+        to listen to events from those table
+      */
+      DBUG_PRINT("exit", ("no events for dist priv table"));
+      DBUG_RETURN(false);
+    }
+
+    DBUG_PRINT("exit", ("need events(the default for this mysqld)"));
+    DBUG_RETURN(true);
+  }
+
+  // Events are off by default, check if it should be turned on
+  if (strcmp(db, NDB_REP_DB) == 0)
+  {
+    // The table is in "mysql" database
+    if (strcmp(table_name, NDB_SCHEMA_TABLE) == 0)
+    {
+      DBUG_PRINT("exit", ("need events for " NDB_SCHEMA_TABLE));
+      DBUG_RETURN(true);
+    }
+
+    if (strcmp(table_name, NDB_APPLY_TABLE) == 0)
+    {
+      DBUG_PRINT("exit", ("need events for " NDB_APPLY_TABLE));
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_PRINT("exit", ("no events(the default for this mysqld)"));
+  DBUG_RETURN(false);
+}

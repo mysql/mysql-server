@@ -192,6 +192,12 @@ struct NDB_SHARE {
                          struct TABLE* table, const char* db_name,
                          const char* table_name);
   static void destroy(NDB_SHARE* share);
+
+  /*
+    Returns true if this share need to subscribe to
+    events from the table.
+  */
+  bool need_events(bool default_on) const;
 };
 
 
