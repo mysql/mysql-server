@@ -2648,16 +2648,9 @@ class Ndb_schema_event_handler {
 
   void handle_clear_slock(Ndb_schema_op* schema)
   {
-    if (!is_post_epoch())
-    {
-      /*
-        handle slock after epoch is completed to ensure that
-        schema events get inserted in the binlog after any data
-        events
-      */
-      log_after_epoch(schema);
-      return;
-    }
+    DBUG_ENTER("handle_clear_slock");
+
+    assert(is_post_epoch());
 
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
@@ -2670,7 +2663,7 @@ class Ndb_schema_event_handler {
       if (opt_ndb_extra_logging > 19)
         sql_print_information("NDB: Discarding event...no obj: %s (%u/%u)",
                               key, schema->id, schema->version);
-      return;
+      DBUG_VOID_RETURN;
     }
 
     if (ndb_schema_object->table_id != schema->id ||
@@ -2686,7 +2679,7 @@ class Ndb_schema_event_handler {
                               schema->id,
                               schema->version);
       ndb_free_schema_object(&ndb_schema_object);
-      return;
+      DBUG_VOID_RETURN;
     }
 
     /*
@@ -2715,7 +2708,8 @@ class Ndb_schema_event_handler {
 
     /* Wake up the waiter */
     pthread_cond_signal(&injector_cond);
-    return;
+
+    DBUG_VOID_RETURN;
   }
 
 
@@ -2923,7 +2917,12 @@ class Ndb_schema_event_handler {
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
-        handle_clear_slock(schema);
+        /*
+          handle slock after epoch is completed to ensure that
+          schema events get inserted in the binlog after any data
+          events
+        */
+        log_after_epoch(schema);
         DBUG_RETURN(0);
 
       case SOT_ALTER_TABLE_COMMIT:
