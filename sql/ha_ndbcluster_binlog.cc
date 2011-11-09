@@ -1969,19 +1969,21 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
                          const Ndb_event_data *event_data)
 {
   DBUG_ENTER("ndb_handle_schema_change");
+
+  if (pOp->getEventType() == NDBEVENT::TE_ALTER)
+  {
+    DBUG_PRINT("exit", ("Event type is TE_ALTER"));
+    DBUG_RETURN(0);
+  }
+
+  DBUG_ASSERT(event_data);
+  DBUG_ASSERT(pOp->getEventType() == NDBEVENT::TE_DROP ||
+              pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE);
+
   NDB_SHARE *share= event_data->share;
   TABLE *shadow_table= event_data->shadow_table;
   const char *tabname= shadow_table->s->table_name.str;
   const char *dbname= shadow_table->s->db.str;
-  bool do_close_cached_tables= FALSE;
-  bool is_remote_change= !ndb_has_node_id(pOp->getReqNodeId());
-
-  if (pOp->getEventType() == NDBEVENT::TE_ALTER)
-  {
-    DBUG_RETURN(0);
-  }
-  DBUG_ASSERT(pOp->getEventType() == NDBEVENT::TE_DROP ||
-              pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE);
   {
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     Ndb *ndb= thd_ndb->ndb;
@@ -2007,10 +2009,10 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   {
     share->op= 0;
   }
-  // either just us or drop table handling as well
-      
-  /* Signal ha_ndbcluster::delete/rename_table that drop is done */
   pthread_mutex_unlock(&share->mutex);
+
+  /* Signal ha_ndbcluster::delete/rename_table that drop is done */
+  DBUG_PRINT("info", ("signal that drop is done"));
   (void) pthread_cond_signal(&injector_cond);
 
   pthread_mutex_lock(&ndbcluster_mutex);
@@ -2018,6 +2020,9 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                            share->key, share->use_count));
   free_share(&share, TRUE);
+
+  bool do_close_cached_tables= FALSE;
+  bool is_remote_change= !ndb_has_node_id(pOp->getReqNodeId());
   if (is_remote_change && share && share->state != NSS_DROPPED)
   {
     DBUG_PRINT("info", ("remote change"));
@@ -2041,15 +2046,13 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
     share= 0;
   pthread_mutex_unlock(&ndbcluster_mutex);
 
-  if (event_data)
-  {
-    delete event_data;
-    pOp->setCustomData(NULL);
-  }
+  DBUG_PRINT("info", ("Deleting event_data"));
+  delete event_data;
+  pOp->setCustomData(NULL);
 
+  DBUG_PRINT("info", ("Dropping event operation"));
   pthread_mutex_lock(&injector_mutex);
   is_ndb->dropEventOperation(pOp);
-  pOp= 0;
   pthread_mutex_unlock(&injector_mutex);
 
   if (do_close_cached_tables)
@@ -2517,18 +2520,21 @@ class Ndb_schema_event_handler {
   void
   ndbapi_invalidate_table(const char* db_name, const char* table_name) const
   {
+    DBUG_ENTER("ndbapi_invalidate_table");
     Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
     Ndb *ndb= thd_ndb->ndb;
 
     ndb->setDatabaseName(db_name);
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
     ndbtab_g.invalidate();
+    DBUG_VOID_RETURN;
   }
 
 
   void
   mysqld_close_cached_table(const char* db_name, const char* table_name) const
   {
+    DBUG_ENTER("mysqld_close_cached_table");
      // Just mark table as "need reopen"
     const bool wait_for_refresh = false;
     // Not waiting -> no timeout needed
@@ -2541,6 +2547,7 @@ class Ndb_schema_event_handler {
 
     close_cached_tables(m_thd, &table_list,
                         wait_for_refresh, timeout);
+    DBUG_VOID_RETURN;
   }
 
 
@@ -2548,6 +2555,7 @@ class Ndb_schema_event_handler {
   mysqld_write_frm_from_ndb(const char* db_name,
                             const char* table_name) const
   {
+    DBUG_ENTER("mysqld_write_frm_from_ndb");
     Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
     Ndb *ndb= thd_ndb->ndb;
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
@@ -2583,11 +2591,13 @@ class Ndb_schema_event_handler {
     }
     my_free(data);
     my_free(pack_data);
+    DBUG_VOID_RETURN;
   }
 
 
   NDB_SHARE* get_share(Ndb_schema_op* schema) const
   {
+    DBUG_ENTER("get_share(Ndb_schema_op*)");
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1,
                          schema->db, schema->name, "", 0);
@@ -2597,7 +2607,7 @@ class Ndb_schema_event_handler {
       DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                                share->key, share->use_count));
     }
-    return share;
+    DBUG_RETURN(share);
   }
 
 

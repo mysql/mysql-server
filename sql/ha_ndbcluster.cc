@@ -11020,6 +11020,7 @@ static
 void
 delete_table_drop_share(NDB_SHARE* share, const char * path)
 {
+  DBUG_ENTER("delete_table_drop_share");
   if (share)
   {
     pthread_mutex_lock(&ndbcluster_mutex);
@@ -11051,6 +11052,7 @@ do_drop:
     }
     pthread_mutex_unlock(&ndbcluster_mutex);
   }
+  DBUG_VOID_RETURN;
 }
 
 /* static version which does not need a handler */
@@ -11061,7 +11063,7 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
                                const char *db,
                                const char *table_name)
 {
-  DBUG_ENTER("ha_ndbcluster::ndbcluster_delete_table");
+  DBUG_ENTER("ha_ndbcluster::drop_table_impl");
   NDBDICT *dict= ndb->getDictionary();
   int ndb_table_id= 0;
   int ndb_table_version= 0;
@@ -11198,8 +11200,7 @@ int ha_ndbcluster::delete_table(const char *name)
 {
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Ndb *ndb;
-  int error= 0;
+
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
 
@@ -11211,6 +11212,7 @@ int ha_ndbcluster::delete_table(const char *name)
       dropped inside ndb.
       Just drop local files.
     */
+    DBUG_PRINT("info", ("Table is already dropped in NDB"));
     delete_table_drop_share(0, name);
     DBUG_RETURN(handler::delete_table(name));
   }
@@ -11226,16 +11228,12 @@ int ha_ndbcluster::delete_table(const char *name)
 
   if (check_ndb_connection(thd))
   {
-    error= HA_ERR_NO_CONNECTION;
-    goto err;
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
-
-  ndb= thd_ndb->ndb;
 
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::delete_table"))
   {
-    error= HA_ERR_NO_CONNECTION;
-    goto err;
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
   /*
@@ -11243,6 +11241,8 @@ int ha_ndbcluster::delete_table(const char *name)
     If it was already gone it might have been dropped
     remotely, give a warning and then drop .ndb file.
    */
+  int error;
+  Ndb* ndb= thd_ndb->ndb;
   if (!(error= drop_table_impl(thd, this, ndb, name,
                                m_dbname, m_tabname)) ||
       error == HA_ERR_NO_SUCH_TABLE)
@@ -11253,7 +11253,6 @@ int ha_ndbcluster::delete_table(const char *name)
       error= error1;
   }
 
-err:
   DBUG_RETURN(error);
 }
 
