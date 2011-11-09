@@ -3058,20 +3058,16 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->transId2 = (Uint32) (transId >> 32);
 
     Uint32 batchRows = root.getMaxBatchRows();
-    Uint32 batchByteSize, firstBatchRows;
+    Uint32 batchByteSize;
     NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      root.m_ndbRecord,
-                                      root.m_firstRecAttr,
-                                      0, // Key size.
                                       getRootFragCount(),
                                       batchRows,
-                                      batchByteSize,
-                                      firstBatchRows);
+                                      batchByteSize);
     assert(batchRows==root.getMaxBatchRows());
-    assert(batchRows==firstBatchRows);
+    assert(batchRows<=batchByteSize);
     ScanTabReq::setScanBatch(reqInfo, batchRows);
     scanTabReq->batch_byte_size = batchByteSize;
-    scanTabReq->first_batch_size = firstBatchRows;
+    scanTabReq->first_batch_size = batchRows;
 
     ScanTabReq::setViaSPJFlag(reqInfo, 1);
     ScanTabReq::setPassAllConfsFlag(reqInfo, 1);
@@ -4361,11 +4357,11 @@ NdbQueryOperationImpl
      * We must thus make sure that we do not set a batch size for the scan 
      * that exceeds what any of its scan descendants can use.
      *
-     * Ignore calculated 'batchByteSize' and 'firstBatchRows' 
+     * Ignore calculated 'batchByteSize' 
      * here - Recalculated when building signal after max-batchRows has been 
      * determined.
      */
-    Uint32 batchByteSize, firstBatchRows;
+    Uint32 batchByteSize;
     /**
      * myClosestScan->m_maxBatchRows may be zero to indicate that we
      * should use default values, or non-zero if the application had an 
@@ -4373,18 +4369,14 @@ NdbQueryOperationImpl
      */
     maxBatchRows = myClosestScan->m_maxBatchRows;
     NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      m_ndbRecord,
-                                      m_firstRecAttr,
-                                      0, // Key size.
                                       getRoot().m_parallelism
-                                      == Parallelism_max ?
-                                      m_queryImpl.getRootFragCount() :
-                                      getRoot().m_parallelism,
+                                      == Parallelism_max
+                                      ? m_queryImpl.getRootFragCount()
+                                      : getRoot().m_parallelism,
                                       maxBatchRows,
-                                      batchByteSize,
-                                      firstBatchRows);
+                                      batchByteSize);
     assert(maxBatchRows > 0);
-    assert(firstBatchRows == maxBatchRows);
+    assert(maxBatchRows <= batchByteSize);
   }
 
   // Find the largest value that is acceptable to all lookup descendants.
@@ -4554,17 +4546,13 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     Ndb& ndb = *m_queryImpl.getNdbTransaction().getNdb();
 
     Uint32 batchRows = getMaxBatchRows();
-    Uint32 batchByteSize, firstBatchRows;
+    Uint32 batchByteSize;
     NdbReceiver::calculate_batch_size(* ndb.theImpl,
-                                      m_ndbRecord,
-                                      m_firstRecAttr,
-                                      0, // Key size.
                                       m_queryImpl.getRootFragCount(),
                                       batchRows,
-                                      batchByteSize,
-                                      firstBatchRows);
-    assert(batchRows == firstBatchRows);
+                                      batchByteSize);
     assert(batchRows == getMaxBatchRows());
+    assert(batchRows <= batchByteSize);
     assert(m_parallelism == Parallelism_max ||
            m_parallelism == Parallelism_adaptive);
     if (m_parallelism == Parallelism_max)
