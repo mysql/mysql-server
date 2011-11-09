@@ -7037,6 +7037,83 @@ a	a
 3	1
 DROP TABLE ot1, ot2, it1, it2;
 # End of test for bug#13335319.
+#
+# Bug#13334882: Assertion keypart_map failed in MyIsam function
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_nokey INT NOT NULL,
+col_int_key INT NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+(1,4,0),
+(2,6,8),
+(3,3,1),
+(7,2,6),
+(8,9,1),
+(9,3,6),
+(10,8,2),
+(11,1,4),
+(12,8,8),
+(13,8,4),
+(14,5,4);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_nokey int NOT NULL,
+col_int_key int NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(10,8,7);
+CREATE TABLE t3
+SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+(SELECT parent1.col_int_key AS p1,
+parent1.col_int_key AS p2
+FROM t1 AS parent1
+LEFT JOIN t2 AS parent2
+ON parent1.col_int_nokey = parent2.col_int_key
+)
+AND grandparent1.col_int_key <> 3
+;
+explain SELECT * FROM t3
+WHERE g1 NOT IN
+(SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+(SELECT parent1.col_int_key AS p1,
+parent1.col_int_key AS p2
+FROM t1 AS parent1
+LEFT JOIN t2 AS parent2
+ON parent1.col_int_nokey = parent2.col_int_key
+)
+AND grandparent1.col_int_key <> 3
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	parent1	ref	col_int_key	col_int_key	4	func	2	Using where; Start temporary
+2	DEPENDENT SUBQUERY	parent2	index	col_int_key	col_int_key	4	NULL	1	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	grandparent1	ref	col_int_key	col_int_key	4	func	2	Using where; End temporary
+SELECT * FROM t3
+WHERE g1 NOT IN
+(SELECT grandparent1.col_int_nokey AS g1
+FROM t1 AS grandparent1
+WHERE (grandparent1.col_int_nokey, grandparent1.col_int_key) IN
+(SELECT parent1.col_int_key AS p1,
+parent1.col_int_key AS p2
+FROM t1 AS parent1
+LEFT JOIN t2 AS parent2
+ON parent1.col_int_nokey = parent2.col_int_key
+)
+AND grandparent1.col_int_key <> 3
+);
+g1
+DROP TABLE t1, t2, t3;
+# End of test for bug#13334882.
 # End of 5.6 tests
 #
 # Bug#51457 Firstmatch semijoin strategy gives wrong results for

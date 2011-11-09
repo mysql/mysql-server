@@ -287,7 +287,8 @@ public:
     thd(thd), join(join),
     cur_embedding_map(0), cur_sj_inner_tables(0), emb_sjm_nest(sjm_nest),
     excluded_tables(sjm_nest ?
-                    join->all_table_map & ~sjm_nest->sj_inner_tables :
+                    (join->all_table_map & ~sjm_nest->sj_inner_tables) |
+                    OUTER_REF_TABLE_BIT :
                     0)
   {}
   ~Optimize_table_order()
@@ -10953,7 +10954,7 @@ static bool make_join_select(JOIN *join, Item *cond)
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))
       {
         save_used_tables= used_tables;
-        used_tables= join->const_table_map | OUTER_REF_TABLE_BIT;
+        used_tables= join->const_table_map;
       }
 
       used_tables|= current_map;
