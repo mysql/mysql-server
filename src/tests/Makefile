@@ -877,6 +877,8 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 
 preload-db-nested.tdbrun: VGRIND=
 upgrade-test-4.tdbrun: VGRIND=
+upgrade-test-4-valgrind.tdbrun: upgrade-test-4.tdb
+	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # re-enable loader-stress-test3 when upgrade is complete
 #loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
