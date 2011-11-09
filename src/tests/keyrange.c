@@ -20,6 +20,7 @@ static void test (void) {
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
     r=db_env_create(&env, 0); CKERR(r);
     env->set_errfile(env, stderr);
+    r = env->set_redzone(env, 0);                                                                                               CKERR(r);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=db->set_pagesize(db, 4096);
@@ -57,9 +58,13 @@ static void test (void) {
 	r = db->key_range64(db, txn, dbt_init(&k, key, 1+strlen(key)), &less, &equal, &greater, &is_exact);
 	assert(r == 0);
 	//printf("key %llu/%llu %llu %llu %llu\n", (unsigned long long)2*i, (unsigned long long)2*limit, (unsigned long long)less, (unsigned long long)equal, (unsigned long long)greater);
-	assert(less==(u_int64_t)i);
+	if (i<30) {
+	    assert(less==(u_int64_t)i);
+	}
+	if (i+30 > limit) {
+	    assert(greater==limit-i-1);
+	}
 	assert(equal==1);
-	assert(less+equal+greater == limit);
     }
     for (i=0; i<1+limit; i++) {
 	char key[100];
@@ -70,9 +75,13 @@ static void test (void) {
 	r = db->key_range64(db, txn, dbt_init(&k, key, 1+strlen(key)), &less, &equal, &greater, &is_exact);
 	assert(r == 0);
 	//printf("key %llu/%llu %llu %llu %llu\n", (unsigned long long)2*i, (unsigned long long)2*limit, (unsigned long long)less, (unsigned long long)equal, (unsigned long long)greater);
-	assert(less==(u_int64_t)i);
 	assert(equal==0);
-	assert(less+equal+greater == limit);
+	if (i<30) {
+	    assert(less==(u_int64_t)i);
+	}
+	if (i+30 > limit) {
+	    assert(greater==limit-i);
+	}
     }
     r=txn->commit(txn, 0);    assert(r==0);
     r = db->close(db, 0);     assert(r==0);

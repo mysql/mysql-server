@@ -21,6 +21,7 @@ test_stat64 (unsigned int N) {
     DB *db;
     DB_TXN *txn;
     r = db_env_create(&env, 0);                                           CKERR(r);
+    r = env->set_redzone(env, 0);                                         CKERR(r);
 
     r = env->set_cachesize(env, 0, 20*1000000, 1);
     r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);

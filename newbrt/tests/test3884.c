@@ -71,10 +71,6 @@ test_split_on_boundary(void)
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_SUBTREE_EST(&sn,bn).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
@@ -155,10 +151,6 @@ test_split_with_everything_on_the_left(void)
     LEAFENTRY big_element;
     char *big_val = NULL;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_SUBTREE_EST(&sn,bn).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
@@ -249,10 +241,6 @@ test_split_on_boundary_of_last_node(void)
     LEAFENTRY big_element;
     char *big_val = NULL;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_SUBTREE_EST(&sn,bn).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
@@ -342,10 +330,6 @@ test_split_at_begin(void)
     sn.totalchildkeylens = 0;
     long totalbytes = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_SUBTREE_EST(&sn,bn).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;
@@ -440,10 +424,6 @@ test_split_at_end(void)
     sn.totalchildkeylens = 0;
     long totalbytes = 0;
     for (int bn = 0; bn < sn.n_children; ++bn) {
-        BP_SUBTREE_EST(&sn,bn).ndata = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).nkeys = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).dsize = random() + (((long long)random())<<32);
-        BP_SUBTREE_EST(&sn,bn).exact =  (BOOL)(random()%2 != 0);
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
         BLB_NBYTESINBUF(&sn,bn) = 0;

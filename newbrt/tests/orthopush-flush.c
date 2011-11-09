@@ -89,7 +89,7 @@ insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_ou
 }
 
 static void
-insert_random_message_to_leaf(BRT t, BRTNODE leaf, int childnum, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
+insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 1024) + 16;
@@ -116,14 +116,14 @@ insert_random_message_to_leaf(BRT t, BRTNODE leaf, int childnum, BASEMENTNODE bl
     int r = apply_msg_to_leafentry(result, NULL, &memsize, &disksize, save, NULL, NULL);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb, &BP_SUBTREE_EST(leaf, childnum), result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb, result, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
     }
 }
 
 static void
-insert_same_message_to_leaves(BRT t, BRTNODE leaf1, BRTNODE leaf2, int childnum, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
+insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 1024) + 16;
@@ -150,11 +150,11 @@ insert_same_message_to_leaves(BRT t, BRTNODE leaf1, BRTNODE leaf2, int childnum,
     int r = apply_msg_to_leafentry(result, NULL, &memsize, &disksize, save, NULL, NULL);
     assert_zero(r);
     bool made_change;
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb1, &BP_SUBTREE_EST(leaf1, childnum), result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb1, result, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
     }
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb2, &BP_SUBTREE_EST(leaf2, childnum), result, &made_change, NULL, NULL, NULL);
+    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb2, result, &made_change, NULL, NULL, NULL);
     if (msn.msn > blb2->max_msn_applied.msn) {
         blb2->max_msn_applied = msn;
     }
@@ -509,7 +509,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     int total_size = 0;
     for (i = 0; total_size < 4*M; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
-        insert_random_message_to_leaf(t, child, i%8, child_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_random_message_to_leaf(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;
@@ -730,7 +730,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     int total_size = 0;
     for (i = 0; total_size < 4*M; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
-        insert_random_message_to_leaf(t, child, i%8, child_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_random_message_to_leaf(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         u_int32_t keylen;
         char *key = le_key_and_len(child_messages[i], &keylen);
@@ -904,7 +904,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     int total_size = 0;
     for (i = 0; total_size < 4*M; ++i) {
         total_size -= child1_blbs[i%8]->n_bytes_in_buffer;
-        insert_same_message_to_leaves(t, child1, child2, i%8, child1_blbs[i%8], child2_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_same_message_to_leaves(t, child1_blbs[i%8], child2_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child1_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;

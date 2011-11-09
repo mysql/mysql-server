@@ -145,13 +145,6 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" n_children=%d\n", n->n_children);
     printf(" total_childkeylens=%u\n", n->totalchildkeylens);
 
-    printf(" subleafentry_estimates={");
-    for (int i=0; i<n->n_children; i++) {
-        if (i>0) printf(" ");
-        struct subtree_estimates *est = &BP_SUBTREE_EST(n,i);
-        printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
-    }
-    printf("}\n");
     printf(" pivots:\n");
     for (int i=0; i<n->n_children-1; i++) {
         struct kv_pair *piv = n->childkeys[i];
