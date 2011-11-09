@@ -380,6 +380,7 @@ static int add123_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullh
     assert((long)extraargs==123);
     *value = (void*)((unsigned long)key.b+123L);
     *dirtyp = 0;
+    *sizep = make_pair_attr(0);
     return 0;
 }
 
@@ -388,6 +389,7 @@ static int add222_fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullh
     assert((long)extraargs==222);
     *value = (void*)((unsigned long)key.b+222L);
     *dirtyp = 0;
+    *sizep = make_pair_attr(0);
     return 0;
 }
 
@@ -454,6 +456,7 @@ static void test_dirty_flush(CACHEFILE f,
 static int test_dirty_fetch(CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value_ptr, PAIR_ATTR *size_ptr, int * dirtyp, void *arg) {
     *value_ptr = arg;
     *dirtyp = 0;
+    *size_ptr = make_pair_attr(0);
     assert(fullhash==toku_cachetable_hash(f,key));
     if (verbose) printf("test_dirty_fetch %p %" PRId64 " %p %ld %p\n", f, key.b, *value_ptr, size_ptr->size, arg);
     return 0;
