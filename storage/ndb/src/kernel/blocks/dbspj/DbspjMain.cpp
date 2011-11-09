@@ -5215,6 +5215,7 @@ Dbspj::scanIndex_send(Signal* signal,
   jam();
   ndbassert(bs_bytes > 0);
   ndbassert(bs_rows > 0);
+  ndbassert(bs_rows <= bs_bytes);
   /**
    * if (m_bits & prunemask):
    * - Range keys sliced out to each ScanFragHandle
@@ -5556,37 +5557,43 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
         org->batch_size_rows / data.m_parallelism * (data.m_parallelism - 1)
         + data.m_totalRows;
       
-      // Number of rows that we can still fetch in this batch.
+      // Number of rows & bytes that we can still fetch in this batch.
       const Int32 remainingRows 
         = static_cast<Int32>(org->batch_size_rows - maxCorrVal);
-      
+      const Int32 remainingBytes 
+        = static_cast<Int32>(org->batch_size_bytes - data.m_totalBytes);
+
       if (remainingRows >= data.m_frags_not_started &&
+          remainingBytes >= data.m_frags_not_started &&
           /**
            * Check that (remaning row capacity)/(remaining fragments) is 
            * greater or equal to (rows read so far)/(finished fragments).
            */
           remainingRows * static_cast<Int32>(data.m_parallelism) >=
-          static_cast<Int32>(data.m_totalRows * data.m_frags_not_started) &&
-          (org->batch_size_bytes - data.m_totalBytes) * data.m_parallelism >=
-          data.m_totalBytes * data.m_frags_not_started)
+            static_cast<Int32>(data.m_totalRows * data.m_frags_not_started) &&
+          remainingBytes * static_cast<Int32>(data.m_parallelism) >=
+            static_cast<Int32>(data.m_totalBytes * data.m_frags_not_started))
       {
         jam();
         Uint32 batchRange = maxCorrVal;
+        Uint32 bs_rows  = remainingRows / data.m_frags_not_started;
+        Uint32 bs_bytes = remainingBytes / data.m_frags_not_started;
+
         DEBUG("::scanIndex_execSCAN_FRAGCONF() first batch was not full."
               " Asking for new batches from " << data.m_frags_not_started <<
               " fragments with " << 
-              remainingRows / data.m_frags_not_started 
-              <<" rows and " << 
-              (org->batch_size_bytes - data.m_totalBytes)
-              / data.m_frags_not_started 
-              << " bytes.");
+              bs_rows  <<" rows and " << 
+              bs_bytes << " bytes.");
+
+        if (unlikely(bs_rows > bs_bytes))
+          bs_rows = bs_bytes;
+
         scanIndex_send(signal,
                        requestPtr,
                        treeNodePtr,
                        data.m_frags_not_started,
-                       (org->batch_size_bytes - data.m_totalBytes)
-                       / data.m_frags_not_started,
-                       remainingRows / data.m_frags_not_started,
+                       bs_bytes,
+                       bs_rows,
                        batchRange);
         return;
       }
