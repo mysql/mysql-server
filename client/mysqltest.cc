@@ -502,6 +502,31 @@ struct st_command *curr_command= 0;
 
 char builtin_echo[FN_REFLEN];
 
+struct st_replace_regex
+{
+DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
+
+/*
+Temporary storage areas for substitutions. To reduce unnessary copying
+and memory freeing/allocation, we pre-allocate two buffers, and alternate
+their use, one for input/one for output, the roles changing on the next
+st_regex substition. At the end of substitutions  buf points to the
+one containing the final result.
+*/
+char* buf;
+char* even_buf;
+char* odd_buf;
+int even_buf_len;
+int odd_buf_len;
+};
+
+struct st_replace_regex *glob_replace_regex= 0;
+
+struct st_replace;
+struct st_replace *glob_replace= 0;
+void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
+const char *from, int len);
+
 static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
 
 void die(const char *fmt, ...)
@@ -531,6 +556,7 @@ void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
 void fix_win_paths(const char *val, int len);
 const char *get_errname_from_code (uint error_code);
+int multi_reg_replace(struct st_replace_regex* r,char* val);
 
 #ifdef __WIN__
 void free_tmp_sh_file();
@@ -2432,7 +2458,23 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       if (row[i])
       {
         /* Add column to tab separated string */
-	dynstr_append_mem(&result, row[i], lengths[i]);
+	char *val= row[i];
+	int len= lengths[i];
+	
+	if (glob_replace_regex)
+	{
+	  /* Regex replace */
+	  if (!multi_reg_replace(glob_replace_regex, (char*)val))
+	  {
+	    val= glob_replace_regex->buf;
+	    len= strlen(val);
+	  }
+	}
+	
+	if (glob_replace)
+	  replace_strings_append(glob_replace, &result, val, len);
+	else
+	  dynstr_append_mem(&result, val, len);
       }
       dynstr_append_mem(&result, "\t", 1);
     }
@@ -3344,8 +3386,9 @@ void do_copy_file(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
+  /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
   error= (my_copy(ds_from_file.str, ds_to_file.str,
-                  MYF(MY_DONT_OVERWRITE_FILE)) != 0);
+                  MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -9119,15 +9162,10 @@ typedef struct st_pointer_array {		/* when using array-strings */
   uint	array_allocs,max_count,length,max_length;
 } POINTER_ARRAY;
 
-struct st_replace;
 struct st_replace *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
 int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
-void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
-                            const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
-
-struct st_replace *glob_replace;
 
 /*
   Get arguments for replace. The syntax is:
@@ -9271,26 +9309,6 @@ struct st_regex
   char* replace; /* String or expression to replace the pattern with */
   int icase; /* true if the match is case insensitive */
 };
-
-struct st_replace_regex
-{
-  DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
-
-  /*
-    Temporary storage areas for substitutions. To reduce unnessary copying
-    and memory freeing/allocation, we pre-allocate two buffers, and alternate
-    their use, one for input/one for output, the roles changing on the next
-    st_regex substition. At the end of substitutions  buf points to the
-    one containing the final result.
-  */
-  char* buf;
-  char* even_buf;
-  char* odd_buf;
-  int even_buf_len;
-  int odd_buf_len;
-};
-
-struct st_replace_regex *glob_replace_regex= 0;
 
 int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace,
                 char *string, int icase);
@@ -9490,7 +9508,13 @@ void do_get_replace_regex(struct st_command *command)
 {
   char *expr= command->first_argument;
   free_replace_regex();
-  if (!(glob_replace_regex=init_replace_regex(expr)))
+  /* Allow variable for the *entire* list of replacements */
+  if (*expr == '$') 
+  {
+    VAR *val= var_get(expr, NULL, 0, 1);
+    expr= val ? val->str_val : NULL;
+  }
+  if (expr && *expr && !(glob_replace_regex=init_replace_regex(expr)))
     die("Could not init replace_regex");
   command->last_argument= command->end;
 }
