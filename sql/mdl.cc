@@ -92,7 +92,7 @@ void MDL_key::init_psi_keys()
 {
   int i;
   int count;
-  PSI_stage_info *info;
+  PSI_stage_info *info __attribute__((unused));
 
   count= array_elements(MDL_key::m_namespace_to_wait_state_name);
   for (i= 0; i<count; i++)
