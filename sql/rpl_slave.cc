@@ -5805,7 +5805,7 @@ static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi)
 static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                              bool reconnect, bool suppress_warnings)
 {
-  int slave_was_killed;
+  int slave_was_killed= 0;
   int last_errno= -2;                           // impossible error
   ulong err_count=0;
   char llbuff[22];
@@ -5871,8 +5871,16 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   if (!mi->is_start_user_configured())
     sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
 
-  bool error_pwd= mi->get_password(password, &password_size);
-  while (!error_pwd && !(slave_was_killed = io_slave_killed(thd,mi))
+  if (mi->get_password(password, &password_size))
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER(ER_SLAVE_FATAL_ERROR),
+               "Unable to configure password when attempting to "
+               "connect to the master server. Connection attempt "
+               "terminated.");
+    DBUG_RETURN(1);
+  }
+  while (!(slave_was_killed = io_slave_killed(thd,mi))
          && (reconnect ? mysql_reconnect(mysql) != 0 :
              mysql_real_connect(mysql, mi->host, mi->get_user(),
                                 password, 0, mi->port, 0, client_flag) == 0))
