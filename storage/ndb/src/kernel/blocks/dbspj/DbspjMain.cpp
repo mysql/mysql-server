@@ -482,6 +482,7 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_outstanding = 0;
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
+  requestP->m_rootFragId = LqhKeyReq::getFragmentId(req->fragmentData);
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
@@ -777,6 +778,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
   requestP->m_rootResultData = req->resultData;
+  requestP->m_rootFragId = req->fragmentNoKeyLen;
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
@@ -2187,12 +2189,6 @@ Dbspj::storeRow(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr, RowPtr &row)
     jam();
     return DbspjErr::OutOfRowMemory;
   }
-
-  row.m_type = RowPtr::RT_LINEAR;
-  row.m_row_data.m_linear.m_row_ref = ref;
-  row.m_row_data.m_linear.m_header = (RowPtr::Header*)(dstptr + linklen);
-  row.m_row_data.m_linear.m_data = dstptr + linklen + headlen;
-
   memcpy(dstptr + linklen, headptr, 4 * headlen);
   copy(dstptr + linklen + headlen, dataPtr);
 
@@ -2205,9 +2201,30 @@ Dbspj::storeRow(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr, RowPtr &row)
   else
   {
     jam();
-    return add_to_map(requestPtr, treeNodePtr, row.m_src_correlation, ref);
+    Uint32 error = add_to_map(requestPtr, treeNodePtr, row.m_src_correlation, ref);
+    if (unlikely(error))
+      return error;
   }
 
+  /**
+   * Refetch pointer to alloc'ed row memory  before creating RowPtr 
+   * as above add_to_xxx may mave reorganized memory causing
+   * alloced row to be moved.
+   */
+  Uint32 * rowptr = 0;
+  if (ref.m_allocator == 0)
+  {
+    jam();
+    rowptr = get_row_ptr_stack(ref);
+  }
+  else
+  {
+    jam();
+    rowptr = get_row_ptr_var(ref);
+  }
+
+//ndbrequire(rowptr==dstptr);  // It moved which we now do handle
+  setupRowPtr(treeNodePtr, row, ref, rowptr);
   return 0;
 }
 
@@ -4615,12 +4632,17 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
 
+  // Add a skew in the fragment lists such that we don't scan 
+  // the same subset of frags fram all SPJ requests in case of
+  // the scan not being ' T_SCAN_PARALLEL'
+  Uint16 fragNoOffs = requestPtr.p->m_rootFragId % fragCount;
+
   Ptr<ScanFragHandle> fragPtr;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
   if (likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
   {
     jam();
-    fragPtr.p->init(0);
+    fragPtr.p->init(fragNoOffs);
     fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
     list.addLast(fragPtr);
   }
@@ -4686,10 +4708,11 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     {
       jam();
       Ptr<ScanFragHandle> fragPtr;
+      Uint16 fragNo = (fragNoOffs+i) % fragCount;
       if (likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
       {
         jam();
-        fragPtr.p->init(i);
+        fragPtr.p->init(fragNo);
         fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
         list.addLast(fragPtr);
       }
