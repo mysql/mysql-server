@@ -15,7 +15,6 @@ source include/show_binlog_events.inc;
 # absolutely need variables names to be quoted and strings to be
 # escaped).
 flush logs;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001 
 drop table t2;
