@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
 #include "memory.h"
@@ -19,8 +19,8 @@ static realloc_fun_t t_xrealloc = 0;
 static MEMORY_STATUS_S status;
 
 static size_t
-my_malloc_usable_size(void *p UU()) {
-    return malloc_usable_size(p);
+my_malloc_usable_size(void *p) {
+    return p == NULL ? 0 : malloc_usable_size(p);
 }
 
 void 
@@ -146,7 +146,7 @@ toku_xrealloc(void *v, size_t size) {
 
 size_t 
 toku_malloc_usable_size(void *p) {
-    return malloc_usable_size(p);
+    return p == NULL ? 0 : malloc_usable_size(p);
 }
 
 void *
