@@ -7057,7 +7057,7 @@ static void test_subselect()
   conversion using MYSQL_TIME structure
 */
 
-static void test_bind_date_conv(uint row_count)
+static void bind_date_conv(uint row_count, my_bool preserveFractions)
 {
   MYSQL_STMT   *stmt= 0;
   uint         rc, i, count= row_count;
@@ -7167,7 +7167,7 @@ static void test_bind_date_conv(uint row_count)
     for (i= 0; i < array_elements(my_bind); i++)
     {
       if (!opt_silent)
-        fprintf(stdout, "\ntime[%d]: %02d-%02d-%02d %02d:%02d:%02d.%02lu",
+        fprintf(stdout, "\ntime[%d]: %02d-%02d-%02d %02d:%02d:%02d.%06lu",
                 i, tm[i].year, tm[i].month, tm[i].day,
                 tm[i].hour, tm[i].minute, tm[i].second,
                 tm[i].second_part);
@@ -7184,8 +7184,16 @@ static void test_bind_date_conv(uint row_count)
       DIE_UNLESS(tm[i].hour == 0 || tm[i].hour == hour+count);
       DIE_UNLESS(tm[i].minute == 0 || tm[i].minute == minute+count);
       DIE_UNLESS(tm[i].second == 0 || tm[i].second == sec+count);
-      DIE_UNLESS(tm[i].second_part == 0 ||
-                 tm[i].second_part == second_part+count);
+      if (preserveFractions) {
+        if (i == 3) { /* Dates dont have fractions */
+          DIE_UNLESS(tm[i].second_part == 0);
+        } else {
+          DIE_UNLESS(tm[i].second_part == second_part+count);
+        }
+      } else {
+        DIE_UNLESS((tm[i].second_part == 0)||
+                   tm[i].second_part == second_part+count);
+      }
     }
   }
   rc= mysql_stmt_fetch(stmt);
@@ -7213,7 +7221,29 @@ static void test_date()
 
   myquery(rc);
 
-  test_bind_date_conv(5);
+  bind_date_conv(5,FALSE);
+}
+
+
+/* Test DATE, TIME(6), DATETIME(6) and TS(6) with MYSQL_TIME conversion */
+
+static void test_date_frac()
+{
+  int        rc;
+
+  myheader("test_date");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_date");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP(6), \
+                                                 c2 TIME(6), \
+                                                 c3 DATETIME(6), \
+                                                 c4 DATE)");
+
+  myquery(rc);
+
+  bind_date_conv(5,TRUE);
 }
 
 
@@ -7235,7 +7265,7 @@ static void test_date_date()
 
   myquery(rc);
 
-  test_bind_date_conv(3);
+  bind_date_conv(3,FALSE);
 }
 
 
@@ -7257,7 +7287,7 @@ static void test_date_time()
 
   myquery(rc);
 
-  test_bind_date_conv(3);
+  bind_date_conv(3, FALSE);
 }
 
 
@@ -7279,7 +7309,7 @@ static void test_date_ts()
 
   myquery(rc);
 
-  test_bind_date_conv(2);
+  bind_date_conv(2, FALSE);
 }
 
 
@@ -7298,7 +7328,7 @@ static void test_date_dt()
                          " c2 datetime, c3 datetime, c4 date)");
   myquery(rc);
 
-  test_bind_date_conv(2);
+  bind_date_conv(2, FALSE);
 }
 
 
@@ -20051,6 +20081,7 @@ static struct my_tests_st my_tests[]= {
   { "test_store_result2", test_store_result2 },
   { "test_subselect", test_subselect },
   { "test_date", test_date },
+  { "test_date_frac", test_date_frac },
   { "test_temporal_param", test_temporal_param },
   { "test_date_date", test_date_date },
   { "test_date_time", test_date_time },
