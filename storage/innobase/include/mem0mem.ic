@@ -533,7 +533,7 @@ mem_alloc_func(
 	first block and thus we can calculate the pointer to the heap from
 	the pointer to the buffer when we free the memory buffer. */
 
-	if (UNIV_LIKELY_NULL(size)) {
+	if (size) {
 		/* Adjust the allocation to the actual size of the
 		memory block. */
 		ulint	m = mem_block_get_len(heap)

@@ -33,7 +33,7 @@ ibool
 recv_recovery_is_on(void)
 /*=====================*/
 {
-	return(UNIV_UNLIKELY(recv_recovery_on));
+	return(recv_recovery_on);
 }
 
 #ifdef UNIV_LOG_ARCHIVE

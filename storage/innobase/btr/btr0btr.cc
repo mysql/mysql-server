@@ -397,7 +397,7 @@ btr_blob_dbg_op(
 		rec = page_rec_get_next_const(rec);
 	} while (!page_rec_is_supremum(rec));
 
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
 
@@ -1373,8 +1373,7 @@ btr_page_get_father_node_ptr_func(
 	offsets = rec_get_offsets(node_ptr, index, offsets,
 				  ULINT_UNDEFINED, &heap);
 
-	if (UNIV_UNLIKELY(btr_node_ptr_get_child_page_no(node_ptr, offsets)
-			  != page_no)) {
+	if (btr_node_ptr_get_child_page_no(node_ptr, offsets) != page_no) {
 		rec_t*	print_rec;
 		fputs("InnoDB: Dump of the child page:\n", stderr);
 		buf_page_print(page_align(user_rec), 0);
@@ -1747,7 +1746,7 @@ btr_page_reorganize_low(
 	buf_frame_copy(temp_page, page);
 
 #ifndef UNIV_HOTBACKUP
-	if (UNIV_LIKELY(!recovery)) {
+	if (!recovery) {
 		btr_search_drop_page_hash_index(block);
 	}
 
@@ -1777,9 +1776,7 @@ btr_page_reorganize_low(
 		ut_ad(max_trx_id != 0 || recovery);
 	}
 
-	if (page_zip
-	    && UNIV_UNLIKELY
-	    (!page_zip_compress(page_zip, page, index, NULL))) {
+	if (page_zip && !page_zip_compress(page_zip, page, index, NULL)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -1809,7 +1806,7 @@ btr_page_reorganize_low(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (UNIV_LIKELY(!recovery)) {
+	if (!recovery) {
 		/* Update the record lock bitmaps */
 		lock_move_reorganize_page(block, temp_block);
 	}
@@ -1818,8 +1815,7 @@ btr_page_reorganize_low(
 	data_size2 = page_get_data_size(page);
 	max_ins_size2 = page_get_max_insert_size_after_reorganize(page, 1);
 
-	if (UNIV_UNLIKELY(data_size1 != data_size2)
-	    || UNIV_UNLIKELY(max_ins_size1 != max_ins_size2)) {
+	if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
 		buf_page_print(page, 0);
 		buf_page_print(temp_page, 0);
 		fprintf(stderr,
@@ -1888,7 +1884,7 @@ btr_parse_page_reorganize(
 
 	/* The record is empty, except for the record initial part */
 
-	if (UNIV_LIKELY(block != NULL)) {
+	if (block != NULL) {
 		btr_page_reorganize_low(TRUE, block, index, mtr);
 	}
 
@@ -2015,10 +2011,9 @@ btr_root_raise_and_insert(
 #ifdef UNIV_ZIP_COPY
 	    || new_page_zip
 #endif /* UNIV_ZIP_COPY */
-	    || UNIV_UNLIKELY
-	    (!page_copy_rec_list_end(new_block, root_block,
+	    || !page_copy_rec_list_end(new_block, root_block,
 				     page_get_infimum_rec(root),
-				     index, mtr))) {
+				     index, mtr)) {
 		ut_a(new_page_zip);
 
 		/* Copy the page byte for byte. */
@@ -2173,8 +2168,7 @@ btr_page_get_split_rec_to_right(
 	the previous insert on the same page, we assume that there is a
 	pattern of sequential inserts here. */
 
-	if (UNIV_LIKELY(page_header_get_ptr(page, PAGE_LAST_INSERT)
-			== insert_point)) {
+	if (page_header_get_ptr(page, PAGE_LAST_INSERT) == insert_point) {
 
 		rec_t*	next_rec;
 
@@ -2248,7 +2242,7 @@ btr_page_get_split_rec(
 			cursor->index->n_fields,
 			page_zip_get_size(page_zip));
 
-		if (UNIV_LIKELY(free_space > (ulint) free_space_zip)) {
+		if (free_space > (ulint) free_space_zip) {
 			free_space = (ulint) free_space_zip;
 		}
 	}
@@ -2321,7 +2315,7 @@ btr_page_get_split_rec(
 	}
 
 func_exit:
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
 	return(rec);
@@ -2697,7 +2691,7 @@ func_start:
 		hint_page_no = page_no + 1;
 		split_rec = btr_page_get_split_rec(cursor, tuple, n_ext);
 
-		if (UNIV_UNLIKELY(split_rec == NULL)) {
+		if (split_rec == NULL) {
 			insert_left = btr_page_tuple_smaller(
 				cursor, tuple, offsets, n_uniq, &heap);
 		}
@@ -2749,15 +2743,14 @@ func_start:
 
 		insert_left = cmp_dtuple_rec(tuple, split_rec, offsets) < 0;
 
-		if (UNIV_UNLIKELY(!insert_left && new_page_zip
-				  && n_iterations > 0)) {
+		if (!insert_left && new_page_zip && n_iterations > 0) {
 			/* If a compressed page has already been split,
 			avoid further splits by inserting the record
 			to an empty page. */
 			split_rec = NULL;
 			goto insert_empty;
 		}
-	} else if (UNIV_UNLIKELY(insert_left)) {
+	} else if (insert_left) {
 		ut_a(n_iterations > 0);
 		first_rec = page_rec_get_next(page_get_infimum_rec(page));
 		move_limit = page_rec_get_next(btr_cur_get_rec(cursor));
@@ -2812,9 +2805,8 @@ insert_empty:
 #ifdef UNIV_ZIP_COPY
 		    || page_zip
 #endif /* UNIV_ZIP_COPY */
-		    || UNIV_UNLIKELY
-		    (!page_move_rec_list_start(new_block, block, move_limit,
-					       cursor->index, mtr))) {
+		    || !page_move_rec_list_start(new_block, block, move_limit,
+					       cursor->index, mtr)) {
 			/* For some reason, compressing new_page failed,
 			even though it should contain fewer records than
 			the original page.  Copy the page byte for byte
@@ -2855,9 +2847,8 @@ insert_empty:
 #ifdef UNIV_ZIP_COPY
 		    || page_zip
 #endif /* UNIV_ZIP_COPY */
-		    || UNIV_UNLIKELY
-		    (!page_move_rec_list_end(new_block, block, move_limit,
-					     cursor->index, mtr))) {
+		    || !page_move_rec_list_end(new_block, block, move_limit,
+					     cursor->index, mtr)) {
 			/* For some reason, compressing new_page failed,
 			even though it should contain fewer records than
 			the original page.  Copy the page byte for byte
@@ -2933,15 +2924,14 @@ insert_empty:
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (UNIV_LIKELY(rec != NULL)) {
+	if (rec != NULL) {
 
 		goto func_exit;
 	}
 
 	/* 8. If insert did not fit, try page reorganization */
 
-	if (UNIV_UNLIKELY
-	    (!btr_page_reorganize(insert_block, cursor->index, mtr))) {
+	if (!btr_page_reorganize(insert_block, cursor->index, mtr)) {
 
 		goto insert_failed;
 	}
@@ -2951,7 +2941,7 @@ insert_empty:
 	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
 				    n_ext, mtr);
 
-	if (UNIV_UNLIKELY(rec == NULL)) {
+	if (rec == NULL) {
 		/* The insert did not fit on the page: loop back to the
 		start of the function for a new split */
 insert_failed:
@@ -3142,7 +3132,7 @@ btr_set_min_rec_mark(
 {
 	ulint	info_bits;
 
-	if (UNIV_LIKELY(page_rec_is_comp(rec))) {
+	if (page_rec_is_comp(rec)) {
 		info_bits = rec_get_info_bits(rec, TRUE);
 
 		rec_set_info_bits_new(rec, info_bits | REC_INFO_MIN_REC_FLAG);
@@ -3261,10 +3251,9 @@ btr_lift_page_up(
 #ifdef UNIV_ZIP_COPY
 	    || father_page_zip
 #endif /* UNIV_ZIP_COPY */
-	    || UNIV_UNLIKELY
-	    (!page_copy_rec_list_end(father_block, block,
-				     page_get_infimum_rec(page),
-				     index, mtr))) {
+	    || !page_copy_rec_list_end(father_block, block,
+				       page_get_infimum_rec(page),
+				       index, mtr)) {
 		const page_zip_des_t*	page_zip
 			= buf_block_get_page_zip(block);
 		ut_a(father_page_zip);
@@ -3440,12 +3429,11 @@ err_exit:
 
 	max_ins_size = page_get_max_insert_size(merge_page, n_recs);
 
-	if (UNIV_UNLIKELY(data_size > max_ins_size)) {
+	if (data_size > max_ins_size) {
 
 		/* We have to reorganize merge_page */
 
-		if (UNIV_UNLIKELY(!btr_page_reorganize(merge_block,
-						       index, mtr))) {
+		if (!btr_page_reorganize(merge_block, index, mtr)) {
 
 			goto err_exit;
 		}
@@ -3455,7 +3443,7 @@ err_exit:
 		ut_ad(page_validate(merge_page, index));
 		ut_ad(max_ins_size == max_ins_size_reorg);
 
-		if (UNIV_UNLIKELY(data_size > max_ins_size)) {
+		if (data_size > max_ins_size) {
 
 			/* Add fault tolerance, though this should
 			never happen */
@@ -3481,7 +3469,7 @@ err_exit:
 			merge_block, block, page_get_supremum_rec(page),
 			index, mtr);
 
-		if (UNIV_UNLIKELY(!orig_pred)) {
+		if (!orig_pred) {
 			goto err_exit;
 		}
 
@@ -3520,7 +3508,7 @@ err_exit:
 						   page_get_infimum_rec(page),
 						   cursor->index, mtr);
 
-		if (UNIV_UNLIKELY(!orig_succ)) {
+		if (!orig_succ) {
 			ut_a(merge_page_zip);
 #ifdef UNIV_BTR_DEBUG
 			/* FIL_PAGE_PREV was restored from merge_page_zip. */
@@ -3934,7 +3922,7 @@ btr_print_index(
 	root = btr_root_block_get(index, &mtr);
 
 	btr_print_recursive(index, root, width, &heap, &offsets, &mtr);
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
 
@@ -4038,8 +4026,7 @@ btr_index_rec_validate(
 		return(TRUE);
 	}
 
-	if (UNIV_UNLIKELY((ibool)!!page_is_comp(page)
-			  != dict_table_is_comp(index->table))) {
+	if ((ibool)!!page_is_comp(page) != dict_table_is_comp(index->table)) {
 		btr_index_rec_validate_report(page, rec, index);
 		fprintf(stderr, "InnoDB: compact flag=%lu, should be %lu\n",
 			(ulong) !!page_is_comp(page),
@@ -4050,8 +4037,7 @@ btr_index_rec_validate(
 
 	n = dict_index_get_n_fields(index);
 
-	if (!page_is_comp(page)
-	    && UNIV_UNLIKELY(rec_get_n_fields_old(rec) != n)) {
+	if (!page_is_comp(page) && rec_get_n_fields_old(rec) != n) {
 		btr_index_rec_validate_report(page, rec, index);
 		fprintf(stderr, "InnoDB: has %lu fields, should have %lu\n",
 			(ulong) rec_get_n_fields_old(rec), (ulong) n);
@@ -4101,14 +4087,14 @@ btr_index_rec_validate(
 				rec_print_new(stderr, rec, offsets);
 				putc('\n', stderr);
 			}
-			if (UNIV_LIKELY_NULL(heap)) {
+			if (heap) {
 				mem_heap_free(heap);
 			}
 			return(FALSE);
 		}
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
 	return(TRUE);
@@ -4300,8 +4286,9 @@ loop:
 		right_block = btr_block_get(space, zip_size, right_page_no,
 					    RW_X_LATCH, index, &mtr);
 		right_page = buf_block_get_frame(right_block);
-		if (UNIV_UNLIKELY(btr_page_get_prev(right_page, &mtr)
-				  != page_get_page_no(page))) {
+		if (btr_page_get_prev(right_page, &mtr)
+		    != page_get_page_no(page)) {
+
 			btr_validate_report2(index, level, block, right_block);
 			fputs("InnoDB: broken FIL_PAGE_NEXT"
 			      " or FIL_PAGE_PREV links\n", stderr);
@@ -4311,8 +4298,7 @@ loop:
 			ret = FALSE;
 		}
 
-		if (UNIV_UNLIKELY(page_is_comp(right_page)
-				  != page_is_comp(page))) {
+		if (page_is_comp(right_page) != page_is_comp(page)) {
 			btr_validate_report2(index, level, block, right_block);
 			fputs("InnoDB: 'compact' flag mismatch\n", stderr);
 			buf_page_print(page, 0);
@@ -4330,9 +4316,8 @@ loop:
 					  offsets, ULINT_UNDEFINED, &heap);
 		offsets2 = rec_get_offsets(right_rec, index,
 					   offsets2, ULINT_UNDEFINED, &heap);
-		if (UNIV_UNLIKELY(cmp_rec_rec(rec, right_rec,
-					      offsets, offsets2,
-					      index) >= 0)) {
+		if (cmp_rec_rec(rec, right_rec, offsets, offsets2,
+			        index) >= 0) {
 
 			btr_validate_report2(index, level, block, right_block);
 
@@ -4379,10 +4364,9 @@ loop:
 		offsets = btr_page_get_father_node_ptr(offsets, heap,
 						       &node_cur, &mtr);
 
-		if (UNIV_UNLIKELY(node_ptr != btr_cur_get_rec(&node_cur))
-		    || UNIV_UNLIKELY(btr_node_ptr_get_child_page_no(node_ptr,
-								    offsets)
-				     != buf_block_get_page_no(block))) {
+		if (node_ptr != btr_cur_get_rec(&node_cur)
+		    || btr_node_ptr_get_child_page_no(node_ptr, offsets)
+				     != buf_block_get_page_no(block)) {
 
 			btr_validate_report1(index, level, block);
 

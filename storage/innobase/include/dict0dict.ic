@@ -280,7 +280,7 @@ dict_index_is_ibuf(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_IBUF));
+	return(index->type & DICT_IBUF);
 }
 
 /********************************************************************//**
@@ -295,7 +295,7 @@ dict_index_is_univ(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY(index->type & DICT_UNIVERSAL));
+	return(index->type & DICT_UNIVERSAL);
 }
 
 /********************************************************************//**
@@ -440,7 +440,7 @@ dict_table_is_comp(
 #error "DICT_TF_COMPACT must be 1"
 #endif
 
-	return(UNIV_LIKELY(table->flags & DICT_TF_COMPACT));
+	return(table->flags & DICT_TF_COMPACT);
 }
 
 /********************************************************************//**
@@ -1102,7 +1102,7 @@ dict_table_is_corrupted(
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(UNIV_UNLIKELY(table->corrupted));
+	return(table->corrupted);
 }
 
 /********************************************************************//**
@@ -1117,8 +1117,8 @@ dict_index_is_corrupted(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(UNIV_UNLIKELY((index->type & DICT_CORRUPT)
-	       || (index->table && index->table->corrupted)));
+	return((index->type & DICT_CORRUPT)
+	       || (index->table && index->table->corrupted));
 }
 
 #endif /* !UNIV_HOTBACKUP */
