@@ -2187,12 +2187,6 @@ Dbspj::storeRow(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr, RowPtr &row)
     jam();
     return DbspjErr::OutOfRowMemory;
   }
-
-  row.m_type = RowPtr::RT_LINEAR;
-  row.m_row_data.m_linear.m_row_ref = ref;
-  row.m_row_data.m_linear.m_header = (RowPtr::Header*)(dstptr + linklen);
-  row.m_row_data.m_linear.m_data = dstptr + linklen + headlen;
-
   memcpy(dstptr + linklen, headptr, 4 * headlen);
   copy(dstptr + linklen + headlen, dataPtr);
 
@@ -2205,9 +2199,30 @@ Dbspj::storeRow(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr, RowPtr &row)
   else
   {
     jam();
-    return add_to_map(requestPtr, treeNodePtr, row.m_src_correlation, ref);
+    Uint32 error = add_to_map(requestPtr, treeNodePtr, row.m_src_correlation, ref);
+    if (unlikely(error))
+      return error;
   }
 
+  /**
+   * Refetch pointer to alloc'ed row memory  before creating RowPtr 
+   * as above add_to_xxx may mave reorganized memory causing
+   * alloced row to be moved.
+   */
+  Uint32 * rowptr = 0;
+  if (ref.m_allocator == 0)
+  {
+    jam();
+    rowptr = get_row_ptr_stack(ref);
+  }
+  else
+  {
+    jam();
+    rowptr = get_row_ptr_var(ref);
+  }
+
+//ndbrequire(rowptr==dstptr);  // It moved which we now do handle
+  setupRowPtr(treeNodePtr, row, ref, rowptr);
   return 0;
 }
 
