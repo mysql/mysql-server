@@ -6795,8 +6795,6 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
   recCol->orgAttrSize= col->m_orgAttrSize;
   if (recCol->offset+recCol->maxSize > rec->m_row_size)
     rec->m_row_size= recCol->offset+recCol->maxSize;
-  /* Round data size to whole words + 4 bytes of AttributeHeader. */
-  rec->m_max_transid_ai_bytes+= (recCol->maxSize+7) & ~3;
   recCol->charset_info= col->m_cs;
   recCol->compare_function= NdbSqlUtil::getType(col->m_type).m_cmp;
   recCol->flags= 0;
@@ -6985,7 +6983,6 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   }
 
   rec->m_row_size= 0;
-  rec->m_max_transid_ai_bytes= 0;
   for (i= 0; i<length; i++)
   {
     const NdbDictionary::RecordSpecification *rs= &recSpec[i];
