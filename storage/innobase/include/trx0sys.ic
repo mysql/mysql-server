@@ -386,7 +386,7 @@ trx_is_active_low(
 	if (trx_id < trx_list_get_min_trx_id_low()) {
 
 		trx = NULL;
-	} else if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
+	} else if (trx_id >= trx_sys->max_trx_id) {
 
 		/* There must be corruption: we let the caller handle the
 		diagnostic prints in this case. */

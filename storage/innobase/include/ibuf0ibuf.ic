@@ -160,12 +160,11 @@ ibuf_bitmap_page(
 	ut_ad(ut_is_2pow(zip_size));
 
 	if (!zip_size) {
-		return(UNIV_UNLIKELY((page_no & (UNIV_PAGE_SIZE - 1))
-				     == FSP_IBUF_BITMAP_OFFSET));
+		return((page_no & (UNIV_PAGE_SIZE - 1))
+			== FSP_IBUF_BITMAP_OFFSET);
 	}
 
-	return(UNIV_UNLIKELY((page_no & (zip_size - 1))
-			     == FSP_IBUF_BITMAP_OFFSET));
+	return((page_no & (zip_size - 1)) == FSP_IBUF_BITMAP_OFFSET);
 }
 
 /*********************************************************************//**
@@ -260,9 +259,9 @@ ibuf_index_page_calc_free_zip(
 	zip_max_ins = page_zip_max_ins_size(page_zip,
 					    FALSE/* not clustered */);
 
-	if (UNIV_UNLIKELY(zip_max_ins < 0)) {
+	if (zip_max_ins < 0) {
 		return(0);
-	} else if (UNIV_LIKELY(max_ins_size > (ulint) zip_max_ins)) {
+	} else if (max_ins_size > (ulint) zip_max_ins) {
 		max_ins_size = (ulint) zip_max_ins;
 	}
 
