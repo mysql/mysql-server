@@ -82,8 +82,11 @@ ENDMACRO()
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
   SET(STLPORT_SUFFIX "lib/stlport4")
-  IF(CMAKE_CXX_FLAGS MATCHES "-m64")
+  IF(CMAKE_CXX_FLAGS MATCHES "-m64" AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
     SET(STLPORT_SUFFIX "lib/stlport4/v9")
+  ENDIF()
+  IF(CMAKE_CXX_FLAGS MATCHES "-m64" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    SET(STLPORT_SUFFIX "lib/stlport4/amd64")
   ENDIF()
 
   FIND_LIBRARY(STL_LIBRARY_NAME
@@ -94,7 +97,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   IF(STL_LIBRARY_NAME)
     DIRNAME(${STL_LIBRARY_NAME} STLPORT_PATH)
     # We re-distribute libstlport.so which is a symlink to libstlport.so.1
-    # There is no 'readlink' on solaris, sigh ..., so we use perl to find it:
+    # There is no 'readlink' on solaris, so we use perl to follow links:
     SET(PERLSCRIPT
       "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
     EXECUTE_PROCESS(
@@ -107,6 +110,9 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
             DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
     # Using the $ORIGIN token with the -R option to locate the libraries
     # on a path relative to the executable:
+    # We need an extra backslash to pass $ORIGIN to the mysql_config script...
+    SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${STLPORT_PATH}")
     SET(CMAKE_CXX_LINK_FLAGS
       "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${STLPORT_PATH}")
     MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")

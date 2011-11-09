@@ -7840,10 +7840,8 @@ ST_FIELD_INFO tablespaces_fields_info[]=
 };
 
 
-#ifdef OPTIMIZER_TRACE
 /** For creating fields of information_schema.OPTIMIZER_TRACE */
 extern ST_FIELD_INFO optimizer_trace_info[];
-#endif
 
 /*
   Description of ST_FIELD_INFO in table.h
@@ -7870,7 +7868,7 @@ ST_SCHEMA_TABLE schema_tables[]=
 #ifdef HAVE_EVENT_SCHEDULER
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
-#else
+#else // for alignment with enum_schema_tables
   {"EVENTS", events_fields_info, create_schema_table,
    0, make_old_format, 0, -1, -1, 0, 0},
 #endif
@@ -7887,8 +7885,10 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
 #ifdef OPTIMIZER_TRACE
   {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
-    fill_optimizer_trace_info, make_optimizer_trace_table_for_show,
-    NULL, -1, -1, false, 0},
+   fill_optimizer_trace_info, NULL, NULL, -1, -1, false, 0},
+#else // for alignment with enum_schema_tables
+  {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
+   NULL, NULL, NULL, -1, -1, false, 0},
 #endif
   {"PARAMETERS", parameters_fields_info, create_schema_table,
    fill_schema_proc, 0, 0, -1, -1, 0, 0},
