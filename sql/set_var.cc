@@ -77,10 +77,8 @@ error:
   DBUG_RETURN(1);
 }
 
-int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
+int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags)
 {
-  uint saved_elements= long_options->elements;
-
   DBUG_ENTER("sys_var_add_options");
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
@@ -93,7 +91,6 @@ int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
 
 error:
   fprintf(stderr, "failed to initialize System variables");
-  long_options->elements= saved_elements;
   DBUG_RETURN(1);
 }
 

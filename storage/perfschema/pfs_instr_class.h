@@ -82,20 +82,18 @@ enum PFS_class_type
 /** User-defined instrument configuration. */
 struct PFS_instr_init
 {
-  /* Instrument name */
+  /* Instrument name. */
   char *m_name;
-  /* Name length */
+  /* Name length. */
   uint m_name_length;
-  /* Instrument option value: ON, OFF, TIMED */
+  /* Instrument option value: ON, OFF, TIMED. */
   char *m_value;
-  /* Value length */
+  /* Value length. */
   uint m_value_length;
   /** Enabled flag. */
   bool m_enabled;
   /** Timed flag. */
   bool m_timed;
-  /** True if value has been applied*/
-  bool m_set;
 };
 
 extern DYNAMIC_ARRAY pfs_instr_init_array;

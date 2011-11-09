@@ -198,40 +198,34 @@ void init_pfs_instrument_array()
 
 /**
   Process one PFS_INSTRUMENT configuration string. Isolate the instrument name,
-  evaluate the option value, and store both in a dynamic array.
+  evaluate the option value, and store them in a dynamic array.
 */
-bool add_pfs_instr_to_array(const char* instr_arg)
+bool add_pfs_instr_to_array(const char* name, const char* value)
 {
-  const char* eq = strchr(instr_arg, '=');
-  if (!eq) return 1;
-  int arg_len= strlen(instr_arg);
-  int name_length= eq - instr_arg;      /* instrument name without '=' */
-  int value_length= arg_len - name_length - 1;
-  if (value_length <= 0) return 1;      /* option value required */
-    
-  /* Allocate structure plus string buffer plus null terminator */
+  int name_length= strlen(name);
+  int value_length= strlen(value);
+
+  /* Allocate structure plus string buffers plus null terminators */
   PFS_instr_init* e = (PFS_instr_init*)my_malloc(sizeof(PFS_instr_init)
-                       + arg_len + 1, MYF(MY_WME));
+                       + name_length + 1 + value_length + 1, MYF(MY_WME));
   if (!e) return 1;
   
-  /* Copy the entire argument string into the string buffer */
+  /* Copy the name string */
   e->m_name= (char*)e + sizeof(PFS_instr_init);
-  memcpy(e->m_name, instr_arg, arg_len);
+  memcpy(e->m_name, name, name_length);
   e->m_name_length= name_length;
+  e->m_name[name_length]= '\0';
   
-  /* Process the option value */
-  e->m_value= e->m_name + e->m_name_length + 1; /* one char past the '=' */
+  /* Copy the option string */
+  e->m_value= e->m_name + name_length + 1;
+  memcpy(e->m_value, value, value_length);
   e->m_value_length= value_length;
+  e->m_value[value_length]= '\0';
 
-  /* Set null terminators */
-  e->m_name[e->m_name_length]= '\0'; /* zap '=' */
-  e->m_value[e->m_value_length]= '\0';
-  
-  /* Set flags accordingly */
   e->m_enabled= true;
   e->m_timed= true;
-  e->m_set= false;
 
+  /* Set flags accordingly */
   if (!my_strcasecmp(&my_charset_latin1, e->m_value, "counted"))
   {
     e->m_enabled= true;
