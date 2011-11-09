@@ -1,4 +1,4 @@
-#!/bin/bash
+\#!/bin/bash
 
 # build.check.bash --revision=10500
 # build.check.bash --tokudb=tokudb.1489 --revision=10500
@@ -158,11 +158,11 @@ function build() {
 
     # get some config info
     uname -a >>$tracefile 2>&1
+    ulimit -a >>$tracefile 2>&1
     $CC -v >>$tracefile 2>&1
     $CXX -v >>$tracefile 2>&1
-    if [ -f /proc/version ] ; then
-	cat /proc/version >>$tracefile
-    fi
+    cat /proc/version >>$tracefile 2>&1
+    cat /proc/cpuinfo >>$tracefile 2>&1
     env >>$tracefile 2>&1
 
     # checkout the source dir
@@ -197,8 +197,13 @@ function build() {
     runcmd 0 $productbuilddir/src/lock_tree/tests  make check -k -j$makejobs -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
     # src/tests
+    runcmd 0 $productbuilddir/src/tests make tests.bdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/tests make tests.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/tests make check_drd -j$makejobs -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
+
+    # upgrade tests
+    runcmd 0 $productbuilddir/src/tests make upgrade-test-4-valgrind.tdbrun -k -s SUMMARIZE=1 DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
 
     # benchmark tests
     runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs DEBUG=1 CC=icc HAVE_CILK=0 >>$tracefile 2>&1
