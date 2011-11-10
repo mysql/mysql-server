@@ -3104,8 +3104,6 @@ class Ndb_schema_event_handler {
         THD* thd= m_thd; // Code compatibility
         Thd_ndb *thd_ndb= get_thd_ndb(thd);
         Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-
-        int post_epoch_unlock= 0;
  
         switch (schema_type)
         {
@@ -3212,11 +3210,8 @@ class Ndb_schema_event_handler {
         DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
         if (bitmap_is_set(&schema->slock, own_nodeid()))
         {
-          if (post_epoch_unlock)
-            unlock_after_epoch(schema);
-          else
-            ack_schema_op(schema->db, schema->name,
-                          schema->id, schema->version);
+          ack_schema_op(schema->db, schema->name,
+                        schema->id, schema->version);
         }
       }
     }
