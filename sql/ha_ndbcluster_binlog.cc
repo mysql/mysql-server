@@ -3004,6 +3004,45 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
+
+  void
+  handle_drop_db(Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_drop_db");
+
+    assert(is_post_epoch()); // Always after epoch
+
+    if (schema->node_id == own_nodeid())
+      DBUG_VOID_RETURN;
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
+    // Set NO_LOCK_SCHEMA_OP before 'check_if_local_tables_indb'
+    // until ndbcluster_find_files does not take GSL
+    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+
+    if (check_if_local_tables_in_db(schema->db))
+    {
+      /* Tables exists as a local table, print error and leave it */
+      sql_print_error("NDB Binlog: Skipping drop database '%s' since "
+                      "it contained local tables "
+                      "binlog schema event '%s' from node %d. ",
+                      schema->db, schema->query,
+                      schema->node_id);
+      DBUG_VOID_RETURN;
+    }
+
+    const int no_print_error[1]= {0};
+    run_query(m_thd, schema->query,
+              schema->query + schema->query_length,
+              no_print_error);
+
+    DBUG_VOID_RETURN;
+  }
+
+
   int
   handle_schema_op(Ndb_schema_op* schema)
   {
@@ -3051,6 +3090,7 @@ class Ndb_schema_event_handler {
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
       case SOT_RENAME_TABLE:
       case SOT_DROP_TABLE:
+      case SOT_DROP_DB:
         log_after_epoch(schema);
         unlock_after_epoch(schema);
         DBUG_RETURN(0);
@@ -3115,31 +3155,6 @@ class Ndb_schema_event_handler {
           write_schema_op_to_binlog(thd, schema);
           break;
 
-        case SOT_DROP_DB:
-          /* Drop the database locally if it only contains ndb tables */
-          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-          if (!check_if_local_tables_in_db(schema->db))
-          {
-            const int no_print_error[1]= {0};
-            run_query(thd, schema->query,
-                      schema->query + schema->query_length,
-                      no_print_error);
-            /* binlog dropping database after any table operations */
-            log_after_epoch(schema);
-            /* acknowledge this query _after_ epoch completion */
-            post_epoch_unlock= 1;
-          }
-          else
-          {
-            /* Database contained local tables, leave it */
-            sql_print_error("NDB Binlog: Skipping drop database '%s' since it contained local tables "
-                            "binlog schema event '%s' from node %d. ",
-                            schema->db, schema->query,
-                            schema->node_id);
-            write_schema_op_to_binlog(thd, schema);
-          }
-          break;
-
         case SOT_CREATE_DB:
         case SOT_ALTER_DB:
         {
@@ -3185,6 +3200,7 @@ class Ndb_schema_event_handler {
         case SOT_CLEAR_SLOCK:
         case SOT_RENAME_TABLE:
         case SOT_DROP_TABLE:
+        case SOT_DROP_DB:
           // Impossible to come here, the above types has already
           // been handled and caused the function to return 
           abort();
@@ -3232,7 +3248,7 @@ class Ndb_schema_event_handler {
         break;
 
       case SOT_DROP_DB:
-        write_schema_op_to_binlog(thd, schema);
+        handle_drop_db(schema);
         break;
 
       case SOT_DROP_TABLE:
