@@ -4542,15 +4542,16 @@ class Ugid_log_event : public Ignorable_log_event {
 public:
 #ifndef MYSQL_CLIENT
   Ugid_log_event(THD* thd_arg);
-  Ugid_log_event(THD* thd_arg, uchar type_arg, char* ugid_arg,
-                 uchar flags_arg, uint64 group_size_arg);
+  Ugid_log_event(THD* thd_arg, 
+                 const uchar *sid_arg, int64 gno_arg,
+                 uint64 group_size_arg);
 #endif
 
 #ifndef MYSQL_CLIENT
   void pack_info(Protocol*);
 #endif
 
-  Ugid_log_event(const char *buf, uint event_len,
+  Ugid_log_event(const char *buffer, uint event_len,
                  const Format_description_log_event *descr_event);
 
   virtual ~Ugid_log_event();
@@ -4559,9 +4560,10 @@ public:
 
   int get_data_size()
   {
-    return UGID_TYPE_INFO_LEN + UGID_FLAGS_INFO_LEN +
-           GROUP_SIZE_INFO_LEN + THREAD_ID_INFO_LEN +
-           UGID_SIZE_INFO_LEN + NAME_LEN;
+    return 
+           UGID_SID_INFO_LEN + UGID_GNO_INFO_LEN +
+           UGID_TYPE_INFO_LEN + UGID_FLAGS_INFO_LEN +
+           GROUP_SIZE_INFO_LEN + THREAD_ID_INFO_LEN;
   }
 
 #ifdef MYSQL_CLIENT
@@ -4576,11 +4578,11 @@ public:
   int do_apply_event(Relay_log_info const *rli);
 #endif
 
-  bool starts_group() { return false; }
-
   uchar get_ugid_type() const;
 
-  const char* get_ugid() const;
+  const uchar* get_ugid_sid() const;
+
+  int64 get_ugid_gno() const;
 
   uchar get_ugid_flags() const;
 
@@ -4588,7 +4590,9 @@ public:
 
   uint32 get_thread_id() const;
 
-  const char* get_db();
+  static const int UGID_SID_INFO_LEN= 16;
+
+  static const int UGID_GNO_INFO_LEN= 8;
 
   static const int UGID_TYPE_INFO_LEN= 1;
 
@@ -4598,27 +4602,20 @@ public:
 
   static const int THREAD_ID_INFO_LEN= 4;
 
-  static const int UGID_SIZE_INFO_LEN= 64;
+  static const int UGID_STRING_INFO_LEN= 256;
 
 private:
+  uchar sid[UGID_SID_INFO_LEN];
+
+  int64 gno;
+
   uchar ugid_type;
 
-  /*
-    This is a temporary solution until I understand Sven's
-    code. This will be stored as two distinct integer or
-    similar to integer fields.
-
-    /Alfranio
-  */
-  char ugid[UGID_SIZE_INFO_LEN];
-  
   uchar ugid_flags;
 
   uint64 group_size;
 
   uint32 thread_id;
-
-  char db[NAME_LEN];
 };
 #endif
 

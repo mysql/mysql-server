@@ -669,6 +669,7 @@ struct Uuid
     @retval 36 - the length of the resulting string.
   */
   size_t to_string(char *buf) const;
+  size_t to_string(const uchar* bytes_arg, char *buf) const;
 #ifndef DBUG_OFF
   void print() const
   {
@@ -2565,11 +2566,6 @@ public:
   }
 #endif
 
-private:
-
-  /// List of all subgroups in this cache, of type Cached_subgroup.
-  DYNAMIC_ARRAY subgroups;
-
   /**
     Returns a pointer to the given subgroup.  The pointer is only
     valid until the next time a sub-group is added or removed.
@@ -2581,6 +2577,11 @@ private:
     DBUG_ASSERT(index >= 0 && index < get_n_subgroups());
     return dynamic_element(&subgroups, index, Cached_subgroup *);
   }
+
+private:
+  /// List of all subgroups in this cache, of type Cached_subgroup.
+  DYNAMIC_ARRAY subgroups;
+
   /**
     Adds the given sub-group to this group cache, or merges it with the
     last existing sub-group in the cache if they are compatible.

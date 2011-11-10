@@ -642,7 +642,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case INCIDENT_EVENT: return "Incident";
   case IGNORABLE_LOG_EVENT: return "Ignorable";
   case ROWS_QUERY_LOG_EVENT: return "Rows_query";
-  case UGID_LOG_EVENT: return "Ugid_log_event";
+  case UGID_LOG_EVENT: return "Ugid";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -11518,9 +11518,9 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
 #endif
 
 #ifdef HAVE_UGID
-Ugid_log_event::Ugid_log_event(const char *buf, uint event_len,
+Ugid_log_event::Ugid_log_event(const char *buffer, uint event_len,
                                const Format_description_log_event *descr_event)
-  : Ignorable_log_event(buf, descr_event)
+  : Ignorable_log_event(buffer, descr_event)
 {
   DBUG_ENTER("Ugid_log_event::Ugid_log_event");
   uint8 const common_header_len=
@@ -11531,63 +11531,48 @@ Ugid_log_event::Ugid_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
-  char const *ptr= buf + common_header_len;
-  char const *const str_end= buf + event_len;
+  char const *ptr_buffer= buffer + common_header_len;
+  char const *str_end= buffer + event_len;
 
-  ugid_type= *ptr;
-  ptr+= UGID_TYPE_INFO_LEN;  
+  ugid_type= *ptr_buffer;
+  ptr_buffer+= UGID_TYPE_INFO_LEN;  
 
-  ugid_flags= *ptr;
-  ptr+= UGID_FLAGS_INFO_LEN;
+  ugid_flags= *ptr_buffer;
+  ptr_buffer+= UGID_FLAGS_INFO_LEN;
 
-  group_size= uint8korr(ptr);
-  ptr+= GROUP_SIZE_INFO_LEN;
+  group_size= uint8korr(ptr_buffer);
+  ptr_buffer+= GROUP_SIZE_INFO_LEN;
 
-  thread_id= uint4korr(ptr);
-  ptr+= THREAD_ID_INFO_LEN;
+  thread_id= uint4korr(ptr_buffer);
+  ptr_buffer+= THREAD_ID_INFO_LEN;
 
-  /*
-    This constructs a null-terminated string: db.
-  */
-  strncpy(db, ptr, sizeof(db));
-  ptr+= sizeof(db);
+  memcpy(sid, ptr_buffer, UGID_SID_INFO_LEN);
+  ptr_buffer+= UGID_SID_INFO_LEN;
 
-  /*
-    This constructs a null-terminated string: ugid.
-  */
-  strncpy(ugid, ptr, sizeof(ugid));
-  ptr+= sizeof(ugid);
+  gno= uint8korr(ptr_buffer);
+  ptr_buffer+= UGID_GNO_INFO_LEN;
 
-  DBUG_ASSERT(str_end == (char *) ptr);
+  DBUG_ASSERT(str_end == (char *) ptr_buffer);
 
   DBUG_VOID_RETURN;
 }
 
 #ifndef MYSQL_CLIENT
 Ugid_log_event::Ugid_log_event(THD* thd_arg)
-: Ignorable_log_event(thd_arg), ugid_type(0),
-  ugid_flags(0), group_size(0), thread_id(0)
+: Ignorable_log_event(thd_arg), gno(0),
+  ugid_type(0), ugid_flags(0),
+  group_size(0), thread_id(0)
 {
-  ugid[0]= 0;
-  db[0]= 0;
+  memset(sid, 0, UGID_SID_INFO_LEN);
 }
 
-Ugid_log_event::Ugid_log_event(THD* thd_arg, uchar ugid_type_arg,
-                               char* ugid_arg, uchar ugid_flags_arg,
-                               uint64 group_size_arg)
-: Ignorable_log_event(thd_arg), ugid_type(ugid_type_arg),
-  ugid_flags(ugid_flags_arg), group_size(group_size_arg),
-  thread_id(thd_arg->thread_id)
+Ugid_log_event::Ugid_log_event(THD* thd_arg, const uchar* sid_arg,
+                               int64 gno_arg, uint64 group_size_arg)
+: Ignorable_log_event(thd_arg), gno(gno_arg),
+  ugid_type(1), ugid_flags(1),
+  group_size(group_size_arg), thread_id(thd_arg->thread_id)
 {
-  /*
-    This is expecting null-terminated strings whose size
-    cannot be greater than ugid or db respectively.
-  */
-  strncpy(ugid, ugid_arg, sizeof(ugid));
-  if (thd->db)
-    strncpy(db, thd->db, sizeof(db));
-  else
-    db[0]= 0;
+  memcpy(sid, sid_arg, UGID_SID_INFO_LEN);
 }
 #endif
 
@@ -11598,23 +11583,20 @@ Ugid_log_event::~Ugid_log_event()
 #ifndef MYSQL_CLIENT
 void Ugid_log_event::pack_info(Protocol *protocol)
 {
-  char buffer[120 + UGID_SIZE_INFO_LEN + NAME_LEN];
-  char *ptr= buffer;
+  size_t size= 0;
+  rpl_sid sid_decode;
+  char buffer[UGID_STRING_INFO_LEN];
+  char *ptr_buffer= buffer;
+  
+  ptr_buffer= strmov(ptr_buffer, "SET @@SESSION.UGID_NEXT= '");
 
-  if (db[0])
-  {
-    size_t db_len= strlen(db);
-    ptr= strmov(buffer, "use `");
-    memcpy(ptr, db, db_len);
-    ptr= strmov(ptr + db_len, "`; ");
-  }
+  size= sid_decode.to_string(sid, ptr_buffer);
+  ptr_buffer+= size;
 
-  size_t ugid_len= strlen(ugid);
-  ptr= strmov(ptr, "SET @@SESSION.UGID_NEXT= '");
-  memcpy(ptr, ugid, ugid_len);
-  ptr= strmov(ptr + ugid_len, "';");
+  size= sprintf(ptr_buffer, ":%lld';", gno);
+  ptr_buffer+= size;
 
-  protocol->store(buffer, ptr - buffer, &my_charset_bin);
+  protocol->store(buffer, ptr_buffer - buffer, &my_charset_bin);
 }
 #endif
 
@@ -11623,26 +11605,25 @@ void
 Ugid_log_event::print(FILE *file,
                       PRINT_EVENT_INFO *print_event_info)
 {
-  int different_db= 0;
+  size_t size= 0;
+  rpl_sid sid_decode;
+  char buffer[UGID_STRING_INFO_LEN];
+  char* ptr_buffer= buffer;
   IO_CACHE *const head= &print_event_info->head_cache;
  
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tUgid\tthread_id=%lu\n", (ulong) thread_id);
+    my_b_printf(head, "\tugid\tthread_id=%lu\n", (ulong) thread_id);
   }
+  
+  size= sprintf(ptr_buffer, "'");
+  ptr_buffer+= size;
+  size= sid_decode.to_string(sid, ptr_buffer);
+  ptr_buffer+= size;
+  size= sprintf(ptr_buffer, ":%lld';", gno);
 
-  if (db && db[0])
-  {
-    size_t db_len= strlen(db);
-    different_db= memcmp(print_event_info->db, db, db_len + 1);
-    if (different_db)
-      memcpy(print_event_info->db, db, db_len + 1);
-    if (different_db)
-      my_b_printf(head, "use %s%s\n", db, print_event_info->delimiter);
-  }
-
-  my_b_printf(head, "SET @@SESSION.UGID_NEXT= '%s'%s\n", ugid,
+  my_b_printf(head, "SET @@SESSION.UGID_NEXT= %s%s\n", buffer,
               print_event_info->delimiter);
 }
 #endif
@@ -11667,6 +11648,7 @@ bool Ugid_log_event::write_data_header(IO_CACHE *file)
   int4store(ptr_buffer, thread_id);
   ptr_buffer+= THREAD_ID_INFO_LEN;
 
+  DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
 #ifndef MYSQL_CLIENT
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
 #else
@@ -11677,13 +11659,20 @@ bool Ugid_log_event::write_data_header(IO_CACHE *file)
 bool Ugid_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Ugid_log_event::write_data_body");
+  char buffer[UGID_SID_INFO_LEN + UGID_GNO_INFO_LEN];
+  char* ptr_buffer= buffer;
 
+  memcpy(ptr_buffer, sid, UGID_SID_INFO_LEN);
+  ptr_buffer+= UGID_SID_INFO_LEN;
+
+  int8store(ptr_buffer, gno);
+  ptr_buffer+= UGID_GNO_INFO_LEN;
+
+  DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
 #ifndef MYSQL_CLIENT
-  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar* ) db, sizeof(db)) ||
-              wrapper_my_b_safe_write(file, (uchar* ) ugid, sizeof(ugid)));
+  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
 #else
-   DBUG_RETURN(my_b_safe_write(file, (uchar* ) db, sizeof(db)) ||
-               my_b_safe_write(file, (uchar* ) ugid, sizeof(ugid)));
+   DBUG_RETURN(my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
 #endif
 }
 #endif
@@ -11694,18 +11683,23 @@ int Ugid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Ugid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
+  size_t size= 0;
+  rpl_sid sid_decode;
+  char buffer[UGID_STRING_INFO_LEN];
+  char* ptr_buffer= buffer;
+
+  size= sid_decode.to_string(sid, ptr_buffer);
+  ptr_buffer+= size;
+  size= sprintf(ptr_buffer, ":%lld", gno);
+
   mysql_bin_log.sid_lock.rdlock();
-  if (thd->variables.ugid_next.parse(ugid) != RETURN_STATUS_OK)
+  if (thd->variables.ugid_next.parse(buffer) != RETURN_STATUS_OK)
   {
     mysql_bin_log.sid_lock.unlock();
     DBUG_RETURN(1);
   }
   mysql_bin_log.sid_lock.unlock();
-  /*
-    I need to talk with sven to figure out how to correctly
-    set up the parameters that follow and define assertions.
-  */
-  // thd->variables.ugid_next_list=
+
   thd->variables.ugid_has_ongoing_super_group= false;
   thd->variables.ugid_end= true;
   thd->variables.ugid_commit= true;
@@ -11718,9 +11712,14 @@ uchar Ugid_log_event::get_ugid_type() const
   return ugid_type;
 }
 
-const char* Ugid_log_event::get_ugid() const
+const uchar* Ugid_log_event::get_ugid_sid() const
 {
-  return ugid;
+  return sid;
+}
+
+int64 Ugid_log_event::get_ugid_gno() const
+{
+  return gno;
 }
 
 uchar Ugid_log_event::get_ugid_flags() const
@@ -11731,11 +11730,6 @@ uchar Ugid_log_event::get_ugid_flags() const
 uint64 Ugid_log_event::get_group_size() const
 {
   return group_size;
-}
-
-const char* Ugid_log_event::get_db()
-{
-  return db;
 }
 
 uint32 Ugid_log_event::get_thread_id() const
