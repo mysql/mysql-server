@@ -1220,7 +1220,7 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",
        "Log some not critical warnings to the log file",
-       SESSION_VAR(log_warnings),
+       GLOBAL_VAR(log_warnings),
        CMD_LINE(OPT_ARG, 'W'),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
 

@@ -360,7 +360,7 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_warning("Unknown error detected %d in handler", error);
   }
 
@@ -8898,7 +8898,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
         if (idempotent_error || ignored_error)
         {
-          if (global_system_variables.log_warnings)
+          if (log_warnings)
             slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                     get_type_str(),
                                     const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
@@ -8977,7 +8977,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         ignored_error_code(convert_handler_error(error, thd, table)))
     {
 
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
