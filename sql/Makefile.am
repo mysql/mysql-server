@@ -64,6 +64,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_ndb_index_stat.h \
                         ndb_mi.h \
 			ndb_conflict_trans.h \
+                        ndb_component.h \
+                        ndb_util_thread.h \
 			ha_partition.h rpl_constants.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
