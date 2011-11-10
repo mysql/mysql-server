@@ -8038,7 +8038,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track 
       failed connections.
     */
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
     {
       sql_print_warning(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                         mpvio->auth_info.user_name,
@@ -8060,7 +8060,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track 
       failed connections.
     */
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
     {
       sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
                         mpvio->auth_info.user_name,
@@ -9162,7 +9162,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->ssl_cipher, SSL_get_cipher(ssl)));
       if (strcmp(acl_user->ssl_cipher, SSL_get_cipher(ssl)))
       {
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
                             acl_user->ssl_cipher, SSL_get_cipher(ssl));
         return 1;
@@ -9179,7 +9179,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_issuer, ptr));
       if (strcmp(acl_user->x509_issuer, ptr))
       {
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("X509 issuer mismatch: should be '%s' "
                             "but is '%s'", acl_user->x509_issuer, ptr);
         free(ptr);
@@ -9196,7 +9196,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
                          acl_user->x509_subject, ptr));
       if (strcmp(acl_user->x509_subject, ptr))
       {
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                           acl_user->x509_subject, ptr);
         free(ptr);

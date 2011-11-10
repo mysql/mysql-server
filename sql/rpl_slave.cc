@@ -3279,7 +3279,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
 {
   if (io_slave_killed(thd, mi))
   {
-    if (info && global_system_variables.log_warnings)
+    if (info && log_warnings)
       sql_print_information("%s", info);
     return TRUE;
   }
@@ -3354,7 +3354,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   }
   if (safe_reconnect(thd, mysql, mi, 1) || io_slave_killed(thd, mi))
   {
-    if (global_system_variables.log_warnings)
+    if (log_warnings)
       sql_print_information("%s", messages[SLAVE_RECON_MSG_KILLED_AFTER]);
     return 1;
   }
@@ -3889,7 +3889,7 @@ pthread_handler_t handle_slave_worker(void *arg)
   mysql_mutex_lock(&w->jobs_lock);
 
   w->running_status= Slave_worker::NOT_RUNNING;
-  if (global_system_variables.log_warnings > 1)
+  if (log_warnings > 1)
     sql_print_information("Worker %lu statistics: "
                           "events processed = %lu "
                           "hungry waits = %lu "
@@ -4541,7 +4541,7 @@ void slave_stop_workers(Relay_log_info *rli)
 
     mysql_mutex_unlock(&w->jobs_lock);
 
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
       sql_print_information("Notifying Worker %lu to exit, thd %p", w->id,
                             w->info_thd);
   }
@@ -4575,7 +4575,7 @@ void slave_stop_workers(Relay_log_info *rli)
     delete w;
   }
 
-  if (global_system_variables.log_warnings > 1)
+  if (log_warnings > 1)
     sql_print_information("Multi-threaded slave statistics: "
                           "events processed = %lu ;"
                           "worker queues filled over overrun level = %lu ;"
@@ -4758,7 +4758,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
                             rli->get_group_master_log_name(),
                             llstr(rli->get_group_master_log_pos(),llbuff)));
-  if (global_system_variables.log_warnings)
+  if (log_warnings)
     sql_print_information("Slave SQL thread initialized, starting replication in \
 log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
                     llstr(rli->get_group_master_log_pos(),llbuff),rli->get_group_relay_log_name(),
@@ -5886,7 +5886,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     mi->clear_error(); // clear possible left over reconnect error
     if (reconnect)
     {
-      if (!suppress_warnings && global_system_variables.log_warnings)
+      if (!suppress_warnings && log_warnings)
         sql_print_information("Slave: connected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", mi->user,
                         mi->host, mi->port,
@@ -6420,7 +6420,7 @@ static Log_event* next_event(Relay_log_info* rli)
       if (rli->relay_log.is_active(rli->linfo.log_file_name))
       {
 #ifdef EXTRA_DEBUG
-        if (global_system_variables.log_warnings)
+        if (log_warnings)
           sql_print_information("next log '%s' is currently active",
                                 rli->linfo.log_file_name);
 #endif
@@ -6507,7 +6507,7 @@ static Log_event* next_event(Relay_log_info* rli)
         from hot to cold, but not from cold to hot). No need for LOCK_log.
       */
 #ifdef EXTRA_DEBUG
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_information("next log '%s' is not active",
                               rli->linfo.log_file_name);
 #endif
@@ -6534,7 +6534,7 @@ event(errno: %d  cur_log->error: %d)",
       break;                                    // To end of function
     }
   }
-  if (!errmsg && global_system_variables.log_warnings)
+  if (!errmsg && log_warnings)
   {
     sql_print_information("Error reading relay log event: %s",
                           "slave SQL thread was killed");

@@ -3493,7 +3493,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   */
   if (disable_plugin)
   {
-    if (global_system_variables.log_warnings)
+    if (log_warnings)
       sql_print_information("Plugin '%s' is disabled.",
                             tmp->name.str);
     if (opts)
