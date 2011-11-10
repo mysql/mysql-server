@@ -14409,9 +14409,9 @@ multi_range_put_custom(HANDLER_BUFFER *buffer, int range_no, char *custom)
 */
 static my_bool
 read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type, const KEY *key_info,
-                      const KEY_MULTI_RANGE *r)
+                      const KEY_MULTI_RANGE *r, bool is_pushed)
 {
-  if (cur_index_type == ORDERED_INDEX)
+  if (cur_index_type == ORDERED_INDEX || is_pushed)
     return TRUE;
   if (cur_index_type == PRIMARY_KEY_INDEX ||
       cur_index_type == UNIQUE_INDEX)
@@ -14445,116 +14445,45 @@ read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type, const KEY *key_info,
 ha_rows 
 ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                            void *seq_init_param, 
-                                           uint n_ranges_arg, uint *bufsz,
+                                           uint n_ranges, uint *bufsz,
                                            uint *flags, COST_VECT *cost)
 {
-  KEY_MULTI_RANGE range;
-  range_seq_t seq_it;
-  ha_rows rows, total_rows= 0;
-  uint n_ranges=0;
-  bool null_ranges= FALSE;
-  THD *thd= current_thd;
-  NDB_INDEX_TYPE key_type= get_index_type(keyno);
-  KEY* key_info= table->key_info + keyno;
-  ulong reclength= table_share->reclength;
-  ulong total_bufsize;
-  uint save_bufsize= *bufsz;
+  ha_rows rows;
+  uint def_flags= *flags;
+  uint def_bufsz= *bufsz;
+
   DBUG_ENTER("ha_ndbcluster::multi_range_read_info_const");
 
-  total_bufsize= multi_range_fixed_size(n_ranges_arg);
-
-  seq_it= seq->init(seq_init_param, n_ranges, *flags);
-  while (!seq->next(seq_it, &range))
+  /* Get cost/flags/mem_usage of default MRR implementation */
+  rows= handler::multi_range_read_info_const(keyno, seq, seq_init_param,
+                                             n_ranges, &def_bufsz, 
+                                             &def_flags, cost);
+  if (unlikely(rows == HA_POS_ERROR))
   {
-    if (unlikely(thd->killed != 0))
-      DBUG_RETURN(HA_POS_ERROR);
-    
-    n_ranges++;
-    key_range *min_endp= range.start_key.length? &range.start_key : NULL;
-    key_range *max_endp= range.end_key.length? &range.end_key : NULL;
-    null_ranges|= (range.range_flag & NULL_RANGE);
-    if ((range.range_flag & UNIQUE_RANGE) && !(range.range_flag & NULL_RANGE))
-      rows= 1; /* there can be at most one row */
-    else
-    {
-      if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
-                                                        max_endp)))
-      {
-        /* Can't scan one range => can't do MRR scan at all */
-        total_rows= HA_POS_ERROR;
-        break;
-      }
-    }
-    total_rows+= rows;
-    total_bufsize+=
-      multi_range_max_entry((read_multi_needs_scan(key_type, key_info, &range) ?
-                             ORDERED_INDEX :
-                             UNIQUE_INDEX),
-                            reclength);
+    DBUG_RETURN(rows);
   }
 
-  if (total_rows != HA_POS_ERROR)
+  /*
+    If HA_MRR_USE_DEFAULT_IMPL has been passed to us, that is
+    an order to use the default MRR implementation.
+    Otherwise, make a choice based on requested *flags, handler
+    capabilities, cost and mrr* flags of @@optimizer_switch.
+  */
+  if ((*flags & HA_MRR_USE_DEFAULT_IMPL) ||
+      choose_mrr_impl(keyno, n_ranges, rows, bufsz, flags, cost))
   {
-    if (uses_blob_value(table->read_set) ||
-        ((get_index_type(keyno) ==  UNIQUE_INDEX &&
-         has_null_in_unique_index(keyno)) && null_ranges))
-    {
-      /* Use default MRR implementation */
-      *flags|= HA_MRR_USE_DEFAULT_IMPL;
-      *flags|= HA_MRR_SUPPORT_SORTED;
-      *bufsz= 0;
-    }
-    else
-    {
-      total_bufsize+= multi_range_fixed_size(total_rows);
-
-      DBUG_PRINT("info", ("MRR bufsize suggested=%u want=%lu limit=%d",
-                          save_bufsize, total_bufsize,
-                          (*flags & HA_MRR_LIMITS) != 0));
-
-      if (unlikely(total_bufsize > (ulong)UINT_MAX))
-        total_bufsize= (ulong)UINT_MAX;
-
-      /* 
-        We'll be most efficient when we have buffer big enough to accomodate
-        all ranges. But we need at least sufficient buffer for one range to
-        do MRR at all.
-      */
-      uint entry_size= multi_range_max_entry(key_type, reclength);
-      uint min_total_size= entry_size + multi_range_fixed_size(1);
-      if (save_bufsize < min_total_size)
-      {
-        if(*flags & HA_MRR_LIMITS)
-        {
-          /* Too small buffer limit to do MRR. */
-          *flags|= HA_MRR_USE_DEFAULT_IMPL;
-          *flags|= HA_MRR_SUPPORT_SORTED;
-          *bufsz= 0;
-        }
-        else
-        {
-          *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
-          *flags|= HA_MRR_SUPPORT_SORTED;
-          *bufsz= min_total_size;
-        }
-      }
-      else
-      {
-        *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
-        *flags|= HA_MRR_SUPPORT_SORTED;
-        *bufsz= min(save_bufsize, total_bufsize);
-      }
-    }
-    DBUG_PRINT("info", ("MRR bufsize set to %u", *bufsz));
-    cost->zero();
-    cost->avg_io_cost= 1; /* assume random seeks */
-    if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
-      cost->io_count= index_only_read_time(keyno, total_rows);
-    else
-      cost->io_count= read_time(keyno, n_ranges, total_rows);
-    cost->cpu_cost= total_rows * ROW_EVALUATE_COST + 0.01;
+    DBUG_PRINT("info", ("Default MRR implementation choosen"));
+    *flags= def_flags;
+    *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
-  DBUG_RETURN(total_rows);
+  else
+  {
+    /* *flags and *bufsz were set by choose_mrr_impl */
+    DBUG_PRINT("info", ("NDB-MRR implementation choosen"));
+    DBUG_ASSERT(!(*flags & HA_MRR_USE_DEFAULT_IMPL));
+  }
+  DBUG_RETURN(rows);
 }
 
 
@@ -14566,61 +14495,164 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 */
 
 ha_rows 
-ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
                                      uint *bufsz, uint *flags, COST_VECT *cost)
 {
   ha_rows res;
-  uint save_bufsize= *bufsz;
+  uint def_flags= *flags;
+  uint def_bufsz= *bufsz;
+
   DBUG_ENTER("ha_ndbcluster::multi_range_read_info");
 
-  res= handler::multi_range_read_info(keyno, n_ranges, keys, bufsz, flags,
+  /* Get cost/flags/mem_usage of default MRR implementation */
+  res= handler::multi_range_read_info(keyno, n_ranges, n_rows, &def_bufsz, &def_flags,
                                       cost);
+  if (unlikely(res == HA_POS_ERROR))
+  {
+    /* Default implementation can't perform MRR scan => we can't either */
+    DBUG_RETURN(res);
+  }
+  DBUG_ASSERT(!res);
+
+  if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
+      choose_mrr_impl(keyno, n_ranges, n_rows, bufsz, flags, cost))
+  {
+    /* Default implementation is choosen */
+    DBUG_PRINT("info", ("Default MRR implementation choosen"));
+    *flags= def_flags;
+    *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
+  }
+  else
+  {
+    /* *flags and *bufsz were set by choose_mrr_impl */
+    DBUG_PRINT("info", ("NDB-MRR implementation choosen"));
+    DBUG_ASSERT(!(*flags & HA_MRR_USE_DEFAULT_IMPL));
+  }
+  DBUG_RETURN(res);
+}
+
+/**
+  Internals: Choose between Default MRR implementation and 
+                    native ha_ndbcluster MRR
+
+  Make the choice between using Default MRR implementation and ha_ndbcluster-MRR.
+  This function contains common functionality factored out of multi_range_read_info()
+  and multi_range_read_info_const(). The function assumes that the default MRR
+  implementation's applicability requirements are satisfied.
+
+  @param keyno       Index number
+  @param n_ranges    Number of ranges/keys (i.e. intervals) in the range sequence.
+  @param n_rows      E(full rows to be retrieved)
+  @param bufsz  OUT  If DS-MRR is choosen, buffer use of DS-MRR implementation
+                     else the value is not modified
+  @param flags  IN   MRR flags provided by the MRR user
+                OUT  If DS-MRR is choosen, flags of DS-MRR implementation
+                     else the value is not modified
+  @param cost   IN   Cost of default MRR implementation
+                OUT  If DS-MRR is choosen, cost of DS-MRR scan
+                     else the value is not modified
+
+  @retval TRUE   Default MRR implementation should be used
+  @retval FALSE  NDB-MRR implementation should be used
+*/
+
+bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
+                                    uint *bufsz, uint *flags, COST_VECT *cost)
+{
+  THD *thd= current_thd;
   NDB_INDEX_TYPE key_type= get_index_type(keyno);
+
   /* Disable MRR on blob read and on NULL lookup in unique index. */
-  if (uses_blob_value(table->read_set) ||
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+      uses_blob_value(table->read_set) ||
       ( key_type == UNIQUE_INDEX &&
         has_null_in_unique_index(keyno) &&
         !(*flags & HA_MRR_NO_NULL_ENDPOINTS)))
   {
-    *flags|= HA_MRR_USE_DEFAULT_IMPL;
-    *flags|= HA_MRR_SUPPORT_SORTED;
-    *bufsz= 0;
+    /* Use the default implementation, don't modify args: See comments  */
+    return true;
   }
-  else
+
+  /**
+   * Calculate *bufsz, fallback to default MRR if we can't allocate
+   * suffient buffer space for NDB-MRR
+   */
   {
+    uint save_bufsize= *bufsz;
     ulong reclength= table_share->reclength;
     uint entry_size= multi_range_max_entry(key_type, reclength);
     uint min_total_size= entry_size + multi_range_fixed_size(1);
     DBUG_PRINT("info", ("MRR bufsize suggested=%u want=%u limit=%d",
-                        save_bufsize, (keys + 1) * entry_size,
+                        save_bufsize, (uint)(n_rows + 1) * entry_size,
                         (*flags & HA_MRR_LIMITS) != 0));
     if (save_bufsize < min_total_size)
     {
-      if(*flags & HA_MRR_LIMITS)
+      if (*flags & HA_MRR_LIMITS)
       {
-        /* Too small buffer limit to do MRR. */
-        *flags|= HA_MRR_USE_DEFAULT_IMPL;
-        *flags|= HA_MRR_SUPPORT_SORTED;
-        *bufsz= 0;
+        /* Too small buffer limit for native NDB-MRR. */
+        return true;
       }
-      else
-      {
-        *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
-        *flags|= HA_MRR_SUPPORT_SORTED;
-        *bufsz= min_total_size;
-      }
+      *bufsz= min_total_size;
     }
     else
     {
-      *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
-      *flags|= HA_MRR_SUPPORT_SORTED;
+      uint max_ranges= (n_ranges > 0) ? n_ranges : MRR_MAX_RANGES;
       *bufsz= min(save_bufsize,
-                  keys * entry_size + multi_range_fixed_size(n_ranges));
+                  n_rows * entry_size + multi_range_fixed_size(max_ranges));
     }
     DBUG_PRINT("info", ("MRR bufsize set to %u", *bufsz));
   }
-  DBUG_RETURN(res);
+
+  /**
+   * Cost based MRR optimization is known to be incorrect.
+   * Disabled - always use NDB-MRR whenever possible
+   */
+if (false)
+{
+  /**
+   * FIXME: Cost calculation is a copy of current default-MRR 
+   *        cost calculation. (Which also is incorrect!)
+   * TODO:  We have to invent our own metrics for NDB-MRR.
+   */
+  COST_VECT mrr_cost;
+  mrr_cost.zero();
+  mrr_cost.avg_io_cost= 1; /* assume random seeks */
+  if ((*flags & HA_MRR_INDEX_ONLY) && n_rows > 2)
+    mrr_cost.io_count= index_only_read_time(keyno, n_rows);
+  else
+    mrr_cost.io_count= read_time(keyno, n_ranges, n_rows);
+  mrr_cost.cpu_cost= n_rows * ROW_EVALUATE_COST + 0.01;
+
+  bool force_mrr;
+  /* 
+    If @@optimizer_switch has "mrr" on and "mrr_cost_based" off, then set cost
+    of DS-MRR to be minimum of DS-MRR and Default implementations cost. This
+    allows one to force use of DS-MRR whenever it is applicable without
+    affecting other cost-based choices.
+  */
+  if ((force_mrr=
+       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) &&
+        !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))) &&
+      mrr_cost.total_cost() > cost->total_cost())
+  {
+    mrr_cost= *cost;
+  }
+  if (!force_mrr && mrr_cost.total_cost() > cost->total_cost())
+  {
+    /* Use the default MRR implementation */
+    return true;
+  }
+  *cost= mrr_cost;
+} // if (false)
+
+  /* Use the NDB-MRR implementation */
+  *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
+  *flags|= HA_MRR_SUPPORT_SORTED;
+
+  return false;
 }
+
 
 int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, 
                                          void *seq_init_param,
@@ -14704,7 +14736,14 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
   const NdbOperation *oplist[MRR_MAX_RANGES];
   uint num_keyops= 0;
   NdbTransaction *trans= m_thd_ndb->trans;
+  bool is_pushed= false;
   int error;
+
+#ifndef NDB_WITHOUT_JOIN_PUSHDOWN
+  is_pushed= check_if_pushable(NdbQueryOperationDef::OrderedIndexScan,
+                               active_index,
+                               !m_active_query && mrr_is_output_sorted);
+#endif
 
   DBUG_ENTER("multi_range_start_retrievals");
 
@@ -14746,7 +14785,8 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
   */
   uint min_entry_size=
     multi_range_entry_size(!read_multi_needs_scan(cur_index_type, key_info,
-                                                  &mrr_cur_range), reclength);
+                                                  &mrr_cur_range, is_pushed),
+                                                  reclength);
   ulong bufsize= end_of_buffer - multi_range_buffer->buffer;
   int max_range= multi_range_max_ranges(ranges_in_seq,
                                         bufsize - min_entry_size);
@@ -14768,10 +14808,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
     if (range_no >= max_range)
       break;
     my_bool need_scan=
-      read_multi_needs_scan(cur_index_type, key_info, &mrr_cur_range) ||
-      // Pushed joins restricted to ordered range scan in mrr
-      (m_pushed_join_operation==PUSHED_ROOT &&
-       m_pushed_join_member->get_query_def().isScanQuery());
+      read_multi_needs_scan(cur_index_type, key_info, &mrr_cur_range, is_pushed);
     if (row_buf + multi_range_entry_size(!need_scan, reclength) > end_of_buffer)
       break;
     if (need_scan)
@@ -14849,9 +14886,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
       
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
       /* Create the scan operation for the first scan range. */
-      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, 
-                            active_index,
-                            !m_active_query && mrr_is_output_sorted))
+      if (is_pushed)
       {
         DBUG_ASSERT(!m_read_before_write_removal_used);
         if (!m_active_query)

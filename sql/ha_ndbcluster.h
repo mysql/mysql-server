@@ -295,6 +295,11 @@ class ha_ndbcluster: public handler
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint *bufsz, uint *flags, COST_VECT *cost);
 private:
+  bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
+                       uint *bufsz, uint *flags,
+                       COST_VECT *cost);
+
+private:
   uint first_running_range;
   uint first_range_in_batch;
   uint first_unstarted_range;
