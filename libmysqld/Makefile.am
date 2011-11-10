@@ -49,7 +49,8 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	     ha_ndbcluster.cc ha_ndbcluster_cond.cc \
 	ha_ndbcluster_connection.cc ha_ndbinfo.cc \
 	ha_ndb_index_stat.cc \
-	ha_ndbcluster_binlog.cc ndb_conflict_trans.cc ha_partition.cc \
+	ha_ndbcluster_binlog.cc ndb_conflict_trans.cc ndb_component.cc \
+        ha_partition.cc \
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
