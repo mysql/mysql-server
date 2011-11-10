@@ -1617,8 +1617,6 @@ DROP TABLE t1, t2;
 #
 # Bug#13106350: MRR initialization on a derived table caused crash.
 #
-SET @save_switch= @@optimizer_switch;
-SET @@optimizer_switch="materialization=off";
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
 INSERT INTO t1 VALUES(7, 'seven'), (13, 'thirteen');
 CREATE TABLE t2 (pk INTEGER PRIMARY KEY, vc1 VARCHAR(20), vc2 VARCHAR(20));
@@ -1642,7 +1640,6 @@ SELECT t2.vc1
 FROM t2 JOIN t3 ON t2.vc2=t3.vc);
 vc
 seven
-SET @@optimizer_switch= @save_switch;
 DROP TABLE t1, t2, t3;
 #
 #

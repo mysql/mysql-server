@@ -980,8 +980,9 @@ DROP TABLE t1, t2;
 --echo # Bug#13106350: MRR initialization on a derived table caused crash.
 --echo #
 
-SET @save_switch= @@optimizer_switch;
-SET @@optimizer_switch="materialization=off";
+# IMPORTANT: Enable these switch settings when backporting is merged to trunk
+# SET @save_switch= @@optimizer_switch;
+# SET @@optimizer_switch="materialization=off";
 
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY, vc VARCHAR(20));
 
@@ -1004,7 +1005,7 @@ WHERE derived.vc IN (
 eval explain $query;
 eval $query;
 
-SET @@optimizer_switch= @save_switch;
+# SET @@optimizer_switch= @save_switch;
 
 DROP TABLE t1, t2, t3;
 
