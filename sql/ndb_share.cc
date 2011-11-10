@@ -20,6 +20,8 @@
 #include "ndb_dist_priv_util.h"
 #include "ha_ndbcluster_tables.h"
 
+#include <ndbapi/NdbEventOperation.hpp>
+
 #include <my_sys.h>
 
 extern Ndb* g_ndb;
@@ -39,10 +41,11 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   }
 #endif
   share->new_op= 0;
-  if (share->event_data)
+  Ndb_event_data* event_data = share->event_data;
+  if (event_data)
   {
-    delete share->event_data;
-    share->event_data= 0;
+    delete event_data;
+    event_data= 0;
   }
   free_root(&share->mem_root, MYF(0));
   my_free(share);
@@ -94,4 +97,53 @@ NDB_SHARE::need_events(bool default_on) const
 
   DBUG_PRINT("exit", ("no events(the default for this mysqld)"));
   DBUG_RETURN(false);
+}
+
+
+Ndb_event_data* NDB_SHARE::get_event_data_ptr() const
+{
+  if (event_data)
+  {
+    // The event_data pointer is only used before
+    // creating the NdbEventoperation -> check no op yet
+    assert(!op);
+
+    return event_data;
+  }
+
+  if (op)
+  {
+    // The event_data should now be empty since it's been moved to
+    // op's custom data
+    assert(!event_data);
+
+    // Check that op has custom data
+    assert(op->getCustomData());
+
+    return (Ndb_event_data*)op->getCustomData();
+  }
+
+  return NULL;
+}
+
+
+void NDB_SHARE::print(const char* where, FILE* file) const
+{
+  fprintf(file, "%s %s.%s: use_count: %u\n",
+          where, db, table_name, use_count);
+  fprintf(file, "  - key: '%s', key_length: %d\n", key, key_length);
+  fprintf(file, "  - commit_count: %llu\n", commit_count);
+  if (new_key)
+    fprintf(file, "  - new_key: %p, '%s'\n",
+            new_key, new_key);
+  if (event_data)
+    fprintf(file, "  - event_data: %p\n", event_data);
+  if (op)
+    fprintf(file, "  - op: %p\n", op);
+  if (new_op)
+    fprintf(file, "  - new_op: %p\n", new_op);
+
+  Ndb_event_data *event_data_ptr= get_event_data_ptr();
+  if (event_data_ptr)
+    event_data_ptr->print("  -", file);
 }

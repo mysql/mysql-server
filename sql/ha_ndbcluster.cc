@@ -13414,38 +13414,15 @@ static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
 
 #ifndef DBUG_OFF
 
-static void print_share(const char* where, NDB_SHARE* share)
-{
-  fprintf(DBUG_FILE,
-          "%s %s.%s: use_count: %u, commit_count: %lu\n",
-          where, share->db, share->table_name, share->use_count,
-          (ulong) share->commit_count);
-  fprintf(DBUG_FILE,
-          "  - key: %s, key_length: %d\n",
-          share->key, share->key_length);
-
-  Ndb_event_data *event_data= 0;
-  if (share->event_data)
-    event_data= share->event_data;
-  else if (share->op)
-    event_data= (Ndb_event_data *) share->op->getCustomData();
-  if (event_data)
-  {
-    fprintf(DBUG_FILE,
-            "  - event_data->shadow_table: %p %s.%s\n",
-            event_data->shadow_table, event_data->shadow_table->s->db.str,
-            event_data->shadow_table->s->table_name.str);
-  }
-}
-
-
 static void print_ndbcluster_open_tables()
 {
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE, ">ndbcluster_open_tables\n");
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
-    print_share("",
-                (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i));
+  {
+    NDB_SHARE* share= (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
+    share->print("", DBUG_FILE);
+  }
   fprintf(DBUG_FILE, "<ndbcluster_open_tables\n");
   DBUG_UNLOCK_FILE;
 }
@@ -13460,7 +13437,7 @@ static void print_ndbcluster_open_tables()
 #define dbug_print_share(t, s)                  \
   DBUG_LOCK_FILE;                               \
   DBUG_EXECUTE("info",                          \
-               print_share((t), (s)););         \
+               (s)->print((t), DBUG_FILE););    \
   DBUG_UNLOCK_FILE;
 
 
@@ -13656,11 +13633,7 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
   ha_ndbcluster::set_tabname(share->new_key, share->table_name);
 
   dbug_print_share("ndbcluster_rename_share:", share);
-  Ndb_event_data *event_data= 0;
-  if (share->event_data)
-    event_data= share->event_data;
-  else if (share->op)
-    event_data= (Ndb_event_data *) share->op->getCustomData();
+  Ndb_event_data *event_data= share->get_event_data_ptr();
   if (event_data && event_data->shadow_table)
   {
     if (!IS_TMP_PREFIX(share->table_name))
