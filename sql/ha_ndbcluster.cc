@@ -12513,6 +12513,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndbcluster_disconnect();
 
   ndb_util_thread.deinit();
+  ndb_index_stat_thread.deinit();
 
   // cleanup ndb interface
   ndb_end_internal();
