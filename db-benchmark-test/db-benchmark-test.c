@@ -41,6 +41,8 @@ int do_1514_point_query = 0;
 int dupflags = 0;
 int insert_multiple = 0;
 int num_dbs = 1;
+int cleaner_period = 0;
+int cleaner_iterations = 0;
 int noserial = 0; // Don't do the serial stuff
 int norandom = 0; // Don't do the random stuff
 int prelock  = 0;
@@ -212,6 +214,23 @@ static void benchmark_setup (void) {
         u_int32_t period;
         r = dbenv->checkpointing_get_period(dbenv, &period);
         assert(r == 0 && period == checkpoint_period);
+    }
+#endif
+
+#if defined(TOKUDB)
+    if (cleaner_period) {
+        r = dbenv->cleaner_set_period(dbenv, cleaner_period);
+        assert(r == 0);
+        u_int32_t period;
+        r = dbenv->cleaner_get_period(dbenv, &period);
+        assert(r == 0 && period == cleaner_period);
+    }
+    if (cleaner_iterations) {
+        r = dbenv->cleaner_set_iterations(dbenv, cleaner_iterations);
+        assert(r == 0);
+        u_int32_t iterations;
+        r = dbenv->cleaner_get_iterations(dbenv, &iterations);
+        assert(r == 0 && iterations == cleaner_iterations);
     }
 #endif
 
@@ -525,6 +544,8 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --append              append to an existing file\n");
     fprintf(stderr, "    --userandom           use random()\n");
     fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
+    fprintf(stderr, "    --cleaner-period %"PRIu32"          cleaner period\n", cleaner_period); 
+    fprintf(stderr, "    --cleaner-iterations %"PRIu32"      cleaner iterations\n", cleaner_iterations); 
     fprintf(stderr, "    --numdbs N            Insert same items into N dbs (1 to %d)\n", MAX_DBS); 
     fprintf(stderr, "    --insertmultiple      Use DB_ENV->put_multiple api.  Requires transactions.\n"); 
     fprintf(stderr, "    --redzone N           redzone in percent\n");
@@ -593,6 +614,18 @@ static int test_main (int argc, char *const argv[]) {
 	    num_dbs = atoi(argv[++i]);
             if (num_dbs <= 0 || num_dbs > MAX_DBS) {
                 fprintf(stderr, "--numdbs needs between 1 and %d\n", MAX_DBS);
+                return print_usage(argv[0]);
+            }
+        } else if (strcmp(arg, "--cleaner-period") == 0) {
+            cleaner_period = atoi(argv[++i]);
+            if (cleaner_period < 0) {
+                fprintf(stderr, "--cleaner-period needs to be positive\n");
+                return print_usage(argv[0]);
+            }
+        } else if (strcmp(arg, "--cleaner-iterations") == 0) {
+            cleaner_iterations = atoi(argv[++i]);
+            if (cleaner_iterations < 0) {
+                fprintf(stderr, "--cleaner-iterations needs to be positive\n");
                 return print_usage(argv[0]);
             }
 	} else if (strcmp(arg, "--compressibility") == 0) {
