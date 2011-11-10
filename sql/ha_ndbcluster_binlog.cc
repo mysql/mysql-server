@@ -2948,7 +2948,6 @@ class Ndb_schema_event_handler {
         switch (schema_type)
         {
         case SOT_RENAME_TABLE:
-        case SOT_RENAME_TABLE_NEW:
         case SOT_DROP_TABLE:
         {
           if (!is_local_table(schema->db, schema->name))
@@ -3195,46 +3194,6 @@ class Ndb_schema_event_handler {
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
         handle_online_alter_table_commit(schema);
         break;
-
-      case SOT_RENAME_TABLE_NEW:
-      {
-        write_schema_op_to_binlog(thd, schema);
-        NDB_SHARE *share= get_share(schema);
-        if (ndb_binlog_running && (!share || !share->op))
-        {
-          /*
-            we need to free any share here as command below
-            may need to call handle_trailing_share
-          */
-          if (share)
-          {
-            /* ndb_share reference temporary free */
-            DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                     share->key, share->use_count));
-            free_share(&share);
-            share= 0;
-          }
-
-          if (is_local_table(schema->db, schema->name))
-          {
-            DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
-                                schema->db, schema->name));
-            sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' from "
-                            "binlog schema event '%s' from node %d. ",
-                            schema->db, schema->name, schema->query,
-                            schema->node_id);
-          }
-          else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
-          {
-            print_could_not_discover_error(thd, schema);
-          }
-        }
-        if (share)
-        {
-          free_share(&share);
-        }
-        break;
-      }
 
       default:
         DBUG_ASSERT(FALSE);

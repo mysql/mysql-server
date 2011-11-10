@@ -26,8 +26,6 @@ get_schema_type_name(uint type)
     return "DROP_TABLE";
   case SOT_CREATE_TABLE:
     return "CREATE_TABLE";
-  case SOT_RENAME_TABLE_NEW:
-    return "RENAME_TABLE_NEW";
   case SOT_ALTER_TABLE_COMMIT:
     return "ALTER_TABLE_COMMIT";
   case SOT_DROP_DB:
