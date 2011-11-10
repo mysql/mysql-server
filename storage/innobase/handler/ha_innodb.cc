@@ -1291,7 +1291,7 @@ innobase_get_cset_width(
 
 			/* Fix bug#46256: allow tables to be dropped if the
 			collation is not found, but issue a warning. */
-			if ((global_system_variables.log_warnings)
+			if ((log_warnings)
 			    && (cset != 0)){
 
 				sql_print_warning(
@@ -3379,7 +3379,7 @@ innobase_close_connection(
 	}
 
 
-	if (trx_is_started(trx) && global_system_variables.log_warnings) {
+	if (trx_is_started(trx) && log_warnings) {
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "

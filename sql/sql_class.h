@@ -435,8 +435,9 @@ typedef struct system_variables
   */ 
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
-  uint dynamic_variables_head;  /* largest valid variable offset */
-  uint dynamic_variables_size;  /* how many bytes are in use */
+  uint dynamic_variables_head;    /* largest valid variable offset */
+  uint dynamic_variables_size;    /* how many bytes are in use */
+  LIST *dynamic_variables_allocs; /* memory hunks for PLUGIN_VAR_MEMALLOC */
   
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
@@ -489,7 +490,6 @@ typedef struct system_variables
   ulong query_prealloc_size;
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
-  ulong log_warnings;
   ulong group_concat_max_len;
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
