@@ -15,22 +15,43 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* provides declarations only to index_stat.cc */
+#ifndef HA_NDB_INDEX_STAT_H
+#define HA_NDB_INDEX_STAT_H
 
-extern struct st_ndb_status g_ndb_status;
+#include "ndb_component.h"
 
-extern pthread_mutex_t ndbcluster_mutex;
+/* for NdbIndexScanOperation::IndexBound */
+#include <ndbapi/NdbIndexScanOperation.hpp>
 
-extern pthread_t ndb_index_stat_thread;
-extern pthread_cond_t COND_ndb_index_stat_thread;
-extern pthread_mutex_t LOCK_ndb_index_stat_thread;
+/* forward declarations */
+struct st_key_range;
+typedef struct st_key_range key_range;
+struct st_key;
+typedef struct st_key KEY;
 
-/* protect entry lists where needed */
-extern pthread_mutex_t ndb_index_stat_list_mutex;
+class Ndb_index_stat_thread : public Ndb_component
+{
+public:
+  Ndb_index_stat_thread();
+  virtual ~Ndb_index_stat_thread();
 
-/* protect and signal changes in stats entries */
-extern pthread_mutex_t ndb_index_stat_stat_mutex;
-extern pthread_cond_t ndb_index_stat_stat_cond;
+  int running;
+  pthread_mutex_t LOCK;
+  pthread_cond_t COND;
+  pthread_cond_t COND_ready;
+
+  /* protect entry lists where needed */
+  pthread_mutex_t list_mutex;
+
+  /* protect and signal changes in stats entries */
+  pthread_mutex_t stat_mutex;
+  pthread_cond_t stat_cond;
+
+private:
+  virtual int do_init() { return 0;}
+  virtual void do_run();
+  virtual int do_deinit() { return 0;}
+};
 
 /* these have to live in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
@@ -38,7 +59,7 @@ extern const char* g_ndb_status_index_stat_status;
 extern long g_ndb_status_index_stat_cache_query;
 extern long g_ndb_status_index_stat_cache_clean;
 
-void 
+void
 compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
                      const KEY *key_info,
                      const key_range *start_key, const key_range *end_key,
@@ -54,3 +75,5 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
 
 /* request on stats entry with recent error was ignored */
 #define Ndb_index_stat_error_HAS_ERROR          9003
+
+#endif

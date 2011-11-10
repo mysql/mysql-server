@@ -92,7 +92,7 @@ private:
    * DATA VARIABLES
    */
   Uint32 userPtr;
-  Uint32 readLength;
+  Uint32 readLength;  // Length in Uint32 words
   Uint32 writeLength;
   Uint32 noFiredTriggers;
   Uint32 lastRow;
