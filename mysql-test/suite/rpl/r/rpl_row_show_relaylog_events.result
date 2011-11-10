@@ -8,19 +8,19 @@ INSERT INTO t1 VALUES (3);
 ******** [master] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'master-bin.000001' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -28,31 +28,31 @@ master-bin.000001	#	Query	#	#	COMMIT
 ******** [master] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'master-bin.000001' from <binlog_start> limit 0,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 ******** [master] SHOW BINLOG EVENTS IN <FILE> LIMIT 2,4 ********
 show binlog events in 'master-bin.000001' from <binlog_start> limit 2,4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 ******** [master] SHOW BINLOG EVENTS  ********
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -60,19 +60,19 @@ master-bin.000001	#	Query	#	#	COMMIT
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'slave-bin.000001' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -80,31 +80,31 @@ slave-bin.000001	#	Query	#	#	COMMIT
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'slave-bin.000001' from <binlog_start> limit 0,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> LIMIT 2,4 ********
 show binlog events in 'slave-bin.000001' from <binlog_start> limit 2,4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 ******** [slave] SHOW BINLOG EVENTS  ********
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -114,19 +114,19 @@ show relaylog events in 'slave-relay-bin.000003' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000003	#	Rotate	#	#	master-bin.000001;pos=4
 slave-relay-bin.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-slave-relay-bin.000003	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000003	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-slave-relay-bin.000003	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000003	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
 slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-relay-bin.000003	#	Query	#	#	COMMIT
-slave-relay-bin.000003	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000003	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
 slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-relay-bin.000003	#	Query	#	#	COMMIT
-slave-relay-bin.000003	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000003	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
 slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -139,9 +139,9 @@ slave-relay-bin.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 ******** [slave] SHOW RELAYLOG EVENTS IN <FILE> LIMIT 2,4 ********
 show relaylog events in 'slave-relay-bin.000003' from <binlog_start> limit 2,4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-relay-bin.000003	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000003	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-slave-relay-bin.000003	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000003	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 ******** [slave] SHOW RELAYLOG EVENTS  ********
 show relaylog events from <binlog_start>;
@@ -153,12 +153,12 @@ DROP TABLE t1;
 ******** [master] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'master-bin.000002' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000002	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
 ******** [master] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'master-bin.000002' from <binlog_start> limit 0,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000002	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
 ******** [master] SHOW BINLOG EVENTS IN <FILE> LIMIT 2,4 ********
 show binlog events in 'master-bin.000002' from <binlog_start> limit 2,4;
@@ -166,19 +166,19 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 ******** [master] SHOW BINLOG EVENTS  ********
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -187,12 +187,12 @@ master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=4
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'slave-bin.000002' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000002	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000002	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
 show binlog events in 'slave-bin.000002' from <binlog_start> limit 0,2;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000002	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000002	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000002	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> LIMIT 2,4 ********
 show binlog events in 'slave-bin.000002' from <binlog_start> limit 2,4;
@@ -200,19 +200,19 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 ******** [slave] SHOW BINLOG EVENTS  ********
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
-slave-bin.000001	#	Ugid_log_event	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
+slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -223,7 +223,7 @@ show relaylog events in 'slave-relay-bin.000006' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=4
 slave-relay-bin.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-slave-relay-bin.000006	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000006	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000006	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
 ******** [slave] SHOW RELAYLOG EVENTS IN <FILE> ********
 show relaylog events in 'slave-relay-bin.000006' from <binlog_start> limit 0,2;
@@ -233,7 +233,7 @@ slave-relay-bin.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
 ******** [slave] SHOW RELAYLOG EVENTS IN <FILE> LIMIT 2,4 ********
 show relaylog events in 'slave-relay-bin.000006' from <binlog_start> limit 2,4;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-relay-bin.000006	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+slave-relay-bin.000006	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-relay-bin.000006	#	Query	#	#	use `test`; DROP TABLE `t1` /* generated by server */
 ******** [slave] SHOW RELAYLOG EVENTS  ********
 show relaylog events from <binlog_start>;

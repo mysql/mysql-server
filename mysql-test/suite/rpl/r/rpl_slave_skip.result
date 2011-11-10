@@ -12,21 +12,21 @@ INSERT INTO t2 VALUES (1,1),(2,8),(3,27);
 UPDATE t1,t2 SET b = d, d = b * 2 WHERE a = c;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
@@ -70,7 +70,7 @@ SET @foo = 12;
 INSERT INTO t1 VALUES(@foo, 2*@foo);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`foo`=12
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)

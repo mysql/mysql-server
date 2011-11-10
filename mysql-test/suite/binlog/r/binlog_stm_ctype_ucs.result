@@ -5,7 +5,7 @@ reset master;
 insert into t2 values (@v);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Ugid_log_event	#	#	use `test`; SET @@SESSION.UGID_NEXT= 'UGID';
+master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 values (@v)
@@ -15,7 +15,6 @@ flush logs;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
 SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=10000/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
@@ -29,6 +28,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`/*!*/;
+use test/*!*/;
 SET TIMESTAMP=10000/*!*/;
 insert into t2 values (@v)
 /*!*/;

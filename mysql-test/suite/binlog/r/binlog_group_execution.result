@@ -187,7 +187,7 @@ DROP TRIGGER t;
 SET @@SESSION.ugid_next = f()
 # must be SUPER
 --connection nonsuper
---error 1227 # ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 eval SET @@SESSION.ugid_next = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1"
 --connection default
 eval SELECT @@SESSION.ugid_next;
@@ -208,7 +208,7 @@ DROP TRIGGER t;
 SET @@SESSION.ugid_next_list = f()
 # must be SUPER
 --connection nonsuper
---error 1227 # ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 eval SET @@SESSION.ugid_next_list = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1"
 --connection default
 eval SELECT @@SESSION.ugid_next_list;
@@ -229,7 +229,7 @@ DROP TRIGGER t;
 SET @@SESSION.ugid_end = f()
 # must be SUPER
 --connection nonsuper
---error 1227 # ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 eval SET @@SESSION.ugid_end = 1
 --connection default
 eval SELECT @@SESSION.ugid_end;
@@ -250,7 +250,7 @@ DROP TRIGGER t;
 SET @@SESSION.ugid_commit = f()
 # must be SUPER
 --connection nonsuper
---error 1227 # ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
 eval SET @@SESSION.ugid_commit = 1
 --connection default
 eval SELECT @@SESSION.ugid_commit;
@@ -307,28 +307,14 @@ SET @@SESSION.UGID_NEXT_LIST = NULL;
 ERROR HY000: When there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT_LIST can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes.
 SET @@SESSION.UGID_COMMIT = 1;
 COMMIT;
-SET @@SESSION.UGID_COMMIT = 0, @@SESSION.UGID_NEXT_LIST = '', @@SESSION.UGID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
-COMMIT;
-ERROR HY000: The system variable @@SESSION.UGID_NEXT has value AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:1, which is not listed in @@SESSION.UGID_NEXT_LIST.
 SET @@SESSION.UGID_NEXT = 'ANONYMOUS', @@SESSION.UGID_COMMIT = 1;
 COMMIT;
-SET @@SESSION.UGID_NEXT_LIST = NULL, @@SESSION.UGID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', @@SESSION.UGID_COMMIT = 0;
-COMMIT;
-SELECT @@SESSION.UGID_NEXT_LIST;
-@@SESSION.UGID_NEXT_LIST
-NULL
-SET @@SESSION.UGID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
-ERROR HY000: When @@SESSION.UGID_NEXT_LIST == NULL and there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes.
 SET @@SESSION.UGID_NEXT_LIST = NULL;
 ERROR HY000: When there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT_LIST can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes.
 SET @@SESSION.UGID_NEXT_LIST = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 ERROR HY000: When there is an ongoing transaction, the system variable @@SESSION.UGID_NEXT_LIST can not change until after @@SESSION.UGID_COMMIT is set to 1 and a statement executes.
 SET @@SESSION.UGID_COMMIT = 1;
 COMMIT;
-SET @@SESSION.UGID_NEXT_LIST = NULL, @@SESSION.UGID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', @@SESSION.UGID_END = 1, @@SESSION.UGID_COMMIT = 0;
-COMMIT;
-ERROR HY000: When UGID_NEXT_LIST = NULL and UGID_NEXT has the form UUID:NUMBER, UGID_END cannot be set if UGID_COMMIT is not set.
-SET @@SESSION.UGID_COMMIT = 0, @@SESSION.UGID_NEXT = AUTOMATIC, @@SESSION.UGID_NEXT_LIST = NULL;
 ==== Conditions for executing transactions ====
 SET UGID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1', UGID_END = 0, UGID_COMMIT = 1;
 COMMIT;

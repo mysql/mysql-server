@@ -553,14 +553,15 @@ static int write_event_to_cache(THD *thd, Log_event *ev,
 #ifdef HAVE_UGID
 int ugid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
 {
-  char* buffer= NULL;
-  size_t buffer_size= 0;
-  
   DBUG_ENTER("ugid_flush_group_cache");
+  
+  Cached_subgroup *subgroup_cache= NULL;
+  const rpl_sid *sid= NULL;
+  rpl_gno gno= 0;
+  
   mysql_bin_log.sid_lock.rdlock();
 
   Group_cache* group_cache= &cache_data->group_cache;
-  Group_set group_set(&mysql_bin_log.sid_map, &mysql_bin_log.sid_lock);
  
   if (group_cache->add_logged_subgroup(thd, cache_data->get_byte_position()) !=
       RETURN_STATUS_OK)
@@ -576,12 +577,6 @@ int ugid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
     DBUG_RETURN(1); 
   }
 
-  if (group_cache->get_ended_groups(&group_set) != RETURN_STATUS_OK)
-  {
-    mysql_bin_log.sid_lock.unlock();
-    DBUG_RETURN(1); 
-  }
-
   if (group_cache->update_group_log_state(thd, &mysql_bin_log.group_log_state) !=
       RETURN_STATUS_OK)
   {
@@ -589,31 +584,24 @@ int ugid_flush_group_cache(THD* thd, binlog_cache_data* cache_data)
     DBUG_RETURN(1); 
   }
 
-  buffer_size= group_set.get_string_length();
-  if (!(buffer= (char *) my_malloc(buffer_size + 1, MYF(0))))
-  {
-    mysql_bin_log.sid_lock.unlock();
-    DBUG_RETURN(1); 
-  }
-  group_set.to_string(buffer);
+  subgroup_cache= group_cache->get_unsafe_pointer(0);
+  sid= mysql_bin_log.sid_map.sidno_to_sid(subgroup_cache->sidno);
+  gno= subgroup_cache->gno;
+
+  DBUG_ASSERT(group_cache->get_n_subgroups() == 1 && subgroup_cache->group_end == 1 &&
+              static_cast<my_off_t>(subgroup_cache->binlog_length) == cache_data->get_byte_position() &&
+              subgroup_cache->type == NORMAL_SUBGROUP);
   mysql_bin_log.sid_lock.unlock();
 
   /*
     In what follows, We need to replace the information at this point with
     valid stuff.
   */
-  size_t before_pos= my_b_tell(&cache_data->cache_log);
+  my_off_t saved_position= cache_data->get_byte_position();
+  Ugid_log_event uinfo(thd, sid->bytes, gno, saved_position);
   my_b_seek(&cache_data->cache_log, 0);
-  /*
-    Check with Sven how to get information on the flags and create
-    an assertion with them. Create also an assertion that the group
-    set has one single element.  /Alfranio /Sven
-  */
-  Ugid_log_event uinfo(thd, 1, buffer, 1, before_pos);
   write_event_to_cache(thd, &uinfo, cache_data);
-  my_b_seek(&cache_data->cache_log, before_pos);
-
-  my_free(buffer);
+  my_b_seek(&cache_data->cache_log, saved_position);
 
   DBUG_RETURN(0);
 }
@@ -1722,16 +1710,15 @@ int MYSQL_BIN_LOG::init_sid_map()
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_sid_map()");
   rpl_sid server_uuid_sid;
-#ifndef DBUG_OFF
-  DBUG_ASSERT(server_uuid_sid.parse(server_uuid) == 0);
-#else
-  server_uuid_sid.parse(server_uuid);
-#endif
+  
+  if (server_uuid_sid.parse(server_uuid))
+    DBUG_RETURN(1);
   rpl_sidno sidno= sid_map.add_permanent(&server_uuid_sid);
   if (sidno <= 0)
     DBUG_RETURN(1);
   server_uuid_sidno= sidno;
   PROPAGATE_REPORTED_ERROR_INT(group_log_state.ensure_sidno());
+
   DBUG_RETURN(0);
 }
 #endif

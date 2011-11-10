@@ -104,11 +104,11 @@ bool Uuid::is_valid(const char *s)
 }
 
 
-size_t Uuid::to_string(char *buf) const
+size_t Uuid::to_string(const uchar* bytes_arg, char *buf) const
 {
   DBUG_ENTER("Uuid::to_string");
   static const char byte_to_hex[]= "0123456789ABCDEF";
-  const unsigned char *u= bytes;
+  const unsigned char *u= bytes_arg;
   for (int i= 0; i < NUMBER_OF_SECTIONS; i++)
   {
     if (i > 0)
@@ -130,5 +130,8 @@ size_t Uuid::to_string(char *buf) const
   DBUG_RETURN(TEXT_LENGTH);
 }
 
-
+size_t Uuid::to_string(char *buf) const
+{
+  return(to_string(bytes, buf));
+}
 #endif /* HAVE_UGID */
