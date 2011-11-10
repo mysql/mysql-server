@@ -1953,6 +1953,24 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
 }
 
 
+bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value)
+    return 0;
+  return (null_value= value->get_date(ltime, fuzzydate));
+}
+
+
+bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value)
+    return 0;
+  return (null_value= value->get_time(ltime));
+}
+
+
 String *
 Item_sum_hybrid::val_str(String *str)
 {
@@ -2572,12 +2590,6 @@ double Item_avg_field::val_real()
   if ((null_value= !count))
     return 0.0;
   return nr/(double) count;
-}
-
-
-longlong Item_avg_field::val_int()
-{
-  return (longlong) rint(val_real());
 }
 
 

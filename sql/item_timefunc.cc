@@ -914,72 +914,11 @@ String *Item_temporal_hybrid_func::val_str_ascii(String *str)
 }
 
 
-String *Item_time_func::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  if (get_time(&ltime) || (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
-    return (String *) 0;
-  make_time((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
-  return str;
-}
-
-
-longlong Item_time_func::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  return get_time(&ltime) ?
-         0LL : (ltime.neg ? -1 : 1) * TIME_to_ulonglong_time_round(&ltime);
-}
-
-
 longlong Item_time_func::val_time_temporal()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
   return get_time(&ltime) ? 0LL : TIME_to_longlong_time_packed(&ltime);
-}
-
-
-bool Item_date_func::get_time(MYSQL_TIME *ltime)
-{
-  DBUG_ASSERT(fixed == 1);
-  if (get_date(ltime, TIME_FUZZY_DATE)) // Need this check if NULL value
-    return true;
-  set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
-  return false;
-}
-
-
-bool Item_datetime_func::get_time(MYSQL_TIME *ltime)
-{
-  DBUG_ASSERT(fixed == 1);
-  if (get_date(ltime, TIME_FUZZY_DATE)) // Need this check if NULL value
-    return true;
-  datetime_to_time(ltime);
-  return false;
-}
-
-
-String *Item_date_func::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE) ||
-      (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
-    return (String *) 0;
-  make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
-  return str;
-}
-
-
-longlong Item_date_func::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  return get_date(&ltime, TIME_FUZZY_DATE) ?
-         0LL : (longlong) TIME_to_ulonglong_date(&ltime);
 }
 
 
@@ -989,28 +928,6 @@ longlong Item_date_func::val_date_temporal()
   MYSQL_TIME ltime;
   return get_date(&ltime, 0) ?
          0LL : TIME_to_longlong_date_packed(&ltime);
-}
-
-
-String *Item_datetime_func::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-
-  if (get_date(&ltime, 0) ||
-      (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
-    return (String *) 0;
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
-  return str;
-}
-
-
-longlong Item_datetime_func::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  return get_date(&ltime, 0) ?
-         0LL: (longlong) TIME_to_ulonglong_datetime_round(&ltime);
 }
 
 

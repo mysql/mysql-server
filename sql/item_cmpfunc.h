@@ -780,6 +780,8 @@ public:
   double real_op();
   longlong int_op();
   String *str_op(String *);
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate);
+  bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
   void fix_length_and_dec();
   void find_num_type() {}
@@ -799,6 +801,8 @@ public:
   double real_op();
   longlong int_op();
   String *str_op(String *str);
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate);
+  bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
@@ -819,6 +823,8 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   enum Item_result result_type () const { return cached_result_type; }
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
@@ -1305,6 +1311,8 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
   uint decimal_precision() const;

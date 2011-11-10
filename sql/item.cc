@@ -275,6 +275,41 @@ String *Item::val_string_from_decimal(String *str)
 }
 
 
+String *Item::val_string_from_datetime(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  if (get_date(&ltime, 0) ||
+      (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
+    return (String *) 0;
+  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
+  return str;
+}
+
+
+String *Item::val_string_from_date(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  if (get_date(&ltime, 0) ||
+      (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
+    return (String *) 0;
+  make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
+  return str;
+}
+
+
+String *Item::val_string_from_time(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  if (get_time(&ltime) || (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
+    return (String *) 0;
+  make_time((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
+  return str;
+}
+
+
 my_decimal *Item::val_decimal_from_real(my_decimal *decimal_value)
 {
   double nr= val_real();
@@ -427,6 +462,34 @@ longlong Item::val_int_from_decimal()
   my_decimal2int(E_DEC_FATAL_ERROR, dec_val, unsigned_flag, &result);
   return result;
 }
+
+
+longlong Item::val_int_from_time()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  return get_time(&ltime) ?
+         0LL : (ltime.neg ? -1 : 1) * TIME_to_ulonglong_time_round(&ltime);
+}
+
+
+longlong Item::val_int_from_date()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  return get_date(&ltime, TIME_FUZZY_DATE) ?
+         0LL : (longlong) TIME_to_ulonglong_date(&ltime);
+}
+
+
+longlong Item::val_int_from_datetime()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  return get_date(&ltime, 0) ?
+         0LL: (longlong) TIME_to_ulonglong_datetime_round(&ltime);
+}
+
 
 int Item::save_time_in_field(Field *field)
 {
@@ -1151,12 +1214,32 @@ bool Item::get_date_from_time(MYSQL_TIME *ltime)
 }
 
 
+bool Item::get_date_from_numeric(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  switch (result_type())
+  {
+  case REAL_RESULT:
+    return get_date_from_real(ltime, fuzzydate);
+  case DECIMAL_RESULT:
+    return get_date_from_decimal(ltime, fuzzydate);
+  case INT_RESULT:
+    return get_date_from_int(ltime, fuzzydate);
+  case STRING_RESULT:
+  case ROW_RESULT:
+    DBUG_ASSERT(0);
+  }
+  return (null_value= true);  // Impossible result_type
+}
+
+
 /**
   Get the value of the function as a MYSQL_TIME structure.
   As a extra convenience the time structure is reset on error!
 */
-bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+
+bool Item::get_date_from_non_temporal(MYSQL_TIME *ltime, uint fuzzydate)
 {
+  DBUG_ASSERT(!is_temporal());
   switch (result_type())
   {
   case STRING_RESULT:
@@ -1170,7 +1253,7 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   case ROW_RESULT:
     DBUG_ASSERT(0);
   }
-  return true;
+  return (null_value= true);  // Impossible result_type
 }
 
 
@@ -1224,13 +1307,56 @@ bool Item::get_time_from_int(MYSQL_TIME *ltime)
 }
 
 
+bool Item::get_time_from_date(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (get_date(ltime, TIME_FUZZY_DATE)) // Need this check if NULL value
+    return true;
+  set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
+  return false;
+}
+
+
+bool Item::get_time_from_datetime(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (get_date(ltime, TIME_FUZZY_DATE))
+    return true;
+  datetime_to_time(ltime);
+  return false;
+}
+
+
+bool Item::get_time_from_numeric(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(!is_temporal());
+  switch (result_type())
+  {
+  case REAL_RESULT:
+    return get_time_from_real(ltime);
+  case DECIMAL_RESULT:
+    return get_time_from_decimal(ltime);
+  case INT_RESULT:
+    return get_time_from_int(ltime);
+  case STRING_RESULT:
+  case ROW_RESULT:
+    DBUG_ASSERT(0);
+  }
+  return (null_value= true); // Impossible result type
+}
+ 
+
+
+
 /**
-  Get time value.
+  Get time value from int, real, decimal or string.
 
   As a extra convenience the time structure is reset on error!
 */
-bool Item::get_time(MYSQL_TIME *ltime)
+
+bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
 {
+  DBUG_ASSERT(!is_temporal());
   switch (result_type())
   {
   case STRING_RESULT:
@@ -1417,6 +1543,22 @@ my_decimal *Item_sp_variable::val_decimal(my_decimal *decimal_value)
 }
 
 
+bool Item_sp_variable::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed);
+  Item *it= this_item();
+  return (null_value= it->get_date(ltime, fuzzydate));
+}
+
+
+bool Item_sp_variable::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed);
+  Item *it= this_item();
+  return (null_value= it->get_time(ltime));
+}
+
+
 bool Item_sp_variable::is_null()
 {
   return this_item()->is_null();
@@ -1571,6 +1713,20 @@ my_decimal *Item_name_const::val_decimal(my_decimal *decimal_value)
   my_decimal *val= value_item->val_decimal(decimal_value);
   null_value= value_item->null_value;
   return val;
+}
+
+
+bool Item_name_const::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed);
+  return (null_value= value_item->get_date(ltime, fuzzydate));
+}
+
+
+bool Item_name_const::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed);
+  return (null_value= value_item->get_time(ltime));
 }
 
 
@@ -3490,9 +3646,10 @@ bool Item_param::get_time(MYSQL_TIME *res)
   }
   /*
     If parameter value isn't supplied assertion will fire in val_str()
-    which is called from Item::get_time().
+    which is called from Item::get_time_from_string().    
   */
-  return Item::get_time(res);
+  return is_temporal() ? get_time_from_string(res) :
+                         get_time_from_non_temporal(res);
 }
 
 
@@ -3503,7 +3660,8 @@ bool Item_param::get_date(MYSQL_TIME *res, uint fuzzydate)
     *res= value.time;
     return 0;
   }
-  return Item::get_date(res, fuzzydate);
+  return is_temporal() ? get_date_from_string(res, fuzzydate) :
+                         get_date_from_non_temporal(res, fuzzydate);
 }
 
 
@@ -4093,6 +4251,16 @@ my_decimal *Item_copy_string::val_decimal(my_decimal *decimal_value)
   return (decimal_value);
 }
 
+
+bool Item_copy_string::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  return get_date_from_string(ltime, fuzzydate);
+}
+
+bool Item_copy_string::get_time(MYSQL_TIME *ltime)
+{
+  return get_time_from_string(ltime);
+}
 
 /****************************************************************************
   Item_copy_int
@@ -8248,6 +8416,73 @@ my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
     return 0;
   return my_decimal_from_datetime_packed(decimal_val, field_type(), int_value);
 }
+
+
+bool Item_cache_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  if ((value_cached || str_value_cached) && null_value)
+    return true;
+
+  if (str_value_cached) // TS-TODO: reuse MYSQL_TIME_cache eventually.
+    return get_date_from_string(ltime, fuzzydate);
+
+  if ((!value_cached && !cache_value_int()) || null_value)
+    return (null_value= true);
+
+
+  switch (cached_field_type)
+  {
+  case MYSQL_TYPE_TIME:
+    {
+      MYSQL_TIME tm;
+      TIME_from_longlong_time_packed(&tm, int_value);
+      time_to_datetime(current_thd, &tm, ltime);
+      return false;
+    }
+  case MYSQL_TYPE_DATE:
+    TIME_from_longlong_date_packed(ltime, int_value);
+    return false;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    TIME_from_longlong_datetime_packed(ltime, int_value);
+    return false;
+  default:
+    DBUG_ASSERT(0);
+  }
+  return true;
+}
+
+
+bool Item_cache_datetime::get_time(MYSQL_TIME *ltime)
+{
+  if ((value_cached || str_value_cached) && null_value)
+    return true;
+
+  if (str_value_cached) // TS-TODO: reuse MYSQL_TIME_cache eventually.
+    return get_time_from_string(ltime);
+
+  if ((!value_cached && !cache_value_int()) || null_value)
+    return true;
+
+  switch (cached_field_type)
+  {
+  case MYSQL_TYPE_TIME:
+    TIME_from_longlong_time_packed(ltime, int_value);
+    return false;
+  case MYSQL_TYPE_DATE:
+    set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
+    return false;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    TIME_from_longlong_datetime_packed(ltime, int_value);
+    datetime_to_time(ltime);
+    return false;
+  default:
+    DBUG_ASSERT(0);
+  }
+  return true;
+}
+
 
 double Item_cache_datetime::val_real()
 {
