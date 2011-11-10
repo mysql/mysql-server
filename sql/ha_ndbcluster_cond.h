@@ -250,16 +250,7 @@ public:
     const Item *item= value.item;
     if (item && field)
     {
-      DBUG_PRINT("info", ("item length %u, field length %u",
-                          item->max_length, field->field_length));
-      if (item->max_length > field->field_length)
-      {
-        DBUG_PRINT("info", ("Comparing field with longer value"));
-        DBUG_PRINT("info", ("Field can store %u", field->field_length));
-        length= field->field_length;
-      }
-      else
-        length= item->max_length;
+      length= item->max_length;
       my_bitmap_map *old_map=
         dbug_tmp_use_all_columns(field->table, field->table->write_set);
       ((Item *)item)->save_in_field(field, FALSE);
