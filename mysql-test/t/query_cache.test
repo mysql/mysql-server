@@ -1224,7 +1224,7 @@ show status like 'Qcache_free_blocks';
  create table t1(c1 int) engine=myisam;
  use db1;
  insert into t1(c1) values (1);
- use mysql;
+ use test;
  select * from db1.t1;
  select c1+1 from db1.t1;
  select * from db3.t1;
