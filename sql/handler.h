@@ -1666,7 +1666,7 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), in_range_check_pushed_down(FALSE),
+    ref(0), end_range(NULL), in_range_check_pushed_down(FALSE),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
@@ -1723,6 +1723,7 @@ public:
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
     inited= (result= rnd_init(scan)) ? NONE: RND;
+    end_range= NULL;
     DBUG_RETURN(result);
   }
   int ha_rnd_end()
@@ -1730,6 +1731,7 @@ public:
     DBUG_ENTER("ha_rnd_end");
     DBUG_ASSERT(inited==RND);
     inited=NONE;
+    end_range= NULL;
     DBUG_RETURN(rnd_end());
   }
   int ha_rnd_init_with_error(bool scan) __attribute__ ((warn_unused_result));
@@ -2391,6 +2393,13 @@ public:
  */
  virtual void cond_pop() { return; };
  virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
+ /** Reset information about pushed index conditions */
+ virtual void cancel_pushed_idx_cond()
+ {
+   pushed_idx_cond= NULL;
+   pushed_idx_cond_keyno= MAX_KEY;
+   in_range_check_pushed_down= false;
+ }
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }

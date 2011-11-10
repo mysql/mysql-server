@@ -188,7 +188,7 @@ explain
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                       or c='no-such-row2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	10	Using index condition; Using where; Rowid-ordered scan
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                     or c='no-such-row2');
 a	b	c	filler
@@ -210,7 +210,7 @@ NULL	NULL	NULL	NULL-1
 explain 
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	21	Using index condition; Rowid-ordered scan
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	21	Using index condition; Using where; Rowid-ordered scan
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 a	b	c	filler
 b-1	NULL	c-1	NULL-15
@@ -365,7 +365,7 @@ update t1 set b=repeat(char(65+a), 20) where a < 25;
 This must show range + using index condition:
 explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	19	Using where
+1	SIMPLE	t1	range	a	a	5	NULL	19	Using index condition; Using where
 select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 a	b	filler
 0	AAAAAAAAAAAAAAAAAAAA	filler
