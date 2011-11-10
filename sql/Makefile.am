@@ -141,7 +141,8 @@ libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndb_index_stat.cc \
 			ha_ndbinfo.cc \
 			ndb_mi.cc \
-			ndb_conflict_trans.cc
+			ndb_conflict_trans.cc \
+                        ndb_component.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
