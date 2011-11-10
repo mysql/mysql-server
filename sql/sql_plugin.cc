@@ -255,6 +255,13 @@ static bool register_builtin(struct st_mysql_plugin *, struct st_plugin_int *,
 static void unlock_variables(THD *thd, struct system_variables *vars);
 static void cleanup_variables(THD *thd, struct system_variables *vars);
 static void plugin_vars_free_values(sys_var *vars);
+static bool plugin_var_memalloc_session_update(THD *thd,
+                                               struct st_mysql_sys_var *var,
+                                               char **dest, const char *value);
+static bool plugin_var_memalloc_global_update(THD *thd,
+                                              struct st_mysql_sys_var *var,
+                                              char **dest, const char *value);
+static void plugin_var_memalloc_free(struct system_variables *vars);
 static void restore_pluginvar_names(sys_var *first);
 static void plugin_opt_set_limits(struct my_option *,
                                   const struct st_mysql_sys_var *);
@@ -2300,13 +2307,7 @@ static void update_func_longlong(THD *thd, struct st_mysql_sys_var *var,
 static void update_func_str(THD *thd, struct st_mysql_sys_var *var,
                              void *tgt, const void *save)
 {
-  char *old= *(char **) tgt;
-  *(char **)tgt= *(char **) save;
-  if (var->flags & PLUGIN_VAR_MEMALLOC)
-  {
-    *(char **)tgt= my_strdup(*(char **) save, MYF(0));
-    my_free(old);
-  }
+  *(char **) tgt= *(char **) save;
 }
 
 
@@ -2565,11 +2566,13 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
       if ((pi->plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
           pi->plugin_var->flags & PLUGIN_VAR_MEMALLOC)
       {
-         char **pp= (char**) (thd->variables.dynamic_variables_ptr +
-                             *(int*)(pi->plugin_var + 1));
-         if ((*pp= *(char**) (global_system_variables.dynamic_variables_ptr +
-                             *(int*)(pi->plugin_var + 1))))
-           *pp= my_strdup(*pp, MYF(MY_WME|MY_FAE));
+         int varoff= *(int *) (pi->plugin_var + 1);
+         char **thdvar= (char **) (thd->variables.
+                                   dynamic_variables_ptr + varoff);
+         char **sysvar= (char **) (global_system_variables.
+                                   dynamic_variables_ptr + varoff);
+         *thdvar= NULL;
+         plugin_var_memalloc_session_update(thd, NULL, thdvar, *sysvar);
       }
     }
 
@@ -2675,33 +2678,8 @@ static void unlock_variables(THD *thd, struct system_variables *vars)
 */
 static void cleanup_variables(THD *thd, struct system_variables *vars)
 {
-  st_bookmark *v;
-  sys_var_pluginvar *pivar;
-  sys_var *var;
-  int flags;
-  uint idx;
-
-  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  for (idx= 0; idx < bookmark_hash.records; idx++)
-  {
-    v= (st_bookmark*) my_hash_element(&bookmark_hash, idx);
-    if (v->version > vars->dynamic_variables_version ||
-        !(var= intern_find_sys_var(v->key + 1, v->name_len)) ||
-        !(pivar= var->cast_pluginvar()) ||
-        v->key[0] != (pivar->plugin_var->flags & PLUGIN_VAR_TYPEMASK))
-      continue;
-
-    flags= pivar->plugin_var->flags;
-
-    if ((flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
-        flags & PLUGIN_VAR_THDLOCAL && flags & PLUGIN_VAR_MEMALLOC)
-    {
-      char **ptr= (char**) pivar->real_value_ptr(thd, OPT_SESSION);
-      my_free(*ptr);
-      *ptr= NULL;
-    }
-  }
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  if (thd)
+    plugin_var_memalloc_free(&thd->variables);
 
   DBUG_ASSERT(vars->table_plugin == NULL);
 
@@ -2796,6 +2774,136 @@ static SHOW_TYPE pluginvar_show_type(st_mysql_sys_var *plugin_var)
 }
 
 
+/**
+  Set value for thread local variable with PLUGIN_VAR_MEMALLOC flag.
+
+  @param[in]     thd   Thread context.
+  @param[in]     var   Plugin variable.
+  @param[in,out] dest  Destination memory pointer.
+  @param[in]     value '\0'-terminated new value.
+
+  Most plugin variable values are stored on dynamic_variables_ptr.
+  Releasing memory occupied by these values is as simple as freeing
+  dynamic_variables_ptr.
+
+  An exception to the rule are PLUGIN_VAR_MEMALLOC variables, which
+  are stored on individual memory hunks. All of these hunks has to
+  be freed when it comes to cleanup.
+
+  It may happen that a plugin was uninstalled and descriptors of
+  it's variables are lost. In this case it is impossible to locate
+  corresponding values.
+
+  In addition to allocating and setting variable value, new element
+  is added to dynamic_variables_allocs list. When thread is done, it
+  has to call plugin_var_memalloc_free() to release memory used by
+  PLUGIN_VAR_MEMALLOC variables.
+
+  If var is NULL, variable update function is not called. This is
+  needed when we take snapshot of system variables during thread
+  initialization.
+
+  @note List element and variable value are stored on the same memory
+  hunk. List element is followed by variable value.
+
+  @return Completion status
+  @retval false Success
+  @retval true  Failure
+*/
+
+static bool plugin_var_memalloc_session_update(THD *thd,
+                                               struct st_mysql_sys_var *var,
+                                               char **dest, const char *value)
+
+{
+  LIST *old_element= NULL;
+  struct system_variables *vars= &thd->variables;
+  DBUG_ENTER("plugin_var_memalloc_session_update");
+
+  if (value)
+  {
+    size_t length= strlen(value) + 1;
+    LIST *element;
+    if (!(element= (LIST *) my_malloc(sizeof(LIST) + length, MYF(MY_WME))))
+      DBUG_RETURN(true);
+    memcpy(element + 1, value, length);
+    value= (const char *) (element + 1);
+    vars->dynamic_variables_allocs= list_add(vars->dynamic_variables_allocs,
+                                             element);
+  }
+
+  if (*dest)
+    old_element= (LIST *) (*dest - sizeof(LIST));
+
+  if (var)
+    var->update(thd, var, (void **) dest, (const void *) &value);
+  else
+    *dest= (char *) value;
+
+  if (old_element)
+  {
+    vars->dynamic_variables_allocs= list_delete(vars->dynamic_variables_allocs,
+                                                old_element);
+    my_free(old_element);
+  }
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Free all elements allocated by plugin_var_memalloc_session_update().
+
+  @param[in]     vars  system variables structure
+
+  @see plugin_var_memalloc_session_update
+*/
+
+static void plugin_var_memalloc_free(struct system_variables *vars)
+{
+  LIST *next, *root;
+  DBUG_ENTER("plugin_var_memalloc_free");
+  for (root= vars->dynamic_variables_allocs; root; root= next)
+  {
+    next= root->next;
+    my_free(root);
+  }
+  vars->dynamic_variables_allocs= NULL;
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Set value for global variable with PLUGIN_VAR_MEMALLOC flag.
+
+  @param[in]     thd   Thread context.
+  @param[in]     var   Plugin variable.
+  @param[in,out] dest  Destination memory pointer.
+  @param[in]     value '\0'-terminated new value.
+
+  @return Completion status
+  @retval false Success
+  @retval true  Failure
+*/
+
+static bool plugin_var_memalloc_global_update(THD *thd,
+                                              struct st_mysql_sys_var *var,
+                                              char **dest, const char *value)
+{
+  char *old_value= *dest;
+  DBUG_ENTER("plugin_var_memalloc_global_update");
+
+  if (value && !(value= my_strdup(value, MYF(MY_WME))))
+    DBUG_RETURN(true);
+
+  var->update(thd, var, (void **) dest, (const void *) &value);
+
+  if (old_value)
+    my_free(old_value);
+
+  DBUG_RETURN(false);
+}
+
+
 bool sys_var_pluginvar::check_update_type(Item_result type)
 {
   switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
@@ -2880,6 +2988,7 @@ bool sys_var_pluginvar::do_check(THD *thd, set_var *var)
 
 bool sys_var_pluginvar::session_update(THD *thd, set_var *var)
 {
+  bool rc= false;
   DBUG_ASSERT(!is_readonly());
   DBUG_ASSERT(plugin_var->flags & PLUGIN_VAR_THDLOCAL);
   DBUG_ASSERT(thd == current_thd);
@@ -2889,13 +2998,20 @@ bool sys_var_pluginvar::session_update(THD *thd, set_var *var)
   const void *src= var->value ? (void*)&var->save_result
                               : (void*)real_value_ptr(thd, OPT_GLOBAL);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  plugin_var->update(thd, plugin_var, tgt, src);
 
-  return false;
+  if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
+      plugin_var->flags & PLUGIN_VAR_MEMALLOC)
+    rc= plugin_var_memalloc_session_update(thd, plugin_var, (char **) tgt,
+                                           *(const char **) src);
+  else 
+    plugin_var->update(thd, plugin_var, tgt, src);
+
+  return rc;
 }
 
 bool sys_var_pluginvar::global_update(THD *thd, set_var *var)
 {
+  bool rc= false;
   DBUG_ASSERT(!is_readonly());
   mysql_mutex_assert_owner(&LOCK_global_system_variables);
 
@@ -2952,9 +3068,14 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var)
     }
   }
 
-  plugin_var->update(thd, plugin_var, tgt, src);
+  if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
+      plugin_var->flags & PLUGIN_VAR_MEMALLOC)
+    rc= plugin_var_memalloc_global_update(thd, plugin_var, (char **) tgt,
+                                          *(const char **) src);
+  else 
+    plugin_var->update(thd, plugin_var, tgt, src);
 
-  return false;
+  return rc;
 }
 
 
