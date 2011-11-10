@@ -577,20 +577,20 @@ FROM t1
                       "tables": [
                       ] /* tables */
                     } /* recalculate_access_paths_and_cost */,
-                    "cost": 2.0049,
+                    "cost": 2.2049,
                     "rows": 1,
                     "chosen": true
                   },
                   {
                     "strategy": "MaterializeLookup",
-                    "cost": 2.3049,
+                    "cost": 4.6049,
                     "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
                   },
                   {
                     "strategy": "DuplicatesWeedout",
-                    "cost": 2.1049,
+                    "cost": 4.6049,
                     "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
@@ -1316,7 +1316,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.835,
+                            "cost": 41.435,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1371,7 +1371,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.84,
+                            "cost": 43.84,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1453,7 +1453,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.835,
+                            "cost": 41.435,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1508,7 +1508,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.84,
+                            "cost": 43.84,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1627,30 +1627,29 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "access_type": "scan",
-                                        "using_join_cache": true,
                                         "rows": 3,
-                                        "cost": 2.2101,
-                                        "chosen": true
+                                        "cost": 26.482,
+                                        "chosen": false
                                       }
                                     ] /* considered_access_paths */
                                   } /* best_access_path */
                                 }
                               ] /* tables */
                             } /* recalculate_access_paths_and_cost */,
-                            "cost": 11.569,
+                            "cost": 28.838,
                             "rows": 6,
                             "chosen": true
                           },
                           {
                             "strategy": "MaterializeLookup",
-                            "cost": 11.533,
+                            "cost": 16.233,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 16.639,
+                            "cost": 36.039,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
@@ -1749,30 +1748,29 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "access_type": "scan",
-                                        "using_join_cache": true,
                                         "rows": 3,
-                                        "cost": 2.2101,
-                                        "chosen": true
+                                        "cost": 26.482,
+                                        "chosen": false
                                       }
                                     ] /* considered_access_paths */
                                   } /* best_access_path */
                                 }
                               ] /* tables */
                             } /* recalculate_access_paths_and_cost */,
-                            "cost": 11.569,
+                            "cost": 28.838,
                             "rows": 6,
                             "chosen": true
                           },
                           {
                             "strategy": "MaterializeLookup",
-                            "cost": 11.533,
+                            "cost": 16.233,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 16.639,
+                            "cost": 36.039,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
