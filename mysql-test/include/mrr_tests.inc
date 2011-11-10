@@ -240,8 +240,8 @@ drop table t2;
 create table t2 (a char(100), b char(100), c char(100), d int, 
                  filler char(10), key(d), primary key (a,b,c));
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
-## -- [DISABLED Bug#54398]
-#explain select * from t2 force index (d) where d < 10;
+--replace_column 9 #
+explain select * from t2 force index (d) where d < 10;
 drop table t2;
 
 drop table t1;
