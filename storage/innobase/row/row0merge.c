@@ -2220,6 +2220,13 @@ row_merge_drop_index(
 
 	ut_a(err == DB_SUCCESS);
 
+	/* If it is FTS index, drop from table->fts and also drop
+	its auxiliary tables */
+	if (index->type & DICT_FTS) {
+		ut_a(table->fts);
+		fts_drop_index(table, index, trx);
+	}
+
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
@@ -2246,10 +2253,6 @@ row_merge_drop_indexes(
 	ulint	key_num;
 
 	for (key_num = 0; key_num < num_created; key_num++) {
-		if (index[key_num]->type & DICT_FTS) {
-			fts_drop_index(table, index[key_num], trx);
-		}
-
 		row_merge_drop_index(index[key_num], table, trx);
 	}
 }

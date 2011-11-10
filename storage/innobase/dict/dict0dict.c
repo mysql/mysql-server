@@ -2247,6 +2247,10 @@ dict_index_remove_from_cache_low(
 	/* Remove the index from the list of indexes of the table */
 	UT_LIST_REMOVE(indexes, table->indexes, index);
 
+	/* Debugging print, will be removed */
+	fprintf(stderr, "InnoDB: remove index %p, index %s from table %s",
+		index, index->name, table->name);
+
 	size = mem_heap_get_size(index->heap);
 
 	ut_ad(dict_sys->size >= size);

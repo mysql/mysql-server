@@ -1375,12 +1375,6 @@ ha_innobase::final_add_index(
 				next_index = dict_table_get_next_index(index);
 
 				if (*index->name == TEMP_INDEX_PREFIX) {
-					if (index->type & DICT_FTS) {
-						fts_drop_index(
-							prebuilt->table, index,
-							trx);
-					}
-
 					row_merge_drop_index(
 						index, prebuilt->table, trx);
 				}
@@ -1728,14 +1722,6 @@ ha_innobase::final_drop_index(
 		next_index = dict_table_get_next_index(index);
 
 		if (index->to_be_dropped) {
-
-			/* If it is FTS index, first drop its
-			auxiliary tables */
-			if (index->type == DICT_FTS) {
-				fts_drop_index(
-					prebuilt->table, index, trx);
-			}
-
 			row_merge_drop_index(index, prebuilt->table, trx);
 		}
 
