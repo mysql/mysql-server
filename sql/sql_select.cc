@@ -2921,7 +2921,7 @@ disable_sorted_access(JOIN_TAB* join_tab)
     FALSE Ok
 */
 
-bool JOIN::prepare_result()
+bool JOIN::prepare_result(List<Item> **columns_list)
 {
   DBUG_ENTER("JOIN::prepare_result");
 
@@ -2935,6 +2935,19 @@ bool JOIN::prepare_result()
   if ((select_lex->options & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
     goto err;
+
+  if (procedure)
+  {
+    procedure_fields_list= fields_list;
+    if (procedure->change_columns(procedure_fields_list) ||
+	result->prepare(procedure_fields_list, unit))
+    {
+      thd->set_examined_row_count(0);
+      thd->limit_found_rows= 0;
+      goto err;
+    }
+    *columns_list= &procedure_fields_list;
+  }
 
   DBUG_RETURN(FALSE);
 
@@ -2956,12 +2969,12 @@ JOIN::explain()
   Opt_trace_object trace_exec(trace, "join_explain");
   trace_exec.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
-
+  List<Item> *columns_list= &fields_list;
   DBUG_ENTER("JOIN::explain");
 
   THD_STAGE_INFO(thd, stage_explaining);
 
-  if (prepare_result())
+  if (prepare_result(&columns_list))
     DBUG_VOID_RETURN;
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
@@ -3048,21 +3061,8 @@ JOIN::exec()
 
   THD_STAGE_INFO(thd, stage_executing);
 
-  if (prepare_result())
+  if (prepare_result(&columns_list))
     DBUG_VOID_RETURN;
-
-  if (procedure)
-  {
-    procedure_fields_list= fields_list;
-    if (procedure->change_columns(procedure_fields_list) ||
-	result->prepare(procedure_fields_list, unit))
-    {
-      thd->set_examined_row_count(0);
-      thd->limit_found_rows= 0;
-      DBUG_VOID_RETURN;
-    }
-    columns_list= &procedure_fields_list;
-  }
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions

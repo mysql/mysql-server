@@ -2066,7 +2066,7 @@ public:
   int optimize();
   void reset();
   void exec();
-  bool prepare_result();
+  bool prepare_result(List<Item> **columns_list);
   void explain();
   bool destroy();
   void restore_tmp();
