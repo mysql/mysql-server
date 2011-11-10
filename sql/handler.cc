@@ -5277,6 +5277,10 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
 
+#ifndef MCP_BUG13330645
+  /* Assume NO_NULL_ENDPOINTS until we find one (below) */
+  *flags|= HA_MRR_NO_NULL_ENDPOINTS;
+#endif
   seq_it= seq->init(seq_init_param, n_ranges, *flags);
   while (!seq->next(seq_it, &range))
   {
@@ -5310,12 +5314,19 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       }
     }
     total_rows += rows;
+#ifndef MCP_BUG13330645
+    if (range.range_flag & NULL_RANGE)
+      *flags&= ~HA_MRR_NO_NULL_ENDPOINTS;
+#endif
   }
-  
+
   if (total_rows != HA_POS_ERROR)
   {
     /* The following calculation is the same as in multi_range_read_info(): */
     *flags |= HA_MRR_USE_DEFAULT_IMPL;
+#ifndef MCP_BUG13330645
+    *flags|= HA_MRR_SUPPORT_SORTED;
+#endif
     cost->zero();
     cost->avg_io_cost= 1; /* assume random seeks */
     if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
@@ -5368,6 +5379,9 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
   *bufsz= 0; /* Default implementation doesn't need a buffer */
 
   *flags |= HA_MRR_USE_DEFAULT_IMPL;
+#ifndef MCP_BUG13330645
+  *flags|= HA_MRR_SUPPORT_SORTED;
+#endif
 
   cost->zero();
   cost->avg_io_cost= 1; /* assume random seeks */
@@ -5530,13 +5544,19 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   handler *new_h2= 0;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
+  THD *thd= current_thd;
 
   /*
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
     has not been called, so set the owner handler here as well.
   */
   h= h_arg;
+#ifdef MCP_BUG13330645
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
+#else
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+      mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
+#endif
   {
     use_default_impl= TRUE;
     retval= h->handler::multi_range_read_init(seq_funcs, seq_init_param,
@@ -5586,7 +5606,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if (!h2)
   {
     /* Create a separate handler object to do rndpos() calls. */
-    THD *thd= current_thd;
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
       The constant 5 is an empiric result.
@@ -5860,12 +5879,17 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
+#ifdef MCP_BUG13330645
       choose_mrr_impl(keyno, rows, &def_flags, &def_bufsz, cost))
+#else
+      choose_mrr_impl(keyno, rows, flags, bufsz, cost))
+#endif
   {
     /* Default implementation is choosen */
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags= def_flags;
     *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
   else
   {
@@ -5949,12 +5973,18 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool res;
   THD *thd= current_thd;
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+#ifdef MCP_BUG13330645
       *flags & HA_MRR_INDEX_ONLY ||
+#else
+      *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR
+#endif
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
        key_uses_partial_cols(table, keyno))
   {
-    /* Use the default implementation */
+    /* Use the default implementation, don't modify args: See comments  */
+#ifdef MCP_BUG13330645
     *flags |= HA_MRR_USE_DEFAULT_IMPL;
+#endif
     return TRUE;
   }
   
@@ -5980,7 +6010,11 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   if (force_dsmrr || dsmrr_cost.total_cost() <= cost->total_cost())
   {
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;  /* Use the DS-MRR implementation */
+#ifdef MCP_BUG13330645
     *flags &= ~HA_MRR_SORTED;          /* We will return unordered output */
+#else
+    *flags &= ~HA_MRR_SUPPORT_SORTED;    /* We can't provide ordered output */
+#endif
     *cost= dsmrr_cost;
     res= FALSE;
   }
