@@ -4200,11 +4200,10 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
   tl->next_leaf= subq_lex->leaf_tables;
 
   /*
-    Same as above for next_local chain
-    (a theory: a next_local chain always starts with ::leaf_tables
-     because view's tables are inserted after the view)
+    Same as above for next_local chain. This needed only for re-execution.
+    (The next_local chain always starts with SELECT_LEX::table_list)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  for (tl= parent_lex->get_table_list(); tl->next_local; tl= tl->next_local)
   {}
   tl->next_local= subq_lex->leaf_tables;
 
@@ -7373,6 +7372,7 @@ public:
            bound
         5. But some of the IN-equalities aren't (so this can't be handled by 
            FirstMatch strategy)
+        6. Not a derived table/view. (a temporary restriction)
     */
     best_loose_scan_cost= DBL_MAX;
     if (s->emb_sj_nest && complete_query &&                             // (1)
@@ -7383,7 +7383,8 @@ public:
         !(remaining_tables & 
           s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (4)
         (remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on) &&// (5)
-        s->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN))
+        s->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN) &&
+        !s->table->pos_in_table_list->uses_materialization())
     {
       /* This table is an LooseScan scan candidate */
       bound_sj_equalities= get_bound_sj_equalities(s->emb_sj_nest, 
