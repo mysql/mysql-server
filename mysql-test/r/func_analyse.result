@@ -163,3 +163,11 @@ test.t1	analyze	status	OK
 SELECT f1,f2 FROM t1 A WHERE f1 BETWEEN 0 AND 1;
 f1	f2
 drop table t1;
+#
+# Bug #13358379   EXPLAIN SELECT ... PROCEDURE ANALYZE CRASHES THE SERVER
+#
+CREATE TABLE t1 (i INT);
+EXPLAIN SELECT * FROM t1 PROCEDURE ANALYSE();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1;
