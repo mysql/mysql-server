@@ -114,6 +114,7 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 #include "opt_trace.h"
+#include "filesort.h"         // filesort_free_buffers
 
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
@@ -839,7 +840,7 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
 static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                                   SEL_ARG *tree, bool update_tbl_stats, 
                                   uint *mrr_flags, uint *bufsize,
-                                  COST_VECT *cost);
+                                  Cost_estimate *cost);
 QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
                                      SEL_ARG *key_tree, uint mrr_flags, 
                                      uint mrr_buf_size, MEM_ROOT *alloc);
@@ -4280,7 +4281,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 
   /* Calculate cost(rowid_to_row_scan) */
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables != 1);
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
@@ -4428,7 +4429,7 @@ skip_to_ror_scan:
   */
   double roru_total_cost;
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables != 1);
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
@@ -4892,7 +4893,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   DBUG_PRINT("info", ("info->total_cost: %g", info->total_cost));
   if (!info->is_covering)
   {
-    COST_VECT sweep_cost;
+    Cost_estimate sweep_cost;
     JOIN *join= info->param->thd->lex->select_lex.join;
     bool is_interrupted= test(join && join->tables == 1);
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
@@ -5419,7 +5420,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
     if (*key)
     {
       ha_rows found_records;
-      COST_VECT cost;
+      Cost_estimate cost;
       double found_read_time;
       uint mrr_flags, buf_size;
       uint keynr= param->real_keynr[idx];
@@ -8658,7 +8659,7 @@ walk_up_n_right:
 static
 ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ARG *tree, bool update_tbl_stats, 
-                           uint *mrr_flags, uint *bufsize, COST_VECT *cost)
+                           uint *mrr_flags, uint *bufsize, Cost_estimate *cost)
 {
   SEL_ARG_RANGE_SEQ seq;
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
@@ -9154,7 +9155,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   QUICK_RANGE *range;
   uint part;
   bool create_err= FALSE;
-  COST_VECT cost;
+  Cost_estimate cost;
 
   old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
@@ -9296,7 +9297,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
                        thd->variables.sortbuff_size);
   }
   else
+  {
     unique->reset();
+    filesort_free_buffers(head, true);
+  }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
   DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
@@ -10900,7 +10904,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       cur_index_tree= get_index_range_tree(cur_index, tree, param,
                                            &cur_param_idx);
       /* Check if this range tree can be used for prefix retrieval. */
-      COST_VECT dummy_cost;
+      Cost_estimate dummy_cost;
       uint mrr_flags= HA_MRR_USE_DEFAULT_IMPL;
       uint mrr_bufsize=0;
       cur_quick_prefix_records= check_quick_select(param, cur_param_idx, 

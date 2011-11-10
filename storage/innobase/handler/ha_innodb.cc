@@ -13389,7 +13389,7 @@ ha_innobase::multi_range_read_info_const(
 	uint		n_ranges,
 	uint*		bufsz,
 	uint*		flags,
-	COST_VECT*	cost)
+	Cost_estimate*	cost)
 {
 	/* See comments in ha_myisam::multi_range_read_info_const */
 	ds_mrr.init(this, table);
@@ -13404,7 +13404,7 @@ ha_innobase::multi_range_read_info(
 	uint		keys,
 	uint*		bufsz,
 	uint*		flags,
-	COST_VECT*	cost)
+	Cost_estimate*	cost)
 {
 	ds_mrr.init(this, table);
 	return(ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
