@@ -42,3 +42,13 @@ Ndb_event_data::~Ndb_event_data()
   */
   my_free(ndb_value[0]);
 }
+
+
+void Ndb_event_data::print(const char* where, FILE* file) const
+{
+  fprintf(file,
+          "%s shadow_table: %p '%s.%s'\n",
+          where,
+          shadow_table, shadow_table->s->db.str,
+          shadow_table->s->table_name.str);
+}

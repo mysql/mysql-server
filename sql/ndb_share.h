@@ -193,6 +193,10 @@ struct NDB_SHARE {
                          const char* table_name);
   static void destroy(NDB_SHARE* share);
 
+  class Ndb_event_data* get_event_data_ptr() const;
+
+  void print(const char* where, FILE* file = stderr) const;
+
   /*
     Returns true if this share need to subscribe to
     events from the table.
