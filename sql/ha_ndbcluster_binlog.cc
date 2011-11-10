@@ -2884,6 +2884,126 @@ class Ndb_schema_event_handler {
   }
 
 
+  void
+  handle_drop_table(Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_drop_table");
+
+    assert(is_post_epoch()); // Always after epoch
+
+    if (schema->node_id == own_nodeid())
+      DBUG_VOID_RETURN;
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    if (is_local_table(schema->db, schema->name))
+    {
+      /* Tables exists as a local table, print error and leave it */
+      sql_print_error("NDB Binlog: Skipping dropping locally "
+                      "defined table '%s.%s' from binlog schema "
+                      "event '%s' from node %d. ",
+                      schema->db, schema->name, schema->query,
+                      schema->node_id);
+      DBUG_VOID_RETURN;
+    }
+
+    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
+    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    const int no_print_error[2]=
+      {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
+    run_query(m_thd, schema->query,
+              schema->query + schema->query_length,
+              no_print_error);
+
+    NDB_SHARE *share= get_share(schema);
+    // invalidation already handled by binlog thread
+    if (!share || !share->op)
+    {
+      ndbapi_invalidate_table(schema->db, schema->name);
+      mysqld_close_cached_table(schema->db, schema->name);
+    }
+    if (share)
+      free_share(&share);
+
+    ndbapi_invalidate_table(schema->db, schema->name);
+    mysqld_close_cached_table(schema->db, schema->name);
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  handle_rename_table_prepare(Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_rename_table_prepare");
+
+    assert(is_post_epoch()); // Always after epoch
+
+    if (schema->node_id == own_nodeid())
+      DBUG_VOID_RETURN;
+
+    NDB_SHARE *share= get_share(schema);
+    if (share)
+    {
+      ndbcluster_prepare_rename_share(share, schema->query);
+      free_share(&share);
+    }
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  handle_rename_table(Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_rename_table");
+
+    assert(is_post_epoch()); // Always after epoch
+
+    if (schema->node_id == own_nodeid())
+      DBUG_VOID_RETURN;
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    if (is_local_table(schema->db, schema->name))
+    {
+      /* Tables exists as a local table, print error and leave it */
+      sql_print_error("NDB Binlog: Skipping renaming locally "
+                      "defined table '%s.%s' from binlog schema "
+                      "event '%s' from node %d. ",
+                      schema->db, schema->name, schema->query,
+                      schema->node_id);
+      DBUG_VOID_RETURN;
+    }
+
+    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
+    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
+    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    const int no_print_error[2]=
+      {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
+    run_query(m_thd, schema->query,
+              schema->query + schema->query_length,
+              no_print_error);
+
+    NDB_SHARE *share= get_share(schema);
+    // invalidation already handled by binlog thread
+    if (!share || !share->op)
+    {
+      ndbapi_invalidate_table(schema->db, schema->name);
+      mysqld_close_cached_table(schema->db, schema->name);
+    }
+    if (share)
+      free_share(&share);
+
+    share= get_share(schema);
+    if (share)
+    {
+      ndbcluster_rename_share(m_thd, share);
+      free_share(&share);
+    }
+    DBUG_VOID_RETURN;
+  }
+
   int
   handle_schema_op(Ndb_schema_op* schema)
   {
@@ -2929,6 +3049,8 @@ class Ndb_schema_event_handler {
       case SOT_RENAME_TABLE_PREPARE:
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
+      case SOT_RENAME_TABLE:
+      case SOT_DROP_TABLE:
         log_after_epoch(schema);
         unlock_after_epoch(schema);
         DBUG_RETURN(0);
@@ -2947,47 +3069,6 @@ class Ndb_schema_event_handler {
  
         switch (schema_type)
         {
-        case SOT_RENAME_TABLE:
-        case SOT_DROP_TABLE:
-        {
-          if (!is_local_table(schema->db, schema->name))
-          {
-            thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-            const int no_print_error[2]=
-              {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
-            run_query(thd, schema->query,
-                      schema->query + schema->query_length,
-                      no_print_error);
-            /* binlog dropping table after any table operations */
-            log_after_epoch(schema);
-            /* acknowledge this query _after_ epoch completion */
-            post_epoch_unlock= 1;
-          }
-          else
-          {
-            /* Tables exists as a local table, print error and leave it */
-            DBUG_PRINT("info", ("Found local table '%s.%s', leaving it",
-                                schema->db, schema->name));
-            sql_print_error("NDB Binlog: Skipping %sing locally "
-                            "defined table '%s.%s' from binlog schema "
-                            "event '%s' from node %d. ",
-                            (schema_type == SOT_DROP_TABLE ? "dropp" : "renam"),
-                            schema->db, schema->name, schema->query,
-                            schema->node_id);
-            write_schema_op_to_binlog(thd, schema);
-          }
-
-          NDB_SHARE *share= get_share(schema);
-          // invalidation already handled by binlog thread
-          if (!share || !share->op)
-          {
-            ndbapi_invalidate_table(schema->db, schema->name);
-            mysqld_close_cached_table(schema->db, schema->name);
-          }
-          if (share)
-            free_share(&share);
-          break;
-        }
 
 	case SOT_TRUNCATE_TABLE:
         {
@@ -3102,6 +3183,8 @@ class Ndb_schema_event_handler {
         case SOT_ONLINE_ALTER_TABLE_PREPARE:
         case SOT_ONLINE_ALTER_TABLE_COMMIT:
         case SOT_CLEAR_SLOCK:
+        case SOT_RENAME_TABLE:
+        case SOT_DROP_TABLE:
           // Impossible to come here, the above types has already
           // been handled and caused the function to return 
           abort();
@@ -3153,35 +3236,16 @@ class Ndb_schema_event_handler {
         break;
 
       case SOT_DROP_TABLE:
-        write_schema_op_to_binlog(thd, schema);
-        ndbapi_invalidate_table(schema->db, schema->name);
-        mysqld_close_cached_table(schema->db, schema->name);
+        handle_drop_table(schema);
+        break;
+
+      case SOT_RENAME_TABLE_PREPARE:
+        handle_rename_table_prepare(schema);
         break;
 
       case SOT_RENAME_TABLE:
-      {
-        write_schema_op_to_binlog(thd, schema);
-        NDB_SHARE *share= get_share(schema);
-        if (share)
-        {
-          ndbcluster_rename_share(thd, share);
-          free_share(&share);
-        }
+        handle_rename_table(schema);
         break;
-      }
-
-      case SOT_RENAME_TABLE_PREPARE:
-      {
-        if (schema->node_id == own_nodeid())
-          break;
-        NDB_SHARE *share= get_share(schema);
-        if (share)
-        {
-          ndbcluster_prepare_rename_share(share, schema->query);
-          free_share(&share);
-        }
-        break;
-      }
 
       case SOT_ALTER_TABLE_COMMIT:
         handle_offline_alter_table_commit(schema);
