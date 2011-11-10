@@ -3244,70 +3244,45 @@ class Ndb_schema_event_handler {
         unlock_after_epoch(schema);
         DBUG_RETURN(0);
 
-      default:
+      case SOT_TRUNCATE_TABLE:
+        handle_truncate_table(schema);
         break;
+
+      case SOT_CREATE_TABLE:
+        handle_create_table(schema);
+        break;
+
+      case SOT_CREATE_DB:
+        handle_create_db(schema);
+        break;
+
+      case SOT_ALTER_DB:
+        handle_alter_db(schema);
+        break;
+
+      case SOT_CREATE_USER:
+      case SOT_DROP_USER:
+      case SOT_RENAME_USER:
+      case SOT_GRANT:
+      case SOT_REVOKE:
+        handle_grant_op(schema);
+        break;
+
+      case SOT_TABLESPACE:
+      case SOT_LOGFILE_GROUP:
+        if (schema->node_id == own_nodeid())
+          break;
+        write_schema_op_to_binlog(m_thd, schema);
+        break;
+
       }
 
-      if (schema->node_id != own_nodeid())
+      /* signal that schema operation has been handled */
+      DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
+      if (bitmap_is_set(&schema->slock, own_nodeid()))
       {
-        THD* thd= m_thd; // Code compatibility
-        Thd_ndb *thd_ndb= get_thd_ndb(thd);
-        Thd_ndb_options_guard thd_ndb_options(thd_ndb);
- 
-        switch (schema_type)
-        {
-
-	case SOT_TRUNCATE_TABLE:
-          handle_truncate_table(schema);
-          break;
-
-        case SOT_CREATE_TABLE:
-          handle_create_table(schema);
-          break;
-
-        case SOT_CREATE_DB:
-          handle_create_db(schema);
-          break;
-
-        case SOT_ALTER_DB:
-          handle_alter_db(schema);
-          break;
-
-        case SOT_CREATE_USER:
-        case SOT_DROP_USER:
-        case SOT_RENAME_USER:
-        case SOT_GRANT:
-        case SOT_REVOKE:
-          handle_grant_op(schema);
-          break;
-
-        case SOT_TABLESPACE:
-        case SOT_LOGFILE_GROUP:
-          write_schema_op_to_binlog(thd, schema);
-          break;
-
-        case SOT_ALTER_TABLE_COMMIT:
-        case SOT_RENAME_TABLE_PREPARE:
-        case SOT_ONLINE_ALTER_TABLE_PREPARE:
-        case SOT_ONLINE_ALTER_TABLE_COMMIT:
-        case SOT_CLEAR_SLOCK:
-        case SOT_RENAME_TABLE:
-        case SOT_DROP_TABLE:
-        case SOT_DROP_DB:
-          // Impossible to come here, the above types has already
-          // been handled and caused the function to return 
-          abort();
-          break;
-
-        }
-
-        /* signal that schema operation has been handled */
-        DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
-        if (bitmap_is_set(&schema->slock, own_nodeid()))
-        {
-          ack_schema_op(schema->db, schema->name,
-                        schema->id, schema->version);
-        }
+        ack_schema_op(schema->db, schema->name,
+                      schema->id, schema->version);
       }
     }
     DBUG_RETURN(0);
