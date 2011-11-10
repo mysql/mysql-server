@@ -1091,8 +1091,8 @@ static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
 extern int ndbcluster_terminating;
 
-extern int ndb_index_stat_thread_running;
-extern pthread_cond_t COND_ndb_index_stat_ready;
-
 #include "ndb_util_thread.h"
 extern Ndb_util_thread ndb_util_thread;
+
+#include "ha_ndb_index_stat.h"
+extern Ndb_index_stat_thread ndb_index_stat_thread;
