@@ -234,6 +234,7 @@ extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+extern ulong log_warnings;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
