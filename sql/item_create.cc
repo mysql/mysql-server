@@ -5807,7 +5807,7 @@ Item *create_temporal_literal(THD *thd,
     break;
   case MYSQL_TYPE_TIME:
     if (!str_to_time(cs, str, length, &ltime, 0, &status) &&
-        !status.warnings)
+        ltime.time_type == MYSQL_TIMESTAMP_TIME && !status.warnings)
       item= new (thd->mem_root) Item_time_literal(&ltime,
                                                   status.fractional_digits);
     break;
