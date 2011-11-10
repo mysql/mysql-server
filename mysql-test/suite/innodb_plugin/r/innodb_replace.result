@@ -1,0 +1,77 @@
+#
+#Bug#11759688 52020: InnoDB can still deadlock
+#on just INSERT...ON DUPLICATE KEY
+#a.k.a. Bug#7975 deadlock without any locking, simple select and update
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(3,1);
+BEGIN;
+SET DEBUG_SYNC='write_row_noreplace SIGNAL insert1 WAIT_FOR select1';
+INSERT INTO t1 VALUES(3,2);
+SET DEBUG_SYNC='now WAIT_FOR insert1';
+SELECT * FROM t1 LOCK IN SHARE MODE;
+a	b
+3	1
+SELECT * FROM t1 FOR UPDATE;
+SET DEBUG_SYNC='now SIGNAL select1';
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+INSERT INTO t1 VALUES(3,3) ON DUPLICATE KEY UPDATE b=b+10;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+COMMIT;
+SET DEBUG_SYNC='write_row_replace SIGNAL insert2 WAIT_FOR select2';
+REPLACE INTO t1 VALUES(3,4);
+SET DEBUG_SYNC='now WAIT_FOR insert2';
+SELECT * FROM t1;
+a	b
+3	11
+SELECT * FROM t1 LOCK IN SHARE MODE;
+SET DEBUG_SYNC='now SIGNAL select2';
+SET DEBUG_SYNC='write_row_replace SIGNAL insert3 WAIT_FOR select3';
+INSERT INTO t1 VALUES(3,5) ON DUPLICATE KEY UPDATE b=b+20;
+a	b
+3	4
+SET DEBUG_SYNC='now WAIT_FOR insert3';
+SELECT b FROM t1 LOCK IN SHARE MODE;
+SET DEBUG_SYNC='now SIGNAL select3';
+b
+24
+SET DEBUG_SYNC='write_row_noreplace SIGNAL insert4 WAIT_FOR select4';
+LOAD DATA INFILE '../../std_data/loaddata5.dat' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (a, b);
+SET DEBUG_SYNC='now WAIT_FOR insert4';
+SELECT b FROM t1 WHERE a=3 LOCK IN SHARE MODE;
+b
+24
+SELECT b FROM t1 WHERE a=3 FOR UPDATE;
+SET DEBUG_SYNC='now SIGNAL select4';
+b
+24
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+SET DEBUG_SYNC='write_row_noreplace SIGNAL insert5 WAIT_FOR select5';
+LOAD DATA INFILE '../../std_data/loaddata5.dat' IGNORE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (a, b);
+SET DEBUG_SYNC='now WAIT_FOR insert5';
+SELECT * FROM t1;
+a	b
+3	24
+SELECT * FROM t1 WHERE a=3 LOCK IN SHARE MODE;
+a	b
+3	24
+SELECT * FROM t1 WHERE a=3 FOR UPDATE;
+SET DEBUG_SYNC='now SIGNAL select5';
+a	b
+3	24
+SET DEBUG_SYNC='write_row_replace SIGNAL insert6 WAIT_FOR select6';
+LOAD DATA INFILE '../../std_data/loaddata5.dat' REPLACE INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (a, b);
+SET DEBUG_SYNC='now WAIT_FOR insert6';
+SELECT * FROM t1;
+a	b
+1	2
+3	24
+5	6
+SELECT a,b FROM t1 LOCK IN SHARE MODE;
+SET DEBUG_SYNC='now SIGNAL select6';
+a	b
+1	2
+3	4
+5	6
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;
