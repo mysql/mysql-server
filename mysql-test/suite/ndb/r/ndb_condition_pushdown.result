@@ -1738,7 +1738,7 @@ pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using MRR; Using filesort
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -1746,7 +1746,7 @@ pk1	attr1	attr2	attr3	attr4
 explain
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using temporary; Using filesort
+1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using MRR; Using temporary; Using filesort
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where; Using join buffer (Block Nested Loop)
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
@@ -1910,7 +1910,7 @@ insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
 explain select * from NodeAlias where (aliasKey LIKE '491803%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NodeAlias	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	3	Using where with pushed condition
+1	SIMPLE	NodeAlias	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	3	Using where with pushed condition; Using MRR
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id;
 id	nodeId	displayName	aliasKey	objectVersion	changed
 7	8	491803%	491803%	0	2008-03-10 12:22:26

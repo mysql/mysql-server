@@ -12531,7 +12531,8 @@ static int ndbcluster_init(void *p)
     h->fill_files_table= ndbcluster_fill_files_table;
 #endif
     ndbcluster_binlog_init_handlerton();
-    h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
+    h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED |
+      HTON_NO_BINLOG_ROW_OPT;
     h->discover=         ndbcluster_discover;
     h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
@@ -14500,6 +14501,7 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     {
       /* Use default MRR implementation */
       *flags|= HA_MRR_USE_DEFAULT_IMPL;
+      *flags|= HA_MRR_SUPPORT_SORTED;
       *bufsz= 0;
     }
     else
@@ -14526,17 +14528,20 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
         {
           /* Too small buffer limit to do MRR. */
           *flags|= HA_MRR_USE_DEFAULT_IMPL;
+          *flags|= HA_MRR_SUPPORT_SORTED;
           *bufsz= 0;
         }
         else
         {
           *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
+          *flags|= HA_MRR_SUPPORT_SORTED;
           *bufsz= min_total_size;
         }
       }
       else
       {
         *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
+        *flags|= HA_MRR_SUPPORT_SORTED;
         *bufsz= min(save_bufsize, total_bufsize);
       }
     }
@@ -14578,6 +14583,7 @@ ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
         !(*flags & HA_MRR_NO_NULL_ENDPOINTS)))
   {
     *flags|= HA_MRR_USE_DEFAULT_IMPL;
+    *flags|= HA_MRR_SUPPORT_SORTED;
     *bufsz= 0;
   }
   else
@@ -14594,17 +14600,20 @@ ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
       {
         /* Too small buffer limit to do MRR. */
         *flags|= HA_MRR_USE_DEFAULT_IMPL;
+        *flags|= HA_MRR_SUPPORT_SORTED;
         *bufsz= 0;
       }
       else
       {
         *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
+        *flags|= HA_MRR_SUPPORT_SORTED;
         *bufsz= min_total_size;
       }
     }
     else
     {
       *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
+      *flags|= HA_MRR_SUPPORT_SORTED;
       *bufsz= min(save_bufsize,
                   keys * entry_size + multi_range_fixed_size(n_ranges));
     }

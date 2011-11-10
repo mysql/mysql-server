@@ -798,6 +798,7 @@ void Explain_table_base::explain_extra_common(const SQL_SELECT *select,
   if (table->reginfo.not_exists_optimize)
     str_extra->append(STRING_WITH_LEN("; Not exists"));
 
+#ifdef MCP_BUG13330645
   if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE &&
       !(((QUICK_RANGE_SELECT*)(select->quick))->mrr_flags &
        (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)))
@@ -817,6 +818,28 @@ void Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     */
     str_extra->append(STRING_WITH_LEN("; Using MRR"));
   }
+#else
+  if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE)
+  {
+    uint mrr_flags=
+      ((QUICK_RANGE_SELECT*)(select->quick))->mrr_flags;
+
+    /*
+      During normal execution of a query, multi_range_read_init() is
+      called to initialize MRR. If HA_MRR_SORTED is set at this point,
+      multi_range_read_init() for any native MRR implementation will
+      revert to default MRR if not HA_MRR_SUPPORT_SORTED.
+      Calling multi_range_read_init() can potentially be costly, so it
+      is not done when executing an EXPLAIN. We therefore simulate
+      its effect here:
+    */
+    if (mrr_flags & HA_MRR_SORTED && !(mrr_flags & HA_MRR_SUPPORT_SORTED))
+      mrr_flags|= HA_MRR_USE_DEFAULT_IMPL;
+
+    if (!(mrr_flags & HA_MRR_USE_DEFAULT_IMPL))
+      str_extra->append(STRING_WITH_LEN("; Using MRR"));
+  }
+#endif
 }
 
 void Explain_table_base::explain_tmptable_and_filesort(bool need_tmp_table_arg,
