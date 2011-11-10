@@ -812,7 +812,7 @@ int ndbcluster_binlog_end(THD *thd)
 {
   DBUG_ENTER("ndbcluster_binlog_end");
 
-  if (ndb_util_thread_running > 0)
+  if (ndb_util_thread.running > 0)
   {
     /*
       Wait for util thread to die (as this uses the injector mutex)
@@ -822,33 +822,34 @@ int ndbcluster_binlog_end(THD *thd)
       be called before ndb_cluster_end().
     */
     sql_print_information("Stopping Cluster Utility thread");
-    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    pthread_mutex_lock(&ndb_util_thread.LOCK);
     /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
-    ndb_util_thread_running++;
+    ndb_util_thread.running++;
     ndbcluster_terminating= 1;
-    pthread_cond_signal(&COND_ndb_util_thread);
-    while (ndb_util_thread_running > 1)
-      pthread_cond_wait(&COND_ndb_util_ready, &LOCK_ndb_util_thread);
-    ndb_util_thread_running--;
-    pthread_mutex_unlock(&LOCK_ndb_util_thread);
+    pthread_cond_signal(&ndb_util_thread.COND);
+    while (ndb_util_thread.running > 1)
+      pthread_cond_wait(&ndb_util_thread.COND_ready, &ndb_util_thread.LOCK);
+    ndb_util_thread.running--;
+    pthread_mutex_unlock(&ndb_util_thread.LOCK);
   }
 
-  if (ndb_index_stat_thread_running > 0)
+  if (ndb_index_stat_thread.running > 0)
   {
     /*
       Index stats thread blindly imitates util thread.  Following actually
       fixes some "[Warning] Plugin 'ndbcluster' will be forced to shutdown".
     */
     sql_print_information("Stopping Cluster Index Stats thread");
-    pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
+    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
     /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
-    ndb_index_stat_thread_running++;
+    ndb_index_stat_thread.running++;
     ndbcluster_terminating= 1;
-    pthread_cond_signal(&COND_ndb_index_stat_thread);
-    while (ndb_index_stat_thread_running > 1)
-      pthread_cond_wait(&COND_ndb_index_stat_ready, &LOCK_ndb_index_stat_thread);
-    ndb_index_stat_thread_running--;
-    pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
+    pthread_cond_signal(&ndb_index_stat_thread.COND);
+    while (ndb_index_stat_thread.running > 1)
+      pthread_cond_wait(&ndb_index_stat_thread.COND_ready,
+                        &ndb_index_stat_thread.LOCK);
+    ndb_index_stat_thread.running--;
+    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
   }
 
   if (ndbcluster_binlog_inited)
