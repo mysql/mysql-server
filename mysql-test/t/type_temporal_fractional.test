@@ -5578,6 +5578,150 @@ SELECT a + b FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Testing that IF always returns correct number of decimal digits
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-10 18:04:30');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+SELECT if(0, dt2, t3), CONCAT(if(0, dt2, t3)) FROM t1;
+SELECT if(1, dt2, t3), CONCAT(if(1, dt2, t3)) FROM t1;
+SELECT if(0, t3, dt2), CONCAT(if(0, t3, dt2)) FROM t1;
+SELECT if(1, t3, dt2), CONCAT(if(1, t3, dt2)) FROM t1;
+SELECT if(0, t3, d), CONCAT(if(0, t3, d)) FROM t1;
+SELECT if(1, t3, d), CONCAT(if(1, t3, d)) FROM t1;
+SELECT if(0, d, t3), CONCAT(if(0, d, t3)) FROM t1;
+SELECT if(1, d, t3), CONCAT(if(1, d, t3)) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+--echo #
+--echo # Testing that CASE always returns correct number of decimal digits
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-10 18:04:30');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+SELECT CASE WHEN 0 THEN dt2 ELSE t3 END FROM t1;
+SELECT CONCAT(CASE WHEN 0 THEN dt2 ELSE t3 END) FROM t1;
+SELECT CASE WHEN 1 THEN dt2 ELSE t3 END FROM t1;
+SELECT CONCAT(CASE WHEN 1 THEN dt2 ELSE t3 END) FROM t1;
+SELECT CASE WHEN 0 THEN t3 ELSE dt2 END FROM t1;
+SELECT CONCAT(CASE WHEN 0 THEN t3 ELSE dt2 END) FROM t1;
+SELECT CASE WHEN 1 THEN t3 ELSE dt2 END FROM t1;
+SELECT CONCAT(CASE WHEN 1 THEN t3 ELSE dt2 END) FROM t1;
+SELECT CASE WHEN 0 THEN d ELSE t3 END FROM t1;
+SELECT CONCAT(CASE WHEN 0 THEN d ELSE t3 END) FROM t1;
+SELECT CASE WHEN 1 THEN d ELSE t3 END FROM t1;
+SELECT CONCAT(CASE WHEN 1 THEN d ELSE t3 END) FROM t1;
+SELECT CASE WHEN 0 THEN t3 ELSE d END FROM t1;
+SELECT CONCAT(CASE WHEN 0 THEN t3 ELSE d END) FROM t1;
+SELECT CASE WHEN 1 THEN t3 ELSE d END FROM t1;
+SELECT CONCAT(CASE WHEN 1 THEN t3 ELSE d END) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+
+--echo #
+--echo # Testing that COALESCE always returns correct number of decimal digits
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-10 18:04:30');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+SELECT COALESCE(dt2, t3) FROM t1;
+SELECT CONCAT(COALESCE(dt2, t3)) FROM t1;
+SELECT COALESCE(t3, dt2) FROM t1;
+SELECT CONCAT(COALESCE(t3, dt2)) FROM t1;
+SELECT COALESCE(d, t3) FROM t1;
+SELECT CONCAT(COALESCE(d, t3)) FROM t1;
+SELECT COALESCE(t3, d) FROM t1;
+SELECT CONCAT(COALESCE(t3, d)) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+--echo #
+--echo # Testing that IFNULL always returns correct number of decimal digits
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-10 18:04:30');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+SELECT IFNULL(dt2, t3) FROM t1;
+SELECT CONCAT(IFNULL(dt2, t3)) FROM t1;
+SELECT IFNULL(t3, dt2) FROM t1;
+SELECT CONCAT(IFNULL(t3, dt2)) FROM t1;
+SELECT IFNULL(d, t3) FROM t1;
+SELECT CONCAT(IFNULL(d, t3)) FROM t1;
+SELECT IFNULL(t3, d) FROM t1;
+SELECT CONCAT(IFNULL(t3, d)) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+--echo #
+--echo # Testing that LEAST always returns correct number of decimal digits
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-10 18:04:30');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+INSERT INTO t1 VALUES ('2012-01-01 00:00:00.12', '00:00:00.567', '2013-01-01');
+SELECT LEAST(dt2, t3) FROM t1;
+SELECT CONCAT(LEAST(dt2, t3)) FROM t1;
+SELECT LEAST(t3, dt2) FROM t1;
+SELECT CONCAT(LEAST(t3, dt2)) FROM t1;
+SELECT LEAST(d, t3) FROM t1;
+SELECT CONCAT(LEAST(d, t3)) FROM t1;
+SELECT LEAST(t3, d) FROM t1;
+SELECT CONCAT(LEAST(t3, d)) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+--echo #
+--echo # Testing that GREATEST always returns correct number of decimal digits
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-10 18:04:30');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+INSERT INTO t1 VALUES ('2012-01-01 00:00:00.12', '00:00:00.567', '2013-01-01');
+SELECT GREATEST(dt2, t3) FROM t1;
+SELECT CONCAT(GREATEST(dt2, t3)) FROM t1;
+SELECT GREATEST(t3, dt2) FROM t1;
+SELECT CONCAT(GREATEST(t3, dt2)) FROM t1;
+SELECT GREATEST(d, t3) FROM t1;
+SELECT CONCAT(GREATEST(d, t3)) FROM t1;
+SELECT GREATEST(t3, d) FROM t1;
+SELECT CONCAT(GREATEST(t3, d)) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+--echo #
+--echo # Testing that hybrid type functions correctly convert
+--echo # from DATETIME to TIME
+--echo #
+CREATE TABLE t1 (a DATETIME(3));
+INSERT INTO t1 VALUES ('2001-01-01 10:20:30.123');
+SELECT CAST(IF(0, a, a) AS TIME(6)) FROM t1;
+SELECT CAST(COALESCE(a, a) AS TIME(6)) FROM t1;
+SELECT CAST(IFNULL(a, a) AS TIME(6)) FROM t1;
+SELECT CAST(CASE WHEN 0 THEN a ELSE a END AS TIME(6)) FROM t1;
+SELECT CAST(GREATEST(a, a) AS TIME(6)) FROM t1;
+SELECT CAST(LEAST(a, a) AS TIME(6)) FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Testing that hybrid type functions correctly convert
+--echo # from TIME to DATETIME
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-10 00:00:00');
+CREATE TABLE t1 (a TIME(3));
+INSERT INTO t1 VALUES ('10:20:30.123');
+SELECT CAST(IF(0, a, a) AS DATETIME(6)) FROM t1;
+SELECT CAST(COALESCE(a, a) AS DATETIME(6)) FROM t1;
+SELECT CAST(IFNULL(a, a) AS DATETIME(6)) FROM t1;
+SELECT CAST(CASE WHEN 0 THEN a ELSE a END AS DATETIME(6)) FROM t1;
+SELECT CAST(GREATEST(a, a) AS DATETIME(6)) FROM t1;
+SELECT CAST(LEAST(a, a) AS DATETIME(6)) FROM t1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+--echo #
 --echo # Storing TIME functions into VARCHAR column
 --echo #
 SET @@timestamp=1000000000;
@@ -6809,8 +6953,23 @@ ORDER BY col_datetime_4_not_null_key , col_time_5 , col_time_3_not_null;
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 
+--echo #
+--echo # Bug#13359097 ASSERT FAILURE IN MAKE_SORTKEY
+--echo #
+SET timestamp=UNIX_TIMESTAMP('2011-11-01 17:48:00');
+CREATE TABLE t1 (
+  pk time(6) NOT NULL DEFAULT '00:00:00.000000',
+  col_date_not_null date NOT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES ('00:00:00.000000','2001-09-10');
+INSERT INTO t1 VALUES ('12:07:41.148239','2000-05-23');
+SELECT GREATEST('2004-04-07', COALESCE (pk, col_date_not_null)) FROM  t1 ORDER BY 1;
+DROP TABLE t1;
+SET timestamp=DEFAULT;
+
+
 ## TS-TODO: SELECT CAST('00:00:00' AS DATETIME) -> should it use curdate?
-## TS-TODO: Item::get_date() works via string for DECIMAL_RESULT/FLOAT_RESULT: select cast(20110512154559.616 as date)
 
 ## TS-TODO: reuse count_datetime_length()/count_string_result_length()
 ## in other hybrid functions: IF,CASE,GREATEST,LEAST
@@ -6849,5 +7008,3 @@ SET timestamp=DEFAULT;
 ## alter session set nls_timestamp_format='YYYY-MM-DD HH24:MI:SS.FF';
 ##select * from t1 where a=b;
 ##2011-04-09 15:36:32.225000 2011-04-09 15:36:32.225
-
-

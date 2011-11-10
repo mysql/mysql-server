@@ -898,6 +898,16 @@ String *Item_func_numhybrid::val_str(String *str)
     break;
   }
   case STRING_RESULT:
+    switch (field_type()) {
+    case MYSQL_TYPE_DATETIME:
+      return val_string_from_datetime(str);
+    case MYSQL_TYPE_DATE:
+      return val_string_from_date(str);
+    case MYSQL_TYPE_TIME:
+      return val_string_from_time(str);
+    default:
+      break;
+    }
     return str_op(&str_value);
   default:
     DBUG_ASSERT(0);
@@ -928,6 +938,15 @@ double Item_func_numhybrid::val_real()
     return real_op();
   case STRING_RESULT:
   {
+    switch (field_type())
+    {
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+      return val_real_from_decimal();
+    default:
+      break;
+    }
     char *end_not_used;
     int err_not_used;
     String *res= str_op(&str_value);
@@ -960,6 +979,17 @@ longlong Item_func_numhybrid::val_int()
     return (longlong) rint(real_op());
   case STRING_RESULT:
   {
+    switch (field_type())
+    {
+    case MYSQL_TYPE_DATE:
+      return val_int_from_date();
+    case MYSQL_TYPE_DATETIME:
+      return val_int_from_datetime();
+    case MYSQL_TYPE_TIME:
+      return val_int_from_time();
+    default:
+      break;
+    }
     int err_not_used;
     String *res;
     if (!(res= str_op(&str_value)))
@@ -998,6 +1028,16 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
   }
   case STRING_RESULT:
   {
+    switch (field_type())
+    {
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+      return val_decimal_from_date(decimal_value);
+    case MYSQL_TYPE_TIME:
+      return val_decimal_from_time(decimal_value);
+    default:
+      break;
+    }
     String *res;
     if (!(res= str_op(&str_value)))
       return NULL;
@@ -1011,6 +1051,39 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
     DBUG_ASSERT(0);
   }
   return val;
+}
+
+
+bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  switch (field_type())
+  {
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_DATETIME:
+    return date_op(ltime, fuzzydate);
+  case MYSQL_TYPE_TIME:
+    return get_date_from_time(ltime);
+  default:
+    return Item::get_date_from_non_temporal(ltime, fuzzydate);
+  }
+}
+
+
+bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    return time_op(ltime);
+  case MYSQL_TYPE_DATE:
+    return get_time_from_date(ltime);
+  case MYSQL_TYPE_DATETIME:
+    return get_time_from_datetime(ltime);
+  default:
+    return Item::get_time_from_non_temporal(ltime);
+  }
 }
 
 
@@ -2717,6 +2790,27 @@ uint Item_func_min_max::cmp_datetimes(longlong *value)
 }
 
 
+uint Item_func_min_max::cmp_times(longlong *value)
+{
+  longlong UNINIT_VAR(min_max);
+  uint min_max_idx= 0;
+  for (uint i=0; i < arg_count ; i++)
+  {
+    longlong res= args[i]->val_time_temporal();
+    if ((null_value= args[i]->null_value))
+      return 0;
+    if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
+    {
+      min_max= res;
+      min_max_idx= i;
+    }
+  }
+  if (value)
+    *value= min_max;
+  return min_max_idx;
+}
+
+
 String *Item_func_min_max::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -2819,6 +2913,70 @@ String *Item_func_min_max::val_str(String *str)
     return 0;
   }
   return 0;					// Keep compiler happy
+}
+
+
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (compare_as_dates)
+  {
+    longlong result;
+    cmp_datetimes(&result);
+    if (null_value)
+      return true;
+    TIME_from_longlong_packed(ltime, field_type(), result);
+    return false;
+  }
+
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    return get_date_from_time(ltime);
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATE:
+    DBUG_ASSERT(0); // Should have been processed in "compare_as_dates" block.
+  default:
+    return get_date_from_non_temporal(ltime, fuzzydate);
+  }
+}
+
+
+bool Item_func_min_max::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (compare_as_dates)
+  {
+    longlong result;
+    cmp_datetimes(&result);
+    if (null_value)
+      return true;
+    TIME_from_longlong_packed(ltime, field_type(), result);
+    datetime_to_time(ltime);
+    return false;
+  }
+
+  switch (field_type())
+  {
+  case MYSQL_TYPE_TIME:
+    {
+      longlong result;
+      cmp_times(&result);
+      if (null_value)
+        return true;
+      TIME_from_longlong_time_packed(ltime, result);
+      return false;
+    }
+    break;
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    DBUG_ASSERT(0); // Should have been processed in "compare_as_dates" block.
+  default:
+    return get_time_from_non_temporal(ltime);
+    break;
+  }
 }
 
 

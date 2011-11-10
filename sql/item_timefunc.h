@@ -122,6 +122,9 @@ public:
 };
 
 
+/**
+  TS-TODO: This should probably have Item_int_func as parent class.
+*/
 class Item_func_month :public Item_func
 {
 public:
@@ -136,6 +139,14 @@ public:
       return 0;
     str->set(nr, collation.collation);
     return str;
+  }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
@@ -316,6 +327,9 @@ public:
 };
 
 
+/**
+  TS-TODO: This should probably have Item_int_func as parent class.
+*/
 class Item_func_weekday :public Item_func
 {
   bool odbc_type;
@@ -329,6 +343,14 @@ public:
     DBUG_ASSERT(fixed == 1);
     str->set(val_int(), &my_charset_bin);
     return null_value ? 0 : str;
+  }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
   }
   const char *func_name() const
   {
@@ -347,6 +369,11 @@ public:
   }
 };
 
+/**
+  TS-TODO: Item_func_dayname should be derived from Item_str_func.
+  In the current implementation funny things can happen:
+  select dayname(now())+1 -> 4
+*/
 class Item_func_dayname :public Item_func_weekday
 {
   MY_LOCALE *locale;
@@ -354,6 +381,14 @@ class Item_func_dayname :public Item_func_weekday
   Item_func_dayname(Item *a) :Item_func_weekday(a,0) {}
   const char *func_name() const { return "dayname"; }
   String *val_str(String *str);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
@@ -379,6 +414,14 @@ public:
   double val_real();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *decimal_value);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_numeric(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_numeric(ltime);
+  }
   enum Item_result result_type() const
   {
     return decimals ? DECIMAL_RESULT : INT_RESULT;
@@ -560,9 +603,18 @@ public:
   Item_date_func(Item *a, Item *b) :Item_temporal_func(a, b)
   { unsigned_flag= 1; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  bool get_time(MYSQL_TIME *ltime);
-  String *val_str(String *str);
-  longlong val_int();
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_date(ltime);
+  }
+  String *val_str(String *str)
+  {
+    return val_string_from_date(str);
+  }
+  longlong val_int()
+  {  
+    return val_int_from_date();
+  }
   longlong val_date_temporal();
   double val_real() { return (double) val_int(); }
   const char *func_name() const { return "date"; }
@@ -602,8 +654,14 @@ public:
   { unsigned_flag= 1; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   double val_real() { return val_real_from_decimal(); }
-  String *val_str(String *str);
-  longlong val_int();
+  String *val_str(String *str)
+  {
+    return val_string_from_datetime(str);
+  }
+  longlong val_int()
+  {
+    return val_int_from_datetime();
+  }
   longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
@@ -614,7 +672,10 @@ public:
   {
     return save_date_in_field(field);
   }
-  bool get_time(MYSQL_TIME *ltime);
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_datetime(ltime);
+  }
   // All datetime functions must implement get_date()
   // to avoid use of generic Item::get_date()
   // which converts to string and then parses the string as DATETIME.
@@ -643,13 +704,19 @@ public:
   {
     return save_time_in_field(field);
   }
-  longlong val_int();
+  longlong val_int()
+  {
+    return val_int_from_time();
+  }
   longlong val_time_temporal();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date)
   {
     return get_date_from_time(res);
   }
-  String *val_str(String *str);
+  String *val_str(String *str)
+  {
+    return val_string_from_time(str);
+  }
   // All time functions must implement get_time()
   // to avoid use of generic Item::get_time()
   // which converts to string and then parses the string as TIME.

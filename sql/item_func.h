@@ -359,6 +359,14 @@ public:
   my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
     { DBUG_ASSERT(fixed == 1); return (longlong) rint(val_real()); }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   enum Item_result result_type () const { return REAL_RESULT; }
   void fix_length_and_dec()
   { decimals= NOT_FIXED_DEC; max_length= float_length(decimals); }
@@ -388,7 +396,8 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*str);
-
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   /**
      @brief Performs the operation that this functions implements when the
      result type is INT.
@@ -424,6 +433,14 @@ public:
      @return The result of the operation.
   */
   virtual String *str_op(String *)= 0;
+  /**
+     @brief Performs the operation that this functions implements when the
+     result type is MYSQL_TYPE_DATE or MYSQL_TYPE_DATETIME.
+
+     @return The result of the operation.
+  */
+  virtual bool date_op(MYSQL_TIME *ltime, uint fuzzydate)= 0;
+  virtual bool time_op(MYSQL_TIME *ltime)= 0;
   bool is_null() { update_null_value(); return null_value; }
 };
 
@@ -437,6 +454,10 @@ public:
   void fix_num_length_and_dec();
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate)
+  { DBUG_ASSERT(0); return 0; }
+  bool time_op(MYSQL_TIME *ltime)
+  { DBUG_ASSERT(0); return 0; }
 };
 
 
@@ -454,6 +475,10 @@ class Item_num_op :public Item_func_numhybrid
 
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+  bool date_op(MYSQL_TIME *ltime, uint fuzzydate)
+  { DBUG_ASSERT(0); return 0; }
+  bool time_op(MYSQL_TIME *ltime)
+  { DBUG_ASSERT(0); return 0; }
 };
 
 
@@ -474,6 +499,14 @@ public:
   { collation.set_numeric(); }
   double val_real();
   String *val_str(String*str);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() {}
 };
@@ -536,6 +569,14 @@ public:
   String *val_str(String *str);
   double val_real();
   longlong val_int();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
@@ -907,6 +948,8 @@ class Item_func_min_max :public Item_func
   THD *thd;
 protected:
   enum_field_types cached_field_type;
+  uint cmp_datetimes(longlong *value);
+  uint cmp_times(longlong *value);
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
     cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
@@ -915,17 +958,8 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
-  /*
-    TS-TODO: implement own get_date() and get_time() for performance reasons.
-    Otherwise Item generic functions are used which involve val_str()
-    followed by string-to-time and string-to-datetime conversion.
-    Similar happens for other hybrid function, like COALESCE.
-
-    The other classes that may need their own implementations are:
-    Item_func_coalesce, Item_func_if, Item_func_case, Item_func_min_max,
-    Item_singlerow_subselect, Item_sum_min, Item_sum_max
-    Item_func_add_time, Item_date_add_interval, Item_func_str_to_date
-  */
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);  
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
   enum Item_result cast_to_int_type () const
@@ -936,7 +970,6 @@ public:
     */
     return compare_as_dates ? INT_RESULT : result_type();
   }
-  uint cmp_datetimes(longlong *value);
   enum_field_types field_type() const { return cached_field_type; }
 };
 
@@ -972,6 +1005,14 @@ public:
   longlong val_int() { return args[0]->val_int(); }
   String *val_str(String *str) { return args[0]->val_str(str); }
   my_decimal *val_decimal(my_decimal *dec) { return args[0]->val_decimal(dec); }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return args[0]->get_date(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return args[0]->get_time(ltime);
+  }
   const char *func_name() const { return "rollup_const"; }
   bool const_item() const { return 0; }
   Item_result result_type() const { return args[0]->result_type(); }
@@ -1304,6 +1345,14 @@ class Item_func_udf_float :public Item_udf_func
   }
   double val_real();
   String *val_str(String *str);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   void fix_length_and_dec() { fix_num_length_and_dec(); }
 };
 
@@ -1319,6 +1368,14 @@ public:
   longlong val_int();
   double val_real() { return (double) Item_func_udf_int::val_int(); }
   String *val_str(String *str);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals= 0; max_length= 21; }
 };
@@ -1335,6 +1392,14 @@ public:
   double val_real();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String *str);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   void fix_length_and_dec();
 };
@@ -1372,11 +1437,20 @@ public:
     string2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf);
     return dec_buf;
   }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
 };
 
 #else /* Dummy functions to get sql_yacc.cc compiled */
+
 
 class Item_func_udf_float :public Item_real_func
 {
@@ -1471,11 +1545,33 @@ public:
 };
 
 
+/**
+  Common class for:
+    Item_func_get_system_var
+    Item_func_get_user_var
+    Item_func_set_user_var
+*/
+class Item_var_func :public Item_func
+{
+public:
+  Item_var_func() :Item_func() { }
+  Item_var_func(Item *a) :Item_func(a) { }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_non_temporal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_non_temporal(ltime);
+  }
+};
+
+
 /* Handling of user definable variables */
 
 class user_var_entry;
 
-class Item_func_set_user_var :public Item_func
+class Item_func_set_user_var :public Item_var_func
 {
   enum Item_result cached_result_type;
   user_var_entry *entry;
@@ -1505,7 +1601,7 @@ class Item_func_set_user_var :public Item_func
 public:
   LEX_STRING name; // keep it public
   Item_func_set_user_var(LEX_STRING a,Item *b)
-    :Item_func(b), cached_result_type(INT_RESULT),
+    :Item_var_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
   {}
   enum Functype functype() const { return SUSERVAR_FUNC; }
@@ -1545,7 +1641,7 @@ public:
 };
 
 
-class Item_func_get_user_var :public Item_func,
+class Item_func_get_user_var :public Item_var_func,
                               private Settable_routine_parameter
 {
   user_var_entry *var_entry;
@@ -1554,7 +1650,7 @@ class Item_func_get_user_var :public Item_func,
 public:
   LEX_STRING name; // keep it public
   Item_func_get_user_var(LEX_STRING a):
-    Item_func(), m_cached_result_type(STRING_RESULT), name(a) {}
+    Item_var_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
   LEX_STRING get_name() { return name; }
   double val_real();
@@ -1606,6 +1702,17 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *decimal_buffer);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref);
   virtual void print(String *str, enum_query_type query_type);
@@ -1620,7 +1727,7 @@ public:
 #define GET_SYS_VAR_CACHE_DOUBLE   2
 #define GET_SYS_VAR_CACHE_STRING   4
 
-class Item_func_get_system_var :public Item_func
+class Item_func_get_system_var :public Item_var_func
 {
   sys_var *var;
   enum_var_type var_type, orig_var_type;
@@ -1825,6 +1932,20 @@ public:
     if (execute())
       return 0.0;
     return sp_result_field->val_real();
+  }
+
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    if (execute())
+      return true;
+    return sp_result_field->get_date(ltime, fuzzydate);
+  }
+
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    if (execute())
+      return true;
+    return sp_result_field->get_time(ltime);
   }
 
   my_decimal *val_decimal(my_decimal *dec_buf)

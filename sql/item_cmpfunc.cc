@@ -1523,8 +1523,25 @@ int Arg_comparator::compare_int_signed()
 */
 int Arg_comparator::compare_temporal_packed()
 {
-  //DBUG_ASSERT((*a)->field_type() == MYSQL_TYPE_TIME); // TS-TODO
-  //DBUG_ASSERT((*b)->field_type() == MYSQL_TYPE_TIME); // TS-TODO
+  /*
+    Note, we cannot do this:
+    DBUG_ASSERT((*a)->field_type() == MYSQL_TYPE_TIME);
+    DBUG_ASSERT((*b)->field_type() == MYSQL_TYPE_TIME);
+    
+    SELECT col_time_key FROM t1
+    WHERE
+      col_time_key != UTC_DATE()
+    AND
+      col_time_key = MAKEDATE(43, -2852);
+
+    is rewritten to:
+
+    SELECT col_time_key FROM t1
+    WHERE
+      MAKEDATE(43, -2852) != UTC_DATE()
+    AND
+      col_time_key = MAKEDATE(43, -2852);
+  */
   longlong val1= (*a)->val_time_temporal();
   if (!(*a)->null_value)
   {
@@ -2762,6 +2779,24 @@ my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value)
 }
 
 
+bool Item_func_ifnull::date_op(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!args[0]->get_date(ltime, fuzzydate))
+    return (null_value= false);
+  return (null_value= args[1]->get_date(ltime, fuzzydate));
+}
+
+
+bool Item_func_ifnull::time_op(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (!args[0]->get_time(ltime))
+    return (null_value= false);
+  return (null_value= args[1]->get_time(ltime));
+}
+
+
 String *
 Item_func_ifnull::str_op(String *str)
 {
@@ -2922,12 +2957,30 @@ String *
 Item_func_if::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  Item *arg= args[0]->val_bool() ? args[1] : args[2];
-  String *res=arg->val_str(str);
-  if (res)
-    res->set_charset(collation.collation);
-  null_value=arg->null_value;
-  return res;
+
+  switch (field_type())
+  {
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return val_string_from_datetime(str);
+  case MYSQL_TYPE_DATE:
+    return val_string_from_date(str);
+  case MYSQL_TYPE_TIME:
+    return val_string_from_time(str);
+  default:
+    {
+      Item *item= args[0]->val_bool() ? args[1] : args[2];
+      String *res;
+      if ((res= item->val_str(str)))
+      {
+        res->set_charset(collation.collation);
+        null_value= 0;
+        return res;   
+      }
+    }
+  }
+  null_value= true;
+  return (String *) 0;
 }
 
 
@@ -2939,6 +2992,22 @@ Item_func_if::val_decimal(my_decimal *decimal_value)
   my_decimal *value= arg->val_decimal(decimal_value);
   null_value= arg->null_value;
   return value;
+}
+
+
+bool Item_func_if::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  Item *arg= args[0]->val_bool() ? args[1] : args[2];
+  return (null_value= arg->get_date(ltime, fuzzydate));
+}
+
+
+bool Item_func_if::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  Item *arg= args[0]->val_bool() ? args[1] : args[2];
+  return (null_value= arg->get_time(ltime));
 }
 
 
@@ -3103,18 +3172,31 @@ Item *Item_func_case::find_item(String *str)
 String *Item_func_case::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res;
-  Item *item=find_item(str);
-
-  if (!item)
-  {
-    null_value=1;
-    return 0;
+  switch (field_type()) {
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    return val_string_from_datetime(str);
+  case MYSQL_TYPE_DATE:
+    return val_string_from_date(str);
+  case MYSQL_TYPE_TIME:
+    return val_string_from_time(str);
+  default:
+    {
+      Item *item= find_item(str);
+      if (item)
+      {
+        String *res;
+        if ((res= item->val_str(str)))
+        {
+          res->set_charset(collation.collation);
+          null_value= 0;
+          return res;
+        }
+      }
+    }
   }
-  null_value= 0;
-  if (!(res=item->val_str(str)))
-    null_value= 1;
-  return res;
+  null_value= true;
+  return (String *) 0;
 }
 
 
@@ -3172,6 +3254,30 @@ my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
   res= item->val_decimal(decimal_value);
   null_value= item->null_value;
   return res;
+}
+
+
+bool Item_func_case::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String dummy_str(buff, sizeof(buff), default_charset());
+  Item *item= find_item(&dummy_str);
+  if (!item)
+    return (null_value= true);
+  return (null_value= item->get_date(ltime, fuzzydate));
+}
+
+
+bool Item_func_case::get_time(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String dummy_str(buff, sizeof(buff), default_charset());
+  Item *item= find_item(&dummy_str);
+  if (!item)
+    return (null_value= true);
+  return (null_value= item->get_time(ltime));
 }
 
 
@@ -3483,6 +3589,31 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
   }
   null_value=1;
   return 0;
+}
+
+
+
+bool Item_func_coalesce::date_op(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (!args[i]->get_date(ltime, fuzzydate))
+      return (null_value= false);
+  }
+  return (null_value= true);
+}
+
+
+bool Item_func_coalesce::time_op(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(fixed == 1);
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (!args[i]->get_time(ltime))
+      return (null_value= false);
+  }
+  return (null_value= true);
 }
 
 

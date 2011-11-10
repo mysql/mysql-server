@@ -884,16 +884,24 @@ public:
   */
   virtual bool val_bool();
   virtual String *val_nodeset(String*) { return 0; }
+
+protected:
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
   String *val_string_from_int(String *str);
   String *val_string_from_decimal(String *str);
+  String *val_string_from_date(String *str);
+  String *val_string_from_datetime(String *str);
+  String *val_string_from_time(String *str);
   my_decimal *val_decimal_from_real(my_decimal *decimal_value);
   my_decimal *val_decimal_from_int(my_decimal *decimal_value);
   my_decimal *val_decimal_from_string(my_decimal *decimal_value);
   my_decimal *val_decimal_from_date(my_decimal *decimal_value);
   my_decimal *val_decimal_from_time(my_decimal *decimal_value);
   longlong val_int_from_decimal();
+  longlong val_int_from_date();
+  longlong val_int_from_time();
+  longlong val_int_from_datetime();
   double val_real_from_decimal();
 
   /**
@@ -918,6 +926,16 @@ public:
   bool get_date_from_time(MYSQL_TIME *ltime);
 
   /**
+    Convert a numeric type to date
+  */
+  bool get_date_from_numeric(MYSQL_TIME *ltime, uint fuzzydate);
+
+  /**
+    Convert a non-temporal type to date
+  */
+  bool get_date_from_non_temporal(MYSQL_TIME *ltime, uint fuzzydate);
+
+  /**
     Convert val_str() to time in MYSQL_TIME
   */
   bool get_time_from_string(MYSQL_TIME *ltime);
@@ -933,6 +951,27 @@ public:
     Convert val_int() to time in MYSQL_TIME
   */
   bool get_time_from_int(MYSQL_TIME *ltime);
+  /**
+    Convert date to time
+  */
+  bool get_time_from_date(MYSQL_TIME *ltime);
+  /**
+    Convert datetime to time
+  */
+  bool get_time_from_datetime(MYSQL_TIME *ltime);
+
+  /**
+    Convert a numeric type to time
+  */
+  bool get_time_from_numeric(MYSQL_TIME *ltime);
+
+  /**
+    Convert a non-temporal type to time
+  */
+  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
+
+
+public:
 
   int save_time_in_field(Field *field);
   int save_date_in_field(Field *field);
@@ -1036,8 +1075,8 @@ public:
   void split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
                        List<Item> &fields,
                        Item **ref, bool skip_registered);
-  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
-  virtual bool get_time(MYSQL_TIME *ltime);
+  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate)= 0;
+  virtual bool get_time(MYSQL_TIME *ltime)= 0;
   /**
     Get timestamp in "struct timeval" format.
     @retval  false on success
@@ -1483,6 +1522,8 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *decimal_value);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool is_null();
 
 public:
@@ -1695,6 +1736,8 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool is_null();
   virtual void print(String *str, enum_query_type query_type);
 
@@ -1845,6 +1888,14 @@ public:
   longlong val_int() { return field->val_int(); }
   String *val_str(String *str) { return field->val_str(str); }
   my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return field->get_date(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return field->get_time(ltime);
+  }
   void make_field(Send_field *tmp_field);
   CHARSET_INFO *charset_for_protocol(void) const
   { return (CHARSET_INFO *)field->charset_for_protocol(); }
@@ -2021,6 +2072,14 @@ public:
   longlong val_date_temporal() { return val_int(); }
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return true;
+  }
   int save_in_field(Field *field, bool no_conversions);
   int save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
@@ -2238,6 +2297,14 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_int(name,value,max_length); }
@@ -2266,6 +2333,16 @@ public:
   Item *clone_item() { return new Item_temporal(value); }
   longlong val_time_temporal() { return val_int(); }
   longlong val_date_temporal() { return val_int(); }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    DBUG_ASSERT(0);
+    return false;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(0);
+    return false;
+  }
   enum_field_types field_type() const
   {
     // Currently we don't need to distinguish between DATE, DATETIME, or TIME.
@@ -2313,6 +2390,14 @@ public:
   double val_real();
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *val) { return &decimal_value; }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item()
@@ -2372,6 +2457,14 @@ public:
   }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   bool basic_const_item() const { return 1; }
   Item *clone_item()
   { return new Item_float(name, value, decimals, max_length); }
@@ -2469,6 +2562,14 @@ public:
     return (String*) &str_value;
   }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
@@ -2640,6 +2741,14 @@ public:
   bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
@@ -3060,6 +3169,17 @@ public:
   }
   enum_field_types field_type() const { return cached_field_type; }
   void print(String *str, enum_query_type query_type);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+
 };
 
 
@@ -3238,6 +3358,8 @@ public:
   virtual my_decimal *val_decimal(my_decimal *) = 0;
   virtual double val_real() = 0;
   virtual longlong val_int() = 0;
+  virtual bool get_date(MYSQL_TIME *ltime, uint fuzzydate)= 0;
+  virtual bool get_time(MYSQL_TIME *ltime)= 0;
   virtual int save_in_field(Field *field, bool no_conversions) = 0;
 };
 
@@ -3255,6 +3377,8 @@ public:
   my_decimal *val_decimal(my_decimal *);
   double val_real();
   longlong val_int();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   void copy();
   int save_in_field(Field *field, bool no_conversions);
 };
@@ -3277,6 +3401,14 @@ public:
   virtual longlong val_int()
   {
     return null_value ? LL(0) : cached_value;
+  }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
   }
   virtual void copy();
 };
@@ -3316,6 +3448,14 @@ public:
   {
     return (longlong) rint(val_real());
   }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   void copy()
   {
     cached_value= item->val_real();
@@ -3339,6 +3479,14 @@ public:
   }
   double val_real();
   longlong val_int();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   void copy();
 };
 
@@ -3690,6 +3838,14 @@ public:
   longlong val_date_temporal() { return val_int(); }
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   enum Item_result result_type() const { return INT_RESULT; }
   bool cache_value();
 };
@@ -3706,6 +3862,14 @@ public:
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   enum Item_result result_type() const { return REAL_RESULT; }
   bool cache_value();
 };
@@ -3722,6 +3886,14 @@ public:
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   enum Item_result result_type() const { return DECIMAL_RESULT; }
   bool cache_value();
 };
@@ -3746,6 +3918,14 @@ public:
   longlong val_int();
   String* val_str(String *);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   enum Item_result result_type() const { return STRING_RESULT; }
   const CHARSET_INFO *charset() const { return value->charset(); };
   int save_in_field(Field *field, bool no_conversions);
@@ -3798,6 +3978,16 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    illegal_method_call((const char *) "get_date");
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    illegal_method_call((const char *) "get_time");
+    return true;
+  }
 
   enum Item_result result_type() const { return ROW_RESULT; }
   
@@ -3843,6 +4033,8 @@ public:
   longlong val_date_temporal();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   enum Item_result result_type() const { return STRING_RESULT; }
   /*
     In order to avoid INT <-> STRING conversion of a DATETIME value
@@ -3885,6 +4077,16 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
   bool join_types(THD *thd, Item *);
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);
