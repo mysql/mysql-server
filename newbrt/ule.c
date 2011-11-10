@@ -120,10 +120,17 @@ static inline size_t uxr_unpack_length_and_bit(UXR uxr, uint8_t *p);
 static inline size_t uxr_unpack_data(UXR uxr, uint8_t *p);
 
 static void *
-le_malloc(size_t size)
+le_malloc(OMT omt, struct mempool *mp, size_t size, void **maybe_free)
 {
-    return toku_xmalloc(size);
+    void * rval;
+    if (omt)
+	rval = mempool_malloc_from_omt(omt, mp, size, maybe_free);
+    else
+	rval = toku_xmalloc(size);
+    resource_assert(rval);
+    return rval;
 }
+
 
 
 /////////////////////////////////////////////////////////////////////
@@ -288,13 +295,15 @@ done:;
 // Return 0 on success.  
 //   If the leafentry is destroyed it sets *new_leafentry_p to NULL.
 //   Otehrwise the new_leafentry_p points at the new leaf entry.
-// As of September 2010, the only possible error returned is ENOMEM.
+// As of October 2011, this function always returns 0.
 int 
 apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
 		       LEAFENTRY old_leafentry, // NULL if there was no stored data.
 		       size_t *new_leafentry_memorysize, 
-		       size_t *new_leafentry_disksize, 
 		       LEAFENTRY *new_leafentry_p,
+		       OMT omt, 
+		       struct mempool *mp, 
+		       void **maybe_free,
                        OMT snapshot_xids,
                        OMT live_list_reverse) {
     ULE_S ule;
@@ -309,9 +318,11 @@ apply_msg_to_leafentry(BRT_MSG   msg,		// message to apply to leafentry
         garbage_collection(&ule, snapshot_xids, live_list_reverse);
     }
     rval = le_pack(&ule,                // create packed leafentry
-        new_leafentry_memorysize, 
-        new_leafentry_disksize, 
-        new_leafentry_p
+		   new_leafentry_memorysize, 
+		   new_leafentry_p,
+		   omt,
+		   mp,
+		   maybe_free
         );                       
     ule_cleanup(&ule);
     return rval;
@@ -625,9 +636,10 @@ update_le_status(ULE ule, size_t memsize, LE_STATUS s) {
 int
 le_pack(ULE ule,                            // data to be packed into new leafentry
 	size_t *new_leafentry_memorysize, 
-	size_t *new_leafentry_disksize, 
-	LEAFENTRY * const new_leafentry_p   // this is what this function creates
-        ) 
+	LEAFENTRY * const new_leafentry_p,  // this is what this function creates
+	OMT omt, 
+	struct mempool *mp, 
+	void **maybe_free)
 {
     invariant(ule->num_cuxrs > 0);
     invariant(ule->uxrs[0].xid == TXNID_NONE);
@@ -651,11 +663,8 @@ le_pack(ULE ule,                            // data to be packed into new leafen
     }
 found_insert:;
     memsize = le_memsize_from_ule(ule);
-    LEAFENTRY new_leafentry = le_malloc(memsize);
-    if (new_leafentry==NULL) {
-        rval = ENOMEM;
-        goto cleanup;
-    }
+    LEAFENTRY new_leafentry = le_malloc(omt, mp, memsize, maybe_free);
+
     //Universal data
     new_leafentry->keylen  = toku_htod32(ule->keylen);
 
@@ -781,7 +790,6 @@ found_insert:;
 
     *new_leafentry_p = (LEAFENTRY)new_leafentry;
     *new_leafentry_memorysize = memsize;
-    *new_leafentry_disksize   = memsize;
     rval = 0;
 cleanup:
     update_le_status(ule, memsize, &status);
@@ -2210,7 +2218,6 @@ leafentry_disksize_13(LEAFENTRY_13 le) {
 int 
 toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
 		      size_t *new_leafentry_memorysize, 
-		      size_t *new_leafentry_disksize, 
 		      LEAFENTRY *new_leafentry_p) {
     ULE_S ule;
     int rval;
@@ -2218,8 +2225,8 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
     le_unpack_13(&ule, old_leafentry);
     rval = le_pack(&ule,                // create packed leafentry
                    new_leafentry_memorysize, 
-                   new_leafentry_disksize, 
-                   new_leafentry_p);
+                   new_leafentry_p,
+		   NULL, NULL, NULL);   // NULL for omt means that we use malloc instead of mempool
     ule_cleanup(&ule);
     return rval;
 }

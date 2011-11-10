@@ -103,6 +103,7 @@ Lookup:
 
 #include "includes.h"
 #include "checkpoint.h"
+#include "mempool.h"
 // Access to nested transaction logic
 #include "ule.h"
 #include "xids.h"
@@ -569,7 +570,11 @@ brtnode_memory_size (BRTNODE node)
             else {
                 BASEMENTNODE bn = BLB(node, i);
                 retval += sizeof(*bn);
-                retval += BLB_NBYTESINBUF(node,i);
+		{
+		    size_t poolsize = toku_mempool_get_size(&bn->buffer_mempool);  // include fragmentation overhead
+		    invariant (poolsize >= BLB_NBYTESINBUF(node,i));
+		    retval += poolsize;
+		}
                 OMT curr_omt = BLB_BUFFER(node, i);
                 retval += (toku_omt_memory_size(curr_omt));
             }
@@ -825,8 +830,8 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
                 if (BP_SHOULD_EVICT(node,i)) {
                     // free the basement node
                     BASEMENTNODE bn = BLB(node, i);
-                    OMT curr_omt = BLB_BUFFER(node, i);
-                    toku_omt_free_items(curr_omt);
+		    struct mempool * mp = &bn->buffer_mempool;
+		    toku_mempool_destroy(mp);
                     destroy_basement_node(bn);
                     set_BNULL(node,i);
                     BP_STATE(node,i) = PT_ON_DISK;
@@ -1046,6 +1051,28 @@ brt_compare_pivot(DESCRIPTOR desc, brt_compare_func cmp, const DBT *key, bytevec
     return r;
 }
 
+static int
+verify_in_mempool (OMTVALUE lev, u_int32_t UU(idx), void *vmp)
+{
+    LEAFENTRY le=lev;
+    struct mempool *mp=vmp;
+    lazy_assert(toku_mempool_inrange(mp, le, leafentry_memsize(le)));
+    return 0;
+}
+
+static void
+verify_all_in_mempool (BRTNODE node)
+{
+    if (node->height==0) {
+	for (int i = 0; i < node->n_children; i++) {
+	    invariant(BP_STATE(node,i) == PT_AVAIL);
+	    BASEMENTNODE bn = BLB(node, i);
+	    toku_omt_iterate(bn->buffer, verify_in_mempool, &bn->buffer_mempool);
+	}
+    }
+}
+
+
 // destroys the internals of the brtnode, but it does not free the values
 // that are stored
 // this is common functionality for toku_brtnode_free and rebalance_brtnode_leaf
@@ -1089,8 +1116,8 @@ void toku_brtnode_free (BRTNODE *nodep) {
     if (node->height == 0) {
 	for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
-                OMT curr_omt = BLB_BUFFER(node, i);
-                toku_omt_free_items(curr_omt);
+		struct mempool * mp = &(BLB_BUFFER_MEMPOOL(node, i));
+		toku_mempool_destroy(mp);
             }
 	}
     }
@@ -1399,8 +1426,8 @@ static void
 brtleaf_get_split_loc(
     BRTNODE node, 
     u_int64_t sumlesizes, 
-    int* bn_index, 
-    int* le_index 
+    int* bn_index,   // which basement within leaf
+    int* le_index    // which key within basement
     )
 // Effect: Find the location within a leaf node where we want to perform a split
 // bn_index is which basement node (which OMT) should be split.
@@ -1450,8 +1477,8 @@ exit:
 // brtleaf_split
 static void
 move_leafentries(
-    OMT* dest_omt,
-    OMT src_omt,
+    BASEMENTNODE dest_bn,    
+    BASEMENTNODE src_bn,
     u_int32_t lbi, //lower bound inclusive
     u_int32_t ube, //upper bound exclusive
     u_int32_t* num_bytes_moved
@@ -1459,34 +1486,50 @@ move_leafentries(
 //Effect: move leafentries in the range [lbi, upe) from src_omt to newly created dest_omt
 {
     assert(lbi < ube);
-    OMTVALUE *XMALLOC_N(ube-lbi, new_le);
+    OMTVALUE *XMALLOC_N(ube-lbi, newleafpointers);    // create new omt
+
+    size_t mpsize = toku_mempool_get_used_space(&src_bn->buffer_mempool);   // overkill, but safe
+    struct mempool * dest_mp = &dest_bn->buffer_mempool;
+    struct mempool * src_mp  = &src_bn->buffer_mempool;
+    toku_mempool_construct(dest_mp, mpsize);   
+
     u_int32_t i = 0;
     *num_bytes_moved = 0;
     for (i = lbi; i < ube; i++) {
 	LEAFENTRY curr_le = NULL;
-	curr_le = fetch_from_buf(src_omt, i);
-
+	curr_le = fetch_from_buf(src_bn->buffer, i);
+	size_t le_size = leafentry_memsize(curr_le);
 	*num_bytes_moved += leafentry_disksize(curr_le);
-	new_le[i-lbi] = curr_le;
+	LEAFENTRY new_le = toku_mempool_malloc(dest_mp, le_size, 1);
+	memcpy(new_le, curr_le, le_size);
+	newleafpointers[i-lbi] = new_le;
+	toku_mempool_mfree(src_mp, curr_le, le_size);
     }
 
     int r = toku_omt_create_steal_sorted_array(
-	dest_omt,
-	&new_le,
+	&dest_bn->buffer,
+	&newleafpointers,
 	ube-lbi,
 	ube-lbi
 	);
     assert_zero(r);
     // now remove the elements from src_omt
     for (i=ube-1; i >= lbi; i--) {
-	toku_omt_delete_at(src_omt,i);
+	toku_omt_delete_at(src_bn->buffer,i);
     }
 }
 
 void
 brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node, u_int32_t num_dependent_nodes, BRTNODE* dependent_nodes)
 // Effect: Split a leaf node.
+// Argument "node" is node to be split.
+// Upon return:
+//   nodea and nodeb point to new nodes that result from split of "node"
+//   nodea is the left node that results from the split
+//   splitk is the right-most key of nodea
 {
+
+    //    printf("###### brtleaf_split():  create_new_node = %d, num_dependent_nodes = %d\n", create_new_node, num_dependent_nodes);
     BRTNODE B;
 
     u_int32_t fullhash;
@@ -1495,12 +1538,12 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
         // put value in cachetable and do checkpointing
         // of dependent nodes
         //
-        // We do this here, before evaluating the split_node
-        // and split_at_in_node because this operation
+        // We do this here, before evaluating the last_bn_on_left
+        // and last_le_on_left_within_bn because this operation
         // may write to disk the dependent nodes.
         // While doing so, we may rebalance the leaf node
         // we are splitting, thereby invalidating the
-        // values of split_node and split_at_in_node.
+        // values of last_bn_on_left and last_le_on_left_within_bn.
         // So, we must call this before evaluating
         // those two values
         cachetable_put_empty_node_with_dep_nodes(
@@ -1518,6 +1561,7 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     assert(node->height==0);
     assert(node->nodesize>0);
     toku_assert_entire_node_in_memory(node);
+    verify_all_in_mempool(node);
     MSN max_msn_applied_to_node = node->max_msn_applied_to_node_on_disk;
 
     //printf("%s:%d A is at %lld\n", __FILE__, __LINE__, A->thisnodename);
@@ -1525,9 +1569,9 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 
 
     // variables that say where we will do the split. We do it in the basement node indexed at
-    // at split_node, and at the index split_at_in_node within that basement node.
-    int split_node = 0;
-    int split_at_in_node = 0;
+    // at last_bn_on_left and at the index last_le_on_left_within_bn within that basement node.
+    int last_bn_on_left = 0;               // last_bn_on_left may or may not be fully included
+    int last_le_on_left_within_bn = 0;
     {
         {
             // TODO: (Zardosht) see if we can/should make this faster, we iterate over the rows twice
@@ -1538,23 +1582,26 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
             brtleaf_get_split_loc(
                 node,
                 sumlesizes,
-                &split_node,
-                &split_at_in_node
+                &last_bn_on_left,
+                &last_le_on_left_within_bn
                 );
         }
         // did we split right on the boundary between basement nodes?
-        BOOL split_on_boundary = (split_at_in_node == ((int) toku_omt_size(BLB_BUFFER(node, split_node)) - 1));
+        BOOL split_on_boundary = (last_le_on_left_within_bn == ((int) toku_omt_size(BLB_BUFFER(node, last_bn_on_left)) - 1));
         // Now we know where we are going to break it
         // the two nodes will have a total of n_children+1 basement nodes
         // and n_children-1 pivots
-        // the left node, node, will have split_node+1 basement nodes
-        // the right node, B, will have n_children-split_node basement nodes
-        // the pivots of node will be the first split_node pivots that originally exist
-        // the pivots of B will be the last (n_children - 1 - split_node) pivots that originally exist
+        // the left node, node, will have last_bn_on_left+1 basement nodes
+        // the right node, B, will have n_children-last_bn_on_left basement nodes
+        // the pivots of node will be the first last_bn_on_left pivots that originally exist
+        // the pivots of B will be the last (n_children - 1 - last_bn_on_left) pivots that originally exist
+
+	// Note: The basements will not be rebalanced.  Only the mempool of the basement that is split 
+	//       (if split_on_boundary is false) will be affected.  All other mempools will remain intact. ???
 
         //set up the basement nodes in the new node
-        int num_children_in_node = split_node + 1;
-        int num_children_in_b = node->n_children - split_node - (split_on_boundary ? 1 : 0);
+        int num_children_in_node = last_bn_on_left + 1;
+        int num_children_in_b = node->n_children - last_bn_on_left - (split_on_boundary ? 1 : 0);
         if (create_new_node) {
             toku_initialize_empty_brtnode(
                 B, 
@@ -1586,23 +1633,22 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
         // first move all the data
         //
 
-        int curr_src_bn_index = split_node;
+        int curr_src_bn_index = last_bn_on_left;
         int curr_dest_bn_index = 0;
 
-        // handle the move of a subset of data in split_node from node to B
+        // handle the move of a subset of data in last_bn_on_left from node to B
         if (!split_on_boundary) {
             BP_STATE(B,curr_dest_bn_index) = PT_AVAIL;
             u_int32_t diff_size = 0;
             destroy_basement_node (BLB(B, curr_dest_bn_index)); // Destroy B's empty OMT, so I can rebuild it from an array
             set_BNULL(B, curr_dest_bn_index);
             set_BLB(B, curr_dest_bn_index, toku_create_empty_bn_no_buffer());
-            move_leafentries(
-                &BLB_BUFFER(B, curr_dest_bn_index),
-                BLB_BUFFER(node, curr_src_bn_index),
-                split_at_in_node+1,
-                toku_omt_size(BLB_BUFFER(node, curr_src_bn_index)),
-                &diff_size
-                );
+            move_leafentries(BLB(B, curr_dest_bn_index),
+			     BLB(node, curr_src_bn_index),
+			     last_le_on_left_within_bn+1,         // first row to be moved to B
+			     toku_omt_size(BLB_BUFFER(node, curr_src_bn_index)),    // number of rows in basement to be split
+			     &diff_size
+			     );
             BLB_NBYTESINBUF(node, curr_src_bn_index) -= diff_size;
             BLB_NBYTESINBUF(B, curr_dest_bn_index) += diff_size;
             curr_dest_bn_index++;
@@ -1624,7 +1670,7 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 
         // the child index in the original node that corresponds to the
         // first node in the right node of the split
-        int base_index = (split_on_boundary ? split_node + 1 : split_node);
+        int base_index = (split_on_boundary ? last_bn_on_left + 1 : last_bn_on_left);
         // make pivots in B
         for (int i=0; i < num_children_in_b-1; i++) {
             B->childkeys[i] = node->childkeys[i+base_index];
@@ -1635,7 +1681,7 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
         if (split_on_boundary) {
             // destroy the extra childkey between the nodes, we'll
             // recreate it in splitk below
-            toku_free(node->childkeys[split_node]);
+            toku_free(node->childkeys[last_bn_on_left]);
         }
         REALLOC_N(num_children_in_node, node->bp);
         REALLOC_N(num_children_in_node-1, node->childkeys);
@@ -1644,7 +1690,7 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     if (splitk) {
         memset(splitk, 0, sizeof *splitk);
         OMTVALUE lev = 0;
-        int r=toku_omt_fetch(BLB_BUFFER(node, split_node), toku_omt_size(BLB_BUFFER(node, split_node))-1, &lev);
+        int r=toku_omt_fetch(BLB_BUFFER(node, last_bn_on_left), toku_omt_size(BLB_BUFFER(node, last_bn_on_left))-1, &lev);
         assert_zero(r); // that fetch should have worked.
         LEAFENTRY le=lev;
         splitk->size = le_keylen(le);
@@ -1658,6 +1704,9 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     node->dirty = 1;
     B->dirty = 1;
 
+    verify_all_in_mempool(node);
+    verify_all_in_mempool(B);
+
     *nodea = node;
     *nodeb = B;
 
@@ -1666,7 +1715,10 @@ brtleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     //		 B   ->thisnodename.b, toku_serialize_brtnode_size(B   ), B   ->height==0 ? (int)(toku_omt_size(B   ->u.l.buffer)) : -1, B->dirty);
     //toku_dump_brtnode(t, node->thisnodename, 0, NULL, 0, NULL, 0);
     //toku_dump_brtnode(t, B   ->thisnodename, 0, NULL, 0, NULL, 0);
-}
+
+}    // end of brtleaf_split()
+
+
 
 static void
 brt_nonleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, u_int32_t num_dependent_nodes, BRTNODE* dependent_nodes)
@@ -1742,6 +1794,9 @@ brt_nonleaf_split (struct brt_header* h, BRTNODE node, BRTNODE *nodea, BRTNODE *
     *nodea = node;
     *nodeb = B;
 }
+
+
+
 
 /* NODE is a node with a child.
  * childnum was split into two nodes childa, and childb.  childa is the same as the original child.  childb is a new child.
@@ -1931,6 +1986,7 @@ brt_leaf_delete_leafentry (
 
     bn->n_bytes_in_buffer -= leafentry_disksize(le);
 
+    toku_mempool_mfree(&bn->buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le is no good any more.
 }
 
 void
@@ -1950,49 +2006,50 @@ brt_leaf_apply_cmd_once (
 {
     // brt_leaf_check_leaf_stats(node);
 
-    size_t newlen=0, newdisksize=0, oldsize=0, workdone_this_le=0;
+    size_t newsize=0, oldsize=0, workdone_this_le=0;
     LEAFENTRY new_le=0;
+    void *maybe_free = 0;
 
     if (le)
 	oldsize = leafentry_memsize(le);
 
-    // This function may call mempool_malloc_dont_release() to allocate more space.
-    // That means the old pointers are guaranteed to still be good, but the data may have been copied into a new mempool.
-    // We'll have to release the old mempool later.
+    // This function may call mempool_malloc_from_omt() to allocate more space.
+    // That means le is guaranteed to not cause a sigsegv but it may point to a mempool that is 
+    // no longer in use.  We'll have to release the old mempool later.
     {
-	int r = apply_msg_to_leafentry(cmd, le, &newlen, &newdisksize, &new_le, snapshot_txnids, live_list_reverse);
-	assert(r==0);
+	int r = apply_msg_to_leafentry(cmd, le, &newsize, &new_le, bn->buffer, &bn->buffer_mempool, &maybe_free, snapshot_txnids, live_list_reverse);
+	invariant(r==0);
     }
-    if (new_le) assert(newdisksize == leafentry_disksize(new_le));
+    if (new_le) assert(newsize == leafentry_disksize(new_le));
 
     if (le && new_le) {
-	// If we are replacing a leafentry, then the counts on the estimates remain unchanged, but the size might change
+	bn->n_bytes_in_buffer -= oldsize;
+	bn->n_bytes_in_buffer += newsize;
 
-	bn->n_bytes_in_buffer -= leafentry_disksize(le);
-	
-	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_keylen(new_le), le_latest_vallen(le), node->u.l.leaf_stats.dsize);
-	// the ndata and nkeys remains unchanged
+        // This mfree must occur after the mempool_malloc so that when the mempool is compressed everything is accounted for.
+        // But we must compute the size before doing the mempool mfree because otherwise the le pointer is no good.
+        toku_mempool_mfree(&bn->buffer_mempool, 0, oldsize); // Must pass 0, since le may be no good any more.
+        
+	{ 
+	    int r = toku_omt_set_at(bn->buffer, new_le, idx); 
+	    invariant(r==0); 
+	}
 
-	bn->n_bytes_in_buffer += newdisksize;
+	workdone_this_le = (oldsize > newsize ? oldsize : newsize);  // work done is max of le size before and after message application
 
-	{ int r = toku_omt_set_at(bn->buffer, new_le, idx); assert(r==0); }
-	toku_free(le);
-
-	workdone_this_le = (oldsize > newlen ? oldsize : newlen);  // work done is max of le size before and after message application
-
-    } else {
-	if (le) {
+    } else {           // we did not just replace a row, so ...
+	if (le) {      
+	    //            ... we just deleted a row ...
+            // It was there, note that it's gone and remove it from the mempool
 	    brt_leaf_delete_leafentry (bn, idx, le);
-	    toku_free(le);
 	    workdone_this_le = oldsize;
 	}
-	if (new_le) {
+	if (new_le) {  
+	    //            ... or we just added a row
 	    int r = toku_omt_insert_at(bn->buffer, new_le, idx);
-	    assert(r==0);
-
-	    bn->n_bytes_in_buffer += newdisksize;
-
-	    workdone_this_le = newlen;
+	    invariant(r==0);
+            bn->n_bytes_in_buffer += newsize;
+	    workdone_this_le = newsize;
         }
     }
     if (workdone) {  // test programs may call with NULL
@@ -2000,6 +2057,9 @@ brt_leaf_apply_cmd_once (
 	if (*workdone > brt_status.max_workdone)
 	    brt_status.max_workdone = *workdone;
     }
+
+    // if we created a new mempool buffer, free the old one
+    if (maybe_free) toku_free(maybe_free);
 
     // brt_leaf_check_leaf_stats(node);
 
@@ -2422,7 +2482,10 @@ static void brt_nonleaf_cmd_once_to_child (brt_compare_func compare_fun, DESCRIP
     toku_brt_append_to_child_buffer(compare_fun, desc, node, childnum, cmd->type, cmd->msn, cmd->xids, is_fresh, cmd->u.id.key, cmd->u.id.val);
 }
 
-/* find the leftmost child that may contain the key */
+/* Find the leftmost child that may contain the key.
+ * If the key exists it will be in the child whose number
+ * is the return value of this function.
+ */
 unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
                                       DESCRIPTOR desc, brt_compare_func cmp) {
 #define DO_PIVOT_SEARCH_LR 0
@@ -2576,7 +2639,16 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
     // move the estimates
     int num_children = a->n_children + b->n_children;
     if (!a_has_tail) {
-	destroy_basement_node(BLB(a, a->n_children-1));
+	uint lastchild = a->n_children-1;
+	BASEMENTNODE bn = BLB(a, lastchild);
+	{
+	    // verify that last basement in a is empty, then destroy mempool
+	    struct mempool * mp = &bn->buffer_mempool;
+	    size_t used_space = toku_mempool_get_used_space(mp);
+	    invariant_zero(used_space);
+	    toku_mempool_destroy(mp);
+	}
+	destroy_basement_node(bn);
 	set_BNULL(a, a->n_children-1);
 	num_children--;
     }
@@ -3047,8 +3119,8 @@ maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
             if (BP_STATE(child, i) == PT_AVAIL &&
                 node->max_msn_applied_to_node_on_disk.msn < BLB_MAX_MSN_APPLIED(child, i).msn) {
                 BASEMENTNODE bn = BLB(child, i);
-                OMT curr_omt = BLB_BUFFER(child, i);
-                toku_omt_free_items(curr_omt);
+		struct mempool * mp = &bn->buffer_mempool;
+		toku_mempool_destroy(mp);
                 destroy_basement_node(bn);
                 set_BNULL(child,i);
                 BP_STATE(child,i) = PT_ON_DISK;
@@ -4045,6 +4117,58 @@ toku_brt_send_delete(BRT brt, DBT *key, XIDS xids) {
     BRT_MSG_S brtcmd = { BRT_DELETE_ANY, ZERO_MSN, xids, .u.id = { key, &val }};
     int result = toku_brt_root_put_cmd(brt, &brtcmd);
     return result;
+}
+
+/* mempool support */
+
+struct omt_compressor_state {
+    struct mempool *new_kvspace;
+    OMT omt;
+};
+
+static int move_it (OMTVALUE lev, u_int32_t idx, void *v) {
+    LEAFENTRY le=lev;
+    struct omt_compressor_state *oc = v;
+    u_int32_t size = leafentry_memsize(le);
+    LEAFENTRY newdata = toku_mempool_malloc(oc->new_kvspace, size, 1);
+    lazy_assert(newdata); // we do this on a fresh mempool, so nothing bad shouldhapepn
+    memcpy(newdata, le, size);
+    toku_omt_set_at(oc->omt, newdata, idx);
+    return 0;
+}
+
+// Compress things, and grow the mempool if needed.
+// TODO 4092 should copy data to new memory, then call toku_mempool_destory() followed by toku_mempool_init()
+static int omt_compress_kvspace (OMT omt, struct mempool *memp, size_t added_size, void **maybe_free) {
+    u_int32_t total_size_needed = memp->free_offset-memp->frag_size + added_size;
+    if (total_size_needed+total_size_needed/4 >= memp->size) {
+        memp->size = total_size_needed+total_size_needed/4;
+    }
+    void *newmem = toku_xmalloc(memp->size);
+    struct mempool new_kvspace;
+    toku_mempool_init(&new_kvspace, newmem, memp->size);
+    struct omt_compressor_state oc = { &new_kvspace, omt };
+    toku_omt_iterate(omt, move_it, &oc);
+
+    if (maybe_free) {
+        *maybe_free = memp->base;
+    } else {
+        toku_free(memp->base);
+    }
+    *memp = new_kvspace;
+    return 0;
+}
+
+void *
+mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free) {
+    void *v = toku_mempool_malloc(mp, size, 1);
+    if (v==0) {
+        if (0 == omt_compress_kvspace(omt, mp, size, maybe_free)) {
+            v = toku_mempool_malloc(mp, size, 1);
+            lazy_assert(v);
+        }
+    }
+    return v;
 }
 
 /* ******************** open,close and create  ********************** */

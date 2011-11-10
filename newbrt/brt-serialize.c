@@ -455,7 +455,6 @@ array_item (OMTVALUE lev, u_int32_t idx, void *vsi) {
 
 struct sum_info {
     unsigned int dsum;
-    unsigned int msum;
     unsigned int count;
 };
 
@@ -464,8 +463,7 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
     LEAFENTRY le=lev;
     struct sum_info *si = vsi;
     si->count++;
-    si->dsum += leafentry_disksize(le);
-    si->msum += leafentry_memsize(le);
+    si->dsum += leafentry_disksize(le);     // TODO 4050 delete this redundant call and use le_sizes[]
     return 0;
 }
 
@@ -479,34 +477,67 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 {
     assert(node->height == 0);
     assert(node->dirty);
-    // first create an array of OMTVALUE's that store all the data
-    u_int32_t num_le = 0;
-    for (int i = 0; i < node->n_children; i++) {
-        lazy_assert(BLB_BUFFER(node, i));
+
+    uint32_t num_orig_basements = node->n_children;
+    // Count number of leaf entries in this leaf (num_le).
+    u_int32_t num_le = 0;  
+    for (uint32_t i = 0; i < num_orig_basements; i++) {
+        invariant(BLB_BUFFER(node, i));
         num_le += toku_omt_size(BLB_BUFFER(node, i));
     }
-    OMTVALUE *XMALLOC_N(num_le, array);
-    // creating array that will store id's of new pivots.
-    // allocating num_le of them is overkill, but num_le is an upper bound
-    u_int32_t *XMALLOC_N(num_le, new_pivots);
-    // now fill in the values into array
+
+    // TODO 4050 Maybe instead of using num_alloc and XCALLOC_N(), 
+    //           before every XMALLOC() test if num_le is zero,
+    //           and if num_le is zero then XCALLOC_N() a single entry.
+    uint32_t num_alloc = num_le ? num_le : 1;  // simplify logic below by always having at least one entry per array
+
+    // Create an array of OMTVALUE's that store all the pointers to all the data.
+    // Each element in leafpointers is a pointer to a leaf.
+    OMTVALUE *XCALLOC_N(num_alloc, leafpointers);
+
+    // Capture pointers to old mempools' buffers (so they can be destroyed)
+    void **XCALLOC_N(num_orig_basements, old_mempool_bases);
+
     u_int32_t curr_le = 0;
-    for (int i = 0; i < node->n_children; i++) {
+    for (uint32_t i = 0; i < num_orig_basements; i++) {
         OMT curr_omt = BLB_BUFFER(node, i);
         struct array_info ai;
-        ai.offset = curr_le;
-	ai.array = array;
+        ai.offset = curr_le;         // index of first le in basement
+	ai.array = leafpointers;
         toku_omt_iterate(curr_omt, array_item, &ai);
         curr_le += toku_omt_size(curr_omt);
+	BASEMENTNODE bn = BLB(node, i);
+	old_mempool_bases[i] = toku_mempool_get_base(&bn->buffer_mempool);
     }
 
-    // figure out the new pivots
+    // Create an array that will store indexes of new pivots.
+    // Each element in new_pivots is the index of a pivot key.
+    // (Allocating num_le of them is overkill, but num_le is an upper bound.)
+    u_int32_t *XCALLOC_N(num_alloc, new_pivots);
+
+    // Each element in le_sizes is the size of the leafentry pointed to by leafpointers.
+    size_t *XCALLOC_N(num_alloc, le_sizes);
+
+    // Create an array that will store the size of each basement.
+    // This is the sum of the leaf sizes of all the leaves in that basement.
+    // We don't know how many basements there will be, so we use num_le as the upper bound.
+    size_t *XCALLOC_N(num_alloc, bn_sizes);
+
+    // TODO 4050 Maybe delete this as redundant, or maybe replace other accounting info.
+    // If we keep this, all these arrays should be combined into a single array of some bn_info struct (pivot, msize, num_les).
+    // Each entry is the number of leafentries in this basement.  (Again, num_le is overkill upper bound.)
+    uint32_t *XCALLOC_N(num_alloc, num_les_this_bn);
+    
+    // Figure out the new pivots.  
+    // We need the index of each pivot, and for each basement we need
+    // the number of leaves and the sum of the sizes of the leaves (memory requirement for basement).
     u_int32_t curr_pivot = 0;
     u_int32_t num_le_in_curr_bn = 0;
     u_int32_t bn_size_so_far = 0;
     for (u_int32_t i = 0; i < num_le; i++) {
-        u_int32_t curr_size = leafentry_disksize(array[i]);
-        if ((bn_size_so_far + curr_size > basementnodesize) && (num_le_in_curr_bn != 0)) {
+        u_int32_t curr_le_size = leafentry_disksize(leafpointers[i]);
+	le_sizes[i] = curr_le_size;
+        if ((bn_size_so_far + curr_le_size > basementnodesize) && (num_le_in_curr_bn != 0)) {
             // cap off the current basement node to end with the element before i
             new_pivots[curr_pivot] = i-1;
             curr_pivot++;
@@ -514,8 +545,13 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
             bn_size_so_far = 0;
         }
         num_le_in_curr_bn++;
-        bn_size_so_far += curr_size;
+	num_les_this_bn[curr_pivot] = num_le_in_curr_bn;
+        bn_size_so_far += curr_le_size;
+	bn_sizes[curr_pivot] = bn_size_so_far;
     }
+    // curr_pivot is now the total number of pivot keys in the leaf node
+    int num_pivots   = curr_pivot;
+    int num_children = num_pivots + 1;
 
     // now we need to fill in the new basement nodes and pivots
 
@@ -523,34 +559,34 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     // Need to figure out how to properly deal with seqinsert.
     // I am not happy with how this is being
     // handled with basement nodes
-    u_int32_t tmp_seqinsert = BLB_SEQINSERT(node, node->n_children-1);
+    u_int32_t tmp_seqinsert = BLB_SEQINSERT(node, num_orig_basements - 1);
 
+    // choose the max msn applied to any basement as the max msn applied to all new basements
     MSN max_msn = MIN_MSN;
-    for (int i = 0; i < node->n_children; i++) {
+    for (uint32_t i = 0; i < num_orig_basements; i++) {
         MSN curr_msn = BLB_MAX_MSN_APPLIED(node,i);
         max_msn = (curr_msn.msn > max_msn.msn) ? curr_msn : max_msn;
     }
 
-    // Now destroy the old stuff;
+    // Now destroy the old basements, but do not destroy leaves
     toku_destroy_brtnode_internals(node);
 
     // now reallocate pieces and start filling them in
-    int num_children = curr_pivot + 1;
-    assert(num_children > 0);
+    invariant(num_children > 0);
     node->totalchildkeylens = 0;
 
-    XMALLOC_N(num_children-1, node->childkeys);
+    XCALLOC_N(num_pivots, node->childkeys);        // allocate pointers to pivot structs
     node->n_children = num_children;
-    XMALLOC_N(num_children, node->bp);
+    XCALLOC_N(num_children, node->bp);             // allocate pointers to basements (bp)
     for (int i = 0; i < num_children; i++) {
-        set_BLB(node, i, toku_create_empty_bn());
+        set_BLB(node, i, toku_create_empty_bn());  // allocate empty basements and set bp pointers
     }
 
     // now we start to fill in the data
 
     // first the pivots
-    for (int i = 0; i < num_children-1; i++) {
-        LEAFENTRY curr_le_pivot = array[new_pivots[i]];
+    for (int i = 0; i < num_pivots; i++) {
+        LEAFENTRY curr_le_pivot = leafpointers[new_pivots[i]];
         node->childkeys[i] = kv_pair_malloc(
             le_key(curr_le_pivot),
             le_keylen(curr_le_pivot),
@@ -560,19 +596,39 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
         assert(node->childkeys[i]);
         node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i]);
     }
+
+    uint32_t baseindex_this_bn = 0;
     // now the basement nodes
     for (int i = 0; i < num_children; i++) {
         // put back seqinsert
         BLB_SEQINSERT(node, i) = tmp_seqinsert;
 
         // create start (inclusive) and end (exclusive) boundaries for data of basement node
-        u_int32_t curr_start = (i==0) ? 0 : new_pivots[i-1]+1;
-        u_int32_t curr_end = (i==num_children-1) ? num_le : new_pivots[i]+1;
-        u_int32_t num_in_bn = curr_end - curr_start;
+        u_int32_t curr_start = (i==0) ? 0 : new_pivots[i-1]+1;               // index of first leaf in basement
+        u_int32_t curr_end = (i==num_pivots) ? num_le : new_pivots[i]+1;     // index of first leaf in next basement
+        u_int32_t num_in_bn = curr_end - curr_start;                         // number of leaves in this basement
 
-        OMTVALUE *XMALLOC_N(num_in_bn, bn_array);
-        assert(bn_array);
-        memcpy(bn_array, &array[curr_start], num_in_bn*(sizeof(array[0])));
+	// create indexes for new basement
+	invariant(baseindex_this_bn == curr_start);
+	uint32_t num_les_to_copy = num_les_this_bn[i];
+	invariant(num_les_to_copy == num_in_bn); 
+	
+	// construct mempool for this basement
+	size_t size_this_bn = bn_sizes[i];
+	BASEMENTNODE bn = BLB(node, i);
+	struct mempool * mp = &bn->buffer_mempool;
+	toku_mempool_construct(mp, size_this_bn);
+
+        OMTVALUE *XCALLOC_N(num_in_bn, bn_array);
+	for (uint32_t le_index = 0; le_index < num_les_to_copy; le_index++) {
+	    uint32_t le_within_node = baseindex_this_bn + le_index;
+	    size_t   le_size = le_sizes[le_within_node];
+	    void *   new_le  = toku_mempool_malloc(mp, le_size, 1); // point to new location
+	    void *   old_le  = leafpointers[le_within_node];  
+	    memcpy(new_le, old_le, le_size);  // put le data at new location
+	    bn_array[le_index] = new_le;      // point to new location (in new mempool)
+	}
+
         toku_omt_destroy(&BLB_BUFFER(node, i));
         int r = toku_omt_create_steal_sorted_array(
             &BLB_BUFFER(node, i),
@@ -580,20 +636,31 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
             num_in_bn,
             num_in_bn
             );
-        lazy_assert_zero(r);
-        struct sum_info sum_info = {0,0,0};
+        invariant_zero(r);
+	struct sum_info sum_info = {0,0};
         toku_omt_iterate(BLB_BUFFER(node, i), sum_item, &sum_info);
         BLB_NBYTESINBUF(node, i) = sum_info.dsum;
+	
+	invariant(sum_info.dsum == size_this_bn);
 
         BP_STATE(node,i) = PT_AVAIL;
         BP_TOUCH_CLOCK(node,i);
         BLB_MAX_MSN_APPLIED(node,i) = max_msn;
+	baseindex_this_bn += num_les_to_copy;  // set to index of next bn
     }
     node->max_msn_applied_to_node_on_disk = max_msn;
 
-    toku_free(array);
+    // destroy buffers of old mempools
+    for (uint32_t i = 0; i < num_orig_basements; i++) {
+	toku_free(old_mempool_bases[i]);
+    }
+    toku_free(leafpointers);
+    toku_free(old_mempool_bases);
     toku_free(new_pivots);
-}
+    toku_free(le_sizes);
+    toku_free(bn_sizes);
+    toku_free(num_les_this_bn);
+}  // end of rebalance_brtnode_leaf()
 
 static void
 serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]);
@@ -715,7 +782,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     toku_assert_entire_node_in_memory(node);
 
     if (node->height == 0) {
-        rebalance_brtnode_leaf(node, basementnodesize);
+	rebalance_brtnode_leaf(node, basementnodesize);
     }
     const int npartitions = node->n_children;
 
@@ -961,6 +1028,7 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     bn->n_bytes_in_buffer = 0;
     bn->seqinsert = 0;
     bn->stale_ancestor_messages_applied = false;
+    toku_mempool_zero(&bn->buffer_mempool);
     return bn;
 }
 
@@ -1227,11 +1295,14 @@ static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* b
     }
 }
 
+/* deserialize the partition from the sub-block's uncompressed buffer
+ * and destroy the uncompressed buffer
+ */
 static void
 deserialize_brtnode_partition(
     struct sub_block *sb,
     BRTNODE node,
-    int index,
+    int childnum,      // which partition to deserialize
     DESCRIPTOR desc,
     brt_compare_func cmp
     )
@@ -1242,38 +1313,46 @@ deserialize_brtnode_partition(
     // now with the data verified, we can read the information into the node
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
     rbuf_init(&rb, sb->uncompressed_ptr, data_size);
-    u_int32_t start_of_data;
+    unsigned char ch = rbuf_char(&rb);
 
     if (node->height > 0) {
-        unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_FIFO_MSG);
-        deserialize_child_buffer(BNC(node, index), &rb, desc, cmp);
-        BP_WORKDONE(node, index) = 0;
+        deserialize_child_buffer(BNC(node, childnum), &rb, desc, cmp);
+        BP_WORKDONE(node, childnum) = 0;
     }
     else {
-        unsigned char ch = rbuf_char(&rb);
         assert(ch == BRTNODE_PARTITION_OMT_LEAVES);
-        BLB_SEQINSERT(node, index) = 0;
-        u_int32_t num_entries = rbuf_int(&rb);
-        OMTVALUE *XMALLOC_N(num_entries, array);
-        start_of_data = rb.ndone;
-        for (u_int32_t i = 0; i < num_entries; i++) {
-            LEAFENTRY le = (LEAFENTRY)(&rb.buf[rb.ndone]);
+        BLB_SEQINSERT(node, childnum) = 0;
+        uint32_t num_entries = rbuf_int(&rb);
+        uint32_t start_of_data = rb.ndone;                                // index of first byte of first leafentry
+	data_size -= start_of_data;                                       // remaining bytes of leafentry data
+	// TODO 3988 Count empty basements (data_size == 0)
+	if (data_size == 0) {
+	    // printf("#### Deserialize empty basement, childnum = %d\n", childnum);
+	    invariant_zero(num_entries);                                  
+	}
+        OMTVALUE *XMALLOC_N(num_entries, array);                          // create array of pointers to leafentries
+	BASEMENTNODE bn = BLB(node, childnum);
+	toku_mempool_copy_construct(&bn->buffer_mempool, &rb.buf[rb.ndone], data_size);
+	uint8_t * le_base = toku_mempool_get_base(&bn->buffer_mempool);   // point to first le in mempool
+        for (u_int32_t i = 0; i < num_entries; i++) {                     // now set up the pointers in the omt
+            LEAFENTRY le = (LEAFENTRY)&le_base[rb.ndone - start_of_data]; // point to durable mempool, not to transient rbuf
             u_int32_t disksize = leafentry_disksize(le);
             rb.ndone += disksize;
             invariant(rb.ndone<=rb.size);
-            array[i]=toku_xmalloc(disksize);
-            assert(array[i]);
-            memcpy(array[i], le, disksize);
+            array[i]=(OMTVALUE)le;
         }
         u_int32_t end_of_data = rb.ndone;
-        BLB_NBYTESINBUF(node, index) += end_of_data-start_of_data;
-        // destroy old buffer that was created by toku_setup_basementnode, so we can create a new one
-        toku_omt_destroy(&BLB_BUFFER(node, index));
-        int r = toku_omt_create_steal_sorted_array(&BLB_BUFFER(node, index), &array, num_entries, num_entries);
-        assert(r == 0);
+
+        BLB_NBYTESINBUF(node, childnum) += end_of_data-start_of_data;
+
+        // destroy old omt (bn.buffer) that was created by toku_create_empty_bn(), so we can create a new one
+        toku_omt_destroy(&BLB_BUFFER(node, childnum));
+        int r = toku_omt_create_steal_sorted_array(&BLB_BUFFER(node, childnum), &array, num_entries, num_entries);
+        invariant_zero(r);
     }
     assert(rb.ndone == rb.size);
+    toku_free(sb->uncompressed_ptr);
 }
 
 static void
@@ -1282,7 +1361,6 @@ decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_s
     read_and_decompress_sub_block(&curr_rbuf, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
     deserialize_brtnode_partition(&curr_sb, node, child, desc, cmp);
-    toku_free(curr_sb.uncompressed_ptr);
 }
 
 static void
@@ -1473,11 +1551,8 @@ deserialize_brtnode_from_rbuf(
     }
 
     node->layout_version_read_from_disk = rbuf_int(rb);
-    // TODO: (Zardosht), worry about upgrade
-    if (node->layout_version_read_from_disk != BRT_LAYOUT_VERSION) {
-        r = toku_db_badformat();
-        goto cleanup;
-    }
+    // TODO 4053
+    invariant(node->layout_version_read_from_disk == BRT_LAYOUT_VERSION);
     node->layout_version = node->layout_version_read_from_disk;
     node->layout_version_original = rbuf_int(rb);
     node->build_id = rbuf_int(rb);
@@ -1611,7 +1686,6 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
     read_and_decompress_sub_block(&rb, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
     deserialize_brtnode_partition(&curr_sb, node, childnum, &bfe->h->descriptor, bfe->h->compare_fun);
-    toku_free(curr_sb.uncompressed_ptr);
     toku_free(raw_block);
 }
 
@@ -1635,7 +1709,6 @@ toku_deserialize_bp_from_compressed(BRTNODE node, int childnum,
         curr_sb->compressed_size
         );
     deserialize_brtnode_partition(curr_sb, node, childnum, desc, cmp);
-    toku_free(curr_sb->uncompressed_ptr);
     toku_free(curr_sb->compressed_ptr);
     toku_free(curr_sb);
 }
@@ -1734,7 +1807,7 @@ toku_verify_or_set_counts (BRTNODE node) {
     if (node->height==0) {
         for (int i=0; i<node->n_children; i++) {
             lazy_assert(BLB_BUFFER(node, i));
-            struct sum_info sum_info = {0,0,0};
+            struct sum_info sum_info = {0,0};
             toku_omt_iterate(BLB_BUFFER(node, i), sum_item, &sum_info);
             lazy_assert(sum_info.count==toku_omt_size(BLB_BUFFER(node, i)));
             lazy_assert(sum_info.dsum==BLB_NBYTESINBUF(node, i));
