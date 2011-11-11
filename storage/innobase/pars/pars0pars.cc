@@ -11,13 +11,13 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
 /**************************************************//**
-@file pars/pars0pars.cc
+@file pars/pars0pars.c
 SQL parser
 
 Created 11/19/1996 Heikki Tuuri
@@ -81,6 +81,7 @@ UNIV_INTERN pars_res_word_t	pars_distinct_token = {PARS_DISTINCT_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_binary_token = {PARS_BINARY_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_blob_token = {PARS_BLOB_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_int_token = {PARS_INT_TOKEN};
+UNIV_INTERN pars_res_word_t	pars_bigint_token = {PARS_BIGINT_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_char_token = {PARS_CHAR_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_float_token = {PARS_FLOAT_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_update_token = {PARS_UPDATE_TOKEN};
@@ -235,8 +236,7 @@ pars_func_low(
 	func_node_t*	node;
 
 	node = static_cast<func_node_t*>(
-		mem_heap_alloc(
-			pars_sym_tab_global->heap, sizeof(func_node_t)));
+		mem_heap_alloc(pars_sym_tab_global->heap, sizeof(func_node_t)));
 
 	node->common.type = QUE_NODE_FUNC;
 	dfield_set_data(&(node->common.val), NULL, 0);
@@ -326,8 +326,8 @@ pars_like_rebind(
 	dtype = dfield_get_type(dfield);
 
 	ut_a(dtype_get_mtype(dtype) == DATA_INT);
-	op_check = static_cast<ib_like_t>(mach_read_from_4(static_cast<byte*>(
-		dfield_get_data(dfield))));
+	op_check = static_cast<ib_like_t>(
+		mach_read_from_4(static_cast<byte*>(dfield_get_data(dfield))));
 
 	switch (op_check) {
 	case	IB_LIKE_PREFIX:
@@ -411,6 +411,35 @@ pars_like_rebind(
 	return(func);
 }
 
+/*************************************************************************
+Parses a LIKE operator expression. */
+static
+int
+pars_like_op(
+/*=========*/
+				/* out, own: function node in a query tree */
+	que_node_t*	arg)	/* in: LIKE comparison string.*/
+{
+	char*		ptr;
+	ulint		ptr_len;
+	int		func = PARS_LIKE_TOKEN_EXACT;
+	dfield_t*	dfield = que_node_get_val(arg);
+	dtype_t*	dtype = dfield_get_type(dfield);
+
+	ut_a(dtype_get_mtype(dtype) == DATA_CHAR
+	     || dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+	ptr = static_cast<char*>(dfield_get_data(dfield));
+	ptr_len = strlen(ptr);
+
+	if (ptr_len) {
+
+		func = pars_like_rebind(
+			static_cast<sym_node_t*>(arg), (byte*) ptr, ptr_len);
+	}
+
+	return(func);
+}
 /*********************************************************************//**
 Parses an operator expression.
 @return	own: function node in a query tree */
@@ -427,6 +456,20 @@ pars_op(
 
 	if (arg2) {
 		que_node_list_add_last(arg1, arg2);
+	}
+
+	/* We need to parse the string and determine whether it's a
+	PREFIX, SUFFIX or SUBSTRING comparison */
+	if (func == PARS_LIKE_TOKEN) {
+
+		ut_a(que_node_get_type(arg2) == QUE_NODE_SYMBOL);
+
+		func = pars_like_op(arg2);
+
+		ut_a(func == PARS_LIKE_TOKEN_EXACT
+		     || func == PARS_LIKE_TOKEN_PREFIX
+		     || func == PARS_LIKE_TOKEN_SUFFIX
+		     || func == PARS_LIKE_TOKEN_SUBSTR);
 	}
 
 	return(pars_func_low(func, arg1));
@@ -569,6 +612,14 @@ pars_resolve_func_data_type(
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
+	case PARS_LIKE_TOKEN_EXACT:
+	case PARS_LIKE_TOKEN_PREFIX:
+	case PARS_LIKE_TOKEN_SUFFIX:
+	case PARS_LIKE_TOKEN_SUBSTR:
+		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
+			  DATA_ENGLISH, 0);
+		break;
+
 	default:
 		ut_error;
 	}
@@ -597,11 +648,12 @@ pars_resolve_exp_variables_and_types(
 	if (que_node_get_type(exp_node) == QUE_NODE_FUNC) {
 		func_node = static_cast<func_node_t*>(exp_node);
 
-		for (arg = func_node->args;
-		     arg != 0;
-		     arg = que_node_get_next(arg)) {
+		arg = func_node->args;
 
+		while (arg) {
 			pars_resolve_exp_variables_and_types(select_node, arg);
+
+			arg = que_node_get_next(arg);
 		}
 
 		pars_resolve_func_data_type(func_node);
@@ -621,10 +673,9 @@ pars_resolve_exp_variables_and_types(
 	/* Not resolved yet: look in the symbol table for a variable
 	or a cursor or a function with the same name */
 
-	for (node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
-	     node != 0;
-	     node = UT_LIST_GET_NEXT(sym_list, node)) {
+	node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
 
+	while (node) {
 		if (node->resolved
 		    && ((node->token_type == SYM_VAR)
 			|| (node->token_type == SYM_CURSOR)
@@ -639,6 +690,8 @@ pars_resolve_exp_variables_and_types(
 
 			break;
 		}
+
+		node = UT_LIST_GET_NEXT(sym_list, node);
 	}
 
 	if (!node) {
@@ -703,11 +756,12 @@ pars_resolve_exp_columns(
 	if (que_node_get_type(exp_node) == QUE_NODE_FUNC) {
 		func_node = static_cast<func_node_t*>(exp_node);
 
-		for (arg = func_node->args;
-		     arg != 0;
-		     arg = que_node_get_next(arg)) {
+		arg = func_node->args;
 
+		while (arg) {
 			pars_resolve_exp_columns(table_node, arg);
+
+			arg = que_node_get_next(arg);
 		}
 
 		return;
@@ -725,10 +779,9 @@ pars_resolve_exp_columns(
 	/* Not resolved yet: look in the table list for a column with the
 	same name */
 
-	for (t_node = table_node;
-	     t_node != 0;
-	     t_node = static_cast<sym_node_t*>(que_node_get_next(t_node)) ){
+	t_node = table_node;
 
+	while (t_node) {
 		table = t_node->table;
 
 		n_cols = dict_table_get_n_cols(table);
@@ -757,6 +810,8 @@ pars_resolve_exp_columns(
 				return;
 			}
 		}
+
+		t_node = static_cast<sym_node_t*>(que_node_get_next(t_node));
 	}
 }
 
@@ -811,15 +866,20 @@ pars_retrieve_table_list_defs(
 /*==========================*/
 	sym_node_t*	sym_node)	/*!< in: first table node in list */
 {
-	ulint		count;
+	ulint		count		= 0;
 
-	for (count = 0;
-	     sym_node != 0;
-	     sym_node = static_cast<sym_node_t*>(que_node_get_next(sym_node))) {
+	if (sym_node == NULL) {
 
+		return(count);
+	}
+
+	while (sym_node) {
 		pars_retrieve_table_def(sym_node);
 
 		count++;
+
+		sym_node = static_cast<sym_node_t*>(
+			que_node_get_next(sym_node));
 	}
 
 	return(count);
@@ -836,30 +896,30 @@ pars_select_all_columns(
 {
 	sym_node_t*	col_node;
 	sym_node_t*	table_node;
+	dict_table_t*	table;
+	ulint		i;
 
 	select_node->select_list = NULL;
 
-	for (table_node = select_node->table_list;
-	     table_node != 0;
-	     table_node = static_cast<sym_node_t*>(
-		     		que_node_get_next(table_node)) ){
+	table_node = select_node->table_list;
 
-		ulint		i;
-		dict_table_t*	table;
-
+	while (table_node) {
 		table = table_node->table;
 
 		for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
 			const char*	col_name = dict_table_get_col_name(
 				table, i);
 
-			col_node = sym_tab_add_id(
-				pars_sym_tab_global,
-				(byte*) col_name, ut_strlen(col_name));
+			col_node = sym_tab_add_id(pars_sym_tab_global,
+						  (byte*)col_name,
+						  ut_strlen(col_name));
 
 			select_node->select_list = que_node_list_add_last(
 				select_node->select_list, col_node);
 		}
+
+		table_node = static_cast<sym_node_t*>(
+			que_node_get_next(table_node));
 	}
 }
 
@@ -897,17 +957,17 @@ pars_check_aggregate(
 					the select list */
 {
 	que_node_t*	exp_node;
+	func_node_t*	func_node;
 	ulint		n_nodes			= 0;
 	ulint		n_aggregate_nodes	= 0;
 
-	for (exp_node = select_node->select_list;
-	     exp_node != 0;
-	     exp_node = que_node_get_next(exp_node)) {
+	exp_node = select_node->select_list;
+
+	while (exp_node) {
 
 		n_nodes++;
 
 		if (que_node_get_type(exp_node) == QUE_NODE_FUNC) {
-			func_node_t*	func_node;
 
 			func_node = static_cast<func_node_t*>(exp_node);
 
@@ -916,6 +976,8 @@ pars_check_aggregate(
 				n_aggregate_nodes++;
 			}
 		}
+
+		exp_node = que_node_get_next(exp_node);
 	}
 
 	if (n_aggregate_nodes > 0) {
@@ -1088,10 +1150,8 @@ pars_column_assignment(
 	col_assign_node_t*	node;
 
 	node = static_cast<col_assign_node_t*>(
-		mem_heap_alloc(
-			pars_sym_tab_global->heap,
-			sizeof(col_assign_node_t)));
-
+		mem_heap_alloc(pars_sym_tab_global->heap,
+			      sizeof(col_assign_node_t)));
 	node->common.type = QUE_NODE_COL_ASSIGNMENT;
 
 	node->col = column;
@@ -1108,27 +1168,26 @@ pars_process_assign_list(
 /*=====================*/
 	upd_node_t*	node)	/*!< in: update node */
 {
-	ulint			i;
 	col_assign_node_t*	col_assign_list;
 	sym_node_t*		table_sym;
 	col_assign_node_t*	assign_node;
+	upd_field_t*		upd_field;
 	dict_index_t*		clust_index;
+	sym_node_t*		col_sym;
 	ulint			changes_ord_field;
 	ulint			changes_field_size;
 	ulint			n_assigns;
+	ulint			i;
 
 	table_sym = node->table_sym;
-
 	col_assign_list = static_cast<col_assign_node_t*>(
-		node->col_assign_list);
-
+		 node->col_assign_list);
 	clust_index = dict_table_get_first_index(node->table);
 
-	for (n_assigns = 0, assign_node = col_assign_list;
-	     assign_node != 0;
-	     assign_node = static_cast<col_assign_node_t*>(
-		     		que_node_get_next(assign_node))) {
+	assign_node = col_assign_list;
+	n_assigns = 0;
 
+	while (assign_node) {
 		pars_resolve_exp_columns(table_sym, assign_node->col);
 		pars_resolve_exp_columns(table_sym, assign_node->val);
 		pars_resolve_exp_variables_and_types(NULL, assign_node->val);
@@ -1147,20 +1206,18 @@ pars_process_assign_list(
 		opt_find_all_cols(TRUE, clust_index, &(node->columns), NULL,
 				  assign_node->val);
 		n_assigns++;
+
+		assign_node = static_cast<col_assign_node_t*>(
+				que_node_get_next(assign_node));
 	}
 
 	node->update = upd_create(n_assigns, pars_sym_tab_global->heap);
 
+	assign_node = col_assign_list;
+
 	changes_field_size = UPD_NODE_NO_SIZE_CHANGE;
 
-	for (i = 0, assign_node = col_assign_list;
-	     i < n_assigns;
-	     ++i, assign_node = static_cast<col_assign_node_t*>(
-		     		que_node_get_next(assign_node))) {
-
-		sym_node_t*	col_sym;
-		upd_field_t*	upd_field;
-
+	for (i = 0; i < n_assigns; i++) {
 		upd_field = upd_get_nth_field(node->update, i);
 
 		col_sym = assign_node->col;
@@ -1176,6 +1233,9 @@ pars_process_assign_list(
 			    dict_table_is_comp(node->table))) {
 			changes_field_size = 0;
 		}
+
+		assign_node = static_cast<col_assign_node_t*>(
+				que_node_get_next(assign_node));
 	}
 
 	/* Find out if the update can modify an ordering field in any index */
@@ -1358,16 +1418,20 @@ pars_set_dfield_type(
 		flags |= DATA_UNSIGNED;
 	}
 
-	if (type == &pars_int_token) {
+	if (type == &pars_bigint_token) {
+		ut_a(len == 0);
+
+		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 8);
+	} else if (type == &pars_int_token) {
 		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4);
 
 	} else if (type == &pars_char_token) {
-		ut_a(len == 0);
+		//ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
-			  DATA_ENGLISH | flags, 0);
+			  DATA_ENGLISH | flags, len);
 	} else if (type == &pars_binary_token) {
 		ut_a(len != 0);
 
@@ -1438,11 +1502,12 @@ pars_set_parent_in_list(
 {
 	que_common_t*	common;
 
-	for (common = static_cast<que_common_t*>(node_list);
-	     common != 0;
-	     common = static_cast<que_common_t*>(que_node_get_next(common))) {
+	common = static_cast<que_common_t*>(node_list);
 
+	while (common) {
 		common->parent = parent;
+
+		common = static_cast<que_common_t*>(que_node_get_next(common));
 	}
 }
 
@@ -1489,7 +1554,7 @@ pars_if_statement(
 	elsif_node_t*	elsif_node;
 
 	node = static_cast<if_node_t*>(
-		mem_heap_alloc(
+		 mem_heap_alloc(
 			pars_sym_tab_global->heap, sizeof(if_node_t)));
 
 	node->common.type = QUE_NODE_IF;
@@ -1507,12 +1572,13 @@ pars_if_statement(
 		node->else_part = NULL;
 		node->elsif_list = static_cast<elsif_node_t*>(else_part);
 
-		for (elsif_node = static_cast<elsif_node_t*>(else_part);
-		     elsif_node != 0;
-		     elsif_node = static_cast<elsif_node_t*>(
-			     	que_node_get_next(elsif_node))) {
+		elsif_node = static_cast<elsif_node_t*>(else_part);
 
+		while (elsif_node) {
 			pars_set_parent_in_list(elsif_node->stat_list, node);
+
+			elsif_node = static_cast<elsif_node_t*>(
+				que_node_get_next(elsif_node));
 		}
 	} else {
 		node->else_part = else_part;
@@ -1539,9 +1605,8 @@ pars_while_statement(
 	while_node_t*	node;
 
 	node = static_cast<while_node_t*>(
-			mem_heap_alloc(
-				pars_sym_tab_global->heap,
-				sizeof(while_node_t)));
+		mem_heap_alloc(
+			pars_sym_tab_global->heap, sizeof(while_node_t)));
 
 	node->common.type = QUE_NODE_WHILE;
 
@@ -1604,9 +1669,7 @@ pars_exit_statement(void)
 	exit_node_t*	node;
 
 	node = static_cast<exit_node_t*>(
-		mem_heap_alloc(
-			pars_sym_tab_global->heap, sizeof(exit_node_t)));
-
+		mem_heap_alloc(pars_sym_tab_global->heap, sizeof(exit_node_t)));
 	node->common.type = QUE_NODE_EXIT;
 
 	return(node);
@@ -1625,7 +1688,6 @@ pars_return_statement(void)
 	node = static_cast<return_node_t*>(
 		mem_heap_alloc(
 			pars_sym_tab_global->heap, sizeof(return_node_t)));
-
 	node->common.type = QUE_NODE_RETURN;
 
 	return(node);
@@ -1646,7 +1708,6 @@ pars_assignment_statement(
 	node = static_cast<assign_node_t*>(
 		mem_heap_alloc(
 			pars_sym_tab_global->heap, sizeof(assign_node_t)));
-
 	node->common.type = QUE_NODE_ASSIGNMENT;
 
 	node->var = var;
@@ -1780,7 +1841,6 @@ pars_row_printf_statement(
 	node = static_cast<row_printf_node_t*>(
 		mem_heap_alloc(
 			pars_sym_tab_global->heap, sizeof(row_printf_node_t)));
-
 	node->common.type = QUE_NODE_ROW_PRINTF;
 
 	node->sel_node = sel_node;
@@ -1853,6 +1913,8 @@ pars_create_table(
 	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
 					table */
 	sym_node_t*	column_defs,	/*!< in: list of column names */
+	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
+	sym_node_t*	block_size,	/* in: block size (can be NULL) */
 	void*		not_fit_in_memory __attribute__((unused)))
 					/*!< in: a non-NULL pointer means that
 					this is a table which in simulations
@@ -1868,27 +1930,55 @@ pars_create_table(
 	dict_table_t*	table;
 	sym_node_t*	column;
 	tab_node_t*	node;
+	const dtype_t*	dtype;
 	ulint		n_cols;
+	ulint		flags = 0;
+
+	if (compact != NULL) {
+		flags |= DICT_TF_COMPACT;
+	}
+
+	if (block_size != NULL) {
+		ulint		size;
+		dfield_t*	dfield;
+
+		dfield = que_node_get_val(block_size);
+
+		ut_a(dfield_get_len(dfield) == 4);
+		size = mach_read_from_4(static_cast<byte*>(
+			dfield_get_data(dfield)));
+
+
+                switch (size) {
+		case 0:
+			break;
+
+                case 1: case 2: case 4: case 8: case 16:
+                	flags |= DICT_TF_COMPACT;
+			/* FTS-FIXME: needs the zip changes */
+			/* flags |= size << DICT_TF_COMPRESSED_SHIFT; */
+			break;
+
+		default:
+			ut_error;
+		}
+	}
 
 	n_cols = que_node_list_get_len(column_defs);
 
 	/* As the InnoDB SQL parser is for internal use only,
 	for creating some system tables, this function will only
 	create tables in the old (not compact) record format. */
-	table = dict_mem_table_create(table_sym->name, 0, n_cols, 0, 0);
+	table = dict_mem_table_create(table_sym->name, 0, n_cols, flags, 0);
 
 #ifdef UNIV_DEBUG
 	if (not_fit_in_memory != NULL) {
 		table->does_not_fit_in_memory = TRUE;
 	}
 #endif /* UNIV_DEBUG */
+	column = column_defs;
 
-	for (column = column_defs;
-	     column != 0;
-	     column = static_cast<sym_node_t*>(que_node_get_next(column)) ){
-
-		const dtype_t*	dtype;
-
+	while (column) {
 		dtype = dfield_get_type(que_node_get_val(column));
 
 		dict_mem_table_add_col(table, table->heap,
@@ -1896,6 +1986,8 @@ pars_create_table(
 				       dtype->prtype, dtype->len);
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
+
+		column = static_cast<sym_node_t*>(que_node_get_next(column));
 	}
 
 	node = tab_create_graph_create(table, pars_sym_tab_global->heap);
@@ -1941,15 +2033,15 @@ pars_create_index(
 
 	index = dict_mem_index_create(table_sym->name, index_sym->name, 0,
 				      ind_type, n_fields);
+	column = column_list;
 
-	for (column = column_list;
-	     column != 0;
-	     column = static_cast<sym_node_t*>(que_node_get_next(column)) ){
-
+	while (column) {
 		dict_mem_index_add_field(index, column->name, 0);
 
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
+
+		column = static_cast<sym_node_t*>(que_node_get_next(column));
 	}
 
 	node = ind_create_graph_create(index, pars_sym_tab_global->heap);
@@ -2029,13 +2121,13 @@ pars_stored_procedure_call(
 }
 
 /*************************************************************//**
-Retrieves characters to the lexical analyzer.
-@return number of characters copied or 0 on EOF */
+Retrieves characters to the lexical analyzer. */
 UNIV_INTERN
-int
+void
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
+	int*	result,		/*!< out: number of characters copied or EOF */
 	int	max_size)	/*!< in: maximum number of characters which fit
 				in the buffer */
 {
@@ -2047,7 +2139,9 @@ pars_get_lex_chars(
 #ifdef YYDEBUG
 		/* fputs("SQL string ends\n", stderr); */
 #endif
-		return(0);
+		*result = 0;
+
+		return;
 	}
 
 	if (len > max_size) {
@@ -2069,10 +2163,9 @@ pars_get_lex_chars(
 
 	ut_memcpy(buf, pars_sym_tab_global->sql_string
 		  + pars_sym_tab_global->next_char_pos, len);
+	*result = len;
 
 	pars_sym_tab_global->next_char_pos += len;
-
-	return(len);
 }
 
 /*************************************************************//**
@@ -2115,10 +2208,8 @@ pars_sql(
 	pars_sym_tab_global = sym_tab_create(heap);
 
 	pars_sym_tab_global->string_len = strlen(str);
-
 	pars_sym_tab_global->sql_string = static_cast<char*>(
 		mem_heap_dup(heap, str, pars_sym_tab_global->string_len + 1));
-
 	pars_sym_tab_global->next_char_pos = 0;
 	pars_sym_tab_global->info = info;
 
@@ -2136,6 +2227,8 @@ pars_sql(
 
 	graph->sym_tab = pars_sym_tab_global;
 	graph->info = info;
+
+	pars_sym_tab_global = NULL;
 
 	/* fprintf(stderr, "SQL graph size %lu\n", mem_heap_get_size(heap)); */
 
@@ -2230,6 +2323,7 @@ pars_info_add_literal(
 		mem_heap_alloc(info->heap, sizeof(*pbl)));
 
 	pbl->name = name;
+
 	pbl->address = address;
 	pbl->length = length;
 	pbl->type = type;
@@ -2341,8 +2435,7 @@ pars_info_add_int4_literal(
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
 }
 
-
-/****************************************************************//**
+/********************************************************************
 If the literal value already exists then it rebinds otherwise it
 creates a new entry. */
 UNIV_INTERN
@@ -2425,12 +2518,12 @@ UNIV_INTERN
 void
 pars_info_bind_function(
 /*====================*/
-	pars_info_t*            info,   /*!< in: info struct */
-	const char*             name,   /*!< in: function name */
-	pars_user_func_cb_t     func,   /*!< in: function address */
-	void*                   arg)    /*!< in: user-supplied argument */
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name,	/*!< in: function name */
+	pars_user_func_cb_t	func,	/*!< in: function address */
+	void*			arg)	/*!< in: user-supplied argument */
 {
-	pars_user_func_t*       puf;
+	pars_user_func_t*	puf;
 
 	puf = pars_info_lookup_user_func(info, name);
 
@@ -2451,7 +2544,7 @@ pars_info_bind_function(
 	}
 
 	puf->arg = arg;
-        puf->func = func;
+	puf->func = func;
 }
 
 /********************************************************************
@@ -2460,12 +2553,12 @@ UNIV_INTERN
 void
 pars_info_bind_id(
 /*==============*/
-	pars_info_t*    info,           /*!< in: info struct */
-	ibool           copy_name,      /* in: copy name if TRUE */
-	const char*     name,           /*!< in: name */
-	const char*     id)             /*!< in: id */
+	pars_info_t*	info,		/*!< in: info struct */
+	ibool		copy_name,	/* in: copy name if TRUE */
+	const char*	name,		/*!< in: name */
+	const char*	id)		/*!< in: id */
 {
-	pars_bound_id_t*        bid;
+	pars_bound_id_t*	bid;
 
 	bid = pars_info_lookup_bound_id(info, name);
 
@@ -2486,73 +2579,23 @@ pars_info_bind_id(
 
 		bid->name = (copy_name)
 		    ? mem_heap_strdup(info->heap, name) : name;
-        }
-
-        bid->id = id;
-}
-
-/****************************************************************//**
-Add user function. */
-UNIV_INTERN
-void
-pars_info_add_function(
-/*===================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name,	/*!< in: function name */
-	pars_user_func_cb_t	func,	/*!< in: function address */
-	void*			arg)	/*!< in: user-supplied argument */
-{
-	pars_user_func_t*	puf;
-
-	ut_ad(!pars_info_get_user_func(info, name));
-
-	puf = static_cast<pars_user_func_t*>(
-		mem_heap_alloc(info->heap, sizeof(*puf)));
-
-	puf->name = name;
-	puf->func = func;
-	puf->arg = arg;
-
-	if (!info->funcs) {
-		ib_alloc_t*     heap_alloc;
-
-		heap_alloc = ib_heap_allocator_create(info->heap);
-
-		info->funcs = ib_vector_create(heap_alloc, sizeof(*puf), 8);
 	}
 
-	ib_vector_push(info->funcs, puf);
-}
-
-/****************************************************************//**
-Add bound id. */
-UNIV_INTERN
-void
-pars_info_add_id(
-/*=============*/
-	pars_info_t*	info,		/*!< in: info struct */
-	const char*	name,		/*!< in: name */
-	const char*	id)		/*!< in: id */
-{
-	pars_bound_id_t*	bid;
-
-	ut_ad(!pars_info_get_bound_id(info, name));
-
-	bid = static_cast<pars_bound_id_t*>(
-		mem_heap_alloc(info->heap, sizeof(*bid)));
-
-	bid->name = name;
 	bid->id = id;
+}
 
-	if (!info->bound_ids) {
-		ib_alloc_t*     heap_alloc;
+/********************************************************************
+Get bound identifier with the given name.*/
 
-		heap_alloc = ib_heap_allocator_create(info->heap);
-
-		info->bound_ids = ib_vector_create(heap_alloc, sizeof(*bid), 8);
-	}
-
-	ib_vector_push(info->bound_ids, bid);
+pars_bound_id_t*
+pars_info_get_bound_id(
+/*===================*/
+					/* out: bound id, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound id name to find */
+{
+	return(pars_info_lookup_bound_id(info, name));
 }
 
 /****************************************************************//**
@@ -2565,26 +2608,7 @@ pars_info_get_user_func(
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name)	/*!< in: function name to find*/
 {
-	ulint		i;
-	ib_vector_t*	vec;
-
-	if (!info || !info->funcs) {
-		return(NULL);
-	}
-
-	vec = info->funcs;
-
-	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_user_func_t*	puf;
-
-		puf = static_cast<pars_user_func_t*>(ib_vector_get(vec, i));
-
-		if (strcmp(puf->name, name) == 0) {
-			return(puf);
-		}
-	}
-
-	return(NULL);
+	return(pars_info_lookup_user_func(info, name));
 }
 
 /****************************************************************//**
@@ -2597,56 +2621,52 @@ pars_info_get_bound_lit(
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name)	/*!< in: bound literal name to find */
 {
-	ulint		i;
-	ib_vector_t*	vec;
-
-	if (!info || !info->bound_lits) {
-		return(NULL);
-	}
-
-	vec = info->bound_lits;
-
-	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_bound_lit_t*	pbl;
-
-		pbl = static_cast<pars_bound_lit_t*>(ib_vector_get(vec, i));
-
-		if (strcmp(pbl->name, name) == 0) {
-			return(pbl);
-		}
-	}
-
-	return(NULL);
+	return(pars_info_lookup_bound_lit(info, name));
 }
 
-/****************************************************************//**
-Get bound id with the given name.
-@return	bound id, or NULL if not found */
+/*************************************************************//**
+Retrieves characters to the lexical analyzer.
+@return number of characters copied or 0 on EOF */
 UNIV_INTERN
-pars_bound_id_t*
-pars_info_get_bound_id(
-/*===================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name)	/*!< in: bound id name to find */
+int
+pars_get_lex_chars(
+/*===============*/
+        char*   buf,            /*!< in/out: buffer where to copy */
+        int     max_size)       /*!< in: maximum number of characters which fit
+                                in the buffer */
 {
-	ulint		i;
-	ib_vector_t*	vec;
+        int     len;
 
-	if (!info || !info->bound_ids) {
-		return(NULL);
-	}
+        len = pars_sym_tab_global->string_len
+                - pars_sym_tab_global->next_char_pos;
+        if (len == 0) {
+#ifdef YYDEBUG
+                /* fputs("SQL string ends\n", stderr); */
+#endif
+                return(0);
+        }
 
-	vec = info->bound_ids;
+        if (len > max_size) {
+                len = max_size;
+        }
 
-	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_bound_id_t*	bid;
+#ifdef UNIV_SQL_DEBUG
+        if (pars_print_lexed) {
 
-		bid = static_cast<pars_bound_id_t*>(ib_vector_get(vec, i));
+                if (len >= 5) {
+                        len = 5;
+                }
 
-		if (strcmp(bid->name, name) == 0) {
-			return(bid);
-		}
-	}
+                fwrite(pars_sym_tab_global->sql_string
+                       + pars_sym_tab_global->next_char_pos,
+                       1, len, stderr);
+        }
+#endif /* UNIV_SQL_DEBUG */
 
-	return(NULL);
+        ut_memcpy(buf, pars_sym_tab_global->sql_string
+                  + pars_sym_tab_global->next_char_pos, len);
+
+        pars_sym_tab_global->next_char_pos += len;
+
+        return(len);
 }

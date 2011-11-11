@@ -409,6 +409,8 @@ pars_create_table(
 	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
 					table */
 	sym_node_t*	column_defs,	/*!< in: list of column names */
+	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
+	sym_node_t*	block_size,	/* in: block size (can be NULL) */
 	void*		not_fit_in_memory);
 					/*!< in: a non-NULL pointer means that
 					this is a table which in simulations
