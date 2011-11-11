@@ -454,10 +454,10 @@ e3		+00:00	CREATE DEFINER=`root`@`localhost` EVENT `e3` ON SCHEDULE EVERY 1 DAY 
 The following should fail, and nothing should be altered.
 ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00';
-ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future.
 ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00' DISABLE;
-ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
+ERROR HY000: Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future.
 The following should give warnings, and nothing should be created.
 CREATE EVENT e4 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00'

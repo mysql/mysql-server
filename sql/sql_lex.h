@@ -1029,6 +1029,14 @@ private:
   Alter_info(const Alter_info &rhs);            // not implemented
 };
 
+typedef struct struct_slave_connection
+{
+  char *user;
+  char *password;
+  char *plugin_auth;
+  char *plugin_dir;
+} LEX_SLAVE_CONNECTION;
+
 struct st_sp_chistics
 {
   LEX_STRING comment;
@@ -2190,6 +2198,7 @@ struct LEX: public Query_tables_list
   HA_CREATE_INFO create_info;
   KEY_CREATE_INFO key_create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
+  LEX_SLAVE_CONNECTION slave_connection;
   LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
   LEX_RESET_SLAVE reset_slave_info;

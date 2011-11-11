@@ -2127,3 +2127,29 @@ o
 p
 DROP TABLE t1;
 # End of Bug#12837714
+#
+# Bug#12578908: SELECT SQL_BUFFER_RESULT OUTPUTS TOO MANY 
+#               ROWS WHEN GROUP IS OPTIMIZED AWAY
+#
+CREATE TABLE t1 (col1 int, col2 int) ;
+INSERT INTO t1 VALUES (10,1),(11,7);
+CREATE TABLE t2 (col1 int, col2 int) ;
+INSERT INTO t2 VALUES (10,8);
+
+EXPLAIN SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+col2
+8
+
+EXPLAIN SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+col2
+8
+
+DROP TABLE t1,t2;

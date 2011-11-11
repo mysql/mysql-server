@@ -268,7 +268,7 @@ CPP_UNNAMED_NS_END
   do {                                             \
     char buf[256];                                 \
     uint i;                                        \
-    for (i = 0 ; i < min(sizeof(buf) - 1, (BS)->n_bits) ; i++) \
+    for (i = 0 ; i < MY_MIN(sizeof(buf) - 1, (BS)->n_bits) ; i++) \
       buf[i] = bitmap_is_set((BS), i) ? '1' : '0'; \
     buf[i] = '\0';                                 \
     DBUG_PRINT((N), ((FRM), buf));                 \
