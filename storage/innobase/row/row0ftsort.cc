@@ -95,7 +95,8 @@ row_merge_create_fts_sort_index(
 	field = dict_index_get_nth_field(new_index, 0);
 	field->name = NULL;
 	field->prefix_len = 0;
-	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
+	field->col = static_cast<dict_col_t*>(
+		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->len = fts_max_token_size;
 
 	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
@@ -112,7 +113,8 @@ row_merge_create_fts_sort_index(
 	field = dict_index_get_nth_field(new_index, 1);
 	field->name = NULL;
 	field->prefix_len = 0;
-	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
+	field->col = static_cast<dict_col_t*>(
+		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->mtype = DATA_INT;
 	*opt_doc_id_size = FALSE;
 
@@ -152,7 +154,8 @@ row_merge_create_fts_sort_index(
 	field = dict_index_get_nth_field(new_index, 2);
 	field->name = NULL;
 	field->prefix_len = 0;
-	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
+	field->col = static_cast<dict_col_t*>(
+		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
 	field->col->mtype = DATA_INT;
 	field->col->len = 4 ;
 	field->fixed_len = 4;
@@ -193,8 +196,8 @@ row_fts_psort_info_init(
 
 	block_size = 3 * srv_sort_buf_size;
 
-	*psort = psort_info = mem_zalloc(
-		 fts_sort_pll_degree * sizeof *psort_info);
+	*psort = psort_info = static_cast<fts_psort_t*>(mem_zalloc(
+		 fts_sort_pll_degree * sizeof *psort_info));
 
 	if (!psort_info) {
 		return FALSE;
@@ -203,7 +206,8 @@ row_fts_psort_info_init(
 	sort_event = os_event_create(NULL);
 
 	/* Common Info for all sort threads */
-	common_info = mem_alloc(sizeof *common_info);
+	common_info = static_cast<fts_psort_common_t*>(
+		mem_alloc(sizeof *common_info));
 
 	common_info->table = table;
 	common_info->new_table = (dict_table_t*)new_table;
@@ -227,8 +231,9 @@ row_fts_psort_info_init(
 
 		for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 
-			psort_info[j].merge_file[i] = mem_zalloc(
-				sizeof(merge_file_t));
+			psort_info[j].merge_file[i] =
+				 static_cast<merge_file_t*>(
+					mem_zalloc(sizeof(merge_file_t)));
 
 			if (!psort_info[j].merge_file[i]) {
 				ret = FALSE;
@@ -241,11 +246,14 @@ row_fts_psort_info_init(
 			row_merge_file_create(psort_info[j].merge_file[i]);
 
 			/* Need to align memory for O_DIRECT write */
-			psort_info[j].block_alloc[i] = ut_malloc(
-				block_size + 1024);
+			psort_info[j].block_alloc[i] =
+				static_cast<row_merge_block_t*>(ut_malloc(
+					block_size + 1024));
 
-			psort_info[j].merge_block[i] = ut_align(
-				psort_info[j].block_alloc[i], 1024);
+			psort_info[j].merge_block[i] =
+				static_cast<row_merge_block_t*>(
+					ut_align(
+					psort_info[j].block_alloc[i], 1024));
 
 			if (!psort_info[j].merge_block[i]) {
 				ret = FALSE;
@@ -260,7 +268,8 @@ row_fts_psort_info_init(
 
 	/* Initialize merge_info structures parallel merge and insert
 	into auxiliary FTS tables (FTS_INDEX_TABLE) */
-	*merge = merge_info = mem_alloc(FTS_NUM_AUX_INDEX * sizeof *merge_info);
+	*merge = merge_info = static_cast<fts_psort_t*>(
+		mem_alloc(FTS_NUM_AUX_INDEX * sizeof *merge_info));
 
 	for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 
@@ -414,9 +423,9 @@ row_merge_fts_doc_tokenize(
 		ut_a(t_ctx->buf_used < FTS_NUM_AUX_INDEX);
 		idx = t_ctx->buf_used;
 
-		buf->tuples[buf->n_tuples + n_tuple[idx]] =
-		field = mem_heap_alloc(
-			buf->heap, FTS_NUM_FIELDS_SORT * sizeof *field);
+		buf->tuples[buf->n_tuples + n_tuple[idx]] = field =
+			static_cast<dfield_t*>(mem_heap_alloc(
+				buf->heap, FTS_NUM_FIELDS_SORT * sizeof *field));
 
 		for (j = 0; j < FTS_NUM_FIELDS_SORT; j++) {
 			field[j] = t_ctx->sort_field[j];
@@ -609,7 +618,7 @@ loop:
 			byte*		data;
 			ulint		data_len;
 
-			data = dfield_get_data(dfield);
+			data = static_cast<byte*>(dfield_get_data(dfield));
 			data_len = dfield_get_len(dfield);
 
 			if (dfield_is_ext(dfield)) {
@@ -848,8 +857,9 @@ row_merge_write_fts_word(
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
 	while(ib_vector_size(word->nodes) > 0) {
 		ulint		error;	
-		fts_node_t*	fts_node = ib_vector_pop(word->nodes);
+		fts_node_t*	fts_node;
 
+		fts_node = static_cast<fts_node_t*>(ib_vector_pop(word->nodes));
 		error = fts_write_node(trx, &ins_graph[selected],
 				       fts_table, &word->text,
 				       fts_node);
@@ -892,13 +902,15 @@ row_fts_insert_tuple(
 
 	/* Get fts_node for the FTS auxillary INDEX table */
 	if (ib_vector_size(word->nodes) > 0) {
-		fts_node = ib_vector_last(word->nodes);
+		fts_node = static_cast<fts_node_t*>(
+			ib_vector_last(word->nodes));
 	}
 
 	if (fts_node == NULL
 	    || fts_node->ilist_size > FTS_ILIST_MAX_SIZE) {
 
-		fts_node = ib_vector_push(word->nodes, NULL);
+		fts_node = static_cast<fts_node_t*>(
+			ib_vector_push(word->nodes, NULL));
 
 		memset(fts_node, 0x0, sizeof(*fts_node));
 	}
@@ -923,7 +935,7 @@ row_fts_insert_tuple(
 
 	/* Get the first field for the tokenized word */
 	dfield = dtuple_get_nth_field(dtuple, 0);
-	token_word.f_str = dfield_get_data(dfield);
+	token_word.f_str = static_cast<byte*>(dfield_get_data(dfield));
 	token_word.f_len = dfield->len;
 
 	if (!word->text.f_str) {
@@ -967,14 +979,16 @@ row_fts_insert_tuple(
 	dfield = dtuple_get_nth_field(dtuple, 1);
 
 	if (!ins_ctx->opt_doc_id_size) {
-		doc_id = fts_read_doc_id(dfield_get_data(dfield));
+		doc_id = fts_read_doc_id(
+			static_cast<byte*>(dfield_get_data(dfield)));
 	} else {
-		doc_id = (doc_id_t) mach_read_from_4(dfield_get_data(dfield));
+		doc_id = (doc_id_t) mach_read_from_4(
+			static_cast<byte*>(dfield_get_data(dfield)));
 	}
 
 	/* Get the word's position info */
 	dfield = dtuple_get_nth_field(dtuple, 2);
-	position = mach_read_from_4(dfield_get_data(dfield));
+	position = mach_read_from_4(static_cast<byte*>(dfield_get_data(dfield)));
 
 	/* If this is the same word as the last word, and they
 	have the same Doc ID, we just need to add its position
@@ -1250,8 +1264,8 @@ row_fts_merge_insert(
 
 		num = 1 + REC_OFFS_HEADER_SIZE
 			+ dict_index_get_n_fields(index);
-		offsets[i] = mem_heap_zalloc(heap,
-					    num * sizeof *offsets[i]);
+		offsets[i] = static_cast<ulint*>(mem_heap_zalloc(
+			heap, num * sizeof *offsets[i]));
 		offsets[i][0] = num;
 		offsets[i][1] = dict_index_get_n_fields(index);
 		block[i] = psort_info[i].merge_block[id];
@@ -1259,7 +1273,8 @@ row_fts_merge_insert(
 		fd[i] = psort_info[i].merge_file[id]->fd;
 		foffs[i] = 0;
 
-		buf[i] = mem_heap_alloc(heap, sizeof *buf[i]);
+		buf[i] = static_cast<unsigned char (*)[16384]>(
+			mem_heap_alloc(heap, sizeof *buf[i]));
 #ifdef FTS_INTERNAL_DIAG_PRINT
 		count_diag += (int) psort_info[i].merge_file[id]->n_rec;
 #endif
@@ -1281,7 +1296,7 @@ row_fts_merge_insert(
 	/* Allocate insert query graphs for FTS auxillary
 	Index Table, note we have FTS_NUM_AUX_INDEX such index tables */
 	n_bytes = sizeof(que_t*) * (FTS_NUM_AUX_INDEX + 1);
-	ins_ctx.ins_graph = mem_heap_alloc(heap, n_bytes);
+	ins_ctx.ins_graph = static_cast<que_t**>(mem_heap_alloc(heap, n_bytes));
 	memset(ins_ctx.ins_graph, 0x0, n_bytes);
 
 	ins_ctx.fts_table.type = FTS_INDEX_TABLE;

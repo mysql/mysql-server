@@ -266,6 +266,151 @@ pars_func(
 	return(pars_func_low(((pars_res_word_t*)res_word)->code, arg));
 }
 
+/*************************************************************************
+Rebind a LIKE search string. NOTE: We ignore any '%' characters embedded
+within the search string.*/
+
+int
+pars_like_rebind(
+/*=============*/
+				/* out, own: function node in a query tree */
+	sym_node_t*	node,	/* in: The search string node.*/
+	const byte*	ptr,	/* in: literal to (re)bind */
+	ulint		ptr_len)/* in: length of literal to (re)bind*/
+{
+	dtype_t*	dtype;
+	dfield_t*	dfield;
+	ib_like_t	op_check;
+	sym_node_t*	like_node;
+	sym_node_t*	str_node = NULL;
+	ib_like_t	op = IB_LIKE_EXACT;
+	int		func = PARS_LIKE_TOKEN_EXACT;
+
+	/* Is this a STRING% ? */
+	if (ptr[ptr_len - 1] == '%') {
+		op = IB_LIKE_PREFIX;
+	}
+
+	/* Is this a '%STRING' or %STRING% ?*/
+	if (*ptr == '%') {
+		op = (op == IB_LIKE_PREFIX) ? IB_LIKE_SUBSTR : IB_LIKE_SUFFIX;
+	}
+
+	if (node->like_node == NULL) {
+		/* Add the LIKE operator info node to the node list.
+		This will be used during the comparison phase to determine
+		how to match.*/
+		like_node = sym_tab_add_int_lit(node->sym_table, op);
+		que_node_list_add_last(NULL, like_node);
+		node->like_node = like_node;
+		str_node = sym_tab_add_str_lit(node->sym_table, ptr, ptr_len);
+		que_node_list_add_last(like_node, str_node);
+	} else {
+		like_node = node->like_node;
+
+		/* Change the value of the string in the existing
+		string node of like node */
+		str_node = static_cast<sym_node_t*>(
+			que_node_list_get_last(like_node));
+
+		/* Must find the string node */
+		ut_a(str_node);
+		ut_a(str_node != like_node);
+		ut_a(str_node->token_type == SYM_LIT);
+
+		dfield = que_node_get_val(str_node);
+		dfield_set_data(dfield, ptr, ptr_len);
+	}
+
+	dfield = que_node_get_val(like_node);
+	dtype = dfield_get_type(dfield);
+
+	ut_a(dtype_get_mtype(dtype) == DATA_INT);
+	op_check = static_cast<ib_like_t>(mach_read_from_4(static_cast<byte*>(
+		dfield_get_data(dfield))));
+
+	switch (op_check) {
+	case	IB_LIKE_PREFIX:
+	case	IB_LIKE_SUFFIX:
+	case	IB_LIKE_SUBSTR:
+	case	IB_LIKE_EXACT:
+		break;
+
+	default:
+		ut_error;
+	}
+
+	mach_write_to_4(static_cast<byte*>(dfield_get_data(dfield)), op);
+
+	dfield = que_node_get_val(node);
+
+	/* Adjust the length of the search value so the '%' is not
+	visible. Then create and add a search string node to the
+	search value node. Searching for %SUFFIX and %SUBSTR% requires
+	a full table scan and so we set the search value to ''.
+	For PREFIX% we simply remove the trailing '%'.*/
+
+	switch (op) {
+	case	IB_LIKE_EXACT:
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr, ptr_len);
+		break;
+
+	case	IB_LIKE_PREFIX:
+		func = PARS_LIKE_TOKEN_PREFIX;
+
+		/* Modify the original node */
+		dfield_set_len(dfield, ptr_len - 1);
+
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr, ptr_len - 1);
+		break;
+
+	case	IB_LIKE_SUFFIX:
+		func = PARS_LIKE_TOKEN_SUFFIX;
+
+		/* Modify the original node */
+		/* Make it an '' empty string */
+		dfield_set_len(dfield, 0);
+
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr + 1, ptr_len - 1);
+		break;
+
+	case	IB_LIKE_SUBSTR:
+		func = PARS_LIKE_TOKEN_SUBSTR;
+
+		/* Modify the original node */
+		/* Make it an '' empty string */
+		dfield_set_len(dfield, 0);
+
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr + 1, ptr_len - 2);
+		break;
+
+	default:
+		ut_error;
+	}
+
+	return(func);
+}
+
 /*********************************************************************//**
 Parses an operator expression.
 @return	own: function node in a query tree */
