@@ -3733,7 +3733,7 @@ private:
   /* ------------------------------------------------------------ */
   // General Stuff
   /* ------------------------------------------------------------ */
-  Uint32 getFreeObjId(Uint32 minId, bool both = false);
+  Uint32 getFreeObjId(bool both = false);
   Uint32 getFreeTableRecord();
   Uint32 getFreeTriggerRecord();
   bool getNewAttributeRecord(TableRecordPtr tablePtr,
