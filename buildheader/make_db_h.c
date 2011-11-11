@@ -499,6 +499,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ \n");
     printf("  u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ \n");
     printf("  u_int64_t        cachetable_evictions;    /* how many cache table blocks are evicted */ \n");
+    printf("  u_int64_t        cleaner_executions;      /* how many times the loop in cleaner_thread has executed */ \n");
     printf("  u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ \n");
     printf("  u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ \n");
     printf("  u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ \n");
@@ -575,6 +576,16 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         cleaner_max_buffer_workdone;   /* max workdone value of any message buffer flushed by cleaner thread */\n");
     printf("  uint64_t         cleaner_min_buffer_workdone;   /* min workdone value of any message buffer flushed by cleaner thread */\n");
     printf("  uint64_t         cleaner_total_buffer_workdone; /* total workdone value of message buffers flushed by cleaner thread */\n");
+    printf("  uint64_t         flush_total;                 /* total number of flushes done by flusher threads or cleaner threads */\n");
+    printf("  uint64_t         flush_in_memory;             /* number of in memory flushes */\n");
+    printf("  uint64_t         flush_needed_io;             /* number of flushes that had to read a child (or part) off disk */\n");
+    printf("  uint64_t         flush_cascades;              /* number of flushes that triggered another flush in the child */\n");
+    printf("  uint64_t         flush_cascades_1;            /* number of flushes that triggered 1 cascading flush */\n");
+    printf("  uint64_t         flush_cascades_2;            /* number of flushes that triggered 2 cascading flushes */\n");
+    printf("  uint64_t         flush_cascades_3;            /* number of flushes that triggered 3 cascading flushes */\n");
+    printf("  uint64_t         flush_cascades_4;            /* number of flushes that triggered 4 cascading flushes */\n");
+    printf("  uint64_t         flush_cascades_5;            /* number of flushes that triggered 5 cascading flushes */\n");
+    printf("  uint64_t         flush_cascades_gt_5;         /* number of flushes that triggered more than 5 cascading flushes */\n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
     printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
