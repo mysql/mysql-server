@@ -1816,6 +1816,17 @@ disconnect con12828477_2;
 disconnect con12828477_3;
 
 --echo #
+--echo # Test case to test DATETIME_PRECISION of information_schema.columns table
+--echo # 
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+create database mysqltest;
+use mysqltest;
+create table mysqltest.t1(a int, b date, c time, d datetime, e timestamp);
+select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_schema.columns where TABLE_SCHEMA='mysqltest';
+
+--echo #
 --echo # Clean-up.
 drop database mysqltest;
 
