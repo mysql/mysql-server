@@ -164,7 +164,7 @@ typedef struct __toku_engine_status {
   u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
   u_int64_t        num_db_open;             /* number of db_open operations */
   u_int64_t        num_db_close;            /* number of db_close operations */
-  u_int64_t        num_open_db;             /* number of currently open dbs */
+  u_int64_t        num_open_dbs;            /* number of currently open dbs */
   u_int64_t        max_open_dbs;            /* max number of simultaneously open dbs */
   u_int64_t        le_updates;              /* leafentry update operations                        */ 
   u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ 

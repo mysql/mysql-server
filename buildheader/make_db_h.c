@@ -558,7 +558,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
     printf("  u_int64_t        num_db_open;             /* number of db_open operations */\n");
     printf("  u_int64_t        num_db_close;            /* number of db_close operations */\n");
-    printf("  u_int64_t        num_open_db;             /* number of currently open dbs */\n");
+    printf("  u_int64_t        num_open_dbs;            /* number of currently open dbs */\n");
     printf("  u_int64_t        max_open_dbs;            /* max number of simultaneously open dbs */\n");
     printf("  u_int64_t        le_updates;              /* leafentry update operations                        */ \n");
     printf("  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ \n");
