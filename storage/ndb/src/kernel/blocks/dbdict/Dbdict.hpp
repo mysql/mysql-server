@@ -229,7 +229,7 @@ public:
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
-  typedef DLHashTable<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_hash;
+  typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
   typedef DLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_list;
   typedef LocalDLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> LocalAttributeRecord_list;
 
@@ -676,6 +676,20 @@ public:
   RopePool c_rope_pool;
   RSS_AP_SNAPSHOT(c_rope_pool);
 
+  template <typename T, typename U = T> struct HashedById {
+    static Uint32& nextHash(U& t) { return t.nextHash_by_id; }
+    static Uint32& prevHash(U& t) { return t.prevHash_by_id; }
+    static Uint32 hashValue(T const& t) { return t.hashValue_by_id(); }
+    static bool equal(T const& lhs, T const& rhs) { return lhs.equal_by_id(rhs); }
+  };
+
+  template <typename T, typename U = T> struct HashedByName {
+    static Uint32& nextHash(U& t) { return t.nextHash_by_name; }
+    static Uint32& prevHash(U& t) { return t.prevHash_by_name; }
+    static Uint32 hashValue(T const& t) { return t.hashValue_by_name(); }
+    static bool equal(T const& lhs, T const& rhs) { return lhs.equal_by_name(rhs); }
+  };
+
   struct DictObject {
     DictObject() {
       m_trans_key = 0;
@@ -694,21 +708,34 @@ public:
       Uint32 nextPool;
       Uint32 nextList;
     };
-    Uint32 nextHash;
-    Uint32 prevHash;
 
-    Uint32 hashValue() const { return m_name.hashValue();}
-    bool equal(const DictObject& obj) const {
-      if(obj.hashValue() == hashValue()){
+    // SchemaOp -> DictObject -> SchemaTrans
+    Uint32 m_trans_key;
+    Uint32 m_op_ref_count;
+
+    // HashedById
+    Uint32 nextHash_by_id;
+    Uint32 prevHash_by_id;
+    Uint32 hashValue_by_id() const { return m_id; }
+    bool equal_by_id(DictObject const& obj) const {
+      bool isTrigger = DictTabInfo::isTrigger(m_type);
+      bool objIsTrigger = DictTabInfo::isTrigger(obj.m_type);
+      return (isTrigger == objIsTrigger) &&
+             (obj.m_id == m_id);
+    }
+
+    // HashedByName
+    Uint32 nextHash_by_name;
+    Uint32 prevHash_by_name;
+    Uint32 hashValue_by_name() const { return m_name.hashValue(); }
+    bool equal_by_name(DictObject const& obj) const {
+      if(obj.hashValue_by_name() == hashValue_by_name()){
 	ConstRope r(* m_key.m_pool, obj.m_name);
 	return r.compare(m_key.m_name_ptr, m_key.m_name_len) == 0;
       }
       return false;
     }
 
-    // SchemaOp -> DictObject -> SchemaTrans
-    Uint32 m_trans_key;
-    Uint32 m_op_ref_count;
 #ifdef VM_TRACE
     void print(NdbOut&) const;
 #endif
@@ -716,7 +743,7 @@ public:
 
   typedef Ptr<DictObject> DictObjectPtr;
   typedef ArrayPool<DictObject> DictObject_pool;
-  typedef DLHashTable<DictObject,DictObject,DictObject_pool> DictObject_hash;
+  typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObject_hash;
   typedef SLList<DictObject> DictObject_list;
 
   DictObject_hash c_obj_hash; // Name
@@ -1612,7 +1639,7 @@ private:
   };
 
   typedef RecordPool<SchemaOp,ArenaPool> SchemaOp_pool;
-  typedef DLHashTable<SchemaOp,SchemaOp,SchemaOp_pool> SchemaOp_hash;
+  typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
   typedef DLFifoList<SchemaOp,SchemaOp,SchemaOp_pool>::Head  SchemaOp_head;
   typedef LocalDLFifoList<SchemaOp,SchemaOp,SchemaOp_pool> LocalSchemaOp_list;
 
@@ -1857,7 +1884,7 @@ private:
       assert(false);
       return -1;
     }
-    // DLHashTable
+    // DLMHashTable
     Uint32 trans_key;
     Uint32 nextHash;
     Uint32 prevHash;
@@ -1975,7 +2002,7 @@ private:
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
-  typedef DLHashTable<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_hash;
+  typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
   typedef DLFifoList<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
@@ -2194,7 +2221,7 @@ private:
     // ArrayPool
     Uint32 nextPool;
 
-    // DLHashTable
+    // DLMHashTable
     Uint32 tx_key;
     Uint32 nextHash;
     Uint32 prevHash;
@@ -2246,7 +2273,7 @@ private:
   };
 
   typedef ArrayPool<TxHandle> TxHandle_pool;
-  typedef DLHashTable<TxHandle,TxHandle,TxHandle_pool> TxHandle_hash;
+  typedef DLMHashTable<TxHandle_pool, TxHandle> TxHandle_hash;
 
   TxHandle_pool c_txHandlePool;
   TxHandle_hash c_txHandleHash;
