@@ -15,10 +15,7 @@ BOOL garbage_collection_debug = FALSE;
 static void verify_snapshot_system(TOKULOGGER logger);
 
 // accountability
-static TXN_STATUS_S status = {.begin  = 0, 
-                              .commit = 0,
-                              .abort  = 0,
-                              .close  = 0};
+static TXN_STATUS_S status;
 
 
 void 
@@ -278,6 +275,9 @@ int toku_txn_begin_with_xid (
 
     *tokutxn = result;
     status.begin++;
+    status.num_open++;
+    if (status.num_open > status.max_open)
+	status.max_open = status.num_open;
     if (garbage_collection_debug) {
         verify_snapshot_system(logger);
     }
@@ -470,6 +470,7 @@ void toku_txn_close_txn(TOKUTXN txn) {
         verify_snapshot_system(logger);
 
     status.close++;
+    status.num_open--;
     return;
 }
 

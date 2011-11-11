@@ -671,6 +671,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
     assert(brtnode->thisnodename.b==nodename.b);
+    int height = brtnode->height;
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
 	if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
@@ -688,6 +689,18 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename
 		    h->panic_string = toku_strdup(s);
 		}
 	    }
+	}
+	if (height == 0) {  // statistics incremented only when disk I/O is done, so worth the threadsafe count
+	    if (for_checkpoint)
+		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_leaf_for_checkpoint);
+	    else
+		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_leaf);
+	}
+	else {
+	    if (for_checkpoint)
+		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_nonleaf_for_checkpoint);
+	    else
+		(void) toku_sync_fetch_and_increment_uint64(&brt_status.disk_flush_nonleaf);
 	}
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
@@ -1152,7 +1165,10 @@ void toku_brtnode_free (BRTNODE *nodep) {
 		toku_mempool_destroy(mp);
             }
 	}
+        toku_sync_fetch_and_increment_uint64(&brt_status.destroy_leaf);
     }
+    else
+        toku_sync_fetch_and_increment_uint64(&brt_status.destroy_nonleaf);
     toku_destroy_brtnode_internals(node);
     toku_free(node);
     *nodep=0;
