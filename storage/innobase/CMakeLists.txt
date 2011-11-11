@@ -292,6 +292,7 @@ SET(INNOBASE_SOURCES
 	rem/rem0cmp.cc
 	rem/rem0rec.cc
 	row/row0ext.cc
+	row/row0ftsort.cc
 	row/row0ins.cc
 	row/row0merge.cc
 	row/row0mysql.cc
