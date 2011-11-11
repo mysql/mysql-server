@@ -167,6 +167,7 @@ struct sysTab_NDBEVENTS_0 {
  */
 class Dbdict: public SimulatedBlock {
 public:
+
   /*
    *   2.3 RECORD AND FILESIZES
    */
@@ -229,7 +230,7 @@ public:
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   typedef ArrayPool<AttributeRecord> AttributeRecord_pool;
-  typedef DLHashTable<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_hash;
+  typedef DLMHashTable<AttributeRecord_pool, AttributeRecord> AttributeRecord_hash;
   typedef DLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> AttributeRecord_list;
   typedef LocalDLFifoList<AttributeRecord,AttributeRecord,AttributeRecord_pool> LocalAttributeRecord_list;
 
@@ -249,6 +250,8 @@ public:
 
   struct TableRecord {
     TableRecord(){ m_upgrade_trigger_handling.m_upgrade = false;}
+    static bool isCompatible(Uint32 type) { return DictTabInfo::isTable(type) || DictTabInfo::isIndex(type); }
+
     Uint32 maxRowsLow;
     Uint32 maxRowsHigh;
     Uint32 minRowsLow;
@@ -436,6 +439,7 @@ public:
 
   TableRecord_pool c_tableRecordPool;
   RSS_AP_SNAPSHOT(c_tableRecordPool);
+  TableRecord_pool& get_pool(TableRecordPtr) { return c_tableRecordPool; }
 
   /**  Node Group and Tablespace id+version + range or list data.
     *  This is only stored temporarily in DBDICT during an ongoing
@@ -604,6 +608,7 @@ public:
 
   struct File {
     File() {}
+    static bool isCompatible(Uint32 type) { return DictTabInfo::isFile(type); }
 
     Uint32 key;
     Uint32 m_magic;
@@ -620,19 +625,15 @@ public:
       Uint32 prevList;
       Uint32 nextPool;
     };
-    Uint32 nextHash, prevHash;
-
-    Uint32 hashValue() const { return key;}
-    bool equal(const File& obj) const { return key == obj.key;}
   };
   typedef Ptr<File> FilePtr;
   typedef RecordPool<File, RWPool> File_pool;
   typedef DLListImpl<File_pool, File> File_list;
   typedef LocalDLListImpl<File_pool, File> Local_file_list;
-  typedef KeyTableImpl<File_pool, File> File_hash;
 
   struct Filegroup {
     Filegroup(){}
+    static bool isCompatible(Uint32 type) { return DictTabInfo::isFilegroup(type); }
 
     Uint32 key;
     Uint32 m_obj_ptr_i;
@@ -657,24 +658,33 @@ public:
     union {
       Uint32 nextPool;
       Uint32 nextList;
-      Uint32 nextHash;
     };
-    Uint32 prevHash;
-
-    Uint32 hashValue() const { return key;}
-    bool equal(const Filegroup& obj) const { return key == obj.key;}
   };
   typedef Ptr<Filegroup> FilegroupPtr;
   typedef RecordPool<Filegroup, RWPool> Filegroup_pool;
-  typedef KeyTableImpl<Filegroup_pool, Filegroup> Filegroup_hash;
 
   File_pool c_file_pool;
   Filegroup_pool c_filegroup_pool;
-  File_hash c_file_hash;
-  Filegroup_hash c_filegroup_hash;
+
+  File_pool& get_pool(FilePtr) { return c_file_pool; }
+  Filegroup_pool& get_pool(FilegroupPtr) { return c_filegroup_pool; }
 
   RopePool c_rope_pool;
   RSS_AP_SNAPSHOT(c_rope_pool);
+
+  template <typename T, typename U = T> struct HashedById {
+    static Uint32& nextHash(U& t) { return t.nextHash_by_id; }
+    static Uint32& prevHash(U& t) { return t.prevHash_by_id; }
+    static Uint32 hashValue(T const& t) { return t.hashValue_by_id(); }
+    static bool equal(T const& lhs, T const& rhs) { return lhs.equal_by_id(rhs); }
+  };
+
+  template <typename T, typename U = T> struct HashedByName {
+    static Uint32& nextHash(U& t) { return t.nextHash_by_name; }
+    static Uint32& prevHash(U& t) { return t.prevHash_by_name; }
+    static Uint32 hashValue(T const& t) { return t.hashValue_by_name(); }
+    static bool equal(T const& lhs, T const& rhs) { return lhs.equal_by_name(rhs); }
+  };
 
   struct DictObject {
     DictObject() {
@@ -683,6 +693,7 @@ public:
     };
     Uint32 m_id;
     Uint32 m_type;
+    Uint32 m_object_ptr_i;
     Uint32 m_ref_count;
     RopeHandle m_name;
     union {
@@ -694,21 +705,34 @@ public:
       Uint32 nextPool;
       Uint32 nextList;
     };
-    Uint32 nextHash;
-    Uint32 prevHash;
 
-    Uint32 hashValue() const { return m_name.hashValue();}
-    bool equal(const DictObject& obj) const {
-      if(obj.hashValue() == hashValue()){
+    // SchemaOp -> DictObject -> SchemaTrans
+    Uint32 m_trans_key;
+    Uint32 m_op_ref_count;
+
+    // HashedById
+    Uint32 nextHash_by_id;
+    Uint32 prevHash_by_id;
+    Uint32 hashValue_by_id() const { return m_id; }
+    bool equal_by_id(DictObject const& obj) const {
+      bool isTrigger = DictTabInfo::isTrigger(m_type);
+      bool objIsTrigger = DictTabInfo::isTrigger(obj.m_type);
+      return (isTrigger == objIsTrigger) &&
+             (obj.m_id == m_id);
+    }
+
+    // HashedByName
+    Uint32 nextHash_by_name;
+    Uint32 prevHash_by_name;
+    Uint32 hashValue_by_name() const { return m_name.hashValue(); }
+    bool equal_by_name(DictObject const& obj) const {
+      if(obj.hashValue_by_name() == hashValue_by_name()){
 	ConstRope r(* m_key.m_pool, obj.m_name);
 	return r.compare(m_key.m_name_ptr, m_key.m_name_len) == 0;
       }
       return false;
     }
 
-    // SchemaOp -> DictObject -> SchemaTrans
-    Uint32 m_trans_key;
-    Uint32 m_op_ref_count;
 #ifdef VM_TRACE
     void print(NdbOut&) const;
 #endif
@@ -716,12 +740,56 @@ public:
 
   typedef Ptr<DictObject> DictObjectPtr;
   typedef ArrayPool<DictObject> DictObject_pool;
-  typedef DLHashTable<DictObject,DictObject,DictObject_pool> DictObject_hash;
+  typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObjectName_hash;
+  typedef DLMHashTable<DictObject_pool, DictObject, HashedById<DictObject> > DictObjectId_hash;
   typedef SLList<DictObject> DictObject_list;
 
-  DictObject_hash c_obj_hash; // Name
+  DictObjectName_hash c_obj_name_hash; // Name (not temporary TableRecords)
+  DictObjectId_hash c_obj_id_hash; // Schema file id / Trigger id
   DictObject_pool c_obj_pool;
   RSS_AP_SNAPSHOT(c_obj_pool);
+
+  template<typename T> bool find_object(DictObjectPtr& obj, Ptr<T>& object, Uint32 id)
+  {
+    if (!find_object(obj, id))
+    {
+      object.setNull();
+      return false;
+    }
+    if (!T::isCompatible(obj.p->m_type))
+    {
+      object.setNull();
+      return false;
+    }
+    get_pool(object).getPtr(object, obj.p->m_object_ptr_i);
+    return !object.isNull();
+  }
+
+  template<typename T> bool find_object(Ptr<T>& object, Uint32 id)
+  {
+    DictObjectPtr obj;
+    return find_object(obj, object, id);
+  }
+
+  bool find_object(DictObjectPtr& object, Uint32 id)
+  {
+    DictObject key;
+    key.m_id = id;
+    key.m_type = 0; // Not a trigger atleast
+    bool ok = c_obj_id_hash.find(object, key);
+    return ok;
+  }
+
+  template<typename T> bool link_object(DictObjectPtr obj, Ptr<T> object)
+  {
+    if (!T::isCompatible(obj.p->m_type))
+    {
+      return false;
+    }
+    obj.p->m_object_ptr_i = object.i;
+    object.p->m_obj_ptr_i = obj.i;
+    return true;
+  }
 
   // 1
   DictObject * get_object(const char * name){
@@ -1612,7 +1680,7 @@ private:
   };
 
   typedef RecordPool<SchemaOp,ArenaPool> SchemaOp_pool;
-  typedef DLHashTable<SchemaOp,SchemaOp,SchemaOp_pool> SchemaOp_hash;
+  typedef DLMHashTable<SchemaOp_pool, SchemaOp> SchemaOp_hash;
   typedef DLFifoList<SchemaOp,SchemaOp,SchemaOp_pool>::Head  SchemaOp_head;
   typedef LocalDLFifoList<SchemaOp,SchemaOp,SchemaOp_pool> LocalSchemaOp_list;
 
@@ -1857,7 +1925,7 @@ private:
       assert(false);
       return -1;
     }
-    // DLHashTable
+    // DLMHashTable
     Uint32 trans_key;
     Uint32 nextHash;
     Uint32 prevHash;
@@ -1975,7 +2043,7 @@ private:
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
-  typedef DLHashTable<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_hash;
+  typedef DLMHashTable<SchemaTrans_pool, SchemaTrans> SchemaTrans_hash;
   typedef DLFifoList<SchemaTrans,SchemaTrans,SchemaTrans_pool> SchemaTrans_list;
 
   SchemaTrans_pool c_schemaTransPool;
@@ -2194,7 +2262,7 @@ private:
     // ArrayPool
     Uint32 nextPool;
 
-    // DLHashTable
+    // DLMHashTable
     Uint32 tx_key;
     Uint32 nextHash;
     Uint32 prevHash;
@@ -2246,7 +2314,7 @@ private:
   };
 
   typedef ArrayPool<TxHandle> TxHandle_pool;
-  typedef DLHashTable<TxHandle,TxHandle,TxHandle_pool> TxHandle_hash;
+  typedef DLMHashTable<TxHandle_pool, TxHandle> TxHandle_hash;
 
   TxHandle_pool c_txHandlePool;
   TxHandle_hash c_txHandleHash;
@@ -2929,6 +2997,7 @@ private:
 
   struct HashMapRecord {
     HashMapRecord(){}
+    static bool isCompatible(Uint32 type) { return DictTabInfo::isHashMap(type); }
 
     /* Table id (array index in DICT and other blocks) */
     union {
@@ -2944,24 +3013,15 @@ private:
      * ptr.i, in g_hash_map
      */
     Uint32 m_map_ptr_i;
-    union {
-      Uint32 nextPool;
-      Uint32 nextHash;
-    };
-    Uint32 prevHash;
-
-    Uint32 hashValue() const { return key;}
-    bool equal(const HashMapRecord& obj) const { return key == obj.key;}
-
+    Uint32 nextPool;
   };
   typedef Ptr<HashMapRecord> HashMapRecordPtr;
   typedef ArrayPool<HashMapRecord> HashMapRecord_pool;
-  typedef KeyTableImpl<HashMapRecord_pool, HashMapRecord> HashMapRecord_hash;
 
   HashMapRecord_pool c_hash_map_pool;
-  HashMapRecord_hash c_hash_map_hash;
   RSS_AP_SNAPSHOT(c_hash_map_pool);
   RSS_AP_SNAPSHOT(g_hash_map);
+  HashMapRecord_pool& get_pool(HashMapRecordPtr) { return c_hash_map_pool; }
 
   struct CreateHashMapRec;
   typedef RecordPool<CreateHashMapRec,ArenaPool> CreateHashMapRec_pool;
@@ -3673,7 +3733,7 @@ private:
   /* ------------------------------------------------------------ */
   // General Stuff
   /* ------------------------------------------------------------ */
-  Uint32 getFreeObjId(Uint32 minId, bool both = false);
+  Uint32 getFreeObjId(bool both = false);
   Uint32 getFreeTableRecord();
   Uint32 getFreeTriggerRecord();
   bool getNewAttributeRecord(TableRecordPtr tablePtr,
@@ -4037,6 +4097,7 @@ protected:
   virtual bool getParam(const char * param, Uint32 * retVal);
 private:
   ArenaAllocator c_arenaAllocator;
+  Uint32 c_noOfMetaTables;
 };
 
 inline bool
