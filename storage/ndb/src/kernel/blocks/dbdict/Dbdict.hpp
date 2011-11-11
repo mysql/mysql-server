@@ -4097,6 +4097,7 @@ protected:
   virtual bool getParam(const char * param, Uint32 * retVal);
 private:
   ArenaAllocator c_arenaAllocator;
+  Uint32 c_noOfMetaTables;
 };
 
 inline bool

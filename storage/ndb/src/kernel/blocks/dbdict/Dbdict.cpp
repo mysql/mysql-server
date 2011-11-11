@@ -297,7 +297,7 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         { CFG_DB_NO_ATTRIBUTES,0,0,0 }},
       { "Table Record",
         c_tableRecordPool.getUsed(),
-        c_tableRecordPool.getSize(),
+        c_noOfMetaTables,
         c_tableRecordPool.getEntrySize(),
         c_tableRecordPool.getUsedHi(),
         { CFG_DB_NO_TABLES,0,0,0 }},
@@ -1816,7 +1816,7 @@ void Dbdict::closeReadSchemaConf(Signal* signal,
       ndbrequire(c_writeSchemaRecord.inUse == false);
       XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.oldSchemaPage != 0 ];
       Uint32 noOfPages =
-        (c_tableRecordPool.getSize() + NDB_SF_PAGE_ENTRIES - 1) /
+        (c_noOfMetaTables + NDB_SF_PAGE_ENTRIES - 1) /
         NDB_SF_PAGE_ENTRIES;
       resizeSchemaFile(xsf, noOfPages);
 
@@ -2445,7 +2445,7 @@ Uint32 Dbdict::getFreeTableRecord()
     jam();
     return RNIL;
   }
-  if (i >= c_tableRecordPool.getSize()) {
+  if (i >= c_noOfMetaTables) {
     jam();
     return RNIL;
   }
@@ -2631,11 +2631,11 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  Uint32 attributesize, tablerecSize;
+  Uint32 attributesize;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS,
 					&c_maxNoOfTriggers));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_ATTRIBUTE,&attributesize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &tablerecSize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &c_noOfMetaTables));
   c_indexStatAutoCreate = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_CREATE,
                             &c_indexStatAutoCreate);
@@ -2654,8 +2654,8 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_nodes.setSize(MAX_NDB_NODES);
   c_pageRecordArray.setSize(ZNUMBER_OF_PAGES);
   c_schemaPageRecordArray.setSize(2 * NDB_SF_MAX_PAGES);
-  c_tableRecordPool.setSize(tablerecSize);
-  g_key_descriptor_pool.setSize(tablerecSize);
+  c_tableRecordPool.setSize(c_noOfMetaTables);
+  g_key_descriptor_pool.setSize(c_noOfMetaTables);
   c_triggerRecordPool.setSize(c_maxNoOfTriggers);
 
   Record_info ri;
@@ -2668,9 +2668,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_txHandlePool.setSize(2);
   c_txHandleHash.setSize(2);
 
-  c_obj_pool.setSize(tablerecSize+c_maxNoOfTriggers);
-  c_obj_name_hash.setSize((tablerecSize+c_maxNoOfTriggers+1)/2);
-  c_obj_id_hash.setSize((tablerecSize+c_maxNoOfTriggers+1)/2);
+  c_obj_pool.setSize(c_noOfMetaTables+c_maxNoOfTriggers);
+  c_obj_name_hash.setSize((c_noOfMetaTables+c_maxNoOfTriggers+1)/2);
+  c_obj_id_hash.setSize((c_noOfMetaTables+c_maxNoOfTriggers+1)/2);
   m_dict_lock_pool.setSize(MAX_NDB_NODES);
 
   c_file_pool.init(RT_DBDICT_FILE, pc);
@@ -2722,7 +2722,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_schemaFile[1].noOfPages = 0;
 
   Uint32 rps = 0;
-  rps += tablerecSize * (MAX_TAB_NAME_SIZE + MAX_FRM_DATA_SIZE);
+  rps += c_noOfMetaTables * (MAX_TAB_NAME_SIZE + MAX_FRM_DATA_SIZE);
   rps += attributesize * (MAX_ATTR_NAME_SIZE + MAX_ATTR_DEFAULT_VALUE_SIZE);
   rps += c_maxNoOfTriggers * MAX_TAB_NAME_SIZE;
   rps += (10 + 10) * MAX_TAB_NAME_SIZE;
@@ -2892,7 +2892,7 @@ void Dbdict::execREAD_NODESCONF(Signal* signal)
 void Dbdict::initSchemaFile(Signal* signal)
 {
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
-  xsf->noOfPages = (c_tableRecordPool.getSize() + NDB_SF_PAGE_ENTRIES - 1)
+  xsf->noOfPages = (c_noOfMetaTables + NDB_SF_PAGE_ENTRIES - 1)
                    / NDB_SF_PAGE_ENTRIES;
   initSchemaFile(xsf, 0, xsf->noOfPages, true);
   // init alt copy too for INR
@@ -2962,7 +2962,7 @@ Dbdict::activateIndexes(Signal* signal, Uint32 i)
 
   TableRecordPtr indexPtr;
   indexPtr.i = i;
-  for (; indexPtr.i < c_tableRecordPool.getSize(); indexPtr.i++)
+  for (; indexPtr.i < c_noOfMetaTables; indexPtr.i++)
   {
     c_tableRecordPool.getPtr(indexPtr);
 
@@ -3129,7 +3129,7 @@ Dbdict::rebuildIndexes(Signal* signal, Uint32 i)
 
   TableRecordPtr indexPtr;
   indexPtr.i = i;
-  for (; indexPtr.i < c_tableRecordPool.getSize(); indexPtr.i++) {
+  for (; indexPtr.i < c_noOfMetaTables; indexPtr.i++) {
     c_tableRecordPool.getPtr(indexPtr);
     if (check_read_obj(indexPtr.i))
       continue;
@@ -3652,7 +3652,7 @@ void Dbdict::checkSchemaStatus(Signal* signal)
     SchemaFile::EntryState ownState =
       (SchemaFile::EntryState)ownEntry->m_tableState;
 
-    if (c_restartRecord.activeTable >= c_tableRecordPool.getSize())
+    if (c_restartRecord.activeTable >= c_noOfMetaTables)
     {
       jam();
       ndbrequire(masterState == SchemaFile::SF_UNUSED);
@@ -7254,7 +7254,7 @@ Dbdict::dropTable_parse(Signal* signal, bool master,
   Uint32 tableId = impl_req->tableId;
 
   TableRecordPtr tablePtr;
-  if (!(tableId < c_tableRecordPool.getSize())) {
+  if (!(tableId < c_noOfMetaTables)) {
     jam();
     setError(error, DropTableRef::NoSuchTable, __LINE__);
     return;
@@ -7943,7 +7943,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
 
   // get table definition
   TableRecordPtr tablePtr;
-  if (!(impl_req->tableId < c_tableRecordPool.getSize())) {
+  if (!(impl_req->tableId < c_noOfMetaTables)) {
     jam();
     setError(error, AlterTableRef::NoSuchTable, __LINE__);
     return;
@@ -10755,7 +10755,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   // check primary table
   TableRecordPtr tablePtr;
   {
-    if (!(impl_req->tableId < c_tableRecordPool.getSize())) {
+    if (!(impl_req->tableId < c_noOfMetaTables)) {
       jam();
       setError(error, CreateIndxRef::InvalidPrimaryTable, __LINE__);
       return;
@@ -10917,7 +10917,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     return;
   }
 
-  if (impl_req->indexId >= c_tableRecordPool.getSize())
+  if (impl_req->indexId >= c_noOfMetaTables)
   {
     jam();
     setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
@@ -11455,7 +11455,7 @@ Dbdict::dropIndex_parse(Signal* signal, bool master,
   DropIndxImplReq* impl_req = &dropIndexPtr.p->m_request;
 
   TableRecordPtr indexPtr;
-  if (!(impl_req->indexId < c_tableRecordPool.getSize())) {
+  if (!(impl_req->indexId < c_noOfMetaTables)) {
     jam();
     setError(error, DropIndxRef::IndexNotFound, __LINE__);
     return;
@@ -11937,7 +11937,7 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
   AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
 
   TableRecordPtr indexPtr;
-  if (!(impl_req->indexId < c_tableRecordPool.getSize())) {
+  if (!(impl_req->indexId < c_noOfMetaTables)) {
     jam();
     setError(error, AlterIndxRef::IndexNotFound, __LINE__);
     return;
@@ -12858,7 +12858,7 @@ Dbdict::alterIndex_abortParse(Signal* signal, SchemaOpPtr op_ptr)
   D("alterIndex_abortParse" << *op_ptr.p);
 
   do {
-    if (!(impl_req->indexId < c_tableRecordPool.getSize())) {
+    if (!(impl_req->indexId < c_noOfMetaTables)) {
       jam();
       D("invalid index id" << V(indexId));
       break;
@@ -13113,7 +13113,7 @@ Dbdict::buildIndex_parse(Signal* signal, bool master,
 
   // get index
   TableRecordPtr indexPtr;
-  if (!(impl_req->indexId < c_tableRecordPool.getSize())) {
+  if (!(impl_req->indexId < c_noOfMetaTables)) {
     jam();
     setError(error, BuildIndxRef::IndexNotFound, __LINE__);
     return;
@@ -13124,7 +13124,7 @@ Dbdict::buildIndex_parse(Signal* signal, bool master,
 
   // get primary table
   TableRecordPtr tablePtr;
-  if (!(impl_req->tableId < c_tableRecordPool.getSize())) {
+  if (!(impl_req->tableId < c_noOfMetaTables)) {
     jam();
     setError(error, BuildIndxRef::IndexNotFound, __LINE__);
     return;
@@ -13886,7 +13886,7 @@ Dbdict::indexStat_parse(Signal* signal, bool master,
 
   // get index
   TableRecordPtr indexPtr;
-  if (!(impl_req->indexId < c_tableRecordPool.getSize())) {
+  if (!(impl_req->indexId < c_noOfMetaTables)) {
     jam();
     setError(error, IndexStatRef::InvalidIndex, __LINE__);
     return;
@@ -14342,7 +14342,7 @@ Dbdict::execINDEX_STAT_REP(Signal* signal)
 
   // check
   TableRecordPtr indexPtr;
-  if (rep->indexId >= c_tableRecordPool.getSize()) {
+  if (rep->indexId >= c_noOfMetaTables) {
     jam();
     return;
   }
@@ -14390,7 +14390,7 @@ Dbdict::indexStatBg_process(Signal* signal)
   uint loop;
   for (loop = 0; loop < maxloop; loop++, c_indexStatBgId++) {
     jam();
-    c_indexStatBgId %= c_tableRecordPool.getSize();
+    c_indexStatBgId %= c_noOfMetaTables;
 
     // check
     TableRecordPtr indexPtr;
@@ -17657,7 +17657,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   // check the table
   {
     const Uint32 tableId = impl_req->tableId;
-    if (! (tableId < c_tableRecordPool.getSize()))
+    if (! (tableId < c_noOfMetaTables))
     {
       jam();
       setError(error, CreateTrigRef::InvalidTable, __LINE__);
@@ -29001,7 +29001,7 @@ Dbdict::check_consistency()
   // schema file entries // mis-named "tables"
   TableRecordPtr tablePtr;
   for (tablePtr.i = 0;
-      tablePtr.i < c_tableRecordPool.getSize();
+      tablePtr.i < c_noOfMetaTables;
       tablePtr.i++) {
     if (check_read_obj(tablePtr.i,
 
