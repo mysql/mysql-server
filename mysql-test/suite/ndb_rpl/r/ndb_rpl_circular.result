@@ -52,7 +52,17 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_UUID	#
+Master_Info_File	#
+SQL_Delay	0
+SQL_Remaining_Delay	NULL
+Slave_SQL_Running_State	Slave has read all relay log; waiting for the slave I/O thread to update it
+Master_Retry_Count	10
 Master_Bind	
+Last_IO_Error_Timestamp	
+Last_SQL_Error_Timestamp	
+Master_SSL_Crl	
+Master_SSL_Crlpath	
 Slave Binlog contains all ops as log_slave_updates is on
 show variables like 'server_id';
 Variable_name	Value
