@@ -236,5 +236,28 @@ RETURN CONCAT('XYZ, ' ,s);
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
 WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
 
+###############################################################################
+# Testcase parameters.13: Test case to test DATETIME_PRECISION in 
+# information_schema.parameters table.
+###############################################################################
+-- echo # ========== parameters.13 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+delimiter \\;
+CREATE PROCEDURE test_proc1 (OUT p_p1 timestamp) BEGIN SELECT 1 ; END; \\
+delimiter ;\\
+
+CREATE FUNCTION test_func1 (f_p1 DATETIME) RETURNS TIME RETURN NULL;
+
+SELECT SPECIFIC_SCHEMA, SPECIFIC_NAME, PARAMETER_NAME, DATA_TYPE, 
+DATETIME_PRECISION from INFORMATION_SCHEMA.PARAMETERS WHERE 
+SPECIFIC_SCHEMA='i_s_parameters_test';
+
+
 # Cleanup
 DROP DATABASE i_s_parameters_test;
