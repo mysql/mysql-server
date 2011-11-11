@@ -234,6 +234,7 @@ extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+extern ulong log_warnings;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
@@ -420,7 +421,7 @@ extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
 extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
   The last entry, at [SQLCOM_END], is for parsing errors.
@@ -435,7 +436,7 @@ extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
 void init_sql_statement_info();
 void init_com_statement_info();
-#endif /* HAVE_PSI_INTERFACE */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

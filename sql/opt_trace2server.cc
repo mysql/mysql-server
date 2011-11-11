@@ -500,7 +500,6 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
 
 int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
 {
-#ifdef OPTIMIZER_TRACE
   TABLE *table= tables->table;
   Opt_trace_info info;
 
@@ -556,13 +555,9 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
   return 0;
-#else
-  my_error(ER_FEATURE_DISABLED, MYF(0), "optimizer trace",
-           "-DOPTIMIZER_TRACE=1");
-  return 1;
-#endif
 }
 
+#endif // OPTIMIZER_TRACE
 
 ST_FIELD_INFO optimizer_trace_info[]=
 {
@@ -576,30 +571,6 @@ ST_FIELD_INFO optimizer_trace_info[]=
   {NULL, 0,  MYSQL_TYPE_STRING, 0, true, NULL, 0}
 };
 
-
-int make_optimizer_trace_table_for_show(THD *thd,
-                                        ST_SCHEMA_TABLE *schema_table)
-{
-  Name_resolution_context *context= &thd->lex->select_lex.context;
-
-  for (int i= 0; schema_table->fields_info[i].field_name != NULL; i++)
-  {
-    ST_FIELD_INFO *field_info= &schema_table->fields_info[i];
-    Item_field *field= new Item_field(context,
-                                      NullS, NullS, field_info->field_name);
-    if (field)
-    {
-      field->set_name(field_info->old_name,
-                      static_cast<uint>(strlen(field_info->old_name)),
-                      system_charset_info);
-      if (add_item_to_list(thd, field))
-        return 1;
-    }
-    else
-      return 1;
-  }
-  return 0;
-}
 
 /*
   LiteralsWithIntroducers :
@@ -630,5 +601,3 @@ int make_optimizer_trace_table_for_show(THD *thd,
   there would be no problem ('0', 'x', 'E', and 'D' are identical in latin1
   and utf8: they would be preserved during conversion).
 */
-
-#endif // OPTIMIZER_TRACE

@@ -44,6 +44,9 @@
 #include "message.h"
 #endif
 
+using std::min;
+using std::max;
+
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_TIME_SIZE 32
@@ -618,11 +621,11 @@ bool Log_to_csv_event_handler::
     t.neg= 0;
 
     /* fill in query_time field */
-    calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min<long>(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min<long>(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
@@ -1015,15 +1018,13 @@ bool LOGGER::flush_general_log()
     thd                 THD of the query being logged
     query               The query being logged
     query_length        The length of the query string
-    current_utime       Current time in microseconds (from undefined start)
 
   RETURN
     FALSE   OK
     TRUE    error occured
 */
 
-bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
-                            ulonglong current_utime)
+bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length)
 
 {
   bool error= FALSE;
@@ -1032,7 +1033,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
   uint user_host_len= 0;
-  ulonglong query_utime, lock_utime;
+  ulonglong query_utime, lock_utime, current_utime;
 
   DBUG_ASSERT(thd->enable_slow_log);
   /*
@@ -1062,6 +1063,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
                              sctx->ip ? sctx->ip : "", "]", NullS) -
                     user_host_buff);
 
+    current_utime= thd->current_utime();
     current_time= my_time_possible_from_micro(current_utime);
     if (thd->start_utime)
     {
@@ -2020,7 +2022,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   {
     char *p= fn_ext(log_name);
     uint length= (uint) (p - log_name);
-    strmake(buff, log_name, min(length, FN_REFLEN-1));
+    strmake(buff, log_name, min<size_t>(length, FN_REFLEN-1));
     return (const char*)buff;
   }
   return log_name;
@@ -2034,10 +2036,9 @@ int error_log_print(enum loglevel level, const char *format,
 }
 
 
-bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    ulonglong current_utime)
+bool slow_log_print(THD *thd, const char *query, uint query_length)
 {
-  return logger.slow_log_print(thd, query, query_length, current_utime);
+  return logger.slow_log_print(thd, query, query_length);
 }
 
 

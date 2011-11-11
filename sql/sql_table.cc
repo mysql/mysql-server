@@ -58,6 +58,10 @@
 #include <io.h>
 #endif
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
@@ -6259,6 +6263,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     case ENABLE:
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
         goto err;
+      DEBUG_SYNC(thd,"alter_table_enable_indexes");
       DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;

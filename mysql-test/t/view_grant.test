@@ -22,9 +22,8 @@ drop user test@localhost;
 #
 connect (root,localhost,root,,test);
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
@@ -74,9 +73,8 @@ drop view test.v1;
 # grants per columns
 #
 # MERGE algorithm
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int);
 create view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
@@ -94,9 +92,8 @@ delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
 
 # TEMPORARY TABLE algorithm
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int);
 create algorithm=temptable view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
@@ -117,9 +114,8 @@ drop database mysqltest;
 # EXPLAIN rights
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 # prepare views and tables
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
@@ -202,9 +198,8 @@ drop database mysqltest;
 # UPDATE privileges on VIEW columns and whole VIEW
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int, primary key(a));
 insert into mysqltest.t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
@@ -250,9 +245,8 @@ drop database mysqltest;
 # DELETE privileges on VIEW
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int, primary key(a));
 insert into mysqltest.t1 values (1,2), (2,3), (3,4), (4,5), (5,10);
@@ -286,9 +280,8 @@ drop database mysqltest;
 # insert privileges on VIEW
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int, primary key(a));
 insert into mysqltest.t1 values (1,2), (2,3);
@@ -322,9 +315,8 @@ drop database mysqltest;
 # test of CREATE VIEW privileges if we have limited privileges
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
@@ -384,9 +376,8 @@ drop view v1,v2,v4;
 # user with global DB privileges
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 create table mysqltest.t1 (a int);
 grant all privileges on mysqltest.* to mysqltest_1@localhost;
 
@@ -403,9 +394,8 @@ drop database mysqltest;
 # view definer grants revoking
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 create table mysqltest.t1 (a int, b int);
 
@@ -432,17 +422,15 @@ drop database mysqltest;
 # rights on execution of view underlying functiond (Bug#9505)
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 use mysqltest;
 create table t1 (a int);
 insert into t1 values (1);
 create table t2 (s1 int);
---disable_warnings
+--disable_warnings ONCE
 drop function if exists f2;
---enable_warnings
 delimiter //;
 create function f2 () returns int begin declare v int; select s1 from t2
 into v; return v; end//
@@ -484,17 +472,15 @@ drop database mysqltest;
 #
 
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 use mysqltest;
 create table t1 (a int);
 insert into t1 values (1);
 create table t2 (s1 int);
---disable_warnings
+--disable_warnings ONCE
 drop function if exists f2;
---enable_warnings
 delimiter //;
 create function f2 () returns int begin declare v int; select s1 from t2
 into v; return v; end//
@@ -534,9 +520,8 @@ drop database mysqltest;
 # definer/invoker rights for columns
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 use mysqltest;
 create table t1 (a int);
@@ -575,9 +560,8 @@ drop database mysqltest;
 
 
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 use mysqltest;
 create table t1 (a int);
@@ -664,9 +648,8 @@ drop table t1;
 #           we have locked tables with LOCK TABLES statement.
 #
 connection root;
---disable_warnings
+--disable_warnings ONCE
 create database mysqltest;
---enable_warnings
 
 use mysqltest;
 CREATE TABLE t1 (i INT);
@@ -1536,9 +1519,8 @@ USE test;
 --echo # Bug#47734: Assertion failed: ! is_set() when locking a view with non-existing definer
 --echo #
 
---disable_warnings
+--disable_warnings ONCE
 DROP VIEW IF EXISTS v1;
---enable_warnings
 
 CREATE DEFINER=`unknown`@`unknown` SQL SECURITY DEFINER VIEW v1 AS SELECT 1;
 --error ER_NO_SUCH_USER
@@ -1552,9 +1534,8 @@ DROP VIEW v1;
 --echo #
 --echo # Check that we correctly handle privileges for various combinations
 --echo # of INVOKER and DEFINER-security views using each other.
---disable_warnings
+--disable_warnings ONCE
 DROP DATABASE IF EXISTS mysqltest1;
---enable_warnings
 CREATE DATABASE mysqltest1;
 USE mysqltest1;
 CREATE TABLE t1 (i INT);
