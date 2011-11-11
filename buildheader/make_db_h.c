@@ -486,6 +486,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        txn_commit;              /* txn commit operations                         */ \n");
     printf("  u_int64_t        txn_abort;               /* txn abort operations                          */ \n");
     printf("  u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ \n");
+    printf("  u_int64_t        txn_num_open;            /* should be begin - close                       */ \n");
+    printf("  u_int64_t        txn_max_open;            /* max value of num_open                         */ \n");
     printf("  u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ \n");
     printf("  char             txn_oldest_live_starttime[26];   /* oldest extant txn start time                      */ \n");
     printf("  u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ \n");
@@ -529,6 +531,11 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        range_write_locks;       /* total range write locks taken */ \n");
     printf("  u_int64_t        range_write_locks_fail;  /* total range write locks unable to be taken */ \n");
     printf("  u_int64_t        range_out_of_write_locks; /* total times range write locks exhausted */ \n");
+    printf("  u_int64_t        range_lt_create;         /* number of locktrees created */ \n");
+    printf("  u_int64_t        range_lt_create_fail;    /* number of locktree create failures */ \n");
+    printf("  u_int64_t        range_lt_destroy;        /* number of locktrees destroyed */ \n");
+    printf("  u_int64_t        range_lt_num;            /* number of locktrees (should be created - destroyed) */ \n");
+    printf("  u_int64_t        range_lt_num_max;        /* max number of locktrees that have existed simultaneously */ \n");
     printf("  u_int64_t        directory_read_locks;        /* total directory read locks taken */ \n");
     printf("  u_int64_t        directory_read_locks_fail;   /* total directory read locks unable to be taken */ \n");
     printf("  u_int64_t        directory_write_locks;       /* total directory write locks taken */ \n");
@@ -547,6 +554,12 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        multi_deletes_fail;      /* ydb multi_row delete operations that failed, dictionary count  */ \n");
     printf("  u_int64_t        multi_updates;           /* ydb row update operations, dictionary count              */ \n");
     printf("  u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ \n");
+    printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
+    printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
+    printf("  u_int64_t        num_db_open;             /* number of db_open operations */\n");
+    printf("  u_int64_t        num_db_close;            /* number of db_close operations */\n");
+    printf("  u_int64_t        num_open_db;             /* number of currently open dbs */\n");
+    printf("  u_int64_t        max_open_dbs;            /* max number of simultaneously open dbs */\n");
     printf("  u_int64_t        le_updates;              /* leafentry update operations                        */ \n");
     printf("  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ \n");
     printf("  u_int64_t        descriptor_set;          /* descriptor set operations              */ \n");
@@ -586,8 +599,19 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         flush_cascades_4;            /* number of flushes that triggered 4 cascading flushes */\n");
     printf("  uint64_t         flush_cascades_5;            /* number of flushes that triggered 5 cascading flushes */\n");
     printf("  uint64_t         flush_cascades_gt_5;         /* number of flushes that triggered more than 5 cascading flushes */\n");
-    printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
-    printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
+    printf("  uint64_t         disk_flush_leaf;             /* number of leaf nodes flushed to disk, not for checkpoint */\n");
+    printf("  uint64_t         disk_flush_nonleaf;          /* number of nonleaf nodes flushed to disk, not for checkpoint */\n");
+    printf("  uint64_t         disk_flush_leaf_for_checkpoint; /* number of leaf nodes flushed to disk for checkpoint */\n");
+    printf("  uint64_t         disk_flush_nonleaf_for_checkpoint; /* number of nonleaf nodes flushed to disk for checkpoint */\n");
+    printf("  uint64_t         destroy_leaf;                /* number of leaf nodes destroyed */\n");
+    printf("  uint64_t         destroy_nonleaf;             /* number of nonleaf nodes destroyed */\n");
+
+    printf("  uint64_t         msg_bytes_in;                /* how many bytes of messages injected at root (for all trees)*/\n");
+    printf("  uint64_t         msg_bytes_out;               /* how many bytes of messages flushed from h1 nodes to leaves*/\n");
+    printf("  uint64_t         msg_bytes_curr;              /* how many bytes of messages currently in trees (estimate)*/\n");
+    printf("  uint64_t         msg_bytes_max;               /* how many bytes of messages currently in trees (estimate)*/\n");
+    printf("  uint64_t         msg_num;                     /* how many messages injected at root*/\n");
+    printf("  uint64_t         msg_num_broadcast;           /* how many broadcast messages injected at root*/\n");
     printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
     printf("  u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ \n");
     printf("  u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ \n");

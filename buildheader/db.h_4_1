@@ -92,6 +92,8 @@ typedef struct __toku_engine_status {
   u_int64_t        txn_commit;              /* txn commit operations                         */ 
   u_int64_t        txn_abort;               /* txn abort operations                          */ 
   u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ 
+  u_int64_t        txn_num_open;            /* should be begin - close                       */ 
+  u_int64_t        txn_max_open;            /* max value of num_open                         */ 
   u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ 
   char             txn_oldest_live_starttime[26];   /* oldest extant txn start time                      */ 
   u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ 
@@ -135,6 +137,11 @@ typedef struct __toku_engine_status {
   u_int64_t        range_write_locks;       /* total range write locks taken */ 
   u_int64_t        range_write_locks_fail;  /* total range write locks unable to be taken */ 
   u_int64_t        range_out_of_write_locks; /* total times range write locks exhausted */ 
+  u_int64_t        range_lt_create;         /* number of locktrees created */ 
+  u_int64_t        range_lt_create_fail;    /* number of locktree create failures */ 
+  u_int64_t        range_lt_destroy;        /* number of locktrees destroyed */ 
+  u_int64_t        range_lt_num;            /* number of locktrees (should be created - destroyed) */ 
+  u_int64_t        range_lt_num_max;        /* max number of locktrees that have existed simultaneously */ 
   u_int64_t        directory_read_locks;        /* total directory read locks taken */ 
   u_int64_t        directory_read_locks_fail;   /* total directory read locks unable to be taken */ 
   u_int64_t        directory_write_locks;       /* total directory write locks taken */ 
@@ -153,6 +160,12 @@ typedef struct __toku_engine_status {
   u_int64_t        multi_deletes_fail;      /* ydb multi_row delete operations that failed, dictionary count  */ 
   u_int64_t        multi_updates;           /* ydb row update operations, dictionary count              */ 
   u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ 
+  u_int64_t        point_queries;           /* ydb point queries                      */ 
+  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
+  u_int64_t        num_db_open;             /* number of db_open operations */
+  u_int64_t        num_db_close;            /* number of db_close operations */
+  u_int64_t        num_open_db;             /* number of currently open dbs */
+  u_int64_t        max_open_dbs;            /* max number of simultaneously open dbs */
   u_int64_t        le_updates;              /* leafentry update operations                        */ 
   u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ 
   u_int64_t        descriptor_set;          /* descriptor set operations              */ 
@@ -192,8 +205,18 @@ typedef struct __toku_engine_status {
   uint64_t         flush_cascades_4;            /* number of flushes that triggered 4 cascading flushes */
   uint64_t         flush_cascades_5;            /* number of flushes that triggered 5 cascading flushes */
   uint64_t         flush_cascades_gt_5;         /* number of flushes that triggered more than 5 cascading flushes */
-  u_int64_t        point_queries;           /* ydb point queries                      */ 
-  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
+  uint64_t         disk_flush_leaf;             /* number of leaf nodes flushed to disk, not for checkpoint */
+  uint64_t         disk_flush_nonleaf;          /* number of nonleaf nodes flushed to disk, not for checkpoint */
+  uint64_t         disk_flush_leaf_for_checkpoint; /* number of leaf nodes flushed to disk for checkpoint */
+  uint64_t         disk_flush_nonleaf_for_checkpoint; /* number of nonleaf nodes flushed to disk for checkpoint */
+  uint64_t         destroy_leaf;                /* number of leaf nodes destroyed */
+  uint64_t         destroy_nonleaf;             /* number of nonleaf nodes destroyed */
+  uint64_t         msg_bytes_in;                /* how many bytes of messages injected at root (for all trees)*/
+  uint64_t         msg_bytes_out;               /* how many bytes of messages flushed from h1 nodes to leaves*/
+  uint64_t         msg_bytes_curr;              /* how many bytes of messages currently in trees (estimate)*/
+  uint64_t         msg_bytes_max;               /* how many bytes of messages currently in trees (estimate)*/
+  uint64_t         msg_num;                     /* how many messages injected at root*/
+  uint64_t         msg_num_broadcast;           /* how many broadcast messages injected at root*/
   u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 
   u_int64_t        le_max_provisional_xr;   /* max provisional transaction records in any packed le   */ 
   u_int64_t        le_max_memsize;          /* max memsize of any packed le     */ 
