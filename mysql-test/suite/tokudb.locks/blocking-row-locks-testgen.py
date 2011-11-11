@@ -44,7 +44,7 @@ def mysqlgen_reload_table():
 def mysqlgen_cleanup():
     print "# clean it all up"
     print "drop table t;"
-    print "set global tokudb_lock_timeout=30000000;"
+    print "set global tokudb_lock_timeout=4000;"
     print ""
 write_point_queries = [
         ("select for update", mysqlgen_select_for_update),
@@ -54,7 +54,7 @@ write_point_queries = [
 write_range_queries = [
         ("select for update", mysqlgen_select_for_update_range),
         ("update", mysqlgen_update_range) ]
-timeouts = [0, 500000]
+timeouts = [0, 500]
 
 # Here's where all the magic happens
 print "# Tokutek"
@@ -74,7 +74,7 @@ for timeout in timeouts:
             print "# testing conflict \"%s\" vs. \"%s\"" % (ta, tb)
             print "connection conn1;"
             print "begin;"
-            print ""
+            print "# about to do qa.."
             qa("a", "1", "b", "100")
             print "connection conn2;"
             for k in range(1, 5):
@@ -83,18 +83,22 @@ for timeout in timeouts:
                 qb("a", k, "b", "100")
             # point write lock vs read query
             print "# make sure we can't read that row, but can read others."
+            print "begin;"
             print "--error ER_LOCK_WAIT_TIMEOUT"
             mysqlgen_select_star()
             print "--error ER_LOCK_WAIT_TIMEOUT"
             mysqlgen_select_where("a", "=1")
             mysqlgen_select_where("a", ">=2")
+            print "commit;"
             # Always check in the end that a commit
             # allows the other transaction full access
             print "connection conn1;"
             print "commit;"
             print "connection conn2;"
             qb("a", "1", "b", "100")
+            print "begin;"
             mysqlgen_select_star()
+            print "commit;"
             print "connection conn1;"
             print ""
             # test early commit
@@ -128,11 +132,13 @@ for timeout in timeouts:
             rq("a", "b", ">2")
             # write range lock vs read query
             print "# make sure we can't read that row, but can read others."
+            print "begin;"
             print "--error ER_LOCK_WAIT_TIMEOUT"
             mysqlgen_select_star()
             print "--error ER_LOCK_WAIT_TIMEOUT"
             mysqlgen_select_where("a", "=1")
             mysqlgen_select_where("a", ">=2")
+            print "commit;"
             # Always check in the end that a commit
             # allows the other transaction full access
             print "connection conn1;"
@@ -140,7 +146,9 @@ for timeout in timeouts:
             print "connection conn2;"
             rq("a", "b", "<=2")
             rq("a", "b", ">=0")
+            print "begin;"
             mysqlgen_select_star()
+            print "commit;"
             print "connection conn1;"
             print ""
             # test early commit
@@ -176,6 +184,7 @@ for timeout in timeouts:
             rqb("a", "b", ">=5")
             # point write lock vs read query
             print "# make sure we can't read that row, but can read others."
+            print "begin;"
             print "--error ER_LOCK_WAIT_TIMEOUT"
             mysqlgen_select_star()
             print "--error ER_LOCK_WAIT_TIMEOUT"
@@ -183,6 +192,7 @@ for timeout in timeouts:
             print "--error ER_LOCK_WAIT_TIMEOUT"
             mysqlgen_select_where("a", ">=3 and a<=5")
             mysqlgen_select_where("a", ">=5")
+            print "commit;"
             # Always check in the end that a commit
             # allows the other transaction full access
             print "connection conn1;"
@@ -191,7 +201,9 @@ for timeout in timeouts:
             rqb("a", "b", ">=0 and a<=3")
             rqb("a", "b", ">=3 and a<=6")
             rqb("a", "b", "<=2")
+            print "begin;"
             mysqlgen_select_star()
+            print "commit;"
             print "connection conn1;"
             print ""
             # test early commit

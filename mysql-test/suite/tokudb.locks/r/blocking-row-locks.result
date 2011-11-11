@@ -24,6 +24,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	16
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -36,9 +37,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	1
+begin;
 select * from t;
 a	b
 1	1
@@ -47,6 +50,7 @@ a	b
 4	16
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -56,6 +60,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -68,7 +73,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	1
@@ -77,6 +84,7 @@ a	b
 4	16
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -86,6 +94,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -98,7 +107,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	1
@@ -107,6 +118,7 @@ a	b
 4	16
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -116,6 +128,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -128,7 +141,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -137,6 +152,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -151,6 +167,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -162,6 +179,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -175,6 +193,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	100
@@ -183,6 +202,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -192,6 +212,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -204,8 +225,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	100
@@ -214,6 +237,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 select * from t where a=1 for update;
@@ -227,6 +251,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	100
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -239,9 +264,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	100
+begin;
 select * from t;
 a	b
 1	100
@@ -250,6 +277,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 update t set b=b where a=1;
@@ -257,6 +285,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -269,7 +298,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	100
@@ -278,6 +309,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 insert ignore t values(1, 100);
@@ -285,6 +317,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -297,7 +330,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -306,6 +341,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 replace t values(1, 100);
@@ -313,6 +349,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -325,7 +362,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -334,6 +373,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 select * from t where a<=2 for update;
@@ -346,6 +386,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -357,6 +398,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -370,6 +412,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	100
@@ -378,6 +421,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 update t set b=b where a<=2;
@@ -385,6 +429,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -397,8 +442,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	100
@@ -407,6 +454,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 100);
 select * from t where a=1 for update;
@@ -420,6 +468,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	100
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -432,9 +481,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	100
+begin;
 select * from t;
 a	b
 1	100
@@ -443,6 +494,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 100);
 update t set b=b where a=1;
@@ -450,6 +502,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -462,7 +515,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	100
@@ -471,6 +526,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 100);
 insert ignore t values(1, 100);
@@ -478,6 +534,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -490,7 +547,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -499,6 +558,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 100);
 replace t values(1, 100);
@@ -506,6 +566,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -518,7 +579,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -527,6 +590,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 100);
 select * from t where a<=2 for update;
@@ -539,6 +603,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -550,6 +615,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -563,6 +629,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	100
@@ -571,6 +638,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 100);
 update t set b=b where a<=2;
@@ -578,6 +646,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -590,8 +659,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	100
@@ -600,6 +671,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 100);
 select * from t where a=1 for update;
@@ -613,6 +685,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	100
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -625,9 +698,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	100
+begin;
 select * from t;
 a	b
 1	100
@@ -636,6 +711,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 100);
 update t set b=b where a=1;
@@ -643,6 +719,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -655,7 +732,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	100
@@ -664,6 +743,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 100);
 insert ignore t values(1, 100);
@@ -671,6 +751,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -683,7 +764,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -692,6 +775,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 100);
 replace t values(1, 100);
@@ -699,6 +783,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -711,7 +796,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -720,6 +807,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 100);
 select * from t where a<=2 for update;
@@ -732,6 +820,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -743,6 +832,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -756,6 +846,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	100
@@ -764,6 +855,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 100);
 update t set b=b where a<=2;
@@ -771,6 +863,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -783,8 +876,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	100
@@ -793,6 +888,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a>=2 and a<=4 for update;
 a	b
@@ -809,6 +905,7 @@ select * from t where a>=5 for update;
 a	b
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -819,6 +916,7 @@ select * from t where a>=5;
 a	b
 5	25
 6	36
+commit;
 commit;
 select * from t where a>=0 and a<=3 for update;
 a	b
@@ -835,6 +933,7 @@ select * from t where a<=2 for update;
 a	b
 1	100
 2	100
+begin;
 select * from t;
 a	b
 1	100
@@ -843,6 +942,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a>=2 and a<=4 for update;
 a	b
@@ -856,6 +956,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a<=2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=5;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -867,9 +968,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a>=0 and a<=3;
 update t set b=b where a>=3 and a<=6;
 update t set b=b where a<=2;
+begin;
 select * from t;
 a	b
 1	100
@@ -878,6 +981,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a>=2 and a<=4;
 select * from t where a>=0 and a<=3 for update;
@@ -890,6 +994,7 @@ select * from t where a>=5 for update;
 a	b
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -900,6 +1005,7 @@ select * from t where a>=5;
 a	b
 5	25
 6	36
+commit;
 commit;
 select * from t where a>=0 and a<=3 for update;
 a	b
@@ -916,6 +1022,7 @@ select * from t where a<=2 for update;
 a	b
 1	100
 2	100
+begin;
 select * from t;
 a	b
 1	100
@@ -924,6 +1031,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a>=2 and a<=4;
 update t set b=b where a>=0 and a<=3;
@@ -933,6 +1041,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a<=2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=5;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -944,9 +1053,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a>=0 and a<=3;
 update t set b=b where a>=3 and a<=6;
 update t set b=b where a<=2;
+begin;
 select * from t;
 a	b
 1	100
@@ -955,6 +1066,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 set global tokudb_lock_timeout=500;
 begin;
 select * from t where a=1 for update;
@@ -971,6 +1083,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	100
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -983,9 +1096,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	100
+begin;
 select * from t;
 a	b
 1	100
@@ -994,6 +1109,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -1011,6 +1127,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1023,7 +1140,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	100
@@ -1032,6 +1151,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -1047,6 +1167,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1059,7 +1180,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -1068,6 +1191,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -1083,6 +1207,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1095,7 +1220,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -1104,6 +1231,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -1124,6 +1252,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1135,6 +1264,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -1148,6 +1278,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	175
@@ -1156,6 +1287,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -1174,6 +1306,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1186,8 +1319,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	175
@@ -1196,6 +1331,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a=1 for update;
 a	b
@@ -1215,6 +1351,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	100
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1227,9 +1364,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	175
+begin;
 select * from t;
 a	b
 1	175
@@ -1238,6 +1377,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 select * from t where a=1 for update;
@@ -1251,6 +1391,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1263,7 +1404,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	175
@@ -1272,6 +1415,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 update t set b=b where a=1;
@@ -1283,6 +1427,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1295,7 +1440,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	175
@@ -1304,6 +1451,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 insert ignore t values(1, 175);
@@ -1315,6 +1463,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1327,7 +1476,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -1336,6 +1487,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 replace t values(1, 175);
@@ -1352,6 +1504,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1363,6 +1516,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -1376,6 +1530,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	175
@@ -1384,6 +1539,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 select * from t where a<=2 for update;
@@ -1398,6 +1554,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1410,8 +1567,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	175
@@ -1420,6 +1579,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a=1;
 update t set b=b where a<=2;
@@ -1437,6 +1597,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	100
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1449,9 +1610,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	175
+begin;
 select * from t;
 a	b
 1	175
@@ -1460,6 +1623,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 150);
 select * from t where a=1 for update;
@@ -1473,6 +1637,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1485,7 +1650,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	175
@@ -1494,6 +1661,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 150);
 update t set b=b where a=1;
@@ -1505,6 +1673,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1517,7 +1686,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	175
@@ -1526,6 +1697,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 150);
 insert ignore t values(1, 175);
@@ -1537,6 +1709,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1549,7 +1722,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -1558,6 +1733,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 150);
 replace t values(1, 175);
@@ -1574,6 +1750,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1585,6 +1762,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -1598,6 +1776,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	175
@@ -1606,6 +1785,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 150);
 select * from t where a<=2 for update;
@@ -1620,6 +1800,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1632,8 +1813,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	175
@@ -1642,6 +1825,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 insert ignore t values(1, 150);
 update t set b=b where a<=2;
@@ -1659,6 +1843,7 @@ a	b
 select * from t where a=4 for update;
 a	b
 4	100
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1671,9 +1856,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 select * from t where a=1 for update;
 a	b
 1	100
+begin;
 select * from t;
 a	b
 1	100
@@ -1682,6 +1869,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 150);
 select * from t where a=1 for update;
@@ -1695,6 +1883,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a=2;
 update t set b=b where a=3;
 update t set b=b where a=4;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1707,7 +1896,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a=1;
+begin;
 select * from t;
 a	b
 1	100
@@ -1716,6 +1907,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 150);
 update t set b=b where a=1;
@@ -1727,6 +1919,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert ignore t values(2, 100);
 insert ignore t values(3, 100);
 insert ignore t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1739,7 +1932,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 insert ignore t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -1748,6 +1943,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 150);
 insert ignore t values(1, 175);
@@ -1759,6 +1955,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 replace t values(2, 100);
 replace t values(3, 100);
 replace t values(4, 100);
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1771,7 +1968,9 @@ a	b
 5	25
 6	36
 commit;
+commit;
 replace t values(1, 100);
+begin;
 select * from t;
 a	b
 1	100
@@ -1780,6 +1979,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 150);
 replace t values(1, 175);
@@ -1796,6 +1996,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1807,6 +2008,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 commit;
 select * from t where a<=2 for update;
 a	b
@@ -1820,6 +2022,7 @@ a	b
 4	100
 5	25
 6	36
+begin;
 select * from t;
 a	b
 1	100
@@ -1828,6 +2031,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 150);
 select * from t where a<=2 for update;
@@ -1842,6 +2046,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=0;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>2;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=1;
@@ -1854,8 +2059,10 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a<=2;
 update t set b=b where a>=0;
+begin;
 select * from t;
 a	b
 1	100
@@ -1864,6 +2071,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 replace t values(1, 150);
 update t set b=b where a<=2;
@@ -1884,6 +2092,7 @@ select * from t where a>=5 for update;
 a	b
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -1894,6 +2103,7 @@ select * from t where a>=5;
 a	b
 5	25
 6	36
+commit;
 commit;
 select * from t where a>=0 and a<=3 for update;
 a	b
@@ -1910,6 +2120,7 @@ select * from t where a<=2 for update;
 a	b
 1	150
 2	100
+begin;
 select * from t;
 a	b
 1	150
@@ -1918,6 +2129,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a>=2 and a<=4 for update;
 a	b
@@ -1943,6 +2155,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a<=2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=5;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -1954,9 +2167,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a>=0 and a<=3;
 update t set b=b where a>=3 and a<=6;
 update t set b=b where a<=2;
+begin;
 select * from t;
 a	b
 1	150
@@ -1965,6 +2180,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 select * from t where a>=2 and a<=4 for update;
 a	b
@@ -1985,6 +2201,7 @@ select * from t where a>=5 for update;
 a	b
 5	25
 6	36
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -1995,6 +2212,7 @@ select * from t where a>=5;
 a	b
 5	25
 6	36
+commit;
 commit;
 select * from t where a>=0 and a<=3 for update;
 a	b
@@ -2011,6 +2229,7 @@ select * from t where a<=2 for update;
 a	b
 1	150
 2	100
+begin;
 select * from t;
 a	b
 1	150
@@ -2019,6 +2238,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a>=2 and a<=4;
 select * from t where a>=0 and a<=3 for update;
@@ -2036,6 +2256,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a<=2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 update t set b=b where a>=5;
+begin;
 select * from t;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t where a=2;
@@ -2047,9 +2268,11 @@ a	b
 5	25
 6	36
 commit;
+commit;
 update t set b=b where a>=0 and a<=3;
 update t set b=b where a>=3 and a<=6;
 update t set b=b where a<=2;
+begin;
 select * from t;
 a	b
 1	150
@@ -2058,6 +2281,7 @@ a	b
 4	100
 5	25
 6	36
+commit;
 begin;
 update t set b=b where a>=2 and a<=4;
 update t set b=b where a>=0 and a<=3;
