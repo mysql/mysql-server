@@ -858,24 +858,57 @@ exit:
 static void flush_some_child(struct brt_header* h, BRTNODE node);
 static void bring_node_fully_into_memory(BRTNODE node, struct brt_header *h);
 
+// TODO 3988 Leif set cleaner_nodes_dirtied
+static void
+update_cleaner_status(BRTNODE node, int childnum)
+{
+    brt_status.cleaner_total_nodes++;
+    if (node->height == 1) {
+	brt_status.cleaner_h1_nodes++;
+    } else {
+	brt_status.cleaner_hgt1_nodes++;
+    }
+    
+    unsigned int nbytesinbuf = toku_bnc_nbytesinbuf(BNC(node, childnum));
+    if (nbytesinbuf == 0) {
+	brt_status.cleaner_empty_nodes++;
+    } else {
+	if (nbytesinbuf > brt_status.cleaner_max_buffer_size) {
+	    brt_status.cleaner_max_buffer_size = nbytesinbuf;
+	}
+	if (nbytesinbuf < brt_status.cleaner_min_buffer_size) {
+	    brt_status.cleaner_min_buffer_size = nbytesinbuf;
+	}
+	brt_status.cleaner_total_buffer_size += nbytesinbuf;
+
+	uint64_t workdone = BP_WORKDONE(node, childnum);
+	if (workdone > brt_status.cleaner_max_buffer_workdone) {
+	    brt_status.cleaner_max_buffer_workdone = workdone;
+	}
+	if (workdone < brt_status.cleaner_min_buffer_workdone) {
+	    brt_status.cleaner_min_buffer_workdone = workdone;
+	}
+	brt_status.cleaner_total_buffer_workdone += workdone;
+    }
+}
+
+static void find_heaviest_child (BRTNODE node, int *childnum);
+
 int
 toku_brtnode_cleaner_callback(void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *extraargs)
 {
     BRTNODE node = brtnode_pv;
-    assert(node->thisnodename.b == blocknum.b);
-    assert(node->fullhash == fullhash);
-    assert(node->height > 0);   // we should never pick a leaf node (for now at least)
+    invariant(node->thisnodename.b == blocknum.b);
+    invariant(node->fullhash == fullhash);
+    invariant(node->height > 0);   // we should never pick a leaf node (for now at least)
     struct brt_header *h = extraargs;
     bring_node_fully_into_memory(node, h);
-    bool is_empty = true;
-    for (int i = 0; i < node->n_children; ++i) {
-        if (toku_bnc_nbytesinbuf(BNC(node, i)) > 0) {
-            is_empty = false;
-            break;
-        }
-    }
+    int childnum;
+    find_heaviest_child(node, &childnum);
+    update_cleaner_status(node, childnum);
+
     // Either flush_some_child will unlock the node, or we do it here.
-    if (!is_empty) {
+    if (toku_bnc_nbytesinbuf(BNC(node, childnum)) > 0) {
         flush_some_child(h, node);
     } else {
         toku_unpin_brtnode_off_client_thread(h, node);
@@ -897,7 +930,7 @@ brt_status_update_partial_fetch(u_int8_t state)
         brt_status.partial_fetch_miss++;
     }
     else {
-        assert(FALSE);
+        invariant(FALSE);
     }
 }
 
@@ -7281,6 +7314,8 @@ int toku_brt_init(void (*ydb_lock_callback)(void),
 	r = toku_brt_serialize_init();
     if (r==0)
 	callback_db_set_brt = db_set_brt;
+    brt_status.cleaner_min_buffer_size = UINT64_MAX;
+    brt_status.cleaner_min_buffer_workdone = UINT64_MAX;
     return r;
 }
 
