@@ -18,7 +18,10 @@
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
+set debug_sync='RESET';
+
 connect (addconroot, localhost, root,,);
+connect (addconroot2, localhost, root,,);
 connection default;
 create table t1 (n1 int, n2 int, n3 int,
                 key (n1, n2, n3),
@@ -26,38 +29,45 @@ create table t1 (n1 int, n2 int, n3 int,
                 key (n3, n1, n2));
 create table t2 (i int);
 
-# Starting from 5.1 we have runtime settable @@debug variable,
-# which can be used for introducing delays at certain points of
-# statement execution, so we don't need many rows in 't1' to make
-# this test repeatable.
 alter table t1 disable keys;
---disable_warnings
-insert into t1 values (RAND()*1000, RAND()*1000, RAND()*1000);
---enable_warnings
+insert into t1 values (1, 2, 3);
 
 # Later we use binlog to check the order in which statements are
 # executed so let us reset it first.
 reset master;
-set session debug="+d,sleep_alter_enable_indexes";
+set debug_sync='alter_table_enable_indexes SIGNAL parked WAIT_FOR go';
 --send alter table t1 enable keys;
 connection addconroot;
---sleep 2
+# Wait until ALTER TABLE acquires metadata lock.
+set debug_sync='now WAIT_FOR parked';
 # This statement should not be blocked by in-flight ALTER and therefore
 # should be executed and written to binlog before ALTER TABLE ... ENABLE KEYS
 # finishes.
 insert into t2 values (1);
 # And this should wait until the end of ALTER TABLE ... ENABLE KEYS.
-insert into t1 values (1, 1, 1);
+--send insert into t1 values (1, 1, 1);
+connection addconroot2;
+# Wait until the above INSERT INTO t1 is blocked due to ALTER
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "insert into t1 values (1, 1, 1)";
+--source include/wait_condition.inc
+# Resume ALTER execution.
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
-set session debug="-d,sleep_alter_enable_indexes";
+connection addconroot;
+--reap
+connection default;
 # Check that statements were executed/binlogged in correct order.
 source include/show_binlog_events.inc;
 
 # Clean up
 drop tables t1, t2;
 disconnect addconroot;
-
+disconnect addconroot2;
+set debug_sync='RESET';
 
 --echo End of 5.0 tests
 
@@ -72,48 +82,92 @@ disconnect addconroot;
 --disable_warnings
 drop table if exists t1, t2, t3;
 --enable_warnings
+connect (addconroot, localhost, root,,);
+connect (addconroot2, localhost, root,,);
+connection default;
 create table t1 (i int);
 # We are going to check that statements are logged in correct order
 reset master;
-set session debug="+d,sleep_alter_before_main_binlog";
+set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
 --send alter table t1 change i c char(10) default 'Test1';
-connect (addconroot, localhost, root,,);
 connection addconroot;
---sleep 2
-insert into t1 values ();
-select * from t1;
+# Wait until ALTER TABLE acquires metadata lock.
+set debug_sync='now WAIT_FOR parked'; 
+--send insert into t1 values ();
+connection addconroot2;
+# Wait until the above INSERT INTO t1 is blocked due to ALTER
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "insert into t1 values ()";
+--source include/wait_condition.inc
+# Resume ALTER execution.
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot;
+--reap
+connection default;
+select * from t1;
+set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
 --send alter table t1 change c vc varchar(100) default 'Test2';
 connection addconroot;
---sleep 2
-rename table t1 to t2;
+# Wait until ALTER TABLE acquires metadata lock.
+set debug_sync='now WAIT_FOR parked';
+--send rename table t1 to t2;
+connection addconroot2;
+# Wait until the above RENAME TABLE is blocked due to ALTER
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "rename table t1 to t2";
+--source include/wait_condition.inc
+# Resume ALTER execution.
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot;
+--reap
+connection default;
 drop table t2;
 # And now tests for ALTER TABLE with RENAME clause. In this
 # case target table name should be properly locked as well.
 create table t1 (i int);
+set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
 --send alter table t1 change i c char(10) default 'Test3', rename to t2;
 connection addconroot;
---sleep 2
-insert into t2 values ();
-select * from t2;
+# Wait until ALTER TABLE acquires metadata lock.
+set debug_sync='now WAIT_FOR parked';
+--send insert into t2 values();
+connection addconroot2;
+# Wait until the above INSERT INTO t2 is blocked due to ALTER
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+           info = "insert into t2 values()";
+--source include/wait_condition.inc
+# Resume ALTER execution.
+set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot;
+--reap
+connection default;
+select * from t2;
 --send alter table t2 change c vc varchar(100) default 'Test2', rename to t1;
 connection addconroot;
---sleep 2
-rename table t1 to t3;
 connection default;
 --reap
+rename table t1 to t3;
+
 disconnect addconroot;
+disconnect addconroot2;
 drop table t3;
-set session debug="-d,sleep_alter_before_main_binlog";
+set debug_sync='alter_table_before_main_binlog SIGNAL parked WAIT_FOR go';
+set debug_sync='RESET';
 
 # Check that all statements were logged in correct order
 source include/show_binlog_events.inc;
 
 
 --echo End of 5.1 tests
-
