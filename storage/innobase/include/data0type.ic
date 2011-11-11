@@ -314,11 +314,11 @@ dtype_new_store_for_order_and_null_size(
 	buf[0] = (byte)(type->mtype & 0xFFUL);
 
 	if (type->prtype & DATA_BINARY_TYPE) {
-		buf[0] = buf[0] | 128;
+		buf[0] |= 128;
 	}
 
 	/* In versions < 4.1.2 we had:	if (type->prtype & DATA_NONLATIN1) {
-	buf[0] = buf[0] | 64;
+	buf[0] |= 64;
 	}
 	*/
 
@@ -355,7 +355,7 @@ dtype_read_for_order_and_null_size(
 	type->prtype = buf[1];
 
 	if (buf[0] & 128) {
-		type->prtype = type->prtype | DATA_BINARY_TYPE;
+		type->prtype |= DATA_BINARY_TYPE;
 	}
 
 	type->len = mach_read_from_2(buf + 2);

@@ -74,6 +74,40 @@ cmp_debug_dtuple_rec_with_match(
 				returns, contains the value for current
 				comparison */
 #endif /* UNIV_DEBUG */
+/*************************************************************//**
+This function is used to compare two data fields for which the data type
+is such that we must use MySQL code to compare them. The prototype here
+must be a copy of the one in ha_innobase.cc!
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+extern
+int
+innobase_mysql_cmp(
+/*===============*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number,	/*!< in: number of the charset */
+	const unsigned char* a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const unsigned char* b,		/*!< in: data field */
+	unsigned int	b_length);	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+/*************************************************************//**
+This function is used to compare two data fields for which the data type
+is such that we must use MySQL code to compare them. The prototype here
+must be a copy of the one in ha_innobase.cc!
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+extern
+int
+innobase_mysql_cmp_prefix(
+/*======================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number,	/*!< in: number of the charset */
+	const unsigned char* a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const unsigned char* b,		/*!< in: data field */
+	unsigned int	b_length);	/*!< in: data field length,
+					not UNIV_SQL_NULL */
 /*********************************************************************//**
 Transforms the character code so that it is ordered appropriately for the
 language. This is only used for the latin1 char set. MySQL does the
@@ -267,6 +301,44 @@ cmp_whole_field(
 	return(0);
 }
 
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INTERN
+int
+cmp_dfield_dfield_like_prefix(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2)/* in: data field */
+{
+	const dtype_t*  type;
+	ulint           ret;
+
+	ut_ad(dfield_check_typed(dfield1));
+
+	type = dfield_get_type(dfield1);
+
+	if (type->mtype >= DATA_FLOAT) {
+		ret = innobase_mysql_cmp_prefix(
+			(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
+			(uint)dtype_get_charset_coll(type->prtype),
+			static_cast<byte*>(dfield_get_data(dfield1)),
+			dfield_get_len(dfield1),
+                        static_cast<byte*>(dfield_get_data(dfield2)),
+                        dfield_get_len(dfield2));
+        } else {
+                ret = (cmp_data_data_like_prefix(
+                        static_cast<byte*>(dfield_get_data(dfield1)),
+                        dfield_get_len(dfield1),
+                        static_cast<byte*>(dfield_get_data(dfield2)),
+                        dfield_get_len(dfield2)));
+        }
+
+        return(ret);
+}
+
 /*************************************************************//**
 This function is used to compare two data fields for which we know the
 data type.
@@ -380,6 +452,162 @@ next_byte:
 	return(0);		/* Not reached */
 }
 
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type to be VARCHAR */
+
+int
+cmp_data_data_slow_varchar(
+/*=======================*/
+				/* out: 1, 0, -1, if lhs is greater, equal,
+				less than rhs, respectively */
+	const byte*	lhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		lhs_len,/* in: data field length or UNIV_SQL_NULL */
+	const byte*	rhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		rhs_len)/* in: data field length or UNIV_SQL_NULL */
+{
+	ulint	i;
+
+	ut_a(rhs_len != UNIV_SQL_NULL);
+
+	if (lhs_len == UNIV_SQL_NULL) {
+
+		/* We define the SQL null to be the smallest possible
+		value of a field in the alphabetical order */
+
+		return(-1);
+	}
+
+	/* Compare the values.*/
+
+	for (i = 0; i < lhs_len && i < rhs_len; ++i, ++rhs, ++lhs) {
+		ulint	lhs_byte = *lhs;
+		ulint	rhs_byte = *rhs;
+
+		if (lhs_byte != rhs_byte) {
+			/* If the bytes are equal, they will remain such even
+			after the collation transformation below */
+
+			lhs_byte = cmp_collate(lhs_byte);
+			rhs_byte = cmp_collate(rhs_byte);
+
+			if (lhs_byte > rhs_byte) {
+
+				return(1);
+			} else if (lhs_byte < rhs_byte) {
+
+				return(-1);
+			}
+		}
+	}
+
+	return(i == lhs_len && i == rhs_len) ? 0 : rhs_len - lhs_len;
+}
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. The comparison is done for the LIKE operator.*/
+
+int
+cmp_data_data_slow_like_prefix(
+/*===========================*/
+				/* out: 1, 0, -1, if lhs is greater, equal,
+				less than rhs, respectively */
+	const byte*	lhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	const byte*	rhs,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
+{
+	ulint	i;
+
+	ut_a(len2 != UNIV_SQL_NULL);
+
+	if (len1 == UNIV_SQL_NULL) {
+
+		/* We define the SQL null to be the smallest possible
+		value of a field in the alphabetical order */
+
+		return(-1);
+	}
+
+	/* Compare the values.*/
+
+	for (i = 0; i < len1 && i < len2; ++i, ++rhs, ++lhs) {
+		ulint	lhs_byte = *lhs;
+		ulint	rhs_byte = *rhs;
+
+		if (lhs_byte != rhs_byte) {
+			/* If the bytes are equal, they will remain such even
+			after the collation transformation below */
+
+			lhs_byte = cmp_collate(lhs_byte);
+			rhs_byte = cmp_collate(rhs_byte);
+
+			if (lhs_byte > rhs_byte) {
+
+				return(1);
+			} else if (lhs_byte < rhs_byte) {
+
+				return(-1);
+			}
+		}
+	}
+
+	return(i == len2 ? 0 : 1);
+}
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. The comparison is done for the LIKE operator.*/
+
+int
+cmp_data_data_slow_like_suffix(
+/*===========================*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
+				less than data2, respectively */
+				/* in: data field (== a pointer to a
+				memory buffer) */
+	const byte*	data1 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len1 UNIV_UNUSED,
+				/* in: data field (== a pointer to a memory
+				buffer) */
+	const byte*	data2 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len2 UNIV_UNUSED)
+
+{
+	ut_error;	// FIXME:
+	return(1);
+}
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. The comparison is done for the LIKE operator.*/
+
+int
+cmp_data_data_slow_like_substr(
+/*===========================*/
+				/* out: 1, 0, -1, if data1 is greater, equal,
+				less than data2, respectively */
+				/* in: data field (== a pointer to a
+				memory buffer) */
+	const byte*	data1 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len1 UNIV_UNUSED,
+				/* in: data field (== a pointer to a memory
+				buffer) */
+	const byte*	data2 UNIV_UNUSED,
+				/* in: data field length or UNIV_SQL_NULL */
+	ulint		len2 UNIV_UNUSED)
+{
+	ut_error;	// FIXME:
+	return(1);
+}
 /*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for

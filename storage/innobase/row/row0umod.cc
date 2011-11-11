@@ -573,8 +573,16 @@ row_undo_mod_upd_del_sec(
 
 	while (node->index != NULL) {
 		dict_index_t*	index	= node->index;
-		dtuple_t*	entry	= row_build_index_entry(
+		dtuple_t*	entry;
+
+		if (index->type & DICT_FTS) {
+			dict_table_next_uncorrupted_index(node->index);
+			continue;
+		}
+
+		entry = row_build_index_entry(
 			node->row, node->ext, index, heap);
+
 		if (UNIV_UNLIKELY(!entry)) {
 			/* The database must have crashed after
 			inserting a clustered index record but before
@@ -622,8 +630,16 @@ row_undo_mod_del_mark_sec(
 
 	while (node->index != NULL) {
 		dict_index_t*	index	= node->index;
-		dtuple_t*	entry	= row_build_index_entry(
+		dtuple_t*	entry;
+
+		if (index->type == DICT_FTS) {
+			dict_table_next_uncorrupted_index(node->index);
+			continue;
+		}
+
+		entry = row_build_index_entry(
 			node->row, node->ext, index, heap);
+
 		ut_a(entry);
 
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
@@ -673,8 +689,9 @@ row_undo_mod_upd_exist_sec(
 		dict_index_t*	index	= node->index;
 		dtuple_t*	entry;
 
-		if (!row_upd_changes_ord_field_binary(index, node->update, thr,
-						      node->row, node->ext)) {
+		if (index->type == DICT_FTS
+		    || !row_upd_changes_ord_field_binary(
+			index, node->update, thr, node->row, node->ext)) {
 			dict_table_next_uncorrupted_index(node->index);
 			continue;
 		}

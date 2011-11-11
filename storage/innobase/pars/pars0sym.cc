@@ -147,6 +147,8 @@ sym_tab_add_int_lit(
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
+	node->like_node = NULL;
+
 	node->sym_table = sym_tab;
 
 	return(node);
@@ -160,7 +162,7 @@ sym_node_t*
 sym_tab_add_str_lit(
 /*================*/
 	sym_tab_t*	sym_tab,	/*!< in: symbol table */
-	byte*		str,		/*!< in: string with no quotes around
+	const byte*	str,		/*!< in: string with no quotes around
 					it */
 	ulint		len)		/*!< in: string length */
 {
@@ -192,6 +194,8 @@ sym_tab_add_str_lit(
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
+	node->like_node = NULL;
+
 	node->sym_table = sym_tab;
 
 	return(node);
@@ -219,6 +223,7 @@ sym_tab_add_bound_lit(
 		mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t)));
 
 	node->common.type = QUE_NODE_SYMBOL;
+	node->common.brother = node->common.parent = NULL;
 
 	node->table = NULL;
 	node->resolved = TRUE;
@@ -270,7 +275,54 @@ sym_tab_add_bound_lit(
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
+	blit->node = node;
+	node->like_node = NULL;
 	node->sym_table = sym_tab;
+
+	return(node);
+}
+
+/**********************************************************************
+Rebind literal to a node in the symbol table. */
+
+sym_node_t*
+sym_tab_rebind_lit(
+/*===============*/
+					/* out: symbol table node */
+	sym_node_t*	node,		/* in: node that is bound to literal*/
+	const void*	address,	/* in: pointer to data */
+	ulint		length)		/* in: length of data */
+{
+	dfield_t*	dfield = que_node_get_val(node);
+	dtype_t*	dtype = dfield_get_type(dfield);
+
+	ut_a(node->token_type == SYM_LIT);
+
+	dfield_set_data(&node->common.val, address, length);
+
+	if (node->like_node) {
+
+	    ut_a(dtype_get_mtype(dtype) == DATA_CHAR
+		 || dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		/* Don't force [FALSE] creation of sub-nodes (for LIKE) */
+		pars_like_rebind(node,
+				 static_cast<const unsigned char*>(address),
+				 length);
+	}
+
+	/* FIXME: What's this ? */
+	node->common.val_buf_size = 0;
+
+	if (node->prefetch_buf) {
+		sel_col_prefetch_buf_free(node->prefetch_buf);
+		node->prefetch_buf = NULL;
+	}
+
+	if (node->cursor_def) {
+		que_graph_free_recursive(node->cursor_def);
+		node->cursor_def = NULL;
+	}
 
 	return(node);
 }
@@ -306,6 +358,8 @@ sym_tab_add_null_lit(
 	node->cursor_def = NULL;
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
+
+	node->like_node = NULL;
 
 	node->sym_table = sym_tab;
 
@@ -378,6 +432,8 @@ sym_tab_add_bound_id(
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
 	node->cursor_def = NULL;
+
+	node->like_node = NULL;
 
 	node->sym_table = sym_tab;
 

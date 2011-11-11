@@ -32,6 +32,7 @@ Created 12/29/1997 Heikki Tuuri
 
 #include "data0data.h"
 #include "row0sel.h"
+#include "rem0cmp.h"
 
 /** The RND function seed */
 static ulint	eval_rnd	= 128367121;
@@ -40,6 +41,18 @@ static ulint	eval_rnd	= 128367121;
 eval_node_alloc_val_buf */
 
 static byte	eval_dummy;
+
+/*************************************************************************
+Gets the like node from the node */
+UNIV_INLINE
+que_node_t*
+que_node_get_like_node(
+/*===================*/
+				/* out: next node in a list of nodes */
+	que_node_t*     node)   /* in: node in a list */
+{
+	return(((sym_node_t*)node)->like_node);
+}
 
 /*****************************************************************//**
 Allocate a buffer from global dynamic memory for a value of a que_node.
@@ -111,10 +124,80 @@ eval_node_free_val_buf(
 	}
 }
 
-/*****************************************************************//**
+/*********************************************************************
+Evaluates a LIKE comparison node.
+@return the result of the comparison */
+UNIV_INLINE
+ibool
+eval_cmp_like(
+/*==========*/
+	que_node_t*	arg1,		/* !< in: left operand */
+	que_node_t*	arg2)		/* !< in: right operand */
+{
+	ib_like_t	op;
+	int		res;
+	que_node_t*	arg3;
+	que_node_t*	arg4;
+	dfield_t*	dfield;
+	dtype_t*	dtype;
+	ibool		val = TRUE;
+
+	arg3 = que_node_get_like_node(arg2);
+
+	/* Get the comparison type operator */
+	ut_a(arg3);
+
+	dfield = que_node_get_val(arg3);
+	dtype = dfield_get_type(dfield);
+
+	ut_a(dtype_get_mtype(dtype) == DATA_INT);
+	op = static_cast<ib_like_t>(mach_read_from_4(static_cast<const unsigned char*>(dfield_get_data(dfield))));
+
+	switch (op) {
+	case	IB_LIKE_PREFIX:
+
+		arg4 = que_node_get_next(arg3);
+		res = cmp_dfield_dfield_like_prefix(
+			que_node_get_val(arg1),
+			que_node_get_val(arg4));
+		break;
+
+	case	IB_LIKE_SUFFIX:
+
+		arg4 = que_node_get_next(arg3);
+		res = cmp_dfield_dfield_like_suffix(
+			que_node_get_val(arg1),
+			que_node_get_val(arg4));
+		break;
+
+	case	IB_LIKE_SUBSTR:
+
+		arg4 = que_node_get_next(arg3);
+		res = cmp_dfield_dfield_like_substr(
+			que_node_get_val(arg1),
+			que_node_get_val(arg4));
+		break;
+
+	case	IB_LIKE_EXACT:
+		res = cmp_dfield_dfield(
+			que_node_get_val(arg1),
+			que_node_get_val(arg2));
+		break;
+
+	default:
+		ut_error;
+	}
+
+	if (res != 0) {
+		val = FALSE;
+	}
+
+	return(val);
+}
+
+/*********************************************************************
 Evaluates a comparison node.
-@return	the result of the comparison */
-UNIV_INTERN
+@return the result of the comparison */
 ibool
 eval_cmp(
 /*=====*/
@@ -123,45 +206,52 @@ eval_cmp(
 	que_node_t*	arg1;
 	que_node_t*	arg2;
 	int		res;
-	ibool		val;
 	int		func;
+	ibool		val = TRUE;
 
 	ut_ad(que_node_get_type(cmp_node) == QUE_NODE_FUNC);
 
 	arg1 = cmp_node->args;
 	arg2 = que_node_get_next(arg1);
 
-	res = cmp_dfield_dfield(que_node_get_val(arg1),
-				que_node_get_val(arg2));
-	val = TRUE;
-
 	func = cmp_node->func;
 
-	if (func == '=') {
-		if (res != 0) {
-			val = FALSE;
-		}
-	} else if (func == '<') {
-		if (res != -1) {
-			val = FALSE;
-		}
-	} else if (func == PARS_LE_TOKEN) {
-		if (res == 1) {
-			val = FALSE;
-		}
-	} else if (func == PARS_NE_TOKEN) {
-		if (res == 0) {
-			val = FALSE;
-		}
-	} else if (func == PARS_GE_TOKEN) {
-		if (res == -1) {
-			val = FALSE;
-		}
-	} else {
-		ut_ad(func == '>');
+	if (func == PARS_LIKE_TOKEN_EXACT
+	    || func == PARS_LIKE_TOKEN_PREFIX
+	    || func == PARS_LIKE_TOKEN_SUFFIX
+	    || func == PARS_LIKE_TOKEN_SUBSTR) {
 
-		if (res != 1) {
-			val = FALSE;
+		val = eval_cmp_like(arg1, arg2);
+	} else {
+		res = cmp_dfield_dfield(
+			que_node_get_val(arg1), que_node_get_val(arg2));
+
+		if (func == '=') {
+			if (res != 0) {
+				val = FALSE;
+			}
+		} else if (func == '<') {
+			if (res != -1) {
+				val = FALSE;
+			}
+		} else if (func == PARS_LE_TOKEN) {
+			if (res == 1) {
+				val = FALSE;
+			}
+		} else if (func == PARS_NE_TOKEN) {
+			if (res == 0) {
+				val = FALSE;
+			}
+		} else if (func == PARS_GE_TOKEN) {
+			if (res == -1) {
+				val = FALSE;
+			}
+		} else {
+			ut_ad(func == '>');
+
+			if (res != 1) {
+				val = FALSE;
+			}
 		}
 	}
 

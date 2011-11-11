@@ -35,6 +35,16 @@ extern ulint	data_mysql_default_charset_coll;
 /* SQL data type struct */
 typedef struct dtype_struct		dtype_t;
 
+/* SQL Like operator comparison types */
+enum ib_like_enum {
+	IB_LIKE_EXACT,                  /* e.g.  STRING */
+	IB_LIKE_PREFIX,                 /* e.g., STRING% */
+	IB_LIKE_SUFFIX,                 /* e.g., %STRING */
+	IB_LIKE_SUBSTR,                 /* e.g., %STRING% */
+	IB_LIKE_REGEXP                  /* Future */
+};
+typedef enum ib_like_enum               ib_like_t;
+
 /*-------------------------------------------*/
 /* The 'MAIN TYPE' of a column */
 #define	DATA_VARCHAR	1	/* character varying of the
@@ -138,6 +148,8 @@ be less than 256 */
 #define DATA_ROLL_PTR_LEN 7
 
 #define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
+
+#define DATA_FTS_DOC_ID	3	/* Used as FTS DOC ID column */
 
 #define DATA_SYS_PRTYPE_MASK 0xF /* mask to extract the above from prtype */
 

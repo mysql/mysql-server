@@ -47,6 +47,8 @@ Created 4/20/1996 Heikki Tuuri
 #include "data0data.h"
 #include "usr0sess.h"
 #include "buf0lru.h"
+#include "fts0fts.h"
+#include "fts0types.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -423,8 +425,10 @@ row_ins_cascade_calc_update_vec(
 					table */
 	dict_foreign_t*	foreign,	/*!< in: foreign key constraint whose
 					type is != 0 */
-	mem_heap_t*	heap)		/*!< in: memory heap to use as
+	mem_heap_t*	heap,		/*!< in: memory heap to use as
 					temporary storage */
+	trx_t*		trx,		/*!< in: update transaction */
+	ibool*		fts_col_affected)/*!< out: is FTS column affected */
 {
 	upd_node_t*	cascade		= node->cascade_node;
 	dict_table_t*	table		= foreign->foreign_table;
@@ -439,6 +443,9 @@ row_ins_cascade_calc_update_vec(
 	ulint		parent_field_no;
 	ulint		i;
 	ulint		j;
+	ibool		doc_id_updated = FALSE;
+	ulint		doc_id_pos = 0;
+	doc_id_t	new_doc_id = 0;
 
 	ut_a(node);
 	ut_a(foreign);
@@ -462,6 +469,13 @@ row_ins_cascade_calc_update_vec(
 	update->n_fields = foreign->n_fields;
 
 	n_fields_updated = 0;
+
+	*fts_col_affected = FALSE;
+
+	if (table->fts) {
+		doc_id_pos = dict_table_get_nth_col_pos(
+			table, table->fts->doc_col);
+	}
 
 	for (i = 0; i < foreign->n_fields; i++) {
 
@@ -488,7 +502,7 @@ row_ins_cascade_calc_update_vec(
 
 				ufield->field_no
 					= dict_table_get_nth_col_pos(
-					table, dict_col_get_no(col));
+						table, dict_col_get_no(col));
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
@@ -572,7 +586,86 @@ row_ins_cascade_calc_update_vec(
 							padded_data, min_size);
 				}
 
+				/* Check whether the current column has
+				FTS index on it */
+				if (table->fts
+				    && dict_table_is_fts_column(
+					table->fts->indexes,
+					dict_col_get_no(col))
+					!= ULINT_UNDEFINED) {
+					*fts_col_affected = TRUE;
+				}
+
+				/* If Doc ID is updated, check whether the
+				Doc ID is valid */
+				if (table->fts
+				    && ufield->field_no == doc_id_pos) {
+					doc_id_t	n_doc_id;
+
+					n_doc_id =
+						table->fts->cache->next_doc_id;
+
+					new_doc_id = fts_read_doc_id(
+						static_cast<const byte*>(
+							dfield_get_data(
+							&ufield->new_val)));
+
+					if (new_doc_id <= 0) {
+						fprintf(stderr,
+							"InnoDB: FTS Doc ID "
+							"must be large than "
+							"0 \n");
+						return(ULINT_UNDEFINED);
+					}
+
+					if (new_doc_id < n_doc_id) {
+						fprintf(stderr,
+						       "InnoDB: FTS Doc ID "
+						       "must be large than "
+						       "%llu for table",
+						       n_doc_id -1);
+
+						ut_print_name(stderr, trx,
+							      TRUE,
+							      table->name);
+
+						putc('\n', stderr);
+						return(ULINT_UNDEFINED);
+					}
+
+					*fts_col_affected = TRUE;
+					doc_id_updated = TRUE;
+				}
+
 				n_fields_updated++;
+			}
+		}
+	}
+
+	/* Generate a new Doc ID if FTS index columns get updated */
+	if (table->fts && *fts_col_affected) {
+		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+			doc_id_t	doc_id;
+
+			ut_ad(!doc_id_updated);
+			ufield = update->fields + n_fields_updated;
+			fts_get_next_doc_id(table, &trx->fts_next_doc_id);
+			doc_id = fts_update_doc_id(table, ufield,
+						   &trx->fts_next_doc_id);
+			n_fields_updated++;
+			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
+		} else  {
+			if (doc_id_updated) {
+				ut_ad(new_doc_id);
+				fts_trx_add_op(trx, table, new_doc_id,
+					       FTS_INSERT, NULL);
+			} else {
+				fprintf(stderr, "InnoDB: FTS Doc ID must be "
+					"updated along with FTS indexed "
+					"column for table ");
+				ut_print_name(stderr, trx, TRUE, table->name);
+				putc('\n', stderr);
+				return(ULINT_UNDEFINED);
 			}
 		}
 	}
@@ -811,6 +904,8 @@ row_ins_foreign_check_on_constraint(
 	ulint		i;
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
+	doc_id_t	doc_id;
+	ibool		fts_col_affacted = FALSE;
 
 	ut_a(thr);
 	ut_a(foreign);
@@ -931,6 +1026,8 @@ row_ins_foreign_check_on_constraint(
 
 	rec = btr_pcur_get_rec(pcur);
 
+	tmp_heap = mem_heap_create(256);
+
 	if (dict_index_is_clust(index)) {
 		/* pcur is already positioned in the clustered index of
 		the child table */
@@ -943,8 +1040,6 @@ row_ins_foreign_check_on_constraint(
 		in the child table */
 
 		clust_index = dict_table_get_first_index(table);
-
-		tmp_heap = mem_heap_create(256);
 
 		ref = row_build_row_ref(ROW_COPY_POINTERS, index, rec,
 					tmp_heap);
@@ -1007,6 +1102,10 @@ row_ins_foreign_check_on_constraint(
 		goto nonstandard_exit_func;
 	}
 
+	if (table->fts) {
+		doc_id = fts_get_doc_id_from_rec(table, clust_rec, tmp_heap);
+	}
+
 	if ((node->is_delete
 	     && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))
 	    || (!node->is_delete
@@ -1029,6 +1128,31 @@ row_ins_foreign_check_on_constraint(
 			ufield->orig_len = 0;
 			ufield->exp = NULL;
 			dfield_set_null(&ufield->new_val);
+
+			if (table->fts && dict_table_is_fts_column(
+				table->fts->indexes,
+				dict_index_get_nth_col_no(index, i))
+				!= ULINT_UNDEFINED) {
+				fts_col_affacted = TRUE;
+			}
+		}
+
+		if (fts_col_affacted) {
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
+		}
+	} else if (table->fts && cascade->is_delete) {
+		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
+		for (i = 0; i < foreign->n_fields; i++) {
+			if (table->fts && dict_table_is_fts_column(
+				table->fts->indexes,
+				dict_index_get_nth_col_no(index, i))
+				!= ULINT_UNDEFINED) {
+				fts_col_affacted = TRUE;
+			}
+		}
+
+		if (fts_col_affacted) {
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 	}
 
@@ -1040,8 +1164,9 @@ row_ins_foreign_check_on_constraint(
 
 		upd_vec_heap = mem_heap_create(256);
 
-		n_to_update = row_ins_cascade_calc_update_vec(node, foreign,
-							      upd_vec_heap);
+		n_to_update = row_ins_cascade_calc_update_vec(
+			node, foreign, upd_vec_heap, trx, &fts_col_affacted);
+
 		if (n_to_update == ULINT_UNDEFINED) {
 			err = DB_ROW_IS_REFERENCED;
 
@@ -1066,6 +1191,12 @@ row_ins_foreign_check_on_constraint(
 			err = DB_SUCCESS;
 
 			goto nonstandard_exit_func;
+		}
+
+		/* Mark the old Doc ID as deleted */
+		if (fts_col_affacted) {
+			ut_ad(table->fts);
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 	}
 
@@ -2437,11 +2568,13 @@ row_ins(
 	ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 
 	while (node->index != NULL) {
-		err = row_ins_index_entry_step(node, thr);
+		if (node->index->type != DICT_FTS) {
+			err = row_ins_index_entry_step(node, thr);
 
-		if (err != DB_SUCCESS) {
+			if (err != DB_SUCCESS) {
 
-			return(err);
+				return(err);
+			}
 		}
 
 		node->index = dict_table_get_next_index(node->index);

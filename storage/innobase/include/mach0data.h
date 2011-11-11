@@ -361,13 +361,12 @@ mach_write_to_2_little_endian(
 /*==========================*/
 	byte*	dest,		/*!< in: where to write */
 	ulint	n);		/*!< in: unsigned long int to write */
-
 /*********************************************************//**
 Convert integral type from storage byte order (big endian) to
 host byte order.
 @return	integer value */
 UNIV_INLINE
-ullint
+ib_uint64_t
 mach_read_int_type(
 /*===============*/
 	const byte*	src,		/*!< in: where to read from */

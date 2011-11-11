@@ -81,6 +81,9 @@ and/or load it during startup. */
 extern char		srv_buffer_pool_dump_at_shutdown;
 extern char		srv_buffer_pool_load_at_startup;
 
+/* Whether to disable file system cache if it is defined */
+extern char		srv_disable_sort_file_cache;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -130,6 +133,9 @@ extern ulint	srv_max_file_format_at_startup;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
+
+/* Variable specifying the FTS parallel sort buffer size */
+extern ulong	srv_sort_buf_size;
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will

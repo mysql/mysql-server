@@ -2010,7 +2010,11 @@ pars_info_add_literal(
 	pbl->prtype = prtype;
 
 	if (!info->bound_lits) {
-		info->bound_lits = ib_vector_create(info->heap, 8);
+		ib_alloc_t*     heap_alloc;
+
+		heap_alloc = ib_heap_allocator_create(info->heap);
+
+		info->bound_lits = ib_vector_create(heap_alloc, sizeof(*pbl), 8);
 	}
 
 	ib_vector_push(info->bound_lits, pbl);
@@ -2101,7 +2105,11 @@ pars_info_add_function(
 	puf->arg = arg;
 
 	if (!info->funcs) {
-		info->funcs = ib_vector_create(info->heap, 8);
+		ib_alloc_t*     heap_alloc;
+
+		heap_alloc = ib_heap_allocator_create(info->heap);
+
+		info->funcs = ib_vector_create(heap_alloc, sizeof(*puf), 8);
 	}
 
 	ib_vector_push(info->funcs, puf);
@@ -2128,7 +2136,11 @@ pars_info_add_id(
 	bid->id = id;
 
 	if (!info->bound_ids) {
-		info->bound_ids = ib_vector_create(info->heap, 8);
+		ib_alloc_t*     heap_alloc;
+
+		heap_alloc = ib_heap_allocator_create(info->heap);
+
+		info->bound_ids = ib_vector_create(heap_alloc, sizeof(*bid), 8);
 	}
 
 	ib_vector_push(info->bound_ids, bid);

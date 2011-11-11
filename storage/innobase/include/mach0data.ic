@@ -648,7 +648,6 @@ mach_read_from_n_little_endian(
 	ulint	n	= 0;
 	const byte*	ptr;
 
-	ut_ad(buf_size <= sizeof(ulint));
 	ut_ad(buf_size > 0);
 
 	ptr = buf + buf_size;

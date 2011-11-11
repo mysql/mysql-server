@@ -45,6 +45,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "ha_prototypes.h"
 #include "srv0mon.h"
+#include "ut0vec.h"
 
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
@@ -94,6 +95,7 @@ trx_create(void)
 {
 	trx_t*		trx;
 	mem_heap_t*	heap;
+	ib_alloc_t*	heap_alloc;
 
 	trx = static_cast<trx_t*>(mem_zalloc(sizeof(*trx)));
 
@@ -132,14 +134,16 @@ trx_create(void)
 	trx->op_info = "";
 
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
+	heap_alloc = ib_heap_allocator_create(heap);
 
 	/* Remember to free the vector explicitly in trx_free(). */
-	trx->autoinc_locks = ib_vector_create(heap, 4);
+	trx->autoinc_locks = ib_vector_create(heap_alloc, sizeof(void**), 4);
 
 	/* Remember to free the vector explicitly in trx_free(). */
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 128);
+	heap_alloc = ib_heap_allocator_create(heap);
 
-	trx->lock.table_locks = ib_vector_create(heap, 32);
+	trx->lock.table_locks = ib_vector_create(heap_alloc, sizeof(void**), 32);
 
 	return(trx);
 }
@@ -847,6 +851,76 @@ trx_write_serialisation_history(
 	return(mtr.end_lsn);
 }
 
+/********************************************************************
+Finalize a transaction containing updates for a FTS table. */
+static
+void
+trx_finalize_for_fts_table(
+/*=======================*/
+        fts_trx_table_t*        ftt)            /* in: FTS trx table */
+{
+	fts_t*                  fts = ftt->table->fts;
+	fts_doc_ids_t*          doc_ids = ftt->added_doc_ids;
+
+	mutex_enter(&fts->bg_threads_mutex);
+
+	if (fts->fts_status & BG_THREAD_STOP) {
+		/* The table is about to be dropped, no use
+		adding anything to its work queue. */
+
+		mutex_exit(&fts->bg_threads_mutex);
+	} else {
+		mem_heap_t*     heap;
+		mutex_exit(&fts->bg_threads_mutex);
+
+		ut_a(fts->add_wq);
+
+		heap = static_cast<mem_heap_t*>(doc_ids->self_heap->arg);
+
+		ib_wqueue_add(fts->add_wq, doc_ids, heap);
+
+		/* fts_trx_table_t no longer owns the list. */
+		ftt->added_doc_ids = NULL;
+	}
+}
+
+/********************************************************************
+Finalize a transaction containing updates to FTS tables. */
+static
+void
+trx_finalize_for_fts(
+/*=================*/
+        trx_t*  trx,            /* in: transaction */
+        ibool   is_commit)      /* in: TRUE if the transaction was
+                                committed, FALSE if it was rolled back. */
+{
+	if (is_commit) {
+		const ib_rbt_node_t*    node;
+		ib_rbt_t*               tables;
+		fts_savepoint_t*        savepoint;
+
+		savepoint = static_cast<fts_savepoint_t*>(
+			ib_vector_last(trx->fts_trx->savepoints));
+
+		tables = savepoint->tables;
+
+		for (node = rbt_first(tables);
+		     node;
+		     node = rbt_next(tables, node)) {
+			fts_trx_table_t**        ftt;
+
+			ftt = rbt_value(fts_trx_table_t*, node);
+
+			if ((*ftt)->added_doc_ids) {
+				trx_finalize_for_fts_table(*ftt);
+			}
+		}
+	}
+
+	fts_trx_free(trx->fts_trx);
+	trx->fts_trx = NULL;
+}
+
 /****************************************************************//**
 Commits a transaction. */
 UNIV_INTERN
@@ -856,10 +930,33 @@ trx_commit(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	trx_named_savept_t*	savep;
-	lsn_t			lsn = 0;
+	ib_uint64_t		lsn = 0;
+	ibool			doing_fts_commit = FALSE;
 
 	ut_ad(trx->in_trx_list);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
+
+	/* undo_no is non-zero if we're doing the final commit. */
+	if (trx->fts_trx && (trx->undo_no != 0)) {
+		ulint   error;
+
+		doing_fts_commit = TRUE;
+
+		error = fts_commit(trx);
+
+		/* FTS-FIXME: Temparorily tolerate DB_DUPLICATE_KEY
+		instead of dying. This is a possible scenario if there
+		is a crash between insert to DELETED table committing
+		and transaction committing. The fix would be able to
+		return error from this function */
+		if (error != DB_SUCCESS && error != DB_DUPLICATE_KEY) {
+			/* FTS-FIXME: once we can return values from this
+			function, we should do so and signal an error
+			instead of just dying. */
+
+			ut_error;
+		}
+	}
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 		lsn = trx_write_serialisation_history(trx);
@@ -970,6 +1067,10 @@ trx_commit(
 	trx->rseg = NULL;
 	trx->undo_no = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
+
+        if (trx->fts_trx) {
+                trx_finalize_for_fts(trx, doing_fts_commit);
+        }
 
 	ut_ad(trx->lock.wait_thr == NULL);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
@@ -1264,6 +1365,11 @@ trx_mark_sql_stat_end(
 		/* fall through */
 	case TRX_STATE_ACTIVE:
 		trx->last_sql_stat_start.least_undo_no = trx->undo_no;
+
+		if (trx->fts_trx) {
+			fts_savepoint_laststmt_refresh(trx);
+		}
+
 		return;
 	}
 

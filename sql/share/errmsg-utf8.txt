@@ -6598,3 +6598,12 @@ ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
 ER_DA_INVALID_CONDITION_NUMBER 35000
   eng "Invalid condition number"
   por "Número de condição inválido"
+
+ER_TABLE_HAS_NO_FT
+  eng "The table does not have FULLTEXT index to support this query"
+
+ER_INNODB_FT_LIMIT
+  eng "InnoDB presently supports one FULLTEXT index per table"
+
+ER_INNODB_NO_FT_TEMP_TABLE
+  eng "Cannot create FULLTEXT index on temporary InnoDB table"

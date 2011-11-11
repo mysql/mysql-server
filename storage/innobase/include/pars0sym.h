@@ -67,7 +67,7 @@ sym_node_t*
 sym_tab_add_str_lit(
 /*================*/
 	sym_tab_t*	sym_tab,	/*!< in: symbol table */
-	byte*		str,		/*!< in: string with no quotes around
+	const byte*	str,		/*!< in: string with no quotes around
 					it */
 	ulint		len);		/*!< in: string length */
 /******************************************************************//**
@@ -80,6 +80,16 @@ sym_tab_add_bound_lit(
 	sym_tab_t*	sym_tab,	/*!< in: symbol table */
 	const char*	name,		/*!< in: name of bound literal */
 	ulint*		lit_type);	/*!< out: type of literal (PARS_*_LIT) */
+/**********************************************************************
+Rebind literal to a node in the symbol table. */
+
+sym_node_t*
+sym_tab_rebind_lit(
+/*===============*/
+                                        /* out: symbol table node */
+        sym_node_t*     node,           /* in: node that is bound to literal*/
+        const void*     address,        /* in: pointer to data */
+        ulint           length);        /* in: length of data */
 /******************************************************************//**
 Adds an SQL null literal to a symbol table.
 @return	symbol table node */
@@ -213,6 +223,7 @@ struct sym_node_struct{
 							the symbol table */
 	UT_LIST_NODE_T(sym_node_t)	sym_list;	/*!< list of symbol
 							nodes */
+	sym_node_t*			like_node;	/* LIKE operator node*/
 };
 
 /** Symbol table */
