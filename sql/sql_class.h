@@ -37,6 +37,8 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_statement.h>
+#include <mysql/psi/mysql_idle.h>
+#include <mysql_com_server.h>
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -433,8 +435,9 @@ typedef struct system_variables
   */ 
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
-  uint dynamic_variables_head;  /* largest valid variable offset */
-  uint dynamic_variables_size;  /* how many bytes are in use */
+  uint dynamic_variables_head;    /* largest valid variable offset */
+  uint dynamic_variables_size;    /* how many bytes are in use */
+  LIST *dynamic_variables_allocs; /* memory hunks for PLUGIN_VAR_MEMALLOC */
   
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
@@ -487,7 +490,6 @@ typedef struct system_variables
   ulong query_prealloc_size;
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
-  ulong log_warnings;
   ulong group_concat_max_len;
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
@@ -1775,6 +1777,8 @@ public:
   Query_cache_tls query_cache_tls;
 #endif
   NET	  net;				// client connection descriptor
+  /** Aditional network instrumentation for the server only. */
+  NET_SERVER m_net_server_extension;
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
   Protocol_binary protocol_binary;	// Binary protocol
@@ -2358,6 +2362,18 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
+#ifndef EMBEDDED_LIBRARY
+  /** Current statement instrumentation state. */
+  PSI_statement_locker_state m_statement_state;
+#endif /* EMBEDDED_LIBRARY */
+  /** Idle instrumentation. */
+  PSI_idle_locker *m_idle_psi;
+#ifndef EMBEDDED_LIBRARY
+  /** Idle instrumentation state. */
+  PSI_idle_locker_state m_idle_state;
+#endif /* EMBEDDED_LIBRARY */
+  /** True if the server code is IDLE for this connection. */
+  bool m_server_idle;
 
   /*
     Id of current query. Statement can be reused to execute several queries

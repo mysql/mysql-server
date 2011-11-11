@@ -238,22 +238,24 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	0
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	0
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	1
+localhost	statement/sql/select	2
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	0
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	1
+statement/sql/select	2
 execute dump_statements_history;
 event_name	count(event_name)
+statement/sql/insert	1
+statement/sql/select	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -345,8 +347,8 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	0
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	0
 user2	statement/sql/insert	0
@@ -355,16 +357,18 @@ execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	0
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	1
+localhost	statement/sql/select	2
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	0
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	1
+statement/sql/select	2
 execute dump_statements_history;
 event_name	count(event_name)
+statement/sql/insert	1
+statement/sql/select	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -464,26 +468,28 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	0
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	0
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	0
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	2
+localhost	statement/sql/select	4
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	0
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	2
+statement/sql/select	4
 execute dump_statements_history;
 event_name	count(event_name)
+statement/sql/insert	2
+statement/sql/select	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -587,12 +593,12 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	0
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	0
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	0
 user3	statement/sql/insert	0
@@ -601,16 +607,18 @@ execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	0
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	2
+localhost	statement/sql/select	4
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	0
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	2
+statement/sql/select	4
 execute dump_statements_history;
 event_name	count(event_name)
+statement/sql/insert	2
+statement/sql/select	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -722,30 +730,32 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	0
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	0
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	0
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	0
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	3
+localhost	statement/sql/select	6
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	0
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	3
+statement/sql/select	6
 execute dump_statements_history;
 event_name	count(event_name)
+statement/sql/insert	3
+statement/sql/select	6
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -861,16 +871,16 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	0
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	0
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	0
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	0
 user4	statement/sql/insert	0
@@ -879,16 +889,18 @@ execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	0
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	3
+localhost	statement/sql/select	6
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	0
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	3
+statement/sql/select	6
 execute dump_statements_history;
 event_name	count(event_name)
+statement/sql/insert	3
+statement/sql/select	6
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1012,34 +1024,36 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	0
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	0
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	0
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	0
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	0
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	0
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1154,35 +1168,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	0
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	0
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	0
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	1
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	1
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	1
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1294,35 +1310,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	0
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	0
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	2
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	2
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	2
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1431,35 +1449,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	0
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	3
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	3
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	3
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1565,35 +1585,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1700,35 +1722,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1835,35 +1859,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1970,35 +1996,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2105,35 +2133,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2240,35 +2270,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2375,35 +2407,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2510,35 +2544,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2645,35 +2681,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2780,35 +2818,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2915,35 +2955,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3050,35 +3092,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3185,35 +3229,37 @@ execute dump_statements_user;
 user	event_name	count_star
 user1	statement/com/Error	0
 user1	statement/com/Quit	1
-user1	statement/sql/insert	0
-user1	statement/sql/select	0
+user1	statement/sql/insert	1
+user1	statement/sql/select	2
 user2	statement/com/Error	0
 user2	statement/com/Quit	1
-user2	statement/sql/insert	0
-user2	statement/sql/select	0
+user2	statement/sql/insert	1
+user2	statement/sql/select	2
 user3	statement/com/Error	0
 user3	statement/com/Quit	1
-user3	statement/sql/insert	0
-user3	statement/sql/select	0
+user3	statement/sql/insert	1
+user3	statement/sql/select	2
 user4	statement/com/Error	0
 user4	statement/com/Quit	1
-user4	statement/sql/insert	0
-user4	statement/sql/select	0
+user4	statement/sql/insert	1
+user4	statement/sql/select	2
 execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3338,17 +3384,19 @@ execute dump_statements_host;
 host	event_name	count_star
 localhost	statement/com/Error	0
 localhost	statement/com/Quit	4
-localhost	statement/sql/insert	0
-localhost	statement/sql/select	0
+localhost	statement/sql/insert	4
+localhost	statement/sql/select	8
 execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3479,11 +3527,13 @@ execute dump_statements_global;
 event_name	count_star
 statement/com/Error	0
 statement/com/Quit	4
-statement/sql/insert	0
-statement/sql/select	0
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3619,6 +3669,8 @@ statement/sql/select	0
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3754,6 +3806,8 @@ statement/sql/select	0
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3841,6 +3895,8 @@ statement/sql/select	0
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3924,6 +3980,8 @@ statement/sql/select	0
 execute dump_statements_history;
 event_name	count(event_name)
 statement/com/Quit	4
+statement/sql/insert	4
+statement/sql/select	8
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;

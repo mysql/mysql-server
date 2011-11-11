@@ -30,8 +30,8 @@
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
 #define MAX_SYS_VAR_LENGTH 32
 #define MAX_KEY MAX_INDEXES                     /* Max used keys */
-#define MAX_REF_PARTS 16			/* Max parts used as ref */
-#define MAX_KEY_LENGTH 3072			/* max possible key */
+#define MAX_REF_PARTS 16U			/* Max parts used as ref */
+#define MAX_KEY_LENGTH 3072U			/* max possible key */
 #if SIZEOF_OFF_T > 4
 #define MAX_REFLENGTH 8				/* Max length for record ref */
 #else
