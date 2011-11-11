@@ -2163,12 +2163,12 @@ fetch_step(
 				sel_assign_into_var_values(node->into_list,
 							   sel_node);
 			} else {
-				void* ret = (*node->func->func)(
+				ibool ret = (*node->func->func)(
 					sel_node, node->func->arg);
 
 				if (!ret) {
 					sel_node->state
-						= SEL_NODE_NO_MORE_ROWS;
+						 = SEL_NODE_NO_MORE_ROWS;
 				}
 			}
 		}
@@ -2304,6 +2304,42 @@ row_printf_step(
 	return(thr);
 }
 
+/********************************************************************
+Creates a key in Innobase dtuple format.*/
+
+void
+row_create_key(
+/*===========*/
+	dtuple_t*	tuple,		/* in: tuple where to build;
+					NOTE: we assume that the type info
+					in the tuple is already according
+					to index! */
+	dict_index_t*	index,		/* in: index of the key value */
+	doc_id_t*	doc_id)		/* in: doc id to search. */
+{
+	dtype_t		type;
+	dict_field_t*	field;
+	doc_id_t	temp_doc_id;
+	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
+
+	ut_a(dict_index_get_n_unique(index) == 1);
+
+	/* Permit us to access any field in the tuple (ULINT_MAX): */
+	dtuple_set_n_fields(tuple, ULINT_MAX);
+
+	field = dict_index_get_nth_field(index, 0);
+	dict_col_copy_type(field->col, &type);
+	ut_a(dtype_get_mtype(&type) == DATA_INT);
+
+	/* Convert to storage byte order */
+	mach_write_to_8((byte*) &temp_doc_id, *doc_id);
+	*doc_id = temp_doc_id;
+
+	ut_a(sizeof(*doc_id) == field->fixed_len);
+	dfield_set_data(dfield, doc_id, field->fixed_len);
+
+	dtuple_set_n_fields(tuple, 1);
+}
 /****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
@@ -2892,16 +2928,6 @@ row_sel_store_mysql_field_func(
 	return(TRUE);
 }
 
-#ifdef UNIV_DEBUG
-/** Convert a record from Innobase format to MySQL format. */
-# define row_sel_store_mysql_rec(m,p,r,c,i,o) \
-	row_sel_store_mysql_rec_func(m,p,r,c,i,o)
-#else /* UNIV_DEBUG */
-/** Convert a record from Innobase format to MySQL format. */
-# define row_sel_store_mysql_rec(m,p,r,c,i,o) \
-	row_sel_store_mysql_rec_func(m,p,r,c,o)
-#endif /* UNIV_DEBUG */
-
 /**************************************************************//**
 Convert a row in the Innobase format to a row in the MySQL format.
 Note that the template in prebuilt may advise us to copy only a few
@@ -2910,8 +2936,8 @@ be needed in the query.
 @return TRUE on success, FALSE if not all columns could be retrieved */
 static __attribute__((warn_unused_result))
 ibool
-row_sel_store_mysql_rec_func(
-/*=========================*/
+row_sel_store_mysql_rec(
+/*====================*/
 	byte*		mysql_rec,	/*!< out: row in the MySQL format */
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
 	const rec_t*	rec,		/*!< in: Innobase record in the index
@@ -2921,9 +2947,7 @@ row_sel_store_mysql_rec_func(
 	ibool		rec_clust,	/*!< in: TRUE if rec is in the
 					clustered index instead of
 					prebuilt->index */
-#ifdef UNIV_DEBUG
 	const dict_index_t* index,	/*!< in: index of rec */
-#endif
 	const ulint*	offsets)	/*!< in: array returned by
 					rec_get_offsets(rec) */
 {
@@ -2953,6 +2977,19 @@ row_sel_store_mysql_rec_func(
 					       field_no, templ)) {
 			return(FALSE);
 		}
+	}
+
+	/* FIXME: We only need to read the doc_id if an FTS indexed
+	column is being updated.
+	NOTE, the record must be cluster index record. Secondary index
+	might not have the Doc ID */
+	if (dict_table_has_fts_index(prebuilt->table)
+	    && dict_index_is_clust(index)) {
+
+		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
+			prebuilt->table,
+			rec,
+			prebuilt->heap);
 	}
 
 	return(TRUE);
@@ -4762,7 +4799,8 @@ requires_clust_rec:
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
 	    && prebuilt->template_type
-	    != ROW_MYSQL_DUMMY_TEMPLATE) {
+	    != ROW_MYSQL_DUMMY_TEMPLATE
+	    && !prebuilt->result) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual

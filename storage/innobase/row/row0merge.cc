@@ -56,6 +56,10 @@ Completed by Sunny Bains and Marko Makela
 #include "log0log.h"
 #include "ut0sort.h"
 #include "handler0alter.h"
+#include "fts0fts.h"
+#include "fts0types.h"
+#include "fts0priv.h"
+#include "row0ftsort.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined __WIN__
@@ -81,56 +85,24 @@ static ibool	row_merge_print_block_write;
 /* @} */
 #endif /* UNIV_DEBUG */
 
-/** @brief Block size for I/O operations in merge sort.
+/* Whether to disable file system cache */
+UNIV_INTERN char        srv_disable_sort_file_cache;
 
-The minimum is UNIV_PAGE_SIZE, or page_get_free_space_of_empty()
-rounded to a power of 2.
-
-When not creating a PRIMARY KEY that contains column prefixes, this
-can be set as small as UNIV_PAGE_SIZE / 2.  See the comment above
-ut_ad(data_size < sizeof(row_merge_block_t)). */
-typedef byte	row_merge_block_t[1048576];
-
-/** @brief Secondary buffer for I/O operations of merge records.
-
-This buffer is used for writing or reading a record that spans two
-row_merge_block_t.  Thus, it must be able to hold one merge record,
-whose maximum size is the same as the minimum size of
-row_merge_block_t. */
-typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
-
-/** @brief Merge record in row_merge_block_t.
-
-The format is the same as a record in ROW_FORMAT=COMPACT with the
-exception that the REC_N_NEW_EXTRA_BYTES are omitted. */
-typedef byte	mrec_t;
-
-/** Buffer for sorting in main memory. */
-struct row_merge_buf_struct {
-	mem_heap_t*	heap;		/*!< memory heap where allocated */
-	dict_index_t*	index;		/*!< the index the tuples belong to */
-	ulint		total_size;	/*!< total amount of data bytes */
-	ulint		n_tuples;	/*!< number of data tuples */
-	ulint		max_tuples;	/*!< maximum number of data tuples */
-	const dfield_t**tuples;		/*!< array of pointers to
-					arrays of fields that form
-					the data tuples */
-	const dfield_t**tmp_tuples;	/*!< temporary copy of tuples,
-					for sorting */
-};
-
-/** Buffer for sorting in main memory. */
-typedef struct row_merge_buf_struct row_merge_buf_t;
-
-/** Information about temporary files used in merge sort */
-struct merge_file_struct {
-	int		fd;		/*!< file descriptor */
-	ulint		offset;		/*!< file offset (end of file) */
-	ib_uint64_t	n_rec;		/*!< number of records in the file */
-};
-
-/** Information about temporary files used in merge sort */
-typedef struct merge_file_struct merge_file_t;
+/********************************************************************//**
+Read sorted file containing index data tuples and insert these data
+tuples to the index
+@return	DB_SUCCESS or error number */
+static
+ulint
+row_merge_insert_index_tuples(
+/*==========================*/
+	trx_t*			trx,	/*!< in: transaction */
+	dict_index_t*		index,	/*!< in: index */
+	dict_table_t*		table,	/*!< in: new table */
+	ulint			zip_size,/*!< in: compressed page size of
+					 the old table, or 0 if uncompressed */
+	int			fd,	/*!< in: file descriptor */
+	row_merge_block_t*	block);	/*!< in/out: file buffer */
 
 #ifdef UNIV_DEBUG
 /******************************************************//**
@@ -183,8 +155,8 @@ row_merge_buf_create_low(
 	row_merge_buf_t*	buf;
 
 	ut_ad(max_tuples > 0);
-	ut_ad(max_tuples <= sizeof(row_merge_block_t));
-	ut_ad(max_tuples < buf_size);
+
+	ut_ad(max_tuples <= srv_sort_buf_size);
 
 	buf = static_cast<row_merge_buf_t*>(mem_heap_zalloc(heap, buf_size));
 	buf->heap = heap;
@@ -192,8 +164,7 @@ row_merge_buf_create_low(
 	buf->max_tuples = max_tuples;
 
 	buf->tuples = static_cast<const dfield_t**>(
-		mem_heap_alloc(heap, 2 * max_tuples * sizeof *buf->tuples));
-
+		ut_malloc(2 * max_tuples * sizeof *buf->tuples));
 	buf->tmp_tuples = buf->tuples + max_tuples;
 
 	return(buf);
@@ -202,7 +173,7 @@ row_merge_buf_create_low(
 /******************************************************//**
 Allocate a sort buffer.
 @return	own: sort buffer */
-static
+UNIV_INTERN
 row_merge_buf_t*
 row_merge_buf_create(
 /*=================*/
@@ -213,12 +184,12 @@ row_merge_buf_create(
 	ulint			buf_size;
 	mem_heap_t*		heap;
 
-	max_tuples = sizeof(row_merge_block_t)
+	max_tuples = srv_sort_buf_size
 		/ ut_max(1, dict_index_get_min_size(index));
 
-	buf_size = (sizeof *buf) + (max_tuples - 1) * sizeof *buf->tuples;
+	buf_size = (sizeof *buf);
 
-	heap = mem_heap_create(buf_size + sizeof(row_merge_block_t));
+	heap = mem_heap_create(buf_size);
 
 	buf = row_merge_buf_create_low(heap, index, max_tuples, buf_size);
 
@@ -228,7 +199,7 @@ row_merge_buf_create(
 /******************************************************//**
 Empty a sort buffer.
 @return	sort buffer */
-static
+UNIV_INTERN
 row_merge_buf_t*
 row_merge_buf_empty(
 /*================*/
@@ -238,36 +209,51 @@ row_merge_buf_empty(
 	ulint		max_tuples	= buf->max_tuples;
 	mem_heap_t*	heap		= buf->heap;
 	dict_index_t*	index		= buf->index;
+	void*		tuple		= buf->tuples;
 
-	buf_size = (sizeof *buf) + (max_tuples - 1) * sizeof *buf->tuples;
+	buf_size = (sizeof *buf);;
 
 	mem_heap_empty(heap);
 
-	return(row_merge_buf_create_low(heap, index, max_tuples, buf_size));
+	buf = static_cast<row_merge_buf_t*>(mem_heap_zalloc(heap, buf_size));
+	buf->heap = heap;
+	buf->index = index;
+	buf->max_tuples = max_tuples;
+	buf->tuples = static_cast<const dfield_t**>(tuple);
+	buf->tmp_tuples = buf->tuples + max_tuples;
+
+	return(buf);
 }
 
 /******************************************************//**
 Deallocate a sort buffer. */
-static
+UNIV_INTERN
 void
 row_merge_buf_free(
 /*===============*/
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer, to be freed */
 {
+	ut_free(buf->tuples);
 	mem_heap_free(buf->heap);
 }
 
 /******************************************************//**
 Insert a data tuple into a sort buffer.
-@return	TRUE if added, FALSE if out of space */
+@return	number of rows added, 0 if out of space */
 static
-ibool
+ulint
 row_merge_buf_add(
 /*==============*/
 	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
+	dict_index_t*		fts_index,/*!< fts index to be
+					created */
+	fts_psort_t*		psort_info, /*!< in: parallel sort info */
 	const dtuple_t*		row,	/*!< in: row in clustered index */
-	const row_ext_t*	ext)	/*!< in: cache of externally stored
+	const row_ext_t*	ext,	/*!< in: cache of externally stored
 					column prefixes, or NULL */
+	doc_id_t*		doc_id)	/*!< in/out: Doc ID if we are
+					creating FTS index */
+
 {
 	ulint			i;
 	ulint			n_fields;
@@ -277,6 +263,9 @@ row_merge_buf_add(
 	dfield_t*		entry;
 	dfield_t*		field;
 	const dict_field_t*	ifield;
+	ulint			n_row_added = 0;
+	ulint			bucket = 0;
+	ulint			zip_size;
 
 	if (buf->n_tuples >= buf->max_tuples) {
 		return(FALSE);
@@ -284,12 +273,16 @@ row_merge_buf_add(
 
 	UNIV_PREFETCH_R(row->fields);
 
-	index = buf->index;
+	/* If we are building FTS index, buf->index points to
+	the 'fts_sort_idx', and real FTS index is stored in
+	fts_index */
+	index = (buf->index->type & DICT_FTS) ? fts_index : buf->index;
 
 	n_fields = dict_index_get_n_fields(index);
 
 	entry = static_cast<dfield_t*>(
 		mem_heap_alloc(buf->heap, n_fields * sizeof *entry));
+	zip_size = dict_table_zip_size(index->table);
 
 	buf->tuples[buf->n_tuples] = entry;
 	field = entry;
@@ -304,11 +297,96 @@ row_merge_buf_add(
 		ulint			col_no;
 		const dfield_t*		row_field;
 		ulint			len;
+		ibool			col_adjusted;
 
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
-		row_field = dtuple_get_nth_field(row, col_no);
-		dfield_copy(field, row_field);
+		col_adjusted = FALSE;
+
+		/* If we are creating a FTS index, a new Doc
+		ID column is being added, so we need to adjust
+		any column number positioned after this Doc ID */
+		if (*doc_id > 0
+		    && DICT_TF2_FLAG_IS_SET(index->table,
+                    			    DICT_TF2_FTS_ADD_DOC_ID)
+		    && (col_no > index->table->fts->doc_col)) {
+
+			ut_ad(index->table->fts);
+
+			col_no--;
+			col_adjusted = TRUE;
+		}
+
+		/* Process the Doc ID column */
+		if (*doc_id > 0 && col_no == index->table->fts->doc_col
+		    && !col_adjusted) {
+			doc_id_t	write_doc_id;
+			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
+			dfield_set_data(field, &write_doc_id,
+					sizeof(write_doc_id));
+			field->type.mtype = ifield->col->mtype;
+			field->type.prtype = ifield->col->prtype;
+			field->type.mbminmaxlen = DATA_MBMINMAXLEN(0, 0);
+			field->type.len = ifield->col->len;
+		} else {
+			row_field = dtuple_get_nth_field(row, col_no);
+
+			dfield_copy(field, row_field);
+
+			/* Tokenize and process data for FTS */
+			if (index->type & DICT_FTS) {
+				fts_doc_item_t*	doc_item;
+				byte*		value;
+
+				if (dfield_is_null(field)) {
+					n_row_added = 1;
+					continue;
+				}
+
+				doc_item = static_cast<fts_doc_item_t*>(
+					mem_heap_alloc(
+						buf->heap,
+						sizeof(fts_doc_item_t)));
+
+				/* fetch Doc ID if it already exists
+				in the row, and not supplied by the caller */
+				if (*doc_id == 0) {
+					const dfield_t*	doc_field;
+					doc_field = dtuple_get_nth_field(
+						row,
+						index->table->fts->doc_col);
+					*doc_id = (doc_id_t) mach_read_from_8(
+						static_cast<byte*>(
+						dfield_get_data(doc_field)));
+
+					if (*doc_id == 0) {
+						fprintf(stderr, "InnoDB FTS: "
+							"User supplied Doc ID "
+							"is zero. Record "
+							"Skipped\n");
+						return(0);
+					}
+				}
+
+				value = static_cast<byte*>(
+					ut_malloc(field->len));
+				memcpy(value, field->data, field->len);
+				field->data = value;
+
+				doc_item->field = field;
+				doc_item->doc_id = *doc_id;
+
+				bucket = *doc_id % fts_sort_pll_degree;
+
+				UT_LIST_ADD_LAST(
+					doc_list,
+					psort_info[bucket].fts_doc_list,
+					doc_item);
+				n_row_added = 1;
+				continue;
+			}
+		}
+
 		len = dfield_get_len(field);
 
 		if (dfield_is_null(field)) {
@@ -369,6 +447,12 @@ row_merge_buf_add(
 		data_size += len;
 	}
 
+	/* If this is FTS index, we already populated the sort buffer, return
+	here */ 
+	if (index->type & DICT_FTS) {
+		return(n_row_added);
+	}
+
 #ifdef UNIV_DEBUG
 	{
 		ulint	size;
@@ -395,15 +479,16 @@ row_merge_buf_add(
 	page_zip_rec_needs_ext() limit.  However, no further columns
 	will be moved to external storage until the record is inserted
 	to the clustered index B-tree. */
-	ut_ad(data_size < sizeof(row_merge_block_t));
+	ut_ad(data_size < srv_sort_buf_size);
 
 	/* Reserve one byte for the end marker of row_merge_block_t. */
-	if (buf->total_size + data_size >= sizeof(row_merge_block_t) - 1) {
-		return(FALSE);
+	if (buf->total_size + data_size >= srv_sort_buf_size - 1) {
+		return(0);
 	}
 
 	buf->total_size += data_size;
 	buf->n_tuples++;
+	n_row_added++;
 
 	field = entry;
 
@@ -413,18 +498,8 @@ row_merge_buf_add(
 		dfield_dup(field++, buf->heap);
 	} while (--n_fields);
 
-	return(TRUE);
+	return(n_row_added);
 }
-
-/** Structure for reporting duplicate records. */
-struct row_merge_dup_struct {
-	const dict_index_t*	index;		/*!< index being sorted */
-	struct TABLE*		table;		/*!< MySQL table object */
-	ulint			n_dup;		/*!< number of duplicates */
-};
-
-/** Structure for reporting duplicate records. */
-typedef struct row_merge_dup_struct row_merge_dup_t;
 
 /*************************************************************//**
 Report a duplicate key. */
@@ -546,7 +621,7 @@ row_merge_tuple_sort(
 
 /******************************************************//**
 Sort a buffer. */
-static
+UNIV_INTERN
 void
 row_merge_buf_sort(
 /*===============*/
@@ -559,22 +634,18 @@ row_merge_buf_sort(
 
 /******************************************************//**
 Write a buffer to a block. */
-static
+UNIV_INTERN
 void
 row_merge_buf_write(
 /*================*/
 	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
-#ifdef UNIV_DEBUG
-	const merge_file_t*	of,	/*!< in: output file */
-#endif /* UNIV_DEBUG */
+	const merge_file_t*	of UNIV_UNUSED,
+					/*!< in: output file */
 	row_merge_block_t*	block)	/*!< out: buffer for writing to file */
-#ifndef UNIV_DEBUG
-# define row_merge_buf_write(buf, of, block) row_merge_buf_write(buf, block)
-#endif /* !UNIV_DEBUG */
 {
 	const dict_index_t*	index	= buf->index;
 	ulint			n_fields= dict_index_get_n_fields(index);
-	byte*			b	= &(*block)[0];
+	byte*			b	= &block[0];
 
 	ulint		i;
 
@@ -601,7 +672,7 @@ row_merge_buf_write(
 			*b++ = (byte) (extra_size + 1);
 		}
 
-		ut_ad(b + size < block[1]);
+		ut_ad(b + size < &block[srv_sort_buf_size]);
 
 		rec_convert_dtuple_to_rec_comp(b + extra_size, 0, index,
 					       REC_STATUS_ORDINARY,
@@ -620,13 +691,13 @@ row_merge_buf_write(
 	}
 
 	/* Write an "end-of-chunk" marker. */
-	ut_a(b < block[1]);
-	ut_a(b == block[0] + buf->total_size);
+	ut_a(b < &block[srv_sort_buf_size]);
+	ut_a(b == &block[0] + buf->total_size);
 	*b++ = 0;
 #ifdef UNIV_DEBUG_VALGRIND
 	/* The rest of the block is uninitialized.  Initialize it
 	to avoid bogus warnings. */
-	memset(b, 0xff, block[1] - b);
+	memset(b, 0xff, &block[srv_sort_buf_size] - b);
 #endif /* UNIV_DEBUG_VALGRIND */
 #ifdef UNIV_DEBUG
 	if (row_merge_print_write) {
@@ -700,7 +771,7 @@ row_merge_dict_table_get_index(
 /********************************************************************//**
 Read a merge block from the file system.
 @return	TRUE if request was successful, FALSE if fail */
-static
+UNIV_INTERN
 ibool
 row_merge_read(
 /*===========*/
@@ -710,7 +781,7 @@ row_merge_read(
 					elements */
 	row_merge_block_t*	buf)	/*!< out: data */
 {
-	os_offset_t	ofs = ((os_offset_t) offset) * sizeof *buf;
+	os_offset_t	ofs = ((os_offset_t) offset) * srv_sort_buf_size;
 	ibool		success;
 
 #ifdef UNIV_DEBUG
@@ -720,11 +791,18 @@ row_merge_read(
 	}
 #endif /* UNIV_DEBUG */
 
+#ifdef UNIV_DEBUG
+	if (row_merge_print_block_read) {
+		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
+			fd, (ulong) offset);
+	}
+#endif /* UNIV_DEBUG */
+
 	success = os_file_read_no_error_handling(OS_FILE_FROM_FD(fd), buf,
-						 ofs, sizeof *buf);
+						 ofs, srv_sort_buf_size);
 #ifdef POSIX_FADV_DONTNEED
 	/* Each block is read exactly once.  Free up the file cache. */
-	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
+	posix_fadvise(fd, ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
 	if (UNIV_UNLIKELY(!success)) {
@@ -740,7 +818,7 @@ row_merge_read(
 /********************************************************************//**
 Write a merge block to the file system.
 @return	TRUE if request was successful, FALSE if fail */
-static
+UNIV_INTERN
 ibool
 row_merge_write(
 /*============*/
@@ -749,7 +827,7 @@ row_merge_write(
 				in number of row_merge_block_t elements */
 	const void*	buf)	/*!< in: data */
 {
-	size_t		buf_len = sizeof(row_merge_block_t);
+	size_t		buf_len = srv_sort_buf_size;
 	os_offset_t	ofs = buf_len * (os_offset_t) offset;
 	ibool		ret;
 
@@ -774,7 +852,7 @@ row_merge_write(
 /********************************************************************//**
 Read a merge record.
 @return	pointer to next record, or NULL on I/O error or end of list */
-static __attribute__((nonnull))
+UNIV_INTERN __attribute__((nonnull))
 const byte*
 row_merge_read_rec(
 /*===============*/
@@ -795,8 +873,8 @@ row_merge_read_rec(
 
 	ut_ad(block);
 	ut_ad(buf);
-	ut_ad(b >= block[0]);
-	ut_ad(b < block[1]);
+	ut_ad(b >= &block[0]);
+	ut_ad(b < &block[srv_sort_buf_size]);
 	ut_ad(index);
 	ut_ad(foffs);
 	ut_ad(mrec);
@@ -823,7 +901,7 @@ row_merge_read_rec(
 	if (extra_size >= 0x80) {
 		/* Read another byte of extra_size. */
 
-		if (UNIV_UNLIKELY(b >= block[1])) {
+		if (UNIV_UNLIKELY(b >= &block[srv_sort_buf_size])) {
 			if (!row_merge_read(fd, ++(*foffs), block)) {
 err_exit:
 				/* Signal I/O error. */
@@ -832,7 +910,7 @@ err_exit:
 			}
 
 			/* Wrap around to the beginning of the buffer. */
-			b = block[0];
+			b = &block[0];
 		}
 
 		extra_size = (extra_size & 0x7f) << 8;
@@ -844,12 +922,12 @@ err_exit:
 
 	/* Read the extra bytes. */
 
-	if (UNIV_UNLIKELY(b + extra_size >= block[1])) {
+	if (UNIV_UNLIKELY(b + extra_size >= &block[srv_sort_buf_size])) {
 		/* The record spans two blocks.  Copy the entire record
 		to the auxiliary buffer and handle this as a special
 		case. */
 
-		avail_size = block[1] - b;
+		avail_size = &block[srv_sort_buf_size] - b;
 
 		memcpy(*buf, b, avail_size);
 
@@ -859,7 +937,7 @@ err_exit:
 		}
 
 		/* Wrap around to the beginning of the buffer. */
-		b = block[0];
+		b = &block[0];
 
 		/* Copy the record. */
 		memcpy(*buf + avail_size, b, extra_size - avail_size);
@@ -875,7 +953,7 @@ err_exit:
 		records are much smaller than either buffer, and
 		the record starts near the beginning of each buffer. */
 		ut_a(extra_size + data_size < sizeof *buf);
-		ut_a(b + data_size < block[1]);
+		ut_a(b + data_size < &block[srv_sort_buf_size]);
 
 		/* Copy the data bytes. */
 		memcpy(*buf + extra_size, b, data_size);
@@ -893,7 +971,7 @@ err_exit:
 
 	b += extra_size + data_size;
 
-	if (UNIV_LIKELY(b < block[1])) {
+	if (UNIV_LIKELY(b < &block[srv_sort_buf_size])) {
 		/* The record fits entirely in the block.
 		This is the normal case. */
 		goto func_exit;
@@ -902,7 +980,7 @@ err_exit:
 	/* The record spans two blocks.  Copy it to buf. */
 
 	b -= extra_size + data_size;
-	avail_size = block[1] - b;
+	avail_size = &block[srv_sort_buf_size] - b;
 	memcpy(*buf, b, avail_size);
 	*mrec = *buf + extra_size;
 #ifdef UNIV_DEBUG
@@ -920,7 +998,7 @@ err_exit:
 	}
 
 	/* Wrap around to the beginning of the buffer. */
-	b = block[0];
+	b = &block[0];
 
 	/* Copy the rest of the record. */
 	memcpy(*buf + avail_size, b, extra_size + data_size - avail_size);
@@ -1004,11 +1082,11 @@ row_merge_write_rec(
 
 	ut_ad(block);
 	ut_ad(buf);
-	ut_ad(b >= block[0]);
-	ut_ad(b < block[1]);
+	ut_ad(b >= &block[0]);
+	ut_ad(b < &block[srv_sort_buf_size]);
 	ut_ad(mrec);
 	ut_ad(foffs);
-	ut_ad(mrec < block[0] || mrec > block[1]);
+	ut_ad(mrec < &block[0] || mrec > &block[srv_sort_buf_size]);
 	ut_ad(mrec < buf[0] || mrec > buf[1]);
 
 	/* Normalize extra_size.  Value 0 signals "end of list". */
@@ -1017,10 +1095,10 @@ row_merge_write_rec(
 	size = extra_size + (extra_size >= 0x80)
 		+ rec_offs_data_size(offsets);
 
-	if (UNIV_UNLIKELY(b + size >= block[1])) {
+	if (UNIV_UNLIKELY(b + size >= &block[srv_sort_buf_size])) {
 		/* The record spans two blocks.
 		Copy it to the temporary buffer first. */
-		avail_size = block[1] - b;
+		avail_size = &block[srv_sort_buf_size] - b;
 
 		row_merge_write_rec_low(buf[0],
 					extra_size, size, fd, *foffs,
@@ -1035,10 +1113,10 @@ row_merge_write_rec(
 			return(NULL);
 		}
 
-		UNIV_MEM_INVALID(block[0], sizeof block[0]);
+		UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
 
 		/* Copy the rest. */
-		b = block[0];
+		b = &block[0];
 		memcpy(b, buf[0] + avail_size, size - avail_size);
 		b += size - avail_size;
 	} else {
@@ -1063,8 +1141,8 @@ row_merge_write_eof(
 	ulint*			foffs)	/*!< in/out: file offset */
 {
 	ut_ad(block);
-	ut_ad(b >= block[0]);
-	ut_ad(b < block[1]);
+	ut_ad(b >= &block[0]);
+	ut_ad(b < &block[srv_sort_buf_size]);
 	ut_ad(foffs);
 #ifdef UNIV_DEBUG
 	if (row_merge_print_write) {
@@ -1074,26 +1152,26 @@ row_merge_write_eof(
 #endif /* UNIV_DEBUG */
 
 	*b++ = 0;
-	UNIV_MEM_ASSERT_RW(block[0], b - block[0]);
-	UNIV_MEM_ASSERT_W(block[0], sizeof block[0]);
+	UNIV_MEM_ASSERT_RW(&block[0], b - &block[0]);
+	UNIV_MEM_ASSERT_W(&block[0], srv_sort_buf_size);
 #ifdef UNIV_DEBUG_VALGRIND
 	/* The rest of the block is uninitialized.  Initialize it
 	to avoid bogus warnings. */
-	memset(b, 0xff, block[1] - b);
+	memset(b, 0xff, &block[srv_sort_buf_size] - b);
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	if (!row_merge_write(fd, (*foffs)++, block)) {
 		return(NULL);
 	}
 
-	UNIV_MEM_INVALID(block[0], sizeof block[0]);
-	return(block[0]);
+	UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
+	return(&block[0]);
 }
 
 /*************************************************************//**
 Compare two merge records.
 @return	1, 0, -1 if mrec1 is greater, equal, less, respectively, than mrec2 */
-static
+UNIV_INTERN
 int
 row_merge_cmp(
 /*==========*/
@@ -1124,7 +1202,6 @@ row_merge_cmp(
 
 	return(cmp);
 }
-
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1142,6 +1219,9 @@ row_merge_read_clustered_index(
 					created; identical to old_table
 					unless creating a PRIMARY KEY */
 	dict_index_t**		index,	/*!< in: indexes to be created */
+	dict_index_t*		fts_sort_idx,
+					/*!< in: indexes to be created */
+	fts_psort_t*		psort_info, /*!< in: parallel sort info */
 	merge_file_t*		files,	/*!< in: temporary files */
 	ulint			n_index,/*!< in: number of indexes to create */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
@@ -1158,6 +1238,12 @@ row_merge_read_clustered_index(
 	ulint			n_nonnull = 0;	/* number of columns
 						changed to NOT NULL */
 	ulint*			nonnull = NULL;	/* NOT NULL columns */
+	dict_index_t*		fts_index = NULL;/* FTS index */
+	doc_id_t		doc_id = 0;
+	doc_id_t		max_doc_id = 0;
+	ibool			add_doc_id = FALSE;
+	os_event_t		fts_parallel_sort_event = NULL;
+	ibool			fts_pll_sort = FALSE;
 
 	trx->op_info = "reading clustered index";
 
@@ -1167,13 +1253,46 @@ row_merge_read_clustered_index(
 	ut_ad(index);
 	ut_ad(files);
 
+#ifdef FTS_INTERNAL_DIAG_PRINT
+	DEBUG_FTS_SORT_PRINT("FTS_SORT: Start Create Index\n");
+#endif
+
 	/* Create and initialize memory for record buffers */
 
 	merge_buf = static_cast<row_merge_buf_t**>(
 		mem_alloc(n_index * sizeof *merge_buf));
 
+
 	for (i = 0; i < n_index; i++) {
-		merge_buf[i] = row_merge_buf_create(index[i]);
+		if (index[i]->type & DICT_FTS) {
+
+			/* We are building a FT index, make sure
+			we have the temporary 'fts_sort_idx' */
+			ut_a(fts_sort_idx);
+
+			fts_index = index[i];
+
+			merge_buf[i] = row_merge_buf_create(fts_sort_idx);
+
+			add_doc_id = DICT_TF2_FLAG_IS_SET(
+				old_table, DICT_TF2_FTS_ADD_DOC_ID);
+
+			/* If Doc ID does not exist in the table itself,
+			fetch the first FTS Doc ID */
+			if (add_doc_id) {
+				fts_get_next_doc_id(
+					(dict_table_t*)new_table,
+					 &doc_id);
+				ut_ad(doc_id > 0);
+			}
+
+			fts_pll_sort = TRUE;
+			row_fts_start_psort(psort_info);
+			fts_parallel_sort_event =
+				 psort_info[0].psort_common->sort_event;
+		} else {
+			merge_buf[i] = row_merge_buf_create(index[i]);
+		}
 	}
 
 	mtr_start(&mtr);
@@ -1195,7 +1314,9 @@ row_merge_read_clustered_index(
 		(old) clustered index do not violate the added NOT
 		NULL constraints. */
 
-		ut_a(n_cols == dict_table_get_n_cols(new_table));
+		if (!fts_sort_idx) {
+			ut_a(n_cols == dict_table_get_n_cols(new_table));
+		}
 
 		nonnull = static_cast<ulint*>(
 			mem_alloc(n_cols * sizeof *nonnull));
@@ -1290,6 +1411,13 @@ row_merge_read_clustered_index(
 			}
 		}
 
+		/* Get the next Doc ID */
+		if (add_doc_id) {
+			doc_id++;
+		} else {
+			doc_id = 0;
+		}
+
 		/* Build all entries for all the indexes to be created
 		in a single scan of the clustered index. */
 
@@ -1297,10 +1425,26 @@ row_merge_read_clustered_index(
 			row_merge_buf_t*	buf	= merge_buf[i];
 			merge_file_t*		file	= &files[i];
 			const dict_index_t*	index	= buf->index;
+			ulint			rows_added = 0;
 
 			if (UNIV_LIKELY
-			    (row && row_merge_buf_add(buf, row, ext))) {
-				file->n_rec++;
+			    (row && (rows_added = row_merge_buf_add(
+				buf, fts_index, psort_info,
+				row, ext, &doc_id)))) {
+
+				/* If we are creating FTS index,
+				a single row can generate more
+				records for tokenized word */
+				file->n_rec += rows_added;
+				if (doc_id > max_doc_id) {
+					max_doc_id = doc_id;
+				}
+
+				continue;
+			}
+
+			if ((!row || !doc_id)
+			    && index->type & DICT_FTS) {
 				continue;
 			}
 
@@ -1339,7 +1483,7 @@ row_merge_read_clustered_index(
 				goto func_exit;
 			}
 
-			UNIV_MEM_INVALID(block[0], sizeof block[0]);
+			UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
 			merge_buf[i] = row_merge_buf_empty(buf);
 
 			if (UNIV_LIKELY(row != NULL)) {
@@ -1348,13 +1492,19 @@ row_merge_read_clustered_index(
 				and emptied. */
 
 				if (UNIV_UNLIKELY
-				    (!row_merge_buf_add(buf, row, ext))) {
+				    (!(rows_added = row_merge_buf_add(
+					buf, fts_index, psort_info, row,
+					ext, &doc_id)))) {
 					/* An empty buffer should have enough
-					room for at least one record. */
+					room for at least one record.
+					TODO: for FTS index building, we'll
+					need to prepared for coping with very
+					large text/blob data in a single row
+					that could fill up the merge file */
 					ut_error;
 				}
 
-				file->n_rec++;
+				file->n_rec += rows_added;
 			}
 		}
 
@@ -1366,6 +1516,28 @@ row_merge_read_clustered_index(
 	}
 
 func_exit:
+#ifdef FTS_INTERNAL_DIAG_PRINT
+	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
+#endif
+	if (fts_pll_sort) {
+		for (i = 0; i < fts_sort_pll_degree; i++) {
+			psort_info[i].state = FTS_PARENT_COMPLETE;
+		}
+wait_again:
+		os_event_wait(fts_parallel_sort_event);
+
+		for (i = 0; i < fts_sort_pll_degree; i++) {
+			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
+				os_event_reset(fts_parallel_sort_event);
+				goto wait_again;
+			}
+		}
+	}
+
+#ifdef FTS_INTERNAL_DIAG_PRINT
+	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Tokenization\n");
+#endif
+
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 	mem_heap_free(row_heap);
@@ -1374,11 +1546,20 @@ func_exit:
 		mem_free(nonnull);
 	}
 
+
 	for (i = 0; i < n_index; i++) {
 		row_merge_buf_free(merge_buf[i]);
 	}
 
+	row_fts_free_pll_merge_buf(psort_info);
+
 	mem_free(merge_buf);
+
+	/* Update the next Doc ID we used. Table should be locked, so
+	no concurrent DML */
+	if (max_doc_id) {
+		fts_update_next_doc_id(new_table, old_table->name, max_doc_id);
+	}
 
 	trx->op_info = "";
 
@@ -1386,17 +1567,23 @@ func_exit:
 }
 
 /** Write a record via buffer 2 and read the next record to buffer N.
+@param M	FTS merge info structure
+@param N	index into array of merge info structure
+@param INDEX	the FTS index */
+
+
+/** Write a record via buffer 2 and read the next record to buffer N.
 @param N	number of the buffer (0 or 1)
 @param AT_END	statement to execute at end of input */
 #define ROW_MERGE_WRITE_GET_NEXT(N, AT_END)				\
 	do {								\
-		b2 = row_merge_write_rec(&block[2], &buf[2], b2,	\
+		b2 = row_merge_write_rec(&block[2 * srv_sort_buf_size], &buf[2], b2,	\
 					 of->fd, &of->offset,		\
 					 mrec##N, offsets##N);		\
 		if (UNIV_UNLIKELY(!b2 || ++of->n_rec > file->n_rec)) {	\
 			goto corrupt;					\
 		}							\
-		b##N = row_merge_read_rec(&block[N], &buf[N],		\
+		b##N = row_merge_read_rec(&block[N * srv_sort_buf_size], &buf[N],		\
 					  b##N, index,			\
 					  file->fd, foffs##N,		\
 					  &mrec##N, offsets##N);	\
@@ -1457,19 +1644,19 @@ row_merge_blocks(
 	file in two halves, which can be merged on the following pass. */
 
 	if (!row_merge_read(file->fd, *foffs0, &block[0])
-	    || !row_merge_read(file->fd, *foffs1, &block[1])) {
+	    || !row_merge_read(file->fd, *foffs1, &block[srv_sort_buf_size])) {
 corrupt:
 		mem_heap_free(heap);
 		return(DB_CORRUPTION);
 	}
 
-	b0 = block[0];
-	b1 = block[1];
-	b2 = block[2];
+	b0 = &block[0];
+	b1 = &block[srv_sort_buf_size];
+	b2 = &block[2 * srv_sort_buf_size];
 
 	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index, file->fd,
 				foffs0, &mrec0, offsets0);
-	b1 = row_merge_read_rec(&block[1], &buf[1], b1, index, file->fd,
+	b1 = row_merge_read_rec(&block[srv_sort_buf_size], &buf[srv_sort_buf_size], b1, index, file->fd,
 				foffs1, &mrec1, offsets1);
 	if (UNIV_UNLIKELY(!b0 && mrec0)
 	    || UNIV_UNLIKELY(!b1 && mrec1)) {
@@ -1520,7 +1707,7 @@ done0:
 done1:
 
 	mem_heap_free(heap);
-	b2 = row_merge_write_eof(&block[2], b2, of->fd, &of->offset);
+	b2 = row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd, &of->offset);
 	return(b2 ? DB_SUCCESS : DB_CORRUPTION);
 }
 
@@ -1568,8 +1755,9 @@ corrupt:
 		return(FALSE);
 	}
 
-	b0 = block[0];
-	b2 = block[2];
+	b0 = &block[0];
+
+	b2 = &block[2 * srv_sort_buf_size];
 
 	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index, file->fd,
 				foffs0, &mrec0, offsets0);
@@ -1591,7 +1779,7 @@ done0:
 	(*foffs0)++;
 
 	mem_heap_free(heap);
-	return(row_merge_write_eof(&block[2], b2, of->fd, &of->offset)
+	return(row_merge_write_eof(&block[2 * srv_sort_buf_size], b2, of->fd, &of->offset)
 	       != NULL);
 }
 
@@ -1621,7 +1809,7 @@ row_merge(
 				/*!< half the input file */
 	ulint		ohalf;	/*!< half the output file */
 
-	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
+	UNIV_MEM_ASSERT_W(&block[0], 3 * srv_sort_buf_size);
 	ut_ad(ihalf < file->offset);
 
 	of.fd = *tmpfd;
@@ -1707,7 +1895,7 @@ row_merge(
 	*file = of;
 	*half = ohalf;
 
-	UNIV_MEM_INVALID(block[0], 3 * sizeof block[0]);
+	UNIV_MEM_INVALID(&block[0], 3 * srv_sort_buf_size);
 
 	return(DB_SUCCESS);
 }
@@ -1715,7 +1903,7 @@ row_merge(
 /*************************************************************//**
 Merge disk files.
 @return	DB_SUCCESS or error code */
-static
+UNIV_INTERN
 ulint
 row_merge_sort(
 /*===========*/
@@ -1825,6 +2013,8 @@ row_merge_insert_index_tuples(
 	ut_ad(index);
 	ut_ad(table);
 
+	ut_ad(!(index->type & DICT_FTS));
+
 	/* We use the insert query graph as the dummy graph
 	needed in the row module call */
 
@@ -1850,7 +2040,7 @@ row_merge_insert_index_tuples(
 		offsets[1] = dict_index_get_n_fields(index);
 	}
 
-	b = *block;
+	b = block;
 
 	if (!row_merge_read(fd, foffs, block)) {
 		error = DB_CORRUPTION;
@@ -2059,6 +2249,13 @@ row_merge_drop_index(
 
 	ut_a(err == DB_SUCCESS);
 
+	/* If it is FTS index, drop from table->fts and also drop
+	its auxiliary tables */
+	if (index->type & DICT_FTS) {
+		ut_a(table->fts);
+		fts_drop_index(table, index, trx);
+	}
+
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
@@ -2205,15 +2402,19 @@ row_merge_file_create_low(void)
 #endif
 	return(fd);
 }
+
 /*********************************************************************//**
 Create a merge file. */
-static
+UNIV_INTERN
 void
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
 	merge_file->fd = row_merge_file_create_low();
+	if (srv_disable_sort_file_cache) {
+		os_file_set_nocache(merge_file->fd, "row0merge.c", "sort");
+	}
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
 }
@@ -2241,7 +2442,7 @@ row_merge_file_destroy_low(
 }
 /*********************************************************************//**
 Destroy a merge file. */
-static
+UNIV_INTERN
 void
 row_merge_file_destroy(
 /*===================*/
@@ -2308,14 +2509,19 @@ row_merge_create_temporary_table(
 	ulint		n_cols = dict_table_get_n_user_cols(table);
 	ulint		error;
 	mem_heap_t*	heap = mem_heap_create(1000);
+	ulint		num_col;
 
 	ut_ad(table_name);
 	ut_ad(index_def);
 	ut_ad(table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
+	num_col = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)
+			? n_cols + 1
+			: n_cols;
+
 	new_table = dict_mem_table_create(
-		table_name, 0, n_cols, table->flags, table->flags2);
+		table_name, 0, num_col, table->flags, table->flags2);
 
 	for (i = 0; i < n_cols; i++) {
 		const dict_col_t*	col;
@@ -2328,6 +2534,12 @@ row_merge_create_temporary_table(
 				       row_merge_col_prtype(col, col_name,
 							    index_def),
 				       col->len);
+	}
+
+        /* Add the FTS doc_id hidden column */
+	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+		fts_add_doc_id_column(new_table);
+		new_table->fts->doc_col = n_cols;
 	}
 
 	error = row_create_table_for_mysql(new_table, trx);
@@ -2609,6 +2821,7 @@ row_merge_drop_table(
 	return(row_drop_table_for_mysql(table->name, trx, FALSE));
 }
 
+
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
@@ -2634,8 +2847,12 @@ row_merge_build_indexes(
 	row_merge_block_t*	block;
 	ulint			block_size;
 	ulint			i;
+	ulint			j;
 	ulint			error;
 	int			tmpfd;
+	dict_index_t*		fts_sort_idx = NULL;
+	fts_psort_t*		psort_info = NULL;
+	fts_psort_t*		merge_info = NULL;
 
 	ut_ad(trx);
 	ut_ad(old_table);
@@ -2651,7 +2868,7 @@ row_merge_build_indexes(
 	merge_files = static_cast<merge_file_t*>(
 		mem_alloc(n_indexes * sizeof *merge_files));
 
-	block_size = 3 * sizeof *block;
+	block_size = 3 * srv_sort_buf_size;
 
 	block = static_cast<row_merge_block_t*>(
 		os_mem_alloc_large(&block_size));
@@ -2659,6 +2876,22 @@ row_merge_build_indexes(
 	for (i = 0; i < n_indexes; i++) {
 
 		row_merge_file_create(&merge_files[i]);
+
+		if (indexes[i]->type & DICT_FTS) {
+			ibool	opt_doc_id_size = FALSE;
+
+			/* To build FTS index, we would need to extract
+			doc's word, Doc ID, and word's position, so
+			we need to build a "fts sort index" indexing
+			on above three 'fields' */
+			fts_sort_idx = row_merge_create_fts_sort_index(
+					indexes[i], old_table,
+					&opt_doc_id_size);
+
+			row_fts_psort_info_init(trx, table, new_table,
+						fts_sort_idx, opt_doc_id_size,
+						&psort_info, &merge_info);
+		}
 	}
 
 	tmpfd = row_merge_file_create_low();
@@ -2672,7 +2905,7 @@ row_merge_build_indexes(
 
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, indexes,
-		merge_files, n_indexes, block);
+		fts_sort_idx, psort_info, merge_files, n_indexes, block);
 
 	if (error != DB_SUCCESS) {
 
@@ -2683,22 +2916,77 @@ row_merge_build_indexes(
 	sorting and inserting. */
 
 	for (i = 0; i < n_indexes; i++) {
-		error = row_merge_sort(trx, indexes[i], &merge_files[i],
+		dict_index_t*	sort_idx;
+
+		sort_idx = (indexes[i]->type & DICT_FTS)
+				? fts_sort_idx
+				: indexes[i];
+
+		if (indexes[i]->type & DICT_FTS) {
+			os_event_t	fts_parallel_merge_event;
+
+			fts_parallel_merge_event
+				= merge_info[0].psort_common->sort_event;
+
+			if (FTS_PLL_MERGE) {
+				os_event_reset(fts_parallel_merge_event);
+				row_fts_start_parallel_merge(merge_info);
+wait_again:
+				os_event_wait(fts_parallel_merge_event);
+
+				for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
+					if (merge_info[j].child_status
+					    != FTS_CHILD_COMPLETE) {
+						os_event_reset(
+						fts_parallel_merge_event);
+
+						goto wait_again;
+					}
+				}
+			} else {
+				error = row_fts_merge_insert(
+					sort_idx, new_table,
+					psort_info, 0);
+			}
+
+		} else {
+			error = row_merge_sort(trx, sort_idx, &merge_files[i],
 				       block, &tmpfd, table);
 
-		if (error == DB_SUCCESS) {
-			error = row_merge_insert_index_tuples(
-				trx, indexes[i], new_table,
-				dict_table_zip_size(old_table),
-				merge_files[i].fd, block);
+			if (error == DB_SUCCESS) {
+				error = row_merge_insert_index_tuples(
+					trx, sort_idx, new_table,
+					dict_table_zip_size(old_table),
+					merge_files[i].fd, block);
+			}
+
+#ifdef FTS_INTERNAL_DIAG_PRINT
+			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Insert\n");
+#endif
 		}
 
 		/* Close the temporary file to free up space. */
 		row_merge_file_destroy(&merge_files[i]);
 
+		if (indexes[i]->type & DICT_FTS) {
+			row_fts_psort_info_destroy(psort_info, merge_info);
+		}
+
 		if (error != DB_SUCCESS) {
 			trx->error_key_num = i;
 			goto func_exit;
+		}
+
+		if (fts_enable_diag_print) {
+			char*	name = (char*)indexes[i]->name;
+
+			ut_print_timestamp(stderr);
+
+			if (*name == TEMP_INDEX_PREFIX)  {
+				name++;
+			}
+
+			fprintf(stderr, "Finish build index %s\n", name);
 		}
 	}
 
@@ -2707,6 +2995,10 @@ func_exit:
 
 	for (i = 0; i < n_indexes; i++) {
 		row_merge_file_destroy(&merge_files[i]);
+	}
+
+	if (fts_sort_idx) {
+		dict_mem_index_free(fts_sort_idx);
 	}
 
 	mem_free(merge_files);

@@ -112,6 +112,7 @@ enum db_err {
 					maximum limit */
 	DB_INDEX_CORRUPT,		/*!< we have corrupted index */
 	DB_UNDO_RECORD_TOO_BIG,		/*!< the undo log record is too big */
+	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

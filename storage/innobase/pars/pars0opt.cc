@@ -68,6 +68,7 @@ opt_invert_cmp_op(
 	} else if (op == PARS_GE_TOKEN) {
 		return(PARS_LE_TOKEN);
 	} else {
+		/* TODO: LIKE operator */
 		ut_error;
 	}
 
@@ -165,11 +166,18 @@ opt_look_for_col_in_comparison_before(
 	     || (search_cond->func == '>')
 	     || (search_cond->func == '=')
 	     || (search_cond->func == PARS_GE_TOKEN)
-	     || (search_cond->func == PARS_LE_TOKEN));
+	     || (search_cond->func == PARS_LE_TOKEN)
+	     || (search_cond->func == PARS_LIKE_TOKEN_EXACT)
+	     || (search_cond->func == PARS_LIKE_TOKEN_PREFIX)
+	     || (search_cond->func == PARS_LIKE_TOKEN_SUFFIX)
+	     || (search_cond->func == PARS_LIKE_TOKEN_SUBSTR));
 
 	table = sel_node_get_nth_plan(sel_node, nth_table)->table;
 
-	if ((cmp_type == OPT_EQUAL) && (search_cond->func != '=')) {
+	if ((cmp_type == OPT_EQUAL)
+	    && (search_cond->func != '=')
+	    && (search_cond->func != PARS_LIKE_TOKEN_EXACT)
+            && (search_cond->func != PARS_LIKE_TOKEN_PREFIX)) {
 
 		return(NULL);
 
@@ -177,7 +185,9 @@ opt_look_for_col_in_comparison_before(
 		   && (search_cond->func != '<')
 		   && (search_cond->func != '>')
 		   && (search_cond->func != PARS_GE_TOKEN)
-		   && (search_cond->func != PARS_LE_TOKEN)) {
+		   && (search_cond->func != PARS_LE_TOKEN)
+		   && (search_cond->func != PARS_LIKE_TOKEN_PREFIX)
+                   && (search_cond->func != PARS_LIKE_TOKEN_SUFFIX)) {
 
 		return(NULL);
 	}
@@ -333,6 +343,12 @@ opt_calc_index_goodness(
 	ulint		op;
 	ulint		j;
 
+	/* At least for now we don't support using FTS indexes for queries
+	done through InnoDB's own SQL parser. */
+	if (index->type == DICT_FTS) {
+		return(0);
+	}
+
 	goodness = 0;
 
 	/* Note that as higher level node pointers in the B-tree contain
@@ -417,7 +433,12 @@ opt_op_to_search_mode(
 			ascending order */
 	ulint	op)	/*!< in: operator '=', PARS_GE_TOKEN, ... */
 {
-	if (op == '=') {
+	if (op == '='
+	    || op == PARS_LIKE_TOKEN_EXACT
+	    || op == PARS_LIKE_TOKEN_PREFIX
+	    || op == PARS_LIKE_TOKEN_SUFFIX
+	    || op == PARS_LIKE_TOKEN_SUBSTR) {
+
 		if (asc) {
 			return(PAGE_CUR_GE);
 		} else {
@@ -594,7 +615,11 @@ opt_search_plan_for_table(
 
 		ut_memcpy(plan->tuple_exps, best_index_plan,
 			  n_fields * sizeof(void*));
-		if (best_last_op == '=') {
+		if (best_last_op == '='
+		    || best_last_op == PARS_LIKE_TOKEN_EXACT
+                    || best_last_op == PARS_LIKE_TOKEN_PREFIX
+                    || best_last_op == PARS_LIKE_TOKEN_SUFFIX
+                    || best_last_op == PARS_LIKE_TOKEN_SUBSTR) {
 			plan->n_exact_match = n_fields;
 		} else {
 			plan->n_exact_match = n_fields - 1;

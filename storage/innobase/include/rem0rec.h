@@ -542,7 +542,11 @@ rec_set_nth_field(
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n,	/*!< in: index number of the field */
 	const void*	data,	/*!< in: pointer to the data if not SQL null */
-	ulint		len);	/*!< in: length of the data or UNIV_SQL_NULL */
+	ulint		len);	/*!< in: length of the data or UNIV_SQL_NULL.
+				If not SQL null, must have the same
+				length as the previous value.
+				If SQL null, previous value must be
+				SQL null. */
 /**********************************************************//**
 The following function returns the data size of an old-style physical
 record, that is the sum of field lengths. SQL null fields

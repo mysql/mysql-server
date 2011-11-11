@@ -31,6 +31,7 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "mtr0mtr.h"
 #include "mtr0log.h"
+#include "fts0fts.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
 			===========================
@@ -816,7 +817,8 @@ rec_get_converted_size_comp_prefix(
 			continue;
 		}
 
-		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
+		ut_ad(len <= col->len || col->mtype == DATA_BLOB
+		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
 
 		/* If the maximum length of a variable-length field
 		is up to 255 bytes, the actual length is always stored
@@ -1187,7 +1189,9 @@ rec_convert_dtuple_to_rec_comp(
 			*lens-- = (byte) len;
 		} else {
 			ut_ad(len <= dtype_get_len(type)
-			      || dtype_get_mtype(type) == DATA_BLOB);
+			      || dtype_get_mtype(type) == DATA_BLOB
+			      || !strcmp(index->name,
+					 FTS_INDEX_TABLE_IND_NAME));
 			if (len < 128
 			    || (dtype_get_len(type) < 256
 				&& dtype_get_mtype(type) != DATA_BLOB)) {

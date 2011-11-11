@@ -252,6 +252,15 @@ SET(INNOBASE_SOURCES
 	ha/ha0ha.cc
 	ha/ha0storage.cc
 	ha/hash0hash.cc
+	fts/fts0fts.cc
+	fts/fts0ast.cc
+	fts/fts0blex.cc
+	fts/fts0config.cc
+	fts/fts0opt.cc
+	fts/fts0pars.cc
+	fts/fts0que.cc
+	fts/fts0sql.cc
+	fts/fts0tlex.cc
 	handler/ha_innodb.cc
 	handler/handler0alter.cc
 	handler/i_s.cc

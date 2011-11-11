@@ -24,6 +24,7 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "dict0dict.h"
+#include "fts0fts.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -53,6 +54,8 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
+#include "fts0fts.h"
+#include "fts0types.h"
 #include "row0merge.h"
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str() */
@@ -144,6 +147,15 @@ dict_index_build_internal_non_clust(
 	const dict_table_t*	table,	/*!< in: table */
 	dict_index_t*		index);	/*!< in: user representation of
 					a non-clustered index */
+/**********************************************************************//**
+Builds the internal dictionary cache representation for an FTS index.
+@return	own: the internal representation of the FTS index */
+static
+dict_index_t*
+dict_index_build_internal_fts(
+/*==========================*/
+	dict_table_t*	table,	/*!< in: table */
+	dict_index_t*	index);	/*!< in: user representation of an FTS index */
 /**********************************************************************//**
 Removes a foreign constraint struct from the dictionary cache. */
 static
@@ -464,6 +476,33 @@ dict_table_autoinc_initialize(
 	ut_ad(mutex_own(&table->autoinc_mutex));
 
 	table->autoinc = value;
+}
+
+/************************************************************************
+Get all the FTS indexes on a table.
+@return	number of FTS indexes */
+UNIV_INTERN
+ulint
+dict_table_get_all_fts_indexes(
+/*===========================*/
+	dict_table_t*   table,          /*!< in: table */
+	ib_vector_t*    indexes)        /*!< out: all FTS indexes on this
+					table */
+{
+	dict_index_t* index;
+
+	ut_a(ib_vector_size(indexes) == 0);
+
+	for (index = dict_table_get_first_index(table);
+	     index;
+	     index = dict_table_get_next_index(index)) {
+
+		if (index->type == DICT_FTS) {
+			ib_vector_push(indexes, &index);
+		}
+	}
+
+	return(ib_vector_size(indexes));
 }
 
 /********************************************************************//**
@@ -2007,7 +2046,9 @@ dict_index_add_to_cache(
 	/* Build the cache internal representation of the index,
 	containing also the added system fields */
 
-	if (dict_index_is_clust(index)) {
+	if (index->type == DICT_FTS) {
+		new_index = dict_index_build_internal_fts(table, index);
+	} else if (dict_index_is_clust(index)) {
 		new_index = dict_index_build_internal_clust(table, index);
 	} else {
 		new_index = dict_index_build_internal_non_clust(table, index);
@@ -2226,6 +2267,10 @@ dict_index_remove_from_cache_low(
 	/* Remove the index from the list of indexes of the table */
 	UT_LIST_REMOVE(indexes, table->indexes, index);
 
+	/* Debugging print, will be removed */
+	fprintf(stderr, "InnoDB: remove index %p, index %s from table %s",
+		index, index->name, table->name);
+
 	size = mem_heap_get_size(index->heap);
 
 	ut_ad(dict_sys->size >= size);
@@ -2417,6 +2462,33 @@ dict_table_copy_types(
 
 		dfield_set_null(dfield);
 		dict_col_copy_type(dict_table_get_nth_col(table, i), dtype);
+	}
+}
+
+/********************************************************************
+Wait until all the background threads of the given table have exited, i.e.,
+bg_threads == 0. Note: bg_threads_mutex must be reserved when
+calling this. */
+UNIV_INTERN
+void
+dict_table_wait_for_bg_threads_to_exit(
+/*===================================*/
+	dict_table_t*	table,	/*< in: table */
+	ulint		delay)	/*< in: time in microseconds to wait between
+				checks of bg_threads. */
+{
+	fts_t*		fts = table->fts;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&fts->bg_threads_mutex));
+#endif /* UNIV_SYNC_DEBUG */
+
+	while (fts->bg_threads > 0) {
+		mutex_exit(&fts->bg_threads_mutex);
+
+		os_thread_sleep(delay);
+
+		mutex_enter(&fts->bg_threads_mutex);
 	}
 }
 
@@ -2667,6 +2739,54 @@ dict_index_build_internal_non_clust(
 	return(new_index);
 }
 
+/***********************************************************************
+Builds the internal dictionary cache representation for an FTS index.
+@return	own: the internal representation of the FTS index */
+static
+dict_index_t*
+dict_index_build_internal_fts(
+/*==========================*/
+	dict_table_t*	table,	/*!< in: table */
+	dict_index_t*	index)	/*!< in: user representation of an FTS index */
+{
+	dict_index_t*	new_index;
+
+	ut_ad(table && index);
+	ut_ad(index->type == DICT_FTS);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	/* Create a new index */
+	new_index = dict_mem_index_create(
+		table->name, index->name, index->space, index->type,
+		index->n_fields);
+
+	/* Copy other relevant data from the old index struct to the new
+	struct: it inherits the values */
+
+	new_index->n_user_defined_cols = index->n_fields;
+
+	new_index->id = index->id;
+
+	/* Copy fields from index to new_index */
+	dict_index_copy(new_index, index, table, 0, index->n_fields);
+
+	new_index->n_uniq = 0;
+	new_index->cached = TRUE;
+
+	if (table->fts->cache == NULL) {
+		table->fts->cache = fts_cache_create(table);
+	}
+
+	rw_lock_x_lock(&table->fts->cache->init_lock);
+	/* Notify the FTS cache about this index. */
+	fts_cache_index_cache_create(table, new_index);
+	rw_lock_x_unlock(&table->fts->cache->init_lock);
+
+	return(new_index);
+}
 /*====================== FOREIGN KEY PROCESSING ========================*/
 
 /*********************************************************************//**
@@ -2848,7 +2968,8 @@ dict_foreign_find_index(
 	while (index != NULL) {
 		/* Ignore matches that refer to the same instance
 		or the index is to be dropped */
-		if (index->to_be_dropped || types_idx == index) {
+		if (index->to_be_dropped || types_idx == index
+		    || index->type & DICT_FTS) {
 
 			goto next_rec;
 
@@ -4297,6 +4418,23 @@ try_find_index:
 
 	goto loop;
 }
+/**************************************************************************
+Determines whether a string starts with the specified keyword.
+@return	TRUE if str starts with keyword */
+UNIV_INTERN
+ibool
+dict_str_starts_with_keyword(
+/*=========================*/
+	void*		mysql_thd,	/*!< in: MySQL thread handle */
+	const char*	str,		/*!< in: string to scan for keyword */
+	const char*	keyword)	/*!< in: keyword to look for */
+{
+	struct charset_info_st*	cs = innobase_get_charset(mysql_thd);
+	ibool			success;
+
+	dict_accept(cs, str, keyword, &success);
+	return(success);
+}
 
 /*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary the foreign
@@ -5393,10 +5531,15 @@ dict_table_get_index_on_name(
 {
 	dict_index_t*	index;
 
+	/* If name is NULL, just return */
+	if (!name) {
+		return NULL;
+	}
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
-		if (ut_strcmp(index->name, name) == 0) {
+		if (innobase_strcasecmp(index->name, name) == 0) {
 
 			return(index);
 		}

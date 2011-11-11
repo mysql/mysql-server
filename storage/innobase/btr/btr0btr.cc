@@ -4533,6 +4533,12 @@ btr_validate_index(
 	ulint	i;
 	ulint	n;
 
+	/* Full Text index are implemented by auxiliary tables,
+	not the B-tree */
+	if (index->type & DICT_FTS) {
+		return(TRUE);
+	}
+
 	mtr_start(&mtr);
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 

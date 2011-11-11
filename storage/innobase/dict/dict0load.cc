@@ -960,14 +960,48 @@ dict_load_columns(
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
-		const char* err_msg;
+		const char*	err_msg;
+		const char*	name;
 
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		err_msg = dict_load_column_low(table, heap, NULL, NULL,
-					       NULL, rec);
+					       &name, rec);
+
+		/* Note: Currently we have one DOC_ID column that is
+		shared by all FTS indexes on a table. */
+		if (innobase_strcasecmp(name,
+					FTS_DOC_ID_COL_NAME) == 0) {
+			dict_col_t*	col;
+			/* As part of normal loading of tables the
+			table->flag is not set for tables with FTS
+			till after the FTS indexes are loaded. So we
+			create the fts_t instance here if there isn't
+			one already created.
+
+			This case does not arise for table create as
+			the flag is set before the table is created. */
+			if (table->fts == NULL) {
+				table->fts = fts_create(table);
+			}
+
+			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
+
+			col = dict_table_get_nth_col(table, i);
+
+			ut_ad(col->len == sizeof(doc_id_t));
+
+			if (col->prtype & DATA_FTS_DOC_ID) {
+				DICT_TF2_FLAG_SET(
+					table, DICT_TF2_FTS_HAS_DOC_ID);
+				DICT_TF2_FLAG_UNSET(
+					table, DICT_TF2_FTS_ADD_DOC_ID);
+			}
+
+			table->fts->doc_col = i;
+		}
 
 		if (err_msg) {
 			fprintf(stderr, "InnoDB: %s\n", err_msg);
@@ -1414,10 +1448,17 @@ dict_load_indexes(
 			}
 		}
 
+		if (index->type & DICT_FTS
+		    && !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS)) {
+			/* This should have been created by now. */
+			ut_a(table->fts != NULL);
+			DICT_TF2_FLAG_SET(table, DICT_TF2_FTS);
+		}
+
 		/* We check for unsupported types first, so that the
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
-				    | DICT_CORRUPT)) {
+				    | DICT_CORRUPT | DICT_FTS)) {
 			fprintf(stderr,
 				"InnoDB: Error: unknown type %lu"
 				" of index %s of table %s\n",
@@ -1426,7 +1467,8 @@ dict_load_indexes(
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
 			goto func_exit;
-		} else if (index->page == FIL_NULL) {
+		} else if (index->page == FIL_NULL
+			   && (!(index->type & DICT_FTS))) {
 
 			fprintf(stderr,
 				"InnoDB: Error: trying to load index %s"
@@ -1489,9 +1531,15 @@ corrupted:
 				goto func_exit;
 			}
 		}
-
 next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	}
+
+	/* If the table contains FTS indexes, populate table->fts->indexes */
+	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS)) {
+		/* table->fts->indexes should have been created. */
+		ut_a(table->fts->indexes != NULL);
+		dict_table_get_all_fts_indexes(table, table->fts->indexes);
 	}
 
 func_exit:

@@ -100,8 +100,9 @@ string_append(
 
 %}
 
-DIGIT	[0-9]
-ID	[a-z_A-Z][a-z_A-Z0-9]*
+DIGIT		[0-9]
+ID		[a-z_A-Z][a-z_A-Z0-9]*
+TABLE_NAME	[a-z_A-Z][a-z_A-Z0-9]*\/(#sql-|[a-z_A-Z])[a-z_A-Z0-9]*
 BOUND_LIT	\:[a-z_A-Z0-9]+
 BOUND_ID	\$[a-z_A-Z0-9]+
 
@@ -253,27 +254,27 @@ In the state 'id', only two actions are possible (defined below). */
 }
 
 "BINARY"	{
-	 		return(PARS_BINARY_TOKEN);
+			return(PARS_BINARY_TOKEN);
 }
 
 "BLOB"		{
-	 		return(PARS_BLOB_TOKEN);
+			return(PARS_BLOB_TOKEN);
 }
 
 "INT"		{
-	 		return(PARS_INT_TOKEN);
+			return(PARS_INT_TOKEN);
 }
 
 "INTEGER"	{
-	 		return(PARS_INT_TOKEN);
+			return(PARS_INT_TOKEN);
 }
 
 "FLOAT"		{
-	 		return(PARS_FLOAT_TOKEN);
+			return(PARS_FLOAT_TOKEN);
 }
 
 "CHAR"		{
-	 		return(PARS_CHAR_TOKEN);
+			return(PARS_CHAR_TOKEN);
 }
 
 "IS"		{
@@ -404,16 +405,24 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_TABLE_TOKEN);
 }
 
+"COMPACT"	{
+			return(PARS_COMPACT_TOKEN);
+}
+
+"BLOCK_SIZE"	{
+			return(PARS_BLOCK_SIZE_TOKEN);
+}
+
 "INDEX"		{
-	 		return(PARS_INDEX_TOKEN);
+			return(PARS_INDEX_TOKEN);
 }
 
 "UNIQUE"	{
-	 		return(PARS_UNIQUE_TOKEN);
+			return(PARS_UNIQUE_TOKEN);
 }
 
 "CLUSTERED"	{
-	 		return(PARS_CLUSTERED_TOKEN);
+			return(PARS_CLUSTERED_TOKEN);
 }
 
 "DOES_NOT_FIT_IN_MEMORY"	{
@@ -421,7 +430,7 @@ In the state 'id', only two actions are possible (defined below). */
 }
 
 "ON"		{
-	 		return(PARS_ON_TOKEN);
+			return(PARS_ON_TOKEN);
 }
 
 "DECLARE"	{
@@ -544,11 +553,26 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_MODE_TOKEN);
 }
 
+"LIKE"  {
+                        return(PARS_LIKE_TOKEN);
+}
+
+"BIGINT"	{
+			return(PARS_BIGINT_TOKEN);
+}
+
 {ID}		{
 			yylval = sym_tab_add_id(pars_sym_tab_global,
 							(byte*)yytext,
 							ut_strlen(yytext));
 			return(PARS_ID_TOKEN);
+}
+
+{TABLE_NAME}	{
+			yylval = sym_tab_add_id(pars_sym_tab_global,
+							(byte*)yytext,
+							ut_strlen(yytext));
+			return(PARS_TABLE_NAME_TOKEN);
 }
 
 ".."		{

@@ -66,6 +66,16 @@ ib_wqueue_add(
 	mem_heap_t*	heap);	/*!< in: memory heap to use for allocating the
 				list node */
 
+/********************************************************************
+Check if queue is empty. */
+
+ibool
+ib_wqueue_is_empty(
+/*===============*/
+					/* out: TRUE if queue empty
+					else FALSE */
+	const ib_wqueue_t*      wq);    /* in: work queue */
+
 /****************************************************************//**
 Wait for a work item to appear in the queue.
 @return	work item */
@@ -74,6 +84,16 @@ void*
 ib_wqueue_wait(
 /*===========*/
 	ib_wqueue_t*	wq);	/*!< in: work queue */
+
+/********************************************************************
+Wait for a work item to appear in the queue for specified time. */
+
+void*
+ib_wqueue_timedwait(
+/*================*/
+					/* out: work item or NULL on timeout*/
+	ib_wqueue_t*	wq,		/* in: work queue */
+	ib_time_t	wait_in_usecs); /* in: wait time in micro seconds */
 
 /* Work queue. */
 struct ib_wqueue_struct {
