@@ -1,4 +1,16 @@
 {
+   open_problem
+   drd:ConflictingAccess
+   fun:open64
+}
+
+{
+   read_problem
+   drd:ConflictingAccess
+   fun:read
+}
+
+{
    write_problem
    drd:ConflictingAccess
    fun:write
@@ -17,7 +29,19 @@
 }
 
 {
-   pwrite_problem
+   fsync_problem
    drd:ConflictingAccess
    fun:fsync
+}
+
+{
+   lseek_problem
+   drd:ConflictingAccess
+   fun:lseek
+}
+
+{
+   close_problem
+   drd:ConflictingAccess
+   fun:close
 }
