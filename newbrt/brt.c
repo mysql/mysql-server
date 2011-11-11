@@ -235,10 +235,6 @@ nonleaf_node_is_gorged (BRTNODE node) {
 	    (!buffers_are_empty));
 }
 
-static inline void add_to_brt_status(u_int64_t* val, u_int64_t data) {
-    (*val) += data;
-}
-
 static void brtnode_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
@@ -2173,7 +2169,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
     if (cmd->type == BRT_UPDATE) {
         // key is passed in with command (should be same as from le)
         // update function extra is passed in with command
-        add_to_brt_status(&brt_status.updates,1);
+        toku_sync_fetch_and_increment_uint64(&brt_status.updates);
         keyp = cmd->u.id.key;
         update_function_extra = cmd->u.id.val;
     } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
@@ -2182,7 +2178,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE b
         assert(le);  // for broadcast updates, we just hit all leafentries
                      // so this cannot be null
         assert(cmd->u.id.key->size == 0);
-        add_to_brt_status(&brt_status.updates_broadcast,1);
+        toku_sync_fetch_and_increment_uint64(&brt_status.updates_broadcast);
         keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
         update_function_extra = cmd->u.id.val;
     } else {
@@ -3411,7 +3407,7 @@ void toku_apply_cmd_to_leaf(
                                  snapshot_txnids,
                                  live_list_reverse);
             } else {
-                add_to_brt_status(&brt_status.msn_discards,1);
+                toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
             }
         }
     }
@@ -3434,7 +3430,7 @@ void toku_apply_cmd_to_leaf(
                                      live_list_reverse);
                     if (bn_made_change) *made_change = 1;
                 } else {
-                    add_to_brt_status(&brt_status.msn_discards,1);
+                    toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
                 }
             }
         }
@@ -5725,7 +5721,7 @@ do_brt_leaf_put_cmd(BRT t, BASEMENTNODE bn, BRTNODE ancestor, int childnum, OMT 
         }
         brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), snapshot_txnids, live_list_reverse);
     } else {
-        add_to_brt_status(&brt_status.msn_discards,1);
+        toku_sync_fetch_and_increment_uint64(&brt_status.msn_discards);
     }
 }
 
