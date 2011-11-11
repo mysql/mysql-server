@@ -96,6 +96,87 @@ UNIV_INTERN pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 UNIV_INTERN ulint	pars_star_denoter	= 12345678;
 
 
+/********************************************************************
+Get user function with the given name.*/
+UNIV_INLINE
+pars_user_func_t*
+pars_info_lookup_user_func(
+/*=======================*/
+					/* out: user func, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: function name to find*/
+{
+	if (info && info->funcs) {
+		ulint		i;
+		ib_vector_t*	vec = info->funcs;
+
+		for (i = 0; i < ib_vector_size(vec); i++) {
+			pars_user_func_t*	puf = static_cast<pars_user_func_t*>(ib_vector_get(vec, i));
+
+			if (strcmp(puf->name, name) == 0) {
+				return(puf);
+			}
+		}
+	}
+
+	return(NULL);
+}
+
+/********************************************************************
+Get bound identifier with the given name.*/
+UNIV_INLINE
+pars_bound_id_t*
+pars_info_lookup_bound_id(
+/*======================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound literal name to find */
+{
+	if (info && info->bound_ids) {
+		ulint		i;
+		ib_vector_t*	vec = info->bound_ids;
+
+		for (i = 0; i < ib_vector_size(vec); i++) {
+			pars_bound_id_t*	bid = static_cast<pars_bound_id_t*>(ib_vector_get(vec, i));
+
+			if (strcmp(bid->name, name) == 0) {
+				return(bid);
+			}
+		}
+	}
+
+	return(NULL);
+}
+
+/********************************************************************
+Get bound literal with the given name.*/
+UNIV_INLINE
+pars_bound_lit_t*
+pars_info_lookup_bound_lit(
+/*=======================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound literal name to find */
+{
+	if (info && info->bound_lits) {
+		ulint		i;
+		ib_vector_t*	vec = info->bound_lits;
+
+		for (i = 0; i < ib_vector_size(vec); i++) {
+			pars_bound_lit_t*	pbl = static_cast<pars_bound_lit_t*>(ib_vector_get(vec, i));
+
+			if (strcmp(pbl->name, name) == 0) {
+				return(pbl);
+			}
+		}
+	}
+
+	return(NULL);
+}
+
 /*********************************************************************//**
 Determines the class of a function code.
 @return	function class: PARS_FUNC_ARITH, ... */
@@ -2035,6 +2116,63 @@ pars_info_add_str_literal(
 			      DATA_VARCHAR, DATA_ENGLISH);
 }
 
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry.*/
+UNIV_INTERN
+void
+pars_info_bind_literal(
+/*===================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const void*	address,	/* in: address */
+	ulint		length,		/* in: length of data */
+	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype)		/* in: precise type, e.g. */
+{
+	pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, address, length, type, prtype);
+	} else {
+		pbl->address = address;
+		pbl->length = length;
+
+		sym_tab_rebind_lit(pbl->node, address, length);
+	}
+}
+
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry.*/
+UNIV_INTERN
+void
+pars_info_bind_varchar_literal(
+/*===========================*/
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	const byte*	str,		/*!< in: string */
+	ulint		str_len)	/*!< in: string length */
+{
+	pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, str, str_len, DATA_VARCHAR, DATA_ENGLISH);
+	} else {
+
+		pbl->address = str;
+		pbl->length = str_len;
+
+		sym_tab_rebind_lit(pbl->node, str, str_len);
+	}
+}
+
 /****************************************************************//**
 Equivalent to:
 
@@ -2056,6 +2194,60 @@ pars_info_add_int4_literal(
 
 	mach_write_to_4(buf, val);
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+}
+
+
+/****************************************************************//**
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_int4_literal(
+/*========================*/
+	pars_info_t*		info,   /* in: info struct */
+	const char*		name,   /* in: name */
+	const ib_uint32_t*	val)    /* in: value */
+{
+	pars_bound_lit_t*       pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(info, name, val, 4, DATA_INT, 0);
+	} else {
+
+		pbl->address = val;
+		pbl->length = sizeof(*val);
+
+		sym_tab_rebind_lit(pbl->node, val, sizeof(*val));
+	}
+}
+
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_int8_literal(
+/*========================*/
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name,	/* in: name */
+	const ib_uint64_t*	val)	/* in: value */
+{
+        pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, val, sizeof(*val), DATA_INT, 0);
+	} else {
+
+		pbl->address = val;
+		pbl->length = sizeof(*val);
+
+		sym_tab_rebind_lit(pbl->node, val, sizeof(*val));
+	}
 }
 
 /****************************************************************//**
@@ -2080,6 +2272,78 @@ pars_info_add_ull_literal(
 	mach_write_to_8(buf, val);
 
 	pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
+}
+
+/****************************************************************//**
+Add user function. */
+UNIV_INTERN
+void
+pars_info_bind_function(
+/*====================*/
+	pars_info_t*            info,   /*!< in: info struct */
+	const char*             name,   /*!< in: function name */
+	pars_user_func_cb_t     func,   /*!< in: function address */
+	void*                   arg)    /*!< in: user-supplied argument */
+{
+	pars_user_func_t*       puf;
+
+	puf = pars_info_lookup_user_func(info, name);
+
+	if (!puf) {
+		if (!info->funcs) {
+			ib_alloc_t*     heap_alloc;
+
+			heap_alloc = ib_heap_allocator_create(info->heap);
+
+			info->funcs = ib_vector_create(
+				heap_alloc, sizeof(*puf), 8);
+		}
+
+		/* Create a "new" element */
+		puf = static_cast<pars_user_func_t*>(
+			ib_vector_push(info->funcs, NULL));
+		puf->name = name;
+	}
+
+	puf->arg = arg;
+        puf->func = func;
+}
+
+/********************************************************************
+Add bound id. */
+UNIV_INTERN
+void
+pars_info_bind_id(
+/*==============*/
+	pars_info_t*    info,           /*!< in: info struct */
+	ibool           copy_name,      /* in: copy name if TRUE */
+	const char*     name,           /*!< in: name */
+	const char*     id)             /*!< in: id */
+{
+	pars_bound_id_t*        bid;
+
+	bid = pars_info_lookup_bound_id(info, name);
+
+	if (!bid) {
+
+		if (!info->bound_ids) {
+			ib_alloc_t*     heap_alloc;
+
+			heap_alloc = ib_heap_allocator_create(info->heap);
+
+			info->bound_ids = ib_vector_create(
+				heap_alloc, sizeof(*bid), 8);
+		}
+
+		/* Create a "new" element */
+		bid = static_cast<pars_bound_id_t*>(
+			ib_vector_push(info->bound_ids, NULL));
+
+		bid->name = (copy_name)
+		    ? mem_heap_strdup(info->heap, name) : name;
+        }
+
+        bid->id = id;
 }
 
 /****************************************************************//**
