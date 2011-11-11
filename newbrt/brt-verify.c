@@ -114,7 +114,7 @@ count_msgs(OMTVALUE v, u_int32_t UU(idx), void *ve)
     const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
     DBT dbt;
     const DBT *buffer_key = fill_dbt_for_fifo_entry(&dbt, entry);
-    if (e->cmp(e->cmp_extra, e->key, buffer_key) == 0 && entry->msn.msn == e->msn.msn) {
+    if (entry->msn.msn == e->msn.msn && e->cmp(e->cmp_extra, e->key, buffer_key) == 0) {
         e->count++;
     }
     return 0;
