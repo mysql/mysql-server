@@ -6598,3 +6598,12 @@ ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
 ER_DA_INVALID_CONDITION_NUMBER 35000
   eng "Invalid condition number"
   por "Número de condição inválido"
+
+ER_INSECURE_PLAIN_TEXT
+  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
+
+ER_INSECURE_CHANGE_MASTER
+  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
+
+ER_SQLTHREAD_WITH_SECURE_SALVE
+  eng "Setting authentication options is not possible when only the Slave SQL Thread is being started."
