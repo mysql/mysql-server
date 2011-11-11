@@ -10385,7 +10385,29 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
-  group= 0;
+
+  if (!group_optimized_away)
+  {
+    group= false;
+  }
+  else
+  {
+    /*
+      If grouping has been optimized away, a temporary table is
+      normally not needed unless we're explicitly requested to create
+      one (e.g. due to a SQL_BUFFER_RESULT hint or INSERT ... SELECT).
+
+      In this case (grouping was optimized away), tmp_table was
+      created without a grouping expression and JOIN::exec() will not
+      perform the necessary grouping (by the use of end_send_group()
+      or end_write_group()) if JOIN::group is set to false.
+    */
+    // the temporary table was explicitly requested
+    DBUG_ASSERT(test(select_options & OPTION_BUFFER_RESULT));
+    // the temporary table does not have a grouping expression
+    DBUG_ASSERT(!tmp_table->group); 
+  }
+
   row_limit= unit->select_limit_cnt;
   do_send_rows= row_limit ? 1 : 0;
 
