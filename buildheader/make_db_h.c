@@ -552,6 +552,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        partial_fetch_hit;        /* node partition is present             */ \n");
     printf("  u_int64_t        partial_fetch_miss;       /* node is present but partition is absent */ \n");
     printf("  u_int64_t        partial_fetch_compressed; /* node partition is present but compressed  */ \n");
+    printf("  u_int64_t        partial_evictions_internal; /* number of internal node partial evictions */ \n");
+    printf("  u_int64_t        partial_evictions_leaf;   /* number of leaf node partial evictions */ \n");
     printf("  u_int64_t        msn_discards;             /* how many messages were ignored by leaf because of msn */ \n");
     printf("  u_int64_t        max_workdone;             /* max workdone value of any buffer  */ \n");
     printf("  u_int64_t        dsn_gap;                  /* dsn has detected a gap in continuity of root-to-leaf path (internal node was evicted and re-read) */ \n");

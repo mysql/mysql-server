@@ -811,6 +811,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
+                    brt_status.partial_evictions_internal++;
                     cilk_spawn compress_internal_node_partition(node, i);
                 }
                 else {
@@ -832,6 +833,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
         for (int i = 0; i < node->n_children; i++) {
             // Get rid of compressed stuff no matter what.
             if (BP_STATE(node,i) == PT_COMPRESSED) {
+                brt_status.partial_evictions_leaf++;
                 SUB_BLOCK sb = BSB(node, i);
                 toku_free(sb->compressed_ptr);
                 toku_free(sb);
@@ -840,10 +842,11 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
             }
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
+                    brt_status.partial_evictions_leaf++;
                     // free the basement node
                     BASEMENTNODE bn = BLB(node, i);
-		    struct mempool * mp = &bn->buffer_mempool;
-		    toku_mempool_destroy(mp);
+                    struct mempool * mp = &bn->buffer_mempool;
+                    toku_mempool_destroy(mp);
                     destroy_basement_node(bn);
                     set_BNULL(node,i);
                     BP_STATE(node,i) = PT_ON_DISK;
