@@ -429,11 +429,14 @@ static void test_loader(DB **dbs)
 		r = dbs[i]->stat64(dbs[i], txn, &stats);
 		CKERR(r);
                 if (verbose)
-                    printf("n_keys=%" PRIu64 " n_data=%" PRIu64 " dsize=%" PRIu64 " fsize=%" PRIu64 "\n",
-                           stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
-		assert(stats.bt_nkeys == (u_int64_t)NUM_ROWS);
-		assert(stats.bt_ndata == (u_int64_t)NUM_ROWS);
-		assert(stats.bt_dsize == ((u_int64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
+                    printf("NUM_ROWS=%d n_keys=%" PRIu64 " n_data=%" PRIu64 " dsize=%" PRIu64 " fsize=%" PRIu64 "\n",
+                           NUM_ROWS, stats.bt_nkeys, stats.bt_ndata, stats.bt_dsize, stats.bt_fsize);
+		assert(stats.bt_nkeys <= (u_int64_t)NUM_ROWS);  // Fix as part of #4129.  Was ==
+		assert(stats.bt_ndata <= (u_int64_t)NUM_ROWS);
+		// Fix as part of #4129.
+		// Was: 	//assert(stats.bt_dsize == ((u_int64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
+		// Now is
+		assert(stats.bt_dsize == stats.bt_nkeys * 100);
 		r = txn->commit(txn, 0);
 		CKERR(r);
 	    }
@@ -492,6 +495,7 @@ static void run_test(void)
     }
 
     r = db_env_create(&env, 0);                                                                           CKERR(r);
+    r = env->set_redzone(env, 0);                                                                         CKERR(r);
     r = env->set_tmp_dir(env, tmp_subdir);                                                                CKERR(r);
     
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
