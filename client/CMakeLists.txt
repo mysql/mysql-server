@@ -72,7 +72,14 @@ IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c)
 ENDIF(WIN32)
 
-SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap mysql_plugin 
+SET_TARGET_PROPERTIES (
+  mysql_plugin 
+  mysql_upgrade
+  mysqlcheck
+  mysqldump
+  mysqlimport
+  mysqlshow
+  mysqlslap
 PROPERTIES HAS_CXX TRUE)
 
 ADD_DEFINITIONS(-DHAVE_DLOPEN)

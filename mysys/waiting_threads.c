@@ -356,7 +356,7 @@ struct st_wt_resource {
   uint            waiter_count;
   enum { ACTIVE, FREE } state;
 #ifndef DBUG_OFF
-  pthread_mutex_t  *cond_mutex; /* a mutex for the 'cond' below */
+  mysql_mutex_t  *cond_mutex; /* a mutex for the 'cond' below */
 #endif
   /*
     before the 'lock' all elements are mutable, after (and including) -
@@ -395,8 +395,8 @@ struct st_wt_resource {
     the contention is expected to be low.
   */
   struct {
-    pthread_cond_t   cond;
-    pthread_mutex_t  mutex;
+    mysql_cond_t   cond;
+    mysql_mutex_t  mutex;
     uint readers: 16;
     uint pending_writers: 15;
     uint write_locked: 1;
@@ -404,55 +404,55 @@ struct st_wt_resource {
 #else
   rw_lock_t lock;
 #endif
-  pthread_cond_t   cond; /* the corresponding mutex is provided by the caller */
+  mysql_cond_t     cond; /* the corresponding mutex is provided by the caller */
   DYNAMIC_ARRAY    owners;
 };
 
 #ifdef  WT_RWLOCKS_USE_MUTEXES
 static void rc_rwlock_init(WT_RESOURCE *rc)
 {
-  pthread_cond_init(&rc->lock.cond, 0);
-  pthread_mutex_init(&rc->lock.mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(0, &rc->lock.cond, 0);
+  mysql_mutex_init(0, &rc->lock.mutex, MY_MUTEX_INIT_FAST);
 }
 static void rc_rwlock_destroy(WT_RESOURCE *rc)
 {
   DBUG_ASSERT(rc->lock.write_locked == 0);
   DBUG_ASSERT(rc->lock.readers == 0);
-  pthread_cond_destroy(&rc->lock.cond);
-  pthread_mutex_destroy(&rc->lock.mutex);
+  mysql_cond_destroy(&rc->lock.cond);
+  mysql_mutex_destroy(&rc->lock.mutex);
 }
 static void rc_rdlock(WT_RESOURCE *rc)
 {
   DBUG_PRINT("wt", ("TRYLOCK resid=%ld for READ", (ulong)rc->id.value));
-  pthread_mutex_lock(&rc->lock.mutex);
+  mysql_mutex_lock(&rc->lock.mutex);
   while (rc->lock.write_locked)
-    pthread_cond_wait(&rc->lock.cond, &rc->lock.mutex);
+    mysql_cond_wait(&rc->lock.cond, &rc->lock.mutex);
   rc->lock.readers++;
-  pthread_mutex_unlock(&rc->lock.mutex);
+  mysql_mutex_unlock(&rc->lock.mutex);
   DBUG_PRINT("wt", ("LOCK resid=%ld for READ", (ulong)rc->id.value));
 }
 static void rc_wrlock(WT_RESOURCE *rc)
 {
   DBUG_PRINT("wt", ("TRYLOCK resid=%ld for WRITE", (ulong)rc->id.value));
-  pthread_mutex_lock(&rc->lock.mutex);
+  mysql_mutex_lock(&rc->lock.mutex);
   while (rc->lock.write_locked || rc->lock.readers)
-    pthread_cond_wait(&rc->lock.cond, &rc->lock.mutex);
+    mysql_cond_wait(&rc->lock.cond, &rc->lock.mutex);
   rc->lock.write_locked= 1;
-  pthread_mutex_unlock(&rc->lock.mutex);
+  mysql_mutex_unlock(&rc->lock.mutex);
   DBUG_PRINT("wt", ("LOCK resid=%ld for WRITE", (ulong)rc->id.value));
 }
 static void rc_unlock(WT_RESOURCE *rc)
 {
   DBUG_PRINT("wt", ("UNLOCK resid=%ld", (ulong)rc->id.value));
-  pthread_mutex_lock(&rc->lock.mutex);
+  mysql_mutex_lock(&rc->lock.mutex);
   if (rc->lock.write_locked)
   {
     rc->lock.write_locked= 0;
-    pthread_cond_broadcast(&rc->lock.cond);
+    mysql_cond_broadcast(&rc->lock.cond);
   }
   else if (--rc->lock.readers == 0)
-    pthread_cond_broadcast(&rc->lock.cond);
-  pthread_mutex_unlock(&rc->lock.mutex);
+    mysql_cond_broadcast(&rc->lock.cond);
+  mysql_mutex_unlock(&rc->lock.mutex);
 }
 #else
 static void rc_rwlock_init(WT_RESOURCE *rc)
@@ -501,7 +501,7 @@ static void wt_resource_init(uchar *arg)
 
   memset(rc, 0, sizeof(*rc));
   rc_rwlock_init(rc);
-  pthread_cond_init(&rc->cond, 0);
+  mysql_cond_init(0, &rc->cond, 0);
   my_init_dynamic_array(&rc->owners, sizeof(WT_THD *), 0, 5);
   DBUG_VOID_RETURN;
 }
@@ -519,7 +519,7 @@ static void wt_resource_destroy(uchar *arg)
 
   DBUG_ASSERT(rc->owners.elements == 0);
   rc_rwlock_destroy(rc);
-  pthread_cond_destroy(&rc->cond);
+  mysql_cond_destroy(&rc->cond);
   delete_dynamic(&rc->owners);
   DBUG_VOID_RETURN;
 }
@@ -898,7 +898,7 @@ static int deadlock(WT_THD *thd, WT_THD *blocker, uint depth,
   {
     DBUG_PRINT("wt", ("killing %s", arg.victim->name));
     arg.victim->killed= 1;
-    pthread_cond_broadcast(&arg.victim->waiting_for->cond);
+    mysql_cond_broadcast(&arg.victim->waiting_for->cond);
     rc_unlock(arg.victim->waiting_for);
     ret= WT_OK;
   }
@@ -1136,7 +1136,7 @@ retry:
 
   @return one of WT_TIMEOUT, WT_DEADLOCK, WT_OK
 */
-int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
+int wt_thd_cond_timedwait(WT_THD *thd, mysql_mutex_t *mutex)
 {
   int ret= WT_TIMEOUT;
   struct timespec timeout;
@@ -1150,7 +1150,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
     DBUG_ASSERT(rc->cond_mutex == mutex);
   else
     rc->cond_mutex= mutex;
-  safe_mutex_assert_owner(mutex);
+  mysql_mutex_assert_owner(mutex);
 #endif
 
   before= starttime= my_getsystime();
@@ -1177,7 +1177,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
 
   set_timespec_time_nsec(timeout, starttime, (*thd->timeout_short)*1000ULL);
   if (ret == WT_TIMEOUT && !thd->killed)
-    ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
+    ret= mysql_cond_timedwait(&rc->cond, mutex, &timeout);
   if (ret == WT_TIMEOUT && !thd->killed)
   {
     int r= deadlock(thd, thd, 0, *thd->deadlock_search_depth_long);
@@ -1189,7 +1189,7 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
     {
       set_timespec_time_nsec(timeout, starttime, (*thd->timeout_long)*1000ULL);
       if (!thd->killed)
-        ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
+        ret= mysql_cond_timedwait(&rc->cond, mutex, &timeout);
     }
   }
   after= my_getsystime();
@@ -1235,10 +1235,10 @@ void wt_thd_release(WT_THD *thd, const WT_RESOURCE_ID *resid)
       delete_dynamic_element(&rc->owners, j);
       if (rc->owners.elements == 0)
       {
-        pthread_cond_broadcast(&rc->cond);
+        mysql_cond_broadcast(&rc->cond);
 #ifndef DBUG_OFF
         if (rc->cond_mutex)
-          safe_mutex_assert_owner(rc->cond_mutex);
+          mysql_mutex_assert_owner(rc->cond_mutex);
 #endif
       }
       unlock_lock_and_free_resource(thd, rc);

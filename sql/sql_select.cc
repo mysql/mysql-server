@@ -53,6 +53,11 @@
 
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
+#include <algorithm>
+using std::max;
+using std::min;
+
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -6853,7 +6858,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   uint	and_level,i,found_eq_constant;
   KEY_FIELD *key_fields, *end, *field;
   uint sz;
-  uint m= max(select_lex->max_equal_elems,1);
+  uint m= max(select_lex->max_equal_elems, 1U);
   
   /* 
     We use the same piece of memory to store both  KEY_FIELD 
@@ -7047,7 +7052,7 @@ static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
       if (map == 1)			// Only one table
       {
 	TABLE *tmp_table=join->all_tables[tablenr];
-	keyuse->ref_table_rows= max(tmp_table->file->stats.records, 100);
+	keyuse->ref_table_rows= max<ha_rows>(tmp_table->file->stats.records, 100);
       }
     }
     /*
@@ -9660,7 +9665,7 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
   {
     uint blob_length=(uint) (join_tab->table->file->stats.mean_rec_length-
 			     (join_tab->table->s->reclength- rec_length));
-    rec_length+=(uint) max(4,blob_length);
+    rec_length+= max<uint>(4U, blob_length);
   }
   /**
     @todo why don't we count the rowids that we might need to store
@@ -10435,7 +10440,29 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
-  group= 0;
+
+  if (!group_optimized_away)
+  {
+    group= false;
+  }
+  else
+  {
+    /*
+      If grouping has been optimized away, a temporary table is
+      normally not needed unless we're explicitly requested to create
+      one (e.g. due to a SQL_BUFFER_RESULT hint or INSERT ... SELECT).
+
+      In this case (grouping was optimized away), tmp_table was
+      created without a grouping expression and JOIN::exec() will not
+      perform the necessary grouping (by the use of end_send_group()
+      or end_write_group()) if JOIN::group is set to false.
+    */
+    // the temporary table was explicitly requested
+    DBUG_ASSERT(test(select_options & OPTION_BUFFER_RESULT));
+    // the temporary table does not have a grouping expression
+    DBUG_ASSERT(!tmp_table->group); 
+  }
+
   row_limit= unit->select_limit_cnt;
   do_send_rows= row_limit ? 1 : 0;
 
@@ -18605,6 +18632,8 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
     if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo,
                                 options, big_tables))
       return TRUE;
+    // Make empty record so random data is not written to disk
+    empty_record(table);
   }
   if (open_tmp_table(table))
     return TRUE;
