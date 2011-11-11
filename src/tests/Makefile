@@ -877,8 +877,6 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 
 preload-db-nested.tdbrun: VGRIND=
 upgrade-test-4.tdbrun: VGRIND=
-upgrade-test-4-valgrind.tdbrun: upgrade-test-4.tdb
-	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 # re-enable loader-stress-test3 when upgrade is complete
 #loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
@@ -951,8 +949,7 @@ hotindexer-undo-do-test.tdbrun: $(CHECK_HOTINDEXER_UNDO_TESTS)
 test3039.tdbrun: test3039.tdb
 	( ($(VGRIND) ./$< -v -n 1000 ) && ./$< -v ) $(SUMMARIZE_CMD)
 
-$(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF)
-	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
+$(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF) ./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
 
 BLOCKING_SRCS = $(wildcard blocking-*.c)
 BLOCKING_TDB_TESTS = $(patsubst %.c,%.tdbrun,$(BLOCKING_SRCS))
@@ -993,6 +990,17 @@ test_stress3.drdrun: test_stress3.tdb
 	./test_stress3.tdb --only_create --envdir dir.$@ && \
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress3.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+UPGRADE_TEST_SRCS = $(wildcard upgrade-test-*.c)
+UPGRADE_TESTS = $(patsubst %.c,%,$(UPGRADE_TEST_SRCS))
+UPGRADE_TESTS_VALGRIND = $(patsubst upgrade-test-%,upgrade-test-%.valgrind,$(UPGRADE_TESTS))
+
+upgrade-tests.tdbrun: $(UPGRADE_TESTS_VALGRIND)
+	echo $(UPGRADE_TESTS_VALGRIND)
+	true
+
+upgrade-test-%.valgrind: upgrade-test-%.tdb
+	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 clean:
 	rm -f $(ALL_BINS)
