@@ -239,6 +239,7 @@ SET(TESTS
   sql_plist
   thread_utils
   stdcxx
+  cost_estimate
   )
 
 # Add tests (link them with gunit library and the server libraries) 
