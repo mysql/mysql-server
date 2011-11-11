@@ -1038,7 +1038,7 @@ exit:
   func.reset();
   scan_it.reset();
   res_receiver.reset();
-  DBUG_RETURN(str_value);
+  DBUG_RETURN(null_value ? 0 : str_value);
 }
 
 
