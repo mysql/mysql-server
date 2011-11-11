@@ -289,6 +289,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
 		      UNLOCKERS unlockers,
 		      ANCESTORS ancestors, struct pivot_bounds const * const bounds,
 		      struct brtnode_fetch_extra *bfe,
+                      BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
 		      BRTNODE *node_p) {
     void *node_v;
     int r = toku_cachetable_get_and_pin_nonblocking(
@@ -309,7 +310,7 @@ int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
             unlockers);
     if (r==0) {
 	BRTNODE node = node_v;
-	maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
+	if (apply_ancestor_messages) maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds);
 	*node_p = node;
 	// printf("%*sPin %ld\n", 8-node->height, "", blocknum.b);
     } else {
@@ -6242,6 +6243,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
                                   unlockers,
                                   &next_ancestors, bounds,
                                   &bfe,
+                                  TRUE,
                                   &childnode);
         if (rr==TOKUDB_TRY_AGAIN) return rr;
         assert(rr==0);
@@ -6482,7 +6484,7 @@ try_again:
         brtcursor->left_is_neg_infty,
         brtcursor->right_is_pos_infty
         );
-    r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
+    r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, TRUE, &node);
     assert(r==0 || r== TOKUDB_TRY_AGAIN);
     if (r == TOKUDB_TRY_AGAIN) {
 	root_tries++;
@@ -7036,7 +7038,7 @@ static int toku_brt_keyrange_internal (BRT brt, BRTNODE node,
 	BLOCKNUM childblocknum = BP_BLOCKNUM(node, child_number);
 	u_int32_t fullhash = compute_child_fullhash(brt->cf, node, child_number);
 	BRTNODE childnode;
-	r = toku_pin_brtnode(brt, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, &childnode);
+	r = toku_pin_brtnode(brt, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, FALSE, &childnode);
 	if (r!=TOKUDB_TRY_AGAIN) {
 	    assert(r==0);
 	    struct unlock_brtnode_extra unlock_extra   = {brt,childnode};
@@ -7084,7 +7086,7 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p,
 
 	BRTNODE node;
 	{
-	    int r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, &node);
+	    int r = toku_pin_brtnode(brt, *rootp, fullhash,(UNLOCKERS)NULL,(ANCESTORS)NULL, &infinite_bounds, &bfe, FALSE, &node);
 	    assert(r==0 || r== TOKUDB_TRY_AGAIN);
 	    if (r == TOKUDB_TRY_AGAIN) {
 		goto try_again;
