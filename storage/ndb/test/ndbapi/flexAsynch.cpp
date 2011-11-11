@@ -788,7 +788,7 @@ executeTransLoop(ThreadNdb* pThread,
     if (!executeTrans(pThread, aType, aNdbObject, threadBase, i++))
       return false;
     STOP_TIMER;
-    time_expired = timer.elapsedTime() / 1000;
+    time_expired = (int)(timer.elapsedTime() / 1000);
     if (time_expired < tWarmupTime)
       ; //Do nothing
     else if (time_expired < (tWarmupTime + tExecutionTime)){
