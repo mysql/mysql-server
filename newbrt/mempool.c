@@ -97,6 +97,10 @@ size_t toku_mempool_get_free_space(struct mempool *mp) {
     return mp->size - mp->free_offset;
 }
 
+size_t toku_mempool_get_allocated_space(struct mempool *mp) {
+    return mp->free_offset;
+}
+
 void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
     invariant(size < (1U<<31));
     invariant(mp->size < (1U<<31));
