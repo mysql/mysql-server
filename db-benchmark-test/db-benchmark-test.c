@@ -223,14 +223,14 @@ static void benchmark_setup (void) {
         assert(r == 0);
         u_int32_t period;
         r = dbenv->cleaner_get_period(dbenv, &period);
-        assert(r == 0 && period == cleaner_period);
+        assert(r == 0 && period == (u_int32_t)cleaner_period);
     }
     if (cleaner_iterations) {
         r = dbenv->cleaner_set_iterations(dbenv, cleaner_iterations);
         assert(r == 0);
         u_int32_t iterations;
         r = dbenv->cleaner_get_iterations(dbenv, &iterations);
-        assert(r == 0 && iterations == cleaner_iterations);
+        assert(r == 0 && iterations == (u_int32_t)cleaner_iterations);
     }
 #endif
 
