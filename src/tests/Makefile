@@ -959,36 +959,29 @@ check_blocking_tdb: $(BLOCKING_TDB_TESTS)
 
 check_blocking_bdb: $(BLOCKING_BDB_TESTS)
 
-check_drd: tiny_test_stress1.drdrun mid_test_stress1.drdrun test_stress1.drdrun \
-	   tiny_test_stress3.drdrun mid_test_stress3.drdrun test_stress3.drdrun
+STRESS_TEST_SRCS = $(wildcard test_stress*.c)
+STRESS_TESTS = $(patsubst %.c,%,$(STRESS_TEST_SRCS))
+TINY_STRESS_TESTS = $(patsubst %,tiny_%.drdrun,$(STRESS_TESTS))
+MID_STRESS_TESTS = $(patsubst %,mid_%.drdrun,$(STRESS_TESTS))
+LARGE_STRESS_TESTS = $(patsubst %,large_%.drdrun,$(STRESS_TESTS))
+
+stress_tests.drdrun: $(TINY_STRESS_TESTS) \
+	mid_test_stress1.drdrun mid_test_stress3.drdrun \
+	large_test_stress1.drdrun large_test_stress3.drdrun
 	true
 
-tiny_test_stress1.drdrun: test_stress1.tdb
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress1.tdb $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@ \
+tiny_%.drdrun: %.tdb
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
-mid_test_stress1.drdrun: test_stress1.tdb
-	./test_stress1.tdb --only_create --envdir dir.$@ --num_elements 10000 && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress1.tdb $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
+mid_%.drdrun: %.tdb
+	./$< --only_create --envdir dir.$@ --num_elements 10000 && \
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
-test_stress1.drdrun: test_stress1.tdb
-	./test_stress1.tdb --only_create --envdir dir.$@ && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress1.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
-	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
-tiny_test_stress3.drdrun: test_stress3.tdb
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress3.tdb $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@ \
-	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
-mid_test_stress3.drdrun: test_stress3.tdb
-	./test_stress3.tdb --only_create --envdir dir.$@ --num_elements 10000 && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress3.tdb $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
-	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
-
-test_stress3.drdrun: test_stress3.tdb
-	./test_stress3.tdb --only_create --envdir dir.$@ && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./test_stress3.tdb $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
+large_%.drdrun: %.tdb
+	./$< --only_create --envdir dir.$@ && \
+	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 1000 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 UPGRADE_TEST_SRCS = $(wildcard upgrade-test-*.c)
