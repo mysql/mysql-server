@@ -2415,12 +2415,12 @@ Uint32 Dbdict::getFsConnRecord()
  * Search schemafile for free entry.  Its index is used as 'logical id'
  * of new disk-stored object.
  */
-Uint32 Dbdict::getFreeObjId(Uint32 minId, bool both)
+Uint32 Dbdict::getFreeObjId(bool both)
 {
   const XSchemaFile * newxsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   const XSchemaFile * oldxsf = &c_schemaFile[SchemaRecord::OLD_SCHEMA_FILE];
   const Uint32 noOfEntries = newxsf->noOfPages * NDB_SF_PAGE_ENTRIES;
-  for (Uint32 i = minId; i<noOfEntries; i++)
+  for (Uint32 i = 0; i<noOfEntries; i++)
   {
     const SchemaFile::TableEntry * oldentry = getTableEntry(oldxsf, i);
     const SchemaFile::TableEntry * newentry = getTableEntry(newxsf, i);
@@ -2440,7 +2440,7 @@ Uint32 Dbdict::getFreeObjId(Uint32 minId, bool both)
 
 Uint32 Dbdict::getFreeTableRecord()
 {
-  Uint32 i = getFreeObjId(0);
+  Uint32 i = getFreeObjId();
   if (i == RNIL) {
     jam();
     return RNIL;
@@ -10907,7 +10907,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   if (master)
   {
     jam();
-    impl_req->indexId = getFreeObjId(0);
+    impl_req->indexId = getFreeObjId();
   }
 
   if (impl_req->indexId == RNIL)
@@ -20782,7 +20782,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   {
     jam();
 
-    Uint32 objId = getFreeObjId(0);
+    Uint32 objId = getFreeObjId();
     if (objId == RNIL)
     {
       jam();
@@ -21523,7 +21523,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   {
     jam();
 
-    Uint32 objId = getFreeObjId(0);
+    Uint32 objId = getFreeObjId();
     if (objId == RNIL)
     {
       jam();
@@ -24587,7 +24587,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     trans_ptr.p->m_clientRef = clientRef;
     trans_ptr.p->m_transId = transId;
     trans_ptr.p->m_requestInfo = requestInfo;
-    trans_ptr.p->m_obj_id = getFreeObjId(0);
+    trans_ptr.p->m_obj_id = getFreeObjId();
     if (localTrans)
     {
       /**
@@ -24597,7 +24597,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
        *   schema file so that we don't accidently allocate
        *   an objectId that should be used to recreate an object
        */
-      trans_ptr.p->m_obj_id = getFreeObjId(0, true);
+      trans_ptr.p->m_obj_id = getFreeObjId(true);
     }
 
     if (!localTrans)
@@ -26906,7 +26906,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     if (signal->getLength() < SchemaTransImplReq::SignalLengthStart)
     {
       jam();
-      reqCopy.start.objectId = getFreeObjId(0);
+      reqCopy.start.objectId = getFreeObjId();
     }
     slave_run_start(signal, req);
     return;
@@ -27055,9 +27055,9 @@ Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
   SchemaTransPtr trans_ptr;
   const Uint32 trans_key = req->transKey;
 
-  Uint32 objId = getFreeObjId(req->start.objectId);
-  if (objId != req->start.objectId)
-  {
+  Uint32 objId = req->start.objectId;
+  if (check_read_obj(objId,0) == 0)
+  { /* schema file id already in use */
     jam();
     setError(error, CreateTableRef::NoMoreTableRecords, __LINE__);
     goto err;
@@ -28507,7 +28507,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
       goto error;
     }
 
-    objId = impl_req->objectId = getFreeObjId(0);
+    objId = impl_req->objectId = getFreeObjId();
     if (objId == RNIL)
     {
       jam();
