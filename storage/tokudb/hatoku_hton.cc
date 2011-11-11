@@ -1211,6 +1211,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("partial_fetch_miss", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_fetch_compressed);
       STATPRINT("partial_fetch_compressed", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_evictions_internal);
+      STATPRINT("partial_evictions_internal", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.partial_evictions_leaf);
+      STATPRINT("partial_evictions_leaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.msn_discards);
       STATPRINT("msn_discards", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.max_workdone);
