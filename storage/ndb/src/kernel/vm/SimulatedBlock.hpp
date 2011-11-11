@@ -507,7 +507,7 @@ protected:
     };
     Uint32 prevHash;
     
-    inline bool equal(FragmentInfo & p) const {
+    inline bool equal(FragmentInfo const & p) const {
       return m_senderRef == p.m_senderRef && m_fragmentId == p.m_fragmentId;
     }
     
