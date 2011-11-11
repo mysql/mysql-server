@@ -186,5 +186,7 @@ drop table t1;
 --echo #
 
 CREATE TABLE t1 (i INT);
+--disable_result_log
 EXPLAIN SELECT * FROM t1 PROCEDURE ANALYSE();
+--enable_result_log
 DROP TABLE t1;
