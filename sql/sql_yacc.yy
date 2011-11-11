@@ -7203,7 +7203,7 @@ slave:
                  Lex->slave_connection.plugin_auth ||
                  Lex->slave_connection.plugin_dir))
             {
-              my_error(ER_SQLTHREAD_WITH_SECURE_SALVE, MYF(0));
+              my_error(ER_SQLTHREAD_WITH_SECURE_SLAVE, MYF(0));
               MYSQL_YYABORT;
             }
           }
