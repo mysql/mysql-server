@@ -123,7 +123,7 @@ Dbtux::getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir)
   Uint16 path[MaxTreeDepth + 1];
   unsigned depth = getPathToNode(node, path);
   ndbrequire(depth != 0 && depth <= MaxTreeDepth);
-  TreeHead& tree = frag.m_tree;
+  // compiler warning unused: TreeHead& tree = frag.m_tree;
   Uint32 cnt = 0;
   Uint32 tot = (Uint32)frag.m_entryCount;
   unsigned i = 0;
