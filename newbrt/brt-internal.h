@@ -760,6 +760,12 @@ typedef struct brt_status {
     uint64_t  cleaner_max_buffer_workdone; // max workdone value of any message buffer flushed by cleaner thread
     uint64_t  cleaner_min_buffer_workdone;
     uint64_t  cleaner_total_buffer_workdone;
+    uint64_t  msg_bytes_in;                // how many bytes of messages injected at root (for all trees)
+    uint64_t  msg_bytes_out;               // how many bytes of messages flushed from h1 nodes to leaves
+    uint64_t  msg_bytes_curr;              // how many bytes of messages currently in trees (estimate)
+    uint64_t  msg_bytes_max;               // how many bytes of messages currently in trees (estimate)
+    uint64_t  msg_num;                     // how many messages injected at root
+    uint64_t  msg_num_broadcast;           // how many broadcast messages injected at root
     uint64_t  flush_total;                 // total number of flushes done by flusher threads or cleaner threads
     uint64_t  flush_in_memory;             // number of in memory flushes
     uint64_t  flush_needed_io;             // number of flushes that had to read a child (or part) off disk
