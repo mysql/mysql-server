@@ -494,7 +494,7 @@ long
 toku_bnc_memory_size(NONLEAF_CHILDINFO bnc)
 {
     return (sizeof(*bnc) +
-            toku_fifo_memory_size(bnc->buffer) +
+            toku_fifo_memory_size_in_use(bnc->buffer) +
             toku_omt_memory_size(bnc->fresh_message_tree) +
             toku_omt_memory_size(bnc->stale_message_tree) +
             toku_omt_memory_size(bnc->broadcast_list));

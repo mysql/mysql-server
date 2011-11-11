@@ -56,7 +56,9 @@ int toku_fifo_deq(FIFO);  // we cannot deq items anymore, since their offsets ar
                           // THIS ONLY REMAINS FOR TESTING, DO NOT USE IT IN CODE
 int toku_fifo_empty(FIFO);  // don't deallocate the memory for the fifo
 
-unsigned long toku_fifo_memory_size(FIFO); // return how much memory the fifo uses.
+unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory the fifo uses.
+
+unsigned long toku_fifo_memory_size(FIFO); // return how much memory fifo has allocated
 
 //These two are problematic, since I don't want to malloc() the bytevecs, but dequeueing the fifo frees the memory.
 //int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid);

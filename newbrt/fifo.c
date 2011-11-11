@@ -204,6 +204,10 @@ void toku_fifo_size_is_stabilized(FIFO fifo) {
     }
 }
 
+unsigned long toku_fifo_memory_size_in_use(FIFO fifo) {
+    return sizeof(*fifo)+fifo->memory_start+fifo->memory_used;
+}
+
 unsigned long toku_fifo_memory_size(FIFO fifo) {
     return sizeof(*fifo)+fifo->memory_size;
 }
