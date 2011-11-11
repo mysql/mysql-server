@@ -724,3 +724,23 @@ SELECT t1.b, t1.c FROM t1, t2 WHERE t1.a = t2.a AND t1.b != 0
   HAVING t1.c != 5 ORDER BY t1.c;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#879871: InnoDB: possible ICP + GROUP BY primary index  
+--echo #
+
+CREATE TABLE t1 (
+  a int NOT NULL, b int, c varchar(1), d varchar(1),
+ PRIMARY KEY (a), KEY c (c,b)
+);
+INSERT INTO t1 VALUES (10,8,'g','g');
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+SELECT a FROM t1 WHERE c IS NULL AND d IS NOT NULL GROUP BY 1;
+
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+SELECT a FROM t1 WHERE c IS NULL AND d IS NOT NULL GROUP BY 1;
+
+DROP TABLE t1;
+
+

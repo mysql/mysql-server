@@ -19969,7 +19969,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
       Item *new_cond= and_conds(cond_copy, join_tab->select->pre_idx_push_select_cond);
       if (!new_cond->fixed && new_cond->fix_fields(thd, &new_cond))
         error= 1;
-      join_tab->select->pre_idx_push_select_cond= new_cond;
+      join_tab->pre_idx_push_select_cond=
+        join_tab->select->pre_idx_push_select_cond= new_cond;
     }
     join_tab->set_select_cond(cond, __LINE__);
   }
