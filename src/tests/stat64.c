@@ -71,8 +71,8 @@ test_stat64 (unsigned int N) {
             printf("fsize=%" PRIu64 "\n", s.bt_fsize);
             printf("expected dsize=%" PRIu64 "\n", dsize); 
         }
-        assert(s.bt_nkeys <= 4*N);     // This can probably be tightened up when we fix #3995.
-        assert(s.bt_ndata <= 4*N);     // This can probably be tightened up when we fix #3995.
+        assert(s.bt_nkeys <= 4*N);      // This can probably be tightened up when we fix #3995.
+        assert(s.bt_ndata <= 4*N);      // This can probably be tightened up when we fix #3995.
         assert(s.bt_dsize <= 16*dsize); // This can probably be tightened up when we fix #3995.
         assert(s.bt_fsize > N);
     }
