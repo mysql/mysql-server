@@ -1367,3 +1367,9 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 #WHERE lakes.name = 'Blue Lake'; 
 
 DROP DATABASE gis_ogs;
+
+--echo #
+--echo # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
+--echo #
+
+SELECT ST_Union('', ''), md5(1);
