@@ -3676,8 +3676,8 @@ bool st_select_lex::is_merged_child_of(st_select_lex *ancestor)
   {
     Item *subs= sl->master_unit()->item;
     if (subs && subs->type() == Item::SUBSELECT_ITEM && 
-       ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
-       ((Item_in_subselect*)subs)->in_strategy & SUBS_SEMI_JOIN)
+        ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+        ((Item_in_subselect*)subs)->test_strategy(SUBS_SEMI_JOIN))
     {
       continue;
     }

@@ -411,7 +411,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         in_subs->emb_on_expr_nest &&                                  // 5
         select_lex->outer_select()->join &&                           // 6
         parent_unit->first_select()->leaf_tables.elements &&          // 7
-        !in_subs->in_strategy &&                                      // 8
+        !in_subs->has_strategy() &&                                   // 8
         select_lex->outer_select()->leaf_tables.elements &&           // 9
         !((join->select_options |                                     // 10
            select_lex->outer_select()->join->select_options)          // 10
@@ -451,7 +451,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       {
         if (is_materialization_applicable(thd, in_subs, select_lex))
         {
-          in_subs->in_strategy|= SUBS_MATERIALIZATION;
+          in_subs->add_strategy(SUBS_MATERIALIZATION);
 
           /*
             If the subquery is an AND-part of WHERE register for being processed
@@ -479,17 +479,18 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           possible.
         */
         if (optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS) ||
-            !in_subs->in_strategy)
-        {
-          in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
-        }
+            !in_subs->has_strategy())
+          in_subs->add_strategy(SUBS_IN_TO_EXISTS);
       }
 
       /* Check if max/min optimization applicable */
-      if (allany_subs)
-        allany_subs->in_strategy|= (allany_subs->is_maxmin_applicable(join) ?
-                                    (SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE) :
-                                    SUBS_IN_TO_EXISTS);
+      if (allany_subs && !allany_subs->is_set_strategy())
+      {
+        uchar strategy= (allany_subs->is_maxmin_applicable(join) ?
+                         (SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE) :
+                         SUBS_IN_TO_EXISTS);
+        allany_subs->add_strategy(strategy);
+      }
 
       /*
         Transform each subquery predicate according to its overloaded
@@ -932,16 +933,12 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     /*
       Revert to the IN->EXISTS strategy in the rare case when the subquery could
       not be flattened.
-      TODO: This is a limitation done for simplicity. Such subqueries could also
-      be executed via materialization. In order to determine this, we should
-      re-run the test for materialization that was done in
-      check_and_do_in_subquery_rewrites.
     */
-    in_subq->in_strategy= SUBS_IN_TO_EXISTS;
+    in_subq->reset_strategy(SUBS_IN_TO_EXISTS);
     if (is_materialization_applicable(thd, in_subq, 
                                       in_subq->unit->first_select()))
     {
-      in_subq->in_strategy|= SUBS_MATERIALIZATION;
+      in_subq->add_strategy(SUBS_MATERIALIZATION);
     }
 
     in_subq= li++;
@@ -1260,7 +1257,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* 3. Remove the original subquery predicate from the WHERE/ON */
 
   // The subqueries were replaced for Item_int(1) earlier
-  subq_pred->in_strategy= SUBS_SEMI_JOIN;         // for subsequent executions
+  subq_pred->reset_strategy(SUBS_SEMI_JOIN);       // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
   /* n. Adjust the parent_join->table_count counter */
@@ -1434,7 +1431,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   double read_time;
   DBUG_ENTER("convert_subq_to_jtbm");
 
-  subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
+  subq_pred->set_strategy(SUBS_MATERIALIZATION);
   if (subq_pred->optimize(&rows, &read_time))
     DBUG_RETURN(TRUE);
 
@@ -4514,8 +4511,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   }
   else
     return false;
-
-  DBUG_ASSERT(in_subs->in_strategy); /* A strategy must be chosen earlier. */
+  /* A strategy must be chosen earlier. */
+  DBUG_ASSERT(in_subs->has_strategy());
   DBUG_ASSERT(in_to_exists_where || in_to_exists_having);
   DBUG_ASSERT(!in_to_exists_where || in_to_exists_where->fixed);
   DBUG_ASSERT(!in_to_exists_having || in_to_exists_having->fixed);
@@ -4525,8 +4522,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     strategies are possible and allowed by the user (checked during the prepare
     phase.
   */
-  if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
-      in_subs->in_strategy & SUBS_IN_TO_EXISTS)
+  if (in_subs->test_strategy(SUBS_MATERIALIZATION) &&
+      in_subs->test_strategy(SUBS_IN_TO_EXISTS))
   {
     JOIN *outer_join;
     JOIN *inner_join= this;
@@ -4630,9 +4627,9 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
 
     /* C.3 Compare the costs and choose the cheaper strategy. */
     if (materialize_strategy_cost >= in_exists_strategy_cost)
-      in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
+      in_subs->set_strategy(SUBS_IN_TO_EXISTS);
     else
-      in_subs->in_strategy&= ~SUBS_IN_TO_EXISTS;
+      in_subs->set_strategy(SUBS_MATERIALIZATION);
 
     DBUG_PRINT("info",
                ("mat_strategy_cost: %.2f, mat_cost: %.2f, write_cost: %.2f, lookup_cost: %.2f",
@@ -4653,7 +4650,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     otherwise
       use materialization.
   */
-  if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
+  if (in_subs->test_strategy(SUBS_MATERIALIZATION) &&
       in_subs->setup_mat_engine())
   {
     /*
@@ -4661,11 +4658,10 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       but it is not possible to execute it due to limitations in the
       implementation, fall back to IN-TO-EXISTS.
     */
-    in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
-    in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
+    in_subs->set_strategy(SUBS_IN_TO_EXISTS);
   }
 
-  if (in_subs->in_strategy & SUBS_MATERIALIZATION)
+  if (in_subs->test_strategy(SUBS_MATERIALIZATION))
   {
     /* Restore the original query plan used for materialization. */
     if (reopt_result == REOPT_NEW_PLAN)
@@ -4690,7 +4686,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     */
     select_limit= in_subs->unit->select_limit_cnt;
   }
-  else if (in_subs->in_strategy & SUBS_IN_TO_EXISTS)
+  else if (in_subs->test_strategy(SUBS_IN_TO_EXISTS))
   {
     if (reopt_result == REOPT_NONE && in_to_exists_where &&
         const_tables != table_count)
@@ -4771,7 +4767,7 @@ bool JOIN::choose_tableless_subquery_plan()
     {
       Item_in_subselect *in_subs;
       in_subs= (Item_in_subselect*) subs_predicate;
-      in_subs->in_strategy= SUBS_IN_TO_EXISTS;
+      in_subs->set_strategy(SUBS_IN_TO_EXISTS);
       if (in_subs->create_in_to_exists_cond(this) ||
           in_subs->inject_in_to_exists_cond(this))
         return TRUE;

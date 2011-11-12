@@ -353,17 +353,19 @@ TABLE_LIST * const NO_JOIN_NEST=(TABLE_LIST*)0x1;
   based on user-set optimizer switches, semantic analysis and cost comparison.
 */
 #define SUBS_NOT_TRANSFORMED 0 /* No execution method was chosen for this IN. */
-#define SUBS_SEMI_JOIN 1       /* IN was converted to semi-join. */
-#define SUBS_IN_TO_EXISTS 2    /* IN was converted to correlated EXISTS. */
-#define SUBS_MATERIALIZATION 4 /* Execute IN via subquery materialization. */
+/* The Final decision about the strategy is made. */
+#define SUBS_STRATEGY_CHOSEN 1
+#define SUBS_SEMI_JOIN 2       /* IN was converted to semi-join. */
+#define SUBS_IN_TO_EXISTS 4    /* IN was converted to correlated EXISTS. */
+#define SUBS_MATERIALIZATION 8 /* Execute IN via subquery materialization. */
 /* Partial matching substrategies of MATERIALIZATION. */
-#define SUBS_PARTIAL_MATCH_ROWID_MERGE 8
-#define SUBS_PARTIAL_MATCH_TABLE_SCAN 16
+#define SUBS_PARTIAL_MATCH_ROWID_MERGE 16
+#define SUBS_PARTIAL_MATCH_TABLE_SCAN 32
 /* ALL/ANY will be transformed with max/min optimization */
 /*   The subquery has not aggregates, transform it into a MAX/MIN query. */
-#define SUBS_MAXMIN_INJECTED 32
+#define SUBS_MAXMIN_INJECTED 64
 /*   The subquery has aggregates, use a special max/min subselect engine. */
-#define SUBS_MAXMIN_ENGINE 64
+#define SUBS_MAXMIN_ENGINE 128
 
 
 /**
@@ -398,6 +400,8 @@ protected:
   Item *expr;
   bool was_null;
   bool abort_on_null;
+  /* A bitmap of possible execution strategies for an IN predicate. */
+  uchar in_strategy;
 public:
   Item_in_optimizer *optimizer;
 protected:
@@ -442,11 +446,7 @@ public:
   */
   bool sjm_scan_allowed;
   double jtbm_read_time;
-  double jtbm_record_count;
-
-  /* A bitmap of possible execution strategies for an IN predicate. */
-  uchar in_strategy;
-   
+  double jtbm_record_count;   
   bool is_jtbm_merged;
 
   /*
@@ -487,9 +487,8 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-     abort_on_null(0), optimizer(0),
+     abort_on_null(0), in_strategy(SUBS_NOT_TRANSFORMED), optimizer(0),
     pushed_cond_guards(NULL), func(NULL), emb_on_expr_nest(NULL), 
-    in_strategy(SUBS_NOT_TRANSFORMED),
     is_jtbm_merged(FALSE),
     upper_item(0)
     {}
@@ -537,6 +536,64 @@ public:
   void mark_as_condition_AND_part(TABLE_LIST *embedding)
   {
     emb_on_expr_nest= embedding;
+  }
+
+  bool test_strategy(uchar strategy)
+  { return test(in_strategy & strategy); }
+
+  /**
+    Test that the IN strategy was chosen for execution. This is so
+    when the CHOSEN flag is ON, and there is no other strategy.
+  */
+  bool test_set_strategy(uchar strategy)
+  {
+    DBUG_ASSERT(strategy == SUBS_SEMI_JOIN ||
+                strategy == SUBS_IN_TO_EXISTS ||
+                strategy == SUBS_MATERIALIZATION ||
+                strategy == SUBS_PARTIAL_MATCH_ROWID_MERGE ||
+                strategy == SUBS_PARTIAL_MATCH_TABLE_SCAN ||
+                strategy == SUBS_MAXMIN_INJECTED ||
+                strategy == SUBS_MAXMIN_ENGINE);
+    return ((in_strategy & SUBS_STRATEGY_CHOSEN) &&
+            (in_strategy & ~SUBS_STRATEGY_CHOSEN) == strategy);
+  }
+
+  bool is_set_strategy()
+  { return test(in_strategy & SUBS_STRATEGY_CHOSEN); }
+
+  bool has_strategy()
+  { return in_strategy != SUBS_NOT_TRANSFORMED; }
+
+  void add_strategy (uchar strategy)
+  {
+    DBUG_ASSERT(strategy != SUBS_NOT_TRANSFORMED);
+    DBUG_ASSERT(!(strategy & SUBS_STRATEGY_CHOSEN));
+    /*
+      TODO: PS re-execution breaks this condition, because
+      check_and_do_in_subquery_rewrites() is called for each reexecution
+      and re-adds the same strategies.
+      DBUG_ASSERT(!(in_strategy & SUBS_STRATEGY_CHOSEN));
+    */
+    in_strategy|= strategy;
+  }
+
+  void reset_strategy(uchar strategy)
+  {
+    DBUG_ASSERT(strategy != SUBS_NOT_TRANSFORMED);
+    in_strategy= strategy;
+  }
+
+  void set_strategy(uchar strategy)
+  {
+    /* Check that only one strategy is set for execution. */
+    DBUG_ASSERT(strategy == SUBS_SEMI_JOIN ||
+                strategy == SUBS_IN_TO_EXISTS ||
+                strategy == SUBS_MATERIALIZATION ||
+                strategy == SUBS_PARTIAL_MATCH_ROWID_MERGE ||
+                strategy == SUBS_PARTIAL_MATCH_TABLE_SCAN ||
+                strategy == SUBS_MAXMIN_INJECTED ||
+                strategy == SUBS_MAXMIN_ENGINE);
+    in_strategy= (SUBS_STRATEGY_CHOSEN | strategy);
   }
 
   friend class Item_ref_null_helper;

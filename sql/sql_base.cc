@@ -6453,8 +6453,8 @@ find_field_in_tables(THD *thd, Item_ident *item,
         {
           Item *subs= sl->master_unit()->item;
           if (subs->type() == Item::SUBSELECT_ITEM && 
-             ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
-             ((Item_in_subselect*)subs)->in_strategy & SUBS_SEMI_JOIN)
+              ((Item_subselect*)subs)->substype() == Item_subselect::IN_SUBS &&
+              ((Item_in_subselect*)subs)->test_strategy(SUBS_SEMI_JOIN))
           {
             continue;
           }

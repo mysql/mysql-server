@@ -5641,6 +5641,32 @@ SUM(DISTINCT b)	(SELECT t2.a FROM t1,t2 WHERE t.a != 0 or 1=2 LIMIT 1)
 7	NULL
 7	10
 DROP TABLE t1,t2,t3;
+#
+# Bug#12329653 
+# EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
+#
+CREATE TABLE t1(a1 int);
+INSERT INTO t1 VALUES (1),(2);
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
+1
+1
+1
+PREPARE stmt FROM 
+'SELECT 1 UNION ALL 
+SELECT 1 FROM t1
+ORDER BY
+(SELECT 1 FROM t1 AS t1_0  
+  WHERE 1 < SOME (SELECT a1 FROM t1)
+)' ;
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+EXECUTE stmt ;
+ERROR 21000: Subquery returns more than 1 row
+SET SESSION sql_mode=@old_sql_mode;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 set optimizer_switch=@subselect_tmp;
 set optimizer_switch=default;
 select @@optimizer_switch like '%materialization=on%';

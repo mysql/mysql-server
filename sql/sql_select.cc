@@ -689,6 +689,10 @@ JOIN::prepare(Item ***rref_pointer_array,
     aggregate functions with implicit grouping (there is no GROUP BY).
   */
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY && !group_list &&
+      !(select_lex->master_unit()->item &&
+        select_lex->master_unit()->item->is_in_predicate() &&
+        ((Item_in_subselect*)select_lex->master_unit()->item)->
+        test_set_strategy(SUBS_MAXMIN_INJECTED)) &&
       select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
   {
     my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
@@ -813,7 +817,7 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
       double rows;
       double read_time;
 
-      subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
+      DBUG_ASSERT(subq_pred->test_set_strategy(SUBS_MATERIALIZATION));
       subq_pred->optimize(&rows, &read_time);
 
       subq_pred->jtbm_read_time= read_time;
@@ -3181,7 +3185,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     */
     bool skip_unprefixed_keyparts=
       !(join->is_in_subquery() &&
-        ((Item_in_subselect*)join->unit->item)->in_strategy & SUBS_IN_TO_EXISTS);
+        ((Item_in_subselect*)join->unit->item)->test_strategy(SUBS_IN_TO_EXISTS));
 
     if (keyuse_array->elements &&
         sort_and_filter_keyuse(join->thd, keyuse_array,

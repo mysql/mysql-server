@@ -158,9 +158,11 @@ void Item_in_subselect::cleanup()
     delete left_expr_cache;
     left_expr_cache= NULL;
   }
+  /*
+    TODO: This breaks the commented assert in add_strategy().
+    in_strategy&= ~SUBS_STRATEGY_CHOSEN;
+  */
   first_execution= TRUE;
-  if (in_strategy & SUBS_MATERIALIZATION)
-    in_strategy= 0;
   pushed_cond_guards= NULL;
   Item_subselect::cleanup();
   DBUG_VOID_RETURN;
@@ -176,10 +178,9 @@ void Item_allany_subselect::cleanup()
   */
   for (SELECT_LEX *sl= unit->first_select();
        sl; sl= sl->next_select())
-    if (in_strategy & SUBS_MAXMIN_INJECTED)
+    if (test_strategy(SUBS_MAXMIN_INJECTED))
       sl->with_sum_func= false;
   Item_in_subselect::cleanup();
-
 }
 
 
@@ -722,7 +723,7 @@ bool Item_in_subselect::exec()
     - on a cost-based basis, that takes into account the cost of a cache
       lookup, the cache hit rate, and the savings per cache hit.
   */
-  if (!left_expr_cache && (in_strategy & SUBS_MATERIALIZATION))
+  if (!left_expr_cache && (test_strategy(SUBS_MATERIALIZATION)))
     init_left_expr_cache();
 
   /*
@@ -1186,8 +1187,8 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), 
-  left_expr_cache(0), first_execution(TRUE),
-  optimizer(0), pushed_cond_guards(NULL), emb_on_expr_nest(NULL), in_strategy(0),
+  left_expr_cache(0), first_execution(TRUE), in_strategy(SUBS_NOT_TRANSFORMED),
+  optimizer(0), pushed_cond_guards(NULL), emb_on_expr_nest(NULL),
   is_jtbm_merged(FALSE), is_flattenable_semijoin(FALSE),
   is_registered_semijoin(FALSE), 
   upper_item(0)
@@ -1608,7 +1609,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
 bool Item_allany_subselect::transform_into_max_min(JOIN *join)
 {
   DBUG_ENTER("Item_allany_subselect::transform_into_max_min");
-  if (!(in_strategy & (SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE)))
+  if (!test_strategy(SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE))
     DBUG_RETURN(false);
   Item **place= optimizer->arguments() + 1;
   THD *thd= join->thd;
@@ -1682,7 +1683,7 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
       Remove other strategies if any (we already changed the query and
       can't apply other strategy).
     */
-    in_strategy= SUBS_MAXMIN_INJECTED;
+    set_strategy(SUBS_MAXMIN_INJECTED);
   }
   else
   {
@@ -1694,7 +1695,7 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
       Remove other strategies if any (we already changed the query and
       can't apply other strategy).
     */
-    in_strategy= SUBS_MAXMIN_ENGINE;
+    set_strategy(SUBS_MAXMIN_ENGINE);
   }
   /*
     The swap is needed for expressions of type 'f1 < ALL ( SELECT ....)'
@@ -2414,7 +2415,7 @@ err:
 
 void Item_in_subselect::print(String *str, enum_query_type query_type)
 {
-  if (in_strategy & SUBS_IN_TO_EXISTS)
+  if (test_strategy(SUBS_IN_TO_EXISTS))
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
@@ -2430,8 +2431,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
   uint outer_cols_num;
   List<Item> *inner_cols;
 
-
-  if (in_strategy & SUBS_SEMI_JOIN)
+  if (test_strategy(SUBS_SEMI_JOIN))
     return !( (*ref)= new Item_int(1));
 
   /*
@@ -2607,8 +2607,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_allany_subselect::select_transformer");
   DBUG_ASSERT((in_strategy & ~(SUBS_MAXMIN_INJECTED | SUBS_MAXMIN_ENGINE |
-                               SUBS_IN_TO_EXISTS)) == 0);
-  in_strategy|= SUBS_IN_TO_EXISTS;
+                               SUBS_IN_TO_EXISTS | SUBS_STRATEGY_CHOSEN)) == 0);
   if (upper_item)
     upper_item->show= 1;
   DBUG_RETURN(select_in_like_transformer(join));
@@ -2617,7 +2616,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
 
 void Item_allany_subselect::print(String *str, enum_query_type query_type)
 {
-  if (in_strategy & SUBS_IN_TO_EXISTS)
+  if (test_strategy(SUBS_IN_TO_EXISTS))
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
