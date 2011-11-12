@@ -749,12 +749,6 @@ typedef struct brt_status {
     uint64_t  search_root_retries;         // number of searches that required the root node to be fetched more than once
     uint64_t  search_tries_gt_height;      // number of searches that required more tries than the height of the tree
     uint64_t  search_tries_gt_heightplus3; // number of searches that required more tries than the height of the tree plus three
-    uint64_t  disk_flush_leaf;             // number of leaf nodes flushed to disk, not for checkpoint
-    uint64_t  disk_flush_nonleaf;          // number of nonleaf nodes flushed to disk, not for checkpoint
-    uint64_t  disk_flush_leaf_for_checkpoint;             // number of leaf nodes flushed to disk for checkpoint
-    uint64_t  disk_flush_nonleaf_for_checkpoint;          // number of nonleaf nodes flushed to disk for checkpoint
-    uint64_t  destroy_leaf;                // number of leaf nodes destroyed
-    uint64_t  destroy_nonleaf;             // number of nonleaf nodes destroyed
     uint64_t  cleaner_total_nodes;         // total number of nodes whose buffers are potentially flushed by cleaner thread
     uint64_t  cleaner_h1_nodes;            // number of nodes of height one whose message buffers are flushed by cleaner thread
     uint64_t  cleaner_hgt1_nodes;          // number of nodes of height > 1 whose message buffers are flushed by cleaner thread
