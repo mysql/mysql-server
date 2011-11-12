@@ -494,28 +494,30 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     /* MULT_EQUAL_FUNC */
     {
       Item_equal *item_equal= (Item_equal *) func_item;
-      Item_equal_fields_iterator it(*item_equal);
-      args[0]= it++;
-      if (it++)
-        return 0;
       if (!(args[1]= item_equal->get_const()))
+        return 0;
+      Item_equal_fields_iterator it(*item_equal);
+      if (!(item= it++))
+        return 0;
+      args[0]= item->real_item();
+      if (it++)
         return 0;
     }
     break;
   case 1:
     /* field IS NULL */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() != Item::FIELD_ITEM)
       return 0;
     args[0]= item;
     break;
   case 2:
     /* 'field op const' or 'const op field' */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() == Item::FIELD_ITEM)
     {
       args[0]= item;
-      item= func_item->arguments()[1];
+      item= func_item->arguments()[1]->real_item();
       if (!item->const_item())
         return 0;
       args[1]= item;
@@ -523,7 +525,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     else if (item->const_item())
     {
       args[1]= item;
-      item= func_item->arguments()[1];
+      item= func_item->arguments()[1]->real_item();
       if (item->type() != Item::FIELD_ITEM)
         return 0;
       args[0]= item;
@@ -534,13 +536,13 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     break;
   case 3:
     /* field BETWEEN const AND const */
-    item= func_item->arguments()[0];
+    item= func_item->arguments()[0]->real_item();
     if (item->type() == Item::FIELD_ITEM)
     {
       args[0]= item;
       for (int i= 1 ; i <= 2; i++)
       {
-        item= func_item->arguments()[i];
+        item= func_item->arguments()[i]->real_item();
         if (!item->const_item())
           return 0;
         args[i]= item;
@@ -621,8 +623,10 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   if (!(cond->used_tables() & field->table->map))
   {
     /* Condition doesn't restrict the used table */
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(!cond->const_item());
   }
+  else if (cond->is_expensive())
+    DBUG_RETURN(FALSE);
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_OR_FUNC)
@@ -669,6 +673,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   case Item_func::GE_FUNC:
     break;
   case Item_func::BETWEEN:
+    if (((Item_func_between*) cond)->negated)
+      DBUG_RETURN(FALSE);
     between= 1;
     break;
   case Item_func::MULT_EQUAL_FUNC:

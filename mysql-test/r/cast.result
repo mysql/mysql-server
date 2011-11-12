@@ -105,9 +105,9 @@ cast("2011-02-03 10:11:12.123456" as datetime(6))
 select cast("2011-02-03 10:11:12" as datetime(6));
 cast("2011-02-03 10:11:12" as datetime(6))
 2011-02-03 10:11:12.000000
-select cast(cast(20010203101112.1 as double) as datetime(1));
-cast(cast(20010203101112.1 as double) as datetime(1))
-2001-02-03 10:11:12.1
+select cast(cast(20010203101112.5 as double) as datetime(1));
+cast(cast(20010203101112.5 as double) as datetime(1))
+2001-02-03 10:11:12.5
 select cast(cast(010203101112.12 as double) as datetime(2));
 cast(cast(010203101112.12 as double) as datetime(2))
 0001-02-03 10:11:12.12
@@ -733,3 +733,8 @@ select cast(f1 as unsigned), cast(f2 as unsigned), cast(f3 as unsigned) from t1;
 cast(f1 as unsigned)	cast(f2 as unsigned)	cast(f3 as unsigned)
 112233	20111213	20111213112233
 drop table t1;
+SELECT CAST(TIME('10:20:30') AS DATE) + INTERVAL 1 DAY;
+CAST(TIME('10:20:30') AS DATE) + INTERVAL 1 DAY
+NULL
+Warnings:
+Warning	1292	Truncated incorrect date value: '0000-00-00'

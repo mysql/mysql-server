@@ -126,7 +126,7 @@ try
     var engineOptions = ParsePlugins();
     for (option in engineOptions)
     {
-       configfile.WriteLine("SET(" + engineOptions[option] + " TRUE)");
+       configfile.WriteLine("SET (" + engineOptions[option] + " TRUE)");
     }
     configfile.Close();
     
@@ -302,7 +302,7 @@ function ParsePlugins()
         {
             var content = fso.OpenTextFile(filename, ForReading).ReadAll();
             var match = 
-              /MYSQL_STORAGE_ENGINE([ ]*)[\(]([^\)]+)[\)]/.exec(content);
+              /MYSQL_(PLUGIN|STORAGE_ENGINE)([ ]*)[\(]([^\)]+)[\)]/.exec(content);
             if (match== null)
                 continue;
             match = /\[[\w,\-_]+\][\s]?\)/.exec(match[0]);
@@ -329,9 +329,9 @@ function ParsePlugins()
     for(key in config)
     {
         var eng = config[key];
-        if(eng.isGroup != undefined && !eng.isGroup	&& eng.include != undefined)
+        if(eng.isGroup != undefined && !eng.isGroup && eng.include != undefined)
         {
-            if (fso.FolderExists("storage\\"+key) || key=="PARTITION")
+            if (fso.FolderExists("storage\\"+key) || fso.FolderExists("plugin\\"+key) || key=="PARTITION")
             {
                 arr[arr.length] = eng.include? 
                     "WITH_"+key+"_STORAGE_ENGINE":"WITHOUT_"+key+"_STORAGE_ENGINE";

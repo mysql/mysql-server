@@ -4,6 +4,10 @@
 drop table if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
 
+set @subselect4_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
 --echo #
 --echo # Bug #46791: Assertion failed:(table->key_read==0),function unknown
 --echo #    function,file sql_base.cc
@@ -232,35 +236,6 @@ set @@session.optimizer_switch          = @old_optimizer_switch,
     @@session.engine_condition_pushdown = @old_engine_condition_pushdown;
 
 DROP TABLE t1;
-
---echo #
---echo # BUG#45863 "Assertion failed: (fixed == 0), function fix_fields(),
---echo #            file item.cc, line 4448"
---echo #
---disable_warnings
-DROP TABLE IF EXISTS C, BB;
---enable_warnings
-
-CREATE TABLE C (
-  varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO C VALUES
-  ('k'),('a'),(''),('u'),('e'),('v'),('i'),
-  ('t'),('u'),('f'),('u'),('m'),('j'),('f'),
-  ('v'),('j'),('g'),('e'),('h'),('z');
-CREATE TABLE BB (
-  varchar_nokey varchar(1) NOT NULL
-);
-INSERT INTO BB VALUES ('i'),('t');
--- error ER_OPERAND_COLUMNS
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
-                                FROM BB);
--- error ER_BAD_FIELD_ERROR
-SELECT varchar_nokey FROM C
-WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
-                                FROM BB);
-DROP TABLE C,BB;
 
 --echo #
 --echo # During work with BUG#45863 I had problems with a query that was
@@ -964,6 +939,40 @@ set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2;
 
+
+--echo #
+--echo # LP BUG#777691 Wrong result with subqery in select list and subquery cache=off in maria-5.3
+--echo #
+
+CREATE TABLE t1 ( f1 varchar(32)) ;
+INSERT INTO t1 VALUES ('b'),('x'),('c'),('x');
+
+CREATE TABLE t2 ( f2 int, f3 varchar(32)) ;
+INSERT INTO t2 VALUES (1,'x');
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+
+set @@optimizer_switch='materialization=on,in_to_exists=off,subquery_cache=off';
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,subquery_cache=off';
+--echo Even when t2 is not constant table, the result must be the same.
+INSERT INTO t2 VALUES (2,'y');
+EXPLAIN
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+SELECT t1.f1, ( SELECT MAX( f2 ) FROM t2 WHERE t2.f3 = t1.f1 ) as max_f2 FROM t1;
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t1, t2;
+
 --echo #
 --echo # LP BUG#641203 Query returns rows where no result is expected (impossible WHERE)
 --echo #
@@ -1415,3 +1424,345 @@ WHERE t2.f1 = (
                 FROM t1));
 
 drop table t1, t2, t3;
+
+--echo #
+--echo # LP BUG#802979 Assertion `table->key_read == 0' in close_thread_table
+--echo #
+
+CREATE TABLE t1 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES (1,0),(5,0);
+CREATE TABLE t2 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t2 VALUES (1,0),(5,0);
+CREATE TABLE t3 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t3 VALUES (1,0),(5,0);
+CREATE TABLE t4 ( f1 int, f2 int , KEY (f1)) ;
+INSERT IGNORE INTO t4 VALUES (1,0),(5,0);
+
+EXPLAIN
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4))
+  AND t2.f2 = t1.f1;
+
+-- error ER_SUBQUERY_NO_1_ROW
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4))
+  AND t2.f2 = t1.f1;
+
+EXPLAIN
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4) LIMIT 1)
+  AND t2.f2 = t1.f1;
+
+SELECT *
+FROM t1, t2
+WHERE t2.f2 = (SELECT f2 FROM t3
+               WHERE EXISTS (SELECT DISTINCT f1 FROM t4) LIMIT 1)
+  AND t2.f2 = t1.f1;
+
+drop table t1,t2,t3,t4;
+
+--echo #
+--echo # LP BUG#806943 Second crash with select_describe with nested subqueries in maria-5.3
+--echo #
+
+CREATE TABLE t1 ( f4 int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 ( f2 int) ;
+
+CREATE TABLE t3 ( f1 int NOT NULL );
+
+CREATE TABLE t4 ( f2 int, f3 int) ;
+INSERT INTO t4 VALUES (8,0),(3,0);
+
+EXPLAIN SELECT *
+FROM t2, t3
+WHERE t3.f1 = (
+        SELECT SUM( f2 )
+        FROM t4
+        WHERE EXISTS (
+                SELECT DISTINCT f4
+                FROM t1));
+SELECT *
+FROM t2, t3
+WHERE t3.f1 = (
+        SELECT SUM( f2 )
+        FROM t4
+        WHERE EXISTS (
+                SELECT DISTINCT f4
+                FROM t1));
+
+drop table t1, t2, t3, t4;
+
+--echo #
+--echo # LP BUG#611690 Crash in select_describe() with nested subqueries
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (8,'v','v');
+INSERT INTO t1 VALUES (9,'r','r');
+
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (2,'w','w');
+INSERT INTO t2 VALUES (9,'m','m');
+
+set @old_optimizer_switch = @@optimizer_switch;
+
+set @@optimizer_switch='subquery_cache=off,materialization=on,in_to_exists=off,semijoin=off';
+EXPLAIN
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+       FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+               ON SUBQUERY2_t2.col_varchar_key
+       WHERE SUBQUERY2_t2.col_varchar_nokey IN
+             (SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+       FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+               ON SUBQUERY2_t2.col_varchar_key
+       WHERE SUBQUERY2_t2.col_varchar_nokey IN
+             (SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+
+set @@optimizer_switch='subquery_cache=off,materialization=off,in_to_exists=on,semijoin=off';
+EXPLAIN
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+       FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+               ON SUBQUERY2_t2.col_varchar_key
+       WHERE SUBQUERY2_t2.col_varchar_nokey IN
+             (SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+SELECT col_int_key
+FROM t2
+WHERE (SELECT SUBQUERY2_t1.col_int_key
+       FROM t1 SUBQUERY2_t1 STRAIGHT_JOIN t1 SUBQUERY2_t2
+               ON SUBQUERY2_t2.col_varchar_key
+       WHERE SUBQUERY2_t2.col_varchar_nokey IN
+             (SELECT col_varchar_nokey FROM t1 GROUP BY col_varchar_nokey));
+
+drop table t1, t2;
+
+set @@optimizer_switch = @old_optimizer_switch;
+
+
+--echo #
+--echo # LP BUG#612543 Crash in Item_field::used_tables() with view + subquery + prepared statements
+--echo #
+
+CREATE TABLE t1 ( f1 int(11), f2 varchar(1));
+CREATE TABLE t2 ( f3 varchar(1));
+insert into t1 values (2,'x'), (5,'y');
+insert into t2 values ('x'), ('z');
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+set @old_optimizer_switch = @@optimizer_switch;
+
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+PREPARE st1 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st1;
+EXECUTE st1;
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+PREPARE st2 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st2;
+EXECUTE st2;
+
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off,subquery_cache=off';
+EXPLAIN SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 );
+PREPARE st3 FROM "SELECT * FROM t1 JOIN v2 ON t1.f2 > 'a' WHERE v2.f3 IN ( SELECT f2 FROM t1 )";
+EXECUTE st3;
+EXECUTE st3;
+
+set @@optimizer_switch = @old_optimizer_switch;
+
+drop table t1, t2;
+drop view v2;
+
+
+--echo #
+--echo # LP BUG#611396 RQG: crash in Item_field::register_field_in_read_map with semijoin=off
+--echo # and prepared statements and materialization
+
+CREATE TABLE t1 ( f1 int(11), f2 int(11)) ;
+CREATE TABLE t2 ( f1 int(11), f4 varchar(1), PRIMARY KEY (f1)) ;
+INSERT INTO t2 VALUES ('23','j'),('24','e');
+CREATE TABLE t3 ( f1 int(11), f4 varchar(1)) ;
+INSERT INTO t3 VALUES ('8','j');
+
+set @old_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
+EXPLAIN
+SELECT t2.f1, (SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+FROM t2 JOIN t3 ON t3.f4 = t2.f4
+WHERE t3.f1 = 8
+GROUP BY 1, 2;
+
+PREPARE st1 FROM "
+SELECT t2.f1, (SELECT f2 FROM t1 WHERE (7) IN (SELECT f1 FROM t1))
+FROM t2 JOIN t3 ON t3.f4 = t2.f4
+WHERE t3.f1 = 8
+GROUP BY 1, 2";
+
+EXECUTE st1;
+EXECUTE st1;
+
+set @@optimizer_switch = @old_optimizer_switch;
+
+drop table t1, t2, t3;
+
+
+--echo #
+--echo # LP BUG#611382 RQG: Query returns extra rows when executed with materialization=on
+--echo #
+
+CREATE TABLE t1 ( f4 varchar(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 ( f2 date, f3 varchar(1), f4 varchar(1)) ;
+INSERT INTO t2 VALUES ('2005-05-03','c','c'),('1900-01-01','d','d');
+CREATE TABLE t3 ( f3 varchar(1)) ;
+INSERT INTO t3 VALUES ('c');
+
+set @old_optimizer_switch = @@optimizer_switch;
+
+set @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
+
+EXPLAIN SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+
+SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+
+set @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
+
+EXPLAIN SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+
+SELECT t1.f4
+FROM t1 JOIN ( t2 JOIN t3 ON t3.f3 = t2.f4 ) ON t3.f3 = t2.f3
+WHERE t1.f4 IN ( SELECT f4 FROM t2 ) ;
+
+set @@optimizer_switch = @old_optimizer_switch;
+
+drop table t1, t2, t3;
+
+
+--echo #
+--echo # LP BUG#782305: Wrong result/valgrind warning in Item_sum_hybrid::any_value()
+--echo #
+
+CREATE TABLE t1 ( f1 int) ;
+INSERT INTO t1 VALUES (2),(3);
+CREATE TABLE t2 (f2 int) ;
+INSERT INTO t2 VALUES (2),(3);
+
+PREPARE st1 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME ( SELECT f1 FROM t1 );
+';
+EXECUTE st1;
+EXECUTE st1;
+
+PREPARE st2 FROM '
+SELECT * FROM t2
+WHERE f2 <= SOME (SELECT f1-2 FROM t1 UNION SELECT f1-1 FROM t1);
+';
+EXECUTE st2;
+EXECUTE st2;
+
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#825018: Crash in check_and_do_in_subquery_rewrites() with corrlated subquery in select list
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (10,1),(11,7);
+
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (2),(3);
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1);
+
+CREATE PROCEDURE sp1 () LANGUAGE SQL
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1;
+CALL sp1();
+CALL sp1();
+drop procedure sp1;
+
+prepare st1 from "
+SELECT (SELECT t1.a
+        FROM t1
+        WHERE t1.b = t3.b
+        AND t1.b IN ( SELECT a FROM t2 )) sq
+FROM t3
+GROUP BY 1";
+execute st1;
+execute st1;
+deallocate prepare st1;
+
+drop table t1, t2, t3;
+
+set optimizer_switch=@subselect4_tmp;
+
+--echo #
+--echo # LP BUG#833702 Wrong result with nested IN and singlerow subqueries and equality propagation
+--echo #
+
+CREATE TABLE t2 (c int , a int, b int);
+INSERT INTO t2 VALUES (10,7,0);
+
+CREATE TABLE t3 (a int, b int) ;
+INSERT INTO t3 VALUES (5,0),(7,0);
+
+CREATE TABLE t4 (a int);
+INSERT INTO t4 VALUES (2),(8);
+
+set @@optimizer_switch='semijoin=off,in_to_exists=on,materialization=off,subquery_cache=off';
+
+SELECT * FROM t2
+WHERE t2.b IN (SELECT b FROM t3 WHERE t3.a = t2.a AND a < SOME (SELECT * FROM t4))
+   OR ( t2.c > 242 );
+
+EXPLAIN SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+SELECT * FROM t2
+WHERE t2.b IN (SELECT t3.b FROM t3 WHERE t3.a < ANY (SELECT t4.a FROM t4) and t3.a = 7);
+
+drop table t2, t3, t4;
+
+set optimizer_switch=@subselect4_tmp;
+
+SET optimizer_switch= @@global.optimizer_switch;
+set @@tmp_table_size= @@global.tmp_table_size;

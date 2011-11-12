@@ -93,6 +93,22 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
 }
 
 
+bool
+Item_row::eval_not_null_tables(uchar *opt_arg)
+{
+  Item **arg,**arg_end;
+  not_null_tables_cache= 0;
+  if (arg_count)
+  {		
+    for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
+    {
+      not_null_tables_cache|= (*arg)->not_null_tables();
+    }
+  }
+  return FALSE;
+}
+
+
 void Item_row::cleanup()
 {
   DBUG_ENTER("Item_row::cleanup");
@@ -133,11 +149,13 @@ void Item_row::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
   used_tables_cache= 0;
   const_item_cache= 1;
+  not_null_tables_cache= 0;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->fix_after_pullout(new_parent, &items[i]);
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
+    not_null_tables_cache|= items[i]->not_null_tables();
   }
 }
 

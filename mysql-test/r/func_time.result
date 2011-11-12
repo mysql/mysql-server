@@ -27,6 +27,10 @@ sec_to_time('9001.1')	sec_to_time('1234567890123.123')
 02:30:01.100000	838:59:59.999999
 Warnings:
 Warning	1292	Truncated incorrect time value: '1234567890123.123'
+select sec_to_time(-9001.1), sec_to_time(-9001.1) / 1,
+sec_to_time(-9001.1) / 1e0, sec_to_time(-9001) div 1;
+sec_to_time(-9001.1)	sec_to_time(-9001.1) / 1	sec_to_time(-9001.1) / 1e0	sec_to_time(-9001) div 1
+-02:30:01.1	-23001.10000	-23001.1	-23001
 select sec_to_time(90011e-1), sec_to_time(1234567890123e30);
 sec_to_time(90011e-1)	sec_to_time(1234567890123e30)
 02:30:01.100000	838:59:59.999999

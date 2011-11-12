@@ -425,14 +425,14 @@ public:
 
   /**
     Save pointer to Annotate_rows event and switch on the
-    binlog_annotate_rows_events for this sql thread.
+    binlog_annotate_row_events for this sql thread.
     To be called when sql thread recieves an Annotate_rows event.
   */
   inline void set_annotate_event(Annotate_rows_log_event *event)
   {
     free_annotate_event();
     m_annotate_event= event;
-    sql_thd->variables.binlog_annotate_rows_events= 1;
+    sql_thd->variables.binlog_annotate_row_events= 1;
   }
 
   /**
@@ -446,7 +446,7 @@ public:
 
   /**
     Delete saved Annotate_rows event (if any) and switch off the
-    binlog_annotate_rows_events for this sql thread.
+    binlog_annotate_row_events for this sql thread.
     To be called when sql thread has applied the last (i.e. with
     STMT_END_F flag) rbr event.
   */
@@ -454,7 +454,7 @@ public:
   {
     if (m_annotate_event)
     {
-      sql_thd->variables.binlog_annotate_rows_events= 0;
+      sql_thd->variables.binlog_annotate_row_events= 0;
       delete m_annotate_event;
       m_annotate_event= 0;
     }

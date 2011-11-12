@@ -21,4 +21,5 @@
 
 #define VERSION_my_snprintf     0x0100
 #define VERSION_thd_alloc       0x0100
+#define VERSION_progress_report 0x0100
 

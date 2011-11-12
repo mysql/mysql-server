@@ -696,11 +696,13 @@ FLUSH TABLES;
 --remove_file $MYSQLD_DATADIR/test/t1.par
 --replace_result $MYSQLD_DATADIR ./
 CHECK TABLE t1;
---error ER_UNKNOWN_ERROR
+--replace_result $MYSQLD_DATADIR ./
+--error 29
 SELECT * FROM t1;
 --echo # Note that it is currently impossible to drop a partitioned table
 --echo # without the .par file
---error ER_BAD_TABLE_ERROR
+--replace_result $MYSQLD_DATADIR ./
+--error 29
 DROP TABLE t1;
 --remove_file $MYSQLD_DATADIR/test/t1.frm
 --remove_file $MYSQLD_DATADIR/test/t1#P#p0.MYI

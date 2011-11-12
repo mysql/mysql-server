@@ -49,7 +49,7 @@ and you are welcome to modify and redistribute it under the GPL v2 license\n"
 #include <locale.h>
 #endif
 
-const char *VER= "14.16";
+const char *VER= "15.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -152,7 +152,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                show_warnings= 0, executing_query= 0,
-               ignore_spaces= 0;
+               ignore_spaces= 0, opt_progress_reports;
 static my_bool debug_info_flag, debug_check_flag, batch_abort_on_error;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
@@ -248,6 +248,13 @@ static const char* construct_prompt();
 static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
+#ifndef EMBEDDED_LIBRARY
+static uint last_progress_report_length= 0;
+static void report_progress(const MYSQL *mysql, uint stage, uint max_stage,
+                            double progress, const char *proc_info,
+                            uint proc_info_length);
+#endif
+static void report_progress_end();
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -1498,6 +1505,10 @@ static struct my_option my_long_options[] =
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    &opt_mysql_port,
    &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,  0},
+  {"progress-reports", OPT_REPORT_PROGRESS,
+   "Get progress reports for long running commands (like ALTER TABLE)",
+   &opt_progress_reports, &opt_progress_reports, 0, GET_BOOL, NO_ARG, 1, 0,
+   0, 0, 0, 0},
   {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
    &current_prompt, &current_prompt, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1854,6 +1865,7 @@ static int get_options(int argc, char **argv)
     opt_outfile= 0;
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
+    opt_progress_reports= 0;
   }
   
   if (strcmp(default_charset, charset_info->csname) &&
@@ -1880,6 +1892,9 @@ static int get_options(int argc, char **argv)
 
   if (ignore_spaces)
     connect_flag|= CLIENT_IGNORE_SPACE;
+
+  if (opt_progress_reports)
+    connect_flag|= CLIENT_PROGRESS;
 
   return(0);
 }
@@ -2287,7 +2302,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       break;
     }
     else if (!*in_string && inchar == '/' && *(pos+1) == '*' &&
-	     *(pos+2) != '!')
+             !(*(pos+2) == '!' || (*(pos+2) == 'M' && *(pos+3) == '!')))
     {
       if (preserve_comments)
       {
@@ -3058,6 +3073,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   timer=start_timer();
   executing_query= 1;
   error= mysql_real_query_for_lazy(buffer->ptr(),buffer->length());
+  report_progress_end();
 
 #ifdef HAVE_READLINE
   if (status.add_to_history) 
@@ -4413,9 +4429,17 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     }
     return -1;					// Retryable
   }
+
   connected=1;
 #ifndef EMBEDDED_LIBRARY
   mysql.reconnect= debug_info_flag; // We want to know if this happens
+
+  /*
+    CLIENT_PROGRESS is set only if we requsted it in mysql_real_connect()
+    and the server also supports it
+  */
+  if (mysql.client_flag & CLIENT_PROGRESS)
+    mysql_options(&mysql, MYSQL_PROGRESS_CALLBACK, (void*) report_progress);
 #else
   mysql.reconnect= 1;
 #endif
@@ -5063,4 +5087,31 @@ void sql_element_free(void *ptr)
 {
   my_free(ptr,MYF(0));
 }
-#endif /* EMBEDDED_LIBRARY */
+
+static void report_progress(const MYSQL *mysql, uint stage, uint max_stage,
+                            double progress, const char *proc_info,
+                            uint proc_info_length)
+{
+  uint length= printf("Stage: %d of %d '%.*s' %6.3g%% of stage done",
+                      stage, max_stage, proc_info_length, proc_info, 
+                      progress);
+  if (length < last_progress_report_length)
+    printf("%*s", last_progress_report_length - length, "");
+  putc('\r', stdout);
+  fflush(stdout);
+  last_progress_report_length= length;
+}
+
+static void report_progress_end()
+{
+  if (last_progress_report_length)
+  {
+    printf("%*s\r", last_progress_report_length, "");
+    last_progress_report_length= 0;
+  }
+}
+#else
+static void report_progress_end()
+{
+}
+#endif

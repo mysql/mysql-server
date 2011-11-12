@@ -37,7 +37,7 @@ select cast("2011-02-03 10:11:12.123456" as datetime(0));
 select cast("2011-02-03 10:11:12.123456" as datetime(5));
 select cast("2011-02-03 10:11:12.123456" as datetime(6));
 select cast("2011-02-03 10:11:12" as datetime(6));
-select cast(cast(20010203101112.1 as double) as datetime(1));
+select cast(cast(20010203101112.5 as double) as datetime(1));
 select cast(cast(010203101112.12 as double) as datetime(2));
 select cast(cast(20010203101112.121314 as decimal(32,6)) as datetime(6));
 select cast(20010203101112.121314 as datetime(6));
@@ -406,4 +406,9 @@ create table t1 (f1 time, f2 date, f3 datetime);
 insert into t1 values ('11:22:33','2011-12-13','2011-12-13 11:22:33');
 select cast(f1 as unsigned), cast(f2 as unsigned), cast(f3 as unsigned) from t1;
 drop table t1;
+
+#
+# CAST(... AS DATE) and invalid dates
+#
+SELECT CAST(TIME('10:20:30') AS DATE) + INTERVAL 1 DAY;
 

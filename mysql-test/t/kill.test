@@ -99,7 +99,7 @@ select ((@id := kill_id) - kill_id) from t3;
 kill @id;
 
 connection conn1;
--- error 1317,2013
+-- error ER_QUERY_INTERRUPTED,ER_CONNECTION_KILLED,2013
 reap;
 
 connection default;
@@ -336,6 +336,36 @@ SELECT 1;
 --connection default
 
 ###########################################################################
+
+--echo #
+--echo # Test kill USER
+--echo #
+
+grant ALL on test.* to test@localhost;
+grant ALL on test.* to test2@localhost;
+connect (con3, localhost, test,,);
+connect (con4, localhost, test2,,);
+connection default;
+--enable_info
+kill hard query user test2@nohost;
+kill soft query user test@localhost;
+kill hard query user test@localhost;
+kill soft connection user test2;
+kill hard connection user test@localhost;
+--disable_info
+revoke all privileges on test.* from test@localhost;
+revoke all privileges on test.* from test2@localhost;
+drop user test@localhost;
+drop user test2@localhost;
+
+connection con3;
+--error 2013,2006
+select 1;
+connection con4;
+--error 2013,2006
+select 1;
+connection default;
+
 
 # Restore global concurrent_insert value. Keep in the end of the test file.
 set @@global.concurrent_insert= @old_concurrent_insert;

@@ -31,6 +31,16 @@ const String my_null_string("NULL", 4, default_charset_info);
 static int save_field_in_field(Field *from, bool *null_value,
                                Field *to, bool no_conversions);
 
+
+/**
+  Compare two Items for List<Item>::add_unique()
+*/
+
+bool cmp_items(Item *a, Item *b)
+{
+  return a->eq(b, FALSE);
+}
+
 /****************************************************************************/
 
 /* Hybrid_type_traits {_real} */
@@ -651,14 +661,14 @@ Item* Item::transform(Item_transformer transformer, uchar *arg)
   A pointer to created wrapper item if successful, NULL - otherwise
 */
 
-Item* Item::set_expr_cache(THD *thd, List<Item *> &depends_on)
+Item* Item::set_expr_cache(THD *thd)
 {
   DBUG_ENTER("Item::set_expr_cache");
   Item_cache_wrapper *wrapper;
   if ((wrapper= new Item_cache_wrapper(this)) &&
       !wrapper->fix_fields(thd, (Item**)&wrapper))
   {
-    if (wrapper->set_cache(thd, depends_on))
+    if (wrapper->set_cache(thd))
       DBUG_RETURN(NULL);
     DBUG_RETURN(wrapper);
   }
@@ -739,6 +749,17 @@ bool Item_ident::remove_dependence_processor(uchar * arg)
     depended_from= 0;
   context= &((st_select_lex *) arg)->context;
   DBUG_RETURN(0);
+}
+
+
+bool Item_ident::collect_outer_ref_processor(uchar *param)
+{
+  Collect_deps_prm *prm= (Collect_deps_prm *)param;
+  if (depended_from && 
+      depended_from->nest_level_base == prm->nest_level_base &&
+      depended_from->nest_level < prm->nest_level)
+    prm->parameters->add_unique(this, &cmp_items);
+  return FALSE;
 }
 
 
@@ -2153,6 +2174,11 @@ bool Item_field::enumerate_field_refs_processor(uchar *arg)
   return FALSE;
 }
 
+bool Item_field::update_table_bitmaps_processor(uchar *arg)
+{
+  update_table_bitmaps();
+  return FALSE;
+}
 
 const char *Item_ident::full_name() const
 {
@@ -4357,9 +4383,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                             ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
                              (Item_ident*) (*reference) :
                              0));
-          context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
           /*
             A reference to a view field had been found and we
             substituted it instead of this Item (find_field_in_tables
@@ -4460,9 +4483,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     mark_as_dependent(thd, last_checked_context->select_lex,
                       context->select_lex, rf,
                       rf);
-    context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
 
     return 0;
   }
@@ -4471,9 +4491,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     mark_as_dependent(thd, last_checked_context->select_lex,
                       context->select_lex,
                       this, (Item_ident*)*reference);
-    context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
     if (last_checked_context->select_lex->having_fix_field)
     {
       Item_ref *rf;
@@ -4638,6 +4655,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     if (!outer_fixed && cached_table && cached_table->select_lex &&
         context->select_lex &&
         cached_table->select_lex != context->select_lex &&
+        !context->select_lex->is_merged_child_of(cached_table->select_lex) &&
         is_outer_table(cached_table, context->select_lex))
     {
       int ret;
@@ -5181,6 +5199,10 @@ Field *Item::make_string_field(TABLE *table)
 {
   Field *field;
   DBUG_ASSERT(collation.collation);
+  /* 
+    Note: the following check is repeated in 
+    subquery_types_allow_materialization():
+  */
   if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_length, maybe_null, name,
                           collation.collation);
@@ -5967,7 +5989,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_TIMESTAMP:
   {
     MYSQL_TIME tm;
-    get_date(&tm, TIME_FUZZY_DATE);
+    get_date(&tm, TIME_FUZZY_DATE | sql_mode_for_dates());
     if (!null_value)
     {
       if (f_type == MYSQL_TYPE_DATE)
@@ -6304,9 +6326,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
                                 refer_type == FIELD_ITEM) ?
                                (Item_ident*) (*reference) :
                                0));
-           context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
             /*
               view reference found, we substituted it instead of this
               Item, so can quit
@@ -6357,9 +6376,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
                           thd->lex->current_select, fld, fld);
-        context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
@@ -6383,9 +6399,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       DBUG_ASSERT(*ref && (*ref)->fixed);
       mark_as_dependent(thd, last_checked_context->select_lex,
                         context->select_lex, this, this);
-      context->select_lex->
-              register_dependency_item(last_checked_context->select_lex,
-                                       reference);
       /*
         A reference is resolved to a nest level that's outer or the same as
         the nest level of the enclosing set function : adjust the value of
@@ -6400,12 +6413,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   }
   else if (ref_type() != VIEW_REF)
   {
-    if (depended_from && reference)
-    {
-      DBUG_ASSERT(context->select_lex != get_depended_from());
-      context->select_lex->register_dependency_item(get_depended_from(),
-                                                    reference);
-    }
     /*
       It could be that we're referring to something that's in ancestor selects.
       We must make an appropriate mark_as_dependent() call for each such
@@ -6768,7 +6775,19 @@ my_decimal *Item_ref::val_decimal(my_decimal *decimal_value)
 int Item_ref::save_in_field(Field *to, bool no_conversions)
 {
   int res;
-  DBUG_ASSERT(!result_field);
+  if (result_field)
+  {
+    if (result_field->is_null())
+    {
+      null_value= 1;
+      res= set_field_to_null_with_conversions(to, no_conversions);
+      return res;
+    }
+    to->set_notnull();
+    res= field_conv(to, result_field);
+    null_value= 0;
+    return res;
+  }
   res= (*ref)->save_in_field(to, no_conversions);
   null_value= (*ref)->null_value;
   return res;
@@ -6883,40 +6902,6 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 }
 
 
-Item* Item_direct_ref_to_ident::transform(Item_transformer transformer,
-                                          uchar *argument)
-{
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
-
-  Item *new_item= ident->transform(transformer, argument);
-  if (!new_item)
-    return 0;
-  DBUG_ASSERT(new_item->type() == FIELD_ITEM || new_item->type() == REF_ITEM);
-
-  if (ident != new_item)
-    current_thd->change_item_tree((Item**)&ident, new_item);
-  return (this->*transformer)(argument);
-}
-
-
-Item* Item_direct_ref_to_ident::compile(Item_analyzer analyzer, uchar **arg_p,
-                                        Item_transformer transformer,
-                                        uchar *arg_t)
-{
-  if (!(this->*analyzer)(arg_p))
-    return 0;
-
-  uchar *arg_v= *arg_p;
-  Item *new_item= ident->compile(analyzer, &arg_v, transformer, arg_t);
-  if (new_item && ident != new_item)
-  {
-    DBUG_ASSERT(new_item->type() == FIELD_ITEM || new_item->type() == REF_ITEM);
-    current_thd->change_item_tree((Item**)&ident, new_item);
-  }
-  return (this->*transformer)(arg_t);
-}
-
-
 Item_cache_wrapper::~Item_cache_wrapper()
 {
   DBUG_ASSERT(expr_cache == 0);
@@ -6936,6 +6921,7 @@ Item_cache_wrapper::Item_cache_wrapper(Item *item_arg)
   unsigned_flag= orig_item->unsigned_flag;
   name= item_arg->name;
   name_length= item_arg->name_length;
+  with_subselect=  orig_item->with_subselect;
 
   if ((expr_value= Item_cache::get_cache(orig_item)))
     expr_value->setup(orig_item);
@@ -6944,11 +6930,28 @@ Item_cache_wrapper::Item_cache_wrapper(Item *item_arg)
 }
 
 
+/**
+  Initialize the cache if it is needed
+*/
+
+void Item_cache_wrapper::init_on_demand()
+{
+    if (!expr_cache->is_inited())
+    {
+      orig_item->get_cache_parameters(parameters);
+      expr_cache->init();
+    }
+}
+
+
 void Item_cache_wrapper::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   if (expr_cache)
+  {
+    init_on_demand();
     expr_cache->print(str, query_type);
+  }
   else
     str->append(STRING_WITH_LEN("<<DISABLED>>"));
   str->append('(');
@@ -6984,6 +6987,7 @@ void Item_cache_wrapper::cleanup()
   expr_cache= 0;
   /* expr_value is Item so it will be destroyed from list of Items */
   expr_value= 0;
+  parameters.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -7004,11 +7008,11 @@ void Item_cache_wrapper::cleanup()
   @retval TRUE  Error
 */
 
-bool Item_cache_wrapper::set_cache(THD *thd, List<Item*> &depends_on)
+bool Item_cache_wrapper::set_cache(THD *thd)
 {
   DBUG_ENTER("Item_cache_wrapper::set_cache");
   DBUG_ASSERT(expr_cache == 0);
-  expr_cache= new Expression_cache_tmptable(thd, depends_on, expr_value);
+  expr_cache= new Expression_cache_tmptable(thd, parameters, expr_value);
   DBUG_RETURN(expr_cache == NULL);
 }
 
@@ -7033,6 +7037,7 @@ Item *Item_cache_wrapper::check_cache()
   {
     Expression_cache_tmptable::result res;
     Item *cached_value;
+    init_on_demand();
     res= expr_cache->check_value(&cached_value);
     if (res == Expression_cache_tmptable::HIT)
       DBUG_RETURN(cached_value);
@@ -7318,7 +7323,11 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
            ((*ref)->fix_fields(thd, ref)))
     return TRUE;
 
-  return Item_direct_ref::fix_fields(thd, reference);
+  if (Item_direct_ref::fix_fields(thd, reference))
+    return TRUE;
+  if (view->table && view->table->maybe_null)
+    maybe_null= TRUE;
+  return FALSE;
 }
 
 /*
@@ -7561,7 +7570,7 @@ Item *Item_direct_view_ref::replace_equal_field(uchar *arg)
   field_item->set_item_equal(item_equal);
   Item *item= field_item->replace_equal_field(arg);
   field_item->set_item_equal(0);
-  return item;
+  return item != field_item ? item : this;
 }
 
 
@@ -9109,6 +9118,12 @@ table_map Item_direct_view_ref::used_tables() const
          (view->merged ? (*ref)->used_tables() : view->table->map); 
 }
 
+table_map Item_direct_view_ref::not_null_tables() const		
+{
+  return get_depended_from() ? 
+         0 :
+         (view->merged ? (*ref)->not_null_tables() : view->table->map); 
+}
 
 /*
   we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
@@ -9121,7 +9136,22 @@ table_map Item_ref_null_helper::used_tables() const
 }
 
 
+/* Debugger help function */
+static char dbug_item_print_buf[256];
 
+const char *dbug_print_item(Item *item)
+{
+  char *buf= dbug_item_print_buf;
+  String str(buf, sizeof(dbug_item_print_buf), &my_charset_bin);
+  str.length(0);
+  if (!item)
+    return "(Item*)NULL";
+  item->print(&str ,QT_ORDINARY);
+  if (str.c_ptr() == buf)
+    return buf;
+  else
+    return "Couldn't fit into buffer";
+}
 /*****************************************************************************
 ** Instantiate templates
 *****************************************************************************/

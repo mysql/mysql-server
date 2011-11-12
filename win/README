@@ -51,12 +51,10 @@ win\configure <options>
 
 The options right now are:
 
-    WITH_INNOBASE_STORAGE_ENGINE         Enable particular storage engines
-    WITH_PARTITION_STORAGE_ENGINE
-    WITH_ARCHIVE_STORAGE_ENGINE
-    WITH_BLACKHOLE_STORAGE_ENGINE
-    WITH_EXAMPLE_STORAGE_ENGINE
-    WITH_FEDERATED_STORAGE_ENGINE
+    --with-plugin-XXX                    Enable particular plugin or plugins
+    --with-plugins=XXX,YYY,...
+    --with-plugins=GROUP                 GROUP can be, for example, "max" or "max-no-ndb"
+    --without-plugin-XXX                 Disable particular plugin
     __NT__                               Enable named pipe support
     MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
     COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
@@ -70,7 +68,7 @@ The options right now are:
                                 
 So the command line could look like:
 
-win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
+win\configure --with-plugin-innobase --with-plugin-partition MYSQL_SERVER_SUFFIX=-pro
 
 Step 6
 ------

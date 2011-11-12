@@ -74,6 +74,22 @@ public:
 
 
 /**
+  Item iterator over List_iterator_fast for Items
+*/
+
+class Item_iterator_list: public Item_iterator
+{
+  List_iterator<Item> list;
+public:
+  Item_iterator_list(List_iterator<Item> &arg_list):
+    list(arg_list) {}
+  void open() { list.rewind(); }
+  Item *next() { return (list++); }
+  void close() {}
+};
+
+
+/**
   Item iterator over Item interface for rows
 */
 
@@ -346,6 +362,38 @@ public:
   LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
 };
 
+
+/* Note: these states are actually bit coded with HARD */
+enum killed_state
+{
+  NOT_KILLED= 0,
+  KILL_HARD_BIT= 1,                             /* Bit for HARD KILL */
+  KILL_BAD_DATA= 2,
+  KILL_BAD_DATA_HARD= 3,
+  KILL_QUERY= 4,
+  KILL_QUERY_HARD= 5,
+  /*
+    All of the following killed states will kill the connection
+    KILL_CONNECTION must be the first of these!
+  */
+  KILL_CONNECTION= 6,
+  KILL_CONNECTION_HARD= 7,
+  KILL_SYSTEM_THREAD= 8,
+  KILL_SYSTEM_THREAD_HARD= 9,
+  KILL_SERVER= 10,
+  KILL_SERVER_HARD= 11
+};
+
+extern int killed_errno(killed_state killed);
+#define killed_mask_hard(killed) ((killed_state) ((killed) & ~KILL_HARD_BIT))
+
+enum killed_type
+{
+  KILL_TYPE_ID,
+  KILL_TYPE_USER
+};
+
+
 #include "sql_lex.h"				/* Must be here */
 
 class Delayed_insert;
@@ -443,7 +491,8 @@ struct system_variables
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
-  my_bool binlog_annotate_rows_events;
+  ulong progress_report_time;
+  my_bool binlog_annotate_row_events;
   my_bool binlog_direct_non_trans_update;
   /*
     In slave thread we need to know in behalf of which
@@ -530,6 +579,9 @@ typedef struct system_status_var
   ulong ha_rollback_count;
   ulong ha_update_count;
   ulong ha_write_count;
+  /* The following are for internal temporary tables */
+  ulong ha_tmp_update_count;
+  ulong ha_tmp_write_count;
   ulong ha_prepare_count;
   ulong ha_discover_count;
   ulong ha_savepoint_count;
@@ -582,6 +634,7 @@ typedef struct system_status_var
   ulonglong bytes_sent;
   ulonglong rows_read;
   ulonglong rows_sent;
+  ulonglong rows_tmp_read;
   ulonglong binlog_bytes_written;
   double last_query_cost;
   double cpu_time, busy_time;
@@ -1547,6 +1600,25 @@ public:
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
+  // Process indicator
+  struct {
+    /*
+      true, if the currently running command can send progress report
+      packets to a client. Set by mysql_execute_command() for safe commands
+      See CF_REPORT_PROGRESS
+    */
+    bool       report_to_client;
+    /*
+      true, if we will send progress report packets to a client
+      (client has requested them, see CLIENT_PROGRESS; report_to_client
+      is true; not in sub-statement)
+    */
+    bool       report;
+    uint       stage, max_stage;
+    ulonglong  counter, max_counter;
+    ulonglong  next_report_time;
+  } progress;
+
   thr_lock_type update_lock_default;
   Delayed_insert *di;
 
@@ -1556,20 +1628,21 @@ public:
   bool sql_log_bin_toplevel;
   /* True when opt_userstat_running is set at start of query */
   bool userstat_running;
+  /* True if we want to log all errors */
+  bool log_all_errors;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
-  /* Place to store various things */
-  union 
-  { 
-    /*
-      Used by subquery optimizations, see Item_in_subselect::emb_on_expr_nest.
-    */
-    TABLE_LIST *emb_on_expr_nest;
-  } thd_marker;
-
   bool prepare_derived_at_open;
+
+  /* 
+    To signal that the tmp table to be created is created for materialized
+    derived table or a view.
+  */ 
+  bool create_tmp_table_for_derived;
+
+  bool save_prep_leaf_list;
 
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
@@ -1932,14 +2005,6 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
-  enum killed_state
-  {
-    NOT_KILLED=0,
-    KILL_BAD_DATA=1,
-    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
-    KILL_QUERY=ER_QUERY_INTERRUPTED,
-    KILLED_NO_VALUE      /* means neither of the states */
-  };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -2122,7 +2187,7 @@ public:
   }
   void close_active_vio();
 #endif
-  void awake(THD::killed_state state_to_set);
+  void awake(killed_state state_to_set);
 
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
@@ -2356,18 +2421,13 @@ public:
   void end_statement();
   inline int killed_errno() const
   {
-    killed_state killed_val; /* to cache the volatile 'killed' */
-    return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
+    return ::killed_errno(killed);
   }
   inline void send_kill_message() const
   {
     int err= killed_errno();
     if (err)
-    {
-      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
-        err = KILL_QUERY;
       my_message(err, ER(err), MYF(0));
-    }
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()
@@ -3179,9 +3239,11 @@ class select_max_min_finder_subselect :public select_subselect
   Item_cache *cache;
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
+  bool is_all;
 public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
-    :select_subselect(item_arg), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
+                                  bool all)
+    :select_subselect(item_arg), cache(0), fmax(mx), is_all(all)
   {}
   void cleanup();
   int send_data(List<Item> &items);
@@ -3546,6 +3608,7 @@ public:
 #define CF_STATUS_COMMAND	4
 #define CF_SHOW_TABLE_COMMAND	8
 #define CF_WRITE_LOGS_COMMAND  16
+
 /**
   Must be set for SQL statements that may contain
   Item expressions and/or use joins and tables.
@@ -3560,6 +3623,7 @@ public:
   joins are currently prohibited in these statements.
 */
 #define CF_REEXECUTION_FRAGILE 32
+#define CF_REPORT_PROGRESS     64
 
 /* Functions in sql_class.cc */
 
@@ -3595,16 +3659,24 @@ inline int handler::ha_index_read_map(uchar * buf, const uchar * key,
   return error;
 }
 
+
+/*
+  @note: Other index lookup/navigation functions require prior
+  handler->index_init() call. This function is different, it requires
+  that the scan is not initialized, and accepts "uint index" as an argument.
+*/
+
 inline int handler::ha_index_read_idx_map(uchar * buf, uint index,
                                           const uchar * key,
                                           key_part_map keypart_map,
                                           enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(inited==NONE);
   increment_statistics(&SSV::ha_read_key_count);
   int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
   if (!error)
   {
-    rows_read++;
+    update_rows_read();
     index_rows_read[index]++;
   }
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3671,7 +3743,8 @@ inline int handler::ha_ft_read(uchar *buf)
 {
   int error= ft_read(buf);
   if (!error)
-    rows_read++;
+    update_rows_read();
+
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3681,7 +3754,7 @@ inline int handler::ha_rnd_next(uchar *buf)
   increment_statistics(&SSV::ha_read_rnd_next_count);
   int error= rnd_next(buf);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3691,7 +3764,7 @@ inline int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   increment_statistics(&SSV::ha_read_rnd_count);
   int error= rnd_pos(buf, pos);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3700,7 +3773,7 @@ inline int handler::ha_rnd_pos_by_record(uchar *buf)
 {
   int error= rnd_pos_by_record(buf);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -3709,15 +3782,21 @@ inline int handler::ha_read_first_row(uchar *buf, uint primary_key)
 {
   int error= read_first_row(buf, primary_key);
   if (!error)
-    rows_read++;
+    update_rows_read();
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
 
 inline int handler::ha_write_tmp_row(uchar *buf)
 {
-  increment_statistics(&SSV::ha_write_count);
+  increment_statistics(&SSV::ha_tmp_write_count);
   return write_row(buf);
+}
+
+inline int handler::ha_update_tmp_row(const uchar *old_data, uchar *new_data)
+{
+  increment_statistics(&SSV::ha_tmp_update_count);
+  return update_row(old_data, new_data);
 }
 
 #endif /* MYSQL_SERVER */

@@ -1,1 +1,1 @@
---log-slave-updates --replicate-annotate-rows-events --replicate-ignore-table=test1.xt1 --replicate-ignore-table=test1.xt2
+--log-slave-updates --replicate-annotate-row-events --replicate-ignore-table=test1.xt1 --replicate-ignore-table=test1.xt2

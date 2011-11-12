@@ -126,6 +126,8 @@ typedef struct st_maria_state_info
      increased.
   */
   LSN skip_redo_lsn;
+  /* LSN when we wrote file id to the log */
+  LSN logrec_file_id;
 
   /* the following isn't saved on disk */
   uint state_diff_length;		/* Should be 0 */
@@ -245,9 +247,10 @@ typedef struct st_maria_file_bitmap
 {
   uchar *map;
   pgcache_page_no_t page;              /* Page number for current bitmap */
-  uint used_size;                      /* Size of bitmap head that is not 0 */
+  pgcache_page_no_t last_bitmap_page; /* Last possible bitmap page */
   my_bool changed;                     /* 1 if page needs to be written */
   my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
+  uint used_size;                      /* Size of bitmap head that is not 0 */
   uint flush_all_requested;            /**< If _ma_bitmap_flush_all waiting */
   uint waiting_for_flush_all_requested; /* If someone is waiting for above */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
@@ -261,6 +264,8 @@ typedef struct st_maria_file_bitmap
   /* Constants, allocated when initiating bitmaps */
   uint sizes[8];                      /* Size per bit combination */
   uint total_size;		      /* Total usable size of bitmap page */
+  uint max_total_size;                /* Max value for total_size */
+  uint last_total_size;               /* Size of bitmap on last_bitmap_page */
   uint block_size;                    /* Block size of file */
   ulong pages_covered;                /* Pages covered by bitmap + 1 */
   DYNAMIC_ARRAY pinned_pages;         /**< not-yet-flushable bitmap pages */
@@ -273,6 +278,7 @@ typedef struct st_maria_file_bitmap
 typedef struct st_maria_share
 {					/* Shared between opens */
   MARIA_STATE_INFO state;
+  MARIA_STATE_INFO checkpoint_state;   /* Copy of saved state by checkpoint */
   MARIA_BASE_INFO base;
   MARIA_STATE_HISTORY *state_history;
   MARIA_KEYDEF ft2_keyinfo;		/* Second-level ft-key definition */
@@ -741,7 +747,7 @@ struct st_maria_handler
   { length=mi_uint2korr((key)+1)+3; } \
 }
 
-#define maria_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/2 - MARIA_INDEX_OVERHEAD_SIZE)
+#define _ma_max_key_length() ((maria_block_size - MAX_KEYPAGE_HEADER_SIZE)/3 - MARIA_INDEX_OVERHEAD_SIZE)
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 #define _ma_have_versioning(info) ((info)->row_flag & ROW_FLAG_TRANSID)
 
@@ -822,6 +828,7 @@ extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
 extern my_bool maria_recovery_verbose, maria_checkpoint_disabled;
 extern my_bool maria_assert_if_crashed_table;
+extern ulong maria_checkpoint_min_log_activity;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);
 extern my_bool (*ma_killed)(MARIA_HA *);
@@ -1220,6 +1227,8 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   See ma_check_standalone.h .
 */
 int _ma_killed_ptr(HA_CHECK *param);
+void _ma_report_progress(HA_CHECK *param, ulonglong progress,
+                         ulonglong max_progress);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...))
   ATTRIBUTE_FORMAT(printf, 2, 3);
 void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...))

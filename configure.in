@@ -18,7 +18,7 @@ dnl When merging new MySQL releases, update the version number to match the
 dnl MySQL version number.
 dnl
 dnl Note: the following line must be parseable by win/configure.js:GetVersion()
-AC_INIT([MariaDB Server], [5.3.0-MariaDB-alpha], [], [mysql])
+AC_INIT([MariaDB Server], [5.3.2-MariaDB-beta], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -870,7 +870,7 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h fpu_control.h \
  ieeefp.h limits.h memory.h pwd.h select.h fnmatch.h \
- stdlib.h stddef.h sys/stat.h \
+ stdlib.h stddef.h sys/stat.h sys/sockio.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \

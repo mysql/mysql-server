@@ -67,7 +67,7 @@ int readfrm(const char *name, uchar **frmdata, size_t *len)
   error= 2;
   if (my_fstat(file, &state, MYF(0)))
     goto err;
-  read_len= state.st_size;  
+  read_len= (size_t)state.st_size;  
 
   // Read whole frm file
   error= 3;

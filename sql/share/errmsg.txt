@@ -6290,3 +6290,11 @@ ER_QUERY_CACHE_IS_GLOBALY_DISABLED
         eng "Query cache is globally disabled and you can't enable it only for this session"
 ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
   eng "A SPATIAL index may only contain a geometrical type column"
+ER_VIEW_ORDERBY_IGNORED
+        eng "View '%-.192s'.'%-.192s' ORDER BY clause ignored because there is other ORDER BY clause already."
+ER_CONNECTION_KILLED 70100 
+        eng "Connection was killed"
+ER_INTERNAL_ERROR
+        eng "Internal error: '%-.192s'"
+
+

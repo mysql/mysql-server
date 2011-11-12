@@ -2117,3 +2117,22 @@ b
 DROP DATABASE db1;
 USE test;
 End of 5.1 tests.
+create table t1 (i int);
+create table t2 (i int);
+flush tables;
+flush status;
+CREATE DEFINER=`root`@`localhost` TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW BEGIN DELETE FROM t2 WHERE t2.i = OLD.i; END //
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+delete from t1 where i=1;
+show status like 'Opened_tables';
+Variable_name	Value
+Opened_tables	3
+select * from t1;
+i
+2
+select * from t2;
+i
+2
+drop table t1,t2;
+End of 5.2 tests.

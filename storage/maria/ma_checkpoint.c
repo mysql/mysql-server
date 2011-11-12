@@ -533,10 +533,13 @@ filter_flush_file_evenly(enum pagecache_page_type type,
    risk could be that while a checkpoint happens no LRD flushing happens.
 */
 
+static ulong maria_checkpoint_min_cache_activity= 10*1024*1024;
+/* Set in ha_maria.cc */
+ulong maria_checkpoint_min_log_activity= 1*1024*1024;
+
 pthread_handler_t ma_checkpoint_background(void *arg)
 {
   /** @brief At least this of log/page bytes written between checkpoints */
-  const uint checkpoint_min_activity= 2*1024*1024;
   /*
     If the interval could be changed by the user while we are in this thread,
     it could be annoying: for example it could cause "case 2" to be executed
@@ -576,53 +579,62 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     switch (sleeps % interval)
     {
     case 0:
+    {
       /* If checkpoints are disabled, wait 1 second and try again */
       if (maria_checkpoint_disabled)
       {
         sleep_time= 1;
         break;
       }
-      /*
-        With background flushing evenly distributed over the time
-        between two checkpoints, we should have only little flushing to do
-        in the checkpoint.
-      */
-      /*
-        No checkpoint if little work of interest for recovery was done
-        since last checkpoint. Such work includes log writing (lengthens
-        recovery, checkpoint would shorten it), page flushing (checkpoint
-        would decrease the amount of read pages in recovery).
-        In case of one short statement per minute (very low load), we don't
-        want to checkpoint every minute, hence the positive
-        checkpoint_min_activity.
-      */
-
-      if (((translog_get_horizon() - log_horizon_at_last_checkpoint) +
-           (maria_pagecache->global_cache_write -
-            pagecache_flushes_at_last_checkpoint) *
-           maria_pagecache->block_size) < checkpoint_min_activity)
       {
-        /* don't take checkpoint, so don't know what to flush */
-        pages_to_flush_before_next_checkpoint= 0;
-        sleep_time= interval;
-        break;
+        TRANSLOG_ADDRESS horizon= translog_get_horizon();
+
+        /*
+          With background flushing evenly distributed over the time
+          between two checkpoints, we should have only little flushing to do
+          in the checkpoint.
+        */
+        /*
+          No checkpoint if little work of interest for recovery was done
+          since last checkpoint. Such work includes log writing (lengthens
+          recovery, checkpoint would shorten it), page flushing (checkpoint
+          would decrease the amount of read pages in recovery).
+          In case of one short statement per minute (very low load), we don't
+          want to checkpoint every minute, hence the positive
+          maria_checkpoint_min_activity.
+        */
+        if ((ulonglong) (horizon - log_horizon_at_last_checkpoint) <=
+            maria_checkpoint_min_log_activity &&
+            ((ulonglong) (maria_pagecache->global_cache_write -
+                          pagecache_flushes_at_last_checkpoint) *
+             maria_pagecache->block_size) <=
+            maria_checkpoint_min_cache_activity)
+        {
+          /*
+            Not enough has happend since last checkpoint.
+            Sleep for a while and try again later
+          */
+          sleep_time= interval;
+          break;
+        }
+        sleep_time= 1;
+        ma_checkpoint_execute(CHECKPOINT_MEDIUM, TRUE);
+        /*
+          Snapshot this kind of "state" of the engine. Note that the value
+          below is possibly greater than last_checkpoint_lsn.
+        */
+        log_horizon_at_last_checkpoint= translog_get_horizon();
+        pagecache_flushes_at_last_checkpoint=
+          maria_pagecache->global_cache_write;
+        /*
+          If the checkpoint above succeeded it has set d|kfiles and
+          d|kfiles_end. If is has failed, it has set
+          pages_to_flush_before_next_checkpoint to 0 so we will skip flushing
+          and sleep until the next checkpoint.
+        */
       }
-      sleep_time= 1;
-      ma_checkpoint_execute(CHECKPOINT_MEDIUM, TRUE);
-      /*
-        Snapshot this kind of "state" of the engine. Note that the value below
-        is possibly greater than last_checkpoint_lsn.
-      */
-      log_horizon_at_last_checkpoint= translog_get_horizon();
-      pagecache_flushes_at_last_checkpoint=
-        maria_pagecache->global_cache_write;
-      /*
-        If the checkpoint above succeeded it has set d|kfiles and
-        d|kfiles_end. If is has failed, it has set
-        pages_to_flush_before_next_checkpoint to 0 so we will skip flushing
-        and sleep until the next checkpoint.
-      */
       break;
+    }
     case 1:
       /* set up parameters for background page flushing */
       filter_param.up_to_lsn= last_checkpoint_lsn;
@@ -1018,17 +1030,25 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
           possible that Recovery does not start from before the REDO and thus
           the state is not recovered. A solution may be to set
           share->changed=1 under log mutex when writing log records.
-          But as anyway we have another problem below, this optimization would
-          be of little use.
+
+          The current solution is to keep a copy the last saved state and
+          not write the state if it was same as last time. It's ok if
+          is_of_horizon would be different on disk if all other data is
+          the same.
         */
-        /** @todo flush state only if changed since last checkpoint */
         DBUG_ASSERT(share->last_version != 0);
         state_copy->state.is_of_horizon= share->state.is_of_horizon=
-          state_copies_horizon;
-        if (kfile.file >= 0)
+          share->checkpoint_state.is_of_horizon= state_copies_horizon;
+        if (kfile.file >= 0 && memcmp(&share->checkpoint_state,
+                                      &state_copy->state,
+                                      sizeof(state_copy->state)))
+        {
           sync_error|=
             _ma_state_info_write_sub(kfile.file, &state_copy->state,
                                      MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET);
+          memcpy(&share->checkpoint_state,
+                 &state_copy->state, sizeof(state_copy->state));
+        }
         /*
           We don't set share->changed=0 because it may interfere with a
           concurrent _ma_writeinfo() doing share->changed=1 (cancel its

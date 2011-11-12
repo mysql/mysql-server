@@ -637,8 +637,16 @@ public:
     tables. Unlike 'next_local', this in this list views are *not*
     leaves. Created in setup_tables() -> make_leaves_list().
   */
+  /* 
+    Subqueries that will need to be converted to semi-join nests, including
+    those converted to jtbm nests. The list is emptied when conversion is done.
+  */
+  List<Item_in_subselect> sj_subselects;
+
   List<TABLE_LIST> leaf_tables;
   List<TABLE_LIST> leaf_tables_exec;
+  List<TABLE_LIST> leaf_tables_prep;
+  bool is_prep_leaf_list_saved;
   uint insert_tables;
   st_select_lex *merged_into; /* select which this select is merged into */
                               /* (not 0 only for views/derived tables)   */
@@ -676,6 +684,13 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
+
+  /*
+    nest_levels are local to the query or VIEW,
+    and that view merge procedure does not re-calculate them.
+    So we also have to remember unit against which we count levels.
+  */
+  SELECT_LEX_UNIT *nest_level_base;
   int nest_level;     /* nesting level of select */
   Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
   uint with_wild; /* item list contain '*' */
@@ -785,7 +800,6 @@ public:
   inline bool is_subquery_function() { return master_unit()->item != 0; }
 
   bool mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency);
-  void register_dependency_item(st_select_lex *last, Item **dependency);
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();
@@ -881,10 +895,10 @@ public:
   bool handle_derived(struct st_lex *lex, uint phases);
   void append_table_to_list(TABLE_LIST *TABLE_LIST::*link, TABLE_LIST *table);
   bool get_free_table_map(table_map *map, uint *tablenr);
-  void remove_table_from_list(TABLE_LIST *table);
+  void replace_leaf_table(TABLE_LIST *table, List<TABLE_LIST> &tbl_list);
   void remap_tables(TABLE_LIST *derived, table_map map,
                     uint tablenr, st_select_lex *parent_lex);
-  bool merge_subquery(TABLE_LIST *derived, st_select_lex *subq_lex,
+  bool merge_subquery(THD *thd, TABLE_LIST *derived, st_select_lex *subq_lex,
                       uint tablenr, table_map map);
   inline bool is_mergeable()
   {
@@ -899,7 +913,8 @@ public:
   void mark_const_derived(bool empty);
 
   bool save_leaf_tables(THD *thd);
-
+  bool save_prep_leaf_tables(THD *thd);
+  bool is_merged_child_of(st_select_lex *ancestor);
 private:  
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;
@@ -1727,6 +1742,9 @@ typedef struct st_lex : public Query_tables_list
   LEX_SERVER_OPTIONS server_options;
   USER_RESOURCES mqh;
   ulong type;
+  /* The following is used by KILL */
+  killed_state kill_signal;
+  killed_type  kill_type;
   /*
     This variable is used in post-parse stage to declare that sum-functions,
     or functions which have sense only if GROUP BY is present, are allowed.

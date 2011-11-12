@@ -28,7 +28,8 @@ int maria_close(register MARIA_HA *info)
   my_bool share_can_be_freed= FALSE;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_close");
-  DBUG_PRINT("enter",("base: 0x%lx  reopen: %u  locks: %u",
+  DBUG_PRINT("enter",("name: '%s'  base: 0x%lx  reopen: %u  locks: %u",
+                      share->open_file_name.str,
 		      (long) info, (uint) share->reopen,
                       (uint) share->tot_locks));
 

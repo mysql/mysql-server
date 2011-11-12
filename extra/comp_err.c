@@ -402,7 +402,7 @@ static void clean_up(struct languages *lang_head, struct errors *error_head)
       my_free((uchar*) tmp_error->sql_code1, MYF(0));
     if (tmp_error->sql_code2[0])
       my_free((uchar*) tmp_error->sql_code2, MYF(0));
-    my_free((uchar*) tmp_error->er_name, MYF(0));
+    my_free((uchar*) tmp_error->er_name, MYF(MY_ALLOW_ZERO_PTR));
     my_free((uchar*) tmp_error, MYF(0));
   }
 }

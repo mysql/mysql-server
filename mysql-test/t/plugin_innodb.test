@@ -1,0 +1,27 @@
+--source include/not_embedded.inc
+--source include/have_example_plugin.inc
+--source include/have_innodb.inc
+
+if (!`select count(*) from information_schema.plugins
+         where plugin_name = 'innodb' and plugin_status = 'active' and
+              plugin_library is null`) {
+  skip Need compiled-in InnoDB;
+}
+
+
+--replace_regex /\.dll/.so/
+eval install plugin example soname '$HA_EXAMPLE_SO';
+create table t1(a int) engine=example;
+drop table t1;
+
+alter table mysql.plugin engine=innodb;
+--echo restart
+--source include/restart_mysqld.inc
+
+create table t1(a int) engine=example;
+select * from t1;
+drop table t1;
+
+alter table mysql.plugin engine=myisam;
+uninstall plugin example;
+

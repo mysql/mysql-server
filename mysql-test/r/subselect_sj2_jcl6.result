@@ -1,10 +1,15 @@
 set @save_optimizer_switch_jcl6=@@optimizer_switch;
+set @@optimizer_switch='optimize_join_buffer_size=on';
 set @@optimizer_switch='semijoin_with_cache=on';
 set @@optimizer_switch='outer_join_with_cache=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set join_cache_level=6;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
+set @subselect_sj2_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 drop table if exists t0, t1, t2, t3;
 drop view if exists v1;
 create table t0 (a int);
@@ -20,6 +25,7 @@ b int,
 key(b)
 );
 insert into t2 select a, a/2 from t0;
+insert into t2 select a+10, a+10/2 from t0;
 select * from t1;
 a	b
 1	1
@@ -37,6 +43,16 @@ a	b
 7	4
 8	4
 9	5
+10	5
+11	6
+12	7
+13	8
+14	9
+15	10
+16	11
+17	12
+18	13
+19	14
 explain select * from t2 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
@@ -55,6 +71,7 @@ pk1 char(200), pk2 char(200), pk3 char(200),
 primary key(pk1, pk2, pk3)
 ) engine=innodb;
 insert into t3 select a,a, a,a,a from t0;
+insert into t3 select a,a, a+100,a+100,a+100 from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
@@ -62,6 +79,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
+1	1	101	101	101
+2	2	102	102	102
 2	2	2	2	2
 set @save_max_heap_table_size= @@max_heap_table_size;
 set max_heap_table_size=16384;
@@ -271,10 +290,10 @@ explain select *
 from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Start temporary
-1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Using join buffer (flat, BNL join)
-1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using where; Using index
-1	PRIMARY	t3	ref	a	a	5	test.t1.a	1	Using where; Using index; End temporary
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
+1	PRIMARY	t1	index	a	a	5	NULL	10	Using where; Using index
+1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using index
+1	PRIMARY	t3	ref	a	a	5	test.t1.a	1	Using index; FirstMatch(t0)
 drop table t0, t1,t2,t3;
 CREATE TABLE t1 (
 ID int(11) NOT NULL auto_increment,
@@ -424,6 +443,7 @@ create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4);
 create table t1 (a int, b int, key(a));
 insert into t1 select a,a from t0;
+insert into t1 select a+5,a from t0;
 create table t2 (a int, b int, primary key(a));
 insert into t2 select * from t1;
 Table t2, unlike table t1, should be displayed as pulled out
@@ -431,12 +451,12 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Start temporary
-1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Using where; FirstMatch(t2); Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t0`.`a`) and (`test`.`t2`.`a` = `test`.`t0`.`a`))
+Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t0`.`a`) and (`test`.`t1`.`a` = `test`.`t0`.`a`))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 # Not anymore:
@@ -753,6 +773,121 @@ LEFT JOIN t2 AS SQ4_alias3 ON SQ4_alias3.f10
 GROUP BY field2;
 field2
 drop table t1, t2, t3;
+#
+# BUG#849763: Wrong result with second execution of prepared statement with semijoin + view
+#
+CREATE TABLE t1 ( c varchar(1)) engine=innodb;
+INSERT INTO t1 VALUES ('r');
+CREATE TABLE t2 ( a integer, b varchar(1), c varchar(1)) engine=innodb;
+INSERT INTO t2 VALUES (1,'r','r');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+PREPARE st1 FROM 'SELECT * FROM t2 WHERE a = SOME (SELECT a FROM v1 WHERE v1.c = t2.c)';
+EXECUTE st1;
+a	b	c
+1	r	r
+EXECUTE st1;
+a	b	c
+1	r	r
+DROP VIEW v1;
+DROP TABLE t1, t2;
+#
+# BUG#858732: Wrong result with semijoin + loosescan + comma join
+#
+CREATE TABLE t1 (f13 int(11) NOT NULL , PRIMARY KEY (f13)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (16),(24);
+CREATE TABLE t2 (f14 int(11) NOT NULL, f12 varchar(1) NOT NULL, KEY (f12,f14)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (6,'y');
+CREATE TABLE t3 (f12 varchar(1) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('r'),('s'),('t'),('v'),('w'),('x'),('y');
+# The following must use LooseScan but not join buffering
+explain
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	const	PRIMARY	PRIMARY	4	const	1	Using index
+1	PRIMARY	alias2	index	f12	f12	7	NULL	1	Using index; LooseScan
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using index; FirstMatch(alias2)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	7	Using where; Using join buffer (flat, BNL join)
+SELECT * FROM t3 
+WHERE f12 IN (SELECT alias2.f12 FROM t1 AS alias1, t2 AS alias2, t1 WHERE alias1.f13 = 24);
+f12
+y
+DROP TABLE t1,t2,t3;
+#
+# BUG#869012: Wrong result with semijoin + materialization + AND in WHERE
+#
+CREATE TABLE t1 (f3 varchar(1) , f4 varchar(1) ) engine=InnoDB;
+INSERT IGNORE INTO t1 VALUES ('x','x'),('x','x');
+CREATE TABLE t2 ( f4 varchar(1) ) ;
+INSERT IGNORE INTO t2 VALUES ('g');
+CREATE TABLE t3 (f4 varchar(1) ) Engine=InnoDB;
+INSERT IGNORE INTO t3 VALUES ('x');
+set @tmp_869012=@@optimizer_switch;
+SET optimizer_switch='semijoin=on,materialization=on';
+SELECT *
+FROM t1 , t2
+WHERE ( t1.f4 ) IN ( SELECT f4 FROM t3 )
+AND t2.f4 != t1.f3 ;
+f3	f4	f4
+x	x	g
+x	x	g
+set optimizer_switch= @tmp_869012;
+DROP TABLE t1,t2,t3;
+#
+# BUG#869001: Wrong result with semijoin + materialization + firstmatch + multipart key
+#
+set @tmp869001_jcl= @@join_cache_level;
+set @tmp869001_os= @@optimizer_switch;
+SET join_cache_level=0;
+SET optimizer_switch='materialization=on,semijoin=on,firstmatch=on,loosescan=off';
+CREATE TABLE t1 ( f2 int, f3 varchar(1), KEY (f3,f2)) engine=innodb;
+INSERT INTO t1 VALUES (8,'x'),(NULL,'x'),(8,'c');
+CREATE TABLE t2 ( f4 varchar(1)) engine=innodb;
+INSERT INTO t2 VALUES ('x');
+CREATE TABLE t3 ( f1 int) engine=innodb;
+INSERT INTO t3 VALUES (8),(6),(2),(9),(6);
+CREATE TABLE t4 ( f3 varchar(1)) engine=innodb;
+INSERT INTO t4 VALUES ('p'),('j'),('c');
+SELECT *
+FROM t1 JOIN t2 ON (t2.f4 = t1.f3 )
+WHERE ( 8 ) IN (
+SELECT t3.f1 FROM t3 , t4
+);
+f2	f3	f4
+NULL	x	x
+8	x	x
+DROP TABLE t1, t2, t3, t4;
+set join_cache_level= @tmp869001_jcl;
+set optimizer_switch= @tmp869001_os;
+# 
+# Bug #881318: join cache + duplicate elimination + left join
+#              with empty materialized derived inner table
+#
+CREATE TABLE t1 (b varchar(1)) ENGINE=InnoDB;
+CREATE TABLE t2 (a varchar(1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ('a');
+CREATE TABLE t3 (a varchar(1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t3 VALUES ('c','c');
+CREATE TABLE t4 (b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t4 VALUES ('c'), ('b');
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN
+SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
+WHERE t3.b IN (SELECT b FROM t4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Start temporary
+1	PRIMARY	t2	hash_ALL	NULL	#hash#$hj	5	test.t3.a	1	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (incremental, BNL join)
+1	PRIMARY	t4	hash_ALL	NULL	#hash#$hj	5	test.t3.b	2	Using where; End temporary; Using join buffer (incremental, BNLH join)
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t3 LEFT JOIN (v1,t2) ON t3.a = t2.a
+WHERE t3.b IN (SELECT b FROM t4);
+a	b	b	a
+c	c	NULL	NULL
+DROP VIEW v1;
+DROP TABLE t1,t2,t3,t4;
+# This must be the last in the file:
+set optimizer_switch=@subselect_sj2_tmp;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value

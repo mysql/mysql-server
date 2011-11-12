@@ -139,6 +139,20 @@ UNIV_INTERN ulint	srv_check_file_format_at_startup = DICT_TF_FORMAT_MAX;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;
+#ifdef __WIN__
+/* Windows native condition variables. We use runtime loading / function
+pointers, because they are not available on Windows Server 2003 and
+Windows XP/2000.
+
+We use condition for events on Windows if possible, even if os_event
+resembles Windows kernel event object well API-wise. The reason is
+performance, kernel objects are heavyweights and WaitForSingleObject() is a
+performance killer causing calling thread to context switch. Besides, Innodb
+is preallocating large number (often millions) of os_events. With kernel event
+objects it takes a big chunk out of non-paged pool, which is better suited
+for tasks like IO than for storing idle event objects. */
+UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
+#endif /* __WIN__ */
 
 UNIV_INTERN ulint	srv_n_data_files = 0;
 UNIV_INTERN char**	srv_data_file_names = NULL;
@@ -495,9 +509,6 @@ UNIV_INTERN FILE*	srv_misc_tmpfile;
 
 UNIV_INTERN ulint	srv_main_thread_process_no	= 0;
 UNIV_INTERN ulint	srv_main_thread_id		= 0;
-
-/* Release row locks already in the prepare phase */
-UNIV_INTERN my_bool	innobase_release_locks_early	= FALSE;
 
 /* The following count work done by srv_master_thread. */
 

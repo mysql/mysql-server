@@ -2355,9 +2355,11 @@ sub remove_stale_vardir () {
 	mtr_report(" - WARNING: Using the 'mysql-test/var' symlink");
 
 	# Make sure the directory where it points exist
-	mtr_error("The destination for symlink $opt_vardir does not exist")
-	  if ! -d readlink($opt_vardir);
-
+        if (! -d readlink($opt_vardir))
+        {
+          mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+          unlink($opt_vardir);
+        }
 	foreach my $bin ( glob("$opt_vardir/*") )
 	{
 	  mtr_verbose("Removing bin $bin");
@@ -2424,8 +2426,11 @@ sub setup_vardir() {
       #  it's a symlink
 
       # Make sure the directory where it points exist
-      mtr_error("The destination for symlink $opt_vardir does not exist")
-	if ! -d readlink($opt_vardir);
+      if (! -d readlink($opt_vardir))
+      {
+        mtr_report("The destination for symlink $opt_vardir does not exist; Removing it and creating a new var directory");
+        unlink($opt_vardir);
+      }
     }
     elsif ( $opt_mem )
     {
@@ -2876,7 +2881,6 @@ sub mysql_server_start($) {
     }
 
     if (-d $datadir ) {
-      preserve_error_log($mysqld);
       mtr_verbose(" - removing '$datadir'");
       rmtree($datadir);
     }
@@ -2905,7 +2909,6 @@ sub mysql_server_start($) {
       unless -d $datadir;
 
   }
-  restore_error_log($mysqld);
 
   # Create the servers tmpdir
   my $tmpdir= $mysqld->value('tmpdir');
@@ -4223,30 +4226,6 @@ sub run_testcase ($$) {
 }
 
 
-# We want to preserve the error log between server restarts, as it may contain
-# valuable debugging information even if there is no test failure recorded.
-sub _preserve_error_log_names {
-  my ($mysqld)= @_;
-  my $error_log_file= $mysqld->if_exist('#log-error');
-  return (undef, undef) unless $error_log_file;
-  my $error_log_dir= dirname($error_log_file);
-  my $save_name= $error_log_dir ."/../". $mysqld->name() .".error.log";
-  return ($error_log_file, $save_name);
-}
-
-sub preserve_error_log {
-  my ($mysqld)= @_;
-  my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
-  rename($error_log_file, $save_name) if $save_name;
-  # Ignore any errors, as it's just a best-effort to keep the log if possible.
-}
-
-sub restore_error_log {
-  my ($mysqld)= @_;
-  my ($error_log_file, $save_name)= _preserve_error_log_names($mysqld);
-  rename($save_name, $error_log_file) if $save_name;
-}
-
 # Keep track of last position in mysqld error log where we scanned for
 # warnings, so we can attribute any warnings found to the correct test
 # suite or server restart.
@@ -4452,7 +4431,11 @@ sub extract_warning_lines ($$) {
      qr|Checking table:   '\./mtr/test_suppressions'|,
      qr|Table \./test/bug53592 has a primary key in InnoDB data dictionary, but not in MySQL|,
      qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|,
+     qr|Can't open shared library.*ha_archive|,
      qr|InnoDB: Error: table 'test/bug39438'|,
+     qr|Access denied for user|,
+     qr|Aborted connection|,
+     qr|table.*is full|,
     );
 
   my $matched_lines= [];
@@ -4764,7 +4747,6 @@ sub clean_datadir {
 
   for (all_servers())
   {
-    preserve_error_log($_); # or at least, try to
     my $dir= "$opt_vardir/".$_->{name};
     mtr_verbose(" - removing '$dir'");
     rmtree($dir);
@@ -4957,14 +4939,13 @@ sub mysqld_arguments ($$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "--skip-safemalloc");
-
     if ( $mysql_version_id < 50100 )
     {
       mtr_add_arg($args, "--skip-bdb");
     }
   }
 
+  mtr_add_arg($args, "--loose-skip-safemalloc");
   mtr_add_arg($args, "%s--disable-sync-frm");
   # Retry bind as this may fail on busy server
   mtr_add_arg($args, "%s--port-open-timeout=10");

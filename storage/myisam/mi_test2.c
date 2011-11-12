@@ -836,6 +836,7 @@ end:
       puts("Locking used");
     if (use_blob)
       puts("blobs used");
+    bzero(&stats, sizeof(stats));
     get_key_cache_statistics(dflt_key_cache, 0, &stats);
     printf("key cache status: \n\
 blocks used:%10lu\n\

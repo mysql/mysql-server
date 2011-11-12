@@ -23,7 +23,7 @@ a	b
 2	2
 3	2
 4	4
-delete from t1 where b=2 limit 1;
+delete from t1 where b=2 order by a limit 1;
 select * from t1 order by a;
 a	b
 0	0

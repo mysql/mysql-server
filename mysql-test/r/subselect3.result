@@ -1,5 +1,6 @@
 drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
-set @save_optimizer_switch=@@optimizer_switch;
+set @subselect3_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
 create table t1 (oref int, grp int, ie int) ;
 insert into t1 (oref, grp, ie) values
 (1, 1, 1),
@@ -81,6 +82,7 @@ insert into t1 values
 (2, 3),
 (2, NULL),
 (3, NULL);
+insert into t1 values (5, 7), (8, 9), (4, 1);
 create table t2 (a int, oref int);
 insert into t2 values (1, 1), (2,2), (NULL, 3), (NULL, 4);
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
@@ -103,7 +105,7 @@ oref	a
 1	1
 show status like '%Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	11
+Handler_read_rnd_next	14
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 set optimizer_switch='subquery_cache=off';
@@ -121,7 +123,7 @@ Handler_read_key	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	35
+Handler_read_rnd_next	50
 select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
 Z
 No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.
@@ -247,7 +249,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	100.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<expr_cache><`test`.`t2`.`b`,`test`.`t2`.`a`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`))))))) AS `Z` from `test`.`t2`
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<expr_cache><`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`))))))) AS `Z` from `test`.`t2`
 select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) Z from t2;
 a	b	oref	Z
 NULL	1	100	0
@@ -264,7 +266,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (flat, BNL join)
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<expr_cache><`test`.`t2`.`b`,`test`.`t2`.`a`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(select `test`.`t1`.`a`,`test`.`t1`.`b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`)))))) AS `Z` from `test`.`t2`
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<expr_cache><`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(select `test`.`t1`.`a`,`test`.`t1`.`b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`)))))) AS `Z` from `test`.`t2`
 select a,b, oref, 
 (a,b) in (select a,b from t1,t4 where c=t2.oref) Z 
 from t2;
@@ -309,7 +311,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	index_subquery	idx	idx	5	func	4	100.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<expr_cache><`test`.`t2`.`b`,`test`.`t2`.`a`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`ie1`)) and trigcond(<is_not_null_test>(`test`.`t1`.`ie2`))))))) AS `Z` from `test`.`t2` where ((`test`.`t2`.`b` = 10) and (`test`.`t2`.`a` = 10))
+Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<expr_cache><`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`ie1`)) and trigcond(<is_not_null_test>(`test`.`t1`.`ie2`))))))) AS `Z` from `test`.`t2` where ((`test`.`t2`.`b` = 10) and (`test`.`t2`.`a` = 10))
 drop table t1, t2;
 create table t1 (oref char(4), grp int, ie int);
 insert into t1 (oref, grp, ie) values
@@ -579,7 +581,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	index_subquery	idx	idx	5	func	4	100.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<expr_cache><`test`.`t2`.`b`,`test`.`t2`.`a`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`ie1`)) and trigcond(<is_not_null_test>(`test`.`t1`.`ie2`))))))) AS `Z` from `test`.`t2`
+Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<expr_cache><`test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`oref`>(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`ie1`)) and trigcond(<is_not_null_test>(`test`.`t1`.`ie2`))))))) AS `Z` from `test`.`t2`
 drop table t1,t2;
 create table t1 (oref char(4), grp int, ie int primary key);
 insert into t1 (oref, grp, ie) values
@@ -698,7 +700,6 @@ a	MAX(b)	test
 2	3	h
 3	4	i
 DROP TABLE t1, t2;
-set @save_optimizer_switch=@@optimizer_switch;
 set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (b int, PRIMARY KEY(b));
@@ -1084,7 +1085,8 @@ a
 17
 18
 19
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch='materialization=off';
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	11	Using where; FirstMatch
@@ -1114,8 +1116,9 @@ a
 set @@optimizer_switch=@save_optimizer_switch;
 explain select * from (select a from t0) X where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	11	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; FirstMatch(t0)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; FirstMatch(<derived2>)
+2	DERIVED	t0	ALL	NULL	NULL	NULL	NULL	11	
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -1133,9 +1136,9 @@ insert into t4 select a from t3;
 explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where
-1	PRIMARY	t1	ref	kp1	kp1	5	test.t3.a	1	Using where
-1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; FirstMatch(t3)
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using where; LooseScan
+1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; FirstMatch(t1)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer (flat, BNL join)
 drop table t1, t3, t4;
 create table t1 (a int) as select * from t0 where a < 5;
 set @save_max_heap_table_size=@@max_heap_table_size;
@@ -1399,7 +1402,7 @@ drop table t1,t2,t3;
 #
 # BUG#47367 Crash in Name_resolution_context::process_error
 #
-SET SESSION optimizer_switch = 'default,semijoin=off';
+SET SESSION optimizer_switch = 'semijoin=off';
 CREATE TABLE t1 (f1 INTEGER);
 CREATE TABLE t2 LIKE t1;
 CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
@@ -1421,4 +1424,4 @@ CALL p1;
 ERROR 42S22: Unknown column 'f1' in 'where clause'
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
-set @@optimizer_switch=@save_optimizer_switch;
+set @@optimizer_switch=@subselect3_tmp;

@@ -22,8 +22,8 @@
 #include "create_options.h"
 #include "sql_show.h"
 #include "repl_failsafe.h"
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sql_trigger.h"
 #include "authors.h"
 #include "contributors.h"
@@ -1274,7 +1274,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-  bool show_table_options= FALSE;
+  bool show_table_options __attribute__ ((unused))= FALSE;
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1507,7 +1507,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     show_table_options= TRUE;
+#endif
     /*
       Get possible table space definitions and append them
       to the CREATE TABLE statement
@@ -1870,6 +1872,7 @@ public:
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
   char *query;
+  double progress;
 };
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
@@ -1898,6 +1901,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
+  if (!thd->variables.old_mode)
+  {
+    field_list.push_back(field= new Item_float("Progress", 0.0, 3, 7));
+    field->maybe_null= 0;
+  }
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
@@ -1937,7 +1945,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         pthread_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           pthread_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
+        thd_info->proc_info= (char*) (tmp->killed >= KILL_QUERY ?
+                                      "Killed" : 0);
 #ifndef EMBEDDED_LIBRARY
         thd_info->state_info= (char*) (tmp->net.reading_or_writing ?
                                        (tmp->net.reading_or_writing == 2 ?
@@ -1957,12 +1966,28 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
+        thd_info->progress= 0.0;
+
         /* Lock THD mutex that protects its data when looking at it. */
         pthread_mutex_lock(&tmp->LOCK_thd_data);
         if (tmp->query())
         {
           uint length= min(max_query_length, tmp->query_length());
           thd_info->query= (char*) thd->strmake(tmp->query(),length);
+        }
+
+        /*
+          Progress report. We need to do this under a lock to ensure that all
+          is from the same stage.
+        */
+        if (tmp->progress.max_counter)
+        {
+          uint max_stage= max(tmp->progress.max_stage, 1);
+          thd_info->progress= (((tmp->progress.stage / (double) max_stage) +
+                                ((tmp->progress.counter /
+                                  (double) tmp->progress.max_counter) /
+                                 (double) max_stage)) *
+                               100.0);
         }
         pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
@@ -1973,6 +1998,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   thread_info *thd_info;
   time_t now= my_time(0);
+  char buff[20];                                // For progress
+  String store_buffer(buff, sizeof(buff), system_charset_info);
+
   while ((thd_info=thread_infos.get()))
   {
     protocol->prepare_for_resend();
@@ -1990,6 +2018,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       protocol->store_null();
     protocol->store(thd_info->state_info, system_charset_info);
     protocol->store(thd_info->query, system_charset_info);
+    if (!thd->variables.old_mode)
+      protocol->store(thd_info->progress, 3, &store_buffer);
     if (protocol->write())
       break; /* purecov: inspected */
   }
@@ -2020,6 +2050,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       const char *val;
+      ulonglong max_counter;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
           (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
@@ -2054,7 +2085,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if ((mysys_var= tmp->mysys_var))
         pthread_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
-      if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
+      if ((val= (char *) ((tmp->killed >= KILL_QUERY ?
+                           "Killed" : 0))))
         table->field[4]->store(val, strlen(val), cs);
       else
         table->field[4]->store(command_name[tmp->command].str,
@@ -2087,6 +2119,9 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       if (mysys_var)
         pthread_mutex_unlock(&mysys_var->mutex);
 
+      /* TIME_MS */
+      table->field[8]->store((double)(utime / (HRTIME_RESOLUTION / 1000.0)));
+
       /* INFO */
       /* Lock THD mutex that protects its data when looking at it. */
       pthread_mutex_lock(&tmp->LOCK_thd_data);
@@ -2097,10 +2132,19 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                    tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
-      pthread_mutex_unlock(&tmp->LOCK_thd_data);
 
-      /* TIME_MS */
-      table->field[8]->store((double)(utime / (HRTIME_RESOLUTION / 1000.0)));
+      /*
+        Progress report. We need to do this under a lock to ensure that all
+        is from the same stage.
+      */
+      if ((max_counter= tmp->progress.max_counter))
+      {
+        table->field[9]->store((longlong) tmp->progress.stage + 1, 1);
+        table->field[10]->store((longlong) tmp->progress.max_stage, 1);
+        table->field[11]->store((double) tmp->progress.counter /
+                                (double) max_counter*100.0);
+      }
+      pthread_mutex_unlock(&tmp->LOCK_thd_data);
 
       if (schema_table_store_record(thd, table))
       {
@@ -2397,7 +2441,7 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strmov(buff, *(my_bool*) value ? "ON" : "OFF");
           break;
         case SHOW_INT:
-          end= int10_to_str((long) *(uint32*) value, buff, 10);
+          end= int10_to_str((long) *(int*) value, buff, -10);
           break;
         case SHOW_HAVE:
         {
@@ -2814,7 +2858,7 @@ typedef struct st_lookup_field_values
 bool schema_table_store_record(THD *thd, TABLE *table)
 {
   int error;
-  if ((error= table->file->ha_write_row(table->record[0])))
+  if ((error= table->file->ha_write_tmp_row(table->record[0])))
   {
     TMP_TABLE_PARAM *param= table->pos_in_table_list->schema_table_param;
     if (create_internal_tmp_table_from_heap(thd, table, param->start_recinfo, 
@@ -6703,11 +6747,11 @@ bool get_schema_tables_result(JOIN *join,
       {
         result= 1;
         join->error= 1;
-        tab->read_record.file= table_list->table->file;
+        tab->read_record.table->file= table_list->table->file;
         table_list->schema_table_state= executed_place;
         break;
       }
-      tab->read_record.file= table_list->table->file;
+      tab->read_record.table->file= table_list->table->file;
       table_list->schema_table_state= executed_place;
     }
   }
@@ -7300,6 +7344,10 @@ ST_FIELD_INFO processlist_fields_info[]=
    SKIP_OPEN_TABLE},
   {"TIME_MS", 100 * (MY_INT64_NUM_DECIMAL_DIGITS + 1) + 3, MYSQL_TYPE_DECIMAL,
    0, 0, "Time_ms", SKIP_OPEN_TABLE},
+  {"STAGE", 2, MYSQL_TYPE_TINY,  0, 0, "Stage", SKIP_OPEN_TABLE},
+  {"MAX_STAGE", 2, MYSQL_TYPE_TINY,  0, 0, "Max_stage", SKIP_OPEN_TABLE},
+  {"PROGRESS", 703, MYSQL_TYPE_DECIMAL,  0, 0, "Progress",
+   SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 

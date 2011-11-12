@@ -60,7 +60,7 @@ int select_union::send_data(List<Item> &values)
   if (thd->is_error())
     return 1;
 
-  if ((write_err= table->file->ha_write_row(table->record[0])))
+  if ((write_err= table->file->ha_write_tmp_row(table->record[0])))
   {
     if (write_err == HA_ERR_FOUND_DUPP_KEY)
     {
@@ -371,6 +371,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     ulonglong create_options;
     uint save_tablenr= 0;
     table_map save_map= 0;
+    uint save_maybe_null= 0;
 
     while ((type= tp++))
     {
@@ -429,6 +430,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       save_tablenr= result_table_list.tablenr_exec;
       save_map= result_table_list.map_exec;
+      save_maybe_null= result_table_list.maybe_null_exec;
     }
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
@@ -438,6 +440,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     {
       result_table_list.tablenr_exec= save_tablenr;
       result_table_list.map_exec= save_map;
+      result_table_list.maybe_null_exec= save_maybe_null;
     }
 
     thd_arg->lex->current_select= lex_select_save;
@@ -642,6 +645,7 @@ bool st_select_lex_unit::exec()
 	if (!saved_error)
 	{
 	  examined_rows+= thd->examined_row_count;
+          thd->examined_row_count= 0;
 	  if (union_result->flush())
 	  {
 	    thd->lex->current_select= lex_select_save;

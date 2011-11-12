@@ -226,7 +226,6 @@ void ha_heap::update_key_stats()
 int ha_heap::write_row(uchar * buf)
 {
   int res;
-  ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
@@ -250,7 +249,6 @@ int ha_heap::write_row(uchar * buf)
 int ha_heap::update_row(const uchar * old_data, uchar * new_data)
 {
   int res;
-  ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   res= heap_update(file,old_data,new_data);
@@ -269,7 +267,6 @@ int ha_heap::update_row(const uchar * old_data, uchar * new_data)
 int ha_heap::delete_row(const uchar * buf)
 {
   int res;
-  ha_statistic_increment(&SSV::ha_delete_count);
   res= heap_delete(file,buf);
   if (!res && table->s->tmp_table == NO_TMP_TABLE && 
       ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > file->s->records)
@@ -288,7 +285,6 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
                             enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_key_count);
   int error = heap_rkey(file,buf,active_index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -298,7 +294,6 @@ int ha_heap::index_read_last_map(uchar *buf, const uchar *key,
                                  key_part_map keypart_map)
 {
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_key_count);
   int error= heap_rkey(file, buf, active_index, key, keypart_map,
 		       HA_READ_PREFIX_LAST);
   table->status= error ? STATUS_NOT_FOUND : 0;
@@ -309,7 +304,6 @@ int ha_heap::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)
 {
-  ha_statistic_increment(&SSV::ha_read_key_count);
   int error = heap_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -318,7 +312,6 @@ int ha_heap::index_read_idx_map(uchar *buf, uint index, const uchar *key,
 int ha_heap::index_next(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_next_count);
   int error=heap_rnext(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -327,7 +320,6 @@ int ha_heap::index_next(uchar * buf)
 int ha_heap::index_prev(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_prev_count);
   int error=heap_rprev(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -336,7 +328,6 @@ int ha_heap::index_prev(uchar * buf)
 int ha_heap::index_first(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_first_count);
   int error=heap_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -345,7 +336,6 @@ int ha_heap::index_first(uchar * buf)
 int ha_heap::index_last(uchar * buf)
 {
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_last_count);
   int error=heap_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -358,7 +348,6 @@ int ha_heap::rnd_init(bool scan)
 
 int ha_heap::rnd_next(uchar *buf)
 {
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error=heap_scan(file, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
@@ -368,7 +357,6 @@ int ha_heap::rnd_pos(uchar * buf, uchar *pos)
 {
   int error;
   HEAP_PTR heap_position;
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
   memcpy_fixed((char*) &heap_position, pos, sizeof(HEAP_PTR));
   error=heap_rrnd(file, buf, heap_position);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -582,7 +570,7 @@ int ha_heap::delete_table(const char *name)
 void ha_heap::drop_table(const char *name)
 {
   file->s->delete_on_close= 1;
-  close();
+  ha_close();
 }
 
 

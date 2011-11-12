@@ -265,17 +265,17 @@ void init_update_queries(void)
   bzero((uchar*) &sql_command_flags, sizeof(sql_command_flags));
 
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_BACKUP_TABLE]=   CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RESTORE_TABLE]=  CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_REPORT_PROGRESS;
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA;
@@ -368,9 +368,11 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND;
-  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND;
-  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND;
+  sql_command_flags[SQLCOM_REPAIR]=           CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_OPTIMIZE]=         CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_ANALYZE]=          CF_WRITE_LOGS_COMMAND | CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_CHECK]=            CF_REPORT_PROGRESS;
+  sql_command_flags[SQLCOM_CHECKSUM]=         CF_REPORT_PROGRESS;
 }
 
 
@@ -790,7 +792,17 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
   if (res < 0)
     my_error(thd->killed_errno(), MYF(0));
   else if ((res == 0) && do_release)
-    thd->killed= THD::KILL_CONNECTION;
+  {
+    thd->killed= KILL_CONNECTION;
+    if (global_system_variables.log_warnings > 3)
+    {
+      Security_context *sctx= &thd->main_security_ctx;
+      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                        thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                        sctx->user ? sctx->user : "unauthenticated",
+                        sctx->host_or_ip, "RELEASE");
+    }
+  }
 
   DBUG_RETURN(res);
 }
@@ -1130,12 +1142,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     /* Ensure we don't free security_ctx->user in case we have to revert */
     thd->security_ctx->user= 0;
+    thd->user_connect= 0;
 
     if (acl_authenticate(thd, 0, packet_length))
     {
       /* Free user if allocated by acl_authenticate */
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
+      if (thd->user_connect)
+	decrease_user_connections(thd->user_connect);
       thd->user_connect= save_user_connect;
       thd->reset_db(save_db, save_db_length);
       thd->variables.character_set_client= save_character_set_client;
@@ -1482,7 +1497,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       char *end= buff + length;
       length+= my_snprintf(end, buff_len - length - 1,
-                           end,"  Memory in use: %ldK  Max memory used: %ldK",
+                           "  Memory in use: %ldK  Max memory used: %ldK",
                            (sf_malloc_cur_memory+1023L)/1024L,
                            (sf_malloc_max_memory+1023L)/1024L);
     }
@@ -1515,7 +1530,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
     ulong id=(ulong) uint4korr(packet);
-    sql_kill(thd,id,false);
+    sql_kill(thd,id, KILL_CONNECTION_HARD);
     break;
   }
   case COM_SET_OPTION:
@@ -1557,15 +1572,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
 
   /* report error issued during command execution */
-  if (thd->killed_errno())
+  if (thd->killed)
   {
-    if (! thd->main_da.is_set())
-      thd->send_kill_message();
-  }
-  if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-  {
-    thd->killed= THD::NOT_KILLED;
-    thd->mysys_var->abort= 0;
+    if  (thd->killed_errno())
+    {
+      if (! thd->main_da.is_set())
+        thd->send_kill_message();
+    }
+    if (thd->killed < KILL_CONNECTION)
+    {
+      thd->killed= NOT_KILLED;
+      thd->mysys_var->abort= 0;
+    }
   }
 
   /* If commit fails, we should be able to reset the OK status. */
@@ -1609,6 +1627,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+
+  /* Check that some variables are reset properly */
+  DBUG_ASSERT(thd->abort_on_warning == 0);
   DBUG_RETURN(error);
 }
 
@@ -2166,6 +2187,8 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
+  thd->progress.report_to_client= test(sql_command_flags[lex->sql_command] &
+                                       CF_REPORT_PROGRESS);
 
   DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
   
@@ -2995,6 +3018,7 @@ end_with_restore_list:
     thd->enable_slow_log= opt_log_slow_admin_statements;
     thd->query_plan_flags|= QPLAN_ADMIN;
     res= mysql_analyze_table(thd, first_table, &lex->check_opt);
+
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
@@ -4017,8 +4041,6 @@ end_with_restore_list:
   }
   case SQLCOM_KILL:
   {
-    Item *it= (Item *)lex->value_list.head();
-
     if (lex->table_or_sp_used())
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
@@ -4026,13 +4048,20 @@ end_with_restore_list:
       break;
     }
 
-    if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
+    if (lex->kill_type == KILL_TYPE_ID)
     {
-      my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
-		 MYF(0));
-      goto error;
+      Item *it= (Item *)lex->value_list.head();
+      if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
+      {
+        my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
+                   MYF(0));
+        goto error;
+      }
+      sql_kill(thd, (ulong) it->val_int(), lex->kill_signal);
     }
-    sql_kill(thd, (ulong)it->val_int(), lex->type & ONLY_KILL_QUERY);
+    else
+      sql_kill_user(thd, get_current_user(thd, lex->users_list.head()),
+                    lex->kill_signal);
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4486,9 +4515,10 @@ create_sp_error:
           */
           /* Conditionally writes to binlog */
 
-          int type= lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
-                    TYPE_ENUM_PROCEDURE :
-                    TYPE_ENUM_FUNCTION;
+          stored_procedure_type type;
+          type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
+                 TYPE_ENUM_PROCEDURE :
+                 TYPE_ENUM_FUNCTION);
 
           sp_result= sp_update_routine(thd,
                                        type,
@@ -4516,8 +4546,8 @@ create_sp_error:
   case SQLCOM_DROP_FUNCTION:
     {
       int sp_result;
-      int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
+      stored_procedure_type type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+                                   TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
 
       sp_result= sp_routine_exists_in_table(thd, type, lex->spname);
       mysql_reset_errors(thd, 0);
@@ -4544,9 +4574,10 @@ create_sp_error:
 #endif
         /* Conditionally writes to binlog */
 
-        int type= lex->sql_command == SQLCOM_DROP_PROCEDURE ?
-                  TYPE_ENUM_PROCEDURE :
-                  TYPE_ENUM_FUNCTION;
+        stored_procedure_type type;
+        type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
+               TYPE_ENUM_PROCEDURE :
+               TYPE_ENUM_FUNCTION);
 
         sp_result= sp_drop_routine(thd, type, lex->spname);
       }
@@ -5044,7 +5075,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  thd->thd_marker.emb_on_expr_nest= NULL;
   if (!(res= open_and_lock_tables(thd, all_tables)))
   {
     if (lex->describe)
@@ -5818,7 +5848,6 @@ void mysql_reset_thd_for_next_command(THD *thd, my_bool calculate_userstat)
 
   thd->query_plan_flags= QPLAN_INIT;
   thd->query_plan_fsort_passes= 0;
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   /*
     Because we come here only for start of top-statements, binlog format is
@@ -5888,6 +5917,7 @@ mysql_new_select(LEX *lex, bool move_down)
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
+  select_lex->nest_level_base= &thd->lex->unit;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
@@ -6790,6 +6820,28 @@ push_new_name_resolution_context(THD *thd,
 
 
 /**
+  Fix condition which contains only field (f turns to  f <> 0 )
+
+  @param cond            The condition to fix
+
+  @return fixed condition
+*/
+
+Item *normalize_cond(Item *cond)
+{
+  if (cond)
+  {
+    Item::Type type= cond->type();
+    if (type == Item::FIELD_ITEM || type == Item::REF_ITEM)
+    {
+      cond= new Item_func_ne(cond, new Item_int(0));
+    }
+  }
+  return cond;
+}
+
+
+/**
   Add an ON condition to the second operand of a JOIN ... ON.
 
     Add an ON condition to the right operand of a JOIN ... ON clause.
@@ -6807,6 +6859,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
+    expr= normalize_cond(expr);
     if (!b->on_expr)
       b->on_expr= expr;
     else
@@ -7132,12 +7185,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     This is written such that we have a short lock on LOCK_thread_count
 */
 
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
+uint kill_one_thread(THD *thd, ulong id, killed_state kill_signal)
 {
   THD *tmp;
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
-  DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
+  DBUG_PRINT("enter", ("id: %lu  signal: %u", id, (uint) kill_signal));
+
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
@@ -7168,12 +7222,16 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 
       If user of both killer and killee are non-NULL, proceed with
       slayage if both are string-equal.
+
+      It's ok to also kill DELAYED threads with KILL_CONNECTION instead of
+      KILL_SYSTEM_THREAD; The difference is that KILL_CONNECTION may be
+      faster and do a harder kill than KILL_SYSTEM_THREAD;
     */
 
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
-      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
+      tmp->awake(kill_signal);
       error=0;
     }
     else
@@ -7182,6 +7240,76 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   }
   DBUG_PRINT("exit", ("%d", error));
   DBUG_RETURN(error);
+}
+
+
+/**
+  kill all threads from one user
+
+  @param thd			Thread class
+  @param user_name		User name for threads we should kill
+  @param only_kill_query        Should it kill the query or the connection
+
+  @note
+    This is written such that we have a short lock on LOCK_thread_count
+
+    If we can't kill all threads because of security issues, no threads
+    are killed.
+*/
+
+static uint kill_threads_for_user(THD *thd, LEX_USER *user,
+                                  killed_state kill_signal, ha_rows *rows)
+{
+  THD *tmp;
+  List<THD> threads_to_kill;
+  DBUG_ENTER("kill_threads_for_user");
+
+  *rows= 0;
+
+  if (thd->is_fatal_error)                       // If we run out of memory
+    DBUG_RETURN(ER_OUT_OF_RESOURCES);
+
+  DBUG_PRINT("enter", ("user: %s  signal: %u", user->user.str,
+                       (uint) kill_signal));
+
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
+  I_List_iterator<THD> it(threads);
+  while ((tmp=it++))
+  {
+    if (tmp->command == COM_DAEMON)
+      continue;
+    /*
+      Check that hostname (if given) and user name matches.
+
+      host.str[0] == '%' means that host name was not given. See sql_yacc.yy
+    */
+    if (((user->host.str[0] == '%' && !user->host.str[1]) ||
+         !strcmp(tmp->security_ctx->host, user->host.str)) &&
+        !strcmp(tmp->security_ctx->user, user->user.str))
+    {
+      if (!(thd->security_ctx->master_access & SUPER_ACL) &&
+          !thd->security_ctx->user_matches(tmp->security_ctx))
+      {
+        VOID(pthread_mutex_unlock(&LOCK_thread_count));
+        DBUG_RETURN(ER_KILL_DENIED_ERROR);
+      }
+      if (!threads_to_kill.push_back(tmp, tmp->mem_root))
+        pthread_mutex_lock(&tmp->LOCK_thd_data); // Lock from delete
+    }
+  }
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  if (!threads_to_kill.is_empty())
+  {
+    List_iterator_fast<THD> it(threads_to_kill);
+    THD *ptr;
+    while ((ptr= it++))
+    {
+      ptr->awake(kill_signal);
+      pthread_mutex_unlock(&ptr->LOCK_thd_data);
+      (*rows)++;
+    }
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -7195,13 +7323,30 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     only_kill_query     Should it kill the query or the connection
 */
 
-void sql_kill(THD *thd, ulong id, bool only_kill_query)
+void sql_kill(THD *thd, ulong id, killed_state state)
 {
   uint error;
-  if (!(error= kill_one_thread(thd, id, only_kill_query)))
+  if (!(error= kill_one_thread(thd, id, state)))
     my_ok(thd);
   else
     my_error(error, MYF(0), id);
+}
+
+
+void sql_kill_user(THD *thd, LEX_USER *user, killed_state state)
+{
+  uint error;
+  ha_rows rows;
+  if (!(error= kill_threads_for_user(thd, user, state, &rows)))
+    my_ok(thd, rows);
+  else
+  {
+    /*
+      This is probably ER_OUT_OF_RESOURCES, but in the future we may
+      want to write the name of the user we tried to kill
+    */
+    my_error(error, MYF(0), user->host.str, user->user.str);
+  }
 }
 
 

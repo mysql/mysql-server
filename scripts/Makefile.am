@@ -33,6 +33,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_convert_table_format \
 			mysql_find_rows \
 			mysqlhotcopy \
+			mytop \
 			mysqldumpslow \
 			mysqld_multi
 
@@ -58,6 +59,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_convert_table_format.sh \
 			mysql_find_rows.sh \
 			mysqlhotcopy.sh \
+			mytop.sh \
 			mysqldumpslow.sh \
 			mysqld_multi.sh \
 			mysqld_safe.sh \
@@ -91,6 +93,7 @@ CLEANFILES =		@server_scripts@ \
 			mysql_convert_table_format \
 			mysql_find_rows \
 			mysqlhotcopy \
+			mytop \
 			mysqldumpslow \
 			mysqld_multi \
 			convert-debug-for-diff \
@@ -114,7 +117,10 @@ mysqlbug: ${top_builddir}/config.status mysqlbug.sh
 mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 				mysql_system_tables_fix.sql
 	@echo "Building $@";
-	@cat mysql_system_tables.sql mysql_system_tables_fix.sql > $@
+	@echo "-- This file is automaticly generated from" > $@ 
+	@echo "-- mysql_system_tables.sql & mysql_system_tables_fix.sql" >> $@
+	@echo "" >> $@
+	@cat mysql_system_tables.sql mysql_system_tables_fix.sql >> $@
 
 #
 # Build mysql_fix_privilege_tables_sql.c from

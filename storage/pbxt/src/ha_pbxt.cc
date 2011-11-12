@@ -1594,7 +1594,7 @@ static int pbxt_rollback(handlerton *hton, THD *thd, bool all)
 		if (!all)
 			self->st_stat_trans = FALSE;
 	}
-	return 0;
+	return err;
 }
 
 #ifdef DRIZZLED
@@ -2898,7 +2898,7 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 	 * insert into t1 (val) values (1);
 	 */
 	if (table->found_next_number_field && new_data == table->record[0]) {
-		MX_LONGLONG_T	nr;
+		MX_LONGLONG_T	nr __attribute__ ((unused));
 		my_bitmap_map	*old_map;
 
 		old_map = mx_tmp_use_all_columns(table, table->read_set);

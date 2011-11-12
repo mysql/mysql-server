@@ -1370,7 +1370,8 @@ longlong Item_temporal_func::val_int()
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return 0;
-  return (longlong)TIME_to_ulonglong(&ltime);
+  longlong v= TIME_to_ulonglong(&ltime);
+  return ltime.neg ? -v : v;
 }
 
 
@@ -2303,7 +2304,17 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     return 1;
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return 0;
+
+  int unused;
+  if (check_date(ltime, ltime->year || ltime->month || ltime->day,
+                 fuzzy_date, &unused))
+  {
+    Lazy_string_time str(ltime);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 &str, MYSQL_TIMESTAMP_DATE, 0);
+    return (null_value= 1);
+  }
+  return (null_value= 0);
 }
 
 
@@ -2425,7 +2436,6 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   long days, microseconds;
   longlong seconds;
   int l_sign= sign, was_cut= 0;
-  uint dec= decimals;
 
   if (is_date)                        // TIMESTAMP function
   {
@@ -2466,10 +2476,6 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   calc_time_from_sec(ltime, (long)(seconds%86400L), microseconds);
 
   ltime->time_type= is_time ? MYSQL_TIMESTAMP_TIME : MYSQL_TIMESTAMP_DATETIME;
-
-  if (cached_field_type == MYSQL_TYPE_STRING &&
-      (l_time1.second_part || l_time2.second_part))
-    dec= TIME_SECOND_PART_DIGITS;
 
   if (!is_time)
   {

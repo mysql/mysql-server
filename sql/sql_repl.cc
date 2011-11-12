@@ -1277,9 +1277,9 @@ err:
   idle, then this could last long, and if the slave reconnects, we could have 2
   Binlog_dump threads in SHOW PROCESSLIST, until a query is written to the
   binlog. To avoid this, when the slave reconnects and sends COM_BINLOG_DUMP,
-  the master kills any existing thread with the slave's server id (if this id is
-  not zero; it will be true for real slaves, but false for mysqlbinlog when it
-  sends COM_BINLOG_DUMP to get a remote binlog dump).
+  the master kills any existing thread with the slave's server id (if this id
+  is not zero; it will be true for real slaves, but false for mysqlbinlog when
+  it sends COM_BINLOG_DUMP to get a remote binlog dump).
 
   SYNOPSIS
     kill_zombie_dump_threads()
@@ -1311,7 +1311,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
-    tmp->awake(THD::KILL_QUERY);
+    tmp->awake(KILL_QUERY);
     pthread_mutex_unlock(&tmp->LOCK_thd_data);
   }
 }
@@ -1978,10 +1978,10 @@ static sys_var_const    sys_log_slave_updates(&vars, "log_slave_updates",
                                               OPT_GLOBAL, SHOW_MY_BOOL,
                                               (uchar*) &opt_log_slave_updates);
 static sys_var_const
-sys_replicate_annotate_rows_events(&vars,
-                                "replicate_annotate_rows_events",
+sys_replicate_annotate_row_events(&vars,
+                                "replicate_annotate_row_events",
                                 OPT_GLOBAL, SHOW_MY_BOOL,
-                                (uchar*) &opt_replicate_annotate_rows_events);
+                                (uchar*) &opt_replicate_annotate_row_events);
 static sys_var_const    sys_relay_log(&vars, "relay_log",
                                       OPT_GLOBAL, SHOW_CHAR_PTR,
                                       (uchar*) &opt_relay_logname);

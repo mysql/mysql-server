@@ -424,10 +424,10 @@ void Mrr_ordered_index_reader::interrupt_read()
 {
   DBUG_ASSERT(support_scan_interruptions);
   TABLE *table= file->get_table();
+  KEY *used_index= &table->key_info[file->active_index];
   /* Save the current key value */
   key_copy(saved_key_tuple, table->record[0],
-           &table->key_info[file->active_index],
-           keypar.key_tuple_length);
+           used_index, used_index->key_length);
   
   if (saved_primary_key)
   {
@@ -452,9 +452,9 @@ void Mrr_ordered_index_reader::position()
 void Mrr_ordered_index_reader::resume_read()
 {
   TABLE *table= file->get_table();
+  KEY *used_index= &table->key_info[file->active_index];
   key_restore(table->record[0], saved_key_tuple, 
-              &table->key_info[file->active_index],
-              keypar.key_tuple_length);
+              used_index, used_index->key_length);
   if (saved_primary_key)
   {
     key_restore(table->record[0], saved_primary_key, 
@@ -531,7 +531,7 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   mrr_funcs= *seq_funcs;
   source_exhausted= FALSE;
   if (support_scan_interruptions)
-    bzero(saved_key_tuple, keypar.key_tuple_length);
+    bzero(saved_key_tuple, key_info->key_length);
   have_saved_rowid= FALSE;
   return 0;
 }
@@ -848,12 +848,14 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       if (h_idx->primary_key_is_clustered())
       {
         uint pk= h_idx->get_table()->s->primary_key;
-        saved_pk_length= h_idx->get_table()->key_info[pk].key_length;
+        if (pk != MAX_KEY)
+          saved_pk_length= h_idx->get_table()->key_info[pk].key_length;
       }
-
+      
+      KEY *used_index= &h_idx->get_table()->key_info[h_idx->active_index];
       if (reader_factory.ordered_index_reader.
             set_interruption_temp_buffer(primary_file->ref_length,
-                                         keypar.key_tuple_length,
+                                         used_index->key_length,
                                          saved_pk_length,
                                          &full_buf, full_buf_end))
         goto use_default_impl;
@@ -1075,7 +1077,7 @@ void DsMrr_impl::close_second_handler()
   {
     secondary_file->ha_index_or_rnd_end();
     secondary_file->ha_external_lock(current_thd, F_UNLCK);
-    secondary_file->close();
+    secondary_file->ha_close();
     delete secondary_file;
     secondary_file= NULL;
   }
@@ -1635,7 +1637,8 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                                          uint *buffer_size, COST_VECT *cost)
 {
   ulong max_buff_entries, elem_size;
-  ha_rows rows_in_full_step, rows_in_last_step;
+  ha_rows rows_in_full_step;
+  ha_rows rows_in_last_step;
   uint n_full_steps;
   double index_read_cost;
 
@@ -1660,7 +1663,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   /* Adjust buffer size if we expect to use only part of the buffer */
   if (n_full_steps)
   {
-    get_sort_and_sweep_cost(table, rows, cost);
+    get_sort_and_sweep_cost(table, rows_in_full_step, cost);
     cost->multiply(n_full_steps);
   }
   else

@@ -1,204 +1,429 @@
 #
-# Tets of cost-based choice between the materialization and in-to-exists
+# Tests of cost-based choice between the materialization and in-to-exists
 # subquery execution strategies (MWL#89)
 #
+# The test file is divided into two groups of tests:
+# A. Typical cases when either of the two strategies is selected:
+#    1. Subquery in disjunctive WHERE clause of the outer query.
+#    2. NOT IN subqueries
+#    3. Subqueries with GROUP BY, HAVING, and aggregate functions
+#    4. Subqueries in the SELECT and HAVING clauses
+#    5. Subqueries with UNION
+# B. Reasonably exhaustive tests of the various combinations of optimizer
+#    switches, data distribution, available indexes, and typical queries.
+#
+
+set @subselect_mat_cost=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+#
+# Test logging to slow log (there was some errors in the log files about
+# the slow log when running under valgrind, so better to get this tested)
+#
+set log_slow_time=0.1;
+
+
+-- echo TEST GROUP 1:
+-- echo Typical cases of in-to-exists and materialization subquery strategies
+-- echo =====================================================================
 
 --disable_warnings
-drop table if exists t1, t2, t1_1024, t2_1024;
-drop procedure if exists make_t1_indexes;
-drop procedure if exists make_t2_indexes;
-drop procedure if exists remove_t1_indexes;
-drop procedure if exists remove_t2_indexes;
-drop procedure if exists add_materialization_data;
-drop procedure if exists delete_materialization_data;
-drop procedure if exists set_all_columns_not_null;
-drop procedure if exists set_all_columns_nullable;
+drop database if exists world;
 --enable_warnings
 
-create table t1 (a1 char(8), a2 char(8), a3 char(8), a4 int);
-insert into t1 values ('1 - 00', '2 - 00', '3 - 00', 0);
-insert into t1 values ('1 - 01', '2 - 01', '3 - 01', 1);
+set names utf8;
 
-create table t2 (b1 char(8), b2 char(8), b3 char(8), b4 int);
-insert into t2 values ('1 - 01', '2 - 01', '3 - 01', 1);
-insert into t2 values ('1 - 01', '2 - 01', '3 - 02', 2);
-insert into t2 values ('1 - 02', '2 - 02', '3 - 03', 3);
-insert into t2 values ('1 - 02', '2 - 02', '3 - 04', 4);
-insert into t2 values ('1 - 03', '2 - 03', '3 - 05', 5);
+create database world;
+use world;
 
-create table t1_1024 (a1 blob(1024), a2 blob(1024));
-insert into t1_1024 values (concat('1 - 00', repeat('x', 1018)), concat('2 - 00', repeat('x', 1018)));
-insert into t1_1024 values (concat('1 - 01', repeat('x', 1018)), concat('2 - 01', repeat('x', 1018)));
+--source include/world_schema.inc
+--disable_query_log
+--disable_result_log
+--disable_warnings
+--source include/world.inc
+--enable_warnings
+--enable_result_log
+--enable_query_log
 
-create table t2_1024 (b1 blob(1024), b2 blob(1024));
-insert into t2_1024 values (concat('1 - 01', repeat('x', 1018)), concat('2 - 01', repeat('x', 1018)));
-insert into t2_1024 values (concat('1 - 02', repeat('x', 1018)), concat('2 - 02', repeat('x', 1018)));
-insert into t2_1024 values (concat('1 - 03', repeat('x', 1018)), concat('2 - 03', repeat('x', 1018)));
-insert into t2_1024 values (concat('1 - 04', repeat('x', 1018)), concat('2 - 04', repeat('x', 1018)));
+-- echo Make the schema and data more diverse by adding more indexes, nullable
+-- echo columns, and NULL data.
+create index SurfaceArea on Country(SurfaceArea);
+create index Language on CountryLanguage(Language);
+create index CityName on City(Name);
+alter table City change population population int(11) null default 0;
 
-delimiter |;
-create procedure make_t1_indexes()
-begin
-  create index it1i1 on t1 (a1);
-  create index it1i2 on t1 (a2);
-  create index it1i3 on t1 (a1, a2);
-  create index it1_1024i1 on t1_1024 (a1(6));
-  create index it1_1024i2 on t1_1024 (a2(6));
-  create index it1_1024i3 on t1_1024 (a1(6), a2(6));
-end|
+select max(id) from City into @max_city_id;
+insert into City values (@max_city_id + 1,'Kilifarevo','BGR',NULL);
 
-create procedure make_t2_indexes()
-begin
-  create index it2i1 on t2 (b1);
-  create index it2i2 on t2 (b2);
-  create index it2i3 on t2 (b1, b2);
-  create unique index it2i4 on t2 (b1, b2, b3);
-  create index it2_1024i1 on t2_1024 (b1(6));
-  create index it2_1024i2 on t2_1024 (b2(6));
-  create index it2_1024i3 on t2_1024 (b1(6), b2(6));
-end|
 
-create procedure remove_t1_indexes()
-begin
-  drop index it1i1 on t1;
-  drop index it1i2 on t1;
-  drop index it1i3 on t1;
-  drop index it1_1024i1 on t1_1024;
-  drop index it1_1024i2 on t1_1024;
-  drop index it1_1024i3 on t1_1024;
-end|
+SELECT COUNT(*) FROM Country;
+SELECT COUNT(*) FROM City;
+SELECT COUNT(*) FROM CountryLanguage;
 
-create procedure remove_t2_indexes()
-begin
-  drop index it2i1 on t2;
-  drop index it2i2 on t2;
-  drop index it2i3 on t2;
-  drop index it2i4 on t2;
-  drop index it2_1024i1 on t2_1024;
-  drop index it2_1024i2 on t2_1024;
-  drop index it2_1024i3 on t2_1024;
-end|
+set @@optimizer_switch = 'in_to_exists=on,semijoin=on,materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on';
 
-create procedure add_materialization_data()
-begin
-insert into t1 values ('1 - 03', '2 - 03', '3 - 03', 3);
-insert into t1 values ('1 - 04', '2 - 04', '3 - 04', 4);
-insert into t1 values ('1 - 05', '2 - 05', '3 - 05', 5);
-insert into t1 values ('1 - 06', '2 - 06', '3 - 06', 6);
-insert into t1 values ('1 - 07', '2 - 07', '3 - 07', 7);
-insert into t1_1024 values (concat('1 - 03', repeat('x', 1018)), concat('2 - 03', repeat('x', 1018)));
-end|
-
-create procedure delete_materialization_data()
-begin
-delete from t1 where a1 >= '1 - 03';
-delete from t1_1024 where a1 >= '1 - 03';
-end|
-
-create procedure set_all_columns_not_null()
-begin
-alter table t1 modify a1 char(8) not null, modify a2 char(8) not null, modify a3 char(8) not null;
-alter table t2 modify b1 char(8) not null, modify b2 char(8) not null, modify b3 char(8) not null;
-end|
-
-create procedure set_all_columns_nullable()
-begin
-alter table t1 modify a1 char(8) null, modify a2 char(8) null, modify a3 char(8) null;
-alter table t2 modify b1 char(8) null, modify b2 char(8) null, modify b3 char(8) null;
-end|
-
-delimiter ;|
+-- echo
+-- echo 1. Subquery in a disjunctive WHERE clause of the outer query.
 -- echo
 
--- echo /******************************************************************************
--- echo 1. Both materialization and in-to-exists are ON, make a cost-based choice.
--- echo ******************************************************************************/
-set @@optimizer_switch='materialization=on,in_to_exists=on';
--- echo 
--- echo /* 1.1 In-to-exists is cheaper */
-call make_t1_indexes();
+-- echo
+-- echo Q1.1m:
+-- echo MATERIALIZATION: there are too many rows in the outer query
+-- echo to be looked up in the inner table.
+EXPLAIN
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+       Name LIKE 'L%') AND
+      surfacearea > 1000000;
 
--- echo /* 1.1.1 non-indexed table access */
--- source include/subselect_mat_cost.inc
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+       Name LIKE 'L%') AND
+      surfacearea > 1000000;
 
--- echo /* 1.1.2 indexed table access, nullabale columns. */
-call make_t2_indexes();
--- source include/subselect_mat_cost.inc
+-- echo Q1.1e:
+-- echo IN-EXISTS: the materialization cost is the same as above, but
+-- echo there are much fewer outer rows to be looked up, thus the
+-- echo materialization cost is too high to compensate for fast lookups.
+EXPLAIN
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+       Name LIKE 'L%') AND
+      surfacearea > 10*1000000;
 
--- echo /* 1.1.3 indexed table access, non-nullabale columns. */
-call set_all_columns_not_null();
--- source include/subselect_mat_cost.inc
-call set_all_columns_nullable();
+SELECT Name FROM Country
+WHERE (Code IN (select Country from City where City.Population > 100000) OR
+       Name LIKE 'L%') AND
+      surfacearea > 10*1000000;
 
--- echo 
--- echo /* 1.2 Materialization is cheaper */
-# make materialization cheaper
-call add_materialization_data();
-call remove_t1_indexes();
+-- echo
+-- echo Q1.2m:
+-- echo MATERIALIZATION: the IN predicate is pushed (attached) to the last table
+-- echo in the join order (Country, City), therefore there are too many row
+-- echo combinations to filter by re-executing the subquery for each combination.
+EXPLAIN
+SELECT *
+  FROM Country, City
+  WHERE City.Country = Country.Code AND
+        Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+        (City.Name IN
+         (select Language from CountryLanguage where Percentage > 50) OR
+         City.name LIKE '%Island%');
 
--- echo /* 1.2.1 non-indexed table access */
-call remove_t2_indexes();
--- source include/subselect_mat_cost.inc
+SELECT *
+  FROM Country, City
+  WHERE City.Country = Country.Code AND
+        Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+        (City.Name IN
+         (select Language from CountryLanguage where Percentage > 50) OR
+         City.name LIKE '%Island%');
 
--- echo /* 1.2.2 indexed table access, nullabale columns. */
-call make_t2_indexes();
--- source include/subselect_mat_cost.inc
+-- echo Q1.2e:
+-- echo IN_EXISTS: join order is the same, but the left IN operand refers to
+-- echo only the first table in the join order (Country), so there are much
+-- echo fewer rows to filter by subquery re-execution.
+EXPLAIN
+SELECT *
+  FROM Country, City
+  WHERE City.Country = Country.Code AND
+        Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+        (Country.Name IN
+         (select Language from CountryLanguage where Percentage > 50) OR
+         Country.name LIKE '%Island%');
 
--- echo /* 1.2.3 indexed table access, non-nullabale columns. */
-call set_all_columns_not_null();
--- source include/subselect_mat_cost.inc
-call set_all_columns_nullable();
-
-
-insert into t1 values ('1 - 02', '2 - 02', '3 - 02', 2);
-
--- echo /******************************************************************************
--- echo 2. Materialization is OFF, in-to-exists is ON, materialization is cheaper.
--- echo ******************************************************************************/
-set @@optimizer_switch='materialization=off,in_to_exists=on';
-
--- echo /* 2.1 non-indexed table access */
-call remove_t2_indexes();
--- source include/subselect_mat_cost.inc
-
--- echo /* 2.2 indexed table access, nullabale columns. */
-call make_t2_indexes();
--- source include/subselect_mat_cost.inc
-
--- echo /* 2.3 indexed table access, non-nullabale columns. */
-call set_all_columns_not_null();
--- source include/subselect_mat_cost.inc
-call set_all_columns_nullable();
-
-
--- echo /******************************************************************************
--- echo 3. Materialization is ON, in-to-exists is OFF, in-to-exists is cheaper.
--- echo ******************************************************************************/
-set @@optimizer_switch='materialization=on,in_to_exists=off';
-# make IN-TO-EXISTS cheaper
-call delete_materialization_data();
-call make_t1_indexes();
-
--- echo /* 3.1 non-indexed table access */
-call remove_t2_indexes();
--- source include/subselect_mat_cost.inc
-
--- echo /* 3.2 indexed table access, nullabale columns. */
-call make_t2_indexes();
--- source include/subselect_mat_cost.inc
-
--- echo /* 3.3 indexed table access, non-nullabale columns. */
-call set_all_columns_not_null();
--- source include/subselect_mat_cost.inc
-call set_all_columns_nullable();
+SELECT *
+  FROM Country, City
+  WHERE City.Country = Country.Code AND
+        Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
+        (Country.Name IN
+         (select Language from CountryLanguage where Percentage > 50) OR
+         Country.name LIKE '%Island%');
 
 
-drop procedure make_t1_indexes;
-drop procedure make_t2_indexes;
-drop procedure remove_t1_indexes;
-drop procedure remove_t2_indexes;
-drop procedure add_materialization_data;
-drop procedure delete_materialization_data;
-drop procedure set_all_columns_not_null;
-drop procedure set_all_columns_nullable;
-drop table t1, t2, t1_1024, t2_1024;
+-- echo
+-- echo Q1.3:
+-- echo For the same reasons as in Q2 IN-EXISTS and MATERIALIZATION chosen
+-- echo for each respective subquery.
+EXPLAIN
+SELECT City.Name, Country.Name
+  FROM City,Country
+  WHERE City.Country = Country.Code AND
+        Country.SurfaceArea < 30000 AND Country.SurfaceArea > 10 AND
+        ((Country.Code, Country.Name) IN
+         (select Country, Language from CountryLanguage where Percentage > 50) AND
+         Country.Population > 3000000
+         OR
+         (Country.Code, City.Name) IN
+         (select Country, Language from CountryLanguage));
+
+SELECT City.Name, Country.Name
+  FROM City,Country
+  WHERE City.Country = Country.Code AND
+        Country.SurfaceArea < 30000 AND Country.SurfaceArea > 10 AND
+        ((Country.Code, Country.Name) IN
+         (select Country, Language from CountryLanguage where Percentage > 50) AND
+         Country.Population > 3000000
+         OR
+         (Country.Code, City.Name) IN
+         (select Country, Language from CountryLanguage));
+
+
+-- echo
+-- echo 2. NOT IN subqueries
+-- echo
+
+-- echo
+-- echo Q2.1:
+-- echo Number of cities that are not capitals in countries with small population.
+-- echo MATERIALIZATION is 50 times faster because the cost of each subquery
+-- echo re-execution is much higher than the cost of index lookups into the
+-- echo materialized subquery.
+
+EXPLAIN
+select count(*) from City
+where City.id not in (select capital from Country
+                      where capital is not null and population < 100000);
+
+-- echo
+-- echo Q2.2e:
+-- echo Countries that speak French, but do not speak English
+-- echo IN-EXISTS because the outer query filters many rows, thus
+-- echo there are few lookups to make.
+EXPLAIN
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+  AND CountryLanguage.Language = 'French'
+  AND Code = Country;
+
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+  AND CountryLanguage.Language = 'French'
+  AND Code = Country;
+
+-- echo Q2.2m:
+-- echo Countries that speak French OR Spanish, but do not speak English
+-- echo MATERIALIZATION because the outer query filters less rows than Q5-a,
+-- echo so there are more lookups.
+EXPLAIN
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+  AND (CountryLanguage.Language = 'French' OR CountryLanguage.Language = 'Spanish')
+  AND Code = Country;
+
+SELECT Country.Name
+FROM Country, CountryLanguage 
+WHERE Code NOT IN (SELECT Country FROM CountryLanguage WHERE Language = 'English')
+  AND (CountryLanguage.Language = 'French' OR CountryLanguage.Language = 'Spanish')
+  AND Code = Country;
+
+-- echo
+-- echo Q2.3e:
+-- echo Not a very meaningful query that tests NOT IN.
+-- echo IN-EXISTS because the outer query is cheap enough to reexecute many times.
+EXPLAIN
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+      (SELECT City.Name, Country.Code
+       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+      AND Language IN ('English','Spanish');
+
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+      (SELECT City.Name, Country.Code
+       FROM City LEFT JOIN Country ON (Country = Code and City.Population < 10000))
+      AND Language IN ('English','Spanish');
+
+-- echo Q2.3m:
+-- echo MATERIALIZATION with the PARTIAL_MATCH_MERGE strategy, because the HAVING
+-- echo clause prevents the use of the index on City(Name), and in practice reduces
+-- echo radically the size of the temp table.
+EXPLAIN
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+      (SELECT City.Name, Country.Code
+       FROM City LEFT JOIN Country ON (Country = Code)
+       HAVING City.Name LIKE "Santa%");
+
+select count(*)
+from CountryLanguage
+where (Language, Country) NOT IN
+      (SELECT City.Name, Country.Code
+       FROM City LEFT JOIN Country ON (Country = Code)
+       HAVING City.Name LIKE "Santa%");
+
+
+-- echo
+-- echo 3. Subqueries with GROUP BY, HAVING, and aggregate functions
+-- echo
+
+-- echo Q3.1:
+-- echo Languages that are spoken in countries with 10 or 11 languages
+-- echo MATERIALIZATION is about 100 times faster than IN-EXISTS.
+
+EXPLAIN
+select count(*)
+from CountryLanguage
+where
+(Country, 10) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+                  WHERE Code = Country GROUP BY Code)
+OR
+(Country, 11) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+                  WHERE Code = Country GROUP BY Code)
+order by Country;
+
+select count(*)
+from CountryLanguage
+where
+(Country, 10) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+                  WHERE Code = Country GROUP BY Code)
+OR
+(Country, 11) IN (SELECT Code, COUNT(*) FROM CountryLanguage, Country
+                  WHERE Code = Country GROUP BY Code)
+order by Country;
+
+
+-- echo
+-- echo Q3.2:
+-- echo Countries whose capital is a city name that names more than one
+-- echo cities.
+-- echo MATERIALIZATION because the cost of single subquery execution is
+-- echo close to that of materializing the subquery.
+
+EXPLAIN
+select * from Country, City
+where capital = id and
+      (City.name in (SELECT name FROM City
+                     GROUP BY name HAVING Count(*) > 2) OR
+       capital is null);
+
+select * from Country, City
+where capital = id and
+      (City.name in (SELECT name FROM City
+                     GROUP BY name HAVING Count(*) > 2) OR
+       capital is null);
+
+-- echo
+-- echo Q3.3: MATERIALIZATION is 25 times faster than IN-EXISTS
+
+EXPLAIN
+SELECT Name
+FROM Country
+WHERE Country.Code NOT IN
+      (SELECT Country FROM City GROUP BY Name HAVING COUNT(Name) = 1);
+
+SELECT Name
+FROM Country
+WHERE Country.Code NOT IN
+      (SELECT Country FROM City GROUP BY Name HAVING COUNT(Name) = 1);
+
+
+-- echo
+-- echo 4. Subqueries in the SELECT and HAVING clauses
+-- echo
+
+-- echo Q4.1m:
+-- echo Capital information about very big cities
+-- echo MATERIALIZATION
+EXPLAIN
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+
+-- echo Q4.1e:
+-- echo IN-TO-EXISTS after adding an index to make the subquery re-execution
+-- echo efficient.
+
+create index CountryCapital on Country(capital);
+
+EXPLAIN
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+
+select Name, City.id in (select capital from Country where capital is not null) as is_capital
+from City
+where City.population > 10000000;
+
+drop index CountryCapital on Country;
+
+-- echo
+-- echo Q4.2:
+-- echo MATERIALIZATION
+# TODO: the cost estimates for subqueries in the HAVING clause need to be changed
+# to take into account that the subquery predicate is executed #times ~ to the
+# number of groups, not number of rows
+EXPLAIN
+SELECT City.Name, City.Population
+FROM City JOIN Country ON City.Country = Country.Code
+GROUP BY City.Name
+HAVING City.Name IN (select Name from Country where population < 1000000);
+
+SELECT City.Name, City.Population
+FROM City JOIN Country ON City.Country = Country.Code
+GROUP BY City.Name
+HAVING City.Name IN (select Name from Country where population < 1000000);
+
+
+-- echo
+-- echo 5. Subqueries with UNION
+-- echo
+
+-- echo Q5.1:
+EXPLAIN
+SELECT * from City where (Name, 91) in
+(SELECT Name, round(Population/1000)
+ FROM City
+ WHERE Country = "IND" AND Population > 2500000
+UNION
+ SELECT Name, round(Population/1000)
+ FROM City
+ WHERE Country = "IND" AND Population < 100000);
+
+SELECT * from City where (Name, 91) in
+(SELECT Name, round(Population/1000)
+ FROM City
+ WHERE Country = "IND" AND Population > 2500000
+UNION
+ SELECT Name, round(Population/1000)
+ FROM City
+ WHERE Country = "IND" AND Population < 100000);
+
+set @@optimizer_switch='default';
+drop database world;
+-- echo
+
+
+-- echo
+-- echo TEST GROUP 2:
+-- echo Tests of various combinations of optimizer switches, types of queries,
+-- echo available indexes, column nullability, constness of tables/predicates.
+-- echo =====================================================================
+
+
+#TODO From Igor's review:
+#
+#2.1 Please add a case when two subqueries  are used in the where clause
+#(or in select) of a 2-way join.
+#The first subquery is accessed after the first table, while the second
+#is accessed after the second table.
+#
+#2.2. Please add a test case when one non-correlated subquery contains
+#another non-correlated subquery.
+#Consider 4 subcases:
+#   both subqueries are materialized
+#   IN_EXIST transformations are applied to both subqueries
+#   outer subquery is materialized while the inner subquery  is not
+#(IN_EXIST transformation is applied to it)
+#   inner subqyery is materialized while the outer subquery  is not (
+#IN_EXIST transformation is applied to it)
+
+set optimizer_switch=@subselect_mat_cost;

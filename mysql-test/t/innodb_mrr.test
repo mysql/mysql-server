@@ -7,6 +7,9 @@ drop table if exists t1,t2,t3,t4;
 set @save_storage_engine= @@storage_engine;
 set storage_engine=InnoDB;
 
+set @innodb_mrr_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
 --source include/mrr_tests.inc 
 
 set storage_engine= @save_storage_engine;
@@ -417,6 +420,7 @@ DROP TABLE t1,t2;
 
 --echo #
 --echo # Testcase backport: Bug#43249
+--echo # (Note: Fixed by patch for BUG#42580)
 --echo #
 CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, c3 DATE, PRIMARY KEY(c1), UNIQUE INDEX(c2)) engine=innodb;
 INSERT INTO t1 VALUES('8:29:45',NULL,'2009-02-01');
@@ -454,4 +458,5 @@ select count(*) from (
 ) X;
 
 set join_cache_level=@_save_join_cache_level;
+set optimizer_switch= @innodb_mrr_tmp;
 drop table t1;

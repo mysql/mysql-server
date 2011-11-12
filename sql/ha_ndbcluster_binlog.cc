@@ -1855,7 +1855,7 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   else
     thd->server_id= schema->any_value;
   thd->db= schema->db;
-  int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+  int errcode = query_error_code(thd, thd->killed == NOT_KILLED);
   thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                     schema->query_length, FALSE,
                     schema->name[0] == 0 || thd->db[0] == 0,

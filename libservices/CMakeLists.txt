@@ -15,6 +15,7 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
-SET(MYSQLSERVICES_SOURCES my_snprintf_service.c thd_alloc_service.c)
+SET(MYSQLSERVICES_SOURCES my_snprintf_service.c thd_alloc_service.c
+    progress_report_service.c)
 
 ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})

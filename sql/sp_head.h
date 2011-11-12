@@ -28,11 +28,16 @@
   @ingroup Runtime_Environment
   @{
 */
-// Values for the type enum. This reflects the order of the enum declaration
-// in the CREATE TABLE command.
-#define TYPE_ENUM_FUNCTION  1
-#define TYPE_ENUM_PROCEDURE 2
-#define TYPE_ENUM_TRIGGER   3
+/*
+  Values for the type enum. This reflects the order of the enum declaration
+  in the CREATE TABLE command.
+*/
+enum stored_procedure_type
+{
+  TYPE_ENUM_FUNCTION=1,
+  TYPE_ENUM_PROCEDURE=2,
+  TYPE_ENUM_TRIGGER=3
+};
 
 Item_result
 sp_map_result_type(enum enum_field_types type);
@@ -134,9 +139,9 @@ public:
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation
 
-  void set_routine_type(char type)
+  void set_routine_type(stored_procedure_type type)
   {
-    m_sroutines_key.str[0]= type;
+    m_sroutines_key.str[0]= (char) type;
   }
 
   ~sp_name()
@@ -170,8 +175,7 @@ public:
     HAS_SQLCOM_FLUSH= 4096
   };
 
-  /** TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
-  int m_type;
+  stored_procedure_type m_type;
   uint m_flags;                 // Boolean attributes of a stored routine
 
   Create_field m_return_field_def; /**< This is used for FUNCTIONs only. */

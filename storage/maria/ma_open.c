@@ -135,7 +135,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
   info.opt_flag=READ_CHECK_USED;
   info.this_unique= (ulong) info.dfile.file; /* Uniq number in process */
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   if (share->data_file_type == COMPRESSED_RECORD)
     info.this_unique= share->state.unique;
   info.this_loop=0;				/* Update counter */
@@ -468,7 +468,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
 
     key_parts+=fulltext_keys*FT_SEGS;
-    if (share->base.max_key_length > maria_max_key_length() ||
+    if (share->base.max_key_length > _ma_max_key_length() ||
         keys > MARIA_MAX_KEY || key_parts > MARIA_MAX_KEY * HA_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
@@ -509,7 +509,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 		   (ulonglong) 1 << (share->base.rec_reflength*8))-1);
 
     max_key_file_length=
-      _ma_safe_mul(maria_block_size,
+      _ma_safe_mul(share->base.block_size,
 		  ((ulonglong) 1 << (share->base.key_reflength*8))-1);
 #if SIZEOF_OFF_T == 4
     set_if_smaller(max_data_file_length, INT_MAX32);
@@ -570,21 +570,40 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     share->block_size= share->base.block_size;   /* Convenience */
     share->max_index_block_size= share->block_size - KEYPAGE_CHECKSUM_SIZE;
+    share->keypage_header= ((share->base.born_transactional ?
+                             LSN_STORE_SIZE + TRANSID_SIZE :
+                             0) + KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE +
+                            KEYPAGE_USED_SIZE);
     {
       HA_KEYSEG *pos=share->keyparts;
       uint32 ftkey_nr= 1;
       for (i=0 ; i < keys ; i++)
       {
-        share->keyinfo[i].share= share;
-	disk_pos=_ma_keydef_read(disk_pos, &share->keyinfo[i]);
-        share->keyinfo[i].key_nr= i;
+        MARIA_KEYDEF *keyinfo= &share->keyinfo[i];
+        keyinfo->share= share;
+	disk_pos=_ma_keydef_read(disk_pos, keyinfo);
+        keyinfo->key_nr= i;
+
+        /* See ma_delete.cc::underflow() */
+        if (!(keyinfo->flag & (HA_BINARY_PACK_KEY | HA_PACK_KEY)))
+          keyinfo->underflow_block_length= keyinfo->block_length/3;
+        else
+        {
+          /* Packed key, ensure we don't get overflow in underflow() */
+          keyinfo->underflow_block_length=
+            max((int) (share->max_index_block_size - keyinfo->maxlength * 3),
+                (int) (share->keypage_header + share->base.key_reflength));
+          set_if_smaller(keyinfo->underflow_block_length,
+                         keyinfo->block_length/3);
+        }
+
         disk_pos_assert(share,
-                        disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
+                        disk_pos + keyinfo->keysegs * HA_KEYSEG_SIZE,
  			end_pos);
-        if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
+        if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
           share->have_rtree= 1;
-	share->keyinfo[i].seg=pos;
-	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
+	keyinfo->seg=pos;
+	for (j=0 ; j < keyinfo->keysegs; j++,pos++)
 	{
 	  disk_pos=_ma_keyseg_read(disk_pos, pos);
 	  if (pos->type == HA_KEYTYPE_TEXT ||
@@ -602,25 +621,25 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	  else if (pos->type == HA_KEYTYPE_BINARY)
 	    pos->charset= &my_charset_bin;
 	}
-	if (share->keyinfo[i].flag & HA_SPATIAL)
+	if (keyinfo->flag & HA_SPATIAL)
 	{
 #ifdef HAVE_SPATIAL
 	  uint sp_segs=SPDIMS*2;
-	  share->keyinfo[i].seg=pos-sp_segs;
-	  share->keyinfo[i].keysegs--;
+	  keyinfo->seg=pos-sp_segs;
+	  keyinfo->keysegs--;
           versioning= 0;
 #else
 	  my_errno=HA_ERR_UNSUPPORTED;
 	  goto err;
 #endif
 	}
-        else if (share->keyinfo[i].flag & HA_FULLTEXT)
+        else if (keyinfo->flag & HA_FULLTEXT)
 	{
           versioning= 0;
           DBUG_ASSERT(fulltext_keys);
           {
             uint k;
-            share->keyinfo[i].seg=pos;
+            keyinfo->seg=pos;
             for (k=0; k < FT_SEGS; k++)
             {
               *pos= ft_keysegs[k];
@@ -635,8 +654,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           }
           if (!share->ft2_keyinfo.seg)
           {
-            memcpy(&share->ft2_keyinfo, &share->keyinfo[i],
-                   sizeof(MARIA_KEYDEF));
+            memcpy(&share->ft2_keyinfo, keyinfo, sizeof(MARIA_KEYDEF));
             share->ft2_keyinfo.keysegs=1;
             share->ft2_keyinfo.flag=0;
             share->ft2_keyinfo.keylength=
@@ -646,10 +664,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
             share->ft2_keyinfo.end=pos;
             setup_key_functions(& share->ft2_keyinfo);
           }
-          share->keyinfo[i].ftkey_nr= ftkey_nr++;
+          keyinfo->ftkey_nr= ftkey_nr++;
 	}
-        setup_key_functions(share->keyinfo+i);
-	share->keyinfo[i].end=pos;
+        setup_key_functions(keyinfo);
+	keyinfo->end=pos;
 	pos->type=HA_KEYTYPE_END;			/* End */
 	pos->length=share->base.rec_reflength;
 	pos->null_bit=0;
@@ -693,10 +711,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                          share->base.null_bytes +
                          share->base.pack_bytes +
                          test(share->options & HA_OPTION_CHECKSUM));
-    share->keypage_header= ((share->base.born_transactional ?
-                             LSN_STORE_SIZE + TRANSID_SIZE :
-                             0) + KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE +
-                            KEYPAGE_USED_SIZE);
     share->kfile.file= kfile;
 
     if (open_flags & HA_OPEN_COPY)
@@ -815,7 +829,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
     _ma_set_index_pagecache_callbacks(&share->kfile, share);
     share->this_process=(ulong) getpid();
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
     share->last_process= share->state.process;
 #endif
     share->base.key_parts=key_parts;
@@ -826,7 +840,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share->base.margin_key_file_length=(share->base.max_key_file_length -
 					(keys ? MARIA_INDEX_BLOCK_MARGIN *
 					 share->block_size * keys : 0));
-    share->block_size= share->base.block_size;
+
     my_free(disk_cache, MYF(0));
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
@@ -933,7 +947,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     {
       /*
         We must have internal_lock before bitmap_lock because we call
-        _ma_flush_tables_files() with internal_lock locked.
+        _ma_flush_table_files() with internal_lock locked.
       */
       pthread_mutex_lock(&share->intern_lock);
       pthread_mutex_lock(&share->bitmap.bitmap_lock);
@@ -1470,7 +1484,7 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 uint _ma_state_info_read_dsk(File file __attribute__((unused)),
                              MARIA_STATE_INFO *state __attribute__((unused)))
 {
-#ifdef EXTERNAL_LOCKING
+#ifdef MARIA_EXTERNAL_LOCKING
   uchar	buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
 
   /* trick to detect transactional tables */
@@ -1607,7 +1621,6 @@ uchar *_ma_keydef_read(uchar *ptr, MARIA_KEYDEF *keydef)
    keydef->keylength	= mi_uint2korr(ptr);	ptr+= 2;
    keydef->minlength	= mi_uint2korr(ptr);	ptr+= 2;
    keydef->maxlength	= mi_uint2korr(ptr);	ptr+= 2;
-   keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    keydef->parser       = &ft_default_parser;
    keydef->ftkey_nr     = 0;
@@ -1829,7 +1842,6 @@ void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
 int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
                       File file_to_dup __attribute__((unused)))
 {
-  char *data_name= share->data_file_name.str;
   char real_data_name[FN_REFLEN];
 
   if (org_name)
@@ -1843,7 +1855,6 @@ int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
         my_errno= HA_WRONG_CREATE_OPTION;
         return 1;
       }
-      data_name= real_data_name;
     }
   }
 

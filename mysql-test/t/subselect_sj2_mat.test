@@ -2,6 +2,7 @@
 # Run subselect_sj2.test with subquery materialization.
 #
 set optimizer_switch='materialization=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 --source t/subselect_sj2.test
 

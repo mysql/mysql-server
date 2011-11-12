@@ -2,6 +2,9 @@
 # ICP/MyISAM tests (Index Condition Pushdown)
 #
 
+set @myisam_icp_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+
 --source include/icp_tests.inc
 
 --disable_warnings
@@ -192,3 +195,66 @@ drop table if exists t0, t1, t1i, t1m;
 drop table t0, t1, t1i, t1m;
 
 --enable_parsing
+
+--echo #
+--echo # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
+--echo #
+CREATE TABLE t1 ( a int, b varchar(1024), c int, KEY (c), KEY (c,a)) ;
+INSERT INTO t1 VALUES
+  (NULL,'x','-678428672'),
+  (NULL,'ok',NULL),
+  (796262400,'byluovkgwoukfxedyeffsedajyqkyhpaqqpozn', NULL),
+  (7,'STQUF',146014208),
+  (955711488,'WWVOR','-1515388928');
+SELECT b FROM t1 WHERE a != 1 AND c IS NULL ORDER BY 1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#870046: ICP for a GROUP BY query
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(1), c varchar(1), INDEX idx(b));
+INSERT INTO t1 VALUES (2,'x','x'), (5,'x','y');
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SET SESSION optimizer_switch='index_condition_pushdown=on';
+EXPLAIN
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+SELECT a, MIN(c) FROM t1 WHERE b = 'x' AND c > 'x' GROUP BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#887026: Wrong result with ICP, outer join, subquery in maria-5.3-icp
+--echo #
+
+CREATE TABLE t1 (c varchar(1));
+INSERT INTO t1 VALUES ('c'), ('c');
+
+CREATE TABLE t2 (c varchar(1), b int);
+INSERT INTO t2 VALUES ('d', NULL),('d', NULL);
+
+CREATE TABLE t3 (c varchar(1));
+INSERT INTO t3 VALUES ('c');
+INSERT INTO t3 VALUES ('c');
+
+CREATE TABLE t4 ( b int, c varchar(1), KEY (b));
+INSERT INTO t4 VALUES (7,'c');
+INSERT INTO t4 VALUES (7,'c');
+
+--echo # Must be t1,t2,t3,t4, with t4 having Full-scan-on-NULL but not Using index condition
+explain 
+SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
+WHERE 
+  t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
+ 
+SELECT * FROM t1 LEFT JOIN t2 ON t1.c=t2.b
+WHERE 
+  t2.b NOT IN (SELECT t4.b FROM t3 STRAIGHT_JOIN t4 WHERE t4.b <= 2 AND t4.c = t3.c);
+
+DROP TABLE t1,t2,t3,t4;
+
+set optimizer_switch=@myisam_icp_tmp;

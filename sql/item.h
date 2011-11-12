@@ -505,6 +505,7 @@ typedef void (*Cond_traverser) (const Item *item, void *arg);
 class Item_equal;
 class COND_EQUAL;
 
+class st_select_lex_unit;
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -1018,8 +1019,10 @@ public:
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
   virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
+  virtual bool update_table_bitmaps_processor(uchar *arg) { return 0; }
   virtual bool view_used_tables_processor(uchar *arg) { return 0; }
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
+  virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args
@@ -1155,6 +1158,17 @@ public:
   {
     return FALSE;
   }
+  struct Collect_deps_prm
+  {
+    List<Item> *parameters;
+    /* unit from which we count nest_level */
+    st_select_lex_unit *nest_level_base;
+    int nest_level;
+  };
+  /**
+    Collect outer references
+  */
+  virtual bool collect_outer_ref_processor(uchar *arg) {return FALSE; }
 
   /**
     Find a function of a given type
@@ -1249,7 +1263,7 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
-  Item* set_expr_cache(THD *thd, List<Item*> &depends_on);
+  Item* set_expr_cache(THD *thd);
   virtual Item *get_cached_item() { return NULL; }
 
   virtual Item_equal *get_item_equal() { return NULL; }
@@ -1273,7 +1287,25 @@ public:
     walk(&Item::view_used_tables_processor, 0, (uchar *) view);
     return view->view_used_tables;
   }
+
+  /**
+    Collect and add to the list cache parameters for this Item.
+
+    @note Now implemented only for subqueries and in_optimizer,
+    if we need it for general function then this method should
+    be defined for Item_func.
+  */
+  virtual void get_cache_parameters(List<Item> &parameters) { };
+
+  virtual void mark_as_condition_AND_part(TABLE_LIST *embedding) {};
 };
+
+
+/**
+  Compare two Items for List<Item>::add_unique()
+*/
+
+bool cmp_items(Item *a, Item *b);
 
 
 /*
@@ -1677,6 +1709,10 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
+  /**
+    Collect outer references
+  */
+  virtual bool collect_outer_ref_processor(uchar *arg);
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
@@ -1784,6 +1820,20 @@ public:
   bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
   bool is_null() { return field->is_null(); }
   void update_null_value();
+  void update_table_bitmaps()
+  {
+    if (field && field->table)
+    {
+      TABLE *tab= field->table;
+      tab->covering_keys.intersect(field->part_of_key);
+      tab->merge_keys.merge(field->part_of_key);
+      if (tab->read_set)
+        bitmap_fast_test_and_set(tab->read_set, field->field_index);
+      if (field->vcol_info)
+        tab->mark_virtual_col(field);
+    }  
+  }
+  void update_used_tables() { update_table_bitmaps(); }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);
@@ -1795,6 +1845,7 @@ public:
   bool vcol_in_partition_func_processor(uchar *bool_arg);
   bool check_vcol_func_processor(uchar *arg) { return FALSE;}
   bool enumerate_field_refs_processor(uchar *arg);
+  bool update_table_bitmaps_processor(uchar *arg);
   void cleanup();
   Item_equal *get_item_equal() { return item_equal; }
   void set_item_equal(Item_equal *item_eq) { item_equal= item_eq; }
@@ -2570,13 +2621,16 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
-  inline table_map used_tables() const;		
-  inline void update_used_tables(); 
+  table_map used_tables() const;		
+  void update_used_tables(); 
   bool const_item() const 
   {
     return (*ref)->const_item();
   }
-  table_map not_null_tables() const { return (*ref)->not_null_tables(); }
+  table_map not_null_tables() const 
+  { 
+    return depended_from ? 0 : (*ref)->not_null_tables();
+  }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
@@ -2713,9 +2767,6 @@ public:
   virtual void print(String *str, enum_query_type query_type)
   { ident->print(str, query_type); }
 
-  virtual Item* transform(Item_transformer transformer, uchar *arg);
-  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
-                        Item_transformer transformer, uchar *arg_t);
 };
 
 
@@ -2742,8 +2793,11 @@ private:
   */
   Item_cache *expr_value;
 
+  List<Item> parameters;
+
   Item *check_cache();
-  inline void cache();
+  void cache();
+  void init_on_demand();
 
 public:
   Item_cache_wrapper(Item *item_arg);
@@ -2753,7 +2807,7 @@ public:
   enum Type type() const { return EXPR_CACHE_ITEM; }
   enum Type real_type() const { return orig_item->type(); }
 
-  bool set_cache(THD *thd, List<Item*> &depends_on);
+  bool set_cache(THD *thd);
 
   bool fix_fields(THD *thd, Item **it);
   void fix_length_and_dec() {}
@@ -2835,6 +2889,9 @@ public:
     if (result_type() == ROW_RESULT)
       orig_item->bring_value();
   }
+  virtual bool is_expensive() { return orig_item->is_expensive(); }
+  bool is_expensive_processor(uchar *arg)
+  { return orig_item->is_expensive_processor(arg); }
   bool check_vcol_func_processor(uchar *arg)
   {
     return trace_unsupported_by_check_vcol_func_processor("cache");
@@ -2881,6 +2938,7 @@ public:
   Item *equal_fields_propagator(uchar *arg);
   Item *replace_equal_field(uchar *arg);
   table_map used_tables() const;	
+  table_map not_null_tables() const;
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { 
     return (*ref)->walk(processor, walk_subquery, arg) ||

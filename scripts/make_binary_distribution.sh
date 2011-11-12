@@ -169,6 +169,7 @@ esac
 VERSION_NAME=@VERSION@
 case $VERSION_NAME in
   *-ndb-* )  VERSION_NAME=`echo $VERSION_NAME | sed -e 's/[.0-9]*-ndb-//'` ;;
+  *-MariaDB-* ) VERSION_NAME=`echo $VERSION_NAME | sed -e 's/-MariaDB//'` ;;
 esac
 if [ x"$SHORT_PRODUCT_TAG" != x"" ] ; then
   NEW_NAME=mariadb-$SHORT_PRODUCT_TAG-$VERSION_NAME-$PLATFORM$SUFFIX
@@ -459,6 +460,7 @@ copyfileto $BASE/bin $BIN_FILES
 
 $CP netware/*.pl $BASE/scripts
 $CP scripts/mysqlhotcopy $BASE/scripts/mysqlhotcopy.pl
+$CP scripts/mytop $BASE/scripts/mytop.pl
 
 copyfileto $BASE/lib \
   libmysql/.libs/libmysqlclient.a \

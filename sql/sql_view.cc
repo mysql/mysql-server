@@ -18,8 +18,8 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 #include "parse_file.h"
-#include "sp.h"
 #include "sp_head.h"
+#include "sp.h"
 #include "sp_cache.h"
 
 #define MD5_BUFF_LENGTH 33
@@ -1483,8 +1483,22 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
         We can safely ignore the VIEW's ORDER BY if we merge into union 
         branch, as order is not important there.
       */
-      if (!table->select_lex->master_unit()->is_union())
+      if (!table->select_lex->master_unit()->is_union() &&
+          table->select_lex->order_list.elements == 0)
         table->select_lex->order_list.push_back(&lex->select_lex.order_list);
+      else
+      {
+        if (old_lex->sql_command == SQLCOM_SELECT &&
+            (old_lex->describe & DESCRIBE_EXTENDED) &&
+            lex->select_lex.order_list.elements &&
+            !table->select_lex->master_unit()->is_union())
+        {
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                              ER_VIEW_ORDERBY_IGNORED,
+                              ER(ER_VIEW_ORDERBY_IGNORED),
+                              table->db, table->table_name);
+        }
+      }
       /*
 	This SELECT_LEX will be linked in global SELECT_LEX list
 	to make it processed by mysql_handle_derived(),

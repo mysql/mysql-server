@@ -56,16 +56,11 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
       Make sure we are using a valid file descriptor!
   */
   DBUG_ASSERT(fd != -1);
-#if defined(THREAD) && !defined(HAVE_PREAD)
-  if (MyFlags & MY_THREADSAFE)
-  {
-    pthread_mutex_lock(&my_file_info[fd].mutex);
-    newpos= lseek(fd, pos, whence);
-    pthread_mutex_unlock(&my_file_info[fd].mutex);
-  }
-  else
+#ifdef _WIN32
+  newpos= my_win_lseek(fd, pos, whence);
+#else
+  newpos= lseek(fd, pos, whence);
 #endif
-    newpos= lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {
     my_errno= errno;
@@ -91,7 +86,9 @@ my_off_t my_tell(File fd, myf MyFlags)
   DBUG_ENTER("my_tell");
   DBUG_PRINT("my",("fd: %d  MyFlags: %d",fd, MyFlags));
   DBUG_ASSERT(fd >= 0);
-#ifdef HAVE_TELL
+#ifdef _WIN32
+  pos= my_seek(fd, 0, MY_SEEK_CUR,0);
+#elif defined(HAVE_TELL)
   pos=tell(fd);
 #else
   pos=lseek(fd, 0L, MY_SEEK_CUR);

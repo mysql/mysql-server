@@ -1,4 +1,5 @@
 /* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+   Copyright 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1389,10 +1390,14 @@ public:
   }
   void add_io(double add_io_cnt, double add_avg_cost)
   {
-    double io_count_sum= io_count + add_io_cnt;
-    avg_io_cost= (io_count * avg_io_cost + 
-                  add_io_cnt * add_avg_cost) / io_count_sum;
-    io_count= io_count_sum;
+    /* In edge cases add_io_cnt may be zero */
+    if (add_io_cnt > 0)
+    {
+      double io_count_sum= io_count + add_io_cnt;
+      avg_io_cost= (io_count * avg_io_cost + 
+                    add_io_cnt * add_avg_cost) / io_count_sum;
+      io_count= io_count_sum;
+    }
   }
 
   /*
@@ -1599,6 +1604,7 @@ public:
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
+  bool internal_tmp_table;                      /* If internal tmp table */
 
   /* 
     TRUE <=> the engine guarantees that returned records are within the range
@@ -1643,6 +1649,7 @@ public:
   */
   /* Statistics  variables */
   ulonglong rows_read;
+  ulonglong rows_tmp_read;
   ulonglong rows_changed;
   /* One bigger than needed to avoid to test if key == MAX_KEY */
   ulonglong index_rows_read[MAX_KEY+1];
@@ -1659,7 +1666,7 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), in_range_check_pushed_down(FALSE),
+    ref(0), end_range(NULL), in_range_check_pushed_down(FALSE),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
@@ -1685,7 +1692,7 @@ public:
   }
   /* ha_ methods: pubilc wrappers for private virtual API */
 
-  int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
+  int ha_open(TABLE *table, const char *name, int mode, uint test_if_locked);
   int ha_index_init(uint idx, bool sorted)
   {
     int result;
@@ -1716,6 +1723,7 @@ public:
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
     inited= (result= rnd_init(scan)) ? NONE: RND;
+    end_range= NULL;
     DBUG_RETURN(result);
   }
   int ha_rnd_end()
@@ -1723,6 +1731,7 @@ public:
     DBUG_ENTER("ha_rnd_end");
     DBUG_ASSERT(inited==RND);
     inited=NONE;
+    end_range= NULL;
     DBUG_RETURN(rnd_end());
   }
   int ha_rnd_init_with_error(bool scan) __attribute__ ((warn_unused_result));
@@ -1809,7 +1818,7 @@ public:
   uint get_dup_key(int error);
   void reset_statistics()
   {
-    rows_read= rows_changed= 0;
+    rows_read= rows_changed= rows_tmp_read= 0;
     bzero(index_rows_read, sizeof(index_rows_read));
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
@@ -1894,7 +1903,7 @@ public:
   */
   uint get_index(void) const
   { return inited == INDEX ? active_index : MAX_KEY; }
-  virtual int close(void)=0;
+  int ha_close(void);
 
   /**
     @retval  0   Bulk update used by handler
@@ -1970,10 +1979,18 @@ protected:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
+  virtual int close(void)=0;
+  inline void update_rows_read()
+  {
+    if (likely(!internal_tmp_table))
+      rows_read++;
+    else
+      rows_tmp_read++;
+  }
   inline void update_index_statistics()
   {
     index_rows_read[active_index]++;
-    rows_read++;
+    update_rows_read();
   }
 public:
 
@@ -2376,6 +2393,13 @@ public:
  */
  virtual void cond_pop() { return; };
  virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
+ /** Reset information about pushed index conditions */
+ virtual void cancel_pushed_idx_cond()
+ {
+   pushed_idx_cond= NULL;
+   pushed_idx_cond_keyno= MAX_KEY;
+   in_range_check_pushed_down= false;
+ }
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
@@ -2447,6 +2471,7 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
+  /* Note: ha_index_read_idx_map() may buypass index_init() */
   virtual int index_init(uint idx, bool sorted) { return 0; }
   virtual int index_end() { return 0; }
   /**
@@ -2604,6 +2629,7 @@ public:
   virtual handlerton *partition_ht() const
   { return ht; }
   inline int ha_write_tmp_row(uchar *buf);
+  inline int ha_update_tmp_row(const uchar * old_data, uchar * new_data);
 };
 
 #include "multi_range_read.h"

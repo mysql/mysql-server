@@ -112,7 +112,9 @@ extern ulint	srv_check_file_format_at_startup;
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 #endif /* !UNIV_HOTBACKUP */
-
+#ifdef __WIN__
+extern ibool	srv_use_native_conditions;
+#endif
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
@@ -350,9 +352,6 @@ extern ulint srv_buf_pool_reads;
 
 /** Time in seconds between automatic buffer pool dumps */
 extern uint srv_auto_lru_dump;
-
-/** Release row locks already in the prepare phase */
-extern my_bool innobase_release_locks_early;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;

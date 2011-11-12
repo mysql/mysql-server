@@ -49,7 +49,6 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
-#define MY_SYNC_DIR     1024    /* my_create/delete/rename: sync directory */
 #define MY_RAID         64      /* Support for RAID */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
@@ -70,6 +69,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_DONT_OVERWRITE_FILE 2048 /* my_copy: Don't overwrite file */
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
 #define MY_SYNC       4096      /* my_copy(): sync dst file */
+#define MY_SYNC_DIR   32768     /* my_create/delete/rename: sync directory */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
@@ -255,7 +255,8 @@ extern ulong    my_file_total_opened;
 extern ulong    my_sync_count;
 extern uint	mysys_usage_id;
 extern my_bool	my_init_done;
-
+extern my_bool  my_assert_on_error;
+extern myf      my_global_flags;        /* Set to MY_WME for more error messages */
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),
 					/* Executed before jump to shell */
@@ -342,11 +343,12 @@ enum file_type
 
 struct st_my_file_info
 {
-  char *		name;
-  enum file_type	type;
-#if defined(THREAD) && !defined(HAVE_PREAD)
-  pthread_mutex_t	mutex;
+  char  *name;
+#ifdef _WIN32
+  HANDLE fhandle;   /* win32 file handle */
+  int    oflag;     /* open flags, e.g O_APPEND */
 #endif
+  enum   file_type	type;
 };
 
 extern struct st_my_file_info *my_file_info;
@@ -652,12 +654,12 @@ extern void *my_memmem(const void *haystack, size_t haystacklen,
                        const void *needle, size_t needlelen);
 
 
-#ifdef __WIN__
-extern int my_access(const char *path, int amode);
-extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
+#ifdef _WIN32
+extern int      my_access(const char *path, int amode);
 #else
 #define my_access access
 #endif
+
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
@@ -666,6 +668,13 @@ extern int nt_share_delete(const char *name,myf MyFlags);
 #define my_delete_allow_opened(fname,flags)  nt_share_delete((fname),(flags))
 #else
 #define my_delete_allow_opened(fname,flags)  my_delete((fname),(flags))
+#endif
+
+#ifdef _WIN32
+/* Windows-only functions (CRT equivalents)*/
+extern File     my_sopen(const char *path, int oflag, int shflag, int pmode);
+extern HANDLE   my_get_osfhandle(File fd);
+extern void     my_osmaperr(unsigned long last_error);
 #endif
 
 #ifndef TERMINATE
@@ -677,6 +686,7 @@ extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
 extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
 extern int my_fclose(FILE *fd,myf MyFlags);
+extern File my_fileno(FILE *fd);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_chmod(const char *name, mode_t mode, myf my_flags);
 extern int my_sync(File fd, myf my_flags);

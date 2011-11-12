@@ -319,7 +319,6 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
   if (aggr_level >= 0)
   {
     ref_by= ref;
-    thd->lex->current_select->register_dependency_item(aggr_sel, ref);
     /* Add the object to the list of registered objects assigned to aggr_sel */
     if (!aggr_sel->inner_sum_func_list)
       next= this;
@@ -352,6 +351,18 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       sl->master_unit()->item->with_sum_func= 1;
   }
   thd->lex->current_select->mark_as_dependent(thd, aggr_sel, NULL);
+  return FALSE;
+}
+
+
+bool Item_sum::collect_outer_ref_processor(uchar *param)
+{
+  Collect_deps_prm *prm= (Collect_deps_prm *)param;
+  SELECT_LEX *ds;
+  if ((ds= depended_from()) &&
+      ds->nest_level_base == prm->nest_level_base &&
+      ds->nest_level < prm->nest_level)
+    prm->parameters->add_unique(this, &cmp_items);
   return FALSE;
 }
 
@@ -2587,7 +2598,7 @@ bool Item_sum_count_distinct::add()
     */
     return tree->unique_add(table->record[0] + table->s->null_bytes);
   }
-  if ((error= table->file->ha_write_row(table->record[0])) &&
+  if ((error= table->file->ha_write_tmp_row(table->record[0])) &&
       table->file->is_fatal_error(error, HA_CHECK_DUP))
     return TRUE;
   return FALSE;

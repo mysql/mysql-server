@@ -298,6 +298,8 @@ extern ulong _mi_calc_blob_length(uint length , const uchar *pos);
 extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 extern int mi_make_backup_of_index(struct st_myisam_info *info,
                                    time_t backup_time, myf flags);
+#define myisam_max_key_length() HA_MAX_KEY_LENGTH
+#define myisam_max_key_segments() HA_MAX_KEY_SEG
 
 #define MEMMAP_EXTRA_MARGIN     7       /* Write this as a suffix for mmap file */
 /* this is used to pass to mysql_myisamchk_table */

@@ -42,6 +42,16 @@ CHECK TABLE t1;
 drop table t1;
 
 #
+# Test auto_increment warning
+#
+create table t1 (a int primary key auto_increment) engine=aria;
+insert into t1 values (1);
+update t1 set a=0 where a=1;
+check table t1;
+select * from t1;
+drop table t1;
+
+#
 # Test problem with rows that are 65517-65520 bytes long
 #
 
@@ -376,7 +386,8 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
-INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+INSERT into t1 values (0,null,0), (0,null,1), (0,null,2), (0,null,3), (1,1,4);
+INSERT into t1 values (2,4,5), (7,8,4), (8,3,1), (9,7,2), (5,5,9);
 create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
 INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;

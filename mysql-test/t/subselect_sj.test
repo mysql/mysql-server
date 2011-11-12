@@ -2,9 +2,15 @@
 # Nested Loops semi-join subquery evaluation tests
 #
 --disable_warnings
-drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
+drop table if exists t0, t1, t2, t3, t4, t5, t10, t11, t12;
+drop view if exists v1, v2, v3, v4;
+drop procedure if exists p1;
 --enable_warnings
 
+set @subselect_sj_tmp= @@optimizer_switch;
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
+# The 'default' value within the scope of this test:
 set @save_optimizer_switch=@@optimizer_switch;
 
 #
@@ -643,6 +649,7 @@ CREATE TABLE it1 (
 );
 INSERT INTO it1 VALUES
   (9,5), (0,4);
+--sorted_result
 SELECT int_key FROM ot1
 WHERE int_nokey IN (SELECT it2.int_key
                     FROM it1 LEFT JOIN it2 ON it2.datetime_key);
@@ -1212,5 +1219,638 @@ LEFT JOIN t2 JOIN t3 ON t3.f10 = t2.f10 ON t3.f11 != 0 );
 
 drop table t1,t2,t3,t4;
 
+--echo #
+--echo # BUG#751484: Valgrind warning / sporadic crash in evaluate_join_record sql_select.cc:14099 with semijoin
+--echo #
+
+CREATE TABLE t1 ( f10 int, f11 int, KEY (f10));
+INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
+
+CREATE TABLE t3 ( f10 int);
+INSERT IGNORE INTO t3 VALUES (0);
+
+set @tmp_751484= @@optimizer_switch;
+set optimizer_switch='materialization=on';
+SELECT * FROM t1
+WHERE f11 IN (
+        SELECT C_SQ1_alias1.f11
+        FROM t1 AS C_SQ1_alias1
+        JOIN t3 AS C_SQ1_alias2
+        ON C_SQ1_alias2.f10 = C_SQ1_alias1.f10
+);
+set optimizer_switch='materialization=off';
+SELECT * FROM t1
+WHERE f11 IN (
+        SELECT C_SQ1_alias1.f11
+        FROM t1 AS C_SQ1_alias1
+        JOIN t3 AS C_SQ1_alias2
+        ON C_SQ1_alias2.f10 = C_SQ1_alias1.f10
+);
+set optimizer_switch=@tmp_751484;
+drop table t1, t3;
+
+#
+--echo # BUG#795530 Wrong result with subquery semijoin materialization and outer join 
+--echo #  Simplified testcase that uses DuplicateElimination
+--echo #
+create table t1 (a int);
+create table t2 (a int, b char(10));
+
+insert into t1 values (1),(2);
+insert into t2 values (1, 'one'), (3, 'three');
+
+create table t3 (b char(10));
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+explain select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+drop table t1, t2, t3;
+
+--echo #
+--echo # BUG#600958 RQG: Crash in optimize_semijoin_nests
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (10,8,'2002-02-21',NULL);
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) DEFAULT NULL,
+  col_date_key date DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1,7,'1900-01-01','f');
+
+SELECT col_date_key FROM t1
+WHERE 5 IN (
+        SELECT SUBQUERY3_t1 .col_int_key
+        FROM t2 SUBQUERY3_t1
+        LEFT JOIN t1 SUBQUERY3_t2 ON SUBQUERY3_t1 .col_varchar_key
+);
+drop table t2, t1;
+
+
+--echo #
+--echo # No BUG#: Duplicate weedout check is not done for outer joins
+--echo #
+create table t1 (a int);
+create table t2 (a int);
+
+insert into t1 values (1),(1),(2),(2);
+insert into t2 values (1);
+
+create table t0 (a int);
+insert into t0 values (1),(2);
+
+set @tmp_20110622= @@optimizer_switch;
+set optimizer_switch='firstmatch=off,loosescan=off,materialization=off';
+--echo # Check DuplicateWeedout + join buffer
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+
+--echo # Check DuplicateWeedout without join buffer
+set @tmp_jcl_20110622= @@join_cache_level;
+set join_cache_level= 0;
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+
+
+--echo # Check FirstMatch without join buffer:
+set optimizer_switch='firstmatch=on';
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+
+--echo #
+--echo # Now, check the same for multiple inner tables:
+alter table t2 add b int;
+update t2 set b=a;
+create table t3 as select * from t2;
+
+set optimizer_switch='firstmatch=off';
+set join_cache_level= 0;
+--echo # DuplicateWeedout without join buffer
+explain 
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+set @@join_cache_level=@tmp_jcl_20110622;
+--echo # DuplicateWeedout + join buffer
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+--echo # Now, let the inner join side have a 'partial' match
+select * from t3;
+insert into t3 values(2,2);
+
+explain
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+select * from t0 
+where a in (select t1.a from t1 left join (t3 join t2 on t3.b=t2.b) on t1.a=t3.a);
+
+set @@optimizer_switch=@tmp_20110622;
+
+drop table t0, t1, t2, t3;
+
+--echo #
+--echo # BUG#802965: Crash in do_copy_not_null with semijoin=on in maria-5.3
+--echo # 
+set @save_802965= @@optimizer_switch;
+set optimizer_switch='semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+
+CREATE TABLE t2 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t2 VALUES (19),(20);
+
+CREATE TABLE t1 ( f1 int NOT NULL , PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t1 VALUES (21),(22),(23),(24);
+
+SELECT *
+FROM t2 , t1
+WHERE t2.f1 IN
+(
+  SELECT SQ1_alias1.f1
+  FROM t1 AS SQ1_alias1 LEFT JOIN t2 AS SQ1_alias2 JOIN t2 AS SQ1_alias3 ON SQ1_alias3.f1 ON SQ1_alias3.f1
+)
+AND t1.f1 = t2.f1 ;
+
+DROP TABLE t1, t2;
+set optimizer_switch=@save_802965;
+
+--echo #
+--echo # BUG#803365: Crash in pull_out_semijoin_tables with outer join + semijoin + derived tables in maria-5.3 with WL#106
+--echo #
+CREATE TABLE t1 ( f1 int) ;
+INSERT INTO t1 VALUES (1),(1);
+
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (1),(1);
+
+CREATE TABLE t3 ( f3 int) ;
+INSERT INTO t3 VALUES (1),(1);
+
+SELECT *
+FROM t1
+WHERE t1.f1 IN (
+        SELECT t2.f2
+        FROM t2
+        LEFT JOIN (
+                SELECT *
+                FROM t3
+        ) AS alias1
+        ON alias1.f3 = t2.f2
+);
+
+DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # BUG#611704: Crash in replace_where_subcondition with nested subquery and semijoin=on
+--echo # 
+
+CREATE TABLE t1 ( f1 int) ;
+CREATE TABLE t2 ( f1 int) ;
+CREATE TABLE t3 ( f1 int) ;
+
+SELECT * FROM (
+        SELECT t3.*
+        FROM t2 STRAIGHT_JOIN t3
+        ON t3.f1
+        AND (t3.f1 ) IN (
+                SELECT t1.f1
+                FROM t1
+        )
+) AS alias1;
+DROP TABLE t1,t2,t3;
+
+--echo # BUG#611704: another testcase:
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1), f4 varchar(1)) ;
+CREATE TABLE t2 ( f2 int(11), KEY (f2));
+CREATE TABLE t3 ( f4 varchar(1)) ;
+
+PREPARE st1 FROM '
+SELECT *
+FROM t1
+STRAIGHT_JOIN ( t2 STRAIGHT_JOIN t3 ON t2.f2 )
+ON (t1.f3) IN ( SELECT f4 FROM t1 )
+';
+EXECUTE st1;
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#803457: Wrong result with semijoin + view + outer join in maria-5.3-subqueries-mwl90
+--echo #   (Original testcase)
+--echo #
+
+CREATE TABLE t1 (f1 int, f2 int );
+INSERT INTO t1 VALUES (2,0),(4,0),(0,NULL);
+
+CREATE TABLE t2 (f2 int, f3 int );
+INSERT INTO t2 VALUES (NULL,NULL),(0,0);
+
+CREATE TABLE t3 ( f1 int, f3 int );
+INSERT INTO t3 VALUES (2,0),(4,0),(0,NULL),(4,0),(8,0);
+
+CREATE TABLE t4 ( f2 int, KEY (f2) );
+INSERT INTO t4 VALUES (0),(NULL);
+
+CREATE VIEW v4 AS SELECT DISTINCT f2 FROM t4 ;
+
+--echo # The following must not have outer joins:
+explain extended
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE t2.f3 IN (SELECT * FROM t4); 
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE t2.f3 IN (SELECT * FROM t4); 
+
+drop view v4;
+drop table t1, t2, t3, t4;
+
+--echo #
+--echo # BUG#803303: Wrong result with semijoin=on, outer join in maria-5.3-subqueries-mwl90
+--echo #
+
+--echo # Testcase#1:
+set @tmp803303= @@optimizer_switch;
+set optimizer_switch = 'semijoin=on,materialization=off,firstmatch=off,loosescan=off';
+CREATE TABLE t2 ( f1 int) ;
+INSERT IGNORE INTO t2 VALUES (6),(8);
+CREATE TABLE t1 ( f1 int, f2 int, f3 int) ;
+INSERT IGNORE INTO t1 VALUES (8,0,0),(7,0,0),(9,0,0);
+SELECT alias2.f1
+FROM t2 AS alias1
+LEFT JOIN ( t1 AS alias2 JOIN t1 AS alias3 ON alias3.f2 = alias2.f3 )
+ON alias3.f2 = alias2.f2
+WHERE alias2.f1 IN ( SELECT f1 FROM t2 AS alias4 ) ;
+drop table t1,t2;
+set optimizer_switch= @tmp803303;
+
+--echo # Testcase #2:
+CREATE TABLE t1 ( f10 int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 ( f10 int, f11 varchar(1)) ;
+INSERT INTO t2 VALUES (0,'a'),(0,'b');
+
+CREATE TABLE t3 ( f10 int) ;
+INSERT INTO t3 VALUES (0),(0),(0),(0),(0);
+
+CREATE TABLE t4 ( f10 varchar(1), f11 int) ;
+INSERT INTO t4 VALUES ('a',0),('b',0);
+
+SELECT * FROM t1
+LEFT JOIN ( t2 JOIN t3 ON t3.f10 = t2.f10 ) ON t1.f10 = t2.f10
+WHERE t2.f10 IN (
+        SELECT t4.f11
+        FROM t4
+        WHERE t4.f10 != t2.f11
+);
+
+drop table t1,t2,t3,t4;
+
+--echo #
+--echo # BUG#803457: Wrong result with semijoin + view + outer join in maria-5.3-subqueries-mwl90
+--echo #
+set @tmp803457=@@optimizer_switch;
+set optimizer_switch='materialization=off';
+CREATE TABLE t1 (f1 int, f2 int );
+INSERT INTO t1 VALUES (2,0),(4,0),(0,NULL);
+
+CREATE TABLE t2 (f2 int, f3 int );
+INSERT INTO t2 VALUES (NULL,NULL),(0,0);
+
+CREATE TABLE t3 ( f1 int, f3 int );
+INSERT INTO t3 VALUES (2,0),(4,0),(0,NULL),(4,0),(8,0);
+
+CREATE TABLE t4 ( f2 int);
+INSERT INTO t4 VALUES (0),(NULL);
+
+--echo # The following uses Duplicate Weedout, and "End temporary" must not be
+--echo #   in the middle of the inner side of an outer join:
+explain 
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
+SELECT * FROM t1 NATURAL LEFT JOIN (t2, t3 ) WHERE IFNULL(t2.f3,'foo') IN (SELECT * FROM t4);
+
+DROP TABLE t1, t2, t3, t4;
+set @tmp803457=@@optimizer_switch;
+
+--echo #
+--echo # BUG#818280: crash in do_copy_not_null() in maria-5.3 with semijoin
+--echo #
+CREATE TABLE t1 ( c1 int NOT NULL , c2 int NOT NULL, PRIMARY KEY (c1)) ;
+INSERT IGNORE INTO t1 VALUES (2,7),(1,3),(5,6);
+
+CREATE TABLE t3 ( c1 int NOT NULL , c2 int NOT NULL, PRIMARY KEY (c1)) ;
+INSERT IGNORE INTO t3 VALUES (2,7),(1,3),(5,6);
+
+CREATE TABLE t2 ( c1 int NOT NULL , c5 int NOT NULL );
+INSERT IGNORE INTO t2 VALUES (2,2),(2,2),(5,6);
+
+SELECT * FROM t1 WHERE c1 IN ( SELECT t3.c1 FROM t3 LEFT JOIN t2 ON t2 .c1 = t3 .c1 WHERE t2.c5 != 0 );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # BUG#834534: Assertion `0' failed in replace_where_subcondition with semijoin subquery in HAVING
+--echo #
+CREATE TABLE t1 ( d int );
+INSERT INTO t1 VALUES (2),(2),(0),(2),(2);
+
+CREATE TABLE t2 ( b int );
+INSERT INTO t2 VALUES (4),(3),(3);
+
+CREATE TABLE t3 ( a int );
+
+SELECT *
+FROM t3
+WHERE (t3.a) IN (
+        SELECT t1.d
+        FROM t1
+        HAVING ( 4 ) IN (
+                SELECT t2.b
+                FROM t2
+        )
+);
+drop table t1, t2,t3; 
+
+--echo #
+--echo # BUG#834758: Wrong result with innner join, LooseScan, two-column IN() predicate
+--echo #
+
+set @tmp835758=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=on,materialization=off,firstmatch=off';
+
+CREATE TABLE t1 (b int) ;
+INSERT INTO t1 VALUES (1),(5);
+
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ;
+INSERT INTO t2 VALUES (6),(10);
+
+CREATE TABLE t3 (a int, b int, KEY (b)) ;
+INSERT INTO t3 VALUES (6,5),(6,2),(8,0),(9,1),(6,5);
+
+--echo # This used to incorrectly pick a join order of (t1, LooseScan(t3), t2):
+explain 
+SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
+SELECT * FROM t1, t2 WHERE (t2.a , t1.b) IN (SELECT a, b FROM t3);
+
+DROP TABLE t1, t2, t3;
+set @@optimizer_switch= @tmp835758;
+
+--echo #
+--echo # BUG#834739: Wrong result with 3-way inner join, LooseScan,multipart keys  
+--echo #
+set @tmp834739=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=on,materialization=off,firstmatch=off';
+CREATE TABLE t2 ( b int, c int, KEY (b)) ;
+INSERT INTO t2 VALUES (1,0),(1,0),(9,0),(1,0),(5,0);
+INSERT INTO t2 VALUES (2,0),(3,0),(8,0),(6,0),(5,0);
+
+CREATE TABLE t3 ( a int);
+INSERT INTO t3 VALUES (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
+
+CREATE TABLE t4 ( a int);
+INSERT INTO t4 VALUES (0),(0),(0);
+
+CREATE TABLE t5 ( b int, a int , KEY (a,b)) ;
+INSERT INTO t5 VALUES (7,0),(9,0);
+
+explain
+SELECT * FROM t3 WHERE t3.a IN (SELECT t5.a FROM t2, t4, t5 WHERE t2.c = t5.a AND t2.b = t5.b);
+SELECT * FROM t3 WHERE t3.a IN (SELECT t5.a FROM t2, t4, t5 WHERE t2.c = t5.a AND t2.b = t5.b);
+
+DROP TABLE t2, t3, t4, t5;
+set @@optimizer_switch=@tmp834739;
+
+--echo #
+--echo # BUG#830993: Crash in end_read_record with derived table
+--echo #
+set @tmp_830993=@@optimizer_switch;
+set optimizer_switch='semijoin=on,loosescan=off,materialization=off,firstmatch=off';
+set @tmp_830993_jbs= @@join_buffer_size;
+--disable_warnings
+set join_buffer_size=160;
+--enable_warnings
+CREATE TABLE t1 (
+  a int(11) NOT NULL AUTO_INCREMENT, 
+  b int(11) DEFAULT NULL, 
+  c int(11) DEFAULT NULL, 
+  d time DEFAULT NULL, 
+  e varchar(1) DEFAULT NULL, 
+  f varchar(1) DEFAULT NULL, 
+  PRIMARY KEY (a), 
+  KEY c (c), 
+  KEY d (d), 
+  KEY e (e,c)
+);
+INSERT INTO t1 VALUES (10,NULL,8,'22:55:23','x','x'),
+  (11,8,7,'10:19:31','d','d'),(12,1,1,'14:40:36','r','r'),
+  (13,9,7,'04:37:47','f','f'),(14,4,9,'19:34:06','y','y'),
+  (15,3,NULL,'20:35:33','u','u'),(16,2,1,NULL,'m','m'),
+  (17,NULL,9,'14:43:37',NULL,NULL),(18,2,2,'02:23:09','o','o'),
+  (19,NULL,9,'01:22:45','w','w'),(20,6,2,'00:00:00','m','m'),
+  (21,7,4,'00:13:25','q','q'),(22,2,0,'03:47:16',NULL,NULL),
+  (23,5,4,'01:41:48','d','d'),(24,7,8,'00:00:00','g','g'),
+  (25,6,NULL,'22:32:04','x','x'),(26,6,NULL,'16:44:14','f','f'),
+  (27,2,0,'17:38:37','p','p'),(28,9,NULL,'08:46:48','j','j'),
+  (29,6,8,'14:11:27','c','c');
+
+CREATE TABLE t2 like t1;
+INSERT INTO t2 VALUES (1,2,4,'22:34:09','v','v'),
+  (2,150,62,'14:26:02','v','v'),(3,NULL,7,'14:03:03','c','c'),
+  (4,2,1,'01:46:09',NULL,NULL),(5,5,0,'16:21:18','x','x'),
+  (6,3,7,'18:56:33','i','i'),(7,1,7,NULL,'e','e'),
+  (8,4,1,'09:29:08','p','p'),(9,NULL,7,'19:11:10','s','s'),
+  (10,2,1,'11:57:26','j','j'),(11,6,5,'00:39:46','z','z'),
+  (12,6,2,'03:28:15','c','c'),(13,8,0,'06:44:18','a','a'),
+  (14,2,1,'14:36:39','q','q'),(15,6,8,'18:42:45','y','y'),
+  (16,8,1,'02:57:29',NULL,NULL),(17,3,1,'16:46:13','r','r'),
+  (18,3,9,'19:39:02','v','v'),(19,9,1,NULL,NULL,NULL),
+  (20,6,5,'20:58:33','r','r');
+
+explain
+SELECT
+  alias1.a, alias1.b, alias1.c, alias1.d, alias1.e, alias1.f,
+  alias2.a as a2_a, alias2.b as a2_b, alias2.c as a2_c, alias2.d as a2_d, 
+    alias2.e as a2_e, alias2.f as a2_f,
+  t2.a as t2_a, t2.b as t2_b, t2.c as t2_c, t2.d as t2_d, t2.e as t2_e, t2.f as t2_f
+FROM 
+  (SELECT * FROM t2) AS alias1,
+  t1 AS alias2, 
+  t2
+WHERE 
+  alias1.c IN (SELECT SQ3_alias1.b 
+               FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
+LIMIT 100;
+
+create table t3 as
+SELECT 
+  alias1.a, alias1.b, alias1.c, alias1.d, alias1.e, alias1.f,
+  alias2.a as a2_a, alias2.b as a2_b, alias2.c as a2_c, alias2.d as a2_d, 
+    alias2.e as a2_e, alias2.f as a2_f,
+  t2.a as t2_a, t2.b as t2_b, t2.c as t2_c, t2.d as t2_d, t2.e as t2_e, t2.f as t2_f
+FROM 
+  (SELECT * FROM t2) AS alias1,
+  t1 AS alias2, 
+  t2
+WHERE 
+  alias1.c IN (SELECT SQ3_alias1.b 
+               FROM t2 AS SQ3_alias1 STRAIGHT_JOIN t2 AS SQ3_alias2)
+LIMIT 100;
+
+drop table t1,t2, t3;
+set optimizer_switch=@tmp_830993;
+set join_buffer_size= @tmp_830993_jbs;
+
+--echo #
+--echo # BUG##849717: Crash in Item_func::fix_fields on second execution of a prepared statement with semijoin
+--echo #
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int, b int) ;
+
+PREPARE st1 FROM "SELECT * FROM t2 LEFT JOIN t1 ON t2.a != 0 AND ('j','r') IN ( SELECT b,a FROM t3)";
+EXECUTE st1;
+EXECUTE st1;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # BUG#849776: Wrong result with semijoin + "Impossible where"
+--echo #
+CREATE TABLE t1 ( b varchar(1), a integer) ;
+INSERT INTO t1 VALUES ('z',8);
+
+CREATE TABLE t2 ( a integer, b varchar(1)) ;
+
+CREATE TABLE t4 ( a integer, b varchar(1)) ;
+
+CREATE TABLE t5 ( a integer) ;
+INSERT INTO t5 VALUES (8);
+
+select * from t5 where (a) in (
+  SELECT t1.a 
+  FROM t1 LEFT JOIN t2 ON t1.a = t2.a
+  WHERE t2.b NOT IN (SELECT t4.b FROM t4 WHERE t4.b < t1.b)
+);
+
+DROP TABLE t1, t2, t4, t5;
+
+--echo #
+--echo # BUG#861147: Assertion `fixed == 1' failed in Item_func_eq::val_int() with semijoin + materialization + max_join_size
+--echo #
+CREATE TABLE t1 ( f2 int) ;
+CREATE TABLE t2 ( f1 int, f3 int, f4 varchar(3), f5 varchar(35)) ;
+INSERT INTO t2 VALUES (4057,9,'USA','Visalia'),(3993,11,'USA','Waco'),
+  (3948,14,'USA','Warren'),(3813,57,'USA','Washington'),
+  (4010,11,'USA','Waterbury'),(4017,11,'USA','West Covina'),
+  (4004,11,'USA','West Valley City'),(4033,10,'USA','Westminster'),
+  (3842,34,'USA','Wichita'),(4018,10,'USA','Wichita Falls'),
+  (3899,19,'USA','Winston-Salem'),(3914,17,'USA','Worcester'),
+  (3888,20,'USA','Yonkers');
+
+CREATE TABLE t3 ( f3 int, f4 varchar(3)) ;
+INSERT INTO t3 VALUES (86,'USA');
+
+CREATE TABLE t4 ( f3 int, f4 varchar(3), f5 varchar(52)) ;
+INSERT INTO t4 VALUES (0,'RUS','Belorussian'),(0,'USA','Portuguese');
+
+CREATE TABLE t5 ( f2 int) ;
+
+CREATE TABLE t6 ( f4 varchar(3));
+INSERT INTO t6 VALUES ('RUS'),('USA');
+
+set @tmp_mjs_861147= @@max_join_size;
+SET max_join_size=10;
+set @tmp_os_861147= @@optimizer_switch;
+set @@optimizer_switch='semijoin=on,materialization=on';
+
+--error ER_TOO_BIG_SELECT
+SELECT *
+FROM t1
+WHERE ( 1 , 3 ) IN (
+        SELECT t2.f1 , MAX( t3.f3 )
+        FROM t2
+        JOIN t3
+        WHERE t3.f4 IN (
+                SELECT t4.f5
+                FROM t4
+                STRAIGHT_JOIN t5
+                WHERE t4.f4 < t2.f5
+        )
+) AND ( 'p' , 'k' ) IN (
+        SELECT f4 , f4 FROM t6
+);
+set max_join_size= @tmp_mjs_861147;
+set optimizer_switch= @tmp_os_861147;
+
+DROP TABLE t1,t2,t3,t4,t5,t6;
+
+--echo #
+--echo # BUG#877288: Wrong result with semijoin + materialization + multipart key
+--echo #
+set @tmp_877288=@@optimizer_switch;
+set optimizer_switch='semijoin=ON,materialization=ON';
+CREATE TABLE t1 ( a int) ;
+INSERT INTO t1 VALUES (19),(19),(19),(20),(20),(20),(20),(20),(20);
+
+CREATE TABLE t2 ( b int NOT NULL , c int NOT NULL , KEY (b,c)) ;
+INSERT INTO t2 VALUES (14,1),(15,1),(16,1),(17,1),(18,1),(19,1),(20,1);
+
+CREATE TABLE t3 ( a int, d int) ;
+INSERT INTO t3 VALUES (19,1),(7,1),(3,1),(3,1),(20,1),(3,1),(16,1),(17,1),(9,1),(4,1),(6,1),(15,1),(17,1);
+
+explain
+SELECT * FROM t1 WHERE (a) IN (SELECT a FROM t2 JOIN t3 ON b = a); 
+SELECT * FROM t1 WHERE (a) IN (SELECT a FROM t2 JOIN t3 ON b = a); 
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp_877288;
+
+--echo #
+--echo # BUG#878753: Assertion '0' failed in replace_where_subcondition with derived_merge
+--echo #
+set @tmp878753= @@optimizer_switch;
+set optimizer_switch= 'semijoin=on,derived_merge=on';
+CREATE TABLE t1 (b int(11)) ;
+CREATE TABLE t2 (c int, b int, d varchar(52) NOT NULL) ;
+CREATE TABLE t3 (b int(11)) ;
+
+PREPARE st1 FROM '
+        SELECT * FROM t1
+        JOIN (
+                SELECT t2.* FROM t2
+                WHERE t2.d <> "a"
+                AND t2.c IN (
+                        SELECT t3.b
+                        FROM t3
+                )
+        ) AS alias2
+        ON ( alias2.b = t1.b );
+';
+EXECUTE st1;
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp878753;
+
 # The following command must be the last one the file 
-set @@optimizer_switch=@save_optimizer_switch;
+set optimizer_switch=@subselect_sj_tmp;

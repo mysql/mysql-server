@@ -150,9 +150,15 @@ static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
 
 static MYSQL_SYSVAR_ULONG(checkpoint_interval, checkpoint_interval,
        PLUGIN_VAR_RQCMDARG,
-       "Interval between automatic checkpoints, in seconds; 0 means"
+       "Interval between tries to do an automatic checkpoints. In seconds; 0 means"
        " 'no automatic checkpoints' which makes sense only for testing.",
        NULL, update_checkpoint_interval, 30, 0, UINT_MAX, 1);
+
+static MYSQL_SYSVAR_ULONG(checkpoint_log_activity, maria_checkpoint_min_log_activity,
+       PLUGIN_VAR_RQCMDARG,
+       "Number of bytes that the transaction log has to grow between checkpoints before a new "
+       "checkpoint is written to the log.",
+       NULL, NULL, 1024*1024, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ULONG(force_start_after_recovery_failures,
        force_start_after_recovery_failures,
@@ -304,7 +310,7 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
 
   if (!thd->vio_ok())
   {
-    sql_print_error(fmt, args);
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
 
@@ -312,6 +318,8 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
       (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR | T_AUTO_REPAIR))
   {
     my_message(ER_NOT_KEYFILE, msgbuf, MYF(MY_WME));
+    if (thd->variables.log_warnings > 2)
+      sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
     return;
   }
   length= (uint) (strxmov(name, param->db_name, ".", param->table_name,
@@ -330,8 +338,11 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
   if (protocol->write())
-    sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
-                    msgbuf);
+    sql_print_error("Failed on my_net_write, writing to stderr instead: %s.%s: %s\n",
+                    param->db_name, param->table_name, msgbuf);
+  else if (thd->variables.log_warnings > 2)
+    sql_print_error("%s.%s: %s", param->db_name, param->table_name, msgbuf);
+
   return;
 }
 
@@ -711,6 +722,34 @@ int _ma_killed_ptr(HA_CHECK *param)
 }
 
 
+/*
+  Report progress to mysqld
+
+  This is a bit more complex than what a normal progress report
+  function normally is.
+
+  The reason is that this is called by enable_index/repair which
+  is one stage in ALTER TABLE and we can't use the external
+  stage/max_stage for this.
+
+  thd_progress_init/thd_progress_next_stage is to be called by
+  high level commands like CHECK TABLE or REPAIR TABLE, not
+  by sub commands like enable_index().
+
+  In ma_check.c it's easier to work with stages than with a total
+  progress, so we use internal stage/max_stage here to keep the
+  code simple.
+*/
+
+void _ma_report_progress(HA_CHECK *param, ulonglong progress,
+                         ulonglong max_progress)
+{
+  thd_progress_report((THD*)param->thd,
+                      progress + max_progress * param->stage,
+                      max_progress * param->max_stage);
+}
+
+
 void _ma_check_print_error(HA_CHECK *param, const char *fmt, ...)
 {
   va_list args;
@@ -881,7 +920,7 @@ double ha_maria::scan_time()
 }
 
 /*
-  We need to be able to store at least two keys on an index page as the
+  We need to be able to store at least 2 keys on an index page as the
   splitting algorithms depends on this. (With only one key on a page
   we also can't use any compression, which may make the index file much
   larger)
@@ -896,8 +935,7 @@ double ha_maria::scan_time()
 
 uint ha_maria::max_supported_key_length() const
 {
-  uint tmp= (maria_max_key_length() - 8 - HA_MAX_KEY_SEG*3);
-  return min(HA_MAX_KEY_BUFF, tmp);
+  return maria_max_key_length();
 }
 
 
@@ -1104,7 +1142,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   int error;
   HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MARIA_SHARE *share= file->s;
-  const char *old_proc_info= thd_proc_info(thd, "Checking table");
+  const char *old_proc_info;
   TRN *old_trn= file->trn;
 
   if (!file || !&param) return HA_ADMIN_INTERNAL_ERROR;
@@ -1132,12 +1170,18 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
     return HA_ADMIN_ALREADY_DONE;
 
   maria_chk_init_for_check(&param, file);
+  old_proc_info= thd_proc_info(thd, "Checking status");
+  thd_progress_init(thd, 3);
   (void) maria_chk_status(&param, file);                // Not fatal
   error= maria_chk_size(&param, file);
   if (!error)
     error|= maria_chk_del(&param, file, param.testflag);
+  thd_proc_info(thd, "Checking keys");
+  thd_progress_next_stage(thd);
   if (!error)
     error= maria_chk_key(&param, file);
+  thd_proc_info(thd, "Checking data");
+  thd_progress_next_stage(thd);
   if (!error)
   {
     if ((!(param.testflag & T_QUICK) &&
@@ -1188,6 +1232,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   /* Reset trn, that may have been set by repair */
   _ma_set_trn_for_table(file, old_trn);
   thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
@@ -1203,6 +1248,7 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   int error= 0;
   HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MARIA_SHARE *share= file->s;
+  const char *old_proc_info;
 
   if (!&param)
     return HA_ADMIN_INTERNAL_ERROR;
@@ -1220,6 +1266,8 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   if (!(share->state.changed & STATE_NOT_ANALYZED))
     return HA_ADMIN_ALREADY_DONE;
 
+  old_proc_info= thd_proc_info(thd, "Scanning");
+  thd_progress_init(thd, 1);
   error= maria_chk_key(&param, file);
   if (!error)
   {
@@ -1229,6 +1277,8 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   }
   else if (!maria_is_crashed(file) && !thd->killed)
     maria_mark_crashed(file);
+  thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
@@ -1362,6 +1412,7 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
   int error;
   HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   ha_rows start_records;
+  const char *old_proc_info;
 
   if (!file || !&param)
     return HA_ADMIN_INTERNAL_ERROR;
@@ -1375,6 +1426,8 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
   param.backup_time= check_opt->start_time;
   start_records= file->state->records;
+  old_proc_info= thd_proc_info(thd, "Checking table");
+  thd_progress_init(thd, 1);
   while ((error= repair(thd, &param, 0)) && param.retry_repair)
   {
     param.retry_repair= 0;
@@ -1410,6 +1463,8 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
                           llstr(start_records, llbuff2),
                           table->s->path.str);
   }
+  thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);
   return error;
 }
 
@@ -1457,14 +1512,15 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
   param.testflag= (check_opt->flags | T_SILENT | T_FORCE_CREATE |
                    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
   param.sort_buffer_length= THDVAR(thd, sort_buffer_size);
+  thd_progress_init(thd, 1);
   if ((error= repair(thd, &param, 1)) && param.retry_repair)
   {
     sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
                       my_errno, param.db_name, param.table_name);
     param.testflag &= ~T_REP_BY_SORT;
-    error= repair(thd, &param, 1);
+    error= repair(thd, &param, 0);
   }
-
+  thd_progress_end(thd);
   return error;
 }
 
@@ -1638,6 +1694,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   }
   pthread_mutex_unlock(&share->intern_lock);
   thd_proc_info(thd, old_proc_info);
+  thd_progress_end(thd);                        // Mark done
   if (!thd->locked_tables)
     maria_lock_database(file, F_UNLCK);
 
@@ -1999,19 +2056,21 @@ void ha_maria::start_bulk_insert(ha_rows rows)
        we don't want to update the key statistics based of only a few rows.
        Index file rebuild requires an exclusive lock, so if versioning is on
        don't do it (see how ha_maria::store_lock() tries to predict repair).
-       We can repair index only if we have an exclusive (TL_WRITE) lock. To
-       see if table is empty, we shouldn't rely on the old records' count from
-       our transaction's start (if that old count is 0 but now there are
-       records in the table, we would wrongly destroy them).
-       So we need to look at share->state.state.records.
-       As a safety net for now, we don't remove the test of
-       file->state->records, because there is uncertainty on what will happen
-       during repair if the two states disagree.
+       We can repair index only if we have an exclusive (TL_WRITE) lock or
+       if this is inside an ALTER TABLE, in which case lock_type == TL_UNLOCK.
+
+       To see if table is empty, we shouldn't rely on the old record
+       count from our transaction's start (if that old count is 0 but
+       now there are records in the table, we would wrongly destroy
+       them).  So we need to look at share->state.state.records.  As a
+       safety net for now, we don't remove the test of
+       file->state->records, because there is uncertainty on what will
+       happen during repair if the two states disagree.
     */
     if ((file->state->records == 0) &&
         (share->state.state.records == 0) && can_enable_indexes &&
         (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES) &&
-        (file->lock.type == TL_WRITE))
+        (file->lock.type == TL_WRITE || file->lock.type == TL_UNLOCK))
     {
       /**
          @todo for a single-row INSERT SELECT, we will go into repair, which
@@ -2135,13 +2194,17 @@ bool ha_maria::check_and_repair(THD *thd)
 
   if (crashed)
   {
+    bool save_log_all_errors;
     sql_print_warning("Recovering table: '%s'", table->s->path.str);
+    save_log_all_errors= thd->log_all_errors;
+    thd->log_all_errors|= (thd->variables.log_warnings > 2);
     check_opt.flags=
       ((maria_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
        (maria_recover_options & HA_RECOVER_FORCE ? 0 : T_SAFE_REPAIR) |
        T_AUTO_REPAIR);
     if (repair(thd, &check_opt))
       error= 1;
+    thd->log_all_errors= save_log_all_errors;
   }
   pthread_mutex_lock(&LOCK_thread_count);
   thd->query_string= old_query;
@@ -2210,7 +2273,15 @@ int ha_maria::index_read_idx_map(uchar * buf, uint index, const uchar * key,
 				 key_part_map keypart_map,
 				 enum ha_rkey_function find_flag)
 {
-  int error= maria_rkey(file, buf, index, key, keypart_map, find_flag);
+  int error;
+  /* Use the pushed index condition if it matches the index we're scanning */
+  end_range= NULL;
+  if (index == pushed_idx_cond_keyno)
+    ma_set_index_cond_func(file, index_cond_func_maria, this);
+  
+  error= maria_rkey(file, buf, index, key, keypart_map, find_flag);
+   
+  ma_set_index_cond_func(file, NULL, 0);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
 }
@@ -2467,9 +2538,6 @@ int ha_maria::extra(enum ha_extra_function operation)
 
 int ha_maria::reset(void)
 {
-  pushed_idx_cond= NULL;
-  pushed_idx_cond_keyno= MAX_KEY;
-  in_range_check_pushed_down= FALSE;
   ma_set_index_cond_func(file, NULL, 0);
   ds_mrr.dsmrr_close();
   if (file->trn)
@@ -2524,8 +2592,16 @@ int ha_maria::delete_table(const char *name)
 void ha_maria::drop_table(const char *name)
 {
   DBUG_ASSERT(file->s->temporary);
-  (void) close();
+  (void) ha_close();
   (void) maria_delete_table_files(name, 0);
+}
+
+
+void ha_maria::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+{
+  handler::change_table_ptr(table_arg, share);
+  if (file)
+    file->external_ref= table_arg;
 }
 
 
@@ -2629,7 +2705,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
             changes to commit (rollback shouldn't be tested).
           */
           DBUG_ASSERT(!thd->main_da.is_sent ||
-                      thd->killed == THD::KILL_CONNECTION);
+                      thd->killed == KILL_CONNECTION);
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
           if (ma_commit(trn))
@@ -3464,7 +3540,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   *engine_data= 0;
 
   if (file->s->now_transactional && file->s->have_versioning)
-    return (file->trn->trid >= file->s->state.last_change_trn);
+    DBUG_RETURN(file->trn->trid >= file->s->state.last_change_trn);
 
   /*
     If a concurrent INSERT has happened just before the currently processed
@@ -3499,6 +3575,7 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
+  MYSQL_SYSVAR(checkpoint_log_activity),
   MYSQL_SYSVAR(force_start_after_recovery_failures),
   MYSQL_SYSVAR(group_commit),
   MYSQL_SYSVAR(group_commit_interval),
@@ -3531,6 +3608,7 @@ static void update_checkpoint_interval(MYSQL_THD thd,
   ma_checkpoint_end();
   ma_checkpoint_init(*(ulong *)var_ptr= (ulong)(*(long *)save));
 }
+
 
 /**
    @brief Updates group commit mode

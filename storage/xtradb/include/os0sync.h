@@ -37,29 +37,19 @@ Created 9/6/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0lst.h"
 
-#ifdef __WIN__
-
+#ifdef _WIN32
+/** Native event (slow)*/
+typedef HANDLE	os_native_event_t;
 /** Native mutex */
-#define os_fast_mutex_t CRITICAL_SECTION
-
-/** Native event */
-typedef HANDLE		os_native_event_t;
-
-/** Operating system event */
-typedef struct os_event_struct	os_event_struct_t;
-/** Operating system event handle */
-typedef os_event_struct_t*	os_event_t;
-
-/** An asynchronous signal sent between threads */
-struct os_event_struct {
-	os_native_event_t		  handle;
-					/*!< Windows event */
-	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
-					/*!< list of all created events */
-};
+typedef CRITICAL_SECTION os_fast_mutex_t;
+/** Native condition variable */
+typedef CONDITION_VARIABLE os_cond_t;
 #else
 /** Native mutex */
 typedef pthread_mutex_t	os_fast_mutex_t;
+/** Native condition variable */
+typedef pthread_cond_t	os_cond_t;
+#endif
 
 /** Operating system event */
 typedef struct os_event_struct	os_event_struct_t;
@@ -68,6 +58,9 @@ typedef os_event_struct_t*	os_event_t;
 
 /** An asynchronous signal sent between threads */
 struct os_event_struct {
+#ifdef _WIN32
+	HANDLE handle;	/*!< kernel event object, slow, used on older Windows */
+#endif
 	os_fast_mutex_t	os_mutex;	/*!< this mutex protects the next
 					fields */
 	ibool		is_set;		/*!< this is TRUE when the event is
@@ -76,12 +69,14 @@ struct os_event_struct {
 					this event */
 	ib_int64_t	signal_count;	/*!< this is incremented each time
 					the event becomes signaled */
-	pthread_cond_t	cond_var;	/*!< condition variable is used in
+	os_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
 	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
 					/*!< list of all created events */
 };
-#endif
+
+
+
 
 /** Operating system mutex */
 typedef struct os_mutex_struct	os_mutex_str_t;
@@ -186,33 +181,23 @@ os_event_wait_low(
 					os_event_reset(). */
 
 #define os_event_wait(event) os_event_wait_low(event, 0)
-
+#define os_event_wait_time(event, t) os_event_wait_time_low(event, t, 0)
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or
-a timeout is exceeded.
+a timeout is exceeded. In Unix the timeout is always infinite.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 UNIV_INTERN
 ulint
-os_event_wait_time(
-/*===============*/
-	os_event_t	event,	/*!< in: event to wait */
-	ulint		wtime);	/*!< in: timeout in microseconds, or
-				OS_SYNC_INFINITE_TIME */
-#ifdef __WIN__
-/**********************************************************//**
-Waits for any event in an OS native event array. Returns if even a single
-one is signaled or becomes signaled.
-@return	index of the event which was signaled */
-UNIV_INTERN
-ulint
-os_event_wait_multiple(
+os_event_wait_time_low(
 /*===================*/
-	ulint			n,	/*!< in: number of events in the
-					array */
-	os_native_event_t*	native_event_array);
-					/*!< in: pointer to an array of event
-					handles */
-#endif
+	os_event_t	event,			/*!< in: event to wait */
+	ulint		time_in_usec,		/*!< in: timeout in
+						microseconds, or
+						OS_SYNC_INFINITE_TIME */
+	ib_int64_t	reset_sig_count);	/*!< in: zero or the value
+						returned by previous call of
+						os_event_reset(). */
+
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
@@ -385,7 +370,7 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	atomic_swap_uchar(ptr, new_val)
 
-#elif defined(HAVE_WINDOWS_ATOMICS)
+#elif defined(_WIN32)
 
 #define HAVE_ATOMIC_BUILTINS
 

@@ -158,6 +158,7 @@ enum enum_server_command
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 
 #define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
+#define CLIENT_PROGRESS  (1UL << 29)   /* Client support progress indicator */
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
@@ -189,6 +190,7 @@ enum enum_server_command
                            CLIENT_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS | \
+                           CLIENT_PROGRESS | \
                            CLIENT_PLUGIN_AUTH)
 
 /*
@@ -383,12 +385,15 @@ enum mysql_enum_shutdown_level {
   /* don't flush InnoDB buffers, flush other storage engines' buffers*/
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
   /* Now the 2 levels of the KILL command */
-#if MYSQL_VERSION_ID >= 50000
-  KILL_QUERY= 254,
-#endif
-  KILL_CONNECTION= 255
+  SHUTDOWN_KILL_QUERY= 254,
+  SHUTDOWN_KILL_CONNECTION= 255
 };
 
+/* Compatibility */
+#if !defined(MYSQL_SERVER) && defined(USE_OLD_FUNCTIONS)
+#define KILL_QUERY SHUTDOWN_KILL_QUERY
+#define KILL_CONNECTION SHUTDOWN_KILL_CONNECTION
+#endif
 
 enum enum_cursor_type
 {

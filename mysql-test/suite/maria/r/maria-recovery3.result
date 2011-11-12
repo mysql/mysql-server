@@ -78,7 +78,7 @@ ERROR HY000: Lost connection to MySQL server during query
 * recovery happens
 check table t1 extended;
 Table	Op	Msg_type	Msg_text
-mysqltest.t1	check	warning	Size of indexfile is: 372      Should be: 8192
+mysqltest.t1	check	warning	Size of indexfile is: 372       Expected: 8192
 mysqltest.t1	check	status	OK
 * testing that checksum after recovery is as expected
 Checksum-check

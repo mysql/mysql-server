@@ -173,6 +173,7 @@ my_bool check_table_is_closed(const char *name, const char *where)
   DBUG_ENTER("check_table_is_closed");
 
   (void) fn_format(filename,name,"",MI_NAME_IEXT,4+16+32);
+  pthread_mutex_lock(&THR_LOCK_myisam);
   for (pos=myisam_open_list ; pos ; pos=pos->next)
   {
     MI_INFO *info=(MI_INFO*) pos->data;
@@ -183,10 +184,12 @@ my_bool check_table_is_closed(const char *name, const char *where)
       {
 	fprintf(stderr,"Warning:  Table: %s is open on %s\n", name,where);
 	DBUG_PRINT("warning",("Table: %s is open on %s", name,where));
+        pthread_mutex_unlock(&THR_LOCK_myisam);
 	DBUG_RETURN(1);
       }
     }
   }
+  pthread_mutex_unlock(&THR_LOCK_myisam);
   DBUG_RETURN(0);
 }
 #endif /* EXTRA_DEBUG */

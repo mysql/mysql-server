@@ -70,7 +70,7 @@ static LEX_STRING const write_error_msg=
 static my_bool opt_optimize_thread_scheduling= TRUE;
 ulong binlog_checksum_options;
 #ifndef DBUG_OFF
-static ulong opt_binlog_dbug_fsync_sleep= 0;
+ulong opt_binlog_dbug_fsync_sleep= 0;
 #endif
 
 static my_bool mutexes_inited;
@@ -1062,17 +1062,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       query_length= command_name[thd->command].length;
     }
 
-    if (!query_length) 
-    {
-      /*
-        Not a real query; Reset counts for slow query logging
-        (QQ: Wonder if this is really needed)
-      */
-      thd->sent_row_count= thd->examined_row_count= 0;
-      thd->query_plan_flags= QPLAN_INIT;
-      thd->query_plan_fsort_passes= 0;
-    }
-
     for (current_handler= slow_log_handler_list; *current_handler ;)
       error= (*current_handler++)->log_slow(thd, current_time,
                                             user_host_buff, user_host_len,
@@ -1809,7 +1798,7 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
       log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
       log_query.append("`"))
     DBUG_RETURN(1);
-  int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+  int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
   Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
                         TRUE, TRUE, errcode);
   DBUG_RETURN(mysql_bin_log.write(&qinfo));
@@ -1833,7 +1822,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
         log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
         log_query.append("`"))
       DBUG_RETURN(1);
-    int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+    int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
     Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
                           TRUE, TRUE, errcode);
     DBUG_RETURN(mysql_bin_log.write(&qinfo));
@@ -5166,7 +5155,7 @@ int query_error_code(THD *thd, bool not_killed)
 {
   int error;
   
-  if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
+  if (not_killed || (killed_mask_hard(thd->killed) == KILL_BAD_DATA))
   {
     error= thd->is_error() ? thd->main_da.sql_errno() : 0;
 
@@ -5175,7 +5164,8 @@ int query_error_code(THD *thd, bool not_killed)
        is not set to these errors when specified not_killed by the
        caller.
     */
-    if (error == ER_SERVER_SHUTDOWN || error == ER_QUERY_INTERRUPTED)
+    if (error == ER_SERVER_SHUTDOWN || error == ER_QUERY_INTERRUPTED ||
+        error == ER_NEW_ABORTING_CONNECTION || error == ER_CONNECTION_KILLED)
       error= 0;
   }
   else
@@ -7077,27 +7067,10 @@ static MYSQL_SYSVAR_ENUM(
   BINLOG_CHECKSUM_ALG_OFF,
   &binlog_checksum_typelib);
 
-#ifndef DBUG_OFF
-static MYSQL_SYSVAR_ULONG(
-  dbug_fsync_sleep,
-  opt_binlog_dbug_fsync_sleep,
-  PLUGIN_VAR_RQCMDARG,
-  "Extra sleep (in microseconds) to add to binlog fsync(), for debugging",
-  NULL,
-  NULL,
-  0,
-  0,
-  ULONG_MAX,
-  0);
-#endif
-
 static struct st_mysql_sys_var *binlog_sys_vars[]=
 {
   MYSQL_SYSVAR(optimize_thread_scheduling),
   MYSQL_SYSVAR(checksum),
-#ifndef DBUG_OFF
-  MYSQL_SYSVAR(dbug_fsync_sleep),
-#endif
   NULL
 };
 

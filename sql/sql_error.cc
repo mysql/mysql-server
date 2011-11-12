@@ -131,7 +131,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     thd->no_warnings_for_error= 1;
     thd->spcont= NULL;
 
-    thd->killed= THD::KILL_BAD_DATA;
+    thd->killed= KILL_BAD_DATA;
     my_message(code, msg, MYF(0));
 
     thd->spcont= spcont;

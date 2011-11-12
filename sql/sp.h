@@ -39,26 +39,28 @@ int
 sp_drop_db_routines(THD *thd, char *db);
 
 sp_head *
-sp_find_routine(THD *thd, int type, sp_name *name,
+sp_find_routine(THD *thd, stored_procedure_type type, sp_name *name,
                 sp_cache **cp, bool cache_only);
 
 bool
 sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
 
 int
-sp_routine_exists_in_table(THD *thd, int type, sp_name *name);
+sp_routine_exists_in_table(THD *thd, stored_procedure_type type,
+                           sp_name *name);
 
 bool
-sp_show_create_routine(THD *thd, int type, sp_name *name);
+sp_show_create_routine(THD *thd, stored_procedure_type type, sp_name *name);
 
 int
-sp_create_routine(THD *thd, int type, sp_head *sp);
+sp_create_routine(THD *thd, stored_procedure_type type, sp_head *sp);
 
 int
-sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics);
+sp_update_routine(THD *thd, stored_procedure_type type, sp_name *name,
+                  st_sp_chistics *chistics);
 
 int
-sp_drop_routine(THD *thd, int type, sp_name *name);
+sp_drop_routine(THD *thd, stored_procedure_type type, sp_name *name);
 
 /*
   Procedures for pre-caching of stored routines and building table list
@@ -67,7 +69,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name);
 void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
                             bool *first_no_prelocking);
 void sp_add_used_routine(LEX *lex, Query_arena *arena,
-                         sp_name *rt, char rt_type);
+                         sp_name *rt, stored_procedure_type rt_type);
 void sp_remove_not_own_routines(LEX *lex);
 bool sp_update_sp_used_routines(HASH *dst, HASH *src);
 int sp_cache_routines_and_add_tables(THD *thd, LEX *lex,

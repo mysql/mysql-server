@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+drop view if exists v1,v2;
 CREATE TABLE t1 (S1 INT);
 CREATE TABLE t2 (S1 INT);
 INSERT INTO t1 VALUES (1);
@@ -1221,6 +1222,24 @@ f1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
+# Bug LP:798597: Incorrect "Duplicate entry" error with views and
+#                GROUP BY
+#
+CREATE TABLE t1 ( f1 int NOT NULL , f2 int NOT NULL ) ;
+INSERT INTO t1 VALUES (214,0),(6,6);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (88),(88);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0) ;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0 or t1.f2 is null) ;
+SELECT f1 , MIN(f2) FROM v1 GROUP BY f1;
+f1	MIN(f2)
+214	88
+SELECT f1 , MIN(f2) FROM v2 GROUP BY f1;
+f1	MIN(f2)
+214	88
+drop table t1,t2;
+drop view v1,v2;
+#
 # BUG#47217 Lost optimization caused slowdown & wrong result.
 #
 CREATE TABLE t1 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
@@ -1245,7 +1264,7 @@ SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
-Handler_read_next	0
+Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	1
@@ -1320,3 +1339,11 @@ WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
 f1	f2	f1	f2
 9	4	10	9
 DROP TABLE t1,t2;
+create table t1 (i time key);
+insert into t1 values ('1:1:1'), ('2:2:2');
+create table t2 (i time);
+insert into t2 values ('1:1:1');
+select t2.i from t1 left join t2 on t2.i = t1.i where t1.i = '1:1:1';
+i
+01:01:01
+drop table t1,t2;

@@ -118,8 +118,6 @@ char *sql_strmake_with_convert(const char *str, size_t arg_length,
 			       CHARSET_INFO *from_cs,
 			       size_t max_res_length,
 			       CHARSET_INFO *to_cs, size_t *result_length);
-uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
-void sql_kill(THD *thd, ulong id, bool only_kill_query);
 bool net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
@@ -413,7 +411,6 @@ protected:
 #define DELAYED_LIMIT		100		/**< pause after xxx inserts */
 #define DELAYED_QUEUE_SIZE	1000
 #define DELAYED_WAIT_TIMEOUT	5*60		/**< Wait for delayed insert */
-#define FLUSH_TIME		0		/**< Don't flush tables */
 #define MAX_CONNECT_ERRORS	10		///< errors before disabling host
 
 #ifdef __NETWARE__
@@ -423,8 +420,6 @@ protected:
 #endif
 
 #if defined(__WIN__)
-#undef	FLUSH_TIME
-#define FLUSH_TIME	1800			/**< Flush every half hour */
 
 #define INTERRUPT_PRIOR -2
 #define CONNECT_PRIOR	-1
@@ -594,64 +589,30 @@ protected:
 #define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED         (1ULL << 22)
 #define OPTIMIZER_SWITCH_JOIN_CACHE_BKA            (1ULL << 23)
 #define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1ULL << 24)
-#ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 25)
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION       (1ULL << 25)
-#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 26)
-#endif
+#define OPTIMIZER_SWITCH_TABLE_ELIMINATION         (1ULL << 25)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 26)
 
-#ifdef DBUG_OFF 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 /*
 TODO: Materialization is off by default to mimic 5.1/5.2 behavior.
 Once cost based choice between materialization and in-to-exists should be
 enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
 */
-#  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+#define OPTIMIZER_SWITCH_DEFAULT   (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
-                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
-                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
-                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                    OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                    OPTIMIZER_SWITCH_IN_TO_EXISTS | \
-                                    OPTIMIZER_SWITCH_SEMIJOIN | \
-                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
-                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
-                                    OPTIMIZER_SWITCH_MRR|\
-                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
-                                    OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE)
-#else
-#  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
-                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
-                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
-                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                    OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                     OPTIMIZER_SWITCH_IN_TO_EXISTS | \
-                                    OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
-                                    OPTIMIZER_SWITCH_MRR|\
-                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
-                                    OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE)
-#endif
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE |\
+                                    OPTIMIZER_SWITCH_SEMIJOIN | \
+                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                    OPTIMIZER_SWITCH_LOOSE_SCAN )
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -807,17 +768,6 @@ inline THD *_current_thd(void)
 }
 #endif
 #define current_thd _current_thd()
-
-
-/** 
-  The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters. 
-*/
-extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info, 
-                              const char *calling_func, 
-                              const char *calling_file, 
-                              const unsigned int calling_line);
 
 /**
   Enumerate possible types of a table from re-execution
@@ -995,6 +945,7 @@ inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }
+#define decrease_user_connections(X) do { } while(0)       /* nothing */
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
@@ -1125,6 +1076,10 @@ struct Query_cache_query_flags
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
 
+uint kill_one_thread(THD *thd, ulong id, killed_state kill_signal);
+void sql_kill(THD *thd, ulong id, killed_state kill_signal);
+void sql_kill_user(THD *thd, LEX_USER *str, killed_state kill_signal);
+
 /*
   Error injector Macros to enable easy testing of recovery after failures
   in various error cases.
@@ -1228,7 +1183,9 @@ bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 void decrease_user_connections(USER_CONN *uc);
+#endif
 bool thd_init_client_charset(THD *thd, uint cs_number);
 inline bool is_supported_parser_charset(CHARSET_INFO *cs)
 {
@@ -1690,6 +1647,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *group,bool asc);
 bool push_new_name_resolution_context(THD *thd,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
+Item *normalize_cond(Item *cond);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
                       SELECT_LEX *lex);
@@ -2184,6 +2142,7 @@ extern ulonglong thd_startup_options;
 extern ulong thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
+extern ulong opt_progress_report_time;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
@@ -2196,14 +2155,15 @@ extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
 extern ulong extra_max_connections;
 extern ulong slave_net_timeout, slave_trans_retries;
-extern uint max_user_connections;
+extern int max_user_connections;
+extern bool max_user_connections_checking;
 extern ulonglong denied_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
-extern ulong max_binlog_size, max_relay_log_size;
+extern ulong max_binlog_size, max_relay_log_size, opt_binlog_dbug_fsync_sleep;
 extern ulong opt_binlog_rows_event_max_size;
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
@@ -2224,6 +2184,9 @@ extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, mysqld_extra_port, dropping_tables;
 extern uint delay_key_write_options;
 extern ulong max_long_data_size;
+extern uint internal_tmp_table_max_key_length;
+extern uint internal_tmp_table_max_key_segments;
+
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;

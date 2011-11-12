@@ -684,11 +684,11 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     {
       if (!my_fstat(frm_file, &file_stat, MYF(MY_WME)))
       {
-        frm_ptr= (uchar *)my_malloc(sizeof(uchar) * file_stat.st_size, MYF(0));
+        frm_ptr= (uchar *)my_malloc(sizeof(uchar) * (size_t)file_stat.st_size, MYF(0));
         if (frm_ptr)
         {
-          my_read(frm_file, frm_ptr, file_stat.st_size, MYF(0));
-          azwrite_frm(&create_stream, (char *)frm_ptr, file_stat.st_size);
+          my_read(frm_file, frm_ptr, (size_t)file_stat.st_size, MYF(0));
+          azwrite_frm(&create_stream, (char *)frm_ptr, (size_t)file_stat.st_size);
           my_free((uchar*)frm_ptr, MYF(0));
         }
       }
@@ -835,7 +835,7 @@ int ha_archive::write_row(uchar *buf)
 
   if (!share->archive_write_open)
     if (init_archive_writer())
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+      DBUG_RETURN(errno);
 
 
   if (table->next_number_field && record == table->record[0])
@@ -1020,7 +1020,8 @@ int ha_archive::rnd_init(bool scan)
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  init_archive_reader();
+  if (init_archive_reader())
+      DBUG_RETURN(errno);
 
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
@@ -1317,7 +1318,8 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   char* frm_string;
   DBUG_ENTER("ha_archive::optimize");
 
-  init_archive_reader();
+  if (init_archive_reader())
+    DBUG_RETURN(errno);
 
   // now we close both our writer and our reader for the rename
   if (share->archive_write_open)
@@ -1326,7 +1328,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     share->archive_write_open= FALSE;
   }
 
-  if (!(frm_string= (char*) malloc(archive.frm_length)))
+  if (!(frm_string= (char*) my_malloc(archive.frm_length, MYF(0))))
     return ENOMEM;
 
   azread_frm(&archive, frm_string);
@@ -1337,12 +1339,12 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
   {
-    free(frm_string);
+    my_free(frm_string, MYF(0));
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
   rc= azwrite_frm(&writer, frm_string, archive.frm_length);
-  free(frm_string);
+  my_free(frm_string, MYF(0));
   if (rc)
   {
     rc= HA_ERR_CRASHED_ON_USAGE;
@@ -1547,7 +1549,9 @@ int ha_archive::info(uint flag)
 
   if (flag & HA_STATUS_AUTO)
   {
-    init_archive_reader();
+    if (init_archive_reader())
+      DBUG_RETURN(errno);
+
     pthread_mutex_lock(&share->mutex);
     azflush(&archive, Z_SYNC_FLUSH);
     pthread_mutex_unlock(&share->mutex);
@@ -1626,7 +1630,9 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
     Now we will rewind the archive file so that we are positioned at the 
     start of the file.
   */
-  init_archive_reader();
+  if (init_archive_reader())
+    DBUG_RETURN(errno);
+
   read_data_header(&archive);
   while (!(rc= get_row(&archive, table->record[0])))
     count--;

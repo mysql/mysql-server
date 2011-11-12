@@ -149,7 +149,7 @@ struct READ_RECORD {			/* Parameter to read_record */
   typedef int (*Read_func)(READ_RECORD*);
   typedef void (*Unlock_row_func)(st_join_table *);
   struct st_table *table;			/* Head-form */
-  handler *file;
+ // handler *file_;
   struct st_table **forms;			/* head and ref forms */
 
   Read_func read_record;
@@ -222,8 +222,11 @@ typedef struct user_resources {
   uint updates;
   /* Maximum number of connections established per hour. */
   uint conn_per_hour;
-  /* Maximum number of concurrent connections. */
-  uint user_conn;
+  /*
+    Maximum number of concurrent connections. If -1 then no new
+    connections allowed
+  */
+  int user_conn;
   /*
      Values of this enum and specified_limits member are used by the
      parser to store which user limits were specified in GRANT statement.
@@ -256,7 +259,7 @@ typedef struct  user_conn {
   /* Total length of the key. */
   uint len;
   /* Current amount of concurrent connections for this account. */
-  uint connections;
+  int connections;
   /*
      Current number of connections per hour, number of updating statements
      per hour and total number of statements per hour for this account.

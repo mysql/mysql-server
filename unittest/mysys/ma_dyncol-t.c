@@ -61,7 +61,7 @@ void test_value_single_uint(ulonglong num, const char *name)
   DYNAMIC_COLUMN str;
   /* init values */
   val.type= DYN_COL_UINT;
-  val.ulong_value= num;
+  val.x.ulong_value= num;
   dynamic_column_value_init(&res);
   /* create column */
   if (dynamic_column_create(&str, 1, &val))
@@ -70,8 +70,8 @@ void test_value_single_uint(ulonglong num, const char *name)
   /* read column */
   if (dynamic_column_get(&str, 1, &res))
     goto err;
-  rc= (res.type == DYN_COL_UINT) && (res.ulong_value == num);
-  num= res.ulong_value;
+  rc= (res.type == DYN_COL_UINT) && (res.x.ulong_value == num);
+  num= res.x.ulong_value;
 err:
   ok(rc, "%s - %llu", name, num);
   /* cleanup */
@@ -85,7 +85,7 @@ void test_value_single_sint(longlong num, const char *name)
   DYNAMIC_COLUMN str;
   /* init values */
   val.type= DYN_COL_INT;
-  val.long_value= num;
+  val.x.long_value= num;
   dynamic_column_value_init(&res);
   /* create column */
   if (dynamic_column_create(&str, 1, &val))
@@ -94,8 +94,8 @@ void test_value_single_sint(longlong num, const char *name)
   /* read column */
   if (dynamic_column_get(&str, 1, &res))
     goto err;
-  rc= (res.type == DYN_COL_INT) && (res.long_value == num);
-  num= res.ulong_value;
+  rc= (res.type == DYN_COL_INT) && (res.x.long_value == num);
+  num= res.x.ulong_value;
 err:
   ok(rc, "%s - %lld", name, num);
   /* cleanup */
@@ -110,7 +110,7 @@ void test_value_single_double(double num, const char *name)
   DYNAMIC_COLUMN str;
   /* init values */
   val.type= DYN_COL_DOUBLE;
-  val.double_value= num;
+  val.x.double_value= num;
   dynamic_column_value_init(&res);
   /* create column */
   if (dynamic_column_create(&str, 1, &val))
@@ -119,8 +119,8 @@ void test_value_single_double(double num, const char *name)
   /* read column */
   if (dynamic_column_get(&str, 1, &res))
     goto err;
-  rc= (res.type == DYN_COL_DOUBLE) && (res.double_value == num);
-  num= res.ulong_value;
+  rc= (res.type == DYN_COL_DOUBLE) && (res.x.double_value == num);
+  num= res.x.ulong_value;
 err:
   ok(rc, "%s - %lf", name, num);
   /* cleanup */
@@ -138,7 +138,7 @@ void test_value_single_decimal(const char *num)
 
   /* init values */
   dynamic_column_prepare_decimal(&val); // special procedure for decimal!!!
-  if (string2decimal(num, &val.decimal_value, &end) != E_DEC_OK)
+  if (string2decimal(num, &val.x.decimal.value, &end) != E_DEC_OK)
     goto err;
   dynamic_column_value_init(&res);
 
@@ -150,8 +150,8 @@ void test_value_single_decimal(const char *num)
   if (dynamic_column_get(&str, 1, &res))
     goto err;
   rc= ((res.type == DYN_COL_DECIMAL) &&
-       (decimal_cmp(&res.decimal_value, &val.decimal_value) == 0));
-  decimal2string(&res.decimal_value, buff, &length, 0, 0, ' ');
+       (decimal_cmp(&res.x.decimal.value, &val.x.decimal.value) == 0));
+  decimal2string(&res.x.decimal.value, buff, &length, 0, 0, ' ');
 err:
   ok(rc, "%s - %s", num, buff);
   /* cleanup */
@@ -211,9 +211,9 @@ void test_value_single_string(const char *string, size_t len,
 
   /* init values */
   val.type= DYN_COL_STRING;
-  val.string_value.str= (char*)string;
-  val.string_value.length= len;
-  val.charset= cs;
+  val.x.string.value.str= (char*)string;
+  val.x.string.value.length= len;
+  val.x.string.charset= cs;
   dynamic_column_value_init(&res);
 
   /* create column */
@@ -224,15 +224,15 @@ void test_value_single_string(const char *string, size_t len,
   if (dynamic_column_get(&str, 1, &res))
     goto err;
   rc= ((res.type == DYN_COL_STRING) &&
-       (res.string_value.length == len) &&
-       (memcmp(res.string_value.str, string, len) == 0) &&
-       (res.charset->number == cs->number));
+       (res.x.string.value.length == len) &&
+       (memcmp(res.x.string.value.str, string, len) == 0) &&
+       (res.x.string.charset->number == cs->number));
 err:
   ok(rc, "'%s' - '%s' %u %u-%s", string,
-     res.string_value.str, (uint)res.string_value.length,
-     (uint)res.charset->number, res.charset->name);
+     res.x.string.value.str, (uint)res.x.string.value.length,
+     (uint)res.x.string.charset->number, res.x.string.charset->name);
   /* cleanup */
-  val.string_value.str= NULL; // we did not allocated it
+  val.x.string.value.str= NULL; // we did not allocated it
   dynamic_column_column_free(&str);
 }
 
@@ -243,10 +243,10 @@ void test_value_single_date(uint year, uint month, uint day, const char *name)
   DYNAMIC_COLUMN str;
   /* init values */
   val.type= DYN_COL_DATE;
-  val.time_value.time_type= MYSQL_TIMESTAMP_DATE;
-  val.time_value.year= year;
-  val.time_value.month= month;
-  val.time_value.day= day;
+  val.x.time_value.time_type= MYSQL_TIMESTAMP_DATE;
+  val.x.time_value.year= year;
+  val.x.time_value.month= month;
+  val.x.time_value.day= day;
   dynamic_column_value_init(&res);
   /* create column */
   if (dynamic_column_create(&str, 1, &val))
@@ -256,10 +256,10 @@ void test_value_single_date(uint year, uint month, uint day, const char *name)
   if (dynamic_column_get(&str, 1, &res))
     goto err;
   rc= ((res.type == DYN_COL_DATE) &&
-       (res.time_value.time_type == MYSQL_TIMESTAMP_DATE) &&
-       (res.time_value.year == year) &&
-       (res.time_value.month == month) &&
-       (res.time_value.day == day));
+       (res.x.time_value.time_type == MYSQL_TIMESTAMP_DATE) &&
+       (res.x.time_value.year == year) &&
+       (res.x.time_value.month == month) &&
+       (res.x.time_value.day == day));
 err:
   ok(rc, "%s - %04u-%02u-%02u", name, year, month, day);
   /* cleanup */
@@ -274,12 +274,12 @@ void test_value_single_time(uint neg, uint hour, uint minute, uint second,
   DYNAMIC_COLUMN str;
   /* init values */
   val.type= DYN_COL_TIME;
-  val.time_value.time_type= MYSQL_TIMESTAMP_TIME;
-  val.time_value.neg= neg;
-  val.time_value.hour= hour;
-  val.time_value.minute= minute;
-  val.time_value.second= second;
-  val.time_value.second_part= mic;
+  val.x.time_value.time_type= MYSQL_TIMESTAMP_TIME;
+  val.x.time_value.neg= neg;
+  val.x.time_value.hour= hour;
+  val.x.time_value.minute= minute;
+  val.x.time_value.second= second;
+  val.x.time_value.second_part= mic;
   dynamic_column_value_init(&res);
   /* create column */
   if (dynamic_column_create(&str, 1, &val))
@@ -289,12 +289,12 @@ void test_value_single_time(uint neg, uint hour, uint minute, uint second,
   if (dynamic_column_get(&str, 1, &res))
     goto err;
   rc= ((res.type == DYN_COL_TIME) &&
-       (res.time_value.time_type == MYSQL_TIMESTAMP_TIME) &&
-       (res.time_value.neg == (int)neg) &&
-       (res.time_value.hour == hour) &&
-       (res.time_value.minute == minute) &&
-       (res.time_value.second == second) &&
-       (res.time_value.second_part == mic));
+       (res.x.time_value.time_type == MYSQL_TIMESTAMP_TIME) &&
+       (res.x.time_value.neg == (int)neg) &&
+       (res.x.time_value.hour == hour) &&
+       (res.x.time_value.minute == minute) &&
+       (res.x.time_value.second == second) &&
+       (res.x.time_value.second_part == mic));
 err:
   ok(rc, "%s - %c%02u:%02u:%02u.%06u", name, (neg ? '-' : '+'),
      hour, minute, second, mic);
@@ -312,15 +312,15 @@ void test_value_single_datetime(uint neg, uint year, uint month, uint day,
   DYNAMIC_COLUMN str;
   /* init values */
   val.type= DYN_COL_DATETIME;
-  val.time_value.time_type= MYSQL_TIMESTAMP_DATETIME;
-  val.time_value.neg= neg;
-  val.time_value.year= year;
-  val.time_value.month= month;
-  val.time_value.day= day;
-  val.time_value.hour= hour;
-  val.time_value.minute= minute;
-  val.time_value.second= second;
-  val.time_value.second_part= mic;
+  val.x.time_value.time_type= MYSQL_TIMESTAMP_DATETIME;
+  val.x.time_value.neg= neg;
+  val.x.time_value.year= year;
+  val.x.time_value.month= month;
+  val.x.time_value.day= day;
+  val.x.time_value.hour= hour;
+  val.x.time_value.minute= minute;
+  val.x.time_value.second= second;
+  val.x.time_value.second_part= mic;
   dynamic_column_value_init(&res);
   /* create column */
   if (dynamic_column_create(&str, 1, &val))
@@ -330,15 +330,15 @@ void test_value_single_datetime(uint neg, uint year, uint month, uint day,
   if (dynamic_column_get(&str, 1, &res))
     goto err;
   rc= ((res.type == DYN_COL_DATETIME) &&
-       (res.time_value.time_type == MYSQL_TIMESTAMP_DATETIME) &&
-       (res.time_value.neg == (int)neg) &&
-       (res.time_value.year == year) &&
-       (res.time_value.month == month) &&
-       (res.time_value.day == day) &&
-       (res.time_value.hour == hour) &&
-       (res.time_value.minute == minute) &&
-       (res.time_value.second == second) &&
-       (res.time_value.second_part == mic));
+       (res.x.time_value.time_type == MYSQL_TIMESTAMP_DATETIME) &&
+       (res.x.time_value.neg == (int)neg) &&
+       (res.x.time_value.year == year) &&
+       (res.x.time_value.month == month) &&
+       (res.x.time_value.day == day) &&
+       (res.x.time_value.hour == hour) &&
+       (res.x.time_value.minute == minute) &&
+       (res.x.time_value.second == second) &&
+       (res.x.time_value.second_part == mic));
 err:
   ok(rc, "%s - %c %04u-%02u-%02u %02u:%02u:%02u.%06u", name, (neg ? '-' : '+'),
      year, month, day, hour, minute, second, mic);
@@ -368,40 +368,40 @@ void test_value_multi(ulonglong num0,
   DYNAMIC_COLUMN str;
   /* init values */
   val[0].type= DYN_COL_UINT;
-  val[0].ulong_value= num0;
+  val[0].x.ulong_value= num0;
   val[1].type= DYN_COL_INT;
-  val[1].long_value= num1;
+  val[1].x.long_value= num1;
   val[2].type= DYN_COL_DOUBLE;
-  val[2].double_value= num2;
+  val[2].x.double_value= num2;
   dynamic_column_prepare_decimal(val + 3); // special procedure for decimal!!!
-  if (string2decimal(num3, &val[3].decimal_value, &end3) != E_DEC_OK)
+  if (string2decimal(num3, &val[3].x.decimal.value, &end3) != E_DEC_OK)
     goto err;
   val[4].type= DYN_COL_STRING;
-  val[4].string_value.str= (char*)string4;
-  val[4].string_value.length= len4;
-  val[4].charset= cs4;
+  val[4].x.string.value.str= (char*)string4;
+  val[4].x.string.value.length= len4;
+  val[4].x.string.charset= cs4;
   val[5].type= DYN_COL_DATE;
-  val[5].time_value.time_type= MYSQL_TIMESTAMP_DATE;
-  val[5].time_value.year= year5;
-  val[5].time_value.month= month5;
-  val[5].time_value.day= day5;
+  val[5].x.time_value.time_type= MYSQL_TIMESTAMP_DATE;
+  val[5].x.time_value.year= year5;
+  val[5].x.time_value.month= month5;
+  val[5].x.time_value.day= day5;
   val[6].type= DYN_COL_TIME;
-  val[6].time_value.time_type= MYSQL_TIMESTAMP_TIME;
-  val[6].time_value.neg= neg6;
-  val[6].time_value.hour= hour6;
-  val[6].time_value.minute= minute6;
-  val[6].time_value.second= second6;
-  val[6].time_value.second_part= mic6;
+  val[6].x.time_value.time_type= MYSQL_TIMESTAMP_TIME;
+  val[6].x.time_value.neg= neg6;
+  val[6].x.time_value.hour= hour6;
+  val[6].x.time_value.minute= minute6;
+  val[6].x.time_value.second= second6;
+  val[6].x.time_value.second_part= mic6;
   val[7].type= DYN_COL_DATETIME;
-  val[7].time_value.time_type= MYSQL_TIMESTAMP_DATETIME;
-  val[7].time_value.neg= neg7;
-  val[7].time_value.year= year7;
-  val[7].time_value.month= month7;
-  val[7].time_value.day= day7;
-  val[7].time_value.hour= hour7;
-  val[7].time_value.minute= minute7;
-  val[7].time_value.second= second7;
-  val[7].time_value.second_part= mic7;
+  val[7].x.time_value.time_type= MYSQL_TIMESTAMP_DATETIME;
+  val[7].x.time_value.neg= neg7;
+  val[7].x.time_value.year= year7;
+  val[7].x.time_value.month= month7;
+  val[7].x.time_value.day= day7;
+  val[7].x.time_value.hour= hour7;
+  val[7].x.time_value.minute= minute7;
+  val[7].x.time_value.second= second7;
+  val[7].x.time_value.second_part= mic7;
   val[8].type= DYN_COL_NULL;
   for (i= 0; i < 9; i++)
     dynamic_column_value_init(res + i);
@@ -414,44 +414,44 @@ void test_value_multi(ulonglong num0,
     if (dynamic_column_get(&str, column_numbers[i], res + i))
       goto err;
   rc= ((res[0].type == DYN_COL_UINT) &&
-       (res[0].ulong_value == num0) &&
+       (res[0].x.ulong_value == num0) &&
        (res[1].type == DYN_COL_INT) &&
-       (res[1].long_value == num1) &&
+       (res[1].x.long_value == num1) &&
        (res[2].type == DYN_COL_DOUBLE) &&
-       (res[2].double_value == num2) &&
+       (res[2].x.double_value == num2) &&
        (res[3].type == DYN_COL_DECIMAL) &&
-       (decimal_cmp(&res[3].decimal_value, &val[3].decimal_value) == 0) &&
+       (decimal_cmp(&res[3].x.decimal.value, &val[3].x.decimal.value) == 0) &&
        (res[4].type == DYN_COL_STRING) &&
-       (res[4].string_value.length == len4) &&
-       (memcmp(res[4].string_value.str, string4, len4) == 0) &&
-       (res[4].charset->number == cs4->number) &&
+       (res[4].x.string.value.length == len4) &&
+       (memcmp(res[4].x.string.value.str, string4, len4) == 0) &&
+       (res[4].x.string.charset->number == cs4->number) &&
        (res[5].type == DYN_COL_DATE) &&
-       (res[5].time_value.time_type == MYSQL_TIMESTAMP_DATE) &&
-       (res[5].time_value.year == year5) &&
-       (res[5].time_value.month == month5) &&
-       (res[5].time_value.day == day5) &&
+       (res[5].x.time_value.time_type == MYSQL_TIMESTAMP_DATE) &&
+       (res[5].x.time_value.year == year5) &&
+       (res[5].x.time_value.month == month5) &&
+       (res[5].x.time_value.day == day5) &&
        (res[6].type == DYN_COL_TIME) &&
-       (res[6].time_value.time_type == MYSQL_TIMESTAMP_TIME) &&
-       (res[6].time_value.neg == (int)neg6) &&
-       (res[6].time_value.hour == hour6) &&
-       (res[6].time_value.minute == minute6) &&
-       (res[6].time_value.second == second6) &&
-       (res[6].time_value.second_part == mic6) &&
+       (res[6].x.time_value.time_type == MYSQL_TIMESTAMP_TIME) &&
+       (res[6].x.time_value.neg == (int)neg6) &&
+       (res[6].x.time_value.hour == hour6) &&
+       (res[6].x.time_value.minute == minute6) &&
+       (res[6].x.time_value.second == second6) &&
+       (res[6].x.time_value.second_part == mic6) &&
        (res[7].type == DYN_COL_DATETIME) &&
-       (res[7].time_value.time_type == MYSQL_TIMESTAMP_DATETIME) &&
-       (res[7].time_value.neg == (int)neg7) &&
-       (res[7].time_value.year == year7) &&
-       (res[7].time_value.month == month7) &&
-       (res[7].time_value.day == day7) &&
-       (res[7].time_value.hour == hour7) &&
-       (res[7].time_value.minute == minute7) &&
-       (res[7].time_value.second == second7) &&
-       (res[7].time_value.second_part == mic7) &&
+       (res[7].x.time_value.time_type == MYSQL_TIMESTAMP_DATETIME) &&
+       (res[7].x.time_value.neg == (int)neg7) &&
+       (res[7].x.time_value.year == year7) &&
+       (res[7].x.time_value.month == month7) &&
+       (res[7].x.time_value.day == day7) &&
+       (res[7].x.time_value.hour == hour7) &&
+       (res[7].x.time_value.minute == minute7) &&
+       (res[7].x.time_value.second == second7) &&
+       (res[7].x.time_value.second_part == mic7) &&
        (res[8].type == DYN_COL_NULL));
 err:
   ok(rc, "%s", name);
   /* cleanup */
-  val[4].string_value.str= NULL; // we did not allocated it
+  val[4].x.string.value.str= NULL; // we did not allocated it
   dynamic_column_column_free(&str);
 }
 
@@ -486,13 +486,13 @@ void test_update_multi(uint *column_numbers, uint *column_values,
   DYNAMIC_COLUMN_VALUE val;
 
   val.type= DYN_COL_UINT;
-  val.ulong_value= column_values[0];
+  val.x.ulong_value= column_values[0];
   if (dynamic_column_create(&str, column_numbers[0], &val))
     goto err;
   for (i= 1; i < all; i++)
   {
     val.type= (null_values[i] ? DYN_COL_NULL : DYN_COL_UINT);
-    val.ulong_value= column_values[i];
+    val.x.ulong_value= column_values[i];
     if (dynamic_column_update(&str, column_numbers[i], &val))
       goto err;
 
@@ -510,7 +510,7 @@ void test_update_multi(uint *column_numbers, uint *column_values,
       else
       {
         if (val.type != DYN_COL_UINT ||
-            val.ulong_value != column_values[j] ||
+            val.x.ulong_value != column_values[j] ||
             dynamic_column_exists(&str, column_numbers[j]) == ER_DYNCOL_NO)
           goto err;
       }
@@ -582,12 +582,12 @@ void test_empty_string()
       "%s", "empty list");
 
   val.type= DYN_COL_UINT;
-  val.ulong_value= 1212;
+  val.x.ulong_value= 1212;
   rc= dynamic_column_update(&str, 1, &val);
   if (rc == ER_DYNCOL_OK)
     rc= dynamic_column_get(&str, 1, &res);
   ok( (rc == ER_DYNCOL_OK) &&
-      (res.type == DYN_COL_UINT) && (res.ulong_value == val.ulong_value),
+      (res.type == DYN_COL_UINT) && (res.x.ulong_value == val.x.ulong_value),
       "%s", "empty update");
 }
 
@@ -616,7 +616,7 @@ void test_update_many(uint *column_numbers, uint *column_values,
   for (i= 0; i < column_count; i++)
   {
     val[i].type= DYN_COL_UINT;
-    val[i].ulong_value= column_values[i];
+    val[i].x.ulong_value= column_values[i];
   }
   for (i= 0; i < update_count; i++)
   {
@@ -625,13 +625,13 @@ void test_update_many(uint *column_numbers, uint *column_values,
     else
     {
       upd[i].type= DYN_COL_UINT;
-      upd[i].ulong_value= update_values[i];
+      upd[i].x.ulong_value= update_values[i];
     }
   }
   for (i= 0; i < result_count; i++)
   {
     res[i].type= DYN_COL_UINT;
-    res[i].ulong_value= result_values[i];
+    res[i].x.ulong_value= result_values[i];
   }
   if (dynamic_column_create_many(&str1, column_count, column_numbers, val))
     goto err;

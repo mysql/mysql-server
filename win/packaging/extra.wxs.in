@@ -49,12 +49,18 @@
     <!-- Disable advertised shortcuts weirdness -->
     <Property Id="DISABLEADVTSHORTCUTS" Secure="yes" Value="1"/>
 
+    <!-- Activate feedback plugin-->
+    <Property Id="FEEDBACK" Secure="yes"/>
+
     <?if $(var.HaveInnodb) = "1" ?>
       <!-- Quick configuration : set default storage engine to innodb, use strict sql_mode -->
       <Property Id="STDCONFIG" Secure="yes" Value="1"/>
     <?endif?>
     <!-- Innodb Buffer pool size in MB-->
     <Property Id="BUFFERPOOLSIZE" Secure="yes"/>
+
+
+    <CustomAction Id="LaunchUrl" BinaryKey="WixCA" DllEntry="WixShellExec"  Execute="immediate" Return="check" Impersonate="yes" />
 
 
     <!-- 
@@ -150,6 +156,43 @@
         <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
         <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
           <Text>Create or upgrade database instance</Text>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}[ProductName] setup</Text>
+        </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+      </Dialog>
+ 
+       <!-- Feedback dialog -->
+       <Dialog Id="Feedback" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
+
+         <Control Id="CheckBoxFeedback" Type="CheckBox" X="8" Y="61" Width="360" Height="12" Property="FEEDBACK" CheckBoxValue="1" TabSkip="no">
+          <Text>{\Font1}Enable the Feedback plugin and submit anonymous usage information</Text>
+        </Control>
+
+        <Control Id="Text" Type="Text" X="23" Y="82" Width="290" Height="55">
+         <Text>Monty Program has created a Feedback plugin for MariaDB which, if enabled, collects basic anonymous statistical information. This information is used by the developers to improve MariaDB. Enabling this plugin is an easy way to help with MariaDB development. Collected statistics, and more information on the plugin, can be viewed at http://mariadb.org/feedback_plugin         </Text>
+        </Control>
+
+       <Control Id="MoreInfo" Type="PushButton" X="23" Y="140" Width="56" Height="17" Text="More Info" ToolTip="http://mariadb.org/feedback_plugin" >
+          <Publish Property="WixShellExecTarget" Value="http://mariadb.org/feedback_plugin"  Order="1">1</Publish>
+          <Publish Event="DoAction" Value="LaunchUrl" Order="2">1</Publish>
+        </Control>
+
+
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="ServicePortDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>Submit usage information</Text>
         </Control>
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
@@ -320,7 +363,7 @@
           </Publish>
           <Publish Event="DoAction" Value="CheckDatabaseProperties">NOT WarningText</Publish>
           <Publish Event="SpawnDialog" Value="WarningDlg">WarningText</Publish>
-          <Publish Event="NewDialog" Value="VerifyReadyDlg">Not WarningText</Publish>
+          <Publish Event="NewDialog" Value="Feedback">Not WarningText</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="no" Text="Cancel">
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
@@ -350,7 +393,7 @@
         NOT Installed AND UpgradableServiceFound
       </Publish>
 
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServicePortDlg" Order="3" ><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="Feedback" Order="3" ><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3"> <![CDATA[OLDERVERSIONBEINGUPGRADED <>""]]></Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="1" ><![CDATA[(&DBInstance=2) AND (!DBInstance=3)]]></Publish>
 
@@ -460,6 +503,21 @@
             Value="[LOGFILESIZE]M" />
       </Component>
       <?endif?>
+     
+      <Component Id="C.feedback" Guid="*" Directory="DATADIR">
+        <Condition>FEEDBACK</Condition>
+        <RegistryValue Root='HKLM'
+           Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
+           Name='FEEDBACK' Value='1' Type='string' KeyPath='yes'/>
+        <IniFile Id="Ini5"
+            Action="createLine"
+            Directory="DATADIR"
+            Section="mysqld"
+            Name="my.ini"
+            Key="feedback"
+            Value="ON" />
+      </Component>
+
       <!--- Grant service account permission to the database folder (Windows 7 and later) -->
       <Component Id="C.serviceaccount.permission" Guid="*" Directory='DATADIR' Transitive='yes'>
         <Condition><![CDATA[SERVICENAME AND (VersionNT > 600)]]></Condition>

@@ -259,6 +259,10 @@ public:
   bool is_expensive();
   void set_join_tab_idx(uint join_tab_idx_arg)
   { args[1]->set_join_tab_idx(join_tab_idx_arg); }
+  virtual void get_cache_parameters(List<Item> &parameters);
+  bool is_top_level_item();
+  bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 class Comp_creator
@@ -266,7 +270,14 @@ class Comp_creator
 public:
   Comp_creator() {}                           /* Remove gcc warning */
   virtual ~Comp_creator() {}                  /* Remove gcc warning */
+  /**
+    Create operation with given arguments.
+  */
   virtual Item_bool_func2* create(Item *a, Item *b) const = 0;
+  /**
+    Create operation with given arguments in swap order.
+  */
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const = 0;
   virtual const char* symbol(bool invert) const = 0;
   virtual bool eqne_op() const = 0;
   virtual bool l_op() const = 0;
@@ -278,6 +289,7 @@ public:
   Eq_creator() {}                             /* Remove gcc warning */
   virtual ~Eq_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<>" : "="; }
   virtual bool eqne_op() const { return 1; }
   virtual bool l_op() const { return 0; }
@@ -289,6 +301,7 @@ public:
   Ne_creator() {}                             /* Remove gcc warning */
   virtual ~Ne_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "=" : "<>"; }
   virtual bool eqne_op() const { return 1; }
   virtual bool l_op() const { return 0; }
@@ -300,6 +313,7 @@ public:
   Gt_creator() {}                             /* Remove gcc warning */
   virtual ~Gt_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<=" : ">"; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 0; }
@@ -311,6 +325,7 @@ public:
   Lt_creator() {}                             /* Remove gcc warning */
   virtual ~Lt_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? ">=" : "<"; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 1; }
@@ -322,6 +337,7 @@ public:
   Ge_creator() {}                             /* Remove gcc warning */
   virtual ~Ge_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<" : ">="; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 0; }
@@ -333,6 +349,7 @@ public:
   Le_creator() {}                             /* Remove gcc warning */
   virtual ~Le_creator() {}                    /* Remove gcc warning */
   virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func2* create_swap(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? ">" : "<="; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 1; }
@@ -385,6 +402,26 @@ public:
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
+  bool subst_argument_checker(uchar **arg)
+  {
+    return (*arg != NULL);     
+  }
+};
+
+/**
+  XOR inherits from Item_bool_func2 because it is not optimized yet.
+  Later, when XOR is optimized, it needs to inherit from
+  Item_cond instead. See WL#5800. 
+*/
+class Item_func_xor :public Item_bool_func2
+{
+public:
+  Item_func_xor(Item *i1, Item *i2) :Item_bool_func2(i1, i2) {}
+  enum Functype functype() const { return XOR_FUNC; }
+  const char *func_name() const { return "xor"; }
+  longlong val_int();
+  void top_level_item() {}
+  Item *neg_transformer(THD *thd);
   bool subst_argument_checker(uchar **arg)
   {
     return (*arg != NULL);     
@@ -460,7 +497,7 @@ public:
      show(0)
     {}
   virtual void top_level_item() { abort_on_null= 1; }
-  bool top_level() { return abort_on_null; }
+  bool is_top_level_item() { return abort_on_null; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
   const char *func_name() const { return "<not>"; }
@@ -638,6 +675,7 @@ public:
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 
@@ -739,6 +777,7 @@ public:
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
   bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 
@@ -1277,6 +1316,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   bool eval_not_null_tables(uchar *opt_arg);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 };
 
 class cmp_item_row :public cmp_item
@@ -1331,7 +1371,11 @@ public:
       const_item_cache= 1;
     }
     else
+    {
       args[0]->update_used_tables();
+      used_tables_cache= args[0]->used_tables();
+      const_item_cache= args[0]->const_item();
+    }
   }
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
@@ -1688,7 +1732,8 @@ public:
   friend class Item_equal_fields_iterator;
   friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal);
-  friend bool setup_sj_materialization(struct st_join_table *tab);
+  friend bool setup_sj_materialization_part1(struct st_join_table *tab);
+  friend bool setup_sj_materialization_part2(struct st_join_table *tab);
 }; 
 
 class COND_EQUAL: public Sql_alloc
@@ -1775,6 +1820,7 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
+  void mark_as_condition_AND_part(TABLE_LIST *embedding);
 };
 
 inline bool is_cond_and(Item *item)
@@ -1815,45 +1861,6 @@ inline bool is_cond_or(Item *item)
   Item_cond *cond_item= (Item_cond*) item;
   return (cond_item->functype() == Item_func::COND_OR_FUNC);
 }
-
-/*
-  XOR is Item_cond, not an Item_int_func because we could like to
-  optimize (a XOR b) later on. It's low prio, though
-*/
-
-class Item_cond_xor :public Item_cond
-{
-public:
-  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) 
-  {
-    /* 
-      Items must be stored in args[] as well because this Item_cond is
-      treated as a FUNC_ITEM (see type()). I.e., users of it will get
-      it's children by calling arguments(), not argument_list(). This
-      is a temporary solution until XOR is optimized and treated like
-      a full Item_cond citizen.
-     */
-    arg_count= 2;
-    args= tmp_arg;
-    args[0]= i1; 
-    args[1]= i2;
-  }
-  enum Functype functype() const { return COND_XOR_FUNC; }
-  /* TODO: remove the next line when implementing XOR optimization */
-  enum Type type() const { return FUNC_ITEM; }
-  longlong val_int();
-  const char *func_name() const { return "xor"; }
-  void top_level_item() {}
-  /* Since child Items are stored in args[], Items cannot be added.
-     However, since Item_cond_xor is treated as a FUNC_ITEM (see
-     type()), the methods below should never be called. 
-  */
-  bool add(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
-  bool add_at_head(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
-  bool add_at_head(List<Item> *nlist) { DBUG_ASSERT(FALSE); return FALSE; }
-  void copy_andor_arguments(THD *thd, Item_cond *item) { DBUG_ASSERT(FALSE); }
-};
-
 
 /* Some useful inline functions */
 

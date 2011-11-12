@@ -49,7 +49,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool          triggers_applicable;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status= NOT_KILLED;
   DBUG_ENTER("mysql_delete");
   bool save_binlog_row_based;
 
@@ -61,8 +61,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
 
-  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
-      mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
+  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(TRUE);
+  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
     DBUG_RETURN(TRUE);
 
   if (!table_list->updatable)
@@ -382,7 +383,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
   killed_status= thd->killed;
-  if (killed_status != THD::NOT_KILLED || thd->is_error())
+  if (killed_status != NOT_KILLED || thd->is_error())
     error= 1;					// Aborted
   if (will_batch && (loc_error= table->file->end_bulk_delete()))
   {
@@ -449,7 +450,7 @@ cleanup:
       if (error < 0)
         thd->clear_error();
       else
-        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        errcode= query_error_code(thd, killed_status == NOT_KILLED);
       
       /*
         [binlog]: If 'handler::delete_all_rows()' was called and the
@@ -550,7 +551,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(TRUE);
 
-  select_lex->fix_prepare_information(thd, conds, &fake_conds);
+  select_lex->fix_prepare_information(thd, conds, &fake_conds); 
   DBUG_RETURN(FALSE);
 }
 
@@ -586,10 +587,11 @@ int mysql_multi_delete_prepare(THD *thd)
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
 
-  TABLE_LIST *tables= lex->query_tables;
-  if (mysql_handle_derived(lex, DT_INIT) ||
-      mysql_handle_list_of_derived(lex, tables, DT_MERGE_FOR_INSERT) ||
-      mysql_handle_list_of_derived(lex, tables, DT_PREPARE))
+  if (mysql_handle_derived(lex, DT_INIT))
+    DBUG_RETURN(TRUE);
+  if (mysql_handle_derived(lex, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(TRUE);
+  if (mysql_handle_derived(lex, DT_PREPARE))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second
@@ -601,9 +603,11 @@ int mysql_multi_delete_prepare(THD *thd)
                                     &thd->lex->select_lex.top_join_list,
                                     lex->query_tables,
                                     lex->select_lex.leaf_tables, FALSE, 
-                                    DELETE_ACL, SELECT_ACL, TRUE))
+                                    DELETE_ACL, SELECT_ACL, FALSE))
     DBUG_RETURN(TRUE);
 
+  if (lex->select_lex.handle_derived(thd->lex, DT_MERGE))  
+    DBUG_RETURN(TRUE);
 
   /*
     Multi-delete can't be constructed over-union => we always have
@@ -616,7 +620,8 @@ int mysql_multi_delete_prepare(THD *thd)
        target_tbl= target_tbl->next_local)
   {
 
-    if (!(target_tbl->table= target_tbl->correspondent_table->table))
+    target_tbl->table= target_tbl->correspondent_table->table;
+    if (target_tbl->correspondent_table->is_multitable())
     {
        my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                 target_tbl->correspondent_table->view_db.str,
@@ -651,6 +656,10 @@ int mysql_multi_delete_prepare(THD *thd)
     with further calls to unique_table
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
+  
+  if (lex->select_lex.save_prep_leaf_tables(thd))
+    DBUG_RETURN(TRUE);
+  
   DBUG_RETURN(FALSE);
 }
 
@@ -907,7 +916,7 @@ void multi_delete::abort()
     */
     if (mysql_bin_log.is_open())
     {
-      int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
       /* possible error of writing binary log is ignored deliberately */
       (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
                               thd->query(), thd->query_length(),
@@ -1057,7 +1066,7 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
 
 bool multi_delete::send_eof()
 {
-  THD::killed_state killed_status= THD::NOT_KILLED;
+  killed_state killed_status= NOT_KILLED;
   thd_proc_info(thd, "deleting from reference tables");
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
@@ -1065,7 +1074,7 @@ bool multi_delete::send_eof()
 
   /* compute a total error to know if something failed */
   local_error= local_error || error;
-  killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
+  killed_status= (local_error == 0)? NOT_KILLED : thd->killed;
   /* reset used flags */
   thd_proc_info(thd, "end");
 
@@ -1085,7 +1094,7 @@ bool multi_delete::send_eof()
       if (local_error == 0)
         thd->clear_error();
       else
-        errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        errcode= query_error_code(thd, killed_status == NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query(), thd->query_length(),
                             transactional_tables, FALSE, errcode) &&

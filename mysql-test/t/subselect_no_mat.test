@@ -3,6 +3,7 @@
 #
 select @@optimizer_switch like '%materialization=on%';
 set optimizer_switch='materialization=off';
+set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 --source t/subselect.test
 

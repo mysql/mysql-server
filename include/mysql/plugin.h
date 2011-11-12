@@ -1,4 +1,5 @@
 /* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
+   Copyright (C) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +17,27 @@
 #ifndef _my_plugin_h
 #define _my_plugin_h
 
-
 /*
   On Windows, exports from DLL need to be declared
+  Also, plugin needs to be declared as extern "C" because MSVC 
+  unlike other compilers, uses C++ mangling for variables not only
+  for functions.
 */
-#if (defined(_WIN32) && defined(MYSQL_DYNAMIC_PLUGIN))
-#define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
-#else
+#if defined(_MSC_VER)
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
+  #else
+    #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
+  #endif
+#else /* MYSQL_DYNAMIC_PLUGIN */
+  #ifdef __cplusplus
+    #define  MYSQL_PLUGIN_EXPORT extern "C"
+  #else
+    #define MYSQL_PLUGIN_EXPORT 
+  #endif
+#endif /*MYSQL_DYNAMIC_PLUGIN */
+#else /*_MSC_VER */
 #define MYSQL_PLUGIN_EXPORT
 #endif
 
@@ -60,7 +75,7 @@ typedef struct st_mysql_xid MYSQL_XID;
 /* MySQL plugin interface version */
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0101
 /* MariaDB plugin interface version */
-#define MARIA_PLUGIN_INTERFACE_VERSION 0x0100
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0101
 
 /*
   The allowable types of plugins
@@ -746,10 +761,6 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 /* Increments the row counter, see THD::row_count */
 void thd_inc_row_count(MYSQL_THD thd);
-
-#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
-const char *set_thd_proc_info(MYSQL_THD, const char * info, const char *func,
-                              const char *file, const unsigned int line);
 
 /**
   Create a temporary file.

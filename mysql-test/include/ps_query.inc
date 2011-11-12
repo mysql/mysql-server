@@ -597,7 +597,6 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
 --enable_result_log
 drop table t2 ;
 
-
 ##### test case derived from client_test.c: test_bug4079()
 --error 1242
 select 1 < (select a from t1) ;

@@ -16,6 +16,7 @@
 #define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
 #define CACHE_VARSTR1   3        /* short string value (length takes 1 byte) */ 
 #define CACHE_VARSTR2   4        /* long string value (length takes 2 bytes) */
+#define CACHE_ROWID     5        /* ROWID field */
 
 /*
   The CACHE_FIELD structure used to describe fields of records that

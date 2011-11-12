@@ -36,7 +36,8 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(TABLE *,TABLE *, List<Create_field> &, bool,
+static int copy_data_between_tables(THD *thd, TABLE *,TABLE *,
+                                    List<Create_field> &, bool,
 				    uint, ORDER *, ha_rows *,ha_rows *,
                                     enum enum_enable_or_disable, bool);
 
@@ -58,7 +59,7 @@ static void wait_for_kill_signal(THD *thd)
   while (thd->killed == 0)
     sleep(1);
   // Reset signal and continue as if nothing happend
-  thd->killed= THD::NOT_KILLED;
+  thd->killed= NOT_KILLED;
 }
 #endif
 
@@ -4689,6 +4690,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   int result_code;
   bool need_repair_or_alter= 0;
   DBUG_ENTER("mysql_admin_table");
+  DBUG_PRINT("enter", ("extra_open_options: %u", extra_open_options));
 
   if (end_active_trans(thd))
     DBUG_RETURN(1);
@@ -4713,9 +4715,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     bool fatal_error=0;
 
     DBUG_PRINT("admin", ("table: '%s'.'%s'", table->db, table->table_name));
-    DBUG_PRINT("admin", ("extra_open_options: %u", extra_open_options));
     strxmov(table_name, db, ".", table->table_name, NullS);
-    thd->open_options|= extra_open_options;
     table->lock_type= lock_type;
     /* open only one table from local list of command */
     {
@@ -4742,12 +4742,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           lex->sql_command == SQLCOM_ANALYZE ||
           lex->sql_command == SQLCOM_OPTIMIZE)
 	thd->prepare_derived_at_open= TRUE;
+      thd->open_options|= extra_open_options;
       open_and_lock_tables(thd, table);
+      thd->open_options&= ~extra_open_options;
       thd->prepare_derived_at_open= FALSE;
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
-      thd->open_options&= ~extra_open_options;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if (table->table)
       {
@@ -4931,7 +4932,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         /* We use extra_open_options to be able to open crashed tables */
         thd->open_options|= extra_open_options;
         result_code= admin_recreate_table(thd, table);
-        thd->open_options= ~extra_open_options;
+        thd->open_options&= ~extra_open_options;
         goto send_result;
       }
       if (check_old_types || check_for_upgrade)
@@ -7505,8 +7506,7 @@ view_err:
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
-    thd_proc_info(thd, "copy to tmp table");
-    error= copy_data_between_tables(table, new_table,
+    error= copy_data_between_tables(thd, table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
                                     alter_info->keys_onoff,
@@ -7913,7 +7913,7 @@ err_with_placeholders:
 /* Copy all rows from one table to another */
 
 static int
-copy_data_between_tables(TABLE *from,TABLE *to,
+copy_data_between_tables(THD *thd, TABLE *from,TABLE *to,
 			 List<Create_field> &create,
                          bool ignore,
 			 uint order_num, ORDER *order,
@@ -7925,7 +7925,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   int error= 1, errpos= 0;
   Copy_field *copy= NULL, *copy_end;
   ha_rows found_count= 0, delete_count= 0;
-  THD *thd= current_thd;
   uint length= 0;
   SORT_FIELD *sortorder;
   READ_RECORD info;
@@ -7935,10 +7934,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
   ulong save_sql_mode= thd->variables.sql_mode;
-  ulonglong prev_insert_id;
+  ulonglong prev_insert_id, time_to_report_progress;
   List_iterator<Create_field> it(create);
   Create_field *def;
   DBUG_ENTER("copy_data_between_tables");
+
+  /* Two or 3 stages; Sorting, copying data and update indexes */
+  thd_progress_init(thd, 2 + test(order));
 
   /*
     Turn off recovery logging since rollback of an alter table is to
@@ -8013,6 +8015,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
 
+      thd_proc_info(thd, "Sorting");
       if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
           setup_order(thd, thd->lex->select_lex.ref_pointer_array,
                       &tables, fields, all_fields, order) ||
@@ -8023,8 +8026,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
           HA_POS_ERROR)
         goto err;
     }
-  };
+    thd_progress_next_stage(thd);
+  }
 
+  thd_proc_info(thd, "copy to tmp table");
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
   to->mark_virtual_columns_for_write(TRUE);
@@ -8035,6 +8040,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;
   restore_record(to, s->default_values);        // Create empty record
+
+  thd->progress.max_counter= from->file->records();
+  time_to_report_progress= MY_HOW_OFTEN_TO_WRITE/10;
+
   while (!(error=info.read_record(&info)))
   {
     if (thd->killed)
@@ -8045,6 +8054,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     update_virtual_fields(thd, from);
     thd->row_count++;
+    if (++thd->progress.counter >= time_to_report_progress)
+    {
+      time_to_report_progress+= MY_HOW_OFTEN_TO_WRITE/10;
+      thd_progress_report(thd, thd->progress.counter,
+                          thd->progress.max_counter);
+    }
+
     /* Return error if source table isn't empty. */
     if (error_if_not_empty)
     {
@@ -8107,6 +8123,9 @@ err:
     end_read_record(&info);
   free_io_cache(from);
   delete [] copy;
+
+  thd_proc_info(thd, "Enabling keys");
+  thd_progress_next_stage(thd);
 
   if (error > 0)
     to->file->extra(HA_EXTRA_PREPARE_FOR_DROP);

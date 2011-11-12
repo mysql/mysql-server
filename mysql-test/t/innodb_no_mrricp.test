@@ -1,0 +1,10 @@
+
+set @innodb_with_mrricp=@@optimizer_switch;
+set optimizer_switch='mrr=off,mrr_sort_keys=off,index_condition_pushdown=off';
+set @innodb_test_dont_touch_optimizer_switch=1;
+
+--source t/innodb.test
+
+set @innodb_test_dont_touch_optimizer_switch=NULL;
+set optimizer_switch=@innodb_with_mrricp;
+

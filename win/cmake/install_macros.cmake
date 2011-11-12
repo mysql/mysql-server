@@ -152,7 +152,8 @@ IF(WIN32)
      /a /t http://timestamp.verisign.com/scripts/timstamp.dll
      CACHE STRING "parameters for signtool (list)")
     FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool 
-      PATHS "$ENV{ProgramFiles}/Microsoft SDKs/Windows/v7.0A"
+      PATHS "$ENV{ProgramFiles}/Microsoft SDKs/Windows/v7.0A/bin"
+	  "$ENV{ProgramFiles}/Windows Kits/8.0/bin/x86"
     )
     IF(NOT SIGNTOOL_EXECUTABLE)
       MESSAGE(FATAL_ERROR 

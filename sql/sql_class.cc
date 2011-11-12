@@ -664,7 +664,7 @@ THD::THD()
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
    in_sub_stmt(0),
-   sql_log_bin_toplevel(false),
+   sql_log_bin_toplevel(false), log_all_errors(0),
    binlog_table_maps(0), binlog_flags(0UL),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -725,6 +725,8 @@ THD::THD()
   user_time.val= start_time= start_time_sec_part= 0;
   start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
+  progress.report_to_client= 0;
+  progress.max_counter= 0;
   current_linfo =  0;
   slave_thread = 0;
   bzero(&variables, sizeof(variables));
@@ -814,6 +816,8 @@ THD::THD()
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
   prepare_derived_at_open= FALSE;
+  create_tmp_table_for_derived= FALSE;
+  save_prep_leaf_list= FALSE;
 }
 
 
@@ -990,6 +994,11 @@ void THD::update_all_stats()
   ulonglong end_cpu_time, end_utime;
   double busy_time, cpu_time;
 
+  /* Reset status variables used by information_schema.processlist */
+  progress.max_counter= 0;
+  progress.max_stage= 0;
+  progress.report= 0;
+
   /* This is set at start of query if opt_userstat_running was set */
   if (!userstat_running)
     return;
@@ -1085,6 +1094,11 @@ void THD::cleanup(void)
   {
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
+  }
+  if (user_connect)
+  {
+    decrease_user_connections(user_connect);
+    user_connect= 0;                            // Safety
   }
   wt_thd_destroy(&transaction.wt);
 
@@ -1200,6 +1214,7 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
   to_var->bytes_sent+=          from_var->bytes_sent;
   to_var->rows_read+=           from_var->rows_read;
   to_var->rows_sent+=           from_var->rows_sent;
+  to_var->rows_tmp_read+=       from_var->rows_tmp_read;
   to_var->binlog_bytes_written+= from_var->binlog_bytes_written;
   to_var->cpu_time+=            from_var->cpu_time;
   to_var->busy_time+=           from_var->busy_time;
@@ -1235,6 +1250,7 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
   to_var->bytes_sent+=           from_var->bytes_sent - dec_var->bytes_sent;
   to_var->rows_read+=            from_var->rows_read - dec_var->rows_read;
   to_var->rows_sent+=            from_var->rows_sent - dec_var->rows_sent;
+  to_var->rows_tmp_read+=        from_var->rows_tmp_read - dec_var->rows_tmp_read;
   to_var->binlog_bytes_written+= from_var->binlog_bytes_written -
                                  dec_var->binlog_bytes_written;
   to_var->cpu_time+=             from_var->cpu_time - dec_var->cpu_time;
@@ -1250,15 +1266,24 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 #endif
 
 
-void THD::awake(THD::killed_state state_to_set)
+void THD::awake(killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
   DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_thd_data);
 
+  if (global_system_variables.log_warnings > 3)
+  {
+    Security_context *sctx= security_ctx;
+    sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                      thread_id,(db ? db : "unconnected"),
+                      sctx->user ? sctx->user : "unauthenticated",
+                      sctx->host_or_ip,
+                      "KILLED");
+  }
   killed= state_to_set;
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set >= KILL_CONNECTION)
   {
     thr_alarm_kill(thread_id);
     if (!slave_thread)
@@ -1337,6 +1362,38 @@ void THD::awake(THD::killed_state state_to_set)
   }
   DBUG_VOID_RETURN;
 }
+
+
+/*
+  Get error number for killed state
+  Note that the error message can't have any parameters.
+  See thd::kill_message()
+*/
+
+int killed_errno(killed_state killed)
+{
+  switch (killed) {
+  case NOT_KILLED:
+  case KILL_HARD_BIT:
+    return 0;                                   // Probably wrong usage
+  case KILL_BAD_DATA:
+  case KILL_BAD_DATA_HARD:
+    return 0;                                   // Not a real error
+  case KILL_CONNECTION:
+  case KILL_CONNECTION_HARD:
+  case KILL_SYSTEM_THREAD:
+  case KILL_SYSTEM_THREAD_HARD:
+    return ER_CONNECTION_KILLED;
+  case KILL_QUERY:
+  case KILL_QUERY_HARD:
+    return ER_QUERY_INTERRUPTED;
+  case KILL_SERVER:
+  case KILL_SERVER_HARD:
+    return ER_SERVER_SHUTDOWN;
+  }
+  return 0;                                     // Keep compiler happy
+}
+
 
 /*
   Remember the location of thread info, the structure needed for
@@ -2583,26 +2640,32 @@ bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+    return(val1 > val2);
+  return (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_decimal()
@@ -2610,13 +2673,16 @@ bool select_max_min_finder_subselect::cmp_decimal()
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       my_decimal_cmp(cvalue, mvalue) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     my_decimal_cmp(cvalue,mvalue) < 0);
+    return (my_decimal_cmp(cvalue, mvalue) > 0) ;
+  return (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -2629,13 +2695,16 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
+
+  /* Ignore NULLs for ANY and keep them for ALL subqueries */
+  if (cache->null_value)
+    return (is_all && !maxmin->null_value) || (!is_all && maxmin->null_value);
+  if (maxmin->null_value)
+    return !is_all;
+
   if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       sortcmp(val1, val2, cache->collation.collation) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     sortcmp(val1, val2, cache->collation.collation) < 0);
+    return (sortcmp(val1, val2, cache->collation.collation) > 0) ;
+  return (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 int select_exists_subselect::send_data(List<Item> &items)
@@ -3360,11 +3429,127 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   @param thd  user thread
   @retval 0 the user thread is active
   @retval 1 the user thread has been killed
+
+  This is used to signal a storage engine if it should be killed.
 */
+
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
-  return(thd->killed);
+  if (!(thd->killed & KILL_HARD_BIT))
+    return 0;
+  return thd->killed;
 }
+
+
+/**
+   Send an out-of-band progress report to the client
+
+   The report is sent every 'thd->...progress_report_time' second,
+   however not more often than global.progress_report_time.
+   If global.progress_report_time is 0, then don't send progress reports, but
+   check every second if the value has changed
+*/
+
+static void thd_send_progress(THD *thd)
+{
+  /* Check if we should send the client a progress report */
+  ulonglong report_time= my_interval_timer();
+  if (report_time > thd->progress.next_report_time)
+  {
+    uint seconds_to_next= max(thd->variables.progress_report_time,
+                              global_system_variables.progress_report_time);
+    if (seconds_to_next == 0)             // Turned off
+      seconds_to_next= 1;                 // Check again after 1 second
+
+    thd->progress.next_report_time= (report_time +
+                                     seconds_to_next * 1000000000ULL);
+    if (global_system_variables.progress_report_time &&
+        thd->variables.progress_report_time)
+      net_send_progress_packet(thd);
+  }
+}
+
+
+/** Initialize progress report handling **/
+
+extern "C" void thd_progress_init(MYSQL_THD thd, uint max_stage)
+{
+  /*
+    Send progress reports to clients that supports it, if the command
+    is a high level command (like ALTER TABLE) and we are not in a
+    stored procedure
+  */
+  thd->progress.report= ((thd->client_capabilities & CLIENT_PROGRESS) &&
+                         thd->progress.report_to_client &&
+                         !thd->in_sub_stmt);
+  thd->progress.next_report_time= 0;
+  thd->progress.stage= 0;
+  thd->progress.counter= thd->progress.max_counter= 0;
+  thd->progress.max_stage= max_stage;
+}
+
+
+/* Inform processlist and the client that some progress has been made */
+
+extern "C" void thd_progress_report(MYSQL_THD thd,
+                                    ulonglong progress, ulonglong max_progress)
+{
+  if (thd->progress.max_counter != max_progress)        // Simple optimization
+  {
+    pthread_mutex_lock(&thd->LOCK_thd_data);
+    thd->progress.counter= progress;
+    thd->progress.max_counter= max_progress;
+    pthread_mutex_unlock(&thd->LOCK_thd_data);
+  }
+  else
+    thd->progress.counter= progress;
+
+  if (thd->progress.report)
+    thd_send_progress(thd);
+}
+
+/**
+  Move to next stage in process list handling
+
+  This will reset the timer to ensure the progress is sent to the client
+  if client progress reports are activated.
+*/
+
+extern "C" void thd_progress_next_stage(MYSQL_THD thd)
+{
+  pthread_mutex_lock(&thd->LOCK_thd_data);
+  thd->progress.stage++;
+  thd->progress.counter= 0;
+  DBUG_ASSERT(thd->progress.stage < thd->progress.max_stage);
+  pthread_mutex_unlock(&thd->LOCK_thd_data);
+  if (thd->progress.report)
+  {
+    thd->progress.next_report_time= 0;          // Send new stage info
+    thd_send_progress(thd);
+  }
+}
+
+/**
+  Disable reporting of progress in process list.
+
+  @note
+  This function is safe to call even if one has not called thd_progress_init.
+
+  This function should be called by all parts that does progress
+  reporting to ensure that progress list doesn't contain 100 % done
+  forever.
+*/
+
+
+extern "C" void thd_progress_end(MYSQL_THD thd)
+{
+  /*
+    It's enough to reset max_counter to set disable progress indicator
+    in processlist.
+  */
+  thd->progress.max_counter= 0;
+}
+
 
 /**
   Return the thread id of a user thread

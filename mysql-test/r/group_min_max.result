@@ -876,10 +876,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
 explain select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
 explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
+1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
 explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	163	NULL	17	Using where; Using index for group-by
@@ -924,7 +924,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	NULL	idx_t2_1	163	NULL	#	Using where; Using index for group-by
 explain select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	NULL	idx_t2_1	163	NULL	#	Using where; Using index for group-by
+1	SIMPLE	t2	range	NULL	idx_t2_1	146	NULL	#	Using where; Using index for group-by
 explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	NULL	idx_t2_1	163	NULL	#	Using where; Using index for group-by
@@ -2412,7 +2412,7 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer1 JOIN t1 AS t1_outer2
 ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) 
 AND t1_outer1.b = t1_outer2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1_outer1	ref	a	a	5	const	1	Using index
+1	PRIMARY	t1_outer1	ref	a	a	5	const	2	Using where; Using index
 1	PRIMARY	t1_outer2	index	NULL	a	10	NULL	15	Using where; Using index; Using join buffer (flat, BNL join)
 2	SUBQUERY	t1	range	NULL	a	5	NULL	8	Using index for group-by
 EXPLAIN SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
@@ -2749,7 +2749,7 @@ NULL
 EXPLAIN
 SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+x	x	x	x	x	x	x	x	x	Using where; Using index
 x	x	x	x	x	x	x	x	x	Using where; Using index
 SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
 MIN( a )
@@ -2821,7 +2821,7 @@ NULL
 EXPLAIN
 SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+x	x	x	x	x	x	x	x	x	Using where; Using index
 x	x	x	x	x	x	x	x	x	Using where; Using index
 SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
 MIN( a )
@@ -2900,7 +2900,7 @@ NULL
 EXPLAIN
 SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+x	x	x	x	x	x	x	x	x	Using where; Using index
 x	x	x	x	x	x	x	x	x	Using where; Using index
 SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
 MIN( a )

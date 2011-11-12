@@ -67,8 +67,8 @@ enum mysql_enum_shutdown_level {
   SHUTDOWN_WAIT_UPDATES= (unsigned char)(1 << 3),
   SHUTDOWN_WAIT_ALL_BUFFERS= ((unsigned char)(1 << 3) << 1),
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= ((unsigned char)(1 << 3) << 1) + 1,
-  KILL_QUERY= 254,
-  KILL_CONNECTION= 255
+  SHUTDOWN_KILL_QUERY= 254,
+  SHUTDOWN_KILL_CONNECTION= 255
 };
 enum enum_cursor_type
 {
@@ -225,7 +225,7 @@ typedef struct st_typelib {
 extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,int *error_position);
 extern int find_type_with_warning(const char *x, TYPELIB *typelib,
                                   const char *option);
-extern uint find_type_or_exit(const char *x, TYPELIB *typelib,
+extern unsigned int find_type_or_exit(const char *x, TYPELIB *typelib,
                               const char *option);
 extern int find_type(char *x, const TYPELIB *typelib, unsigned int full_name);
 extern void make_type(char *to,unsigned int nr,TYPELIB *typelib);
@@ -258,7 +258,8 @@ enum mysql_option
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+  MYSQL_PROGRESS_CALLBACK
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {

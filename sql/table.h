@@ -959,7 +959,7 @@ struct st_table {
                    uint (*next_field_no) (uchar *), uchar *arg,
                    bool unique);
   void create_key_part_by_field(KEY *keyinfo, KEY_PART_INFO *key_part_info,
-                                Field *field);
+                                Field *field, uint fieldnr);
   void use_index(int key_to_save);
   void set_table_map(table_map map_arg, uint tablenr_arg)
   {
@@ -1320,6 +1320,7 @@ struct TABLE_LIST
 
   /* If this is a jtbm semi-join object: corresponding subselect predicate */
   Item_in_subselect  *jtbm_subselect;
+  /* TODO: check if this can be joined with tablenr_exec */
   uint jtbm_table_no;
 
   SJ_MATERIALIZATION_INFO *sj_mat_info;
@@ -1445,7 +1446,9 @@ struct TABLE_LIST
 
   table_map view_used_tables;
   table_map     map_exec;
+  /* TODO: check if this can be joined with jtbm_table_no */
   uint          tablenr_exec;
+  uint          maybe_null_exec;
 
   /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
   TABLE_LIST    *parent_l;
@@ -1765,6 +1768,8 @@ struct TABLE_LIST
      respectively.
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  bool is_active_sjm();
+  bool is_jtbm() { return test(jtbm_subselect!=NULL); }
   st_select_lex_unit *get_unit();
   st_select_lex *get_single_select();
   void wrap_into_nested_join(List<TABLE_LIST> &join_list);

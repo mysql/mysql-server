@@ -71,7 +71,7 @@ int my_sync(File fd, myf my_flags)
     if (res == -1 && errno == ENOLCK)
       res= 0;                                   /* Result Bug in Old FreeBSD */
 #elif defined(__WIN__)
-    res= _commit(fd);
+    res= my_win_fsync(fd);
 #else
 #error Cannot find a way to sync a file, durability in danger
     res= 0;					/* No sync (strange OS) */

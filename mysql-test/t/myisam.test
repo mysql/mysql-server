@@ -350,7 +350,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
-INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+INSERT into t1 values (0,null,0), (0,null,1), (0,null,2), (0,null,3), (1,1,4);
 create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
 INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;
@@ -358,7 +358,13 @@ show index from t1;
 explain select * from t1,t2 where t1.a=t2.a;
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
+INSERT into t1 values (2,4,5), (7,8,4), (8,3,1), (9,7,2), (5,5,9);
+optimize table t1;
+show index from t1;
 explain select * from t1,t2 where t1.b=t2.b;
+delete from t1 where t1.a>1;
+optimize table t1;
+show index from t1;
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 explain select * from t1 where a=0 or a=2;
 explain select * from t1 force index (a) where a=0 or a=2;

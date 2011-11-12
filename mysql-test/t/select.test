@@ -1961,6 +1961,7 @@ CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
 
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
 INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
 
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
@@ -4146,7 +4147,8 @@ INSERT INTO t3 VALUES
   (4,'z'), (3,'zzz'), (5,'zzzzz'), (3,'z'), (4,'zzz'), (3,'zzzz'),
   (9,'zzzzz'), (2,'zzz'), (1,'zzzz'), (9,'zzz'), (1,'zzzz'), (5,'zzzzz'),
   (4,'zzz'), (3,'zzzz'), (5,'zzzz'), (3,'zzz'), (4,'zz'), (3,'zzzzz');
-  
+
+set @tmp= @@optimizer_switch;
 SET SESSION optimizer_switch='index_condition_pushdown=off';
 
 EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
@@ -4166,7 +4168,7 @@ SELECT * FROM t1,t2,t3
   WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
         LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
 
-SET SESSION optimizer_switch=DEFAULT;
+SET SESSION optimizer_switch=@tmp;
 
 DROP TABLE t1,t2,t3;
 
@@ -4228,3 +4230,16 @@ SELECT * FROM t1 WHERE a = b;
 
 DROP TABLE t1;
 
+--echo #
+--echo # lp:822760 Wrong result with view + invalid dates
+--echo #
+CREATE TABLE t1 (f1 date);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 HAVING f1 = 'zz';
+SELECT * FROM t1 HAVING f1 <= 'aa' ;
+SELECT * FROM t1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM t1 WHERE f1 = 'zz' AND f1 <= 'aa' ;
+SELECT * FROM v1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+DROP TABLE t1;
+DROP VIEW v1;

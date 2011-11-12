@@ -315,19 +315,3 @@ WHERE j = SUBSTRING('12', (SELECT * FROM (SELECT MIN(j) FROM t1) t2))) t3;
 DROP TABLE t1;
 
 --echo # End of 5.0 tests
-
---echo #
---echo #  LP bug #793436: query with a derived table for which optimizer proves
---echo #                  that it contains not more than 1 row
---echo #
-
-CREATE TABLE t1 (a int, KEY (a)) ;
-INSERT INTO t1 VALUES (3), (1);
-CREATE TABLE t2 (a int);
-INSERT INTO t2 VALUES (3);
-
-EXPLAIN
-SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
-SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
-
-DROP TABLE t1,t2;

@@ -47,17 +47,9 @@ delimiter ;|
 
 --disable_warnings
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
-sleep 6;
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
-sleep 6;
 --enable_warnings
 
-#Select in this test are used for debugging
-#select * from test.t1;
-#connection slave;
-#select * from test.t1;
-
-connection master;
 SET AUTOCOMMIT=0;
 START TRANSACTION;
 --disable_warnings
@@ -65,18 +57,14 @@ INSERT INTO test.t1 VALUES (null,test.f1());
 --enable_warnings
 ROLLBACK;
 SET AUTOCOMMIT=1;
-#select * from test.t1;
-#sleep 6;
 
-#connection slave;
-#select * from test.t1;
+# Sync master and slave for all engines except NDB
+if (`SELECT UPPER(LEFT('$engine_type', 3)) != 'NDB'`) {
+  sync_slave_with_master;
+  connection master;
+}
 
-#connection master;
-
-#used for debugging
-#show binlog events;
-
-# time to dump the databases and so we can see if they match
+# Time to dump the databases and so we can see if they match
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func003_master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func003_slave.sql
@@ -93,5 +81,8 @@ DROP TABLE test.t1;
 
 diff_files $MYSQLTEST_VARDIR/tmp/func003_master.sql $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
 
+# Clean up
+remove_file $MYSQLTEST_VARDIR/tmp/func003_master.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
 
 # End of 5.0 test case

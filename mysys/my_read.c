@@ -40,11 +40,18 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
   DBUG_PRINT("my",("fd: %d  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
                    Filedes, (long) Buffer, (ulong) Count, MyFlags));
   save_count= Count;
+  if (!(MyFlags & (MY_WME | MY_FAE | MY_FNABP)))
+    MyFlags|= my_global_flags;
 
   for (;;)
   {
     errno= 0;					/* Linux, Windows don't reset this on EOF/success */
-    if ((readbytes= read(Filedes, Buffer, (uint) Count)) != Count)
+#ifdef _WIN32
+    readbytes= my_win_read(Filedes, Buffer, Count);
+#else
+    readbytes= read(Filedes, Buffer, Count);
+#endif
+    if (readbytes != Count)
     {
       my_errno= errno;
       if (errno == 0 || (readbytes != (size_t) -1 &&
@@ -64,10 +71,12 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
         if (readbytes == (size_t) -1)
-          my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
+          my_error(EE_READ,
+                   MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
                    my_filename(Filedes),my_errno);
         else if (MyFlags & (MY_NABP | MY_FNABP))
-          my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
+          my_error(EE_EOFERR,
+                   MYF(ME_BELL | ME_WAITTANG | (MyFlags & (ME_JUST_INFO | ME_NOREFRESH))),
                    my_filename(Filedes),my_errno);
       }
       if (readbytes == (size_t) -1 ||

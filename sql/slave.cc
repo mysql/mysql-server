@@ -524,7 +524,7 @@ terminate_slave_thread(THD *thd,
     IF_DBUG(int err= ) pthread_kill(thd->real_id, thr_client_alarm);
     DBUG_ASSERT(err != EINVAL);
 #endif
-    thd->awake(THD::NOT_KILLED);
+    thd->awake(KILL_CONNECTION);
     pthread_mutex_unlock(&thd->LOCK_thd_data);
 
     /*
@@ -837,6 +837,8 @@ bool is_network_error(uint errorno)
       errorno == CR_SERVER_GONE_ERROR ||
       errorno == CR_SERVER_LOST ||
       errorno == ER_CON_COUNT_ERROR ||
+      errorno == ER_CONNECTION_KILLED ||
+      errorno == ER_NEW_ABORTING_CONNECTION ||
       errorno == ER_SERVER_SHUTDOWN)
     return TRUE;
 
@@ -2012,7 +2014,7 @@ static int request_dump(MYSQL* mysql, Master_info* mi,
   
   *suppress_warnings= FALSE;
 
-  if (opt_log_slave_updates && opt_replicate_annotate_rows_events)
+  if (opt_log_slave_updates && opt_replicate_annotate_row_events)
     binlog_flags|= BINLOG_SEND_ANNOTATE_ROWS_EVENT;
 
   // TODO if big log files: Change next to int8store()
@@ -3076,11 +3078,11 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   /*
-    binlog_annotate_rows_events must be TRUE only after an Annotate_rows event
+    binlog_annotate_row_events must be TRUE only after an Annotate_rows event
     has been recieved and only till the last corresponding rbr event has been
     applied. In all other cases it must be FALSE.
   */
-  thd->variables.binlog_annotate_rows_events= 0;
+  thd->variables.binlog_annotate_row_events= 0;
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);

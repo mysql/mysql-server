@@ -152,11 +152,9 @@ Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
 #ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 #endif
-  thd->thd_marker.emb_on_expr_nest= NULL;
 
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
@@ -210,7 +208,6 @@ Item_func::fix_fields(THD *thd, Item **ref)
   if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   return FALSE;
 }
 
@@ -234,6 +231,7 @@ bool
 Item_func::eval_not_null_tables(uchar *opt_arg)
 {
   Item **arg,**arg_end;
+  not_null_tables_cache= 0;
   if (arg_count)
   {		
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -5065,9 +5063,13 @@ void Item_func_get_system_var::fix_length_and_dec()
   switch (var->show_type())
   {
     case SHOW_LONG:
-    case SHOW_INT:
     case SHOW_HA_ROWS:
       unsigned_flag= TRUE;
+      max_length= MY_INT64_NUM_DECIMAL_DIGITS;
+      decimals=0;
+      break;
+    case SHOW_INT:
+      unsigned_flag= FALSE;
       max_length= MY_INT64_NUM_DECIMAL_DIGITS;
       decimals=0;
       break;
@@ -5211,7 +5213,7 @@ longlong Item_func_get_system_var::val_int()
 
   switch (var->show_type())
   {
-    case SHOW_INT:      get_sys_var_safe (uint);
+    case SHOW_INT:      get_sys_var_safe (int);
     case SHOW_LONG:     get_sys_var_safe (ulong);
     case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);

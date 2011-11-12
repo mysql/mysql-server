@@ -32,7 +32,7 @@ const char *default_dbug_option= "d:t:o,/tmp/aria_read_log.trace";
 static my_bool opt_display_only, opt_apply, opt_apply_undo, opt_silent;
 static my_bool opt_check;
 static const char *opt_tmpdir;
-static ulong opt_page_buffer_size;
+static ulong opt_page_buffer_size, opt_translog_buffer_size;
 static ulonglong opt_start_from_lsn, opt_end_lsn, opt_start_from_checkpoint;
 static MY_TMPDIR maria_chk_tmpdir;
 
@@ -80,9 +80,8 @@ int main(int argc, char **argv)
     But if it finds a log and this log was crashed, it will create a new log,
     which is useless. TODO: start log handler in read-only mode.
   */
-  if (init_pagecache(maria_log_pagecache,
-                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
-                     TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
+  if (init_pagecache(maria_log_pagecache, opt_translog_buffer_size,
+                     0, 0, TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
                     0, 0, maria_log_pagecache, TRANSLOG_DEFAULT_FLAGS,
                     opt_display_only))
@@ -166,7 +165,7 @@ err:
 #include "ma_check_standalone.h"
 
 enum options_mc {
-  OPT_CHARSETS_DIR=256
+  OPT_CHARSETS_DIR=256, OPT_FORCE_CRASH, OPT_TRANSLOG_BUFFER_SIZE
 };
 
 static struct my_option my_long_options[] =
@@ -186,6 +185,9 @@ static struct my_option my_long_options[] =
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"force-crash", OPT_FORCE_CRASH, "Force crash after # recovery events",
+   &maria_recovery_force_crash_counter, 0,0, GET_ULONG, REQUIRED_ARG,
+   0, 0, ~(long) 0, 0, 0, 0},
 #endif
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -225,6 +227,12 @@ static struct my_option my_long_options[] =
    "colon (:)"
 #endif
    , (char**) &opt_tmpdir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "translog-buffer-size", OPT_TRANSLOG_BUFFER_SIZE,
+    "The size of the buffer used for transaction log for Aria tables",
+    &opt_translog_buffer_size, &opt_translog_buffer_size, 0,
+    GET_ULONG, REQUIRED_ARG, (long) TRANSLOG_PAGECACHE_SIZE,
+    1024L*1024L, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
+    (long) IO_SIZE, 0},
   {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},

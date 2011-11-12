@@ -63,6 +63,8 @@ public:
     ::end_io_cache(&cache);
     need_end_io_cache = 0;
   }
+  my_off_t file_length() { return cache.end_of_file; }
+  my_off_t position()    { return my_b_tell(&cache); }
 
   /*
     Either this method, or we need to make cache public
@@ -128,7 +130,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
-  THD::killed_state killed_status;
+  killed_state killed_status;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -416,9 +418,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
   }
 
+  thd_proc_info(thd, "reading file");
   if (!(error=test(read_info.error)))
   {
-
     table->next_number_field=table->found_next_number_field;
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
@@ -436,6 +438,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                              (MODE_STRICT_TRANS_TABLES |
                               MODE_STRICT_ALL_TABLES)));
 
+    thd_progress_init(thd, 2);
     if (!field_term->length() && !enclosed->length())
       error= read_fixed_length(thd, info, table_list, fields_vars,
                                set_fields, set_values, read_info,
@@ -444,6 +447,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
+    
+    thd_proc_info(thd, "End bulk insert");
+    thd_progress_next_stage(thd);
     if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno, MYF(0));
@@ -465,11 +471,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   DBUG_EXECUTE_IF("simulate_kill_bug27571",
                   {
                     error=1;
-                    thd->killed= THD::KILL_QUERY;
+                    thd->killed= KILL_QUERY;
                   };);
 
 #ifndef EMBEDDED_LIBRARY
-  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+  killed_status= (error == 0) ? NOT_KILLED : thd->killed;
 #endif
 
   /*
@@ -513,7 +519,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	/* If the file was not empty, wrote_create_file is true */
 	if (lf_info.wrote_create_file)
 	{
-          int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+          int errcode= query_error_code(thd, killed_status == NOT_KILLED);
           
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
@@ -564,7 +570,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       read_info.end_io_cache();
       if (lf_info.wrote_create_file)
       {
-        int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
+        int errcode= query_error_code(thd, killed_status == NOT_KILLED);
         error= write_execute_load_query_log_event(thd, ex,
                                                   table_list->db, table_list->table_name,
                                                   handle_duplicates, ignore,
@@ -736,8 +742,15 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item_field *sql_field;
   TABLE *table= table_list->table;
-  bool err;
+  bool err, progress_reports;
+  ulonglong counter, time_to_report_progress;
   DBUG_ENTER("read_fixed_length");
+
+  counter= 0;
+  time_to_report_progress= MY_HOW_OFTEN_TO_WRITE/10;
+  progress_reports= 1;
+  if ((thd->progress.max_counter= read_info.file_length()) == ~(my_off_t) 0)
+    progress_reports= 0;
 
   while (!read_info.read_fixed_length())
   {
@@ -745,6 +758,16 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     {
       thd->send_kill_message();
       DBUG_RETURN(1);
+    }
+    if (progress_reports)
+    {
+      thd->progress.counter= read_info.position();
+      if (++counter >= time_to_report_progress)
+      {
+        time_to_report_progress+= MY_HOW_OFTEN_TO_WRITE/10;
+        thd_progress_report(thd, thd->progress.counter,
+                            thd->progress.max_counter);
+      }
     }
     if (skip_lines)
     {
@@ -864,10 +887,17 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   uint enclosed_length;
-  bool err;
+  bool err, progress_reports;
+  ulonglong counter, time_to_report_progress;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
+
+  counter= 0;
+  time_to_report_progress= MY_HOW_OFTEN_TO_WRITE/10;
+  progress_reports= 1;
+  if ((thd->progress.max_counter= read_info.file_length()) == ~(my_off_t) 0)
+    progress_reports= 0;
 
   for (;;it.rewind())
   {
@@ -877,6 +907,16 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       DBUG_RETURN(1);
     }
 
+    if (progress_reports)
+    {
+      thd->progress.counter= read_info.position();
+      if (++counter >= time_to_report_progress)
+      {
+        time_to_report_progress+= MY_HOW_OFTEN_TO_WRITE/10;
+        thd_progress_report(thd, thd->progress.counter,
+                            thd->progress.max_counter);
+      }
+    }
     restore_record(table, s->default_values);
 
     while ((item= it++))

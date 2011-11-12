@@ -682,10 +682,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 171 shift/reduce conflicts.
+  Currently there are 174 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 171
+%expect 174
 
 /*
    Comments for TOKENS.
@@ -901,6 +901,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  GROUP_CONCAT_SYM
 %token  GT_SYM                        /* OPERATOR */
 %token  HANDLER_SYM
+%token  HARD_SYM
 %token  HASH_SYM
 %token  HAVING                        /* SQL-2003-R */
 %token  HELP_SYM
@@ -1169,6 +1170,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SMALLINT                      /* SQL-2003-R */
 %token  SNAPSHOT_SYM
 %token  SOCKET_SYM
+%token  SOFT_SYM
 %token  SONAME_SYM
 %token  SOUNDS_SYM
 %token  SOURCE_SYM
@@ -1348,7 +1350,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         optional_flush_tables_arguments opt_dyncol_type dyncol_type
-        opt_time_precision
+        opt_time_precision kill_type kill_option int_num
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -1380,7 +1382,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         function_call_keyword
         function_call_nonkeyword
         function_call_generic
-        function_call_conflict
+        function_call_conflict kill_expr
 
 %type <item_num>
         NUM_literal
@@ -7172,7 +7174,7 @@ expr:
         | expr XOR expr %prec XOR
           {
             /* XOR is a proprietary extension */
-            $$ = new (YYTHD->mem_root) Item_cond_xor($1, $3);
+            $$ = new (YYTHD->mem_root) Item_func_xor($1, $3);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -9426,7 +9428,7 @@ where_clause:
           expr
           {
             SELECT_LEX *select= Select;
-            select->where= $3;
+            select->where= normalize_cond($3);
             select->parsing_place= NO_MATTER;
             if ($3)
               $3->top_level_item();
@@ -9442,7 +9444,7 @@ having_clause:
           expr
           {
             SELECT_LEX *sel= Select;
-            sel->having= $3;
+            sel->having= normalize_cond($3);
             sel->parsing_place= NO_MATTER;
             if ($3)
               $3->top_level_item();
@@ -9672,6 +9674,12 @@ delete_limit_clause:
             sel->select_limit= $2;
             sel->explicit_limit= 1;
           }
+        ;
+
+int_num:
+          NUM           { int error; $$= (int) my_strtoll10($1.str, (char**) 0, &error); }
+        | '-' NUM       { int error; $$= -(int) my_strtoll10($2.str, (char**) 0, &error); }
+        | '-' LONG_NUM  { int error; $$= -(int) my_strtoll10($2.str, (char**) 0, &error); }
         ;
 
 ulong_num:
@@ -10909,7 +10917,7 @@ wild_and_where:
           }
         | WHERE expr
           {
-            Select->where= $2;
+            Select->where= normalize_cond($2);
             if ($2)
               $2->top_level_item();
           }
@@ -11081,19 +11089,41 @@ purge_option:
 /* kill threads */
 
 kill:
-          KILL_SYM kill_option expr
+          KILL_SYM
           {
             LEX *lex=Lex;
             lex->value_list.empty();
-            lex->value_list.push_front($3);
+            lex->users_list.empty();
             lex->sql_command= SQLCOM_KILL;
+          }
+          kill_type kill_option kill_expr
+          {
+            Lex->kill_signal= (killed_state) ($3 | $4);
           }
         ;
 
+kill_type:
+        /* Empty */    { $$= (int) KILL_HARD_BIT; }
+        | HARD_SYM     { $$= (int) KILL_HARD_BIT; }
+        | SOFT_SYM     { $$= 0; }
+
 kill_option:
-          /* empty */ { Lex->type= 0; }
-        | CONNECTION_SYM { Lex->type= 0; }
-        | QUERY_SYM      { Lex->type= ONLY_KILL_QUERY; }
+          /* empty */    { $$= (int) KILL_CONNECTION; }
+        | CONNECTION_SYM { $$= (int) KILL_CONNECTION; }
+        | QUERY_SYM      { $$= (int) KILL_QUERY; }
+        ;
+
+kill_expr:
+        expr
+        {
+          Lex->value_list.push_front($$);
+          Lex->kill_type= KILL_TYPE_ID;
+         }
+        | USER user
+          {
+            Lex->users_list.push_back($2);
+            Lex->kill_type= KILL_TYPE_USER;
+          }
         ;
 
 /* change database */
@@ -12208,6 +12238,7 @@ keyword_sp:
         | GRANTS                   {}
         | GLOBAL_SYM               {}
         | HASH_SYM                 {}
+        | HARD_SYM                 {}
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}
         | IDENTIFIED_SYM           {}
@@ -12339,6 +12370,7 @@ keyword_sp:
         | SHUTDOWN                 {}
         | SLOW_SYM                 {}
         | SNAPSHOT_SYM             {}
+        | SOFT_SYM                 {}
         | SOUNDS_SYM               {}
         | SOURCE_SYM               {}
         | SQL_CACHE_SYM            {}
@@ -13408,7 +13440,7 @@ grant_option:
             lex->mqh.conn_per_hour= $2;
             lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
           }
-        | MAX_USER_CONNECTIONS_SYM ulong_num
+        | MAX_USER_CONNECTIONS_SYM int_num
           {
             LEX *lex=Lex;
             lex->mqh.user_conn= $2;

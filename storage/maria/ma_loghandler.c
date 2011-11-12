@@ -2611,14 +2611,12 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
        i < buffer->size;
        i+= TRANSLOG_PAGE_SIZE, pg++)
   {
-    TRANSLOG_ADDRESS addr= (buffer->offset + i);
-    TRANSLOG_VALIDATOR_DATA data;
     DBUG_PRINT("info", ("send log form %lu till %lu  address: (%lu,0x%lx)  "
                         "page #: %lu  buffer size: %lu  buffer: 0x%lx",
                         (ulong) i, (ulong) (i + TRANSLOG_PAGE_SIZE),
-                        LSN_IN_PARTS(addr), (ulong) pg, (ulong) buffer->size,
+                        LSN_IN_PARTS(buffer->offset + i), (ulong) pg, 
+                        (ulong) buffer->size,
                         (ulong) buffer));
-    data.addr= &addr;
     DBUG_ASSERT(log_descriptor.pagecache->block_size == TRANSLOG_PAGE_SIZE);
     DBUG_ASSERT(i + TRANSLOG_PAGE_SIZE <= buffer->size);
     if (translog_status != TRANSLOG_OK && translog_status != TRANSLOG_SHUTDOWN)
@@ -6564,15 +6562,11 @@ my_bool translog_scanner_init(LSN lsn,
                               TRANSLOG_SCANNER_DATA *scanner,
                               my_bool use_direct)
 {
-  TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_scanner_init");
   DBUG_PRINT("enter", ("Scanner: 0x%lx  LSN: (%lu,0x%lx)",
                        (ulong) scanner, LSN_IN_PARTS(lsn)));
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
-
-  data.addr= &scanner->page_addr;
-  data.was_recovered= 0;
 
   scanner->page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
 
@@ -8166,6 +8160,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
       before it's written to the log.
     */
     share->id= id;
+    share->state.logrec_file_id= lsn;
   }
   pthread_mutex_unlock(&share->intern_lock);
   return 0;

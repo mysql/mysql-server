@@ -374,8 +374,8 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
-    thd->variables.sql_mode &
-    (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
+    test(thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   thd->transaction.stmt.modified_non_trans_table= FALSE;
 
   /* Save the value in the field. Convert the value if needed. */
@@ -1312,7 +1312,7 @@ sp_head::execute(THD *thd)
 	ctx->enter_handler(hip);
         thd->clear_error();
         thd->is_fatal_error= 0;
-	thd->killed= THD::NOT_KILLED;
+	thd->killed= NOT_KILLED;
         thd->mysys_var->abort= 0;
 	continue;
       }
@@ -1362,7 +1362,7 @@ sp_head::execute(THD *thd)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
+  if (cur_db_changed && thd->killed < KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
@@ -1796,7 +1796,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     thd->options= binlog_save_options;
     if (thd->binlog_evt_union.unioned_events)
     {
-      int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+      int errcode = query_error_code(thd, thd->killed == NOT_KILLED);
       Query_log_event qinfo(thd, binlog_buf.ptr(), binlog_buf.length(),
                             thd->binlog_evt_union.unioned_events_trans, FALSE, errcode);
       if (mysql_bin_log.write(&qinfo) &&

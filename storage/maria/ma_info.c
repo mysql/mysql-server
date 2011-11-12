@@ -28,6 +28,12 @@ MARIA_RECORD_POS maria_position(MARIA_HA *info)
 }
 
 
+uint maria_max_key_length()
+{
+  uint tmp= (_ma_max_key_length() - 8 - HA_MAX_KEY_SEG*3);
+  return min(HA_MAX_KEY_BUFF, tmp);
+}
+
 /* Get information about the table */
 /* if flag == 2 one get current info (no sync from database */
 

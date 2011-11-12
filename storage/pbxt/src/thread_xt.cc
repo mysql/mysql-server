@@ -488,7 +488,8 @@ static void thr_free_resources(XTThreadPtr self, XTResourcePtr top)
 
 xtPublic void xt_bug(XTThreadPtr XT_UNUSED(self))
 {
-	static int *bug_ptr = NULL;
+	static int *bug_ptr __attribute__ ((unused));
+        bug_ptr= NULL;
 	
 	bug_ptr = NULL;
 }
@@ -1178,7 +1179,7 @@ xtPublic XTThreadPtr xt_init_threading(u_int max_threads)
 #ifdef XT_TRACK_CONNECTIONS
 	if (xt_thr_maximum_threads > XT_TRACK_MAX_CONNS) {
 		xt_log_error(XT_NS_CONTEXT, XT_LOG_FATAL, XT_ERR_TOO_MANY_THREADS, 0, 
-			"XT_TRACK_CONNECTIONS is enabled and xt_thr_maximum_threads > XT_TRACK_MAX_CONNS");
+			"XT_TRACK_CONNECTIONS (debugging aid) is enabled and xt_thr_maximum_threads > XT_TRACK_MAX_CONNS.  To continue restart with a smaller value for --max-connections");
 		goto failed;
 	}
 #endif

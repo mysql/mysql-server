@@ -2089,7 +2089,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       table->field[next_field+2]->store((longlong) mqh.conn_per_hour, TRUE);
     if (table->s->fields >= 36 &&
         (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
-      table->field[next_field+3]->store((longlong) mqh.user_conn, TRUE);
+      table->field[next_field+3]->store((longlong) mqh.user_conn, FALSE);
     mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
 
     next_field+=4;
@@ -4578,7 +4578,8 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
 
 /* Help function for mysql_show_grants */
 
-static void add_user_option(String *grant, ulong value, const char *name)
+static void add_user_option(String *grant, long value, const char *name,
+                            my_bool is_signed)
 {
   if (value)
   {
@@ -4586,7 +4587,7 @@ static void add_user_option(String *grant, ulong value, const char *name)
     grant->append(' ');
     grant->append(name, strlen(name));
     grant->append(' ');
-    p=int10_to_str(value, buff, 10);
+    p=int10_to_str(value, buff, is_signed ? -10 : 10);
     grant->append(buff,p-buff);
   }
 }
@@ -4768,13 +4769,13 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       if (want_access & GRANT_ACL)
 	global.append(STRING_WITH_LEN(" GRANT OPTION"));
       add_user_option(&global, acl_user->user_resource.questions,
-		      "MAX_QUERIES_PER_HOUR");
+		      "MAX_QUERIES_PER_HOUR", 0);
       add_user_option(&global, acl_user->user_resource.updates,
-		      "MAX_UPDATES_PER_HOUR");
+		      "MAX_UPDATES_PER_HOUR", 0);
       add_user_option(&global, acl_user->user_resource.conn_per_hour,
-		      "MAX_CONNECTIONS_PER_HOUR");
+		      "MAX_CONNECTIONS_PER_HOUR", 0);
       add_user_option(&global, acl_user->user_resource.user_conn,
-		      "MAX_USER_CONNECTIONS");
+		      "MAX_USER_CONNECTIONS", 1);
     }
     protocol->prepare_for_resend();
     protocol->store(global.ptr(),global.length(),global.charset());
@@ -6978,7 +6979,6 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 #undef HAVE_OPENSSL
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define initialized 0
-#define decrease_user_connections(X)        /* nothing */
 #define check_for_max_user_connections(X,Y)   0
 #define get_or_create_user_conn(A,B,C,D) 0
 #endif
@@ -7478,7 +7478,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   THD *thd= mpvio->thd;
   NET *net= &thd->net;
   char *end;
-
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
   if (pkt_len < MIN_HANDSHAKE_SIZE)
@@ -7490,7 +7489,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   ulong client_capabilities= uint2korr(net->read_pos);
   if (client_capabilities & CLIENT_PROTOCOL_41)
   {
-    client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
+    client_capabilities|= ((ulonglong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
     if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
@@ -7566,20 +7565,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
                    (uchar)(*passwd++) : strlen(passwd);
 
-  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
-  {
-    db= db + passwd_len + 1;
-    /* strlen() can't be easily deleted without changing protocol */
-    db_len= strlen(db);
-  }
-  else
-  {
-    db= 0;
-    db_len= 0;
-  }
+  db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
+    db + passwd_len + 1 : 0;
 
-  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+  if (passwd + passwd_len + test(db) > (char *)net->read_pos + pkt_len)
     return packet_error;
+
+  /* strlen() can't be easily deleted without changing protocol */
+  db_len= db ? strlen(db) : 0;
 
   char *client_plugin= passwd + passwd_len + (db ? db_len + 1 : 0);
 
@@ -7647,8 +7640,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
 
   if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
   {
-    if ((client_plugin + strlen(client_plugin)) > 
-          (char *)net->read_pos + pkt_len)
+    if (client_plugin >= (char *)net->read_pos + pkt_len)
       return packet_error;
     client_plugin= fix_plugin_ptr(client_plugin);
   }
@@ -8156,10 +8148,16 @@ bool acl_authenticate(THD *thd, uint connect_errors,
       DBUG_RETURN(1);
     }
 
-    /* Don't allow the user to connect if he has done too many queries */
-    if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
+    /*
+      Don't allow the user to connect if he has done too many queries.
+      As we are testing max_user_connections == 0 here, it means that we
+      can't let the user change max_user_connections from 0 in the server
+      without a restart as it would lead to wrong connect counting.
+    */
+    if ((acl_user->user_resource.questions ||
+         acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
-         acl_user->user_resource.user_conn || max_user_connections) &&
+         acl_user->user_resource.user_conn || max_user_connections_checking) &&
         get_or_create_user_conn(thd,
           (opt_old_style_user_limits ? sctx->user : sctx->priv_user),
           (opt_old_style_user_limits ? sctx->host_or_ip : sctx->priv_host),
@@ -8172,9 +8170,11 @@ bool acl_authenticate(THD *thd, uint connect_errors,
   if (thd->user_connect &&
       (thd->user_connect->user_resources.conn_per_hour ||
        thd->user_connect->user_resources.user_conn ||
-       max_user_connections) &&
+       max_user_connections_checking) &&
       check_for_max_user_connections(thd, thd->user_connect))
   {
+    /* Ensure we don't decrement thd->user_connections->connections twice */
+    thd->user_connect= 0;
     status_var_increment(denied_connections);
     DBUG_RETURN(1); // The error is set in check_for_max_user_connections()
   }
@@ -8215,12 +8215,7 @@ bool acl_authenticate(THD *thd, uint connect_errors,
     if (mysql_change_db(thd, &mpvio.db, FALSE))
     {
       /* mysql_change_db() has pushed the error message. */
-      if (thd->user_connect)
-      {
-        status_var_increment(thd->status_var.access_denied_errors);
-        decrease_user_connections(thd->user_connect);
-        thd->user_connect= 0;
-      }
+      status_var_increment(thd->status_var.access_denied_errors);
       DBUG_RETURN(1);
     }
   }

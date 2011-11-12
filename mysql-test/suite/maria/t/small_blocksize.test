@@ -1,0 +1,34 @@
+DROP TABLE if exists t1;
+
+#
+# Test of extending updated rows.
+# This caused failures in lp:815022
+# 
+CREATE TABLE t1 (col_longtext_ucs2 longtext, col_longtext_utf8 longtext, col_varchar_255_ucs2_key varchar(255), col_set_utf8 set ('a','b'), col_char_255_ucs2 char(255), col_char_255_ucs2_key char(255), col_enum_ucs2 enum ('a','b'), col_varchar_255_ucs2 varchar(255), col_longtext_ucs2_key longtext, col_longtext_utf8_key longtext, col_enum_utf8 enum ('a','b'), col_varchar_255_utf8_key varchar(1024), col_varchar_255_utf8 varchar(255), col_enum_ucs2_key enum ('a','b'), col_enum_utf8_key enum ('a','b'), col_set_utf8_key set ('a','b'), col_char_255_utf8 char(255), pk integer auto_increment, col_set_ucs2_key set ('a','b'), col_char_255_utf8_key char(255), col_set_ucs2 set ('a','b'), primary key (pk)) ENGINE=aria;
+INSERT INTO t1 ( col_char_255_utf8, col_varchar_255_utf8_key, col_longtext_utf8_key ) VALUES ( 'lggnqojgqectqlkvskffihliqcwoakzzzjvhkqlwjybkngdbubskflpmzegdrk', REPEAT( 'a', 627 ), 'mlggnqojgqectqlkvskffihliqcwoakzzzjvhkqlwjybkngdbubskflpmzegdrklnipcmzbtwdqfnyinqfohgtiwmvfpbuslgobjhslxnaybcyebhsrlipnuvalhmvhlwbwujtvjsdrbyapfzprnxfgtrukwhywtkaoupsaogxsjxhqjkidvnpeytjgndtnrrbm' );
+UPDATE t1 SET col_varchar_255_utf8 = REPEAT('a', 197 );
+UPDATE t1 SET col_char_255_utf8 = 'bmjihzjtxegprqfvmczyzbavjuozkyxrlxvqyzcfvsjrhcccqnecyohzhzbgsbqkqvzmtlhtlcgzheirkyfwczoolilkrfimfnuoapyylbghdhdgfebjjajfoigagozypqtrflrvdiwfgqalsqbmlllsanvtuuutiaastqtbzeoaawl';
+check table t1;
+drop table t1;
+
+create table t1 (a int primary key auto_increment, e1 enum('a','b'), e2 enum('a','b'), vl int, bl int, c char(10), v1 varchar(10000), v2 varchar(10000), b1 blob, b2 blob) engine=aria;
+
+insert into t1 (vl,bl) values (10,10),(100,100),(1000,1000),(5000,5000),(8000,12000);
+update t1 set c="test", v1=repeat('a',vl),v2=repeat('b',vl/2),b1=repeat('c',bl),b2=repeat('d',bl);
+insert into t1 (vl,bl) values (10,10),(100,100),(1000,1000),(1000,5000);
+update t1 set c="test", v1=repeat('a',vl/4),v2=repeat('b',vl/5),b1=repeat('c',bl*2),b2=repeat('d',bl/2);
+insert into t1 (vl,bl) values (100,100);
+update t1 set c="test", v1=repeat('a',vl),v2=repeat('b',vl),b1=repeat('c',bl*2),b2=repeat('d',bl/2);
+update t1 set c="test", v1=repeat('a',vl/2),v2=repeat('b',vl/2),b1=repeat('c',bl/2),b2=repeat('d',bl/2);
+update t1 set c="test", v1=repeat('a',vl/4),v2=repeat('b',vl/4),b1=repeat('c',bl/4),b2=repeat('d',bl/4);
+update t1 set c="test", v1=repeat('a',vl/20),v2=repeat('b',vl),b1=repeat('c',bl/20),b2=repeat('d',bl/20);
+insert into t1 (vl,bl) values (100,100);
+update t1 set c="test", v1=repeat('a',vl/100),b1=repeat('c',bl/100);
+insert into t1 (vl,bl) values (100,100);
+update t1 set c="test", v1=repeat('a',vl),b1=repeat('c',bl);
+insert into t1 (vl,bl) values (100,100);
+update t1 set c="test", v1=repeat('a',10),v2=repeat('b',10);
+insert into t1 (vl,bl) values (100,100);
+update t1 set c="test", v1=repeat('a',2000),v2=repeat('b',2000);
+check table t1;
+drop table t1;

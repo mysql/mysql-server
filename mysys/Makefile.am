@@ -74,7 +74,7 @@ endif
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c waiting_threads.c \
 			CMakeLists.txt mf_soundex.c \
-			my_conio.c my_wincond.c my_winthread.c
+			my_conio.c my_wincond.c my_winthread.c my_winfile.c my_winerr.c
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)

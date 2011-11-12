@@ -29,6 +29,12 @@ extern const char	*not_error_sqlstate;
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
+  void (*report_progress)(const MYSQL *mysql,
+                          unsigned int stage,
+                          unsigned int max_stage,
+                          double progress,
+                          const char *proc_info,
+                          uint proc_info_length);
 };
 
 typedef struct st_mysql_methods

@@ -2,6 +2,7 @@
 # Initialization
 --disable_warnings
 drop table if exists t1,t2,t3;
+drop view if exists v1,v2;
 --enable_warnings
 
 #
@@ -922,6 +923,23 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug LP:798597: Incorrect "Duplicate entry" error with views and
+--echo #                GROUP BY
+--echo #
+
+CREATE TABLE t1 ( f1 int NOT NULL , f2 int NOT NULL ) ;
+INSERT INTO t1 VALUES (214,0),(6,6);
+CREATE TABLE t2 ( f2 int) ;
+INSERT INTO t2 VALUES (88),(88);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0) ;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT t1.f1, t2.f2 FROM (t2 LEFT JOIN t1 ON (t2.f2 <> t1.f1)) WHERE (t1.f2 <= 0 or t1.f2 is null) ;
+SELECT f1 , MIN(f2) FROM v1 GROUP BY f1;
+SELECT f1 , MIN(f2) FROM v2 GROUP BY f1;
+drop table t1,t2;
+drop view v1,v2;
+
+
+--echo #
 --echo # BUG#47217 Lost optimization caused slowdown & wrong result.
 --echo #
 CREATE TABLE t1 (pk INT, v VARCHAR(2), PRIMARY KEY(pk));
@@ -996,4 +1014,14 @@ SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
   WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
 
 DROP TABLE t1,t2;
+
+#
+# Item_equal used cmp_item::get_comparator() incorrectly
+#
+create table t1 (i time key);
+insert into t1 values ('1:1:1'), ('2:2:2');
+create table t2 (i time);
+insert into t2 values ('1:1:1');
+select t2.i from t1 left join t2 on t2.i = t1.i where t1.i = '1:1:1';
+drop table t1,t2;
 

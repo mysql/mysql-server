@@ -176,6 +176,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                                  PAGECACHE_LOCK_LEFT_UNLOCKED,
                                  PAGECACHE_PIN_LEFT_UNPINNED,
                                  PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE);
+    DBUG_ASSERT(!res);
     DBUG_RETURN(res);
   }
   else
@@ -199,6 +200,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
     page_link.unlock= PAGECACHE_LOCK_LEFT_UNLOCKED;
     page_link.changed= 1;
     push_dynamic(&bitmap->pinned_pages, (const uchar*) (void*) &page_link);
+    DBUG_ASSERT(!res);
     DBUG_RETURN(res);
   }
 }
@@ -209,7 +211,10 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   SYNOPSIS
     _ma_bitmap_init()
     share		Share handler
-    file		data file handler
+    file		Data file handler
+    last_page		Pointer to last page (max_file_size) that needs to be
+			mapped by the bitmap. This is adjusted to bitmap
+                        alignment.
 
   NOTES
    This is called the first time a file is opened.
@@ -219,12 +224,14 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
     1   error
 */
 
-my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
+my_bool _ma_bitmap_init(MARIA_SHARE *share, File file,
+                        pgcache_page_no_t *last_page)
 {
   uint aligned_bit_blocks;
   uint max_page_size;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   uint size= share->block_size;
+  pgcache_page_no_t first_bitmap_with_space;
 #ifndef DBUG_OFF
   /* We want to have a copy of the bitmap to be able to print differences */
   size*= 2;
@@ -241,7 +248,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
   /* Size needs to be aligned on 6 */
   aligned_bit_blocks= (share->block_size - PAGE_SUFFIX_SIZE) / 6;
-  bitmap->total_size= aligned_bit_blocks * 6;
+  bitmap->max_total_size= bitmap->total_size= aligned_bit_blocks * 6;
   /*
     In each 6 bytes, we have 6*8/3 = 16 pages covered
     The +1 is to add the bitmap page, as this doesn't have to be covered
@@ -266,13 +273,35 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
   pthread_mutex_init(&share->bitmap.bitmap_lock, MY_MUTEX_INIT_SLOW);
   pthread_cond_init(&share->bitmap.bitmap_cond, 0);
 
+  first_bitmap_with_space= share->state.first_bitmap_with_space;
   _ma_bitmap_reset_cache(share);
 
-  if (share->state.first_bitmap_with_space == ~(pgcache_page_no_t) 0)
+  /*
+    The bitmap used to map the file are aligned on 6 bytes. We now
+    calculate the max file size that can be used by the bitmap. This
+    is needed to get ma_info() give a true file size so that the user can
+    estimate if there is still space free for records in the file.
+  */
   {
-    /* Start scanning for free space from start of file */
-    share->state.first_bitmap_with_space = 0;
+    pgcache_page_no_t last_bitmap_page;
+    pgcache_page_no_t blocks, bytes;
+
+    last_bitmap_page= *last_page - *last_page % bitmap->pages_covered;
+    blocks= *last_page - last_bitmap_page;
+    bytes= (blocks * 3) / 8;      /* 3 bit per page / 8 bits per byte */
+    /* Size needs to be aligned on 6 */
+    bytes/= 6;
+    bytes*= 6;
+    bitmap->last_bitmap_page= last_bitmap_page;
+    bitmap->last_total_size= bytes;
+    *last_page= ((last_bitmap_page + bytes*8/3));
   }
+
+  /* Restore first_bitmap_with_space if it's resonable */
+  if (first_bitmap_with_space <= (share->state.state.data_file_length /
+                                  share->block_size))
+    share->state.first_bitmap_with_space= first_bitmap_with_space;
+
   return 0;
 }
 
@@ -310,6 +339,40 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
   return res;
 }
 
+/*
+  Ensure that we have incremented open count before we try to read/write
+  a page while we have the bitmap lock.
+  This is needed to ensure that we don't call _ma_mark_file_changed() as
+  part of flushing a page to disk, as this locks share->internal_lock
+  and then mutex lock would happen in the wrong order.
+*/
+
+static inline void _ma_bitmap_mark_file_changed(MARIA_SHARE *share,
+                                                my_bool flush_translog)
+{                                                
+  /*
+    It's extremely unlikely that the following test is true as it
+    only happens once if the table has changed.
+  */
+  if (unlikely(!share->global_changed &&
+               (share->state.changed & STATE_CHANGED)))
+  {
+    /* purecov: begin inspected */
+    /* unlock mutex as it can't be hold during _ma_mark_file_changed() */
+    pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+
+    /*
+      We have to flush the translog to ensure we have registered that the
+      table is open.
+    */
+    if (flush_translog && share->now_transactional)
+      (void) translog_flush(share->state.logrec_file_id);
+
+    _ma_mark_file_changed(share);
+    pthread_mutex_lock(&share->bitmap.bitmap_lock);
+    /* purecov: end */
+  }
+}
 
 /*
   Send updated bitmap to the page cache
@@ -346,6 +409,12 @@ my_bool _ma_bitmap_flush(MARIA_SHARE *share)
     pthread_mutex_lock(&share->bitmap.bitmap_lock);
     if (share->bitmap.changed)
     {
+      /*
+        We have to mark the file changed here, as otherwise the following
+        write to pagecache may force a page out from this file, which would
+        cause _ma_mark_file_changed() to be called with bitmaplock hold!
+      */
+      _ma_bitmap_mark_file_changed(share, 1);
       res= write_changed_bitmap(share, &share->bitmap);
       share->bitmap.changed= 0;
     }
@@ -413,24 +482,13 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
     DBUG_RETURN(0);
   }
 
-  /*
-    Before flusing bitmap, ensure that we have incremented open count.
-    This is needed to ensure that we don't call
-    _ma_mark_file_changed() as part of flushing bitmap page as in this
-    case we would use mutex lock in wrong order.
-    It's extremely unlikely that the following test is true as normally
-    this is happening when table is flushed.
-  */
-  if (unlikely(!share->global_changed))
-  {
-    /* purecov: begin inspected */
-    /* unlock bitmap mutex as it can't be hold during _ma_mark_file_changed */
-    pthread_mutex_unlock(&bitmap->bitmap_lock);
-    _ma_mark_file_changed(share);
-    pthread_mutex_lock(&bitmap->bitmap_lock);
-    /* purecov: end */
-  }
+  _ma_bitmap_mark_file_changed(share, 0);
 
+  /*
+    The following should be true as it was tested above. We have to test
+    this again as _ma_bitmap_mark_file_changed() did temporarly release
+    the bitmap mutex.
+  */
   if (bitmap->changed || bitmap->changed_not_flushed)
   {
     bitmap->flush_all_requested++;
@@ -616,7 +674,7 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
     bzero(bitmap->map, bitmap->block_size);
     bitmap->changed= 1;
     bitmap->page= 0;
-    bitmap->used_size= bitmap->total_size;
+    bitmap->used_size= bitmap->total_size= bitmap->max_total_size;
   }
   DBUG_VOID_RETURN;
 }
@@ -630,7 +688,8 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
 
    @notes
    This is called after we have swapped file descriptors and we want
-   bitmap to forget all cached information
+   bitmap to forget all cached information.
+   It's also called directly after we have opened a file.
 */
 
 void _ma_bitmap_reset_cache(MARIA_SHARE *share)
@@ -646,13 +705,20 @@ void _ma_bitmap_reset_cache(MARIA_SHARE *share)
       We can't read a page yet, as in some case we don't have an active
       page cache yet.
       Pretend we have a dummy, full and not changed bitmap page in memory.
+
+      We set bitmap->page to a value so that if we use it in
+      move_to_next_bitmap() it will point to page 0.
+      (This can only happen if writing to a bitmap page fails)
     */
-    bitmap->page= ~(ulonglong) 0;
-    bitmap->used_size= bitmap->total_size;
+    bitmap->page= ((pgcache_page_no_t) 0) - bitmap->pages_covered;
+    bitmap->used_size= bitmap->total_size= bitmap->max_total_size;
     bfill(bitmap->map, share->block_size, 255);
 #ifndef DBUG_OFF
     memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
 #endif
+
+    /* Start scanning for free space from start of file */
+    share->state.first_bitmap_with_space = 0;
   }
 }
 
@@ -841,7 +907,7 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
   fprintf(DBUG_FILE,"\nDump of bitmap page at %s\n", llstr(page, llbuff));
 
   page++;                                       /* Skip bitmap page */
-  for (pos= data, end= pos + bitmap->total_size;
+  for (pos= data, end= pos + bitmap->max_total_size;
        pos < end ;
        pos+= 6)
   {
@@ -920,6 +986,20 @@ void _ma_get_bitmap_description(MARIA_FILE_BITMAP *bitmap,
 }
 
 
+/*
+  Adjust bitmap->total_size to not go over max_data_file_size
+*/
+
+static void adjust_total_size(MARIA_HA *info, pgcache_page_no_t page)
+{
+  MARIA_FILE_BITMAP *bitmap= &info->s->bitmap;
+
+  if (page < bitmap->last_bitmap_page)
+    bitmap->total_size= bitmap->max_total_size;    /* Use all bits in bitmap */
+  else
+    bitmap->total_size= bitmap->last_total_size;
+}
+
 /***************************************************************************
   Reading & writing bitmap pages
 ***************************************************************************/
@@ -956,12 +1036,16 @@ static my_bool _ma_read_bitmap_page(MARIA_HA *info,
   DBUG_ASSERT(!bitmap->changed);
 
   bitmap->page= page;
-  if (((page + 1) * bitmap->block_size) > share->state.state.data_file_length)
+  if ((page + 1) * bitmap->block_size >  share->state.state.data_file_length)
   {
     /* Inexistent or half-created page */
     res= _ma_bitmap_create_missing(info, bitmap, page);
+    if (!res)
+      adjust_total_size(info, page);
     DBUG_RETURN(res);
   }
+
+  adjust_total_size(info, page);
   bitmap->used_size= bitmap->total_size;
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   res= pagecache_read(share->pagecache,
@@ -1010,6 +1094,13 @@ static my_bool _ma_change_bitmap_page(MARIA_HA *info,
 {
   DBUG_ENTER("_ma_change_bitmap_page");
 
+  /*
+    We have to mark the file changed here, as otherwise the following
+    read/write to pagecache may force a page out from this file, which would
+    cause _ma_mark_file_changed() to be called with bitmaplock hold!
+  */
+  _ma_bitmap_mark_file_changed(info->s, 1);
+
   if (bitmap->changed)
   {
     if (write_changed_bitmap(info->s, bitmap))
@@ -1045,14 +1136,18 @@ static my_bool move_to_next_bitmap(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap)
   MARIA_STATE_INFO *state= &info->s->state;
   DBUG_ENTER("move_to_next_bitmap");
 
-  if (state->first_bitmap_with_space != ~(ulonglong) 0 &&
+  if (state->first_bitmap_with_space != ~(pgcache_page_no_t) 0 &&
       state->first_bitmap_with_space != page)
   {
     page= state->first_bitmap_with_space;
-    state->first_bitmap_with_space= ~(ulonglong) 0;
+    state->first_bitmap_with_space= ~(pgcache_page_no_t) 0;
+    DBUG_ASSERT(page % bitmap->pages_covered == 0);
   }
   else
+  {
     page+= bitmap->pages_covered;
+    DBUG_ASSERT(page % bitmap->pages_covered == 0);
+  }
   DBUG_RETURN(_ma_change_bitmap_page(info, bitmap, page));
 }
 
@@ -1318,7 +1413,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
   uchar *page_end= data + bitmap->total_size;
   uchar *best_data= 0;
   uint min_size;
-  uint best_area_size, best_prefix_area_size, best_suffix_area_size;
+  uint best_area_size, best_prefix_area_size;
   uint page, size;
   ulonglong best_prefix_bits;
   DBUG_ENTER("allocate_full_pages");
@@ -1327,7 +1422,6 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
   /* Following variables are only used if best_data is set */
   LINT_INIT(best_prefix_bits);
   LINT_INIT(best_prefix_area_size);
-  LINT_INIT(best_suffix_area_size);
 
   min_size= pages_needed;
   if (!full_page && min_size > BLOB_SEGMENT_MIN_SIZE)
@@ -1399,7 +1493,6 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
       best_area_size= area_size;
       best_prefix_bits= prefix_bits;
       best_prefix_area_size= prefix_area_size;
-      best_suffix_area_size= suffix_area_size;
 
       /* Prefer to put data in biggest possible area */
       if (area_size <= pages_needed)
@@ -1447,10 +1540,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     best_prefix_bits|= tmp;
     int6store(best_data, best_prefix_bits);
     if (!(best_area_size-= best_prefix_area_size))
-    {
-      DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
-      DBUG_RETURN(block->page_count);
-    }
+      goto end;
     best_data+= 6;
   }
   best_area_size*= 3;                       /* Bits to set */
@@ -1468,6 +1558,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     bitmap->used_size= (uint) (best_data - bitmap->map);
     DBUG_ASSERT(bitmap->used_size <= bitmap->total_size);
   }
+end:
   bitmap->changed= 1;
   DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
   DBUG_RETURN(block->page_count);
@@ -1760,7 +1851,7 @@ static void use_head(MARIA_HA *info, pgcache_page_no_t page, uint size,
     find_where_to_split_row()
     share           Maria share
     row		    Information of what is in the row (from calc_record_size())
-    extents_length  Number of bytes needed to store all extents
+    extents         Max number of extents we have to store in header
     split_size	    Free size on the page (The head length must be less
                     than this)
 
@@ -1769,7 +1860,7 @@ static void use_head(MARIA_HA *info, pgcache_page_no_t page, uint size,
 */
 
 static uint find_where_to_split_row(MARIA_SHARE *share, MARIA_ROW *row,
-                                    uint extents_length, uint split_size)
+                                    uint extents, uint split_size)
 {
   uint *lengths, *lengths_end;
   /*
@@ -1779,19 +1870,20 @@ static uint find_where_to_split_row(MARIA_SHARE *share, MARIA_ROW *row,
     - One extent
   */
   uint row_length= (row->min_length +
-                    size_to_store_key_length(extents_length) +
+                    size_to_store_key_length(extents) +
                     ROW_EXTENT_SIZE);
-  DBUG_ASSERT(row_length < split_size);
+  DBUG_ASSERT(row_length <= split_size);
+
   /*
     Store first in all_field_lengths the different parts that are written
     to the row. This needs to be in same order as in
     ma_block_rec.c::write_block_record()
   */
-  row->null_field_lengths[-3]= extents_length;
+  row->null_field_lengths[-3]= extents * ROW_EXTENT_SIZE;
   row->null_field_lengths[-2]= share->base.fixed_not_null_fields_length;
   row->null_field_lengths[-1]= row->field_lengths_length;
   for (lengths= row->null_field_lengths - EXTRA_LENGTH_FIELDS,
-       lengths_end= (lengths + share->base.pack_fields - share->base.blobs +
+       lengths_end= (lengths + share->base.fields - share->base.blobs +
                      EXTRA_LENGTH_FIELDS); lengths < lengths_end; lengths++)
   {
     if (row_length + *lengths > split_size)
@@ -1947,18 +2039,19 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
   head_length+= ELEMENTS_RESERVED_FOR_MAIN_PART * ROW_EXTENT_SIZE;
 
   /* The first segment size is stored in 'row_length' */
-  row_length= find_where_to_split_row(share, row, extents_length,
+  row_length= find_where_to_split_row(share, row, row->extents_count + 
+                                      ELEMENTS_RESERVED_FOR_MAIN_PART-1,
                                       max_page_size);
 
   full_page_size= MAX_TAIL_SIZE(share->block_size);
   position= 0;
-  if (head_length - row_length <= full_page_size)
+  rest_length= head_length - row_length;
+  if (rest_length <= full_page_size)
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */
   if (find_head(info, row_length, position))
     goto abort;
   row->space_on_head_page= row_length;
 
-  rest_length= head_length - row_length;
   if (write_rest_of_head(info, position, rest_length))
     goto abort;
 
@@ -2025,8 +2118,7 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
     goto abort;
 
   /* Switch bitmap to current head page */
-  bitmap_page= page / share->bitmap.pages_covered;
-  bitmap_page*= share->bitmap.pages_covered;
+  bitmap_page= page - page % share->bitmap.pages_covered;
 
   if (share->bitmap.page != bitmap_page &&
       _ma_change_bitmap_page(info, &share->bitmap, bitmap_page))
@@ -2045,16 +2137,22 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   /* Allocate enough space */
   head_length+= ELEMENTS_RESERVED_FOR_MAIN_PART * ROW_EXTENT_SIZE;
 
-  /* The first segment size is stored in 'row_length' */
-  row_length= find_where_to_split_row(share, row, extents_length, free_size);
+  /*
+    The first segment size is stored in 'row_length'
+    We have to add ELEMENTS_RESERVED_FOR_MAIN_PART here as the extent
+    information may be up to this size when the header splits.
+  */
+  row_length= find_where_to_split_row(share, row, row->extents_count + 
+                                      ELEMENTS_RESERVED_FOR_MAIN_PART-1,
+                                      free_size);
 
   position= 0;
-  if (head_length - row_length < MAX_TAIL_SIZE(share->block_size))
+  rest_length= head_length - row_length;
+  if (rest_length <= MAX_TAIL_SIZE(share->block_size))
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */
   use_head(info, page, row_length, position);
   row->space_on_head_page= row_length;
 
-  rest_length= head_length - row_length;
   if (write_rest_of_head(info, position, rest_length))
     goto abort;
 
@@ -2142,7 +2240,7 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   Get bitmap pattern for a given page
 
   SYNOPSIS
-    get_page_bits()
+    bitmap_get_page_bits()
     info	Maria handler
     bitmap	Bitmap handler
     page	Page number
@@ -2152,8 +2250,8 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     ~0		Error (couldn't read page)
 */
 
-uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                              pgcache_page_no_t page)
+static uint bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                                 pgcache_page_no_t page)
 {
   pgcache_page_no_t bitmap_page;
   uint offset_page, offset, tmp;
@@ -2176,6 +2274,19 @@ uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   data= bitmap->map + offset_page / 8;
   tmp= uint2korr(data);
   DBUG_RETURN((tmp >> offset) & 7);
+}
+
+
+/* As above, but take a lock while getting the data */
+
+uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                              pgcache_page_no_t page)
+{
+  uint tmp;
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+  tmp= bitmap_get_page_bits(info, bitmap, page);
+  pthread_mutex_unlock(&bitmap->bitmap_lock);  
+  return tmp;
 }
 
 
@@ -2258,6 +2369,7 @@ my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
   DBUG_RETURN(0);
 }
 
+
 /*
   Set all pages in a region as used
 
@@ -2290,7 +2402,7 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
 
   bitmap_page= page - page % bitmap->pages_covered;
   if (page == bitmap_page ||
-      page + page_count >= bitmap_page + bitmap->pages_covered)
+      page + page_count > bitmap_page + bitmap->pages_covered)
   {
     DBUG_ASSERT(0);                             /* Wrong in data */
     DBUG_RETURN(1);
@@ -2494,7 +2606,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   else
   {
     DBUG_ASSERT(current_bitmap_value ==
-                _ma_bitmap_get_page_bits(info, bitmap, block->page));
+                bitmap_get_page_bits(info, bitmap, block->page));
   }
 
   /* Handle all full pages and tail pages (for head page and blob) */
@@ -2526,7 +2638,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
         to not set the bits to the same value as before.
       */
       DBUG_ASSERT(current_bitmap_value ==
-                  _ma_bitmap_get_page_bits(info, bitmap, block->page));
+                  bitmap_get_page_bits(info, bitmap, block->page));
 
       if (bits != current_bitmap_value)
       {
@@ -2935,6 +3047,11 @@ static my_bool _ma_bitmap_create_missing(MARIA_HA *info,
   /* First (in offset order) bitmap page to create */
   if (data_file_length < block_size)
     goto err; /* corrupted, should have first bitmap page */
+  if (page * block_size >= share->base.max_data_file_length)
+  {
+    my_errno= HA_ERR_RECORD_FILE_FULL;
+    goto err;
+  }
 
   from= (data_file_length / block_size - 1) / bitmap->pages_covered + 1;
   from*= bitmap->pages_covered;

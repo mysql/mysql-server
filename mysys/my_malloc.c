@@ -31,6 +31,8 @@ void *my_malloc(size_t size, myf my_flags)
   void* point;
   DBUG_ENTER("my_malloc");
   DBUG_PRINT("my",("size: %lu  my_flags: %d", (ulong) size, my_flags));
+  if (!(my_flags & (MY_WME | MY_FAE)))
+    my_flags|= my_global_flags;
 
   if (!size)
     size=1;					/* Safety */
@@ -48,7 +50,9 @@ void *my_malloc(size_t size, myf my_flags)
     if (my_flags & MY_FAE)
       error_handler_hook=fatal_error_handler_hook;
     if (my_flags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH),size);
+      my_error(EE_OUTOFMEMORY,
+               MYF(ME_BELL | ME_WAITTANG | ME_NOREFRESH | (my_flags & ME_JUST_INFO)),
+               size);
     DBUG_EXECUTE_IF("simulate_out_of_memory",
                     DBUG_SET("-d,simulate_out_of_memory"););
     if (my_flags & MY_FAE)

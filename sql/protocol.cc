@@ -515,6 +515,56 @@ void net_end_statement(THD *thd)
 }
 
 
+/**
+   Send a progress report to the client
+
+   What we send is:
+   header (255,255,255,1)
+   stage, max_stage as on byte integers
+   percentage withing the stage as percentage*1000
+   (that is, ratio*100000) as a 3 byte integer
+   proc_info as a string
+*/
+
+const uchar progress_header[2]= {(uchar) 255, (uchar) 255 };
+
+void net_send_progress_packet(THD *thd)
+{
+  uchar buff[200], *pos;
+  const char *proc_info= thd->proc_info ? thd->proc_info : "";
+  uint length= strlen(proc_info);
+  ulonglong progress;
+  DBUG_ENTER("net_send_progress_packet");
+
+  if (unlikely(!thd->net.vio))
+    DBUG_VOID_RETURN;                           // Socket is closed
+
+  pos= buff;
+  /*
+    Store number of strings first. This allows us to later expand the
+    progress indicator if needed.
+  */
+  *pos++= (uchar) 1;                            // Number of strings
+  *pos++= (uchar) thd->progress.stage + 1;
+  /*
+    We have the max() here to avoid problems if max_stage is not set,
+    which may happen during automatic repair of table
+  */
+  *pos++= (uchar) max(thd->progress.max_stage, thd->progress.stage + 1);
+  progress= 0;
+  if (thd->progress.max_counter)
+    progress= 100000ULL * thd->progress.counter / thd->progress.max_counter;
+  int3store(pos, progress);                          // Between 0 & 100000
+  pos+= 3;
+  pos= net_store_data(pos, (const uchar*) proc_info,
+                      min(length, sizeof(buff)-7));
+  net_write_command(&thd->net, (uchar) 255, progress_header,
+                    sizeof(progress_header), (uchar*) buff,
+                    (uint) (pos - buff));
+  DBUG_VOID_RETURN;
+}
+
+  
 /****************************************************************************
   Functions used by the protocol functions (like net_send_ok) to store
   strings and numbers in the header result packet.

@@ -185,37 +185,37 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	fld1	fld1	4	NULL	4	Using where; Using index
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 fld1	fld3
-012001	flanking
-013602	foldout
-013606	fingerings
+218401	faithful
 018007	fanatic
+228311	fated
 018017	featherweight
+218022	feed
+088303	feminine
+058004	Fenton
+038017	fetched
 018054	fetters
+208101	fiftieth
+238007	filial
+013606	fingerings
+218008	finishers
+038205	firearm
+188505	fitting
+202301	Fitzpatrick
+238008	fixedly
+012001	flanking
 018103	flint
 018104	flopping
-036002	funereal
-038017	fetched
-038205	firearm
-058004	Fenton
-088303	feminine
-186002	freakish
 188007	flurried
-188505	fitting
-198006	furthermore
-202301	Fitzpatrick
-208101	fiftieth
-208113	freest
-218008	finishers
-218022	feed
-218401	faithful
+013602	foldout
 226205	foothill
-226209	furnishings
-228306	forthcoming
-228311	fated
-231315	freezes
 232102	forgivably
-238007	filial
-238008	fixedly
+228306	forthcoming
+186002	freakish
+208113	freest
+231315	freezes
+036002	funereal
+226209	furnishings
+198006	furthermore
 select fld3 from t2 where fld3 like "L%" and fld3 = "ok";
 fld3
 select fld3 from t2 where (fld3 like "C%" and fld3 = "Chantilly");
@@ -2394,6 +2394,7 @@ CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
 CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
 INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
@@ -3417,7 +3418,7 @@ SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
 FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
@@ -3453,7 +3454,7 @@ In next EXPLAIN, B.rows must be exactly 10:
 explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
 and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	4	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	4	Using where
 1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	10	
 drop table t1, t2;
 CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX(b));
@@ -3467,12 +3468,12 @@ INSERT INTO t2 VALUES
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using where
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
 DROP TABLE t1, t2;
 create table t1 (
@@ -3562,19 +3563,19 @@ EXPLAIN SELECT t2.*
 FROM t1 JOIN t2 ON t2.fk=t1.pk
 WHERE t2.fk < 'c' AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	3	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	3	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk BETWEEN 'a' AND 'b' AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a));
@@ -3608,7 +3609,7 @@ WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
 t3.a=t2.a AND t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si	si	5	NULL	4	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t2	range	si	si	5	NULL	4	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN
 SELECT t3.a FROM t1,t2,t3
@@ -3616,7 +3617,7 @@ WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
 t3.a=t2.a AND t3.c IN ('bb','ee') ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si,ai	si	5	NULL	4	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t2	range	si,ai	si	5	NULL	4	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
 SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
@@ -3624,7 +3625,7 @@ WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si	si	5	NULL	2	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t2	range	si	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
 SELECT t3.a FROM t1,t2,t3
@@ -3632,7 +3633,7 @@ WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 ( f1 int primary key, f2 int, f3 int, f4 int, f5 int, f6 int, checked_out int);
@@ -3752,7 +3753,7 @@ AND t1.ts BETWEEN t2.dt1 AND t2.dt2
 AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using where
 SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
 AND t1.ts BETWEEN t2.dt1 AND t2.dt2
 AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
@@ -4377,12 +4378,12 @@ CREATE TABLE t1 (a INT KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
 DROP TABLE t1;
@@ -4895,6 +4896,7 @@ INSERT INTO t3 VALUES
 (4,'z'), (3,'zzz'), (5,'zzzzz'), (3,'z'), (4,'zzz'), (3,'zzzz'),
 (9,'zzzzz'), (2,'zzz'), (1,'zzzz'), (9,'zzz'), (1,'zzzz'), (5,'zzzzz'),
 (4,'zzz'), (3,'zzzz'), (5,'zzzz'), (3,'zzz'), (4,'zz'), (3,'zzzzz');
+set @tmp= @@optimizer_switch;
 SET SESSION optimizer_switch='index_condition_pushdown=off';
 EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -4974,7 +4976,7 @@ a1	b1	a2	b2	a3	b3
 2	xx	2	y	2	zzzz
 2	xx	2	yy	2	zz
 2	xx	2	yy	2	zzz
-SET SESSION optimizer_switch=DEFAULT;
+SET SESSION optimizer_switch=@tmp;
 DROP TABLE t1,t2,t3;
 #
 # Bug #707555: crash with equality substitution in ref 
@@ -5030,3 +5032,40 @@ SELECT * FROM t1 WHERE a = b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
 DROP TABLE t1;
+#
+# lp:822760 Wrong result with view + invalid dates
+#
+CREATE TABLE t1 (f1 date);
+INSERT IGNORE INTO t1 VALUES ('0000-00-00');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 HAVING f1 = 'zz';
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+SELECT * FROM t1 HAVING f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'aa'
+SELECT * FROM t1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+SELECT * FROM t1 WHERE f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+Warning	1292	Incorrect datetime value: 'zz'
+SELECT * FROM v1 HAVING f1 = 'zz' AND f1 <= 'aa' ;
+f1
+0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: 'zz'
+Warning	1292	Incorrect datetime value: 'aa'
+DROP TABLE t1;
+DROP VIEW v1;

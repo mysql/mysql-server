@@ -22,6 +22,7 @@ HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h mysql/plugin.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h mysql/services.h \
+			mysql/service_progress_report.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
 		  	my_pthread.h my_no_pthread.h \
 			mysql/plugin_auth.h mysql/client_plugin.h \

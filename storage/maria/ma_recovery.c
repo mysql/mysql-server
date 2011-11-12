@@ -60,6 +60,7 @@ static int (*save_error_handler_hook)(uint, const char *,myf);
 static uint recovery_warnings; /**< count of warnings */
 static uint recovery_found_crashed_tables;
 HASH tables_to_redo;                          /* For maria_read_log */
+ulong maria_recovery_force_crash_counter;
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -319,25 +320,32 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   skip_DDLs= skip_DDLs_arg;
   skipped_undo_phase= 0;
 
+  trnman_init(max_trid_in_control_file);
+
   if (from_lsn == LSN_IMPOSSIBLE)
   {
     if (last_checkpoint_lsn == LSN_IMPOSSIBLE)
     {
       from_lsn= translog_first_lsn_in_log();
       if (unlikely(from_lsn == LSN_ERROR))
+      {
+        trnman_destroy();
         goto err;
+      }
     }
     else
     {
       from_lsn= parse_checkpoint_record(last_checkpoint_lsn);
       if (from_lsn == LSN_ERROR)
+      {
+        trnman_destroy();
         goto err;
+      }
     }
   }
 
   now= microsecond_interval_timer();
   in_redo_phase= TRUE;
-  trnman_init(max_trid_in_control_file);
   if (run_redo_phase(from_lsn, end_lsn, apply))
   {
     ma_message_no_user(0, "Redo phase failed");
@@ -2939,6 +2947,12 @@ static int run_undo_phase(uint uncommitted)
         translog_free_record_header(&rec);
       }
 
+      /* Force a crash to test recovery of recovery */
+      if (maria_recovery_force_crash_counter)
+      {
+        DBUG_ASSERT(--maria_recovery_force_crash_counter > 0);
+      }
+
       if (trnman_rollback_trn(trn))
         DBUG_RETURN(1);
       /* We could want to span a few threads (4?) instead of 1 */
@@ -3201,9 +3215,11 @@ static LSN parse_checkpoint_record(LSN lsn)
 
   tprint(tracef, "Loading data from checkpoint record at LSN (%lu,0x%lx)\n",
          LSN_IN_PARTS(lsn));
-  if ((len= translog_read_record_header(lsn, &rec)) == RECHEADER_READ_ERROR)
+  if ((len= translog_read_record_header(lsn, &rec)) == RECHEADER_READ_ERROR ||
+      rec.type != LOGREC_CHECKPOINT)
   {
-    tprint(tracef, "Cannot find checkpoint record where it should be\n");
+    eprint(tracef, "Cannot find checkpoint record at LSN (%lu,0x%lx)",
+           LSN_IN_PARTS(lsn));
     return LSN_ERROR;
   }
 
@@ -3436,6 +3452,12 @@ static int close_all_tables(void)
     prepare_table_for_close(info, addr);
     error|= maria_close(info);
     pthread_mutex_lock(&THR_LOCK_maria);
+    
+    /* Force a crash to test recovery of recovery */
+    if (maria_recovery_force_crash_counter)
+    {
+      DBUG_ASSERT(--maria_recovery_force_crash_counter > 0);
+    }
   }
 end:
   pthread_mutex_unlock(&THR_LOCK_maria);
@@ -3510,7 +3532,7 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
 
   /*
     Reset state pointers. This is needed as in ALTER table we may do
-    commit fllowed by _ma_renable_logging_for_table and then
+    commit followed by _ma_renable_logging_for_table and then
     info->state may point to a state that was deleted by
     _ma_trnman_end_trans_hook()
    */

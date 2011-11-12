@@ -1079,7 +1079,6 @@ int _ma_split_page(MARIA_HA *info, MARIA_KEY *key, MARIA_PAGE *split_page,
 
   Returns pointer to start of key.
   key will contain the key.
-  return_key_length will contain the length of key
   after_key will contain the position to where the next key starts
 */
 

@@ -274,7 +274,6 @@ public:
 
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
-  virtual bool clustered_pk_range() { return false; }
 
   /*
     Request that this quick select produces sorted output. Not all quick
@@ -355,6 +354,12 @@ public:
     Table record buffer used by this quick select.
   */
   uchar    *record;
+
+  virtual void replace_handler(handler *new_file)
+  {
+    DBUG_ASSERT(0); /* Only supported in QUICK_RANGE_SELECT */
+  }
+
 #ifndef DBUG_OFF
   /*
     Print quick select information to DBUG_FILE. Caller is responsible
@@ -450,6 +455,7 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+  virtual void replace_handler(handler *new_file) { file= new_file; }
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
   friend class TRP_ROR_INTERSECT;
@@ -593,9 +599,6 @@ public:
   MEM_ROOT alloc;
   THD *thd;
   virtual int read_keys_and_merge()= 0;
-
-  bool clustered_pk_range() { return test(pk_quick_select); }
-
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
 };

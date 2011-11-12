@@ -989,14 +989,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
       next_chunk+= 5 + partition_info_len;
     }
-    if (share->mysql_version >= 50110)
+    if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       share->auto_partitioned= *next_chunk;
 #endif
       next_chunk++;
-      DBUG_ASSERT(next_chunk <= buff_end);
     }
     keyinfo= share->key_info;
     for (i= 0; i < keys; i++, keyinfo++)
@@ -2460,7 +2459,7 @@ int closefrm(register TABLE *table, bool free_share)
   {
     if (table->s->deleting)
       table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-    error=table->file->close();
+    error=table->file->ha_close();
   }
   table->alias.free();
   if (table->expr_arena)
@@ -4537,7 +4536,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     Force creation of nullable item for the result tmp table for outer joined
     views/derived tables.
   */
-  if (view->outer_join)
+  if (view->table && view->table->maybe_null)
     item->maybe_null= TRUE;
   /* Save item in case we will need to fall back to materialization. */
   view->used_items.push_back(item);
@@ -5221,10 +5220,11 @@ void st_table::mark_virtual_columns_for_write(bool insert_fl)
   @brief
   Allocate space for keys
 
-  @param key_count  number of keys to allocate
+  @param key_count  number of keys to allocate additionally
 
   @details
-  The function allocates memory  to fit 'key_count' keys for this table.
+  The function allocates memory  to fit additionally 'key_count' keys 
+  for this table.
 
   @return FALSE   space was successfully allocated
   @return TRUE    an error occur
@@ -5232,22 +5232,25 @@ void st_table::mark_virtual_columns_for_write(bool insert_fl)
 
 bool TABLE::alloc_keys(uint key_count)
 {
-  DBUG_ASSERT(!s->keys);
-  key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*key_count);
-  max_keys= key_count;
+  key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*(s->keys+key_count));
+  if (s->keys)
+    memmove(key_info, s->key_info, sizeof(KEY)*s->keys);
+  s->key_info= key_info;
+  max_keys= s->keys+key_count;
   return !(key_info);
 }
 
 
 void TABLE::create_key_part_by_field(KEY *keyinfo,
                                      KEY_PART_INFO *key_part_info,
-                                     Field *field)
+                                     Field *field, uint fieldnr)
 {   
   field->flags|= PART_KEY_FLAG;
   key_part_info->null_bit= field->null_bit;
   key_part_info->null_offset= (uint) (field->null_ptr -
                                       (uchar*) record[0]);
   key_part_info->field= field;
+  key_part_info->fieldnr= fieldnr;
   key_part_info->offset= field->offset(record[0]);
   key_part_info->length=   (uint16) field->pack_length();
   keyinfo->key_length+= key_part_info->length;
@@ -5340,11 +5343,12 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
 
   for (i= 0; i < key_parts; i++)
   {
-    reg_field= field + next_field_no(arg);
+    uint fld_idx= next_field_no(arg); 
+    reg_field= field + fld_idx;
     if (key_start)
       (*reg_field)->key_start.set_bit(key);
     (*reg_field)->part_of_key.set_bit(key);
-    create_key_part_by_field(keyinfo, key_part_info, *reg_field);
+    create_key_part_by_field(keyinfo, key_part_info, *reg_field, fld_idx+1);
     key_start= FALSE;
     key_part_info++;
   }
@@ -5372,12 +5376,12 @@ void TABLE::use_index(int key_to_save)
   DBUG_ASSERT(!created && key_to_save < (int)s->keys);
   if (key_to_save >= 0)
     /* Save the given key. */
-    memcpy(key_info, key_info + key_to_save, sizeof(KEY));
+    memmove(key_info, key_info + key_to_save, sizeof(KEY));
   else
     /* Drop all keys; */
     i= 0;
 
-  s->keys= (key_to_save < 0) ? 0 : 1;
+  s->keys= i;
 }
 
 /**
@@ -5408,8 +5412,10 @@ bool st_table::is_children_attached(void)
 
 bool st_table::is_filled_at_execution()
 { 
-  return test(pos_in_table_list->jtbm_subselect);
+  return test(pos_in_table_list->jtbm_subselect || 
+              pos_in_table_list->is_active_sjm());
 }
+
 
 /*
   Cleanup this table for re-execution.
@@ -5686,7 +5692,7 @@ int update_virtual_fields(THD *thd, TABLE *table, bool for_write)
 {
   DBUG_ENTER("update_virtual_fields");
   Field **vfield_ptr, *vfield;
-  int error= 0;
+  int error __attribute__ ((unused))= 0;
   if (!table || !table->vfield)
     DBUG_RETURN(0);
 

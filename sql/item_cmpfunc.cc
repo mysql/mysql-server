@@ -29,8 +29,6 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 
-static bool convert_const_to_int(THD *, Item_field *, Item **);
-
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
 {
@@ -266,34 +264,59 @@ Item_bool_func2* Eq_creator::create(Item *a, Item *b) const
   return new Item_func_eq(a, b);
 }
 
+Item_bool_func2* Eq_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_eq(b, a);
+}
 
 Item_bool_func2* Ne_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ne(a, b);
 }
 
+Item_bool_func2* Ne_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_ne(b, a);
+}
 
 Item_bool_func2* Gt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_gt(a, b);
 }
 
+Item_bool_func2* Gt_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_lt(b, a);
+}
 
 Item_bool_func2* Lt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_lt(a, b);
 }
 
+Item_bool_func2* Lt_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_gt(b, a);
+}
 
 Item_bool_func2* Ge_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ge(a, b);
 }
 
+Item_bool_func2* Ge_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_le(b, a);
+}
 
 Item_bool_func2* Le_creator::create(Item *a, Item *b) const
 {
   return new Item_func_le(a, b);
+}
+
+Item_bool_func2* Le_creator::create_swap(Item *a, Item *b) const
+{
+  return new Item_func_ge(b, a);
 }
 
 /*
@@ -434,7 +457,7 @@ static bool convert_const_to_int(THD *thd, Item_field *field_item,
       field_item->field_type() != MYSQL_TYPE_YEAR)
     return 1;
 
-  if ((*item)->const_item())
+  if ((*item)->const_item() && !(*item)->is_expensive())
   {
     TABLE *table= field->table;
     ulong orig_sql_mode= thd->variables.sql_mode;
@@ -490,7 +513,6 @@ static bool convert_const_to_int(THD *thd, Item_field *field_item,
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
-  THD *thd;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -522,14 +544,14 @@ void Item_bool_func2::fix_length_and_dec()
 
   /*
     Make a special case of compare with fields to get nicer comparisons
-    of numbers with constant string.
+    of bigint numbers with constant string.
     This directly contradicts the manual (number and a string should
     be compared as doubles), but seems to provide more
     "intuitive" behavior in some cases (but less intuitive in others).
 
     But disable conversion in case of LIKE function.
   */
-  thd= current_thd;
+  THD *thd= current_thd;
   if (functype() != LIKE_FUNC && !thd->lex->is_ps_or_view_context_analysis())
   {
     int field;
@@ -537,7 +559,8 @@ void Item_bool_func2::fix_length_and_dec()
         args[field= 1]->real_item()->type() == FIELD_ITEM)
     {
       Item_field *field_item= (Item_field*) (args[field]->real_item());
-      if (field_item->cmp_type() == INT_RESULT &&
+      if ((field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+           field_item->field_type() ==  MYSQL_TYPE_YEAR) &&
           convert_const_to_int(thd, field_item, &args[!field]))
         args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
     }
@@ -1374,6 +1397,36 @@ longlong Item_func_truth::val_int()
 }
 
 
+bool Item_in_optimizer::is_top_level_item()
+{
+  return ((Item_in_subselect *)args[1])->is_top_level_item();
+}
+
+
+void Item_in_optimizer::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of our Item_in_subselect: */
+  Item_bool_func::fix_after_pullout(new_parent, ref);
+
+  /* Then, re-calculate not_null_tables_cache: */
+  eval_not_null_tables(NULL);
+}
+
+
+bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
+{
+  not_null_tables_cache= 0;
+  if (is_top_level_item())
+  {
+    /*
+      It is possible to determine NULL-rejectedness of the left arguments
+      of IN only if it is a top-level predicate.
+    */
+    not_null_tables_cache= args[0]->not_null_tables();
+  }
+  return FALSE;
+}
+
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
@@ -1400,7 +1453,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     }
     used_tables_cache= args[0]->used_tables();
   }
-  not_null_tables_cache= args[0]->not_null_tables();
+  eval_not_null_tables(NULL);
   with_sum_func= args[0]->with_sum_func;
   with_field= args[0]->with_field;
   if ((const_item_cache= args[0]->const_item()))
@@ -1433,7 +1486,6 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   with_field= with_field || args[1]->with_field;
   used_tables_cache|= args[1]->used_tables();
-  not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
   fixed= 1;
   return FALSE;
@@ -1464,31 +1516,40 @@ Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
   DBUG_ENTER("Item_in_optimizer::expr_cache_insert_transformer");
   if (args[1]->type() != Item::SUBSELECT_ITEM)
     DBUG_RETURN(this); // MAX/MIN transformed => do nothing
-  List<Item*> &depends_on= ((Item_subselect *)args[1])->depends_on;
 
   if (expr_cache)
     DBUG_RETURN(expr_cache);
 
+  if (args[1]->expr_cache_is_needed(thd) &&
+      (expr_cache= set_expr_cache(thd)))
+    DBUG_RETURN(expr_cache);
+
+  DBUG_RETURN(this);
+}
+
+
+
+/**
+    Collect and add to the list cache parameters for this Item.
+
+    @param parameters    The list where to add parameters
+*/
+
+void Item_in_optimizer::get_cache_parameters(List<Item> &parameters)
+{
   /* Add left expression to the list of the parameters of the subquery */
   if (args[0]->cols() == 1)
-    depends_on.push_front((Item**)args);
+    parameters.add_unique(args[0], &cmp_items);
   else
   {
     for (uint i= 0; i < args[0]->cols(); i++)
     {
-      depends_on.push_front(args[0]->addr(i));
+      parameters.add_unique(args[0]->element_index(i), &cmp_items);
     }
   }
-
-  if (args[1]->expr_cache_is_needed(thd) &&
-      (expr_cache= set_expr_cache(thd, depends_on)))
-    DBUG_RETURN(expr_cache);
-
-  /* no cache => return list in original state just to be safe */
-  for (uint i= 0; i < args[0]->cols(); i++)
-    depends_on.pop();
-  DBUG_RETURN(this);
+  args[1]->get_cache_parameters(parameters);
 }
+
 
 /*
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
@@ -1731,7 +1792,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
     if (!new_item)
       return 0;
     if (args[1] != new_item)
-      current_thd->change_item_tree(args, new_item);
+      current_thd->change_item_tree(args + 1, new_item);
   }
   else
   {
@@ -1751,7 +1812,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
                  Item_subselect::ANY_SUBS));
 
     Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
-    in_arg->left_expr= args[0];
+    current_thd->change_item_tree(&in_arg->left_expr, args[0]);
   }
   return (this->*transformer)(argument);
 }
@@ -2083,6 +2144,14 @@ bool Item_func_between::eval_not_null_tables(uchar *opt_arg)
 }  
 
 
+void Item_func_between::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func_opt_neg::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
 void Item_func_between::fix_length_and_dec()
 {
   THD *thd= current_thd;
@@ -2117,7 +2186,8 @@ void Item_func_between::fix_length_and_dec()
       !thd->lex->is_ps_or_view_context_analysis())
   {
     Item_field *field_item= (Item_field*) (args[0]->real_item());
-    if (field_item->cmp_type() == INT_RESULT)
+    if (field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+        field_item->field_type() ==  MYSQL_TYPE_YEAR)
     {
       /*
         The following can't be recoded with || as convert_const_to_int
@@ -2463,6 +2533,16 @@ Item_func_if::eval_not_null_tables(uchar *opt_arg)
   return 0;
 }
 
+
+void Item_func_if::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
+
 void
 Item_func_if::fix_length_and_dec()
 {
@@ -2710,7 +2790,7 @@ Item *Item_func_case::find_item(String *str)
     {
       if (args[i]->real_item()->type() == NULL_ITEM)
         continue;
-      cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
+      cmp_type= item_cmp_type(left_result_type, args[i]->cmp_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
       if (!(value_added_map & (1<<(uint)cmp_type)))
@@ -2875,7 +2955,7 @@ void Item_func_case::fix_length_and_dec()
   {
     uint i;
     agg[0]= args[first_expr_num];
-    left_result_type= agg[0]->result_type();
+    left_result_type= agg[0]->cmp_type();
 
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
@@ -2893,17 +2973,21 @@ void Item_func_case::fix_length_and_dec()
       found_types |= (1 << item_cmp_type(left_result_type, STRING_RESULT));
     }
 
+    Item *date_arg= 0;
     for (i= 0; i <= (uint)TIME_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
-        DBUG_ASSERT((Item_result)i != TIME_RESULT);
         if ((Item_result)i == STRING_RESULT &&
             agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
           return;
+
+        if ((Item_result)i == TIME_RESULT)
+          date_arg= find_date_time_item(args, arg_count, 0);
+
         if (!(cmp_items[i]=
-            cmp_item::get_comparator((Item_result)i, 0,
+            cmp_item::get_comparator((Item_result)i, date_arg,
                                      cmp_collation.collation)))
           return;
       }
@@ -3494,10 +3578,13 @@ void cmp_item_row::store_value(Item *item)
     for (uint i=0; i < n; i++)
     {
       if (!comparators[i])
+      {
+        DBUG_ASSERT(item->element_index(i)->cmp_type() != TIME_RESULT);
         if (!(comparators[i]=
               cmp_item::get_comparator(item->element_index(i)->result_type(), 0,
                                        item->element_index(i)->collation.collation)))
 	  break;					// new failed
+      }
       comparators[i]->store_value(item->element_index(i));
       item->null_value|= item->element_index(i)->null_value;
     }
@@ -3700,6 +3787,14 @@ Item_func_in::eval_not_null_tables(uchar *opt_arg)
 }
 
 
+void Item_func_in::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  /* This will re-calculate attributes of the arguments */
+  Item_func_opt_neg::fix_after_pullout(new_parent, ref);
+  /* Then, re-calculate not_null_tables_cache according to our special rules */
+  eval_not_null_tables(NULL);
+}
+
 static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 {
   return cs->coll->strnncollsp(cs,
@@ -3798,7 +3893,8 @@ void Item_func_in::fix_length_and_dec()
         !thd->lex->is_ps_or_view_context_analysis() && cmp_type != INT_RESULT)
     {
       Item_field *field_item= (Item_field*) (args[0]->real_item());
-      if (field_item->cmp_type() == INT_RESULT)
+      if (field_item->field_type() ==  MYSQL_TYPE_LONGLONG ||
+          field_item->field_type() ==  MYSQL_TYPE_YEAR)
       {
         bool all_converted= TRUE;
         for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -4023,15 +4119,12 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
 #ifndef EMBEDDED_LIBRARY
   uchar buff[sizeof(char*)];			// Max local vars in function
 #endif
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
 
-  if (functype() != COND_AND_FUNC)
-    thd->thd_marker.emb_on_expr_nest= NULL;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4091,7 +4184,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
@@ -4103,6 +4195,7 @@ Item_cond::eval_not_null_tables(uchar *opt_arg)
 {
   Item *item;
   List_iterator<Item> li(list);
+  not_null_tables_cache= (table_map) 0;
   and_tables_cache= ~(table_map) 0;
   while ((item=li++))
   {
@@ -4357,6 +4450,17 @@ void Item_cond::neg_arguments(THD *thd)
 	return;					// Fatal OEM error
     }
     VOID(li.replace(new_item));
+  }
+}
+
+
+void Item_cond_and::mark_as_condition_AND_part(TABLE_LIST *embedding)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item=li++))
+  {
+    item->mark_as_condition_AND_part(embedding);
   }
 }
 
@@ -5065,23 +5169,21 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
     very fast to use.
 */
 
-longlong Item_cond_xor::val_int()
+longlong Item_func_xor::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  List_iterator<Item> li(list);
-  Item *item;
-  int result=0;	
-  null_value=0;
-  while ((item=li++))
+  int result= 0;
+  null_value= false;
+  for (uint i= 0; i < arg_count; i++)
   {
-    result^= (item->val_int() != 0);
-    if (item->null_value)
+    result^= (args[i]->val_int() != 0);
+    if (args[i]->null_value)
     {
-      null_value=1;
+      null_value= true;
       return 0;
     }
   }
-  return (longlong) result;
+  return result;
 }
 
 /**
@@ -5120,6 +5222,33 @@ Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
   Item *item= negated_item();
   return item;
+}
+
+/**
+  XOR can be negated by negating one of the operands:
+
+  NOT (a XOR b)  => (NOT a) XOR b
+                 => a       XOR (NOT b)
+
+  @param thd     Thread handle
+  @return        New negated item
+*/
+Item *Item_func_xor::neg_transformer(THD *thd)
+{
+  Item *neg_operand;
+  Item_func_xor *new_item;
+  if ((neg_operand= args[0]->neg_transformer(thd)))
+    // args[0] has neg_tranformer
+    new_item= new(thd->mem_root) Item_func_xor(neg_operand, args[1]);
+  else if ((neg_operand= args[1]->neg_transformer(thd)))
+    // args[1] has neg_tranformer
+    new_item= new(thd->mem_root) Item_func_xor(args[0], neg_operand);
+  else
+  {
+    neg_operand= new(thd->mem_root) Item_func_not(args[0]);
+    new_item= new(thd->mem_root) Item_func_xor(neg_operand, args[1]);
+  }
+  return new_item;
 }
 
 
@@ -5579,7 +5708,7 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first(NULL);
-  eval_item= cmp_item::get_comparator(item->result_type(), 0,
+  eval_item= cmp_item::get_comparator(item->cmp_type(), item,
                                       item->collation.collation);
 }
 
@@ -5682,7 +5811,6 @@ Item* Item_equal::get_first(Item *field_item)
 {
   Item_equal_fields_iterator it(*this);
   Item *item;
-  JOIN_TAB *field_tab;
   if (!field_item)
     return (it++);
   Field *field= ((Item_field *) (field_item->real_item()))->field;
@@ -5706,8 +5834,6 @@ Item* Item_equal::get_first(Item *field_item)
     eliminate_item_equal() also has code that deals with equality substitution
     in presense of SJM nests.
   */
-
-  field_tab= field->table->reginfo.join_tab;
 
   TABLE_LIST *emb_nest= field->table->pos_in_table_list->embedding;
 

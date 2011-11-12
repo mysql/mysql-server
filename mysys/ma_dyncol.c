@@ -238,7 +238,7 @@ dynamic_column_uint_read(DYNAMIC_COLUMN_VALUE *store_it_here,
   for (i= 0; i < length; i++)
     value+= ((ulonglong)data[i]) << (i*8);
 
-  store_it_here->ulong_value= value;
+  store_it_here->x.ulong_value= value;
   return ER_DYNCOL_OK;
 }
 
@@ -297,12 +297,12 @@ dynamic_column_sint_read(DYNAMIC_COLUMN_VALUE *store_it_here,
 {
   ulonglong val;
   dynamic_column_uint_read(store_it_here, data, length);
-  val= store_it_here->ulong_value;
+  val= store_it_here->x.ulong_value;
   if (val & 1)
     val= (val >> 1) ^ ULL(0xffffffffffffffff);
   else
     val>>= 1;
-  store_it_here->long_value= (longlong) val;
+  store_it_here->x.long_value= (longlong) val;
   return ER_DYNCOL_OK;
 }
 
@@ -324,30 +324,30 @@ dynamic_column_value_len(DYNAMIC_COLUMN_VALUE *value)
   case DYN_COL_NULL:
     return 0;
   case DYN_COL_INT:
-    return dynamic_column_sint_bytes(value->long_value);
+    return dynamic_column_sint_bytes(value->x.long_value);
   case DYN_COL_UINT:
-    return dynamic_column_uint_bytes(value->ulong_value);
+    return dynamic_column_uint_bytes(value->x.ulong_value);
   case DYN_COL_DOUBLE:
     return 8;
   case DYN_COL_STRING:
-    return (dynamic_column_var_uint_bytes(value->charset->number) +
-            value->string_value.length);
+    return (dynamic_column_var_uint_bytes(value->x.string.charset->number) +
+            value->x.string.value.length);
   case DYN_COL_DECIMAL:
   {
-    int precision= value->decimal_value.intg + value->decimal_value.frac;
-    int scale= value->decimal_value.frac;
+    int precision= value->x.decimal.value.intg + value->x.decimal.value.frac;
+    int scale= value->x.decimal.value.frac;
 
-    if (precision == 0 || decimal_is_zero(&value->decimal_value))
+    if (precision == 0 || decimal_is_zero(&value->x.decimal.value))
     {
       /* This is here to simplify dynamic_column_decimal_store() */
-      value->decimal_value.intg= value->decimal_value.frac= 0;
+      value->x.decimal.value.intg= value->x.decimal.value.frac= 0;
       return 0;
     }
     /*
       Check if legal decimal;  This is needed to not get an assert in
       decimal_bin_size(). However this should be impossible as all
       decimals entered here should be valid and we have the special check
-      above to handle the unlikely but possible case that decimal_value.intg
+      above to handle the unlikely but possible case that decimal.value.intg
       and decimal.frac is 0.
     */
     if (scale < 0 || precision <= 0)
@@ -355,8 +355,8 @@ dynamic_column_value_len(DYNAMIC_COLUMN_VALUE *value)
       DBUG_ASSERT(0);                           /* Impossible */
       return (size_t) ~0;
     }
-    return (dynamic_column_var_uint_bytes(value->decimal_value.intg) +
-            dynamic_column_var_uint_bytes(value->decimal_value.frac) +
+    return (dynamic_column_var_uint_bytes(value->x.decimal.value.intg) +
+            dynamic_column_var_uint_bytes(value->x.decimal.value.frac) +
             decimal_bin_size(precision, scale));
   }
   case DYN_COL_DATETIME:
@@ -410,7 +410,7 @@ dynamic_column_double_read(DYNAMIC_COLUMN_VALUE *store_it_here,
 {
   if (length != 8)
     return ER_DYNCOL_FORMAT;
-  float8get(store_it_here->double_value, data);
+  float8get(store_it_here->x.double_value, data);
   return ER_DYNCOL_OK;
 }
 
@@ -455,12 +455,12 @@ dynamic_column_string_read(DYNAMIC_COLUMN_VALUE *store_it_here,
   uint charset_nr= (uint)dynamic_column_var_uint_get(data, length, &len);
   if (len == 0)                                /* Wrong packed number */
     return ER_DYNCOL_FORMAT;
-  store_it_here->charset= get_charset(charset_nr, MYF(MY_WME));
-  if (store_it_here->charset == NULL)
+  store_it_here->x.string.charset= get_charset(charset_nr, MYF(MY_WME));
+  if (store_it_here->x.string.charset == NULL)
     return ER_DYNCOL_UNKNOWN_CHARSET;
   data+= len;
-  store_it_here->string_value.length= (length-= len);
-  store_it_here->string_value.str= (char*) data;
+  store_it_here->x.string.value.length= (length-= len);
+  store_it_here->x.string.value.str= (char*) data;
   return ER_DYNCOL_OK;
 }
 
@@ -508,11 +508,11 @@ dynamic_column_decimal_store(DYNAMIC_COLUMN *str,
 
 void dynamic_column_prepare_decimal(DYNAMIC_COLUMN_VALUE *value)
 {
-  value->decimal_value.buf= value->decimal_buffer;
-  value->decimal_value.len= DECIMAL_BUFF_LENGTH;
+  value->x.decimal.value.buf= value->x.decimal.buffer;
+  value->x.decimal.value.len= DECIMAL_BUFF_LENGTH;
   /* just to be safe */
   value->type= DYN_COL_DECIMAL;
-  decimal_make_zero(&value->decimal_value);
+  decimal_make_zero(&value->x.decimal.value);
 }
 
 
@@ -553,7 +553,7 @@ dynamic_column_decimal_read(DYNAMIC_COLUMN_VALUE *store_it_here,
       (int) (length - intg_len - frac_len))
     return ER_DYNCOL_FORMAT;
 
-  if (bin2decimal(data, &store_it_here->decimal_value, precision, scale) !=
+  if (bin2decimal(data, &store_it_here->x.decimal.value, precision, scale) !=
       E_DEC_OK)
     return ER_DYNCOL_FORMAT;
   return ER_DYNCOL_OK;
@@ -607,14 +607,14 @@ dynamic_column_date_time_read(DYNAMIC_COLUMN_VALUE *store_it_here,
   */
   if (length != 9)
     goto err;
-  store_it_here->time_value.time_type= MYSQL_TIMESTAMP_DATETIME;
+  store_it_here->x.time_value.time_type= MYSQL_TIMESTAMP_DATETIME;
   if ((rc= dynamic_column_date_read_internal(store_it_here, data, 3)) ||
       (rc= dynamic_column_time_read_internal(store_it_here, data + 3, 6)))
     goto err;
   return ER_DYNCOL_OK;
 
 err:
-  store_it_here->time_value.time_type= MYSQL_TIMESTAMP_ERROR;
+  store_it_here->x.time_value.time_type= MYSQL_TIMESTAMP_ERROR;
   return rc;
 }
 
@@ -682,9 +682,9 @@ static enum enum_dyncol_func_result
 dynamic_column_time_read(DYNAMIC_COLUMN_VALUE *store_it_here,
                          uchar *data, size_t length)
 {
-  store_it_here->time_value.year= store_it_here->time_value.month=
-    store_it_here->time_value.day= 0;
-  store_it_here->time_value.time_type= MYSQL_TIMESTAMP_TIME;
+  store_it_here->x.time_value.year= store_it_here->x.time_value.month=
+    store_it_here->x.time_value.day= 0;
+  store_it_here->x.time_value.time_type= MYSQL_TIMESTAMP_TIME;
   return dynamic_column_time_read_internal(store_it_here, data, length);
 }
 
@@ -709,23 +709,23 @@ dynamic_column_time_read_internal(DYNAMIC_COLUMN_VALUE *store_it_here,
          1123456789012345612345612345678901234567890
     <123456><123456><123456><123456><123456><123456>
   */
-  store_it_here->time_value.second_part= (data[0] |
+  store_it_here->x.time_value.second_part= (data[0] |
                                           (data[1] << 8) |
                                           ((data[2] & 0xf) << 16));
-  store_it_here->time_value.second= ((data[2] >> 4) |
+  store_it_here->x.time_value.second= ((data[2] >> 4) |
                                      ((data[3] & 0x3) << 4));
-  store_it_here->time_value.minute= (data[3] >> 2);
-  store_it_here->time_value.hour= (((((uint)data[5]) & 0x3 ) << 8) | data[4]);
-  store_it_here->time_value.neg= ((data[5] & 0x4) ? 1 : 0);
-  if (store_it_here->time_value.second > 59 ||
-      store_it_here->time_value.minute > 59 ||
-      store_it_here->time_value.hour > 838 ||
-      store_it_here->time_value.second_part > 999999)
+  store_it_here->x.time_value.minute= (data[3] >> 2);
+  store_it_here->x.time_value.hour= (((((uint)data[5]) & 0x3 ) << 8) | data[4]);
+  store_it_here->x.time_value.neg= ((data[5] & 0x4) ? 1 : 0);
+  if (store_it_here->x.time_value.second > 59 ||
+      store_it_here->x.time_value.minute > 59 ||
+      store_it_here->x.time_value.hour > 838 ||
+      store_it_here->x.time_value.second_part > 999999)
     goto err;
   return ER_DYNCOL_OK;
 
 err:
-  store_it_here->time_value.time_type= MYSQL_TIMESTAMP_ERROR;
+  store_it_here->x.time_value.time_type= MYSQL_TIMESTAMP_ERROR;
   return ER_DYNCOL_FORMAT;
 }
 
@@ -783,12 +783,12 @@ static enum enum_dyncol_func_result
 dynamic_column_date_read(DYNAMIC_COLUMN_VALUE *store_it_here,
                          uchar *data, size_t length)
 {
-  store_it_here->time_value.neg= 0;
-  store_it_here->time_value.second_part= 0;
-  store_it_here->time_value.hour= 0;
-  store_it_here->time_value.minute= 0;
-  store_it_here->time_value.second= 0;
-  store_it_here->time_value.time_type= MYSQL_TIMESTAMP_DATE;
+  store_it_here->x.time_value.neg= 0;
+  store_it_here->x.time_value.second_part= 0;
+  store_it_here->x.time_value.hour= 0;
+  store_it_here->x.time_value.minute= 0;
+  store_it_here->x.time_value.second= 0;
+  store_it_here->x.time_value.time_type= MYSQL_TIMESTAMP_DATE;
   return dynamic_column_date_read_internal(store_it_here, data, length);
 }
 
@@ -814,19 +814,19 @@ dynamic_column_date_read_internal(DYNAMIC_COLUMN_VALUE *store_it_here,
      12345678901234123412345
     <123456><123456><123456>
   */
-  store_it_here->time_value.day= (data[0] & 0x1f);
-  store_it_here->time_value.month= (((data[1] & 0x1) << 3) |
+  store_it_here->x.time_value.day= (data[0] & 0x1f);
+  store_it_here->x.time_value.month= (((data[1] & 0x1) << 3) |
                                     (data[0] >> 5));
-  store_it_here->time_value.year= ((((uint)data[2]) << 7) |
+  store_it_here->x.time_value.year= ((((uint)data[2]) << 7) |
                                     (data[1] >> 1));
-  if (store_it_here->time_value.day > 31 ||
-      store_it_here->time_value.month > 12 ||
-      store_it_here->time_value.year > 9999)
+  if (store_it_here->x.time_value.day > 31 ||
+      store_it_here->x.time_value.month > 12 ||
+      store_it_here->x.time_value.year > 9999)
     goto err;
   return ER_DYNCOL_OK;
 
 err:
-  store_it_here->time_value.time_type= MYSQL_TIMESTAMP_ERROR;
+  store_it_here->x.time_value.time_type= MYSQL_TIMESTAMP_ERROR;
   return ER_DYNCOL_FORMAT;
 }
 
@@ -845,25 +845,25 @@ data_store(DYNAMIC_COLUMN *str, DYNAMIC_COLUMN_VALUE *value)
 {
   switch (value->type) {
   case DYN_COL_INT:
-    return dynamic_column_sint_store(str, value->long_value);
+    return dynamic_column_sint_store(str, value->x.long_value);
   case DYN_COL_UINT:
-    return dynamic_column_uint_store(str, value->ulong_value);
+    return dynamic_column_uint_store(str, value->x.ulong_value);
   case DYN_COL_DOUBLE:
-    return dynamic_column_double_store(str, value->double_value);
+    return dynamic_column_double_store(str, value->x.double_value);
   case DYN_COL_STRING:
-    return dynamic_column_string_store(str, &value->string_value,
-                                     value->charset);
+    return dynamic_column_string_store(str, &value->x.string.value,
+                                     value->x.string.charset);
   case DYN_COL_DECIMAL:
-    return dynamic_column_decimal_store(str, &value->decimal_value);
+    return dynamic_column_decimal_store(str, &value->x.decimal.value);
   case DYN_COL_DATETIME:
     /* date+time in bits: 14 + 4 + 5 + 5 + 6 + 6 40bits = 5 bytes */
-    return dynamic_column_date_time_store(str, &value->time_value);
+    return dynamic_column_date_time_store(str, &value->x.time_value);
   case DYN_COL_DATE:
     /* date in dits: 14 + 4 + 5 = 23bits ~= 3bytes*/
-    return dynamic_column_date_store(str, &value->time_value);
+    return dynamic_column_date_store(str, &value->x.time_value);
   case DYN_COL_TIME:
     /* time in bits: 5 + 6 + 6 = 17bits ~= 3bytes*/
-    return dynamic_column_time_store(str, &value->time_value);
+    return dynamic_column_time_store(str, &value->x.time_value);
   case DYN_COL_NULL:
     break;                                      /* Impossible */
   }
@@ -1743,11 +1743,10 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
   uint i, j, k;
   uint new_column_count, column_count, not_null;
   enum enum_dyncol_func_result rc;
-  int header_delta, header_delta_sign, data_delta_sign;
+  int header_delta;
   size_t offset_size, entry_size, header_size, data_size;
   size_t new_offset_size, new_entry_size, new_header_size, new_data_size;
   size_t max_offset;
-  my_bool copy;
 
   if (add_column_count == 0)
     return ER_DYNCOL_OK;
@@ -1878,7 +1877,7 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
 
       if (plan[i].val->type == DYN_COL_NULL)
       {
-        plan[i].act= PLAN_NOP;           	/* Mark entry to be skiped */
+        plan[i].act= PLAN_NOP;                  /* Mark entry to be skiped */
       }
       else
       {
@@ -1915,17 +1914,17 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
     goto end;
   }
 
+#ifdef NOT_IMPLEMENTED
   /* if (new_offset_size != offset_size) then we have to rewrite header */
   header_delta_sign= new_offset_size - offset_size;
   data_delta_sign= 0;
-  copy= FALSE;
   for (i= 0; i < add_column_count; i++)
   {
     /* This is the check for increasing/decreasing */
     DELTA_CHECK(header_delta_sign, plan[i].hdelta, copy);
     DELTA_CHECK(data_delta_sign, plan[i].ddelta, copy);
   }
-
+#endif
   calc_param(&new_entry_size, &new_header_size,
              new_offset_size, new_column_count);
 

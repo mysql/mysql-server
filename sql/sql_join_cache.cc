@@ -225,8 +225,6 @@ void JOIN_CACHE::calc_record_fields()
     flag_fields+= test(tab->table->maybe_null);
     fields+= tab->used_fields;
     blobs+= tab->used_blobs;
-
-    fields+= tab->check_rowid_field();
   }
   if ((with_match_flag= join_tab->use_match_flag()))
     flag_fields++;
@@ -609,11 +607,23 @@ void JOIN_CACHE::create_remaining_fields()
     if (tab->keep_current_rowid)
     {
       copy->str= table->file->ref;
-      copy->length= table->file->ref_length;
-      copy->type= 0;
+      if (copy->str)
+        copy->length= table->file->ref_length;
+      else
+      {
+        /* This may happen only for materialized derived tables and views */
+        copy->length= 0;
+        copy->str= (uchar *) table;
+      } 
+      copy->type= CACHE_ROWID;
       copy->field= 0;
       copy->referenced_field_no= 0;
-      length+= copy->length;
+      /* 
+        Note: this may seem odd, but at this point we have
+        table->file->ref==NULL while table->file->ref_length is already set 
+        to correct value.
+      */
+      length += table->file->ref_length;
       data_field_count++;
       copy++;
     }
@@ -1290,6 +1300,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   if (with_length)
   {
     rec_len_ptr= cp;   
+    DBUG_ASSERT(cp + size_of_rec_len <= buff + buff_size);
     cp+= size_of_rec_len;
   }
 
@@ -1299,6 +1310,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   */
   if (prev_cache)
   {
+    DBUG_ASSERT(cp + prev_cache->get_size_of_rec_offset() <= buff + buff_size);
     cp+= prev_cache->get_size_of_rec_offset();
     prev_cache->store_rec_ref(cp, link);
   } 
@@ -1315,6 +1327,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   flags_pos= cp;
   for ( ; copy < copy_end; copy++)
   {
+    DBUG_ASSERT(cp + copy->length <= buff + buff_size);
     memcpy(cp, copy->str, copy->length);
     cp+= copy->length;
   } 
@@ -1325,8 +1338,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   {
     Field *field= copy->field;
     if (field && field->maybe_null() && field->is_null())
-    {
-      /* Do not copy a field if its value is null */
+    {    
       if (copy->referenced_field_no)
         copy->offset= 0;
       continue;              
@@ -1342,6 +1354,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
       {
         last_rec_blob_data_is_in_rec_buff= 1;
         /* Put down the length of the blob and the pointer to the data */  
+        DBUG_ASSERT(cp + copy->length + sizeof(char*) <= buff + buff_size);
 	blob_field->get_image(cp, copy->length+sizeof(char*),
                               blob_field->charset());
 	cp+= copy->length+sizeof(char*);
@@ -1351,6 +1364,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
         /* First put down the length of the blob and then copy the data */ 
 	blob_field->get_image(cp, copy->length, 
 			      blob_field->charset());
+        DBUG_ASSERT(cp + copy->length + copy->blob_length <= buff + buff_size);
 	memcpy(cp+copy->length, copy->str, copy->blob_length);               
 	cp+= copy->length+copy->blob_length;
       }
@@ -1361,12 +1375,14 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
       case CACHE_VARSTR1:
         /* Copy the significant part of the short varstring field */ 
         len= (uint) copy->str[0] + 1;
+        DBUG_ASSERT(cp + len <= buff + buff_size);
         memcpy(cp, copy->str, len);
         cp+= len;
         break;
       case CACHE_VARSTR2:
         /* Copy the significant part of the long varstring field */
         len= uint2korr(copy->str) + 2;
+        DBUG_ASSERT(cp + len <= buff + buff_size);
         memcpy(cp, copy->str, len);
         cp+= len;
         break;
@@ -1381,14 +1397,38 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 	     end > str && end[-1] == ' ';
 	     end--) ;
 	len=(uint) (end-str);
+        DBUG_ASSERT(cp + len + 2 <= buff + buff_size);
         int2store(cp, len);
 	memcpy(cp+2, str, len);
 	cp+= len+2;
         break;
       }
+      case CACHE_ROWID:
+        if (!copy->length)
+	{
+          /*
+            This may happen only for ROWID fields of materialized
+            derived tables and views.
+	  */
+	  TABLE *table= (TABLE *) copy->str;
+          copy->str= table->file->ref;
+          copy->length= table->file->ref_length;
+          if (!copy->str)
+	  {
+            /* 
+              If table is an empty inner table of an outer join and it is
+              a materialized derived table then table->file->ref == NULL.
+	    */
+	    cp+= copy->length;
+            break;
+          }
+        }
+        /* fall through */
       default:      
         /* Copy the entire image of the field from the record buffer */
-	memcpy(cp, copy->str, copy->length);
+        DBUG_ASSERT(cp + copy->length <= buff + buff_size);
+        if (copy->str)
+	  memcpy(cp, copy->str, copy->length);
 	cp+= copy->length;
       }
     }
@@ -1407,6 +1447,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
         cnt++;
       }
     }
+    DBUG_ASSERT(cp + size_of_fld_ofs*cnt <= buff + buff_size);
     cp+= size_of_fld_ofs*cnt;
   }
 
@@ -1455,7 +1496,6 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   RETURN VALUE
     none
 */
-
 void JOIN_CACHE::reset(bool for_writing)
 {
   pos= buff;
@@ -1781,6 +1821,13 @@ uint JOIN_CACHE::read_record_field(CACHE_FIELD *copy, bool blob_in_rec_buff)
       memset(copy->str+len, ' ', copy->length-len);
       len+= 2;
       break;
+    case CACHE_ROWID:
+      if (!copy->str)
+      {
+        len= copy->length;
+        break;
+      }
+      /* fall through */ 
     default:
       /* Copy the entire image of the field from the record buffer */
       len= copy->length;
@@ -2004,6 +2051,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   JOIN_TAB *tab;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
+  DBUG_ENTER("JOIN_CACHE::join_records");
 
   if (outer_join_first_inner && !join_tab->first_unmatched)
     join_tab->not_null_compl= TRUE;   
@@ -2085,7 +2133,8 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 finish:
   restore_last_record();
   reset(TRUE);
-  return rc;
+  DBUG_PRINT("exit", ("rc: %d", rc));
+  DBUG_RETURN(rc);
 }
 
 
@@ -2147,10 +2196,11 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
   join_tab->table->null_row= 0;
   bool check_only_first_match= join_tab->check_only_first_match();
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
+  DBUG_ENTER("JOIN_CACHE::join_matching_records");
 
   /* Return at once if there are no records in the join buffer */
   if (!records)     
-    return NESTED_LOOP_OK;   
+    DBUG_RETURN(NESTED_LOOP_OK);
  
   /* 
     When joining we read records from the join buffer back into record buffers.
@@ -2224,7 +2274,7 @@ finish:
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
 finish2:    
   join_tab_scan->close();
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -2306,6 +2356,7 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
 enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
 {
   enum_nested_loop_state rc= NESTED_LOOP_OK;
+  DBUG_ENTER("JOIN_CACHE::generate_full_extensions");
   
   /*
     Check whether the extended partial join record meets
@@ -2323,16 +2374,18 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
       {
         reset(TRUE);
-        return rc;
+        DBUG_RETURN(rc);
       }
     }
     if (res == -1)
     {
       rc= NESTED_LOOP_ERROR;
-      return rc;
+      DBUG_RETURN(rc);
     }
   }
-  return rc;
+  else if (join->thd->is_error())
+    rc= NESTED_LOOP_ERROR;
+  DBUG_RETURN(rc);
 }
 
 
@@ -2357,16 +2410,20 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
   RETURN VALUE
     TRUE   there is a match
     FALSE  there is no match
+           In this case the caller must also check thd->is_error() to see
+           if there was a fatal error for the query.
 */ 
 
 inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
 {
   /* Check whether pushdown conditions are satisfied */
+  DBUG_ENTER("JOIN_CACHE:check_match");
+
   if (join_tab->select && join_tab->select->skip_record(join->thd) <= 0)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   if (!join_tab->is_last_inner_table())
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   /* 
      This is the last inner table of an outer join,
@@ -2379,7 +2436,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     set_match_flag_if_none(first_inner, rec_ptr);
     if (first_inner->check_only_first_match() &&
         !join_tab->first_inner)
-      return TRUE;
+      DBUG_RETURN(TRUE);
     /* 
       This is the first match for the outer table row.
       The function set_match_flag_if_none has turned the flag
@@ -2393,13 +2450,12 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     for (JOIN_TAB *tab= first_inner; tab <= join_tab; tab++)
     {
       if (tab->select && tab->select->skip_record(join->thd) <= 0)
-        return FALSE;
+        DBUG_RETURN(FALSE);
     }
   }
   while ((first_inner= first_inner->first_upper) &&
          first_inner->last_inner == join_tab);
-  
-  return TRUE;
+    DBUG_RETURN(TRUE);
 } 
 
 
@@ -2434,10 +2490,11 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   ulonglong cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
+  DBUG_ENTER("JOIN_CACHE::join_null_complements");
  
   /* Return at once if there are no records in the join buffer */
   if (!records)
-    return NESTED_LOOP_OK;
+    DBUG_RETURN(NESTED_LOOP_OK);
   
   cnt= records - (is_key_access() ? 0 : test(skip_last));
 
@@ -2467,7 +2524,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   }
 
 finish:
-  return rc;
+  DBUG_RETURN(rc);
 }
 
 

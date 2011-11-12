@@ -13,21 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-# This is the CMakeLists for InnoDB Plugin
+# This is the CMakeLists for XtraDB
 
-
-
-# Starting at 5.1.38, MySQL CMake files are simplified. But the plugin
-# CMakeLists.txt still needs to work with previous versions of MySQL.
-IF (MYSQL_VERSION_ID GREATER "50137")
-	INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
-ENDIF (MYSQL_VERSION_ID GREATER "50137")
+INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 
 IF (CMAKE_SIZEOF_VOID_P MATCHES 8)
 	SET(WIN64 TRUE)
 ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
-
-ADD_DEFINITIONS(-D_WIN32 -D_LIB -DMYSQL_SERVER)
 
 # Include directories under xtradb
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/xtradb/include
@@ -89,9 +81,6 @@ SET(XTRADB_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			usr/usr0sess.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rbt.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c
 			ut/ut0list.c ut/ut0wqueue.c)
-# Windows atomics do not perform well. Disable Windows atomics by default.
-# See bug#52102 for details.
-#ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
-ADD_DEFINITIONS(-DHAVE_IB_PAUSE_INSTRUCTION)
+
 
 MYSQL_STORAGE_ENGINE(XTRADB)
