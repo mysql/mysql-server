@@ -492,9 +492,16 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
 
+#if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#define HAVE_GCC_GT_2
+/* Tell the compiler that variable/function is unused. */
+# define UNIV_UNUSED    __attribute__ ((unused))
+#else
+# define UNIV_UNUSED
+#endif /* CHECK FOR GCC VER_GT_2 */
+
 /* Some macros to improve branch prediction and reduce cache misses */
-#if defined(INNODB_COMPILER_HINTS) \
-    && defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+#if defined(INNODB_COMPILER_HINTS) && defined(HAVE_GCC_GT_2)
 /* Tell the compiler that 'expr' probably evaluates to 'constant'. */
 # define UNIV_EXPECT(expr,constant) __builtin_expect(expr, constant)
 /* Tell the compiler that a pointer is likely to be NULL */
@@ -506,9 +513,6 @@ it is read. */
 it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
 
-/* Tell the compiler that variable/function is unused. */
-# define UNIV_UNUSED    __attribute__ ((unused))
-
 /* Sun Studio includes sun_prefetch.h as of version 5.9 */
 #elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
        || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
@@ -519,8 +523,6 @@ it is read or written. */
 # undef UNIV_INTERN
 # define UNIV_INTERN __hidden
 #endif /* __SUNPRO_C >= 0x550 */
-
-# define UNIV_UNUSED
 
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
@@ -535,7 +537,6 @@ it is read or written. */
 # endif /* INNODB_COMPILER_HINTS */
 
 #else
-# define UNIV_UNUSED
 /* Dummy versions of the macros */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)

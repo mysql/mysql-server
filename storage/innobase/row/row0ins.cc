@@ -613,7 +613,7 @@ row_ins_cascade_calc_update_vec(
 					if (new_doc_id <= 0) {
 						fprintf(stderr,
 							"InnoDB: FTS Doc ID "
-							"must be large than "
+							"must be larger than "
 							"0 \n");
 						return(ULINT_UNDEFINED);
 					}
@@ -621,8 +621,8 @@ row_ins_cascade_calc_update_vec(
 					if (new_doc_id < n_doc_id) {
 						fprintf(stderr,
 						       "InnoDB: FTS Doc ID "
-						       "must be large than "
-						       "%llu for table",
+						       "must be larger than "
+						       IB_ID_FMT" for table",
 						       n_doc_id -1);
 
 						ut_print_name(stderr, trx,
