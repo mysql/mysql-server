@@ -28,6 +28,7 @@
 #include "handler.h"                /* row_type, ha_choice, handler */
 #include "mysql_com.h"              /* enum_field_types */
 #include "thr_lock.h"                  /* thr_lock_type */
+#include "filesort_utils.h"
 
 /* Structs that defines the TABLE */
 
@@ -300,10 +301,14 @@ enum tmp_table_type
 };
 enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
-typedef struct st_filesort_info
+
+class Filesort_info
 {
+  /// Buffer for sorting keys.
+  Filesort_buffer filesort_buffer;
+
+public:
   IO_CACHE *io_cache;           /* If sorted through filesort */
-  uchar     **sort_keys;        /* Buffer for sorting keys */
   uchar     *buffpek;           /* Buffer for buffpek structures */
   uint      buffpek_len;        /* Max number of buffpeks in the buffer */
   uchar     *addon_buf;         /* Pointer to a buffer if sorted with fields */
@@ -312,7 +317,28 @@ typedef struct st_filesort_info
   void    (*unpack)(struct st_sort_addon_field *, uchar *); /* To unpack back */
   uchar     *record_pointers;    /* If sorted in memory */
   ha_rows   found_records;      /* How many records in sort */
-} FILESORT_INFO;
+
+  /**
+     Accessors for Filesort_buffer (which @c).
+  */
+  uchar *get_record_buffer(uint idx)
+  { return filesort_buffer.get_record_buffer(idx); }
+
+  uchar **get_sort_keys()
+  { return filesort_buffer.get_sort_keys(); }
+
+  uchar **alloc_sort_buffer(uint num_records, uint record_length)
+  { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
+
+  void free_sort_buffer()
+  { filesort_buffer.free_sort_buffer(); }
+
+  void init_record_pointers()
+  { filesort_buffer.init_record_pointers(); }
+
+  size_t sort_buffer_size() const
+  { return filesort_buffer.sort_buffer_size(); }
+};
 
 
 /*
@@ -1134,7 +1160,7 @@ public:
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
-  FILESORT_INFO sort;
+  Filesort_info sort;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
   bool no_partitions_used; /* If true, all partitions have been pruned away */
@@ -2080,11 +2106,11 @@ struct Semijoin_mat_optimize
   /* Expected #rows in the materialized table */
   double expected_rowcount;
   /* Materialization cost - execute sub-join and write rows to temp.table */
-  COST_VECT materialization_cost;
+  Cost_estimate materialization_cost;
   /* Cost to make one lookup in the temptable */
-  COST_VECT lookup_cost;
+  Cost_estimate lookup_cost;
   /* Cost of scanning the materialized table */
-  COST_VECT scan_cost;
+  Cost_estimate scan_cost;
 };
 
 typedef struct st_nested_join

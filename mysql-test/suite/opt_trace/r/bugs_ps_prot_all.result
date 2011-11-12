@@ -573,31 +573,37 @@ FROM t1
                 "semijoin_strategy_choice": [
                   {
                     "strategy": "FirstMatch",
-                    "recompute_best_access_paths": {
-                      "cause": "join_buffering_not_possible",
+                    "recalculate_access_paths_and_cost": {
                       "tables": [
                       ] /* tables */
-                    } /* recompute_best_access_paths */,
-                    "cost": 2.0049,
+                    } /* recalculate_access_paths_and_cost */,
+                    "cost": 2.2049,
                     "rows": 1,
                     "chosen": true
                   },
                   {
-                    "strategy": "MaterializationLookup",
-                    "cost": 2.3049,
+                    "strategy": "MaterializeLookup",
+                    "cost": 4.6049,
                     "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
                   },
                   {
                     "strategy": "DuplicatesWeedout",
-                    "cost": 2.1049,
+                    "cost": 4.6049,
                     "rows": 1,
                     "duplicate_tables_left": false,
                     "chosen": false
                   }
                 ] /* semijoin_strategy_choice */,
                 "chosen": true
+              },
+              {
+                "final_semijoin_strategy": "FirstMatch",
+                "recalculate_access_paths_and_cost": {
+                  "tables": [
+                  ] /* tables */
+                } /* recalculate_access_paths_and_cost */
               }
             ] /* considered_execution_plans */
           },
@@ -1310,7 +1316,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.835,
+                            "cost": 41.435,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1365,7 +1371,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.84,
+                            "cost": 43.84,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1447,7 +1453,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.835,
+                            "cost": 41.435,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1502,7 +1508,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 21.84,
+                            "cost": 43.84,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1584,8 +1590,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "FirstMatch",
-                            "recompute_best_access_paths": {
-                              "cause": "join_buffering_not_possible",
+                            "recalculate_access_paths_and_cost": {
                               "tables": [
                                 {
                                   "database": "test",
@@ -1622,30 +1627,29 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "access_type": "scan",
-                                        "using_join_cache": true,
                                         "rows": 3,
-                                        "cost": 2.2101,
-                                        "chosen": true
+                                        "cost": 26.482,
+                                        "chosen": false
                                       }
                                     ] /* considered_access_paths */
                                   } /* best_access_path */
                                 }
                               ] /* tables */
-                            } /* recompute_best_access_paths */,
-                            "cost": 11.569,
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 28.838,
                             "rows": 6,
                             "chosen": true
                           },
                           {
-                            "strategy": "MaterializationLookup",
-                            "cost": 11.533,
+                            "strategy": "MaterializeLookup",
+                            "cost": 16.233,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 16.639,
+                            "cost": 36.039,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
@@ -1707,8 +1711,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "FirstMatch",
-                            "recompute_best_access_paths": {
-                              "cause": "join_buffering_not_possible",
+                            "recalculate_access_paths_and_cost": {
                               "tables": [
                                 {
                                   "database": "test",
@@ -1745,30 +1748,29 @@ ON table2 .col_int_key = table1 .col_int_key
                                       },
                                       {
                                         "access_type": "scan",
-                                        "using_join_cache": true,
                                         "rows": 3,
-                                        "cost": 2.2101,
-                                        "chosen": true
+                                        "cost": 26.482,
+                                        "chosen": false
                                       }
                                     ] /* considered_access_paths */
                                   } /* best_access_path */
                                 }
                               ] /* tables */
-                            } /* recompute_best_access_paths */,
-                            "cost": 11.569,
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 28.838,
                             "rows": 6,
                             "chosen": true
                           },
                           {
-                            "strategy": "MaterializationLookup",
-                            "cost": 11.533,
+                            "strategy": "MaterializeLookup",
+                            "cost": 16.233,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": true
                           },
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 16.639,
+                            "cost": 36.039,
                             "rows": 6,
                             "duplicate_tables_left": false,
                             "chosen": false
@@ -1779,6 +1781,9 @@ ON table2 .col_int_key = table1 .col_int_key
                     ] /* rest_of_plan */
                   }
                 ] /* rest_of_plan */
+              },
+              {
+                "final_semijoin_strategy": "MaterializeLookup"
               }
             ] /* considered_execution_plans */
           },

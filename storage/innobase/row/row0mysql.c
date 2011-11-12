@@ -4398,6 +4398,7 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+			err = DB_ERROR;
 			goto funct_exit;
 		}
 

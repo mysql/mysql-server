@@ -567,9 +567,12 @@ int mysql_update(THD *thd,
       */
 
       if (used_index == MAX_KEY || (select && select->quick))
-        init_read_record(&info, thd, table, select, 0, 1, FALSE);
+        error= init_read_record(&info, thd, table, select, 0, 1, FALSE);
       else
-        init_read_record_idx(&info, thd, table, 1, used_index, reverse);
+        error= init_read_record_idx(&info, thd, table, 1, used_index, reverse);
+
+      if (error)
+        goto exit_without_my_ok;
 
       THD_STAGE_INFO(thd, stage_searching_rows_for_update);
       ha_rows tmp_limit= limit;
@@ -640,7 +643,8 @@ int mysql_update(THD *thd,
   if (select && select->quick && select->quick->reset())
     goto exit_without_my_ok;
   table->file->try_semi_consistent_read(1);
-  init_read_record(&info, thd, table, select, 0, 1, FALSE);
+  if ((error= init_read_record(&info, thd, table, select, 0, 1, FALSE)))
+    goto exit_without_my_ok;
 
   updated= found= 0;
   /*

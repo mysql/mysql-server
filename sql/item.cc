@@ -40,6 +40,9 @@
 #include "log_event.h"                 // append_query_string
 #include "sql_test.h"                  // print_where
 
+using std::min;
+using std::max;
+
 const String my_null_string("NULL", 4, default_charset_info);
 
 /****************************************************************************/
@@ -88,8 +91,8 @@ void
 Hybrid_type_traits_decimal::fix_length_and_dec(Item *item, Item *arg) const
 {
   item->decimals= arg->decimals;
-  item->max_length= min(arg->max_length + DECIMAL_LONGLONG_DIGITS,
-                        DECIMAL_MAX_STR_LENGTH);
+  item->max_length= min<uint32>(arg->max_length + DECIMAL_LONGLONG_DIGITS,
+                                DECIMAL_MAX_STR_LENGTH);
 }
 
 
@@ -487,9 +490,9 @@ uint Item::decimal_precision() const
     uint prec= 
       my_decimal_length_to_precision(max_char_length(), decimals,
                                      unsigned_flag);
-    return min(prec, DECIMAL_MAX_PRECISION);
+    return min<uint>(prec, DECIMAL_MAX_PRECISION);
   }
-  return min(max_char_length(), DECIMAL_MAX_PRECISION);
+  return min<uint>(max_char_length(), DECIMAL_MAX_PRECISION);
 }
 
 
@@ -792,7 +795,7 @@ void Item::set_name(const char *str, uint length, const CHARSET_INFO *cs)
 				   &res_length);
   }
   else
-    name= sql_strmake(str, (name_length= min(length,MAX_ALIAS_NAME)));
+    name= sql_strmake(str, (name_length= min<size_t>(length, MAX_ALIAS_NAME)));
 }
 
 
@@ -4729,16 +4732,17 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       expression to 'reference', i.e. it substitute that expression instead
       of this Item_field
     */
-    if ((from_field= find_field_in_tables(thd, this,
-                                          context->first_name_resolution_table,
-                                          context->last_name_resolution_table,
-                                          reference,
-                                          thd->lex->use_only_table_context ?
-                                            REPORT_ALL_ERRORS : 
-                                            IGNORE_EXCEPT_NON_UNIQUE,
-                                          !any_privileges,
-                                          TRUE)) ==
-	not_found_field)
+    from_field= find_field_in_tables(thd, this,
+                                     context->first_name_resolution_table,
+                                     context->last_name_resolution_table,
+                                     reference,
+                                     thd->lex->use_only_table_context ?
+                                       REPORT_ALL_ERRORS : 
+                                       IGNORE_EXCEPT_NON_UNIQUE,
+                                     !any_privileges, TRUE);
+    if (thd->is_error())
+      goto error;
+    if (from_field == not_found_field)
     {
       int ret;
       /* Look up in current select's item_list to find aliased fields */
@@ -5877,7 +5881,7 @@ longlong Item_hex_string::val_int()
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
   char *end=(char*) str_value.ptr()+str_value.length(),
-       *ptr=end-min(str_value.length(),sizeof(longlong));
+       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
 
   ulonglong value=0;
   for (; ptr != end ; ptr++)
@@ -5932,7 +5936,7 @@ warn:
 void Item_hex_string::print(String *str, enum_query_type query_type)
 {
   char *end= (char*) str_value.ptr() + str_value.length(),
-       *ptr= end - min(str_value.length(), sizeof(longlong));
+       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
   str->append("0x");
   for (; ptr != end ; ptr++)
   {
@@ -8385,14 +8389,14 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     /* fix variable decimals which always is NOT_FIXED_DEC */
     if (Field::result_merge_type(fld_type) == INT_RESULT)
       item_decimals= 0;
-    decimals= max(decimals, item_decimals);
+    decimals= max<int>(decimals, item_decimals);
   }
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
-    decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
+    decimals= min<int>(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
     int item_int_part= item->decimal_int_part();
     int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
-    int precision= min(item_prec, DECIMAL_MAX_PRECISION);
+    int precision= min<uint>(item_prec, DECIMAL_MAX_PRECISION);
     unsigned_flag&= item->unsigned_flag;
     max_length= my_decimal_precision_to_length_no_truncation(precision,
                                                              decimals,

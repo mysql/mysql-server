@@ -768,7 +768,7 @@ row_undo_mod_upd_exist_sec(
 		}
 
 		mem_heap_empty(heap);
-	     	dict_table_next_uncorrupted_index(node->index);
+		dict_table_next_uncorrupted_index(node->index);
 	}
 
 	mem_heap_free(heap);

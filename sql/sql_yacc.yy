@@ -71,6 +71,9 @@
 #pragma warning (disable : 4065)
 #endif
 
+using std::min;
+using std::max;
+
 int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F)               \
@@ -984,6 +987,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  DECIMAL_SYM                   /* SQL-2003-R */
 %token  DECLARE_SYM                   /* SQL-2003-R */
 %token  DEFAULT                       /* SQL-2003-R */
+%token  DEFAULT_AUTH_SYM              /* INTERNAL */
 %token  DEFINER_SYM
 %token  DELAYED_SYM
 %token  DELAY_KEY_WRITE_SYM
@@ -1246,8 +1250,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARTITIONING_SYM
 %token  PASSWORD
 %token  PHASE_SYM
-%token  PLUGINS_SYM
+%token  PLUGIN_DIR_SYM                /* INTERNAL */
 %token  PLUGIN_SYM
+%token  PLUGINS_SYM
 %token  POINT_SYM
 %token  POLYGON
 %token  PORT_SYM
@@ -2125,7 +2130,7 @@ master_file_def:
                from 0" (4 in fact), unspecified means "don't change the position
                (keep the preceding value)").
             */
-            Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
+            Lex->mi.pos = max<ulonglong>(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
           }
         | RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
           {
@@ -2135,7 +2140,8 @@ master_file_def:
           {
             Lex->mi.relay_log_pos = $3;
             /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
-            Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
+            Lex->mi.relay_log_pos = max<ulong>(BIN_LOG_HEADER_SIZE,
+                                               Lex->mi.relay_log_pos);
           }
         ;
 
@@ -7184,6 +7190,23 @@ slave:
           }
           slave_until
           {}
+          slave_connection_opts
+          {
+            /*
+              It is not possible to set user's information when
+              one is trying to start the SQL Thread.
+            */
+            if ((Lex->slave_thd_opt & SLAVE_SQL) == SLAVE_SQL &&
+                (Lex->slave_thd_opt & SLAVE_IO) != SLAVE_IO &&
+                (Lex->slave_connection.user ||
+                 Lex->slave_connection.password ||
+                 Lex->slave_connection.plugin_auth ||
+                 Lex->slave_connection.plugin_dir))
+            {
+              my_error(ER_SQLTHREAD_WITH_SECURE_SLAVE, MYF(0));
+              MYSQL_YYABORT;
+            }
+          }
         | STOP_SYM SLAVE slave_thread_opts
           {
             LEX *lex=Lex;
@@ -7207,6 +7230,50 @@ start_transaction_opts:
         | WITH CONSISTENT_SYM SNAPSHOT_SYM
           {
             $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
+          }
+        ;
+
+slave_connection_opts:
+          slave_user_name_opt slave_user_pass_opt
+          slave_plugin_auth_opt slave_plugin_dir_opt
+        ;
+
+slave_user_name_opt:
+          {
+            Lex->slave_connection.user= 0;
+          }
+        | USER EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.user= $3.str;
+          }
+        ;
+
+slave_user_pass_opt:
+          {
+            Lex->slave_connection.password= 0;
+          }
+        | PASSWORD EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.password= $3.str;
+          }
+
+slave_plugin_auth_opt:
+          {
+            Lex->slave_connection.plugin_auth= 0;
+          }
+        | DEFAULT_AUTH_SYM EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.plugin_auth= $3.str;
+          }
+        ;
+
+slave_plugin_dir_opt:
+          {
+            Lex->slave_connection.plugin_dir= 0;
+          }
+        | PLUGIN_DIR_SYM EQ TEXT_STRING_sys
+          {
+            Lex->slave_connection.plugin_dir= $3.str;
           }
         ;
 
@@ -12936,6 +13003,7 @@ keyword_sp:
         | DATETIME                 {}
         | DATE_SYM                 {}
         | DAY_SYM                  {}
+        | DEFAULT_AUTH_SYM         {}
         | DEFINER_SYM              {}
         | DELAY_KEY_WRITE_SYM      {}
         | DES_KEY_FILE             {}
@@ -13064,6 +13132,7 @@ keyword_sp:
         | PARTITIONS_SYM           {}
         | PASSWORD                 {}
         | PHASE_SYM                {}
+        | PLUGIN_DIR_SYM           {}
         | PLUGIN_SYM               {}
         | PLUGINS_SYM              {}
         | POINT_SYM                {}

@@ -6076,8 +6076,8 @@ ER_EVENT_CANNOT_CREATE_IN_THE_PAST
   eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
   ger "Ausführungszeit des Events liegt in der Vergangenheit, und es wurde ON COMPLETION NOT PRESERVE gesetzt. Das Event wurde unmittelbar nach Erzeugung gelöscht."
 ER_EVENT_CANNOT_ALTER_IN_THE_PAST
-  eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation."
-  ger "Ausführungszeit des Events liegt in der Vergangenheit, und es wurde ON COMPLETION NOT PRESERVE gesetzt. Das Event wurde unmittelbar nach Erzeugung gelöscht."
+  eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future."
+  ger "Execution Zeitpunkt des Ereignisses in der Vergangenheit liegt, und es war NACH ABSCHLUSS Set nicht erhalten. Die Veranstaltung wurde nicht verändert. Geben Sie einen Zeitpunkt in der Zukunft."
 ER_SLAVE_INCIDENT
   eng "The incident %s occured on the master. Message: %-.64s"
   ger "Der Vorfall %s passierte auf dem Master. Meldung: %-.64s"
@@ -6598,6 +6598,15 @@ ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
 ER_DA_INVALID_CONDITION_NUMBER 35000
   eng "Invalid condition number"
   por "Número de condição inválido"
+
+ER_INSECURE_PLAIN_TEXT
+  eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
+
+ER_INSECURE_CHANGE_MASTER
+  eng "Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives."
+
+ER_SQLTHREAD_WITH_SECURE_SLAVE
+  eng "Setting authentication options is not possible when only the Slave SQL Thread is being started."
 
 ER_TABLE_HAS_NO_FT
   eng "The table does not have FULLTEXT index to support this query"

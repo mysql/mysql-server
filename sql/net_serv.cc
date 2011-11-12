@@ -44,8 +44,11 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
-#include "mysql/psi/mysql_idle.h"
-#include "mysql/psi/mysql_socket.h"
+
+#include <algorithm>
+
+using std::min;
+using std::max;
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -80,6 +83,11 @@ extern void query_cache_insert(const char *packet, ulong length,
 #define thd_increment_bytes_sent(N)
 #endif
 
+#ifdef MYSQL_SERVER
+/* Additional instrumentation hooks for the server */
+#include "mysql_com_server.h"
+#endif
+
 #define VIO_SOCKET_ERROR  ((size_t) -1)
 #define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
@@ -105,7 +113,9 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
   net->unused= 0;
-  net->mysql_socket_idle= FALSE;
+#ifdef MYSQL_SERVER
+  net->extension= NULL;
+#endif
 
   if (vio)
   {
@@ -714,36 +724,34 @@ static my_bool net_read_packet_header(NET *net)
 {
   uchar pkt_nr;
   size_t count= NET_HEADER_SIZE;
-  MYSQL_IDLE_WAIT_VARIABLES(idle_locker, idle_state) /* no ; */
+  my_bool rc;
 
   if (net->compress)
     count+= COMP_HEADER_SIZE;
 
-  /*
-    If the server is IDLE, waiting for the next command:
-    - do not time the wait on the socket
-    - time the wait as IDLE server time instead.
-  */
-#ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (net->mysql_socket_idle)
+#ifdef MYSQL_SERVER
+  struct st_net_server *server_extension;
+
+  server_extension= static_cast<st_net_server*> (net->extension);
+
+  if (server_extension != NULL)
   {
-    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
-    MYSQL_START_IDLE_WAIT(idle_locker, &idle_state);
+    void *user_data= server_extension->m_user_data;
+    DBUG_ASSERT(server_extension->m_before_header != NULL);
+    DBUG_ASSERT(server_extension->m_after_header != NULL);
 
-    my_bool rc= net_read_raw_loop(net, count);
-
-    MYSQL_END_IDLE_WAIT(idle_locker);
-    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
-
-    if (rc)
-      return TRUE;
+    server_extension->m_before_header(net, user_data, count);
+    rc= net_read_raw_loop(net, count);
+    server_extension->m_after_header(net, user_data, count, rc);
   }
   else
 #endif
   {
-    if (net_read_raw_loop(net, count))
-       return TRUE;
+    rc= net_read_raw_loop(net, count);
   }
+
+  if (rc)
+    return TRUE;
 
   DBUG_DUMP("packet_header", net->buff + net->where_b, NET_HEADER_SIZE);
 
