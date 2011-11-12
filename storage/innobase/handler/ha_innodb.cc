@@ -3491,9 +3491,9 @@ innobase_close_connection(
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  %llu row modifications will "
-			"roll back.",
-			(ullint) trx->undo_no);
+			"InnoDB transaction.  "TRX_ID_FMT" row modifications "
+                        "will roll back.",
+			trx->undo_no);
 	}
 
 	innobase_rollback_trx(trx);
@@ -6366,9 +6366,10 @@ calc_row_difference(
 			ut_ad(innodb_table->fts->cache);
 			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
 				fprintf(stderr,
-                                        "InnoDB: FTS Doc ID must be large than"
-                                        " %llu for table",
-                                        innodb_table->fts->cache->next_doc_id - 1);
+                                        "InnoDB: FTS Doc ID must be larger than"
+                                        " "IB_ID_FMT" for table",
+                                        innodb_table->fts->cache->next_doc_id
+                                        - 1);
                                 ut_print_name(stderr, trx,
 					      TRUE, innodb_table->name);
                                 putc('\n', stderr);

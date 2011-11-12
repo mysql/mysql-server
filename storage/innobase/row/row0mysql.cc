@@ -1278,7 +1278,7 @@ error_exit:
 			if (doc_id < next_doc_id) {
 				fprintf(stderr,
 					"InnoDB: FTS Doc ID must be large than"
-					" %llu for table",
+					" "UINT64PF"for table",
 					next_doc_id - 1);
 				ut_print_name(stderr, trx, TRUE, table->name);
 				putc('\n', stderr);
