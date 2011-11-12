@@ -4924,7 +4924,7 @@ ha_innobase::build_template(
 {
 	dict_index_t*	index;
 	dict_index_t*	clust_index;
-	ulint		n_fields, n_stored_fields;
+	ulint		n_stored_fields;
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i, sql_idx;
@@ -4976,7 +4976,6 @@ ha_innobase::build_template(
 	/* Below we check column by column if we need to access
 	the clustered index. */
 
-	n_fields = (ulint)table->s->fields; /* number of columns */
 	n_stored_fields= (ulint)table->s->stored_fields; /* number of stored columns */
 
 	if (!prebuilt->mysql_template) {
