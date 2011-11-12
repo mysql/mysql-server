@@ -14,6 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+
+#include <vector>
+#include <algorithm>
+#include <functional>
+
 #include "sql_priv.h"
 #include "unireg.h"
 #include <signal.h>
@@ -69,7 +74,10 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
+#include <mysql/psi/mysql_statement.h>
+#include "mysql_com_server.h"
 
 #include "keycaches.h"
 #include "../storage/myisam/ha_myisam.h"
@@ -93,6 +101,10 @@
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
+
+using std::min;
+using std::max;
+using std::vector;
 
 #define mysqld_charset &my_charset_latin1
 
@@ -365,6 +377,7 @@ my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
 bool volatile shutdown_in_progress;
+ulong log_warnings;
 /*
   True if the bootstrap thread is running. Protected by LOCK_thread_count,
   just like thread_count.
@@ -692,6 +705,88 @@ void set_remaining_args(int argc, char **argv)
   remaining_argv= argv;
 }
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+PSI_statement_info stmt_info_new_packet;
+#endif
+
+#ifndef EMBEDDED_LIBRARY
+void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */)
+{
+  THD *thd;
+  thd= static_cast<THD*> (user_data);
+  DBUG_ASSERT(thd != NULL);
+
+  if (thd->m_server_idle)
+  {
+    /*
+      The server is IDLE, waiting for the next command.
+      Technically, it is a wait on a socket, which may take a long time,
+      because the call is blocking.
+      Disable the socket instrumentation, to avoid recording a SOCKET event.
+      Instead, start explicitly an IDLE event.
+    */
+    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+    MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
+  }
+}
+
+void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */, my_bool rc)
+{
+  THD *thd;
+  thd= static_cast<THD*> (user_data);
+  DBUG_ASSERT(thd != NULL);
+
+  if (thd->m_server_idle)
+  {
+    /*
+      The server just got data for a network packet header,
+      from the network layer.
+      The IDLE event is now complete, since we now have a message to process.
+      We need to:
+      - start a new STATEMENT event
+      - start a new STAGE event, within this statement,
+      - start recording SOCKET WAITS events, within this stage.
+      The proper order is critical to get events numbered correctly,
+      and nested in the proper parent.
+    */
+    MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
+
+    if (! rc)
+    {
+      thd->m_statement_psi= MYSQL_START_STATEMENT(& thd->m_statement_state,
+                                                  stmt_info_new_packet.m_key,
+                                                  thd->db, thd->db_length);
+
+      THD_STAGE_INFO(thd, stage_init);
+    }
+
+    /*
+      TODO: consider recording a SOCKET event for the bytes just read,
+      by also passing count here.
+    */
+    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+  }
+}
+
+void init_net_server_extension(THD *thd)
+{
+#ifdef HAVE_PSI_INTERFACE
+  /* Start with a clean state for connection events. */
+  thd->m_idle_psi= NULL;
+  thd->m_statement_psi= NULL;
+  thd->m_server_idle= false;
+  /* Hook up the NET_SERVER callback in the net layer. */
+  thd->m_net_server_extension.m_user_data= thd;
+  thd->m_net_server_extension.m_before_header= net_before_header_psi;
+  thd->m_net_server_extension.m_after_header= net_after_header_psi;
+  /* Activate this private extension for the mysqld server. */
+  thd->net.extension= & thd->m_net_server_extension;
+#else
+  thd->net.extension= NULL;
+#endif
+}
+#endif /* EMBEDDED_LIBRARY */
+
 /*
   Since buffered_option_error_reporter is only used currently
   for parsing performance schema options, this code is not needed
@@ -954,7 +1049,7 @@ uint connection_count= 0;
 pthread_handler_t signal_hand(void *arg);
 static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
-static bool add_terminator(DYNAMIC_ARRAY *options);
+static void add_terminator(vector<my_option> *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
@@ -1153,7 +1248,7 @@ static void close_connections(void)
 #ifndef __bsdi__        // Bug in BSDI kernel
     if (tmp->vio_ok())
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                           tmp->thread_id,
                           (tmp->main_security_ctx.user ?
@@ -1347,7 +1442,7 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
-  if (global_system_variables.log_warnings)
+  if (log_warnings)
     sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
 #ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
   my_sigset(sig,print_signal_warning);    /* int. thread system calls */
@@ -1665,7 +1760,7 @@ static struct passwd *check_user(const char *user)
       /* purecov: begin tested */
       tmp_user_info= getpwnam(user);
       if ((!tmp_user_info || user_id != tmp_user_info->pw_uid) &&
-    global_system_variables.log_warnings)
+    log_warnings)
         sql_print_warning(
                     "One can only use the --user switch if running as root\n");
       /* purecov: end */
@@ -2533,7 +2628,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     fprintf(stderr, "\nTrying to get some variables.\n"
                     "Some pointers may be invalid and cause the dump to abort.\n");
     fprintf(stderr, "Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
+    my_safe_print_str(thd->query(), min(1024U, thd->query_length()));
     fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
 #ifdef OPTIMIZER_TRACE
@@ -2647,7 +2742,7 @@ void my_init_signals(void)
     /* Change limits so that we will get a core file */
     STRUCT_RLIMIT rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
-    if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
+    if (setrlimit(RLIMIT_CORE, &rl) && log_warnings)
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }
 #endif
@@ -3112,9 +3207,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_events",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_EVENTS]), SHOW_LONG_STATUS},
   {"show_errors",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_ERRORS]), SHOW_LONG_STATUS},
   {"show_fields",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FIELDS]), SHOW_LONG_STATUS},
-#ifndef DBUG_OFF
   {"show_function_code",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FUNC_CODE]), SHOW_LONG_STATUS},
-#endif
   {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
   {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
   {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
@@ -3122,9 +3215,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
   {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
   {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
-#ifndef DBUG_OFF
   {"show_procedure_code",  (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROC_CODE]), SHOW_LONG_STATUS},
-#endif
   {"show_procedure_status",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_PROC]), SHOW_LONG_STATUS},
   {"show_processlist",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROCESSLIST]), SHOW_LONG_STATUS},
   {"show_profile",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROFILE]), SHOW_LONG_STATUS},
@@ -3162,7 +3253,7 @@ SHOW_VAR com_status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
 PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
@@ -3498,7 +3589,7 @@ int init_common_variables()
       can't get max_connections*5 but still got no less than was
       requested (value of wanted_files).
     */
-    max_open_files= max(max(wanted_files, max_connections*5),
+    max_open_files= max(max<ulong>(wanted_files, max_connections*5),
                         open_files_limit);
     files= my_set_max_open_files(max_open_files);
 
@@ -3510,25 +3601,25 @@ int init_common_variables()
           If we have requested too much file handles than we bring
           max_connections in supported bounds.
         */
-        max_connections= (ulong) min(files-10-TABLE_OPEN_CACHE_MIN*2,
-                                     max_connections);
+        max_connections= min<ulong>(files - 10 - TABLE_OPEN_CACHE_MIN * 2,
+                                    max_connections);
         /*
           Decrease table_cache_size according to max_connections, but
           not below TABLE_OPEN_CACHE_MIN.  Outer min() ensures that we
           never increase table_cache_size automatically (that could
           happen if max_connections is decreased above).
         */
-        table_cache_size= (ulong) min(max((files-10-max_connections)/2,
-                                          TABLE_OPEN_CACHE_MIN),
-                                      table_cache_size);
+        table_cache_size= min<ulong>(max<ulong>((files-10-max_connections)/2,
+                                                TABLE_OPEN_CACHE_MIN),
+                                     table_cache_size);
   DBUG_PRINT("warning",
        ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
         files, max_connections, table_cache_size));
-  if (global_system_variables.log_warnings)
+  if (log_warnings)
     sql_print_warning("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
       files, max_connections, table_cache_size);
       }
-      else if (global_system_variables.log_warnings)
+      else if (log_warnings)
   sql_print_warning("Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
@@ -3675,7 +3766,7 @@ int init_common_variables()
   {
     if (lower_case_table_names_used)
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("\
 You have forced lower_case_table_names to 0 through a command-line \
 option, even though your file system '%s' is case insensitive.  This means \
@@ -3685,7 +3776,7 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
     else
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
       lower_case_table_names= 2;
     }
@@ -3694,7 +3785,7 @@ You should consider changing lower_case_table_names to 1 or 2",
            !(lower_case_file_system=
              (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
-    if (global_system_variables.log_warnings)
+    if (log_warnings)
       sql_print_warning("lower_case_table_names was set to 2, even though your "
                         "the file system '%s' is case sensitive.  Now setting "
                         "lower_case_table_names to 0 to avoid future problems.",
@@ -4476,7 +4567,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
     if (mlockall(MCL_CURRENT))
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("Failed to lock memory. Errno: %d\n",errno);
       locked_in_memory= 0;
     }
@@ -4665,14 +4756,14 @@ int mysqld_main(int argc, char **argv)
     before to-be-instrumented objects of the server are initialized.
   */
   int ho_error;
-  DYNAMIC_ARRAY all_early_options;
+  vector<my_option> all_early_options;
+  all_early_options.reserve(100);
 
   my_getopt_register_get_addr(NULL);
   /* Skip unknown options so that they may be processed later */
   my_getopt_skip_unknown= TRUE;
 
   /* prepare all_early_options array */
-  my_init_dynamic_array(&all_early_options, sizeof(my_option), 100, 25);
   sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
   add_terminator(&all_early_options);
 
@@ -4685,8 +4776,10 @@ int mysqld_main(int argc, char **argv)
   my_charset_error_reporter= buffered_option_error_reporter;
 
   ho_error= handle_options(&remaining_argc, &remaining_argv,
-                           (my_option*)(all_early_options.buffer), NULL);
-  delete_dynamic(&all_early_options);
+                           &all_early_options[0], NULL);
+  // Swap with an empty vector, i.e. delete elements and free allocated space.
+  vector<my_option>().swap(all_early_options);
+
   if (ho_error == 0)
   {
     /* Add back the program name handle_options removes */
@@ -4819,7 +4912,7 @@ int mysqld_main(int argc, char **argv)
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
     if (stack_size && stack_size < my_thread_stack_size)
     {
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
   sql_print_warning("Asked for %lu thread stack, but got %ld",
         my_thread_stack_size, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
@@ -5534,7 +5627,7 @@ void handle_connections_sockets()
   MYSQL_SOCKET pfs_fds[2]; // for performance schema
 #else
   fd_set readFDs,clientFDs;
-  uint max_used_connection= (uint)(max(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock))+1);
+  uint max_used_connection= max<uint>(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock)) + 1;
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
@@ -5760,6 +5853,7 @@ void handle_connections_sockets()
       delete thd;
       continue;
     }
+    init_net_server_extension(thd);
     if (mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock))
       thd->security_ctx->host=(char*) my_localhost;
 
@@ -6119,7 +6213,7 @@ error:
   Handle start options
 ******************************************************************************/
 
-DYNAMIC_ARRAY all_options;
+vector<my_option> all_options;
 
 /**
   System variables are automatically command-line options (few
@@ -7152,10 +7246,11 @@ SHOW_VAR status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-bool add_terminator(DYNAMIC_ARRAY *options)
+void add_terminator(vector<my_option> *options)
 {
-  my_option empty_element= {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
-  return insert_dynamic(options, &empty_element);
+  my_option empty_element=
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
+  options->push_back(empty_element);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7168,10 +7263,10 @@ static void print_version(void)
 }
 
 /** Compares two options' names, treats - and _ the same */
-static int option_cmp(my_option *a, my_option *b)
+static bool operator<(const my_option &a, const my_option &b)
 {
-  const char *sa= a->name;
-  const char *sb= b->name;
+  const char *sa= a.name;
+  const char *sb= b.name;
   for (; *sa || *sb; sa++, sb++)
   {
     if (*sa < *sb)
@@ -7179,18 +7274,18 @@ static int option_cmp(my_option *a, my_option *b)
       if (*sa == '-' && *sb == '_')
         continue;
       else
-        return -1;
+        return true;
     }
     if (*sa > *sb)
     {
       if (*sa == '_' && *sb == '-')
         continue;
       else
-        return 1;
+        return false;
     }
   }
-  DBUG_ASSERT(a->name == b->name);
-  return 0;
+  DBUG_ASSERT(a.name == b.name);
+  return false;
 }
 
 static void print_help()
@@ -7198,17 +7293,17 @@ static void print_help()
   MEM_ROOT mem_root;
   init_alloc_root(&mem_root, 4096, 4096);
 
-  pop_dynamic(&all_options);
+  all_options.pop_back();
   sys_var_add_options(&all_options, sys_var::PARSE_EARLY);
   add_plugin_options(&all_options, &mem_root);
-  sort_dynamic(&all_options, (qsort_cmp) option_cmp);
+  std::sort(all_options.begin(), all_options.end(), std::less<my_option>());
   add_terminator(&all_options);
 
-  my_print_help((my_option*) all_options.buffer);
-  my_print_variables((my_option*) all_options.buffer);
+  my_print_help(&all_options[0]);
+  my_print_variables(&all_options[0]);
 
   free_root(&mem_root, MYF(0));
-  delete_dynamic(&all_options);
+  vector<my_option>().swap(all_options);  // Deletes the vector contents.
 }
 
 static void usage(void)
@@ -7517,11 +7612,11 @@ mysqld_get_one_option(int optid,
 #endif /*EMBEDDED_LIBRARY*/
   case 'W':
     if (!argument)
-      global_system_variables.log_warnings++;
+      log_warnings++;
     else if (argument == disabled_my_option)
-      global_system_variables.log_warnings= 0L;
+      log_warnings= 0L;
     else
-      global_system_variables.log_warnings= atoi(argument);
+      log_warnings= atoi(argument);
     break;
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
@@ -7799,7 +7894,7 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 
   /* Don't print warnings for --loose options during bootstrap */
   if (level == ERROR_LEVEL || !opt_bootstrap ||
-      global_system_variables.log_warnings)
+      log_warnings)
   {
     vprint_msg_to_log(level, format, args);
   }
@@ -7826,25 +7921,23 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   my_getopt_error_reporter= option_error_reporter;
 
   /* prepare all_options array */
-  my_init_dynamic_array(&all_options, sizeof(my_option),
-                        array_elements(my_long_options),
-                        array_elements(my_long_options)/4);
+  all_options.reserve(array_elements(my_long_options));
   for (my_option *opt= my_long_options;
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
-    insert_dynamic(&all_options, opt);
+    all_options.push_back(*opt);
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
   /* Skip unknown options so that they may be processed later by plugins */
   my_getopt_skip_unknown= TRUE;
 
-  if ((ho_error= handle_options(argc_ptr, argv_ptr, (my_option*)(all_options.buffer),
+  if ((ho_error= handle_options(argc_ptr, argv_ptr, &all_options[0],
                                 mysqld_get_one_option)))
     return ho_error;
 
   if (!opt_help)
-    delete_dynamic(&all_options);
+    vector<my_option>().swap(all_options);  // Deletes the vector contents.
 
   /* Add back the program name handle_options removes */
   (*argc_ptr)++;
@@ -8557,6 +8650,7 @@ PSI_stage_info stage_discard_or_import_tablespace= { 0, "discard_or_import_table
 PSI_stage_info stage_end= { 0, "end", 0};
 PSI_stage_info stage_executing= { 0, "executing", 0};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0};
+PSI_stage_info stage_explaining= { 0, "explaining", 0};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0};
 PSI_stage_info stage_flushing_relay_log_and_master_info_repository= { 0, "Flushing relay log and master info repository.", 0};
 PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0};
@@ -8660,6 +8754,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_end,
   & stage_executing,
   & stage_execution_of_init_command,
+  & stage_explaining,
   & stage_finished_reading_one_binlog_switching_to_next_binlog,
   & stage_flushing_relay_log_and_master_info_repository,
   & stage_flushing_relay_log_info_file,
@@ -8778,6 +8873,21 @@ void init_server_psi_keys(void)
   init_com_statement_info();
   count= array_elements(com_statement_info);
   mysql_statement_register(category, com_statement_info, count);
+
+  /*
+    When a new packet is received,
+    it is instrumented as "statement/com/".
+    Based on the packet type found, it later mutates to the
+    proper narrow type, for example
+    "statement/com/query" or "statement/com/ping".
+    In cases of "statement/com/query", SQL queries are given to
+    the parser, which mutates the statement type to an even more
+    narrow classification, for example "statement/sql/select".
+  */
+  stmt_info_new_packet.m_key= 0;
+  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
+  mysql_statement_register(category, & stmt_info_new_packet, 1);
 #endif
 }
 

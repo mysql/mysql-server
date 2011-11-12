@@ -30,6 +30,11 @@
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
 
@@ -2147,7 +2152,7 @@ int ha_myisam::multi_range_read_next(char **range_info)
 ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                                void *seq_init_param, 
                                                uint n_ranges, uint *bufsz,
-                                               uint *flags, COST_VECT *cost)
+                                               uint *flags, Cost_estimate *cost)
 {
   /*
     This call is here because there is no location where this->table would
@@ -2161,7 +2166,7 @@ ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 
 ha_rows ha_myisam::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                          uint *bufsz, uint *flags,
-                                         COST_VECT *cost)
+                                         Cost_estimate *cost)
 {
   ds_mrr.init(this, table);
   return ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
