@@ -486,17 +486,15 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
         num_le += toku_omt_size(BLB_BUFFER(node, i));
     }
 
-    // TODO 4050 Maybe instead of using num_alloc and XCALLOC_N(), 
-    //           before every XMALLOC() test if num_le is zero,
-    //           and if num_le is zero then XCALLOC_N() a single entry.
     uint32_t num_alloc = num_le ? num_le : 1;  // simplify logic below by always having at least one entry per array
 
     // Create an array of OMTVALUE's that store all the pointers to all the data.
     // Each element in leafpointers is a pointer to a leaf.
-    OMTVALUE *XCALLOC_N(num_alloc, leafpointers);
+    OMTVALUE *XMALLOC_N(num_alloc, leafpointers);
+    leafpointers[0] = NULL;
 
     // Capture pointers to old mempools' buffers (so they can be destroyed)
-    void **XCALLOC_N(num_orig_basements, old_mempool_bases);
+    void **XMALLOC_N(num_orig_basements, old_mempool_bases);
 
     u_int32_t curr_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
@@ -513,20 +511,23 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     // Create an array that will store indexes of new pivots.
     // Each element in new_pivots is the index of a pivot key.
     // (Allocating num_le of them is overkill, but num_le is an upper bound.)
-    u_int32_t *XCALLOC_N(num_alloc, new_pivots);
+    u_int32_t *XMALLOC_N(num_alloc, new_pivots);
+    new_pivots[0] = 0;
 
     // Each element in le_sizes is the size of the leafentry pointed to by leafpointers.
-    size_t *XCALLOC_N(num_alloc, le_sizes);
+    size_t *XMALLOC_N(num_alloc, le_sizes);
+    le_sizes[0] = 0;
 
     // Create an array that will store the size of each basement.
     // This is the sum of the leaf sizes of all the leaves in that basement.
     // We don't know how many basements there will be, so we use num_le as the upper bound.
-    size_t *XCALLOC_N(num_alloc, bn_sizes);
+    size_t *XMALLOC_N(num_alloc, bn_sizes);
+    bn_sizes[0] = 0;
 
-    // TODO 4050 Maybe delete this as redundant, or maybe replace other accounting info.
-    // If we keep this, all these arrays should be combined into a single array of some bn_info struct (pivot, msize, num_les).
+    // TODO 4050: All these arrays should be combined into a single array of some bn_info struct (pivot, msize, num_les).
     // Each entry is the number of leafentries in this basement.  (Again, num_le is overkill upper bound.)
-    uint32_t *XCALLOC_N(num_alloc, num_les_this_bn);
+    uint32_t *XMALLOC_N(num_alloc, num_les_this_bn);
+    num_les_this_bn[0] = 0;
     
     // Figure out the new pivots.  
     // We need the index of each pivot, and for each basement we need
@@ -619,7 +620,7 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 	struct mempool * mp = &bn->buffer_mempool;
 	toku_mempool_construct(mp, size_this_bn);
 
-        OMTVALUE *XCALLOC_N(num_in_bn, bn_array);
+        OMTVALUE *XMALLOC_N(num_in_bn, bn_array);
 	for (uint32_t le_index = 0; le_index < num_les_to_copy; le_index++) {
 	    uint32_t le_within_node = baseindex_this_bn + le_index;
 	    size_t   le_size = le_sizes[le_within_node];
@@ -637,11 +638,7 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
             num_in_bn
             );
         invariant_zero(r);
-	struct sum_info sum_info = {0,0};
-        toku_omt_iterate(BLB_BUFFER(node, i), sum_item, &sum_info);
-        BLB_NBYTESINBUF(node, i) = sum_info.dsum;
-	
-	invariant(sum_info.dsum == size_this_bn);
+        BLB_NBYTESINBUF(node, i) = size_this_bn;
 
         BP_STATE(node,i) = PT_AVAIL;
         BP_TOUCH_CLOCK(node,i);
