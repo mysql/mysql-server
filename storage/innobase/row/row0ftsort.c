@@ -335,18 +335,24 @@ row_fts_free_pll_merge_buf(
 
 	return;
 }
+
 /*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
 @return	TRUE if the record passed, FALSE if out of space */
-UNIV_INTERN
+static
 ibool
 row_merge_fts_doc_tokenize(
 /*=======================*/
 	row_merge_buf_t**	sort_buf,	/*!< in/out: sort buffer */
 	doc_id_t		doc_id,		/*!< in: Doc ID */
 	fts_doc_t*		doc,		/*!< in: Doc to be tokenized */
+	dtype_t*		word_dtype,	/*!< in: data structure for
+						word col */
 	merge_file_t**		merge_file,	/*!< in/out: merge file */
-	fts_tokenize_ctx_t*	t_ctx)		/*!< in/out: tokenize context */
+	ibool			opt_doc_id_size,/*!< in: whether to use 4 bytes
+						instead of 8 bytes integer to
+						store Doc ID during sort*/
+	fts_tokenize_ctx_t*	t_ctx)          /*!< in/out: tokenize context */
 {
 	ulint		i;
 	ulint		inc;
@@ -361,8 +367,8 @@ row_merge_fts_doc_tokenize(
 
 	t_ctx->buf_used = 0;
 
-	memset(n_tuple, 0, sizeof n_tuple);
-	memset(data_size, 0, sizeof data_size);
+	memset(n_tuple, 0, FTS_NUM_AUX_INDEX * sizeof(ulint));
+	memset(data_size, 0, FTS_NUM_AUX_INDEX * sizeof(ulint));
 
 	/* Tokenize the data and add each word string, its corresponding
 	doc id and position to sort buffer */
@@ -373,7 +379,8 @@ row_merge_fts_doc_tokenize(
 		ulint		cur_len = 0;
 		ib_rbt_bound_t	parent;
 		fts_string_t	t_str;
-		ulint		j;
+		ib_uint32_t	t_doc_id;
+		doc_id_t	write_doc_id;
 
 		inc = innobase_mysql_fts_get_token(
 			doc->charset, doc->text.f_str + i,
@@ -418,36 +425,37 @@ row_merge_fts_doc_tokenize(
 		field = mem_heap_alloc(
 			buf->heap, FTS_NUM_FIELDS_SORT * sizeof *field);
 
-		for (j = 0; j < FTS_NUM_FIELDS_SORT; j++) {
-			field[j] = t_ctx->sort_field[j];
-		}
-
 		ut_a(field);
 
 		/* The first field is the tokenized word */
 		dfield_set_data(field, t_str.f_str, t_str.f_len);
 		len = dfield_get_len(field);
+
+		field->type.mtype = word_dtype->mtype;
+		field->type.prtype = word_dtype->prtype | DATA_NOT_NULL;
+		field->type.len = fts_max_token_size;
+		field->type.mbminmaxlen = word_dtype->mbminmaxlen;
 		cur_len += len;
 		dfield_dup(field, buf->heap);
 		field++;
 
 		/* The second field is the Doc ID */
-		if (field->type.len == FTS_DOC_ID_LEN) {
-			doc_id_t	write_doc_id;
 
+		if (!opt_doc_id_size) {
 			fts_write_doc_id((byte*) &write_doc_id, doc_id);
 			dfield_set_data(field, &write_doc_id,
-					sizeof write_doc_id);
+					sizeof(write_doc_id));
 			len = FTS_DOC_ID_LEN;
 		} else {
-			ib_uint32_t	t_doc_id;
-
 			mach_write_to_4((byte*)&t_doc_id, (ib_uint32_t) doc_id);
-			dfield_set_data(field, &t_doc_id, sizeof t_doc_id);
+			dfield_set_data(field, &t_doc_id, sizeof(t_doc_id));
 			len = sizeof(ib_uint32_t);
 		}
 
-		ut_ad(field->type.len == len);
+		field->type.mtype = DATA_INT;
+		field->type.prtype = DATA_NOT_NULL | DATA_BINARY_TYPE;
+		field->type.len = len;
+		field->type.mbminmaxlen = 0;
 		cur_len += len;
 		dfield_dup(field, buf->heap);
 		field++;
@@ -459,6 +467,10 @@ row_merge_fts_doc_tokenize(
 		dfield_set_data(field, &position, 4);
 		len = dfield_get_len(field);
 		ut_ad(len == 4);
+		field->type.mtype = DATA_INT;
+		field->type.prtype = DATA_NOT_NULL;
+		field->type.len = len;
+		field->type.mbminmaxlen = 0;
 		cur_len += len;
 		dfield_dup(field, buf->heap);
 
@@ -497,6 +509,7 @@ row_merge_fts_doc_tokenize(
 
 	return(!buf_full);
 }
+
 /*********************************************************************//**
 Function performs parallel tokenization of the incoming doc strings.
 It also performs the initial in memory sort of the parsed records.
@@ -526,8 +539,10 @@ fts_parallel_tokenization(
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
 	dict_table_t*		table = psort_info->psort_common->new_table;
+	dtype_t			word_dtype;
 	dict_field_t*		idx_field;
 	fts_tokenize_ctx_t	t_ctx;
+	ut_ad(psort_info);
 
 	ut_ad(psort_info);
 
@@ -542,6 +557,13 @@ fts_parallel_tokenization(
 	doc.charset = fts_index_get_charset(
 		psort_info->psort_common->sort_index);
 
+	idx_field = dict_index_get_nth_field(
+		psort_info->psort_common->sort_index, 0);
+	word_dtype.prtype = idx_field->col->prtype;
+	word_dtype.mbminmaxlen = idx_field->col->mbminmaxlen;
+	word_dtype.mtype = (strcmp(doc.charset->name, "latin1_swedish_ci") == 0)
+				? DATA_VARCHAR : DATA_VARMYSQL;
+
 	block = psort_info->merge_block;
 	zip_size = dict_table_zip_size(table);
 
@@ -551,41 +573,7 @@ fts_parallel_tokenization(
 		prev_doc_item = doc_item;
 	}
 
-	idx_field = dict_index_get_nth_field(
-		psort_info->psort_common->sort_index, 0);
-
-	/* Initialize the sort field for the "fts sort index" */
-	
-	/* Tokenized word field */
-	t_ctx.sort_field[0].type.mtype = (strcmp(doc.charset->name,
-					       "latin1_swedish_ci") == 0)
-						? DATA_VARCHAR
-						: DATA_VARMYSQL;
-	t_ctx.sort_field[0].type.prtype =
-		 idx_field->col->prtype | DATA_NOT_NULL;
-	t_ctx.sort_field[0].type.len = fts_max_token_size;
-	t_ctx.sort_field[0].type.mbminmaxlen = idx_field->col->mbminmaxlen;
-
-	/* Doc ID field */
-	t_ctx.sort_field[1].type.mtype = DATA_INT;
-	t_ctx.sort_field[1].type.prtype = DATA_NOT_NULL | DATA_BINARY_TYPE;
-	t_ctx.sort_field[1].type.mbminmaxlen = 0;
-
-	if (!psort_info->psort_common->opt_doc_id_size) {
-		/* cannot reduce the Doc ID field size to 4 bytes */
-		t_ctx.sort_field[1].type.len = FTS_DOC_ID_LEN;
-	} else {
-		t_ctx.sort_field[1].type.len = sizeof(ib_uint32_t);
-	}
-
-	/* Position field */
-	t_ctx.sort_field[2].type.mtype = DATA_INT;
-	t_ctx.sort_field[2].type.prtype = DATA_NOT_NULL;
-	t_ctx.sort_field[2].type.mbminmaxlen = 0;
-	t_ctx.sort_field[2].type.len = sizeof(ib_uint32_t);
-
 	t_ctx.cached_stopword = table->fts->cache->stopword_info.cached_stopword;
-
 	processed = TRUE;
 loop:
 	while (doc_item) {
@@ -632,7 +620,10 @@ loop:
 		}
 
 		processed = row_merge_fts_doc_tokenize(
-			buf, doc_item->doc_id, &doc, merge_file, &t_ctx);
+			buf, doc_item->doc_id, &doc,
+			&word_dtype,
+			merge_file, psort_info->psort_common->opt_doc_id_size,
+			&t_ctx);
 
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
