@@ -188,23 +188,23 @@ int fill_plugin_version(THD *thd, TABLE_LIST *tables)
 */
 static ulonglong my_getphysmem()
 {
-  ulonglong pages= 0;
-#ifdef _SC_PHYS_PAGES
-  pages= sysconf(_SC_PHYS_PAGES);
-#else
-  return 0;
-#endif
-
-#ifdef _SC_PAGESIZE
-  return pages * sysconf(_SC_PAGESIZE);
-#endif
 #ifdef _WIN32
   MEMORYSTATUSEX memstatus;
   memstatus.dwLength= sizeof(memstatus);
   GlobalMemoryStatusEx(&memstatus);
   return memstatus.ullTotalPhys;
 #else
+  ulonglong pages= 0;
+
+#ifdef _SC_PHYS_PAGES
+  pages= sysconf(_SC_PHYS_PAGES);
+#endif
+
+#ifdef _SC_PAGESIZE
+  return pages * sysconf(_SC_PAGESIZE);
+#else
   return pages * my_getpagesize();
+#endif
 #endif
 }
 
@@ -356,6 +356,7 @@ int fill_misc_data(THD *thd, TABLE_LIST *tables)
   INSERT1("Cpu_count", (my_getncpus(), UNSIGNED));
 #endif
   INSERT1("Mem_total", (my_getphysmem(), UNSIGNED));
+  INSERT1("Now", (thd->query_start(), UNSIGNED));
 
   return 0;
 }
