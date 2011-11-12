@@ -76,7 +76,7 @@ static const Uint32 MAX_SIGNALS_BEFORE_WAKEUP = 128;
 #define MAX_THREADS (NUM_MAIN_THREADS +       \
                      MAX_NDBMT_LQH_THREADS +  \
                      MAX_NDBMT_TC_THREADS + 1)
-#define MAX_BLOCK_INSTANCES (MAX_THREADS)
+#define MAX_BLOCK_INSTANCES (MAX_THREADS+1)
 
 /* If this is too small it crashes before first signal. */
 #define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
