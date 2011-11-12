@@ -1,0 +1,59 @@
+drop table if exists t1,t2,t3,t4;
+#
+# BUG#887468: Second assertion `keypart_map' failed in maria_rkey with semijoin
+#
+CREATE TABLE t1 ( 
+pk int(11) NOT NULL AUTO_INCREMENT, 
+col_int_key int(11) DEFAULT NULL, 
+col_varchar_key varchar(1) DEFAULT NULL, 
+dummy char(30),
+PRIMARY KEY (pk), 
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=Aria AUTO_INCREMENT=30 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO t1 (pk, col_varchar_key, col_int_key) VALUES 
+(10,NULL,0), (11,'d',4), (12,'g',8), (13,'x',NULL), (14,'f',NULL), 
+(15,'p',0), (16,'j',NULL), (17,'c',8), (18,'z',8), (19,'j',6), (20,NULL,2),
+(21,'p',3), (22,'w',1), (23,'c',NULL), (24,'j',1), (25,'f',10), (26,'v',2),
+(27,'f',103), (28,'q',3), (29,'y',6);
+CREATE TABLE t2 ( 
+pk int(11) NOT NULL AUTO_INCREMENT, 
+col_int_key int(11) DEFAULT NULL, 
+dummy char(36),
+PRIMARY KEY (pk), 
+KEY col_int_key (col_int_key)
+) ENGINE=Aria AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO t2 ( pk, col_int_key) VALUES
+(1,8), (2,2), (3,9), (4,6), (5,NULL), (6,NULL), (7,48), (8,228), (9,3), (10,5),
+(11,39), (12,6), (13,8), (14,3), (15,NULL), (16,2), (17,6), (18,3), (19,1), (20,4),
+(21,3), (22,1), (23,NULL), (24,97), (25,0), (26,0), (27,9), (28,5), (29,9), (30,0),
+(31,2), (32,172), (33,NULL), (34,5), (35,119), (36,1), (37,4), (38,8), (39,NULL), (40,6),
+(41,5), (42,5), (43,1), (44,7), (45,2), (46,8), (47,9), (48,NULL), (49,NULL), (50,3),
+(51,172), (52,NULL), (53,6), (54,6), (55,5), (56,4), (57,3), (58,2), (59,7), (60,4),
+(61,6), (62,0), (63,8), (64,5), (65,8), (66,2), (67,9), (68,7), (69,5), (70,7),
+(71,0), (72,4), (73,3), (74,1), (75,0), (76,6), (77,2), (78,NULL), (79,8), (80,NULL),
+(81,NULL), (82,NULL), (83,3), (84,7), (85,3), (86,5), (87,5), (88,1), (89,2), (90,1),
+(91,7), (92,1), (93,9), (94,9), (95,8), (96,3), (97,7), (98,4), (99,9), (100,0);
+CREATE TABLE t3 ( 
+pk int(11) NOT NULL AUTO_INCREMENT, 
+dummy char(34),
+col_varchar_key varchar(1) DEFAULT NULL, 
+col_int_key int(11) DEFAULT NULL, 
+PRIMARY KEY (pk), 
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=Aria AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO t3 (pk, col_varchar_key) VALUES (1,'v'), (2,'c'), (3,NULL);
+CREATE TABLE t4 ( 
+pk int(11) NOT NULL AUTO_INCREMENT, 
+dummy char (38),
+PRIMARY KEY (pk)
+) ENGINE=Aria AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO t4 (pk) VALUES (1), (2), (3);
+SELECT *
+FROM t1
+JOIN t2
+ON ( t2.col_int_key = t1.pk )
+WHERE t1.col_varchar_key IN (
+SELECT t3.col_varchar_key FROM t3, t4
+);
+pk	col_int_key	col_varchar_key	dummy	pk	col_int_key	dummy
+drop table t1, t2, t3, t4;

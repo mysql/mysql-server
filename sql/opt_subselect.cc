@@ -2339,7 +2339,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
     }
     
     if ((pos->first_loosescan_table != MAX_TABLES) && 
-        !(remaining_tables & pos->loosescan_need_tables))
+        !(remaining_tables & pos->loosescan_need_tables) &&
+        (pos->table->table->map & pos->loosescan_need_tables))
     {
       /* 
         Ok we have LooseScan plan and also have all LooseScan sj-nest's
