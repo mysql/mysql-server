@@ -199,18 +199,7 @@ void
 row_fts_free_pll_merge_buf(
 /*=======================*/
 	fts_psort_t*	psort_info);	/*!< in: parallel sort info */
-/******************************************************//**
-Tokenize incoming text data and add to the sort buffer.
-@return TRUE if the record passed, FALSE if out of space */
-UNIV_INTERN
-ibool
-row_merge_fts_doc_tokenize(
-/*=======================*/
-	row_merge_buf_t**	sort_buf,	/*!< in/out: sort buffer */
-	doc_id_t		doc_id,		/*!< in: Doc ID */
-	fts_doc_t*		doc,		/*!< in: Doc to be tokenized */
-	merge_file_t**		merge_file,	/*!< in/out: merge file */
-	fts_tokenize_ctx_t*	t_ctx);		/*!< in/out: tokenize context */
+
 /*********************************************************************//**
 Function performs parallel tokenization of the incoming doc strings.
 @return OS_THREAD_DUMMY_RETURN */
