@@ -1029,5 +1029,34 @@ SELECT * FROM t1,t2,t3
 
 DROP TABLE t1,t2,t3;
 
+#
+# LP bug #823301: index merge union with prossible index scan  
+#              
+#
+
+CREATE TABLE t1 (
+  a int, b int, c int, d int,
+  PRIMARY KEY(b), INDEX idx1(d), INDEX idx2(d,b,c)
+);
+INSERT INTO t1 VALUES 
+ (0,58,7,7),(0,63,2,0),(0,64,186,8),(0,65,1,-2), (0,71,190,-3),
+ (0,72,321,-7),(0,73,0,3),(0,74,5,25),(0,75,5,3);
+
+SET SESSION optimizer_switch='index_merge_sort_union=off';
+EXPLAIN
+SELECT * FROM t1 
+  WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+SELECT * FROM t1 
+  WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+SET SESSION optimizer_switch='index_merge_sort_union=on';
+EXPLAIN
+SELECT * FROM t1 
+  WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+SELECT * FROM t1 
+  WHERE t1.b>7 AND t1.d>1 AND t1.d<>8  OR t1.d>=7 AND t1.d<8 OR t1.d>7;
+SET SESSION optimizer_switch=DEFAULT;
+
+DROP TABLE t1;
+
 #the following command must be the last one in the file
 set session optimizer_switch='index_merge_sort_intersection=default';
