@@ -941,7 +941,7 @@ static uint isam_key_length(MI_INFO *info, register MI_KEYDEF *keyinfo)
 int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
 {
   int	error,got_error,flag;
-  uint	key,UNINIT_VAR(left_length),b_type,field;
+  uint	key, UNINIT_VAR(left_length), b_type;
   ha_rows records,del_blocks;
   my_off_t used,empty,pos,splits,UNINIT_VAR(start_recpos),
 	   del_length,link_used,start_block;
@@ -971,19 +971,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   intern_record_checksum=param->glob_crc=0;
   got_error=error=0;
   empty=info->s->pack.header_length;
-
-  /* Check how to calculate checksum of rows */
-  if (info->s->data_file_type == COMPRESSED_RECORD)
-  {
-    for (field=0 ; field < info->s->base.fields ; field++)
-    {
-      if (info->s->rec[field].base_type == FIELD_BLOB ||
-	  info->s->rec[field].base_type == FIELD_VARCHAR)
-      {
-	break;
-      }
-    }
-  }
 
   pos=my_b_tell(&param->read_cache);
   bzero((char*) key_checksum, info->s->base.keys * sizeof(key_checksum[0]));

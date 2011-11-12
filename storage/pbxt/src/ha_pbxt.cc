@@ -2898,11 +2898,9 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 	 * insert into t1 (val) values (1);
 	 */
 	if (table->found_next_number_field && new_data == table->record[0]) {
-		MX_LONGLONG_T	nr __attribute__ ((unused));
 		my_bitmap_map	*old_map;
 
 		old_map = mx_tmp_use_all_columns(table, table->read_set);
-		nr = table->found_next_number_field->val_int();
 		ha_set_auto_increment(pb_open_tab, table->found_next_number_field);
 		mx_tmp_restore_column_map(table, old_map);
 	}

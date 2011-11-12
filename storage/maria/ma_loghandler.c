@@ -2611,11 +2611,11 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
        i < buffer->size;
        i+= TRANSLOG_PAGE_SIZE, pg++)
   {
+    TRANSLOG_ADDRESS addr __attribute__((unused))= (buffer->offset + i);
     DBUG_PRINT("info", ("send log form %lu till %lu  address: (%lu,0x%lx)  "
                         "page #: %lu  buffer size: %lu  buffer: 0x%lx",
                         (ulong) i, (ulong) (i + TRANSLOG_PAGE_SIZE),
-                        LSN_IN_PARTS(buffer->offset + i), (ulong) pg, 
-                        (ulong) buffer->size,
+                        LSN_IN_PARTS(addr), (ulong) pg, (ulong) buffer->size,
                         (ulong) buffer));
     DBUG_ASSERT(log_descriptor.pagecache->block_size == TRANSLOG_PAGE_SIZE);
     DBUG_ASSERT(i + TRANSLOG_PAGE_SIZE <= buffer->size);

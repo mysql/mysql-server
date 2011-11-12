@@ -5015,6 +5015,7 @@ static my_bool read_row_extent_info(MARIA_HA *info, uchar *buff,
   MARIA_RECORD_POS *tail_pos;
   uchar *data, *end_of_data;
   uint flag, row_extents, row_extents_size;
+  uint field_lengths __attribute__ ((unused));
   uchar *extents, *end;
   DBUG_ENTER("read_row_extent_info");
 
@@ -5048,6 +5049,13 @@ static my_bool read_row_extent_info(MARIA_HA *info, uchar *buff,
     extent.first_extent= 1;
   }
   info->cur_row.extents_count= row_extents;
+
+  /*
+    field_lengths looks unused but get_key_length will
+    increment data, which is required as data it's used later.
+  */
+  if (share->base.max_field_lengths)
+    get_key_length(field_lengths, data);
 
   if (share->calc_checksum)
     info->cur_row.checksum= (uint) (uchar) *data++;

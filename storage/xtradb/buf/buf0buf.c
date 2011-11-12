@@ -3895,7 +3895,6 @@ buf_page_io_complete(
 	enum buf_io_fix	io_type;
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
-        //enum buf_flush	flush_type;
 	mutex_t*	block_mutex;
 
 	ut_a(buf_page_in_file(bpage));
@@ -4049,7 +4048,8 @@ corrupt:
 		}
 	}
 
-	//buf_pool_mutex_enter();
+        //enum buf_flush	flush_type;
+        //buf_pool_mutex_enter();
 	if (io_type == BUF_IO_WRITE) {
                 //flush_type = buf_page_get_flush_type(bpage);
 		/* to keep consistency at buf_LRU_insert_zip_clean() */

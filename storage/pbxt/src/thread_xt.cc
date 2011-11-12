@@ -489,8 +489,7 @@ static void thr_free_resources(XTThreadPtr self, XTResourcePtr top)
 xtPublic void xt_bug(XTThreadPtr XT_UNUSED(self))
 {
 	static int *bug_ptr __attribute__ ((unused));
-        bug_ptr= NULL;
-	
+
 	bug_ptr = NULL;
 }
 

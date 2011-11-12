@@ -1842,6 +1842,7 @@ void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
 int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
                       File file_to_dup __attribute__((unused)))
 {
+  char *data_name= share->data_file_name.str;
   char real_data_name[FN_REFLEN];
 
   if (org_name)
@@ -1855,12 +1856,12 @@ int _ma_open_datafile(MARIA_HA *info, MARIA_SHARE *share, const char *org_name,
         my_errno= HA_WRONG_CREATE_OPTION;
         return 1;
       }
+      data_name= real_data_name;
     }
   }
 
   info->dfile.file= share->bitmap.file.file=
-    my_open(share->data_file_name.str, share->mode | O_SHARE,
-            MYF(MY_WME));
+    my_open(data_name, share->mode | O_SHARE, MYF(MY_WME));
   return info->dfile.file >= 0 ? 0 : 1;
 }
 

@@ -319,6 +319,7 @@ my_bool _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
   uchar *key_ptr= (uchar*) dynamic_array_ptr(da, 0), *end;
   uint length, key_length;
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
+  MARIA_KEY tmp_key;
   MARIA_PAGE page;
   DBUG_ENTER("_ma_ft_convert_to_ft2");
 
@@ -356,9 +357,14 @@ my_bool _ma_ft_convert_to_ft2(MARIA_HA *info, MARIA_KEY *key)
 
   /* inserting the rest of key values */
   end= (uchar*) dynamic_array_ptr(da, da->elements);
+  tmp_key.keyinfo= keyinfo;
+  tmp_key.data_length= keyinfo->keylength;
+  tmp_key.ref_length= 0;
+  tmp_key.flag= 0;
   for (key_ptr+=length; key_ptr < end; key_ptr+=keyinfo->keylength)
   {
-    if (_ma_ck_real_write_btree(info, key, &root, SEARCH_SAME))
+    tmp_key.data= key_ptr;
+    if (_ma_ck_real_write_btree(info, &tmp_key, &root, SEARCH_SAME))
       DBUG_RETURN(1);
   }
 
