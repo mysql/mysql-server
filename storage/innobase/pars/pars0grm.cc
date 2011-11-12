@@ -1,23 +1,24 @@
-
-/* A Bison parser, made by GNU Bison 2.4.1.  */
+/* A Bison parser, made by GNU Bison 2.3.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
-   
-      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-   
-   This program is free software: you can redistribute it and/or modify
+
+   This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-   
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -28,7 +29,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-   
+
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -46,7 +47,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.4.1"
+#define YYBISON_VERSION "2.3"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -54,61 +55,9 @@
 /* Pure parsers.  */
 #define YYPURE 0
 
-/* Push parsers.  */
-#define YYPUSH 0
-
-/* Pull parsers.  */
-#define YYPULL 1
-
 /* Using locations.  */
 #define YYLSP_NEEDED 0
 
-
-
-/* Copy the first part of user declarations.  */
-
-/* Line 189 of yacc.c  */
-#line 28 "pars0grm.y"
-
-/* The value of the semantic attribute is a pointer to a query tree node
-que_node_t */
-
-#include "univ.i"
-#include <math.h>				/* Can't be before univ.i */
-#include "pars0pars.h"
-#include "mem0mem.h"
-#include "que0types.h"
-#include "que0que.h"
-#include "row0sel.h"
-
-#define YYSTYPE que_node_t*
-
-/* #define __STDC__ */
-
-int
-yylex(void);
-
-
-/* Line 189 of yacc.c  */
-#line 94 "pars0grm.cc"
-
-/* Enabling traces.  */
-#ifndef YYDEBUG
-# define YYDEBUG 0
-#endif
-
-/* Enabling verbose error messages.  */
-#ifdef YYERROR_VERBOSE
-# undef YYERROR_VERBOSE
-# define YYERROR_VERBOSE 1
-#else
-# define YYERROR_VERBOSE 0
-#endif
-
-/* Enabling the token table.  */
-#ifndef YYTOKEN_TABLE
-# define YYTOKEN_TABLE 0
-#endif
 
 
 /* Tokens.  */
@@ -221,22 +170,167 @@ yylex(void);
      NEG = 359
    };
 #endif
+/* Tokens.  */
+#define PARS_INT_LIT 258
+#define PARS_FLOAT_LIT 259
+#define PARS_STR_LIT 260
+#define PARS_FIXBINARY_LIT 261
+#define PARS_BLOB_LIT 262
+#define PARS_NULL_LIT 263
+#define PARS_ID_TOKEN 264
+#define PARS_AND_TOKEN 265
+#define PARS_OR_TOKEN 266
+#define PARS_NOT_TOKEN 267
+#define PARS_GE_TOKEN 268
+#define PARS_LE_TOKEN 269
+#define PARS_NE_TOKEN 270
+#define PARS_PROCEDURE_TOKEN 271
+#define PARS_IN_TOKEN 272
+#define PARS_OUT_TOKEN 273
+#define PARS_BINARY_TOKEN 274
+#define PARS_BLOB_TOKEN 275
+#define PARS_INT_TOKEN 276
+#define PARS_INTEGER_TOKEN 277
+#define PARS_FLOAT_TOKEN 278
+#define PARS_CHAR_TOKEN 279
+#define PARS_IS_TOKEN 280
+#define PARS_BEGIN_TOKEN 281
+#define PARS_END_TOKEN 282
+#define PARS_IF_TOKEN 283
+#define PARS_THEN_TOKEN 284
+#define PARS_ELSE_TOKEN 285
+#define PARS_ELSIF_TOKEN 286
+#define PARS_LOOP_TOKEN 287
+#define PARS_WHILE_TOKEN 288
+#define PARS_RETURN_TOKEN 289
+#define PARS_SELECT_TOKEN 290
+#define PARS_SUM_TOKEN 291
+#define PARS_COUNT_TOKEN 292
+#define PARS_DISTINCT_TOKEN 293
+#define PARS_FROM_TOKEN 294
+#define PARS_WHERE_TOKEN 295
+#define PARS_FOR_TOKEN 296
+#define PARS_DDOT_TOKEN 297
+#define PARS_READ_TOKEN 298
+#define PARS_ORDER_TOKEN 299
+#define PARS_BY_TOKEN 300
+#define PARS_ASC_TOKEN 301
+#define PARS_DESC_TOKEN 302
+#define PARS_INSERT_TOKEN 303
+#define PARS_INTO_TOKEN 304
+#define PARS_VALUES_TOKEN 305
+#define PARS_UPDATE_TOKEN 306
+#define PARS_SET_TOKEN 307
+#define PARS_DELETE_TOKEN 308
+#define PARS_CURRENT_TOKEN 309
+#define PARS_OF_TOKEN 310
+#define PARS_CREATE_TOKEN 311
+#define PARS_TABLE_TOKEN 312
+#define PARS_INDEX_TOKEN 313
+#define PARS_UNIQUE_TOKEN 314
+#define PARS_CLUSTERED_TOKEN 315
+#define PARS_DOES_NOT_FIT_IN_MEM_TOKEN 316
+#define PARS_ON_TOKEN 317
+#define PARS_ASSIGN_TOKEN 318
+#define PARS_DECLARE_TOKEN 319
+#define PARS_CURSOR_TOKEN 320
+#define PARS_SQL_TOKEN 321
+#define PARS_OPEN_TOKEN 322
+#define PARS_FETCH_TOKEN 323
+#define PARS_CLOSE_TOKEN 324
+#define PARS_NOTFOUND_TOKEN 325
+#define PARS_TO_CHAR_TOKEN 326
+#define PARS_TO_NUMBER_TOKEN 327
+#define PARS_TO_BINARY_TOKEN 328
+#define PARS_BINARY_TO_NUMBER_TOKEN 329
+#define PARS_SUBSTR_TOKEN 330
+#define PARS_REPLSTR_TOKEN 331
+#define PARS_CONCAT_TOKEN 332
+#define PARS_INSTR_TOKEN 333
+#define PARS_LENGTH_TOKEN 334
+#define PARS_SYSDATE_TOKEN 335
+#define PARS_PRINTF_TOKEN 336
+#define PARS_ASSERT_TOKEN 337
+#define PARS_RND_TOKEN 338
+#define PARS_RND_STR_TOKEN 339
+#define PARS_ROW_PRINTF_TOKEN 340
+#define PARS_COMMIT_TOKEN 341
+#define PARS_ROLLBACK_TOKEN 342
+#define PARS_WORK_TOKEN 343
+#define PARS_UNSIGNED_TOKEN 344
+#define PARS_EXIT_TOKEN 345
+#define PARS_FUNCTION_TOKEN 346
+#define PARS_LOCK_TOKEN 347
+#define PARS_SHARE_TOKEN 348
+#define PARS_MODE_TOKEN 349
+#define PARS_LIKE_TOKEN 350
+#define PARS_LIKE_TOKEN_EXACT 351
+#define PARS_LIKE_TOKEN_PREFIX 352
+#define PARS_LIKE_TOKEN_SUFFIX 353
+#define PARS_LIKE_TOKEN_SUBSTR 354
+#define PARS_TABLE_NAME_TOKEN 355
+#define PARS_COMPACT_TOKEN 356
+#define PARS_BLOCK_SIZE_TOKEN 357
+#define PARS_BIGINT_TOKEN 358
+#define NEG 359
 
 
+
+
+/* Copy the first part of user declarations.  */
+#line 28 "pars0grm.y"
+
+/* The value of the semantic attribute is a pointer to a query tree node
+que_node_t */
+
+#include "univ.i"
+#include <math.h>				/* Can't be before univ.i */
+#include "pars0pars.h"
+#include "mem0mem.h"
+#include "que0types.h"
+#include "que0que.h"
+#include "row0sel.h"
+
+#define YYSTYPE que_node_t*
+
+/* #define __STDC__ */
+
+int
+yylex(void);
+
+
+/* Enabling traces.  */
+#ifndef YYDEBUG
+# define YYDEBUG 0
+#endif
+
+/* Enabling verbose error messages.  */
+#ifdef YYERROR_VERBOSE
+# undef YYERROR_VERBOSE
+# define YYERROR_VERBOSE 1
+#else
+# define YYERROR_VERBOSE 0
+#endif
+
+/* Enabling the token table.  */
+#ifndef YYTOKEN_TABLE
+# define YYTOKEN_TABLE 0
+#endif
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef int YYSTYPE;
-# define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
+# define YYSTYPE_IS_TRIVIAL 1
 #endif
+
 
 
 /* Copy the second part of user declarations.  */
 
 
-/* Line 264 of yacc.c  */
-#line 240 "pars0grm.cc"
+/* Line 216 of yacc.c.  */
+#line 334 "pars0grm.cc"
 
 #ifdef short
 # undef short
@@ -286,7 +380,7 @@ typedef short int yytype_int16;
 #define YYSIZE_MAXIMUM ((YYSIZE_T) -1)
 
 #ifndef YY_
-# if YYENABLE_NLS
+# if defined YYENABLE_NLS && YYENABLE_NLS
 #  if ENABLE_NLS
 #   include <libintl.h> /* INFRINGES ON USER NAME SPACE */
 #   define YY_(msgid) dgettext ("bison-runtime", msgid)
@@ -311,14 +405,14 @@ typedef short int yytype_int16;
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static int
-YYID (int yyi)
+YYID (int i)
 #else
 static int
-YYID (yyi)
-    int yyi;
+YYID (i)
+    int i;
 #endif
 {
-  return yyi;
+  return i;
 }
 #endif
 
@@ -399,9 +493,9 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
 {
-  yytype_int16 yyss_alloc;
-  YYSTYPE yyvs_alloc;
-};
+  yytype_int16 yyss;
+  YYSTYPE yyvs;
+  };
 
 /* The size of the maximum gap between one aligned stack and the next.  */
 # define YYSTACK_GAP_MAXIMUM (sizeof (union yyalloc) - 1)
@@ -435,12 +529,12 @@ union yyalloc
    elements in the stack, and YYPTR gives the new location of the
    stack.  Advance YYPTR to a properly aligned location for the next
    stack.  */
-# define YYSTACK_RELOCATE(Stack_alloc, Stack)				\
+# define YYSTACK_RELOCATE(Stack)					\
     do									\
       {									\
 	YYSIZE_T yynewbytes;						\
-	YYCOPY (&yyptr->Stack_alloc, Stack, yysize);			\
-	Stack = &yyptr->Stack_alloc;					\
+	YYCOPY (&yyptr->Stack, Stack, yysize);				\
+	Stack = &yyptr->Stack;						\
 	yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
 	yyptr += yynewbytes / sizeof (*yyptr);				\
       }									\
@@ -1158,7 +1252,7 @@ while (YYID (0))
    we won't break user code: when these are the locations we know.  */
 
 #ifndef YY_LOCATION_PRINT
-# if YYLTYPE_IS_TRIVIAL
+# if defined YYLTYPE_IS_TRIVIAL && YYLTYPE_IS_TRIVIAL
 #  define YY_LOCATION_PRINT(File, Loc)			\
      fprintf (File, "%d.%d-%d.%d",			\
 	      (Loc).first_line, (Loc).first_column,	\
@@ -1269,20 +1363,17 @@ yy_symbol_print (yyoutput, yytype, yyvaluep)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_stack_print (yytype_int16 *yybottom, yytype_int16 *yytop)
+yy_stack_print (yytype_int16 *bottom, yytype_int16 *top)
 #else
 static void
-yy_stack_print (yybottom, yytop)
-    yytype_int16 *yybottom;
-    yytype_int16 *yytop;
+yy_stack_print (bottom, top)
+    yytype_int16 *bottom;
+    yytype_int16 *top;
 #endif
 {
   YYFPRINTF (stderr, "Stack now");
-  for (; yybottom <= yytop; yybottom++)
-    {
-      int yybot = *yybottom;
-      YYFPRINTF (stderr, " %d", yybot);
-    }
+  for (; bottom <= top; ++bottom)
+    YYFPRINTF (stderr, " %d", *bottom);
   YYFPRINTF (stderr, "\n");
 }
 
@@ -1316,11 +1407,11 @@ yy_reduce_print (yyvsp, yyrule)
   /* The symbols being reduced.  */
   for (yyi = 0; yyi < yynrhs; yyi++)
     {
-      YYFPRINTF (stderr, "   $%d = ", yyi + 1);
+      fprintf (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
 		       &(yyvsp[(yyi + 1) - (yynrhs)])
 		       		       );
-      YYFPRINTF (stderr, "\n");
+      fprintf (stderr, "\n");
     }
 }
 
@@ -1600,37 +1691,40 @@ yydestruct (yymsg, yytype, yyvaluep)
 	break;
     }
 }
+
 
 /* Prevent warnings from -Wmissing-prototypes.  */
+
 #ifdef YYPARSE_PARAM
 #if defined __STDC__ || defined __cplusplus
-UNIV_INTERN int yyparse (void *YYPARSE_PARAM);
+int yyparse (void *YYPARSE_PARAM);
 #else
-UNIV_INTERN int yyparse ();
+int yyparse ();
 #endif
 #else /* ! YYPARSE_PARAM */
 #if defined __STDC__ || defined __cplusplus
-UNIV_INTERN int yyparse (void);
+int yyparse (void);
 #else
-UNIV_INTERN int yyparse ();
+int yyparse ();
 #endif
 #endif /* ! YYPARSE_PARAM */
 
 
-/* The lookahead symbol.  */
-static int yychar;
 
-/* The semantic value of the lookahead symbol.  */
-UNIV_INTERN YYSTYPE yylval;
+/* The look-ahead symbol.  */
+int yychar;
+
+/* The semantic value of the look-ahead symbol.  */
+YYSTYPE yylval;
 
 /* Number of syntax errors so far.  */
-static int yynerrs;
+int yynerrs;
 
 
 
-/*-------------------------.
-| yyparse or yypush_parse.  |
-`-------------------------*/
+/*----------.
+| yyparse.  |
+`----------*/
 
 #ifdef YYPARSE_PARAM
 #if (defined __STDC__ || defined __C99__FUNC__ \
@@ -1654,39 +1748,14 @@ yyparse ()
 #endif
 #endif
 {
-
-
-    int yystate;
-    /* Number of tokens to shift before error messages enabled.  */
-    int yyerrstatus;
-
-    /* The stacks and their tools:
-       `yyss': related to states.
-       `yyvs': related to semantic values.
-
-       Refer to the stacks thru separate pointers, to allow yyoverflow
-       to reallocate them elsewhere.  */
-
-    /* The state stack.  */
-    yytype_int16 yyssa[YYINITDEPTH];
-    yytype_int16 *yyss;
-    yytype_int16 *yyssp;
-
-    /* The semantic value stack.  */
-    YYSTYPE yyvsa[YYINITDEPTH];
-    YYSTYPE *yyvs;
-    YYSTYPE *yyvsp;
-
-    YYSIZE_T yystacksize;
-
+  
+  int yystate;
   int yyn;
   int yyresult;
-  /* Lookahead token as an internal (translated) token number.  */
-  int yytoken;
-  /* The variables used to return semantic value and location from the
-     action routines.  */
-  YYSTYPE yyval;
-
+  /* Number of tokens to shift before error messages enabled.  */
+  int yyerrstatus;
+  /* Look-ahead token as an internal (translated) token number.  */
+  int yytoken = 0;
 #if YYERROR_VERBOSE
   /* Buffer for error messages, and its allocated size.  */
   char yymsgbuf[128];
@@ -1694,28 +1763,51 @@ yyparse ()
   YYSIZE_T yymsg_alloc = sizeof yymsgbuf;
 #endif
 
+  /* Three stacks and their tools:
+     `yyss': related to states,
+     `yyvs': related to semantic values,
+     `yyls': related to locations.
+
+     Refer to the stacks thru separate pointers, to allow yyoverflow
+     to reallocate them elsewhere.  */
+
+  /* The state stack.  */
+  yytype_int16 yyssa[YYINITDEPTH];
+  yytype_int16 *yyss = yyssa;
+  yytype_int16 *yyssp;
+
+  /* The semantic value stack.  */
+  YYSTYPE yyvsa[YYINITDEPTH];
+  YYSTYPE *yyvs = yyvsa;
+  YYSTYPE *yyvsp;
+
+
+
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N))
+
+  YYSIZE_T yystacksize = YYINITDEPTH;
+
+  /* The variables used to return semantic value and location from the
+     action routines.  */
+  YYSTYPE yyval;
+
 
   /* The number of symbols on the RHS of the reduced rule.
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
-
-  yytoken = 0;
-  yyss = yyssa;
-  yyvs = yyvsa;
-  yystacksize = YYINITDEPTH;
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yystate = 0;
   yyerrstatus = 0;
   yynerrs = 0;
-  yychar = YYEMPTY; /* Cause a token to be read.  */
+  yychar = YYEMPTY;		/* Cause a token to be read.  */
 
   /* Initialize stack pointers.
      Waste one element of value and location stack
      so that they stay on the same level as the state stack.
      The wasted elements are never initialized.  */
+
   yyssp = yyss;
   yyvsp = yyvs;
 
@@ -1745,6 +1837,7 @@ yyparse ()
 	YYSTYPE *yyvs1 = yyvs;
 	yytype_int16 *yyss1 = yyss;
 
+
 	/* Each stack pointer address is followed by the size of the
 	   data in use in that stack, in bytes.  This used to be a
 	   conditional around just the two extra args, but that might
@@ -1752,6 +1845,7 @@ yyparse ()
 	yyoverflow (YY_("memory exhausted"),
 		    &yyss1, yysize * sizeof (*yyssp),
 		    &yyvs1, yysize * sizeof (*yyvsp),
+
 		    &yystacksize);
 
 	yyss = yyss1;
@@ -1774,8 +1868,9 @@ yyparse ()
 	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
 	if (! yyptr)
 	  goto yyexhaustedlab;
-	YYSTACK_RELOCATE (yyss_alloc, yyss);
-	YYSTACK_RELOCATE (yyvs_alloc, yyvs);
+	YYSTACK_RELOCATE (yyss);
+	YYSTACK_RELOCATE (yyvs);
+
 #  undef YYSTACK_RELOCATE
 	if (yyss1 != yyssa)
 	  YYSTACK_FREE (yyss1);
@@ -1786,6 +1881,7 @@ yyparse ()
       yyssp = yyss + yysize - 1;
       yyvsp = yyvs + yysize - 1;
 
+
       YYDPRINTF ((stderr, "Stack size increased to %lu\n",
 		  (unsigned long int) yystacksize));
 
@@ -1795,9 +1891,6 @@ yyparse ()
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
-  if (yystate == YYFINAL)
-    YYACCEPT;
-
   goto yybackup;
 
 /*-----------.
@@ -1806,16 +1899,16 @@ yyparse ()
 yybackup:
 
   /* Do appropriate processing given the current state.  Read a
-     lookahead token if we need one and don't already have one.  */
+     look-ahead token if we need one and don't already have one.  */
 
-  /* First try to decide what to do without reference to lookahead token.  */
+  /* First try to decide what to do without reference to look-ahead token.  */
   yyn = yypact[yystate];
   if (yyn == YYPACT_NINF)
     goto yydefault;
 
-  /* Not known => get a lookahead token if don't already have one.  */
+  /* Not known => get a look-ahead token if don't already have one.  */
 
-  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
+  /* YYCHAR is either YYEMPTY or YYEOF or a valid look-ahead symbol.  */
   if (yychar == YYEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token: "));
@@ -1847,16 +1940,20 @@ yybackup:
       goto yyreduce;
     }
 
+  if (yyn == YYFINAL)
+    YYACCEPT;
+
   /* Count tokens shifted since error; after three, turn off error
      status.  */
   if (yyerrstatus)
     yyerrstatus--;
 
-  /* Shift the lookahead token.  */
+  /* Shift the look-ahead token.  */
   YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);
 
-  /* Discard the shifted token.  */
-  yychar = YYEMPTY;
+  /* Discard the shifted token unless it is eof.  */
+  if (yychar != YYEOF)
+    yychar = YYEMPTY;
 
   yystate = yyn;
   *++yyvsp = yylval;
@@ -1896,394 +1993,282 @@ yyreduce:
   switch (yyn)
     {
         case 25:
-
-/* Line 1455 of yacc.c  */
 #line 190 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 26:
-
-/* Line 1455 of yacc.c  */
 #line 192 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (2)]), (yyvsp[(2) - (2)])); ;}
     break;
 
   case 27:
-
-/* Line 1455 of yacc.c  */
 #line 196 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 28:
-
-/* Line 1455 of yacc.c  */
 #line 198 "pars0grm.y"
     { (yyval) = pars_func((yyvsp[(1) - (4)]), (yyvsp[(3) - (4)])); ;}
     break;
 
   case 29:
-
-/* Line 1455 of yacc.c  */
 #line 199 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 30:
-
-/* Line 1455 of yacc.c  */
 #line 200 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 31:
-
-/* Line 1455 of yacc.c  */
 #line 201 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 32:
-
-/* Line 1455 of yacc.c  */
 #line 202 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 33:
-
-/* Line 1455 of yacc.c  */
 #line 203 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 34:
-
-/* Line 1455 of yacc.c  */
 #line 204 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 35:
-
-/* Line 1455 of yacc.c  */
 #line 205 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]);;}
     break;
 
   case 36:
-
-/* Line 1455 of yacc.c  */
 #line 206 "pars0grm.y"
     { (yyval) = pars_op('+', (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 37:
-
-/* Line 1455 of yacc.c  */
 #line 207 "pars0grm.y"
     { (yyval) = pars_op('-', (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 38:
-
-/* Line 1455 of yacc.c  */
 #line 208 "pars0grm.y"
     { (yyval) = pars_op('*', (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 39:
-
-/* Line 1455 of yacc.c  */
 #line 209 "pars0grm.y"
     { (yyval) = pars_op('/', (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 40:
-
-/* Line 1455 of yacc.c  */
 #line 210 "pars0grm.y"
     { (yyval) = pars_op('-', (yyvsp[(2) - (2)]), NULL); ;}
     break;
 
   case 41:
-
-/* Line 1455 of yacc.c  */
 #line 211 "pars0grm.y"
     { (yyval) = (yyvsp[(2) - (3)]); ;}
     break;
 
   case 42:
-
-/* Line 1455 of yacc.c  */
 #line 212 "pars0grm.y"
     { (yyval) = pars_op('=', (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 43:
-
-/* Line 1455 of yacc.c  */
 #line 214 "pars0grm.y"
     { (yyval) = pars_op(PARS_LIKE_TOKEN, (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 44:
-
-/* Line 1455 of yacc.c  */
 #line 215 "pars0grm.y"
     { (yyval) = pars_op('<', (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 45:
-
-/* Line 1455 of yacc.c  */
 #line 216 "pars0grm.y"
     { (yyval) = pars_op('>', (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 46:
-
-/* Line 1455 of yacc.c  */
 #line 217 "pars0grm.y"
     { (yyval) = pars_op(PARS_GE_TOKEN, (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 47:
-
-/* Line 1455 of yacc.c  */
 #line 218 "pars0grm.y"
     { (yyval) = pars_op(PARS_LE_TOKEN, (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 48:
-
-/* Line 1455 of yacc.c  */
 #line 219 "pars0grm.y"
     { (yyval) = pars_op(PARS_NE_TOKEN, (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 49:
-
-/* Line 1455 of yacc.c  */
 #line 220 "pars0grm.y"
     { (yyval) = pars_op(PARS_AND_TOKEN, (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 50:
-
-/* Line 1455 of yacc.c  */
 #line 221 "pars0grm.y"
     { (yyval) = pars_op(PARS_OR_TOKEN, (yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 51:
-
-/* Line 1455 of yacc.c  */
 #line 222 "pars0grm.y"
     { (yyval) = pars_op(PARS_NOT_TOKEN, (yyvsp[(2) - (2)]), NULL); ;}
     break;
 
   case 52:
-
-/* Line 1455 of yacc.c  */
 #line 224 "pars0grm.y"
     { (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[(1) - (3)]), NULL); ;}
     break;
 
   case 53:
-
-/* Line 1455 of yacc.c  */
 #line 226 "pars0grm.y"
     { (yyval) = pars_op(PARS_NOTFOUND_TOKEN, (yyvsp[(1) - (3)]), NULL); ;}
     break;
 
   case 54:
-
-/* Line 1455 of yacc.c  */
 #line 230 "pars0grm.y"
     { (yyval) = &pars_to_char_token; ;}
     break;
 
   case 55:
-
-/* Line 1455 of yacc.c  */
 #line 231 "pars0grm.y"
     { (yyval) = &pars_to_number_token; ;}
     break;
 
   case 56:
-
-/* Line 1455 of yacc.c  */
 #line 232 "pars0grm.y"
     { (yyval) = &pars_to_binary_token; ;}
     break;
 
   case 57:
-
-/* Line 1455 of yacc.c  */
 #line 234 "pars0grm.y"
     { (yyval) = &pars_binary_to_number_token; ;}
     break;
 
   case 58:
-
-/* Line 1455 of yacc.c  */
 #line 235 "pars0grm.y"
     { (yyval) = &pars_substr_token; ;}
     break;
 
   case 59:
-
-/* Line 1455 of yacc.c  */
 #line 236 "pars0grm.y"
     { (yyval) = &pars_concat_token; ;}
     break;
 
   case 60:
-
-/* Line 1455 of yacc.c  */
 #line 237 "pars0grm.y"
     { (yyval) = &pars_instr_token; ;}
     break;
 
   case 61:
-
-/* Line 1455 of yacc.c  */
 #line 238 "pars0grm.y"
     { (yyval) = &pars_length_token; ;}
     break;
 
   case 62:
-
-/* Line 1455 of yacc.c  */
 #line 239 "pars0grm.y"
     { (yyval) = &pars_sysdate_token; ;}
     break;
 
   case 63:
-
-/* Line 1455 of yacc.c  */
 #line 240 "pars0grm.y"
     { (yyval) = &pars_rnd_token; ;}
     break;
 
   case 64:
-
-/* Line 1455 of yacc.c  */
 #line 241 "pars0grm.y"
     { (yyval) = &pars_rnd_str_token; ;}
     break;
 
   case 68:
-
-/* Line 1455 of yacc.c  */
 #line 252 "pars0grm.y"
     { (yyval) = pars_stored_procedure_call(
 					static_cast<sym_node_t*>((yyvsp[(2) - (6)]))); ;}
     break;
 
   case 69:
-
-/* Line 1455 of yacc.c  */
 #line 258 "pars0grm.y"
     { (yyval) = pars_procedure_call((yyvsp[(1) - (4)]), (yyvsp[(3) - (4)])); ;}
     break;
 
   case 70:
-
-/* Line 1455 of yacc.c  */
 #line 262 "pars0grm.y"
     { (yyval) = &pars_replstr_token; ;}
     break;
 
   case 71:
-
-/* Line 1455 of yacc.c  */
 #line 263 "pars0grm.y"
     { (yyval) = &pars_printf_token; ;}
     break;
 
   case 72:
-
-/* Line 1455 of yacc.c  */
 #line 264 "pars0grm.y"
     { (yyval) = &pars_assert_token; ;}
     break;
 
   case 73:
-
-/* Line 1455 of yacc.c  */
 #line 268 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (3)]); ;}
     break;
 
   case 74:
-
-/* Line 1455 of yacc.c  */
 #line 272 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 75:
-
-/* Line 1455 of yacc.c  */
 #line 274 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 76:
-
-/* Line 1455 of yacc.c  */
 #line 278 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 77:
-
-/* Line 1455 of yacc.c  */
 #line 279 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 78:
-
-/* Line 1455 of yacc.c  */
 #line 281 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 79:
-
-/* Line 1455 of yacc.c  */
 #line 285 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 80:
-
-/* Line 1455 of yacc.c  */
 #line 286 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)]));;}
     break;
 
   case 81:
-
-/* Line 1455 of yacc.c  */
 #line 287 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 82:
-
-/* Line 1455 of yacc.c  */
 #line 291 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]); ;}
     break;
 
   case 83:
-
-/* Line 1455 of yacc.c  */
 #line 293 "pars0grm.y"
     { (yyval) = pars_func(&pars_count_token,
 				          que_node_list_add_last(NULL,
@@ -2292,8 +2277,6 @@ yyreduce:
     break;
 
   case 84:
-
-/* Line 1455 of yacc.c  */
 #line 298 "pars0grm.y"
     { (yyval) = pars_func(&pars_count_token,
 					    que_node_list_add_last(NULL,
@@ -2303,8 +2286,6 @@ yyreduce:
     break;
 
   case 85:
-
-/* Line 1455 of yacc.c  */
 #line 304 "pars0grm.y"
     { (yyval) = pars_func(&pars_sum_token,
 						que_node_list_add_last(NULL,
@@ -2312,122 +2293,88 @@ yyreduce:
     break;
 
   case 86:
-
-/* Line 1455 of yacc.c  */
 #line 310 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 87:
-
-/* Line 1455 of yacc.c  */
 #line 311 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 88:
-
-/* Line 1455 of yacc.c  */
 #line 313 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 89:
-
-/* Line 1455 of yacc.c  */
 #line 317 "pars0grm.y"
     { (yyval) = pars_select_list(&pars_star_denoter,
 								NULL); ;}
     break;
 
   case 90:
-
-/* Line 1455 of yacc.c  */
 #line 320 "pars0grm.y"
     { (yyval) = pars_select_list(
 					(yyvsp[(1) - (3)]), static_cast<sym_node_t*>((yyvsp[(3) - (3)]))); ;}
     break;
 
   case 91:
-
-/* Line 1455 of yacc.c  */
 #line 322 "pars0grm.y"
     { (yyval) = pars_select_list((yyvsp[(1) - (1)]), NULL); ;}
     break;
 
   case 92:
-
-/* Line 1455 of yacc.c  */
 #line 326 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 93:
-
-/* Line 1455 of yacc.c  */
 #line 327 "pars0grm.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 94:
-
-/* Line 1455 of yacc.c  */
 #line 331 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 95:
-
-/* Line 1455 of yacc.c  */
 #line 333 "pars0grm.y"
     { (yyval) = &pars_update_token; ;}
     break;
 
   case 96:
-
-/* Line 1455 of yacc.c  */
 #line 337 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 97:
-
-/* Line 1455 of yacc.c  */
 #line 339 "pars0grm.y"
     { (yyval) = &pars_share_token; ;}
     break;
 
   case 98:
-
-/* Line 1455 of yacc.c  */
 #line 343 "pars0grm.y"
     { (yyval) = &pars_asc_token; ;}
     break;
 
   case 99:
-
-/* Line 1455 of yacc.c  */
 #line 344 "pars0grm.y"
     { (yyval) = &pars_asc_token; ;}
     break;
 
   case 100:
-
-/* Line 1455 of yacc.c  */
 #line 345 "pars0grm.y"
     { (yyval) = &pars_desc_token; ;}
     break;
 
   case 101:
-
-/* Line 1455 of yacc.c  */
 #line 349 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 102:
-
-/* Line 1455 of yacc.c  */
 #line 351 "pars0grm.y"
     { (yyval) = pars_order_by(
 					static_cast<sym_node_t*>((yyvsp[(3) - (4)])),
@@ -2435,8 +2382,6 @@ yyreduce:
     break;
 
   case 103:
-
-/* Line 1455 of yacc.c  */
 #line 362 "pars0grm.y"
     { (yyval) = pars_select_statement(
 					static_cast<sel_node_t*>((yyvsp[(2) - (8)])),
@@ -2448,23 +2393,17 @@ yyreduce:
     break;
 
   case 104:
-
-/* Line 1455 of yacc.c  */
 #line 373 "pars0grm.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 105:
-
-/* Line 1455 of yacc.c  */
 #line 378 "pars0grm.y"
     { (yyval) = pars_insert_statement(
 					static_cast<sym_node_t*>((yyvsp[(1) - (5)])), (yyvsp[(4) - (5)]), NULL); ;}
     break;
 
   case 106:
-
-/* Line 1455 of yacc.c  */
 #line 381 "pars0grm.y"
     { (yyval) = pars_insert_statement(
 					static_cast<sym_node_t*>((yyvsp[(1) - (2)])),
@@ -2473,8 +2412,6 @@ yyreduce:
     break;
 
   case 107:
-
-/* Line 1455 of yacc.c  */
 #line 388 "pars0grm.y"
     { (yyval) = pars_column_assignment(
 					static_cast<sym_node_t*>((yyvsp[(1) - (3)])),
@@ -2482,29 +2419,21 @@ yyreduce:
     break;
 
   case 108:
-
-/* Line 1455 of yacc.c  */
 #line 394 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 109:
-
-/* Line 1455 of yacc.c  */
 #line 396 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 110:
-
-/* Line 1455 of yacc.c  */
 #line 402 "pars0grm.y"
     { (yyval) = (yyvsp[(4) - (4)]); ;}
     break;
 
   case 111:
-
-/* Line 1455 of yacc.c  */
 #line 408 "pars0grm.y"
     { (yyval) = pars_update_statement_start(
 					FALSE,
@@ -2513,8 +2442,6 @@ yyreduce:
     break;
 
   case 112:
-
-/* Line 1455 of yacc.c  */
 #line 416 "pars0grm.y"
     { (yyval) = pars_update_statement(
 					static_cast<upd_node_t*>((yyvsp[(1) - (2)])),
@@ -2523,8 +2450,6 @@ yyreduce:
     break;
 
   case 113:
-
-/* Line 1455 of yacc.c  */
 #line 424 "pars0grm.y"
     { (yyval) = pars_update_statement(
 					static_cast<upd_node_t*>((yyvsp[(1) - (2)])),
@@ -2533,8 +2458,6 @@ yyreduce:
     break;
 
   case 114:
-
-/* Line 1455 of yacc.c  */
 #line 432 "pars0grm.y"
     { (yyval) = pars_update_statement_start(
 					TRUE,
@@ -2542,8 +2465,6 @@ yyreduce:
     break;
 
   case 115:
-
-/* Line 1455 of yacc.c  */
 #line 439 "pars0grm.y"
     { (yyval) = pars_update_statement(
 					static_cast<upd_node_t*>((yyvsp[(1) - (2)])),
@@ -2552,8 +2473,6 @@ yyreduce:
     break;
 
   case 116:
-
-/* Line 1455 of yacc.c  */
 #line 447 "pars0grm.y"
     { (yyval) = pars_update_statement(
 					static_cast<upd_node_t*>((yyvsp[(1) - (2)])),
@@ -2562,16 +2481,12 @@ yyreduce:
     break;
 
   case 117:
-
-/* Line 1455 of yacc.c  */
 #line 455 "pars0grm.y"
     { (yyval) = pars_row_printf_statement(
 					static_cast<sel_node_t*>((yyvsp[(2) - (2)]))); ;}
     break;
 
   case 118:
-
-/* Line 1455 of yacc.c  */
 #line 461 "pars0grm.y"
     { (yyval) = pars_assignment_statement(
 					static_cast<sym_node_t*>((yyvsp[(1) - (3)])),
@@ -2579,64 +2494,46 @@ yyreduce:
     break;
 
   case 119:
-
-/* Line 1455 of yacc.c  */
 #line 469 "pars0grm.y"
     { (yyval) = pars_elsif_element((yyvsp[(2) - (4)]), (yyvsp[(4) - (4)])); ;}
     break;
 
   case 120:
-
-/* Line 1455 of yacc.c  */
 #line 473 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 121:
-
-/* Line 1455 of yacc.c  */
 #line 475 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (2)]), (yyvsp[(2) - (2)])); ;}
     break;
 
   case 122:
-
-/* Line 1455 of yacc.c  */
 #line 479 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 123:
-
-/* Line 1455 of yacc.c  */
 #line 481 "pars0grm.y"
     { (yyval) = (yyvsp[(2) - (2)]); ;}
     break;
 
   case 124:
-
-/* Line 1455 of yacc.c  */
 #line 482 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]); ;}
     break;
 
   case 125:
-
-/* Line 1455 of yacc.c  */
 #line 489 "pars0grm.y"
     { (yyval) = pars_if_statement((yyvsp[(2) - (7)]), (yyvsp[(4) - (7)]), (yyvsp[(5) - (7)])); ;}
     break;
 
   case 126:
-
-/* Line 1455 of yacc.c  */
 #line 495 "pars0grm.y"
     { (yyval) = pars_while_statement((yyvsp[(2) - (6)]), (yyvsp[(4) - (6)])); ;}
     break;
 
   case 127:
-
-/* Line 1455 of yacc.c  */
 #line 503 "pars0grm.y"
     { (yyval) = pars_for_statement(
 					static_cast<sym_node_t*>((yyvsp[(2) - (10)])),
@@ -2644,22 +2541,16 @@ yyreduce:
     break;
 
   case 128:
-
-/* Line 1455 of yacc.c  */
 #line 509 "pars0grm.y"
     { (yyval) = pars_exit_statement(); ;}
     break;
 
   case 129:
-
-/* Line 1455 of yacc.c  */
 #line 513 "pars0grm.y"
     { (yyval) = pars_return_statement(); ;}
     break;
 
   case 130:
-
-/* Line 1455 of yacc.c  */
 #line 518 "pars0grm.y"
     { (yyval) = pars_open_statement(
 						ROW_SEL_OPEN_CURSOR,
@@ -2667,8 +2558,6 @@ yyreduce:
     break;
 
   case 131:
-
-/* Line 1455 of yacc.c  */
 #line 525 "pars0grm.y"
     { (yyval) = pars_open_statement(
 						ROW_SEL_CLOSE_CURSOR,
@@ -2676,8 +2565,6 @@ yyreduce:
     break;
 
   case 132:
-
-/* Line 1455 of yacc.c  */
 #line 532 "pars0grm.y"
     { (yyval) = pars_fetch_statement(
 					static_cast<sym_node_t*>((yyvsp[(2) - (4)])),
@@ -2685,8 +2572,6 @@ yyreduce:
     break;
 
   case 133:
-
-/* Line 1455 of yacc.c  */
 #line 536 "pars0grm.y"
     { (yyval) = pars_fetch_statement(
 					static_cast<sym_node_t*>((yyvsp[(2) - (4)])),
@@ -2695,8 +2580,6 @@ yyreduce:
     break;
 
   case 134:
-
-/* Line 1455 of yacc.c  */
 #line 544 "pars0grm.y"
     { (yyval) = pars_column_def(
 					static_cast<sym_node_t*>((yyvsp[(1) - (5)])),
@@ -2706,110 +2589,80 @@ yyreduce:
     break;
 
   case 135:
-
-/* Line 1455 of yacc.c  */
 #line 552 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 136:
-
-/* Line 1455 of yacc.c  */
 #line 554 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 137:
-
-/* Line 1455 of yacc.c  */
 #line 558 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 138:
-
-/* Line 1455 of yacc.c  */
 #line 560 "pars0grm.y"
     { (yyval) = (yyvsp[(2) - (3)]); ;}
     break;
 
   case 139:
-
-/* Line 1455 of yacc.c  */
 #line 564 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 140:
-
-/* Line 1455 of yacc.c  */
 #line 566 "pars0grm.y"
     { (yyval) = &pars_int_token;
 					/* pass any non-NULL pointer */ ;}
     break;
 
   case 141:
-
-/* Line 1455 of yacc.c  */
 #line 571 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 142:
-
-/* Line 1455 of yacc.c  */
 #line 573 "pars0grm.y"
     { (yyval) = &pars_int_token;
 					/* pass any non-NULL pointer */ ;}
     break;
 
   case 143:
-
-/* Line 1455 of yacc.c  */
 #line 578 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 144:
-
-/* Line 1455 of yacc.c  */
 #line 580 "pars0grm.y"
     { (yyval) = &pars_int_token;
 					/* pass any non-NULL pointer */ ;}
     break;
 
   case 145:
-
-/* Line 1455 of yacc.c  */
 #line 585 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 146:
-
-/* Line 1455 of yacc.c  */
 #line 586 "pars0grm.y"
     { (yyval) = &pars_int_token;
 					/* pass any non-NULL pointer */ ;}
     break;
 
   case 147:
-
-/* Line 1455 of yacc.c  */
 #line 591 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 148:
-
-/* Line 1455 of yacc.c  */
 #line 593 "pars0grm.y"
     { (yyval) = (yyvsp[(3) - (3)]); ;}
     break;
 
   case 149:
-
-/* Line 1455 of yacc.c  */
 #line 600 "pars0grm.y"
     { (yyval) = pars_create_table(
 					static_cast<sym_node_t*>((yyvsp[(3) - (9)])),
@@ -2819,50 +2672,36 @@ yyreduce:
     break;
 
   case 150:
-
-/* Line 1455 of yacc.c  */
 #line 608 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 151:
-
-/* Line 1455 of yacc.c  */
 #line 610 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 152:
-
-/* Line 1455 of yacc.c  */
 #line 614 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 153:
-
-/* Line 1455 of yacc.c  */
 #line 615 "pars0grm.y"
     { (yyval) = &pars_unique_token; ;}
     break;
 
   case 154:
-
-/* Line 1455 of yacc.c  */
 #line 619 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 155:
-
-/* Line 1455 of yacc.c  */
 #line 620 "pars0grm.y"
     { (yyval) = &pars_clustered_token; ;}
     break;
 
   case 156:
-
-/* Line 1455 of yacc.c  */
 #line 629 "pars0grm.y"
     { (yyval) = pars_create_index(
 					static_cast<pars_res_word_t*>((yyvsp[(2) - (10)])),
@@ -2873,78 +2712,56 @@ yyreduce:
     break;
 
   case 157:
-
-/* Line 1455 of yacc.c  */
 #line 638 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]); ;}
     break;
 
   case 158:
-
-/* Line 1455 of yacc.c  */
 #line 639 "pars0grm.y"
     { (yyval) = (yyvsp[(1) - (1)]); ;}
     break;
 
   case 159:
-
-/* Line 1455 of yacc.c  */
 #line 644 "pars0grm.y"
     { (yyval) = pars_commit_statement(); ;}
     break;
 
   case 160:
-
-/* Line 1455 of yacc.c  */
 #line 649 "pars0grm.y"
     { (yyval) = pars_rollback_statement(); ;}
     break;
 
   case 161:
-
-/* Line 1455 of yacc.c  */
 #line 653 "pars0grm.y"
     { (yyval) = &pars_int_token; ;}
     break;
 
   case 162:
-
-/* Line 1455 of yacc.c  */
 #line 654 "pars0grm.y"
     { (yyval) = &pars_int_token; ;}
     break;
 
   case 163:
-
-/* Line 1455 of yacc.c  */
 #line 655 "pars0grm.y"
     { (yyval) = &pars_bigint_token; ;}
     break;
 
   case 164:
-
-/* Line 1455 of yacc.c  */
 #line 656 "pars0grm.y"
     { (yyval) = &pars_char_token; ;}
     break;
 
   case 165:
-
-/* Line 1455 of yacc.c  */
 #line 657 "pars0grm.y"
     { (yyval) = &pars_binary_token; ;}
     break;
 
   case 166:
-
-/* Line 1455 of yacc.c  */
 #line 658 "pars0grm.y"
     { (yyval) = &pars_blob_token; ;}
     break;
 
   case 167:
-
-/* Line 1455 of yacc.c  */
 #line 663 "pars0grm.y"
     { (yyval) = pars_parameter_declaration(
 					static_cast<sym_node_t*>((yyvsp[(1) - (3)])),
@@ -2953,8 +2770,6 @@ yyreduce:
     break;
 
   case 168:
-
-/* Line 1455 of yacc.c  */
 #line 668 "pars0grm.y"
     { (yyval) = pars_parameter_declaration(
 					static_cast<sym_node_t*>((yyvsp[(1) - (3)])),
@@ -2963,29 +2778,21 @@ yyreduce:
     break;
 
   case 169:
-
-/* Line 1455 of yacc.c  */
 #line 675 "pars0grm.y"
     { (yyval) = NULL; ;}
     break;
 
   case 170:
-
-/* Line 1455 of yacc.c  */
 #line 676 "pars0grm.y"
     { (yyval) = que_node_list_add_last(NULL, (yyvsp[(1) - (1)])); ;}
     break;
 
   case 171:
-
-/* Line 1455 of yacc.c  */
 #line 678 "pars0grm.y"
     { (yyval) = que_node_list_add_last((yyvsp[(1) - (3)]), (yyvsp[(3) - (3)])); ;}
     break;
 
   case 172:
-
-/* Line 1455 of yacc.c  */
 #line 683 "pars0grm.y"
     { (yyval) = pars_variable_declaration(
 					static_cast<sym_node_t*>((yyvsp[(1) - (3)])),
@@ -2993,8 +2800,6 @@ yyreduce:
     break;
 
   case 176:
-
-/* Line 1455 of yacc.c  */
 #line 697 "pars0grm.y"
     { (yyval) = pars_cursor_declaration(
 					static_cast<sym_node_t*>((yyvsp[(3) - (6)])),
@@ -3002,16 +2807,12 @@ yyreduce:
     break;
 
   case 177:
-
-/* Line 1455 of yacc.c  */
 #line 704 "pars0grm.y"
     { (yyval) = pars_function_declaration(
 					static_cast<sym_node_t*>((yyvsp[(3) - (4)]))); ;}
     break;
 
   case 183:
-
-/* Line 1455 of yacc.c  */
 #line 726 "pars0grm.y"
     { (yyval) = pars_procedure_definition(
 					static_cast<sym_node_t*>((yyvsp[(2) - (11)])),
@@ -3020,9 +2821,8 @@ yyreduce:
     break;
 
 
-
-/* Line 1455 of yacc.c  */
-#line 3026 "pars0grm.cc"
+/* Line 1267 of yacc.c.  */
+#line 2826 "pars0grm.cc"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -3032,6 +2832,7 @@ yyreduce:
   YY_STACK_PRINT (yyss, yyssp);
 
   *++yyvsp = yyval;
+
 
   /* Now `shift' the result of the reduction.  Determine what state
      that goes to, based on the state we popped back to and the rule
@@ -3097,7 +2898,7 @@ yyerrlab:
 
   if (yyerrstatus == 3)
     {
-      /* If just tried and failed to reuse lookahead token after an
+      /* If just tried and failed to reuse look-ahead token after an
 	 error, discard it.  */
 
       if (yychar <= YYEOF)
@@ -3114,7 +2915,7 @@ yyerrlab:
 	}
     }
 
-  /* Else will try to reuse lookahead token after shifting the error
+  /* Else will try to reuse look-ahead token after shifting the error
      token.  */
   goto yyerrlab1;
 
@@ -3171,6 +2972,9 @@ yyerrlab1:
       YY_STACK_PRINT (yyss, yyssp);
     }
 
+  if (yyn == YYFINAL)
+    YYACCEPT;
+
   *++yyvsp = yylval;
 
 
@@ -3195,7 +2999,7 @@ yyabortlab:
   yyresult = 1;
   goto yyreturn;
 
-#if !defined(yyoverflow) || YYERROR_VERBOSE
+#ifndef yyoverflow
 /*-------------------------------------------------.
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
@@ -3206,7 +3010,7 @@ yyexhaustedlab:
 #endif
 
 yyreturn:
-  if (yychar != YYEMPTY)
+  if (yychar != YYEOF && yychar != YYEMPTY)
      yydestruct ("Cleanup: discarding lookahead",
 		 yytoken, &yylval);
   /* Do not reclaim the symbols of the rule which action triggered
@@ -3232,8 +3036,6 @@ yyreturn:
 }
 
 
-
-/* Line 1675 of yacc.c  */
 #line 732 "pars0grm.y"
 
 
