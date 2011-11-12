@@ -648,17 +648,18 @@ int toku_pin_brtnode_if_clean(
     BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
     ANCESTORS ancestors, struct pivot_bounds const * const bounds,
     BRTNODE *node_p
-    ); 
+    );
 int toku_pin_brtnode (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
-		      UNLOCKERS unlockers,
-		      ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
+                      UNLOCKERS unlockers,
+                      ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
                       struct brtnode_fetch_extra *bfe,
-		      BRTNODE *node_p)
+                      BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
+                      BRTNODE *node_p)
     __attribute__((__warn_unused_result__));
 void toku_pin_brtnode_holding_lock (BRT brt, BLOCKNUM blocknum, u_int32_t fullhash,
-				   ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
-                                   struct brtnode_fetch_extra *bfe, BOOL apply_ancestor_messages,
-				   BRTNODE *node_p);
+                                    ANCESTORS ancestors, struct pivot_bounds const * const pbounds,
+                                    struct brtnode_fetch_extra *bfe, BOOL apply_ancestor_messages,
+                                    BRTNODE *node_p);
 void toku_unpin_brtnode (BRT brt, BRTNODE node);
 unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
                                       DESCRIPTOR desc, brt_compare_func cmp)
@@ -748,6 +749,12 @@ typedef struct brt_status {
     uint64_t  search_root_retries;         // number of searches that required the root node to be fetched more than once
     uint64_t  search_tries_gt_height;      // number of searches that required more tries than the height of the tree
     uint64_t  search_tries_gt_heightplus3; // number of searches that required more tries than the height of the tree plus three
+    uint64_t  disk_flush_leaf;             // number of leaf nodes flushed to disk, not for checkpoint
+    uint64_t  disk_flush_nonleaf;          // number of nonleaf nodes flushed to disk, not for checkpoint
+    uint64_t  disk_flush_leaf_for_checkpoint;             // number of leaf nodes flushed to disk for checkpoint
+    uint64_t  disk_flush_nonleaf_for_checkpoint;          // number of nonleaf nodes flushed to disk for checkpoint
+    uint64_t  destroy_leaf;                // number of leaf nodes destroyed
+    uint64_t  destroy_nonleaf;             // number of nonleaf nodes destroyed
     uint64_t  cleaner_total_nodes;         // total number of nodes whose buffers are potentially flushed by cleaner thread
     uint64_t  cleaner_h1_nodes;            // number of nodes of height one whose message buffers are flushed by cleaner thread
     uint64_t  cleaner_hgt1_nodes;          // number of nodes of height > 1 whose message buffers are flushed by cleaner thread
