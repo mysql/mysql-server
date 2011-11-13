@@ -346,7 +346,7 @@ mysql_declare_plugin(feedback)
   PLUGIN_LICENSE_GPL,
   feedback::init,
   feedback::free,
-  0x0100,
+  0x0101,
   NULL,
   feedback::settings,
   NULL
@@ -363,11 +363,11 @@ maria_declare_plugin(feedback)
   PLUGIN_LICENSE_GPL,
   feedback::init,
   feedback::free,
-  0x0100,
+  0x0101,
   NULL,
   feedback::settings,
-  "1.0",
+  "1.1",
   MariaDB_PLUGIN_MATURITY_BETA
 }
-mysql_declare_plugin_end;
+maria_declare_plugin_end;
 #endif
