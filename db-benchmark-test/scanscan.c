@@ -29,6 +29,7 @@ static int n_experiments = 2;
 static int bulk_fetch = 1;
 
 static int verbose = 0;
+static int engine_status = 0;
 static const char *log_dir = NULL;
 
 
@@ -54,6 +55,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --recover                run recovery\n");
     fprintf(stderr, "  --verbose                print verbose information\n");
     fprintf(stderr, "  --bulk_fetch 0|1         do bulk fetch on lwc operations (default: 1)\n");
+    fprintf(stderr, "  --engine_status          print engine status at end of test \n");
     return 1;
 }
 
@@ -147,6 +149,8 @@ static void parse_args (int argc, char *const argv[]) {
         } else if (strcmp(*argv, "--bulk_fetch") == 0 && argc > 1) {
             argc--; argv++;
             bulk_fetch = atoi(*argv);
+        } else if (strcmp(*argv, "--engine_status") == 0) {
+            engine_status = 1;
 	} else {
             exit(print_usage(pname));
 	}
@@ -231,6 +235,8 @@ static void scanscan_shutdown (void) {
     if (do_txns) {
 	r = tid->commit(tid, 0);                                    assert(r==0);
     }
+    if (verbose || engine_status)
+	print_engine_status(env);
     r = env->close(env, 0);                                     assert(r==0);
     env = NULL;
 
@@ -241,19 +247,6 @@ static void scanscan_shutdown (void) {
         int r = toku_os_get_max_rss(&mrss);
         assert(r==0);
 	printf("maxrss=%.2fMB\n", mrss/256.0);
-    }
-#endif
-}
-
-
-static void print_engine_status(void) {
-#if defined TOKUDB
-    if (verbose) {
-      int buffsize = 1024 * 32;
-      char buff[buffsize];
-      env->get_engine_status_text(env, buff, buffsize);
-      printf("Engine status:\n");
-      printf("%s", buff);
     }
 #endif
 }
@@ -285,7 +278,6 @@ static void scanscan_hwc (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("Scan    %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", totalbytes, rowcounter, tdiff, 1e-6*totalbytes/tdiff);
-	print_engine_status();
     }
 }
 
@@ -335,7 +327,6 @@ static void scanscan_lwc (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
-	print_engine_status();
     }
 }
 
@@ -470,7 +461,6 @@ static void scanscan_verify (void) {
 	double thistime = gettime();
 	double tdiff = thistime-prevtime;
 	printf("verify   %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", v.totalbytes, v.rowcounter, tdiff, 1e-6*v.totalbytes/tdiff);
-	print_engine_status();
     }
 }
 

@@ -29,5 +29,17 @@ main(int argc, char *const argv[]) {
     return r;
 }
 
+static __attribute__((__unused__)) void 
+print_engine_status(DB_ENV * UU(env)) {
+#if defined(TOKUDB)
+  int buffsize = 1024 * 128;
+  char buff[buffsize];
+  env->get_engine_status_text(env, buff, buffsize);
+  printf("Engine status:\n");
+  printf("%s", buff);
+#endif
+}
+
+
 #endif /* #if !defined(TOKUDB_COMMON_H) */
 
