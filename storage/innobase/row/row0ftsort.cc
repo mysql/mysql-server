@@ -79,8 +79,9 @@ row_merge_create_fts_sort_index(
 	dict_field_t*   idx_field;
 	CHARSET_INFO*	charset;
 
-	new_index = dict_mem_index_create(index->table->name, "tmp_fts_idx",
-					  0, DICT_FTS, 3);
+	// FIXME: This name shouldn't be hard coded here.
+	new_index = dict_mem_index_create(
+		index->table->name, "tmp_fts_idx", 0, DICT_FTS, 3);
 
 	new_index->id = index->id;
 	new_index->table = (dict_table_t*)table;
