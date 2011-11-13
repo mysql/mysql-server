@@ -3237,6 +3237,12 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
   @details
   This function runs given processor on all derived tables from the
   table_list of this select.
+  The SELECT_LEX::leaf_tables/TABLE_LIST::next_leaf chain is used as the tables
+  list for current select. This chain is built by make_leaves_list and thus
+  this function can't be used prior to setup_tables. As the chain includes all
+  tables from merged views there is no need in diving into views.
+
+  @see mysql_handle_derived.
 
   @return FALSE ok.
   @return TRUE an error occur.
@@ -3245,9 +3251,9 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 bool st_select_lex::handle_derived(LEX *lex,
                                    bool (*processor)(THD*, LEX*, TABLE_LIST*))
 {
-  for (TABLE_LIST *table_ref= get_table_list();
+  for (TABLE_LIST *table_ref= leaf_tables;
        table_ref;
-       table_ref= table_ref->next_local)
+       table_ref= table_ref->next_leaf)
   {
     if (table_ref->is_view_or_derived() &&
         table_ref->handle_derived(lex, processor))

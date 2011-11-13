@@ -4192,6 +4192,23 @@ CREATE TABLE table_broken AS SELECT * FROM t1, t2, t3;
 
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#11766440 59546: Assertion m_sp == __null fails in
+--echo # Item_func_sp::init_result_field with functions
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1 () RETURNS INTEGER RETURN 1;
+CREATE FUNCTION f2 (i INTEGER) RETURNS INTEGER RETURN 1;
+CREATE VIEW v1 AS SELECT f1() AS a FROM t1;
+CREATE VIEW v2 AS SELECT f2(a) AS a FROM v1;
+DROP FUNCTION f1;
+--error ER_VIEW_INVALID
+SELECT f2(a) FROM v2;
+DROP VIEW v2;
+DROP VIEW v1;
+DROP FUNCTION f2;
+DROP TABLE t1;
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.

@@ -139,9 +139,13 @@ row_vers_impl_x_locked_low(
 		if (prev_version == NULL) {
 
 			/* clust_rec must be a fresh insert, because
-			no previous version was found. */
+			no previous version was found or the transaction
+			has committed. The caller has to recheck as the
+			synopsis of this function states, whether trx_id
+			is active or not. */
 
-			ut_a(err == DB_SUCCESS);
+			ut_a(err == DB_SUCCESS || err == DB_MISSING_HISTORY);
+
 			break;
 		}
 
