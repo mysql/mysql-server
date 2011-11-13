@@ -76,7 +76,7 @@ SELECT @@global.log_warnings;
 SET @@global.log_warnings = 10;
 SELECT @@log_warnings = @@global.log_warnings;
 @@log_warnings = @@global.log_warnings
-0
+1
 SET @@global.log_warnings = @start_global_value;
 SELECT @@global.log_warnings;
 @@global.log_warnings
