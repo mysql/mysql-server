@@ -1,5 +1,4 @@
 source t/feedback_plugin_load.test;
-source include/big_test.inc;
 
 if (!$MTR_FEEDBACK_PLUGIN) {
   skip MTR_FEEDBACK_PLUGIN is not set;
