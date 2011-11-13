@@ -9,3 +9,4 @@ FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
 variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW
+SET GLOBAL innodb_buffer_pool_load_now = @orig;

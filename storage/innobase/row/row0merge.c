@@ -1231,6 +1231,7 @@ row_merge_read_clustered_index(
 	ibool			add_doc_id = FALSE;
 	os_event_t		fts_parallel_sort_event = NULL;
 	ibool			fts_pll_sort = FALSE;
+	ib_int64_t		sig_count = 0;
 
 	trx->op_info = "reading clustered index";
 
@@ -1509,11 +1510,13 @@ func_exit:
 			psort_info[i].state = FTS_PARENT_COMPLETE;
 		}
 wait_again:
-		os_event_wait(fts_parallel_sort_event);
+		os_event_wait_time_low(fts_parallel_sort_event,
+				       60000000, sig_count);
 
 		for (i = 0; i < fts_sort_pll_degree; i++) {
 			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
-				os_event_reset(fts_parallel_sort_event);
+				sig_count = os_event_reset(
+					fts_parallel_sort_event);
 				goto wait_again;
 			}
 		}

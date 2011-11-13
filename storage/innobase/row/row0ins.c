@@ -904,7 +904,7 @@ row_ins_foreign_check_on_constraint(
 	ulint		i;
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
-	doc_id_t	doc_id;
+	doc_id_t	doc_id = 0;
 	ibool		fts_col_affacted = FALSE;
 
 	ut_a(thr);

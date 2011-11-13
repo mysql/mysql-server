@@ -6,7 +6,6 @@
 
 # Check the default value and save for later restoration
 SET @orig = @@global.innodb_buffer_pool_filename;
-SELECT @orig;
 
 # Make sure that --force-restart in the .opt file has worked and that
 # the value of this status variable is not something like
@@ -35,3 +34,4 @@ let $wait_condition =
 
 # Restore the env
 SET GLOBAL innodb_buffer_pool_filename = @orig;
+SET GLOBAL innodb_buffer_pool_dump_now = OFF;
