@@ -256,16 +256,17 @@ row_merge_buf_add(
 
 {
 	ulint			i;
-	ulint			n_fields;
-	ulint			data_size;
-	ulint			extra_size;
 	const dict_index_t*	index;
 	dfield_t*		entry;
 	dfield_t*		field;
 	const dict_field_t*	ifield;
-	ulint			n_row_added = 0;
-	ulint			bucket = 0;
 	ulint			zip_size;
+	ulint			n_fields;
+	ulint			data_size;
+	ulint			extra_size;
+	ulint			bucket = 0;
+	doc_id_t		write_doc_id;
+	ulint			n_row_added = 0;
 
 	if (buf->n_tuples >= buf->max_tuples) {
 		return(FALSE);
@@ -293,10 +294,10 @@ row_merge_buf_add(
 	ifield = dict_index_get_nth_field(index, 0);
 
 	for (i = 0; i < n_fields; i++, field++, ifield++) {
+		ulint			len;
 		const dict_col_t*	col;
 		ulint			col_no;
 		const dfield_t*		row_field;
-		ulint			len;
 		ibool			col_adjusted;
 
 		col = ifield->col;
@@ -309,7 +310,7 @@ row_merge_buf_add(
 		if (*doc_id > 0
 		    && DICT_TF2_FLAG_IS_SET(index->table,
                     			    DICT_TF2_FTS_ADD_DOC_ID)
-		    && (col_no > index->table->fts->doc_col)) {
+		    && col_no > index->table->fts->doc_col) {
 
 			ut_ad(index->table->fts);
 
@@ -318,12 +319,23 @@ row_merge_buf_add(
 		}
 
 		/* Process the Doc ID column */
-		if (*doc_id > 0 && col_no == index->table->fts->doc_col
+		if (*doc_id > 0
+		    && col_no == index->table->fts->doc_col
 		    && !col_adjusted) {
-			doc_id_t	write_doc_id;
-			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
-			dfield_set_data(field, &write_doc_id,
-					sizeof(write_doc_id));
+
+			fts_write_doc_id(&write_doc_id, *doc_id);
+
+			ut_a(!(index->type & DICT_FTS));
+
+			/* Note: field->data now points to a value on the
+			stack: &write_doc_id after dfield_set_data(). Because
+			there is only one doc_id per row, it shouldn't matter.
+			We allocate a new buffer before we leave the function
+			later below. */
+
+			dfield_set_data(
+				field, &write_doc_id, sizeof(write_doc_id));
+
 			field->type.mtype = ifield->col->mtype;
 			field->type.prtype = ifield->col->prtype;
 			field->type.mbminmaxlen = DATA_MBMINMAXLEN(0, 0);

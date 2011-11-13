@@ -204,7 +204,7 @@ UNIV_INLINE
 void
 mach_write_to_8(
 /*============*/
-	byte*		b,	/*!< in: pointer to 8 bytes where to store */
+	void*		b,	/*!< in: pointer to 8 bytes where to store */
 	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
 /********************************************************//**
 The following function is used to fetch data from 8 consecutive

@@ -141,7 +141,9 @@ innobase_rec_to_mysql(
 	uint	n_fields	= table->s->fields;
 	uint	i;
 
-	ut_ad(n_fields == dict_table_get_n_user_cols(index->table));
+	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
+	      || (DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID)
+		  && n_fields + 1 == dict_table_get_n_user_cols(index->table)));
 
 	for (i = 0; i < n_fields; i++) {
 		Field*		field	= table->field[i];
