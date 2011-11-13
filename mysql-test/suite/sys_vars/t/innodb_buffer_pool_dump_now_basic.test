@@ -23,3 +23,5 @@ let $wait_condition =
 # Confirm that the dump file has been created
 -- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
 -- file_exists $file
+
+SET GLOBAL innodb_buffer_pool_dump_now = @orig;

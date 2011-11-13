@@ -4104,8 +4104,8 @@ fts_sync_commit(
 	}
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: SYNC time : %ldsecs: elapsed %lf ins/sec\n",
-		ut_time() - sync->start_time,
+	fprintf(stderr, "  InnoDB: SYNC time : %lusecs: elapsed %lf ins/sec\n",
+		(ulong) (ut_time() - sync->start_time),
 		(double) n_nodes/ (double) elapsed_time);
 
 	trx_free_for_background(trx);
