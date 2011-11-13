@@ -226,6 +226,7 @@ public:
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
   virtual bool expr_cache_is_needed(THD *);
   virtual void get_cache_parameters(List<Item> &parameters);
+  virtual bool is_subquery_processor (uchar *opt_arg) { return 1; }
 
   friend class select_result_interceptor;
   friend class Item_in_optimizer;

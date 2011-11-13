@@ -1436,6 +1436,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
   cache->setup(args[0]);
   if (cache->cols() == 1)
   {
+    DBUG_ASSERT(args[0]->type() != ROW_ITEM);
     if ((used_tables_cache= args[0]->used_tables()))
       cache->set_used_tables(OUTER_REF_TABLE_BIT);
     else
@@ -1446,6 +1447,14 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
     uint n= cache->cols();
     for (uint i= 0; i < n; i++)
     {
+      /* Check that the expression (part of row) do not contain a subquery */
+      if (args[0]->element_index(i)->walk(&Item::is_subquery_processor,
+                                          FALSE, NULL))
+      {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "SUBQUERY in ROW in left expression of IN/ALL/ANY");
+        return 1;
+      }
       if (args[0]->element_index(i)->used_tables())
 	((Item_cache *)cache->element_index(i))->set_used_tables(OUTER_REF_TABLE_BIT);
       else

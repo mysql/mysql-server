@@ -1023,6 +1023,7 @@ public:
   virtual bool view_used_tables_processor(uchar *arg) { return 0; }
   virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
   virtual bool clear_sum_processor(uchar *opt_arg) { return 0; }
+  virtual bool is_subquery_processor (uchar *opt_arg) { return 0; }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args

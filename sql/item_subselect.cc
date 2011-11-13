@@ -528,7 +528,7 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
        invalidated by irreversible cleanups (those happen after an uncorrelated 
        subquery has been executed).
     */
-    return FALSE;
+    return (this->*processor)(argument);
   }
 
   if (walk_subquery)
