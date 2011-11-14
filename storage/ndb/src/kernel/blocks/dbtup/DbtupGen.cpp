@@ -43,9 +43,10 @@ extern EventLogger * g_eventLogger;
 
 void Dbtup::initData() 
 {
-  cnoOfFragrec = MAX_FRAG_PER_NODE;
-  cnoOfFragoprec = MAX_FRAG_PER_NODE;
-  cnoOfAlterTabOps = MAX_FRAG_PER_NODE;
+  TablerecPtr tablePtr;
+  cnoOfFragrec = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
+  cnoOfFragoprec = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
+  cnoOfAlterTabOps = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
   c_maxTriggersPerTable = ZDEFAULT_MAX_NO_TRIGGERS_PER_TABLE;
   c_noOfBuildIndexRec = 32;
 
@@ -772,7 +773,7 @@ void Dbtup::initializeTablerec()
 void
 Dbtup::initTab(Tablerec* const regTabPtr)
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragid); i++) {
     regTabPtr->fragid[i] = RNIL;
     regTabPtr->fragrec[i] = RNIL;
   }//for
@@ -870,7 +871,7 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
   return;
 }//Dbtup::execTUPSEIZEREQ()
 
-#define printFragment(t){ for(Uint32 i = 0; i < MAX_FRAG_PER_NODE;i++){\
+#define printFragment(t){ for(Uint32 i = 0; i < NDB_ARRAY_SIZE(t.p->fragid);i++){ \
   ndbout_c("table = %d fragid[%d] = %d fragrec[%d] = %d", \
            t.i, t.p->fragid[i], i, t.p->fragrec[i]); }}
 
