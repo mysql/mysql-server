@@ -69,6 +69,9 @@ SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
 
+set global innodb_optimize_fulltext_only=1;
+optimize table t1;
+set global innodb_optimize_fulltext_only=0;
 # Updating parent table hence child table should get updated due to 'update cascade' clause
 UPDATE t1 SET a1 = "changing column - on update cascade" , b1 = "to check foreign constraint" WHERE
 MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
