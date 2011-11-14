@@ -1221,29 +1221,35 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
 
   clogPartFileSize = 4;
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS,
-                            &clogPartFileSize);
-  globalData.ndbLogParts = clogPartFileSize;
-  ndbrequire(clogPartFileSize <= NDB_MAX_LOG_PARTS);
 
-  if (globalData.ndbMtLqhWorkers > clogPartFileSize)
+  Uint32 nodeLogParts = 4;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS,
+                            &nodeLogParts);
+  globalData.ndbLogParts = nodeLogParts;
+  ndbrequire(nodeLogParts <= NDB_MAX_LOG_PARTS);
+  {
+    NdbLogPartInfo lpinfo(instance());
+    clogPartFileSize = lpinfo.partCount; // How many are this instance responsible for...
+  }
+
+  if (globalData.ndbMtLqhWorkers > nodeLogParts)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start %d LQH workers with only %d log parts, try initial"
       " node restart to be able to use more LQH workers.",
-      globalData.ndbMtLqhWorkers, clogPartFileSize);
+      globalData.ndbMtLqhWorkers, nodeLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
-  if (clogPartFileSize != 4 &&
-      clogPartFileSize != 8 &&
-      clogPartFileSize != 16)
+  if (nodeLogParts != 4 &&
+      nodeLogParts != 8 &&
+      nodeLogParts != 16)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start with %d log parts, number of log parts can"
       " only be set to 4, 8 or 16.",
-      clogPartFileSize);
+      nodeLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
 
@@ -15728,7 +15734,7 @@ void Dblqh::initWriteEndLab(Signal* signal)
 /* Set number of log parts used to ensure we use correct number of log parts */
 /* at system restart. Was previously hardcoded to 4.                         */
 /*---------------------------------------------------------------------------*/
-    logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS]= clogPartFileSize;
+    logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS]= globalData.ndbLogParts;
     logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = 1;
     logPagePtr.p->logPageWord[ZPOS_MAX_GCI_STARTED] = 0;
     logPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] = 0;
@@ -16474,13 +16480,13 @@ void Dblqh::readSrFrontpageLab(Signal* signal)
       globalData.ndbMtLqhWorkers, num_parts_used);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
-  if (num_parts_used != clogPartFileSize)
+  if (num_parts_used != globalData.ndbLogParts)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Can only change NoOfLogParts through initial node restart, old"
       " value of NoOfLogParts = %d, tried using %d",
-      num_parts_used, clogPartFileSize);
+      num_parts_used, globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
 
