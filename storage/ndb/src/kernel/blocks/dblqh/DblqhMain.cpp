@@ -1889,7 +1889,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
     FragrecordPtr tFragPtr;
     tFragPtr.i = RNIL;
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tTablePtr.p->fragid); i++) {
       if (tTablePtr.p->fragid[i] == fragptr.p->fragId) {
         jam();
         tFragPtr.i = tTablePtr.p->fragrec[i];
@@ -2633,7 +2633,7 @@ void Dblqh::removeTable(Uint32 tableId)
   tabptr.i = tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] != ZNIL) {
       jam();
@@ -2778,7 +2778,7 @@ Dblqh::wait_reorg_suma_filter_enabled(Signal* signal)
 void
 Dblqh::commit_reorg(TablerecPtr tablePtr)
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tablePtr.p->fragrec); i++)
   {
     jam();
     Ptr<Fragrecord> fragPtr;
@@ -20050,7 +20050,7 @@ void Dblqh::deleteFragrec(Uint32 fragId)
 {
   Uint32 indexFound= RNIL;
   fragptr.i = RNIL;
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] == fragId) {
       fragptr.i = tabptr.p->fragrec[i];
@@ -20265,7 +20265,7 @@ Dblqh::getFirstInLogQueue(Signal* signal,
 /* ---------------------------------------------------------------- */
 bool Dblqh::getFragmentrec(Signal* signal, Uint32 fragId) 
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] == fragId) {
       fragptr.i = tabptr.p->fragrec[i];
@@ -20616,7 +20616,7 @@ void Dblqh::initialiseTabrec(Signal* signal)
       tabptr.p->tableStatus = Tablerec::NOT_DEFINED;
       tabptr.p->usageCountR = 0;
       tabptr.p->usageCountW = 0;
-      for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+      for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
         tabptr.p->fragid[i] = ZNIL;
         tabptr.p->fragrec[i] = RNIL;
       }//for
@@ -20886,7 +20886,7 @@ bool Dblqh::insertFragrec(Signal* signal, Uint32 fragId)
     terrorCode = ZNO_FREE_FRAGMENTREC;
     return false;
   }
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] == ZNIL) {
       jam();
@@ -22579,7 +22579,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 		  i, tabPtr.p->tableStatus,
                   tabPtr.p->usageCountR, tabPtr.p->usageCountW);
 
-	for (Uint32 j = 0; j<MAX_FRAG_PER_NODE; j++)
+	for (Uint32 j = 0; j<NDB_ARRAY_SIZE(tabPtr.p->fragrec); j++)
 	{
 	  FragrecordPtr fragPtr;
 	  if ((fragPtr.i = tabPtr.p->fragrec[j]) != RNIL)

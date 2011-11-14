@@ -624,8 +624,8 @@ struct ScanRec {
 /* TABREC                                                                            */
 /* --------------------------------------------------------------------------------- */
 struct Tabrec {
-  Uint32 fragholder[MAX_FRAG_PER_NODE];
-  Uint32 fragptrholder[MAX_FRAG_PER_NODE];
+  Uint32 fragholder[MAX_FRAG_PER_LQH];
+  Uint32 fragptrholder[MAX_FRAG_PER_LQH];
   Uint32 tabUserPtr;
   BlockReference tabUserRef;
   Uint32 tabUserGsn;

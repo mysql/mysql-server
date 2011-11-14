@@ -7863,7 +7863,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   }
 
   union {
-    Uint16 fragments[2 + MAX_FRAG_PER_NODE*MAX_REPLICAS*MAX_NDB_NODES];
+    Uint16 fragments[2 + MAX_FRAG_PER_LQH*MAX_REPLICAS*MAX_NDB_NODES];
     Uint32 align;
   };
   (void)align; // kill warning

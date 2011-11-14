@@ -3920,7 +3920,7 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
   if(mm_vars == 0)
     return;
   
-  for(Uint32 F= 0; F<MAX_FRAG_PER_NODE; F++)
+  for(Uint32 F= 0; F<NDB_ARRAY_SIZE(regTabPtr->fragrec); F++)
   {
     FragrecordPtr fragPtr;
 

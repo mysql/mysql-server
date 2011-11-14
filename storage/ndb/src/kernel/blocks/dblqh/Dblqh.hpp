@@ -1929,8 +1929,8 @@ public:
       ,TABLE_READ_ONLY = 9
     };
     
-    UintR fragrec[MAX_FRAG_PER_NODE];
-    Uint16 fragid[MAX_FRAG_PER_NODE];
+    UintR fragrec[MAX_FRAG_PER_LQH];
+    Uint16 fragid[MAX_FRAG_PER_LQH];
     /**
      * Status of the table 
      */
