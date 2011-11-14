@@ -1750,6 +1750,65 @@ buf_flush_page_and_try_neighbors(
 }
 
 /*******************************************************************//**
+This utility moves the uncompressed frames of pages to the free list.
+Note that this function does not actually flush any data to disk. It
+just detaches the uncompressed frames from the compressed pages at the
+tail of the unzip_LRU and puts those freed frames in the free list.
+Note that it is a best effort attempt and it is not guaranteed that
+after a call to this function there will be 'max' blocks in the free
+list.
+@return number of blocks moved to the free list. */
+static
+ulint
+buf_free_from_unzip_LRU_list_batch(
+/*===============================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	ulint		max)		/*!< in: desired number of
+					blocks in the free_list */
+{
+	buf_block_t*	block;
+	ulint		scanned = 0;
+	ulint		count = 0;
+	ulint		free_len = UT_LIST_GET_LEN(buf_pool->free);
+	ulint		lru_len = UT_LIST_GET_LEN(buf_pool->unzip_LRU);
+
+	ut_ad(buf_pool_mutex_own(buf_pool));
+
+	block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+	while (block != NULL && count < max
+	       && free_len < srv_LRU_scan_depth
+	       && lru_len > UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
+
+		++scanned;
+		if (buf_LRU_free_block(&block->page, FALSE)) {
+			/* Block was freed. buf_pool->mutex potentially
+			released and reacquired */
+			++count;
+			block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+
+		} else {
+
+			block = UT_LIST_GET_PREV(unzip_LRU, block);
+		}
+
+		free_len = UT_LIST_GET_LEN(buf_pool->free);
+		lru_len = UT_LIST_GET_LEN(buf_pool->unzip_LRU);
+	}
+
+	ut_ad(buf_pool_mutex_own(buf_pool));
+
+	if (scanned) {
+		MONITOR_INC_VALUE_CUMULATIVE(
+			MONITOR_LRU_BATCH_SCANNED,
+			MONITOR_LRU_BATCH_SCANNED_NUM_CALL,
+			MONITOR_LRU_BATCH_SCANNED_PER_CALL,
+			scanned);
+	}
+
+	return(count);
+}
+
+/*******************************************************************//**
 This utility flushes dirty blocks from the end of the LRU list.
 The calling thread is not allowed to own any latches on pages!
 It attempts to make 'max' blocks available in the free list. Note that
@@ -1798,16 +1857,13 @@ buf_flush_LRU_list_batch(
 		of the flushed pages then the scan becomes
 		O(n*n). */
 		if (evict) {
-
-			ibool	evict_zip;
-
-			evict_zip = !buf_LRU_evict_from_unzip_LRU(buf_pool);
-
-			/* This will potentially release the
-			buf_pool->mutex. */
-			buf_LRU_free_block(bpage, evict_zip);
-			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-
+			if (buf_LRU_free_block(bpage, TRUE)) {
+				/* buf_pool->mutex was potentially
+				released and reacquired. */
+				bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+			} else {
+				bpage = UT_LIST_GET_PREV(LRU, bpage);
+			}
 		} else if (buf_flush_page_and_try_neighbors(
 				bpage,
 				BUF_FLUSH_LRU, max, &count)) {
@@ -1831,10 +1887,38 @@ buf_flush_LRU_list_batch(
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	if (scanned) {
-		MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_SCANNED,
-				MONITOR_LRU_BATCH_SCANNED_NUM_CALL,
-				MONITOR_LRU_BATCH_SCANNED_PER_CALL,
-				scanned);
+		MONITOR_INC_VALUE_CUMULATIVE(
+			MONITOR_LRU_BATCH_SCANNED,
+			MONITOR_LRU_BATCH_SCANNED_NUM_CALL,
+			MONITOR_LRU_BATCH_SCANNED_PER_CALL,
+			scanned);
+	}
+
+	return(count);
+}
+
+/*******************************************************************//**
+Flush and move pages from LRU or unzip_LRU list to the free list.
+Whether LRU or unzip_LRU is used depends on the state of the system.
+@return number of blocks for which either the write request was queued
+or in case of unzip_LRU the number of blocks actually moved to the
+free list */
+static
+ulint
+buf_do_LRU_batch(
+/*=============*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	ulint		max)		/*!< in: desired number of
+					blocks in the free_list */
+{
+	ulint	count = 0;
+
+	if (buf_LRU_evict_from_unzip_LRU(buf_pool)) {
+		count += buf_free_from_unzip_LRU_list_batch(buf_pool, max);
+	}
+
+	if (max > count) {
+		count += buf_flush_LRU_list_batch(buf_pool, max - count);
 	}
 
 	return(count);
@@ -1848,8 +1932,8 @@ ULINT_UNDEFINED if there was a flush of the same type already
 running */
 static
 ulint
-buf_flush_flush_list_batch(
-/*=======================*/
+buf_do_flush_list_batch(
+/*====================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint		min_n,		/*!< in: wished minimum mumber
 					of blocks flushed (it is not
@@ -1988,10 +2072,10 @@ buf_flush_batch(
 	the flush functions. */
 	switch(flush_type) {
 	case BUF_FLUSH_LRU:
-		count = buf_flush_LRU_list_batch(buf_pool, min_n);
+		count = buf_do_LRU_batch(buf_pool, min_n);
 		break;
 	case BUF_FLUSH_LIST:
-		count = buf_flush_flush_list_batch(buf_pool, min_n, lsn_limit);
+		count = buf_do_flush_list_batch(buf_pool, min_n, lsn_limit);
 		break;
 	default:
 		ut_error;
