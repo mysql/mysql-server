@@ -3637,6 +3637,20 @@ public:
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool is_null() { return null_value; }
+  virtual bool is_expensive()
+  {
+    DBUG_ASSERT(example);
+    if (value_cached)
+      return false;
+    return example->is_expensive();
+  }
+  bool is_expensive_processor(uchar *arg)
+  {
+    DBUG_ASSERT(example);
+    if (value_cached)
+      return false;
+    return example->is_expensive_processor(arg);
+  }
 };
 
 
