@@ -53,7 +53,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 33 "fts0pars.y"
+#line 36 "fts0pars.y"
 
 	int		oper;
 	char*		token;
