@@ -92,6 +92,8 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  # Pushdown of join queries not supported in non
  # MySQL Cluster version yet, compile ndbcluster without it
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
+ # COLUMN_FORMAT not supported in non MySQL Cluster version yet 
+ ADD_DEFINITIONS(-DNDB_WITHOUT_COLUMN_FORMAT)
 ENDIF()
 
 # NDB is DEFAULT plugin in MySQL Cluster
