@@ -5259,7 +5259,7 @@ const_table_extraction_done:
              2. are part of nested outer join.
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
-              !table->fulltext_searched &&                             // 1
+              !table->fulltext_searched &&                           // 1
               !table->pos_in_table_list->in_outer_join_nest())       // 2
 	  {
             if (table->key_info[key].flags & HA_NOSAME)

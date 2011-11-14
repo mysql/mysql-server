@@ -334,6 +334,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   else
     will_batch= !table->file->start_bulk_delete();
 
+
   table->mark_columns_needed_for_delete();
 
   while (!(error=info.read_record(&info)) && !thd->killed &&
