@@ -3399,6 +3399,9 @@ fts_query_sort_result_on_rank(
 	ib_rbt_t*		ranked;
 
 	ut_a(result->rankings_by_id != NULL);
+	if (result->rankings_by_rank) {
+		rbt_free(result->rankings_by_rank);
+	}
 
 	ranked = rbt_create(sizeof(fts_ranking_t), fts_query_compare_rank);
 

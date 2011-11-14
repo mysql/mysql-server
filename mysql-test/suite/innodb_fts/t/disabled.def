@@ -10,3 +10,4 @@
 #
 ##############################################################################
 fulltext_plugin : INNODB_FTS: Do not support external parser plugin
+innodb_fts_large_records: INNODB_FTS: Long running test, could be timed out on slow machines
