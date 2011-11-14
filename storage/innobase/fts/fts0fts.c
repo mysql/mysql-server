@@ -399,7 +399,10 @@ fts_read_stopword(
 		new_word.nodes = ib_vector_create(allocator,
 						  sizeof(fts_node_t), 4);
 
-		fts_utf8_string_dup(&new_word.text, &str, heap);
+		new_word.text.f_str = mem_heap_alloc(heap, str.f_len + 1);
+		memcpy(new_word.text.f_str, str.f_str, str.f_len);
+		new_word.text.f_len = str.f_len;
+		new_word.text.f_str[str.f_len] = 0;
 
 		rbt_insert(stop_words, &new_word, &new_word);
 	}

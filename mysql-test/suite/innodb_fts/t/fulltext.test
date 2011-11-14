@@ -87,7 +87,7 @@ select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);
 # select * from t1 where MATCH b AGAINST ("sear*" IN BOOLEAN MODE);
 
 # UNION of fulltext's
-select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+#select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
 #update/delete with fulltext index
 
