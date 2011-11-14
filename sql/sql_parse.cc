@@ -2657,13 +2657,6 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-      Ha_global_schema_lock_guard global_schema_lock(thd);
-
-      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
-        (void)global_schema_lock.lock();
-#endif
-
       if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
         /* The table already exists */
