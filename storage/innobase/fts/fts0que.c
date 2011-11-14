@@ -1547,6 +1547,14 @@ fts_query_match_phrase(
 
 		pos = *(ulint*) ib_vector_get_const(positions, i);
 
+		if (pos == ULINT_UNDEFINED) {
+			break;
+		}
+
+		if (pos < prev_len) {
+			continue;
+		}
+
 		/* Document positions are calculated from the beginning
 		of the first field, need to save the length for each
 		searched field to adjust the doc position when search
@@ -2777,7 +2785,7 @@ fts_query_read_node(
 		ut_strcpy((char*) term, (char*) query->cur_node->term.ptr);
 	} else {
 		/* Need to copy the NUL character too. */
-		memcpy(term, word->f_str, word->f_len + 1);
+		memcpy(term, word->f_str, word->f_len);
 		term[word->f_len] = 0;
 	}
 
@@ -3700,7 +3708,7 @@ fts_proximity_check_position(
 	they are in the proximity distance. */
 
 	/* Assume each word's position list is sorted, we
-	will just do a walki through to all words' lists
+	will just do a walk through to all words' lists
 	similar to a the merge phase of a merge sort */
 	for (i = 0; i < num_match; i++) {
 		/* idx is the current position we are checking
@@ -3742,7 +3750,7 @@ fts_proximity_check_position(
 		/* If max and min position are within range, we
 		find a good match */
 		if (max_pos - min_pos <= distance
-		    && position[i] != ULINT_UNDEFINED) {
+		    && (i >= num_match || position[i] != ULINT_UNDEFINED)) {
 			return(TRUE);
 		} else {
 			/* Otherwise, move to the next position is the

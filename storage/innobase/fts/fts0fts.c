@@ -260,6 +260,13 @@ fts_sync(
 /*=====*/
 	fts_sync_t*	sync);		/*!< in: sync state */
 
+/****************************************************************//**
+Release all resources help by the words rb tree e.g., the node ilist. */
+static
+void
+fts_words_free(
+/*===========*/
+	ib_rbt_t*	words);		/*!< in: rb tree of words */
 #ifdef FTS_CACHE_SIZE_DEBUG
 /****************************************************************//**
 Read the max cache size parameter from the config table. */
@@ -799,6 +806,7 @@ fts_drop_index(
 			return(err);
 		}
 
+		fts_cache_clear(table->fts->cache, TRUE);
 		fts_cache_destroy(table->fts->cache);
 		table->fts->cache = fts_cache_create(table);
 	} else {
@@ -809,6 +817,11 @@ fts_drop_index(
 
 		index_cache = (fts_index_cache_t*) fts_find_index_cache(
 			cache, index);
+
+		if (index_cache->words) {
+			fts_words_free(index_cache->words);
+			rbt_free(index_cache->words);
+		}
 
 		ib_vector_remove(cache->indexes, *(void**)index_cache);
 
@@ -1133,6 +1146,11 @@ fts_cache_destroy(
 	mutex_free(&cache->deleted_lock);
 	mutex_free(&cache->doc_id_lock);
 	rbt_free(cache->stopword_info.cached_stopword);
+
+	if (cache->sync_heap->arg) {
+		mem_heap_free(cache->sync_heap->arg);
+	}
+
 	mem_heap_free(cache->cache_heap);
 }
 

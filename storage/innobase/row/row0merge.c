@@ -264,6 +264,7 @@ row_merge_buf_add(
 	ulint			n_row_added = 0;
 	ulint			bucket = 0;
 	ulint			zip_size;
+	doc_id_t		write_doc_id;
 
 	if (buf->n_tuples >= buf->max_tuples) {
 		return(FALSE);
@@ -317,7 +318,6 @@ row_merge_buf_add(
 		/* Process the Doc ID column */
 		if (*doc_id > 0 && col_no == index->table->fts->doc_col
 		    && !col_adjusted) {
-			doc_id_t	write_doc_id;
 			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
 			dfield_set_data(field, &write_doc_id,
 					sizeof(write_doc_id));
