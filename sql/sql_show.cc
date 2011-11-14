@@ -1504,6 +1504,28 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
+    switch(field->field_storage_type()){
+    case HA_SM_DISK:
+      packet->append(STRING_WITH_LEN(" /*!50120 STORAGE DISK */"));
+      break;
+    case HA_SM_MEMORY:
+      packet->append(STRING_WITH_LEN(" /*!50120 STORAGE MEMORY */"));
+      break;
+    default:
+      break;
+    }
+
+    switch(field->column_format()){
+    case COLUMN_FORMAT_TYPE_FIXED:
+      packet->append(STRING_WITH_LEN(" /*!50120 COLUMN_FORMAT FIXED */"));
+      break;
+    case COLUMN_FORMAT_TYPE_DYNAMIC:
+      packet->append(STRING_WITH_LEN(" /*!50120 COLUMN_FORMAT DYNAMIC */"));
+      break;
+    default:
+      break;
+    }
+
     if (get_field_default_value(thd, table->timestamp_field,
                                 field, &def_value, 1))
     {
