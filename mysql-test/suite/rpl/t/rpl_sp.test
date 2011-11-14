@@ -613,7 +613,7 @@ show function status like '%mysqltestbug36570%';
 connection master;
 flush logs;
 let $MYSQLD_DATADIR= `select @@datadir`;
---replace_regex s/$MYSQL_TEST_DIR/MYSQL_TEST_DIR/ s/TIMESTAMP=[0-9]*/TIMESTAMP=t/ s/SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/
+--replace_regex s/$MYSQL_TEST_DIR/MYSQL_TEST_DIR/ s/TIMESTAMP=[0-9]*/TIMESTAMP=t/ s/SET @@SESSION.UGID_NEXT= .*;/SET @@SESSION.UGID_NEXT= 'UGID';/ s/GROUPS: .*:(.*,.*) /GROUPS: UGID:(X,X)/
 --exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001
 use test;
 drop procedure mysqltestbug36570_p1;

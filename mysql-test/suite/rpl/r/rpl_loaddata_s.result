@@ -8,5 +8,6 @@ count(*)
 2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
 drop table test.t1;
 include/rpl_end.inc

@@ -675,6 +675,8 @@ enum Log_event_type
   ROWS_QUERY_LOG_EVENT= 29,
 
   UGID_LOG_EVENT= 30,
+
+  UGIDSET_LOG_EVENT= 31,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -4616,6 +4618,60 @@ private:
   uint64 group_size;
 
   uint32 thread_id;
+};
+
+class UgidSet_log_event : public Ignorable_log_event {
+public:
+#ifndef MYSQL_CLIENT
+  UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log);
+#endif
+
+#ifndef MYSQL_CLIENT
+  void pack_info(Protocol*);
+#endif
+
+  UgidSet_log_event(const char *buffer, uint event_len,
+                    const Format_description_log_event *descr_event);
+
+  virtual ~UgidSet_log_event();
+
+  Log_event_type get_type_code() { return UGIDSET_LOG_EVENT; }
+
+  int get_data_size()
+  {
+    return UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN +
+           ((UGID_SID_INFO_LEN + UGID_NTH_INFO_LEN) * nsids) +
+           ((UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * ngnos);
+  }
+
+  char* get_string_representation(size_t *dst_size);
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+#ifdef MYSQL_SERVER
+  bool write_data_body(IO_CACHE *file);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli);
+#endif
+
+  static const int UGID_SID_INFO_LEN= 16;
+
+  static const int UGID_GNO_INFO_LEN= 8;
+
+  static const int UGID_NTH_INFO_LEN= 8;
+
+  static const int UGID_SID_STRING_INFO_LEN= 64;
+
+  static const int UGID_GNO_STRING_INFO_LEN= 32;
+private:
+  uchar* encoded_buffer; 
+
+  uint64 nsids;
+
+  uint64 ngnos;
 };
 #endif
 
