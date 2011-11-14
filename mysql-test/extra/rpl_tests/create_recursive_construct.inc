@@ -325,7 +325,7 @@ if ($CRC_RET_stmt_sidef) {
     SHOW BINLOG EVENTS;
     --die Wrong number of warnings.
   }
-  --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 2)
+  --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
   if ($binlog_event != No such row) {
     --enable_query_log
     --echo ******** Failure! Something was written to the binlog despite SQL_LOG_BIN=0 ********
@@ -345,7 +345,7 @@ if ($CRC_RET_stmt_sidef) {
     SHOW BINLOG EVENTS;
     --die Warnings printed
   }
-  --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 4)
+  --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 5)
   # The first event is format_description, the second is Ugid_event,
   # the third Query_event('BEGIN'), and the fourth should be our Query
   # for 'INSERT DELAYED' unsafe_type 3, which is safe after

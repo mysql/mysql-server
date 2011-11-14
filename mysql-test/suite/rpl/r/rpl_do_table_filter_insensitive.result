@@ -9,6 +9,7 @@ INSERT INTO t2 VALUES (1);
 # On master
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
 master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	CREATE DATABASE mydb
 master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
@@ -26,6 +27,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 # On slave
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
 slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000001	#	Query	#	#	CREATE DATABASE mydb
 slave-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';

@@ -8,6 +8,7 @@ SET @var2=char(ascii('a'));
 insert into t1 values (@var1),(@var2);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
 master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
@@ -24,6 +25,7 @@ flush logs;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
+# GROUPS: UGID:(X,X)
 SET @@SESSION.UGID_NEXT= 'UGID';
 SET TIMESTAMP=t/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;

@@ -1992,6 +1992,13 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       if (s.write(&log_file))
         goto err;
       bytes_written+= s.data_written;
+      if (current_thd)
+      {
+        UgidSet_log_event uset (current_thd, this);
+        if (uset.write(&log_file))
+          goto err;
+        bytes_written+= uset.data_written;
+      }
     }
     if (description_event_for_queue &&
         description_event_for_queue->binlog_version>=4)

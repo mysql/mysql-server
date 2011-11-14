@@ -8,6 +8,7 @@ SET @var1= x'8300';
 EXECUTE stmt1 USING @var1;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
 master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 blob)
 master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';

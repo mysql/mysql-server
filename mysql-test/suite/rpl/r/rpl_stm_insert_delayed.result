@@ -53,7 +53,7 @@ select * from t1;
 a
 1
 On slave
-show binlog events in 'slave-bin.000002' from <binlog_start> limit 2,8;
+show binlog events in 'slave-bin.000002' from <binlog_start> limit 3,8;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 slave-bin.000002	#	Query	#	#	BEGIN
