@@ -1219,7 +1219,34 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
-  
+
+  clogPartFileSize = 4;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS,
+                            &clogPartFileSize);
+  globalData.ndbLogParts = clogPartFileSize;
+  ndbrequire(clogPartFileSize <= NDB_MAX_LOG_PARTS);
+
+  if (globalData.ndbMtLqhWorkers > clogPartFileSize)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Trying to start %d LQH workers with only %d log parts, try initial"
+      " node restart to be able to use more LQH workers.",
+      globalData.ndbMtLqhWorkers, clogPartFileSize);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+  if (clogPartFileSize != 4 &&
+      clogPartFileSize != 8 &&
+      clogPartFileSize != 16)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Trying to start with %d log parts, number of log parts can"
+      " only be set to 4, 8 or 16.",
+      clogPartFileSize);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+
   cnoLogFiles = 8;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_FILES, 
 					&cnoLogFiles));
@@ -14644,7 +14671,7 @@ void Dblqh::initGcpRecLab(Signal* signal)
   }//for
   // initialize un-used part
   Uint32 Ti;
-  for (Ti = clogPartFileSize; Ti < ZLOG_PART_FILE_SIZE; Ti++) {
+  for (Ti = clogPartFileSize; Ti < NDB_MAX_LOG_PARTS; Ti++) {
     gcpPtr.p->gcpFilePtr[Ti] = ZNIL;
     gcpPtr.p->gcpPageNo[Ti] = ZNIL;
     gcpPtr.p->gcpSyncReady[Ti] = FALSE;
@@ -15698,7 +15725,10 @@ void Dblqh::initWriteEndLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
 /* PAGE ZERO IN FILE ZERO MUST SET LOG LAP TO ONE SINCE IT HAS STARTED       */
 /* WRITING TO THE LOG, ALSO GLOBAL CHECKPOINTS ARE SET TO ZERO.              */
+/* Set number of log parts used to ensure we use correct number of log parts */
+/* at system restart. Was previously hardcoded to 4.                         */
 /*---------------------------------------------------------------------------*/
+    logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS]= clogPartFileSize;
     logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = 1;
     logPagePtr.p->logPageWord[ZPOS_MAX_GCI_STARTED] = 0;
     logPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] = 0;
@@ -15881,6 +15911,8 @@ void Dblqh::initLogpage(Signal* signal)
 {
   TcConnectionrecPtr ilpTcConnectptr;
 
+  /* Ensure all non-used header words are zero */
+  bzero(logPagePtr.p, sizeof(Uint32) * ZPAGE_HEADER_SIZE);
   logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = logPartPtr.p->logLap;
   logPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] = 
         logPartPtr.p->logPartNewestCompletedGCI;
@@ -16423,6 +16455,35 @@ void Dblqh::openSrFrontpageLab(Signal* signal)
  * -------------------------------------------------------------------------- */
 void Dblqh::readSrFrontpageLab(Signal* signal) 
 {
+  Uint32 num_parts_used;
+  if (!ndb_configurable_log_parts(logPagePtr.p->logPageWord[ZPOS_VERSION])) {
+    jam();
+    num_parts_used= 4;
+  }
+  else
+  {
+    jam();
+    num_parts_used = logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS];
+  }
+  /* Verify that number of log parts >= number of LQH workers */
+  if (globalData.ndbMtLqhWorkers > num_parts_used) {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Trying to start %d LQH workers with only %d log parts, try initial"
+      " node restart to be able to use more LQH workers.",
+      globalData.ndbMtLqhWorkers, num_parts_used);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+  if (num_parts_used != clogPartFileSize)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Can only change NoOfLogParts through initial node restart, old"
+      " value of NoOfLogParts = %d, tried using %d",
+      num_parts_used, clogPartFileSize);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+
   Uint32 fileNo = logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO];
   if (fileNo == 0) {
     jam();
@@ -20328,7 +20389,7 @@ void Dblqh::initialiseGcprec(Signal* signal)
   if (cgcprecFileSize != 0) {
     for (gcpPtr.i = 0; gcpPtr.i < cgcprecFileSize; gcpPtr.i++) {
       ptrAss(gcpPtr, gcpRecord);
-      for (tigpIndex = 0; tigpIndex < ZLOG_PART_FILE_SIZE; tigpIndex++) {
+      for (tigpIndex = 0; tigpIndex < NDB_MAX_LOG_PARTS; tigpIndex++) {
         gcpPtr.p->gcpLogPartState[tigpIndex] = ZIDLE;
         gcpPtr.p->gcpSyncReady[tigpIndex] = ZFALSE;
       }//for
