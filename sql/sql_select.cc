@@ -19282,6 +19282,16 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     join->thd->send_kill_message();
     DBUG_RETURN(NESTED_LOOP_KILLED);
   }
+  /* Materialize table prior to reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized)
+  {
+    if ((*join_tab->materialize_table)(join_tab))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
+    // Bind to the rowid buffer managed by the TABLE object.
+    if (join_tab->copy_current_rowid)
+      join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
+  }
   if (!test_if_use_dynamic_range_scan(join_tab))
   {
     if (!cache->put_record())
