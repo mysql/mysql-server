@@ -1957,7 +1957,7 @@ bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)
-    return 0;
+    return true;
   return (null_value= value->get_date(ltime, fuzzydate));
 }
 
@@ -1966,7 +1966,7 @@ bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)
-    return 0;
+    return true;
   return (null_value= value->get_time(ltime));
 }
 
