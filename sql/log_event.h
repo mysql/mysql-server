@@ -550,6 +550,7 @@ struct sql_ex_info
 */
 #define LOG_EVENT_MTS_ISOLATE_F 0x200
 
+
 /**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 

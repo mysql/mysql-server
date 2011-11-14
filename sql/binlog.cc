@@ -3618,7 +3618,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
 	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
          thd->lex->sql_command != SQLCOM_SAVEPOINT &&
-         (!event_info->is_no_filter_event() &&
+         (!event_info->is_no_filter_event() && 
           !binlog_filter->db_ok(local_db))))
       DBUG_RETURN(0);
 #endif /* HAVE_REPLICATION */
