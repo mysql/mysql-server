@@ -930,7 +930,6 @@ const char*
 NdbPack::Data::print(char* buf, Uint32 bufsz) const
 {
   Print p(buf, bufsz);
-  char* ptr = buf;
   if (m_varBytes != 0)
   {
     p.print("varBytes:");
@@ -1291,6 +1290,7 @@ Tdata::create()
     Uint8 xbuf[Tspec::MaxBuf];
     Uint64 xbuf_align;
   };
+  (void)xbuf_align; // compiler warning
   memset(xbuf, 0x3f, sizeof(xbuf));
   m_xsize = 0;
   m_xnulls = 0;
@@ -1830,7 +1830,7 @@ testdesc(const Tdata& tdata)
   const NdbPack::Data& data = tdata.m_data;
   const Uint8* buf_old = (const Uint8*)data.get_full_buf();
   const Uint32 varBytes = data.get_var_bytes();
-  const Uint32 nullMaskLen = tspec.m_spec.get_nullmask_len(false);
+  // const Uint32 nullMaskLen = tspec.m_spec.get_nullmask_len(false);
   const Uint32 dataLen = data.get_data_len();
   const Uint32 fullLen = data.get_full_len();
   const Uint32 cnt = data.get_cnt();
