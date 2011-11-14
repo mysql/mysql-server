@@ -6980,7 +6980,32 @@ SELECT ADDTIME(GREATEST(col_date_not_null_key, '2007-03-11 08:51:19.009408'),
 FROM t1; 
 DROP TABLE t1;
 
-
+--echo #
+--echo # BUG#13386657 ASSERT FAILURE IN ITEM::GET_DATE_FROM_NON_TEMPORAL
+--echo #
+CREATE TABLE t1 (
+  col_time_5_not_null_key time(5) NOT NULL,
+  col_datetime_4 datetime(4) DEFAULT NULL,
+  col_timestamp_1_not_null_key timestamp(1) NULL DEFAULT '0000-00-00 00:00:00.0',
+  col_datetime_3_not_null_key datetime(3) NOT NULL,
+  KEY col_time_5_not_null_key (col_time_5_not_null_key),
+  KEY col_timestamp_1_not_null_key (col_timestamp_1_not_null_key),
+  KEY col_datetime_3_not_null_key (col_datetime_3_not_null_key));
+INSERT INTO t1 VALUES ('15:01:38.00004','0000-00-00 00:00:00.0000','2005-06-08 16:51:23.0','0000-00-00 00:00:00.000');
+SELECT col_datetime_4 
+FROM t1
+WHERE col_datetime_3_not_null_key IN
+(COALESCE (col_timestamp_1_not_null_key), col_time_5_not_null_key);
+DROP TABLE t1;
+CREATE TABLE t1 (a TIMESTAMP(3));
+INSERT INTO t1 VALUES ('2001-01-01 10:20:30.999');
+SELECT CAST(COALESCE(a,a) AS CHAR) FROM t1;
+SELECT CAST(COALESCE(a,a) AS SIGNED) FROM t1;
+SELECT CAST(COALESCE(a,a) AS DECIMAL(25,3)) FROM t1;
+SELECT CAST(COALESCE(a,a) AS DATETIME(6)) FROM t1;
+SELECT CAST(COALESCE(a,a) AS TIME(6)) FROM t1;
+SELECT ROUND(COALESCE(a,a)) FROM t1;
+DROP TABLE t1;
 
 ## TS-TODO: SELECT CAST('00:00:00' AS DATETIME) -> should it use curdate?
 

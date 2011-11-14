@@ -900,6 +900,7 @@ String *Item_func_numhybrid::val_str(String *str)
   case STRING_RESULT:
     switch (field_type()) {
     case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
       return val_string_from_datetime(str);
     case MYSQL_TYPE_DATE:
       return val_string_from_date(str);
@@ -943,6 +944,7 @@ double Item_func_numhybrid::val_real()
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
       return val_real_from_decimal();
     default:
       break;
@@ -984,6 +986,7 @@ longlong Item_func_numhybrid::val_int()
     case MYSQL_TYPE_DATE:
       return val_int_from_date();
     case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
       return val_int_from_datetime();
     case MYSQL_TYPE_TIME:
       return val_int_from_time();
@@ -1032,6 +1035,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
     {
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
       return val_decimal_from_date(decimal_value);
     case MYSQL_TYPE_TIME:
       return val_decimal_from_time(decimal_value);
@@ -1061,6 +1065,7 @@ bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
     return date_op(ltime, fuzzydate);
   case MYSQL_TYPE_TIME:
     return get_date_from_time(ltime);
@@ -1080,6 +1085,7 @@ bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime)
   case MYSQL_TYPE_DATE:
     return get_time_from_date(ltime);
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
     return get_time_from_datetime(ltime);
   default:
     return Item::get_time_from_non_temporal(ltime);
