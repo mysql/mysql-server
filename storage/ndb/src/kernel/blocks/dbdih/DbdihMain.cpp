@@ -7485,6 +7485,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
   Uint32 err = 0;
   const Uint32 defaultFragments = 
     c_fragments_per_node * cnoOfNodeGroups * cnoReplicas;
+  const Uint32 maxFragments =
+    MAX_FRAG_PER_LQH * getLqhWorkers() * cnoOfNodeGroups * cnoReplicas;
 
   do {
     NodeGroupRecordPtr NGPtr;
@@ -7506,11 +7508,15 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       case DictTabInfo::AllNodesMediumTable:
         jam();
         noOfFragments = 2 * defaultFragments;
+        if (noOfFragments > maxFragments)
+          noOfFragments = maxFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::AllNodesLargeTable:
         jam();
         noOfFragments = 4 * defaultFragments;
+        if (noOfFragments > maxFragments)
+          noOfFragments = maxFragments;
         set_default_node_groups(signal, noOfFragments);
         break;
       case DictTabInfo::SingleFragment:

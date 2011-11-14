@@ -111,6 +111,9 @@ class Lgman;
 #define ZPOS_PREV_PAGE_NO 19
 #define ZPOS_IN_FREE_LIST 20
 
+/* Specify number of log parts used to enable use of more LQH threads */
+#define ZPOS_NO_LOG_PARTS 21
+
 /* ------------------------------------------------------------------------- */
 /*       CONSTANTS FOR THE VARIOUS REPLICA AND NODE TYPES.                   */
 /* ------------------------------------------------------------------------- */
@@ -2834,7 +2837,6 @@ private:
   UintR cfirstfreeLcpLoc;
   UintR clcpFileSize;
 
-#define ZLOG_PART_FILE_SIZE 4
   LogPartRecord *logPartRecord;
   LogPartRecordPtr logPartPtr;
   UintR clogPartFileSize;
