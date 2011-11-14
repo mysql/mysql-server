@@ -353,6 +353,8 @@ ndbcluster_global_schema_unlock(THD *thd)
   DBUG_RETURN(0);
 }
 
+
+#ifndef NDB_WITHOUT_GLOBAL_SCHEMA_LOCK
 static
 int
 ndbcluster_global_schema_func(THD *thd, bool lock, void* args)
@@ -362,9 +364,11 @@ ndbcluster_global_schema_func(THD *thd, bool lock, void* args)
     bool no_lock_queue = (bool)args;
     return ndbcluster_global_schema_lock(thd, no_lock_queue, true);
   }
- 
+
   return ndbcluster_global_schema_unlock(thd);
 }
+#endif
+
 
 #include "ndb_global_schema_lock.h"
 
@@ -376,7 +380,9 @@ void ndbcluster_global_schema_lock_init(handlerton *hton)
   gsl_initialized= true;
   pthread_mutex_init(&gsl_mutex, MY_MUTEX_INIT_FAST);
 
+#ifndef NDB_WITHOUT_GLOBAL_SCHEMA_LOCK
   hton->global_schema_func= ndbcluster_global_schema_func;
+#endif
 }
 
 
@@ -393,6 +399,11 @@ void ndbcluster_global_schema_lock_deinit(void)
 bool
 Thd_ndb::has_required_global_schema_lock(const char* func)
 {
+#ifdef NDB_WITHOUT_GLOBAL_SCHEMA_LOCK
+  // The global schema lock hook is not installed ->
+  //  no thd has gsl
+  return true;
+#else
   if (global_schema_lock_error)
   {
     // An error occured while locking, either because
@@ -415,6 +426,7 @@ Thd_ndb::has_required_global_schema_lock(const char* func)
                   (int)query->length, query->str, func);
   abort();
   return false;
+#endif
 }
 
 
