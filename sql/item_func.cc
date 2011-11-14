@@ -2925,7 +2925,7 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzydate)
     cmp_datetimes(&result);
     if (null_value)
       return true;
-    TIME_from_longlong_packed(ltime, field_type(), result);
+    TIME_from_longlong_packed(ltime, datetime_item->field_type(), result);
     return false;
   }
 
@@ -2952,7 +2952,7 @@ bool Item_func_min_max::get_time(MYSQL_TIME *ltime)
     cmp_datetimes(&result);
     if (null_value)
       return true;
-    TIME_from_longlong_packed(ltime, field_type(), result);
+    TIME_from_longlong_packed(ltime, datetime_item->field_type(), result);
     datetime_to_time(ltime);
     return false;
   }
