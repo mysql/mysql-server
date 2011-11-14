@@ -2148,6 +2148,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t where x not like "aa?";
 pk	x
 0	a
+select * from t where x like "%a%";
+pk	x
+0	a
+select * from t where x not like "%b%";
+pk	x
+0	a
+select * from t where x like replace(concat("%", "b%"),"b","a");
+pk	x
+0	a
+select * from t where x not like replace(concat("%", "a%"),"a","b");
+pk	x
+0	a
+select * from t where x like concat("%", replace("b%","b","a"));
+pk	x
+0	a
+select * from t where x not like concat("%", replace("a%","a","b"));
+pk	x
+0	a
 drop table t;
 create table t (pk int primary key, x int) engine = ndb;
 insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
@@ -2348,6 +2366,22 @@ i	s
 select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
 i	s
 select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like replace(concat("%Xext","%"),"X", "T") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s not like replace(concat("%Text","%"),"T", "X") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat(replace("%Xext","X", "T"),"%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s not like concat(replace("%Text","T", "X"),"%") order by i;
 i	s
 0	Text Hej
 1	xText aaja

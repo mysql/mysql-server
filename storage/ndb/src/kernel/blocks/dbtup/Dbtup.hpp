@@ -1135,8 +1135,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
     // List of ordered indexes
     DLList<TupTriggerData> tuxCustomTriggers;
     
-    Uint32 fragid[MAX_FRAG_PER_NODE];
-    Uint32 fragrec[MAX_FRAG_PER_NODE];
+    Uint32 fragid[MAX_FRAG_PER_LQH];
+    Uint32 fragrec[MAX_FRAG_PER_LQH];
 
     union {
       struct {
