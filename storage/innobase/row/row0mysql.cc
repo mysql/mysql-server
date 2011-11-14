@@ -332,7 +332,10 @@ row_mysql_store_col_in_innobase_format(
 					this function is called! */
 	byte*		buf,		/*!< in/out: buffer for a converted
 					integer value; this must be at least
-					col_len long then! */
+					col_len long then! NOTE that dfield
+					may also get a pointer to 'buf',
+					therefore do not discard this as long
+					as dfield is used! */
 	ibool		row_format_col,	/*!< TRUE if the mysql_data is from
 					a MySQL row, FALSE if from a MySQL
 					key value;
