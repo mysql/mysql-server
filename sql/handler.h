@@ -335,14 +335,6 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
                 /** Unused. Reserved for future versions. */
                 ROW_TYPE_PAGE };
 
-#ifndef MCP_WL3627
-enum column_format_type {
-  COLUMN_FORMAT_TYPE_DEFAULT=   0,
-  COLUMN_FORMAT_TYPE_FIXED=     1,
-  COLUMN_FORMAT_TYPE_DYNAMIC=   2
-};
-#endif
-
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
   BFN_RESET_SLAVE=       2,

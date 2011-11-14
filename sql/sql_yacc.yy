@@ -874,7 +874,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COLLATION_SYM                 /* SQL-2003-N */
 %token  COLUMNS
 %token  COLUMN_SYM                    /* SQL-2003-R */
-%token  COLUMN_FORMAT_SYM /* MCP_WL3627 */
 %token  COLUMN_NAME_SYM               /* SQL-2003-N */
 %token  COMMENT_SYM
 %token  COMMITTED_SYM                 /* SQL-2003-N */
@@ -5774,35 +5773,6 @@ attribute:
               Lex->charset=$2;
             }
           }
-/* MCP_WL3627 -> */
-        | COLUMN_FORMAT_SYM DEFAULT
-          {
-            Lex->type|=
-              (COLUMN_FORMAT_TYPE_DEFAULT << FIELD_FLAGS_COLUMN_FORMAT);
-          }
-        | COLUMN_FORMAT_SYM FIXED_SYM
-          {
-            Lex->type|=
-              (COLUMN_FORMAT_TYPE_FIXED << FIELD_FLAGS_COLUMN_FORMAT);
-          }
-        | COLUMN_FORMAT_SYM DYNAMIC_SYM
-          {
-            Lex->type|=
-              (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
-          }
-        | STORAGE_SYM DEFAULT
-          {
-            Lex->type|= (HA_SM_DEFAULT << FIELD_FLAGS_STORAGE_MEDIA);
-          }
-        | STORAGE_SYM DISK_SYM
-          {
-            Lex->type|= (HA_SM_DISK << FIELD_FLAGS_STORAGE_MEDIA);
-          }
-        | STORAGE_SYM MEMORY_SYM
-          {
-            Lex->type|= (HA_SM_MEMORY << FIELD_FLAGS_STORAGE_MEDIA);
-          }
-/* MCP_WL3627 <- */
         ;
 
 
@@ -12717,7 +12687,6 @@ keyword_sp:
         | CODE_SYM                 {}
         | COLLATION_SYM            {}
         | COLUMN_NAME_SYM          {}
-        | COLUMN_FORMAT_SYM        {} /* MCP_WL3627 */
         | COLUMNS                  {}
         | COMMITTED_SYM            {}
         | COMPACT_SYM              {}
