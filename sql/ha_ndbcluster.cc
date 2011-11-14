@@ -9307,9 +9307,12 @@ const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = NDB_MAX_TUPLE_SIZE_IN_WORDS;
 static int create_ndb_column(THD *thd,
                              NDBCOL &col,
                              Field *field,
-                             HA_CREATE_INFO *create_info,
-                             column_format_type
-                               default_format= COLUMN_FORMAT_TYPE_DEFAULT)
+                             HA_CREATE_INFO *create_info
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
+                             , column_format_type
+                               default_format= COLUMN_FORMAT_TYPE_DEFAULT
+#endif
+                            )
 {
   NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
   bool dynamic= FALSE;
