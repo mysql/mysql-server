@@ -94,6 +94,8 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
  # COLUMN_FORMAT not supported in non MySQL Cluster version yet 
  ADD_DEFINITIONS(-DNDB_WITHOUT_COLUMN_FORMAT)
+ # Global schema lock hook not available, compile without
+ ADD_DEFINITIONS(-DNDB_WITHOUT_GLOBAL_SCHEMA_LOCK)
 ENDIF()
 
 # NDB is DEFAULT plugin in MySQL Cluster

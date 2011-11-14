@@ -2043,10 +2043,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   DBUG_ENTER("mysql_rm_table");
 
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ha_global_schema_lock_guard global_schema_lock(thd);
-#endif
-
   /* Disable drop of enabled log tables, must be done before name locking */
   for (table= tables; table; table= table->next_local)
   {
@@ -2060,10 +2056,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (!drop_temporary)
   {
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-    (void)global_schema_lock.lock();
-#endif
-
     if (!thd->locked_tables_mode)
     {
       if (lock_table_names(thd, tables, NULL,
@@ -4543,15 +4535,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   bool is_trans= FALSE;
   DBUG_ENTER("mysql_create_table");
 
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ha_global_schema_lock_guard global_schema_lock(thd);
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      !create_info->frm_only)
-  {
-    (void)global_schema_lock.lock();
-  }
-#endif
-
   /*
     Open or obtain an exclusive metadata lock on table being created.
   */
@@ -4750,12 +4733,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   uint not_used;
   DBUG_ENTER("mysql_create_like_table");
 
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ha_global_schema_lock_guard global_schema_lock(thd);
-
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
-    (void)global_schema_lock.lock();
-#endif
 
   /*
     We the open source table to get its description in HA_CREATE_INFO
@@ -6126,32 +6103,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(TRUE);
   }
-
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
-  if (ha_legacy_type(table->s->db_type()) == DB_TYPE_NDBCLUSTER ||
-      ha_legacy_type(create_info->db_type) == DB_TYPE_NDBCLUSTER)
-  {
-    // From or to engine is NDB
-    if (thd->locked_tables_mode)
-    {
-      /*
-        To avoid deadlock in this situation:
-        - if other thread has lock do not enter lock queue
-        and report an error instead
-      */
-      if (global_schema_lock_guard.lock(true))
-      {
-        my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-    }
-    else
-    {
-      global_schema_lock_guard.lock();
-    }
-  }
-#endif
 
   /* Check that we are not trying to rename to an existing table */
   if (new_name)
