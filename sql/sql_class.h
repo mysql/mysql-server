@@ -1883,9 +1883,7 @@ private:
   enum enum_server_command m_command;
 
 public:
-#ifndef MCP_BUG52305
   uint32     unmasked_server_id;
-#endif
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */

@@ -664,11 +664,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	thd->server_id;
-  when=		thd->start_time;
-
-#ifndef MCP_BUG52305
   unmasked_server_id= server_id;
-#endif
+  when=		thd->start_time;
 }
 
 /**
@@ -685,16 +682,13 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	::server_id;
+  unmasked_server_id= server_id;
   /*
     We can't call my_time() here as this would cause a call before
     my_init() is called
   */
   when=		0;
   log_pos=	0;
-
-#ifndef MCP_BUG52305
-  unmasked_server_id= server_id;
-#endif
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -715,7 +709,6 @@ Log_event::Log_event(const char* buf,
 #endif
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
-#ifndef MCP_BUG52305
   unmasked_server_id = server_id;
   /*
      Mask out any irrelevant parts of the server_id
@@ -724,7 +717,6 @@ Log_event::Log_event(const char* buf,
   server_id = unmasked_server_id & opt_server_id_mask;
 #else
   server_id = unmasked_server_id;
-#endif
 #endif
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
