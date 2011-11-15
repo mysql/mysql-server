@@ -90,8 +90,8 @@
 #define HA_CAN_INSERT_DELAYED  (1 << 14)
 /*
   If we get the primary key columns for free when we do an index read
-  It also implies that we have to retrive the primary key when using
-  position() and rnd_pos().
+  (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
+  flag is set).
 */
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
