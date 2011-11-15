@@ -411,10 +411,8 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
-#ifndef MCP_BUG53205
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
-#endif
 #ifndef MCP_BUG46955
 extern int(*ndb_wait_setup_func)(ulong);
 extern ulong opt_ndb_wait_setup;
@@ -4240,7 +4238,6 @@ will be ignored as the --log-bin option is not defined.");
   }
 #endif
 
-#ifndef MCP_BUG53205
   opt_server_id_mask = ~ulong(0);
 #ifdef HAVE_REPLICATION
   opt_server_id_mask = (opt_server_id_bits == 32)?
@@ -4251,7 +4248,6 @@ will be ignored as the --log-bin option is not defined.");
                     "server-id-bits configured.");
     unireg_abort(1);
   }
-#endif
 #endif
 
   if (opt_bin_log)
