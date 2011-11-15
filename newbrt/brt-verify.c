@@ -158,6 +158,44 @@ done:
     return result;
 }
 
+static int
+verify_sorted_by_key_msn(BRT brt, FIFO fifo, OMT mt) {
+    int result = 0;
+    size_t last_offset = 0;
+    for (u_int32_t i = 0; i < toku_omt_size(mt); i++) {
+        OMTVALUE v;
+        int r = toku_omt_fetch(mt, i, &v); 
+        assert_zero(r);
+        size_t offset = (size_t) v;
+        if (i > 0) {
+            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->h->descriptor, .cmp = brt->compare_fun, .fifo = fifo };
+            if (toku_fifo_entry_key_msn_cmp(&extra, &last_offset, &offset) >= 0) {
+                result = TOKUDB_NEEDS_REPAIR;
+                break;
+            }
+        }
+        last_offset = offset;
+    }
+    return result;
+}
+
+static int
+count_eq_key_msn(BRT brt, FIFO fifo, OMT mt, const void *key, size_t keylen, MSN msn) {
+    struct toku_fifo_entry_key_msn_heaviside_extra extra = { 
+        .desc = &brt->h->descriptor, .cmp = brt->compare_fun, .fifo = fifo, .key = key, .keylen = keylen, .msn = msn 
+    };
+    OMTVALUE v; u_int32_t idx;
+    int r = toku_omt_find_zero(mt, toku_fifo_entry_key_msn_heaviside, &extra, &v, &idx);
+    int count;
+    if (r == 0) {
+        count = 1;
+    } else {
+        assert(r == DB_NOTFOUND);
+        count = 0;
+    }
+    return count;
+}
+
 int
 toku_verify_brtnode (BRT brt,
                      MSN rootmsn, MSN parentmsn,
@@ -235,6 +273,8 @@ toku_verify_brtnode (BRT brt,
             MSN lastmsn = ZERO_MSN;
             // Verify that messages in the buffers are in the right place.
             NONLEAF_CHILDINFO bnc = BNC(node, i);
+            VERIFY_ASSERTION(verify_sorted_by_key_msn(brt, bnc->buffer, bnc->fresh_message_tree) == 0, i, "fresh_message_tree");
+            VERIFY_ASSERTION(verify_sorted_by_key_msn(brt, bnc->buffer, bnc->stale_message_tree) == 0, i, "stale_message_tree");
             FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, itype, msn, xid, is_fresh,
                          ({
                              enum brt_msg_type type = (enum brt_msg_type) itype;
@@ -244,33 +284,33 @@ toku_verify_brtnode (BRT brt,
                              VERIFY_ASSERTION(r==0, i, "A message in the buffer is out of place");
                              VERIFY_ASSERTION((msn.msn > lastmsn.msn), i, "msn per msg must be monotonically increasing toward newer messages in buffer");
                              VERIFY_ASSERTION((msn.msn <= thismsn.msn), i, "all messages must have msn within limit of this node's max_msn_applied_to_node_in_memory");
+                             int count;
+                             count = count_eq_key_msn(brt, bnc->buffer, bnc->fresh_message_tree, key, keylen, msn);
+                             if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
+                                 VERIFY_ASSERTION(count == 0, i, "a broadcast message was found in the fresh message tree");
+                             } else {
+                                 VERIFY_ASSERTION(brt_msg_type_applies_once(type), i, "a message was found that does not apply either to all or to only one key");
+                                 if (is_fresh) {
+                                     VERIFY_ASSERTION(count == 1, i, "a fresh message was not found in the fresh message tree");
+                                 } else {
+                                     VERIFY_ASSERTION(count == 0, i, "a stale message was found in the fresh message tree");
+                                 }
+                             }
+                             count = count_eq_key_msn(brt, bnc->buffer, bnc->stale_message_tree, key, keylen, msn);
+                             if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
+                                 VERIFY_ASSERTION(count == 0, i, "a broadcast message was found in the stale message tree");
+                             } else {
+                                 VERIFY_ASSERTION(brt_msg_type_applies_once(type), i, "a message was found that does not apply either to all or to only one key");
+                                 if (is_fresh) {
+                                     VERIFY_ASSERTION(count == 0, i, "a fresh message was found in the stale message tree");
+                                 } else {
+                                     VERIFY_ASSERTION(count == 1, i, "a stale message was not found in the stale message tree");
+                                 }
+                             }
                              DBT keydbt;
                              struct count_msgs_extra extra = { .count = 0, .key = toku_fill_dbt(&keydbt, key, keylen),
                                                                .msn = msn, .fifo = bnc->buffer,
                                                                .cmp_extra = brt->db, .cmp = brt->compare_fun };
-                             toku_omt_iterate(bnc->fresh_message_tree, count_msgs, &extra);
-                             if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
-                                 VERIFY_ASSERTION(extra.count == 0, i, "a broadcast message was found in the fresh message tree");
-                             } else {
-                                 VERIFY_ASSERTION(brt_msg_type_applies_once(type), i, "a message was found that does not apply either to all or to only one key");
-                                 if (is_fresh) {
-                                     VERIFY_ASSERTION(extra.count == 1, i, "a fresh message was not found in the fresh message tree");
-                                 } else {
-                                     VERIFY_ASSERTION(extra.count == 0, i, "a stale message was found in the fresh message tree");
-                                 }
-                             }
-                             extra.count = 0;
-                             toku_omt_iterate(bnc->stale_message_tree, count_msgs, &extra);
-                             if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
-                                 VERIFY_ASSERTION(extra.count == 0, i, "a broadcast message was found in the stale message tree");
-                             } else {
-                                 VERIFY_ASSERTION(brt_msg_type_applies_once(type), i, "a message was found that does not apply either to all or to only one key");
-                                 if (is_fresh) {
-                                     VERIFY_ASSERTION(extra.count == 0, i, "a fresh message was found in the stale message tree");
-                                 } else {
-                                     VERIFY_ASSERTION(extra.count == 1, i, "a stale message was not found in the stale message tree");
-                                 }
-                             }
                              extra.count = 0;
                              toku_omt_iterate(bnc->broadcast_list, count_msgs, &extra);
                              if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {

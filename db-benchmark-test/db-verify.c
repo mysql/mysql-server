@@ -41,7 +41,7 @@ int test_main(int argc, char * const argv[]) {
     r = db->open(db, NULL, dbfilename, NULL, DB_BTREE, DB_AUTO_COMMIT, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     assert(r == 0);
 
-    r = db->verify_with_progress(db, NULL, NULL, 0, 0);
+    r = db->verify_with_progress(db, NULL, NULL, verbose > 0, false);
     assert(r == 0);
 
     r = db->close(db, 0);
