@@ -9757,6 +9757,25 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
       table->s->primary_key < MAX_KEY)
   {
+
+#ifndef MCP_SLAVE_RBWR_OPTIMIZATION
+    if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
+    {
+      /*
+        Read removal is possible since the engine supports write without
+        previous read using full primary key
+      */
+      DBUG_PRINT("info", ("using read before write removal"));
+
+      /*
+        Tell the handler to ignore if key exists or not, since it's
+        not yet known if the key does exist(when using rbwr)
+      */
+      table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+      DBUG_RETURN(0);
+    }
+#endif
+
     /*
       Use a more efficient method to fetch the record given by
       table->record[0] if the engine allows it.  We first compute a
@@ -9775,23 +9794,6 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
                                  table->s->reclength) == 0);
 
     */
-
-#ifndef MCP_WL3733
-    /*
-      Ndb does not need read before delete/update (and no updates are sent)
-      if primary key specified
-
-      (Actually uniquekey will also do, but pk will be in each
-      row if table has pk)
-
-      Also set ignore no key, as we don't really know if row exists...
-    */
-    if (table->file->ht->db_type == DB_TYPE_NDBCLUSTER)
-    {
-      table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
-      DBUG_RETURN(0);
-    }
-#endif
 
     DBUG_PRINT("info",("locating record using primary key (position)"));
     int error= table->file->rnd_pos_by_record(table->record[0]);
