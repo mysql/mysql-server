@@ -1,5 +1,5 @@
 set @subselect_sj_mat_tmp= @@optimizer_switch;
-set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on');
+set optimizer_switch=ifnull(@subselect_mat_test_optimizer_switch_value, 'semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on');
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 set @optimizer_switch_local_default= @@optimizer_switch;
 drop table if exists t1, t2, t3, t4, t5, t1i, t2i, t3i;

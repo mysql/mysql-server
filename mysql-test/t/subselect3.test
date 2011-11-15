@@ -3,7 +3,7 @@ drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 --enable_warnings
 
 set @subselect3_tmp= @@optimizer_switch;
-set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on';
+set optimizer_switch='semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on';
 
 #
 # 1. Subquery with GROUP/HAVING

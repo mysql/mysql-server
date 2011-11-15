@@ -1,7 +1,10 @@
 set @subselect_extra_no_sj_tmp=@@optimizer_switch;
-set optimizer_switch='semijoin=off,firstmatch=off,loosescan=off';
+set  @optimizer_switch_for_subselect_extra_test='semijoin=off,firstmatch=off,loosescan=off,semijoin_with_cache=off';
 drop table if exists t1,t2,t3,t4;
 drop view if exists v1,v2,v3;
+set @subselect_extra_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_extra_test,
+"semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
 # From explain.test:
 #
 # Bug#37870: Usage of uninitialized value caused failed assertion.
@@ -478,3 +481,4 @@ DROP VIEW v2;
 DROP TABLE t1,t2;
 set optimizer_switch= @tmp_subselect_extra_derived;
 set optimizer_switch= @subselect_extra_no_sj_tmp;
+set @optimizer_switch_for_subselect_extra_test=null;

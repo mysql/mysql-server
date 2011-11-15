@@ -1,5 +1,8 @@
 drop table if exists t1,t2,t3,t4;
 drop view if exists v1,v2,v3;
+set @subselect_extra_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_extra_test,
+"semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
 # From explain.test:
 #
 # Bug#37870: Usage of uninitialized value caused failed assertion.
@@ -226,7 +229,7 @@ group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
 2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2)
+2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2); Using join buffer (flat, BNL join)
 select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
 where t2.c in (select c from t3 where t3.c > t1.b) and
@@ -257,7 +260,7 @@ group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2)
+2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2); Using join buffer (flat, BNL join)
 select a1,a2,b,c,min(c), max(c) from t1
 where exists ( select * from t2
 where t2.c in (select c from t3 where t3.c > t1.c) and
@@ -304,7 +307,7 @@ EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	PRIMARY,i2	PRIMARY	4	NULL	144	Using index
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t1)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t1); Using join buffer (flat, BNL join)
 CREATE TABLE t2 (a INT, b INT, KEY(a));
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
 EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2;
@@ -317,7 +320,7 @@ EXPLAIN SELECT 1 FROM t2 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	a	a	5	NULL	4	Using index
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t2)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t2); Using join buffer (flat, BNL join)
 DROP TABLE t1, t2;
 # 
 # From derived_view.test
@@ -427,8 +430,8 @@ WHERE t3.b IN (SELECT v1.b FROM  v1, t2
 WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary; End temporary
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
 SELECT * FROM t3 
 WHERE t3.b IN (SELECT v1.b FROM  v1, t2 

@@ -190,13 +190,13 @@ pla_id	test
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	$hj	7	test.m2.matintnum	9	Using where
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	$hj	7	test.m2.matintnum	9	Using where
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 drop table t1,t2;
