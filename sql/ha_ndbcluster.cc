@@ -10286,10 +10286,10 @@ do_drop:
 /* static version which does not need a handler */
 
 int
-ha_ndbcluster::drop_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
-                          const char *path,
-                          const char *db,
-                          const char *table_name)
+ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
+                               const char *path,
+                               const char *db,
+                               const char *table_name)
 {
   DBUG_ENTER("ha_ndbcluster::ndbcluster_delete_table");
   NDBDICT *dict= ndb->getDictionary();
@@ -10481,8 +10481,8 @@ int ha_ndbcluster::delete_table(const char *name)
     If it was already gone it might have been dropped
     remotely, give a warning and then drop .ndb file.
    */
-  if (!(error= drop_table(thd, this, ndb, name,
-                          m_dbname, m_tabname)) ||
+  if (!(error= drop_table_impl(thd, this, ndb, name,
+                               m_dbname, m_tabname)) ||
       error == HA_ERR_NO_SUCH_TABLE)
   {
     /* Call ancestor function to delete .ndb file */
@@ -11288,7 +11288,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
-    if (ha_ndbcluster::drop_table(thd, 0, ndb, full_path, dbname, tabname))
+    if (ha_ndbcluster::drop_table_impl(thd, 0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
       if (err.code != 709 && err.code != 723)
@@ -17289,7 +17289,8 @@ mysql_declare_plugin(ndbcluster)
   0x0100,                     /* plugin version */
   ndb_status_variables_export,/* status variables                */
   system_variables,           /* system variables */
-  NULL                        /* config options                  */
+  NULL,                       /* config options                  */
+  0                           /* flags */
 },
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -17303,7 +17304,8 @@ mysql_declare_plugin(ndbcluster)
   0x0001,                     /* plugin version */
   NULL,                       /* status variables */
   ndbinfo_system_variables,   /* system variables */
-  NULL                        /* config options */
+  NULL,                        /* config options */
+  0                           /* flags */
 }
 mysql_declare_plugin_end;
 
