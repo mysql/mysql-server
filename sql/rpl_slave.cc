@@ -4579,10 +4579,6 @@ void slave_stop_workers(Relay_log_info *rli)
   free_root(&rli->mts_coor_mem_root, MYF(0));
 }
 
-#ifndef MCP_BUG46955
-extern int(*ndb_wait_setup_func)(ulong);
-extern ulong opt_ndb_wait_setup;
-#endif
 
 /**
   Slave SQL thread entry point.
@@ -4739,15 +4735,14 @@ pthread_handler_t handle_slave_sql(void *arg)
 #endif
   DBUG_ASSERT(rli->info_thd == thd);
 
-#ifndef MCP_BUG46955
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
   if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
   {
     sql_print_warning("Slave SQL thread : NDB : Tables not available after %lu"
                       " seconds.  Consider increasing --ndb-wait-setup value",
                       opt_ndb_wait_setup);
   }
-#endif
 #endif
 
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
