@@ -5657,12 +5657,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                         event_len - BINLOG_CHECKSUM_LEN : event_len,
                         rli->relay_log.description_event_for_queue);
     sid_decode.copy_from(ugid.get_ugid_sid());
+    THD* thd= rli->info_thd ? rli->info_thd : current_thd;
 
     rli->relay_log.sid_lock.rdlock();
     rpl_sidno sidno= rli->relay_log.sid_map.add_permanent(&sid_decode);
-    Group_set* grp_set= const_cast<Group_set *>(rli->relay_log.group_log_state.get_ended_groups());
-    if (grp_set->ensure_sidno(sidno) != RETURN_STATUS_OK ||
-        grp_set->_add(sidno, ugid.get_ugid_gno()) != RETURN_STATUS_OK)
+    rpl_gno gno= ugid.get_ugid_gno();
+    if (rli->relay_log.group_log_state.ensure_sidno() != RETURN_STATUS_OK ||
+        rli->relay_log.group_log_state.acquire_ownership(sidno, gno, thd) != RETURN_STATUS_OK ||
+        rli->relay_log.group_log_state.end_group(sidno, gno) != RETURN_STATUS_OK)
       goto err;
     rli->relay_log.sid_lock.unlock();
     inc_pos= event_len;
