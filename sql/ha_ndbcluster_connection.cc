@@ -346,7 +346,7 @@ ndb_transid_mysql_connection_map_fill_table(THD* thd, TABLE_LIST* tables,
 {
   DBUG_ENTER("ndb_transid_mysql_connection_map_fill_table");
 
-  const bool all = check_global_access(thd, PROCESS_ACL);
+  const bool all = (check_global_access(thd, PROCESS_ACL) == 0);
   const ulonglong self = thd_get_thread_id(thd);
 
   TABLE* table= tables->table;

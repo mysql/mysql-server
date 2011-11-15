@@ -58,7 +58,7 @@ ConstRope::compare(const char * str, Uint32 len) const {
     int res = memcmp(str, (const char*)curr.p->data, 4 * getSegmentSize());
     if(res != 0){
       if(DEBUG_ROPE)
-	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left, 
+	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left,
 		 (const char*)curr.p->data, res);
       return res;
     }
@@ -83,10 +83,10 @@ ConstRope::compare(const char * str, Uint32 len) const {
 }
 
 void
-Rope::copy(char* buf) const {
+LocalRope::copy(char* buf) const {
   char * ptr = buf;
   if(DEBUG_ROPE)
-    ndbout_c("Rope::copy() head = [ %d 0x%x 0x%x ]",
+    ndbout_c("LocalRope::copy() head = [ %d 0x%x 0x%x ]",
 	     head.used, head.firstItem, head.lastItem);
   Uint32 left = head.used;
   Ptr<Segment> curr;
@@ -103,13 +103,13 @@ Rope::copy(char* buf) const {
     memcpy(buf, curr.p->data, left);
   }
   if(DEBUG_ROPE)
-    ndbout_c("Rope::copy()-> %s", ptr);
+    ndbout_c("LocalRope::copy()-> %s", ptr);
 }
 
 int
-Rope::compare(const char * str, Uint32 len) const {
+LocalRope::compare(const char * str, Uint32 len) const {
   if(DEBUG_ROPE)
-    ndbout_c("Rope::compare(%s, %d)", str, (int) len);
+    ndbout_c("LocalRope::compare(%s, %d)", str, (int) len);
   Uint32 left = head.used > len ? len : head.used;
   Ptr<Segment> curr;
   curr.i = head.firstItem;
@@ -118,7 +118,7 @@ Rope::compare(const char * str, Uint32 len) const {
     int res = memcmp(str, (const char*)curr.p->data, 4 * getSegmentSize());
     if(res != 0){
       if(DEBUG_ROPE)
-	ndbout_c("Rope::compare(%s, %d, %s) -> %d", str, (int) len, 
+	ndbout_c("LocalRope::compare(%s, %d, %s) -> %d", str, (int) len,
 		 (const char*)curr.p->data, res);
       return res;
     }
@@ -133,19 +133,19 @@ Rope::compare(const char * str, Uint32 len) const {
     int res = memcmp(str, (const char*)curr.p->data, left);
     if(res){
       if(DEBUG_ROPE)
-	ndbout_c("Rope::compare(%s, %d) -> %d", str, (int) len, res);
+	ndbout_c("LocalRope::compare(%s, %d) -> %d", str, (int) len, res);
       return res;
     }
   }
   if(DEBUG_ROPE)
-    ndbout_c("Rope::compare(%s, %d) -> %d", str, (int) len, head.used > len);
+    ndbout_c("LocalRope::compare(%s, %d) -> %d", str, (int) len, head.used > len);
   return head.used > len;
 }
 
 bool
-Rope::assign(const char * s, Uint32 len, Uint32 hash){
+LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
   if(DEBUG_ROPE)
-    ndbout_c("Rope::assign(%s, %d, 0x%x)", s, (int) len, hash);
+    ndbout_c("LocalRope::assign(%s, %d, 0x%x)", s, (int) len, hash);
   m_hash = hash;
   head.used = (head.used + 3) / 4;
   release();
@@ -164,7 +164,7 @@ Rope::assign(const char * s, Uint32 len, Uint32 hash){
     }
     head.used = len;
     if(DEBUG_ROPE)
-      ndbout_c("Rope::assign(...) head = [ %d 0x%x 0x%x ]",
+      ndbout_c("LocalRope::assign(...) head = [ %d 0x%x 0x%x ]",
 	       head.used, head.firstItem, head.lastItem);
     return true;
   }
@@ -172,20 +172,20 @@ Rope::assign(const char * s, Uint32 len, Uint32 hash){
 }
 
 void
-Rope::erase(){
+LocalRope::erase(){
   head.used = (head.used + 3) / 4;
   release();
 }
 
 Uint32
-Rope::hash(const char * p, Uint32 len){
+LocalRope::hash(const char * p, Uint32 len){
   if(DEBUG_ROPE)
-    ndbout_c("Rope::hash(%s, %d)", p, len);
+    ndbout_c("LocalRope::hash(%s, %d)", p, len);
   Uint32 h = 0;
   for (; len > 0; len--)
     h = (h << 5) + h + (* p++);
   if(DEBUG_ROPE)
-    ndbout_c("Rope::hash(...) -> 0x%x", h);
+    ndbout_c("LocalRope::hash(...) -> 0x%x", h);
   return h;
 }
 

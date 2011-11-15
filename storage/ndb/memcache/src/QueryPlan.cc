@@ -125,8 +125,11 @@ QueryPlan::QueryPlan(Ndb *my_ndb, const TableSpec *my_spec, PlanOpts opts)  :
     math_mask_i[this_col_id >> 3] |= (1 << (this_col_id & 7));
   }
 
+  /* Primary Key access path? */
+  pk_access = keyIsPrimaryKey();
+
   /* Choose an access path and complete the key record*/
-  if(keyIsPrimaryKey() && ! (opts == PKScan)) {
+  if(pk_access && ! (opts == PKScan)) {
     op_ok = key_record->complete(dict, table);
   }
   else {
@@ -231,6 +234,7 @@ void QueryPlan::debug_dump() const {
     val_record->debug_dump();
   }
 }
+
 
 bool QueryPlan::keyIsPrimaryKey() const {
   if(spec->nkeycols == table->getNoOfPrimaryKeys()) {

@@ -83,7 +83,7 @@ class Record {
   /* Public instance variables */
   const int ncolumns;
   size_t rec_size;
-  const NdbRecord *ndb_record; 
+  NdbRecord *ndb_record; 
   int nkeys;
   int nvalues;
   
@@ -96,6 +96,7 @@ class Record {
   size_t size_of_nullmap;
   DataTypeHandler ** const handlers;
   NdbDictionary::RecordSpecification * const specs;
+  NdbDictionary::Dictionary * m_dict;
   
   /* Private methods */
   const Record & operator=(const Record &) const;

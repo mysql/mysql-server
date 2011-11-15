@@ -1835,3 +1835,8 @@ max-time 1800
 cmd: testNdbApi
 args: -n TestFragmentedSend T1
 
+max-time: 300
+cmd: testNodeRestart
+args: -nMasterFailSlowLCP T1
+
+

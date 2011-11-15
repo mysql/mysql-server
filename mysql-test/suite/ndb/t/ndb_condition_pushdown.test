@@ -2257,6 +2257,12 @@ explain select * from t where x like "aa?";
 select * from t where x like "aa?";
 explain select * from t where x not like "aa?";
 select * from t where x not like "aa?";
+select * from t where x like "%a%";
+select * from t where x not like "%b%";
+select * from t where x like replace(concat("%", "b%"),"b","a");
+select * from t where x not like replace(concat("%", "a%"),"a","b");
+select * from t where x like concat("%", replace("b%","b","a"));
+select * from t where x not like concat("%", replace("a%","a","b"));
 drop table t;
 
 # Bug#57735 BETWEEN in pushed condition cause garbage to be read in ::unpack_record() 
@@ -2395,6 +2401,38 @@ select * from t
 where i = (select max(i) from t);
 
 drop table t,subq;
+
+# Bug#11765142 58073: CONCAT AND OR GIVE INCORRECT QUERY RESULTS
+create table mytable(i int, s varchar(255) ) engine = ndb;
+insert into mytable values(0,"Text Hej"),(1, "xText aaja");
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text1","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text1","%") or s not like "%Text%" order by i;
+
+
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+
+ select * from mytable where s like replace(concat("%Xext","%"),"X", "T") order by i;
+ select * from mytable where s not like replace(concat("%Text","%"),"T", "X") order by i;
+ select * from mytable where s like concat(replace("%Xext","X", "T"),"%") order by i;
+ select * from mytable where s not like concat(replace("%Text","T", "X"),"%") order by i;
+
+
+drop table mytable;
 
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
