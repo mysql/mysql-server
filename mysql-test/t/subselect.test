@@ -14,7 +14,7 @@ drop view if exists v2;
 
 set @subselect_tmp=@@optimizer_switch;
 set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_test,
-                              "semijoin=on,firstmatch=on,loosescan=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
+                              "semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
 set optimizer_switch='mrr=on,mrr_sort_keys=on,index_condition_pushdown=on';
 
 select (select 2);
@@ -1866,6 +1866,9 @@ drop table t1;
 # Bug#11867 queries with ROW(,elems>) IN (SELECT DISTINCT <cols> FROM ...)
 #
 
+set @tmp11867_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='semijoin_with_cache=off';
+
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
 INSERT INTO t1 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
@@ -1893,6 +1896,7 @@ explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FR
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 DROP TABLE t1,t2;
 
+set optimizer_switch=@tmp11867_optimizer_switch;
 
 #
 # Bug#12392 where cond with IN predicate for rows and NULL values in table

@@ -776,6 +776,7 @@ eval EXPLAIN EXTENDED $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
 --echo # End of Bug#48213
 
 --echo # 
@@ -1851,6 +1852,33 @@ PREPARE st1 FROM '
 EXECUTE st1;
 DROP TABLE t1,t2,t3;
 set optimizer_switch=@tmp878753;
+
+--echo #
+--echo # Bug #889750: semijoin=on + firstmatch=off + semijoin_with_cache=off
+--echo #
+
+create table t1 (a int);
+insert into t1 values (7), (1), (5), (3);
+create table t2 (a int);
+insert into t2 values (4), (1), (8), (3), (9), (2);
+
+set @tmp_otimizer_switch= @@optimizer_switch;
+set optimizer_switch='semijoin=on';
+set optimizer_switch='firstmatch=off';
+
+set optimizer_switch='semijoin_with_cache=on';
+explain
+select * from t1 where t1.a in (select t2.a from t2);
+select * from t1 where t1.a in (select t2.a from t2);
+
+set optimizer_switch='semijoin_with_cache=off';
+explain
+select * from t1 where t1.a in (select t2.a from t2);
+select * from t1 where t1.a in (select t2.a from t2);
+
+set optimizer_switch= @tmp_otimizer_switch;
+
+drop table t1,t2;
 
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

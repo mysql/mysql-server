@@ -12,6 +12,9 @@ drop table if exists t1,t2,t3,t4;
 drop view if exists v1,v2,v3;
 --enable_warnings
 
+set @subselect_extra_tmp=@@optimizer_switch;
+set @@optimizer_switch=ifnull(@optimizer_switch_for_subselect_extra_test,
+                              "semijoin=on,firstmatch=on,loosescan=on,semijoin_with_cache=on,partial_match_rowid_merge=off,partial_match_table_scan=off");
 
 --echo # From explain.test:
 --echo #
@@ -390,4 +393,3 @@ DROP VIEW v2;
 DROP TABLE t1,t2;
 
 set optimizer_switch= @tmp_subselect_extra_derived;
-

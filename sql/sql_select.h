@@ -391,6 +391,10 @@ typedef struct st_join_table {
   {
     return first_sj_inner_tab != NULL;
   }
+  bool is_inner_table_of_semijoin()
+  {
+    return emb_sj_nest != NULL;
+  }
   bool is_inner_table_of_outer_join()
   {
     return first_inner != NULL;

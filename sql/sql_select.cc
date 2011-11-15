@@ -9025,7 +9025,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   if (tab->inside_loosescan_range)
     goto no_join_cache;
 
-  if (tab->is_inner_table_of_semi_join_with_first_match() &&
+  if (tab->is_inner_table_of_semijoin() &&
       !join->allowed_semijoin_with_cache)
     goto no_join_cache;
   if (tab->is_inner_table_of_outer_join() &&
@@ -9172,7 +9172,10 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
 no_join_cache:
   if (tab->type != JT_ALL && tab->is_ref_for_hash_join())
+  {
     tab->type= JT_ALL;
+    tab->ref.key_parts= 0;
+  }
   revise_cache_usage(tab); 
   return 0;
 }
