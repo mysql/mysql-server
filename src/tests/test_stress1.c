@@ -43,17 +43,17 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
 
     //
     // the threads that we want:
-    //   - one thread constantly updating random values
+    //   - some threads constantly updating random values
     //   - one thread doing table scan with bulk fetch
     //   - one thread doing table scan without bulk fetch
-    //   - one thread doing random point queries
+    //   - some threads doing random point queries
     //
 
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 5 + cli_args->num_ptquery_threads;
+    const int num_threads = 4 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env);
+        arg_init(&myargs[i], n, dbp, env, cli_args);
     }
 
     // make the forward fast scanner
@@ -77,13 +77,15 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[3].operation = scan_op;
 
     // make the guy that updates the db
-    myargs[4].operation = update_op;
+    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+        myargs[i].operation = update_op;
+    }
 
     // make the guy that does point queries
-    for (int i = 5; i < num_threads; i++) {
+    for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
     }
-    
+
     run_workers(myargs, num_threads, cli_args->time_of_test, false);
 }
 

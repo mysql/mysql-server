@@ -44,10 +44,10 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //
 
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 7 + cli_args->num_ptquery_threads;
+    const int num_threads = 6 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env);
+        arg_init(&myargs[i], n, dbp, env, cli_args);
     }
 
     // make the forward fast scanner
@@ -74,22 +74,24 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[3].lock_type = STRESS_LOCK_SHARED;
     myargs[3].operation = scan_op;
 
-    // make the guy that updates the db
-    myargs[4].bounded_update_range = false;
-    myargs[4].lock_type = STRESS_LOCK_SHARED;
-    myargs[4].operation = update_op;
-
     // make the guy that removes and recreates the db
+    myargs[4].lock_type = STRESS_LOCK_EXCL;
+    myargs[4].sleep_ms = 2000; // maybe make this a runtime param at some point
+    myargs[4].operation = remove_and_recreate_me;
+
     myargs[5].lock_type = STRESS_LOCK_EXCL;
     myargs[5].sleep_ms = 2000; // maybe make this a runtime param at some point
-    myargs[5].operation = remove_and_recreate_me;
+    myargs[5].operation = truncate_me;
 
-    myargs[6].lock_type = STRESS_LOCK_EXCL;
-    myargs[6].sleep_ms = 2000; // maybe make this a runtime param at some point
-    myargs[6].operation = truncate_me;
+    // make the guy that updates the db
+    for (int i = 6; i < 6 + cli_args->num_update_threads; ++i) {
+        myargs[i].bounded_update_range = false;
+        myargs[i].lock_type = STRESS_LOCK_SHARED;
+        myargs[i].operation = update_op;
+    }
 
     // make the guy that does point queries
-    for (int i = 7; i < num_threads; i++) {
+    for (int i = 6 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].lock_type = STRESS_LOCK_SHARED;
         myargs[i].bounded_update_range = false;
         myargs[i].operation = ptquery_op_no_check;
