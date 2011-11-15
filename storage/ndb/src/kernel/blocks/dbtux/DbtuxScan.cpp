@@ -173,8 +173,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  const DescHead& descHead = getDescHead(index);
-  const KeyType* keyTypes = getKeyTypes(descHead);
+  // compiler warning unused: const DescHead& descHead = getDescHead(index);
+  // compiler warning unused: const KeyType* keyTypes = getKeyTypes(descHead);
   // data passed in Signal
   const Uint32* const boundData = &req->data[0];
   Uint32 boundLen = req->boundAiLength;

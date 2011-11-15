@@ -482,6 +482,7 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_outstanding = 0;
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
+  requestP->m_rootFragId = LqhKeyReq::getFragmentId(req->fragmentData);
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
@@ -777,6 +778,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
   requestP->m_rootResultData = req->resultData;
+  requestP->m_rootFragId = req->fragmentNoKeyLen;
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
@@ -2187,12 +2189,6 @@ Dbspj::storeRow(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr, RowPtr &row)
     jam();
     return DbspjErr::OutOfRowMemory;
   }
-
-  row.m_type = RowPtr::RT_LINEAR;
-  row.m_row_data.m_linear.m_row_ref = ref;
-  row.m_row_data.m_linear.m_header = (RowPtr::Header*)(dstptr + linklen);
-  row.m_row_data.m_linear.m_data = dstptr + linklen + headlen;
-
   memcpy(dstptr + linklen, headptr, 4 * headlen);
   copy(dstptr + linklen + headlen, dataPtr);
 
@@ -2205,9 +2201,30 @@ Dbspj::storeRow(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr, RowPtr &row)
   else
   {
     jam();
-    return add_to_map(requestPtr, treeNodePtr, row.m_src_correlation, ref);
+    Uint32 error = add_to_map(requestPtr, treeNodePtr, row.m_src_correlation, ref);
+    if (unlikely(error))
+      return error;
   }
 
+  /**
+   * Refetch pointer to alloc'ed row memory  before creating RowPtr 
+   * as above add_to_xxx may mave reorganized memory causing
+   * alloced row to be moved.
+   */
+  Uint32 * rowptr = 0;
+  if (ref.m_allocator == 0)
+  {
+    jam();
+    rowptr = get_row_ptr_stack(ref);
+  }
+  else
+  {
+    jam();
+    rowptr = get_row_ptr_var(ref);
+  }
+
+//ndbrequire(rowptr==dstptr);  // It moved which we now do handle
+  setupRowPtr(treeNodePtr, row, ref, rowptr);
   return 0;
 }
 
@@ -2705,6 +2722,23 @@ Dbspj::lookup_build(Build_context& ctx,
   const QN_LookupParameters * param = (const QN_LookupParameters*)qp;
   do
   {
+    err = DbspjErr::InvalidTreeNodeSpecification;
+    if (unlikely(node->len < QN_LookupNode::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
+    err = DbspjErr::InvalidTreeParametersSpecification;
+    DEBUG("param len: " << param->len);
+    if (unlikely(param->len < QN_LookupParameters::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
     {
@@ -2756,13 +2790,6 @@ Dbspj::lookup_build(Build_context& ctx,
       dst->requestInfo = requestInfo;
     }
 
-    err = DbspjErr::InvalidTreeNodeSpecification;
-    if (unlikely(node->len < QN_LookupNode::NodeSize))
-    {
-      DEBUG_CRASH();
-      break;
-    }
-
     if (treeBits & QN_LookupNode::L_UNIQUE_INDEX)
     {
       jam();
@@ -2774,14 +2801,6 @@ Dbspj::lookup_build(Build_context& ctx,
 
     Uint32 tableSchemaVersion = tableId + ((schemaVersion << 16) & 0xFFFF0000);
     dst->tableSchemaVersion = tableSchemaVersion;
-
-    err = DbspjErr::InvalidTreeParametersSpecification;
-    DEBUG("param len: " << param->len);
-    if (unlikely(param->len < QN_LookupParameters::NodeSize))
-    {
-      DEBUG_CRASH();
-      break;
-    }
 
     ctx.m_resultData = param->resultData;
     treeNodePtr.p->m_lookup_data.m_api_resultRef = ctx.m_resultRef;
@@ -3765,6 +3784,24 @@ Dbspj::scanFrag_build(Build_context& ctx,
 
   do
   {
+    err = DbspjErr::InvalidTreeNodeSpecification;
+    DEBUG("scanFrag_build: len=" << node->len);
+    if (unlikely(node->len < QN_ScanFragNode::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
+    err = DbspjErr::InvalidTreeParametersSpecification;
+    DEBUG("param len: " << param->len);
+    if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
       break;
@@ -3810,23 +3847,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
     dst->requestInfo = requestInfo;
-
-    err = DbspjErr::InvalidTreeNodeSpecification;
-    DEBUG("scanFrag_build: len=" << node->len);
-    if (unlikely(node->len < QN_ScanFragNode::NodeSize))
-      break;
-
     dst->tableId = node->tableId;
     dst->schemaVersion = node->tableVersion;
-
-    err = DbspjErr::InvalidTreeParametersSpecification;
-    DEBUG("param len: " << param->len);
-    if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
-    {
-      jam();
-      DEBUG_CRASH();
-      break;
-    }
 
     ctx.m_resultData = param->resultData;
 
@@ -4315,6 +4337,24 @@ Dbspj::scanIndex_build(Build_context& ctx,
 
   do
   {
+    err = DbspjErr::InvalidTreeNodeSpecification;
+    DEBUG("scanIndex_build: len=" << node->len);
+    if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
+    err = DbspjErr::InvalidTreeParametersSpecification;
+    DEBUG("param len: " << param->len);
+    if (unlikely(param->len < QN_ScanIndexParameters::NodeSize))
+    {
+      jam();
+      DEBUG_CRASH();
+      break;
+    }
+
     err = createNode(ctx, requestPtr, treeNodePtr);
     if (unlikely(err != 0))
       break;
@@ -4355,23 +4395,8 @@ Dbspj::scanIndex_build(Build_context& ctx,
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
     ScanFragReq::setCorrFactorFlag(requestInfo, 1);
     dst->requestInfo = requestInfo;
-
-    err = DbspjErr::InvalidTreeNodeSpecification;
-    DEBUG("scanIndex_build: len=" << node->len);
-    if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
-      break;
-
     dst->tableId = node->tableId;
     dst->schemaVersion = node->tableVersion;
-
-    err = DbspjErr::InvalidTreeParametersSpecification;
-    DEBUG("param len: " << param->len);
-    if (unlikely(param->len < QN_ScanIndexParameters::NodeSize))
-    {
-      jam();
-      DEBUG_CRASH();
-      break;
-    }
 
     ctx.m_resultData = param->resultData;
 
@@ -4607,12 +4632,17 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
 
+  // Add a skew in the fragment lists such that we don't scan 
+  // the same subset of frags fram all SPJ requests in case of
+  // the scan not being ' T_SCAN_PARALLEL'
+  Uint16 fragNoOffs = requestPtr.p->m_rootFragId % fragCount;
+
   Ptr<ScanFragHandle> fragPtr;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
   if (likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
   {
     jam();
-    fragPtr.p->init(0);
+    fragPtr.p->init(fragNoOffs);
     fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
     list.addLast(fragPtr);
   }
@@ -4678,10 +4708,11 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     {
       jam();
       Ptr<ScanFragHandle> fragPtr;
+      Uint16 fragNo = (fragNoOffs+i) % fragCount;
       if (likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
       {
         jam();
-        fragPtr.p->init(i);
+        fragPtr.p->init(fragNo);
         fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
         list.addLast(fragPtr);
       }
@@ -5184,6 +5215,7 @@ Dbspj::scanIndex_send(Signal* signal,
   jam();
   ndbassert(bs_bytes > 0);
   ndbassert(bs_rows > 0);
+  ndbassert(bs_rows <= bs_bytes);
   /**
    * if (m_bits & prunemask):
    * - Range keys sliced out to each ScanFragHandle
@@ -5412,6 +5444,7 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
 
   Uint32 rows = conf->completedOps;
   Uint32 done = conf->fragmentCompleted;
+  Uint32 bytes = conf->total_len * sizeof(Uint32);
 
   Uint32 state = fragPtr.p->m_state;
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
@@ -5427,9 +5460,9 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
 
   requestPtr.p->m_rows += rows;
   data.m_totalRows += rows;
-  data.m_totalBytes += conf->total_len;
+  data.m_totalBytes += bytes;
   data.m_largestBatchRows = MAX(data.m_largestBatchRows, rows);
-  data.m_largestBatchBytes = MAX(data.m_largestBatchBytes, conf->total_len);
+  data.m_largestBatchBytes = MAX(data.m_largestBatchBytes, bytes);
 
   if (!treeNodePtr.p->isLeaf())
   {
@@ -5524,37 +5557,43 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
         org->batch_size_rows / data.m_parallelism * (data.m_parallelism - 1)
         + data.m_totalRows;
       
-      // Number of rows that we can still fetch in this batch.
+      // Number of rows & bytes that we can still fetch in this batch.
       const Int32 remainingRows 
         = static_cast<Int32>(org->batch_size_rows - maxCorrVal);
-      
+      const Int32 remainingBytes 
+        = static_cast<Int32>(org->batch_size_bytes - data.m_totalBytes);
+
       if (remainingRows >= data.m_frags_not_started &&
+          remainingBytes >= data.m_frags_not_started &&
           /**
            * Check that (remaning row capacity)/(remaining fragments) is 
            * greater or equal to (rows read so far)/(finished fragments).
            */
           remainingRows * static_cast<Int32>(data.m_parallelism) >=
-          static_cast<Int32>(data.m_totalRows * data.m_frags_not_started) &&
-          (org->batch_size_bytes - data.m_totalBytes) * data.m_parallelism >=
-          data.m_totalBytes * data.m_frags_not_started)
+            static_cast<Int32>(data.m_totalRows * data.m_frags_not_started) &&
+          remainingBytes * static_cast<Int32>(data.m_parallelism) >=
+            static_cast<Int32>(data.m_totalBytes * data.m_frags_not_started))
       {
         jam();
         Uint32 batchRange = maxCorrVal;
+        Uint32 bs_rows  = remainingRows / data.m_frags_not_started;
+        Uint32 bs_bytes = remainingBytes / data.m_frags_not_started;
+
         DEBUG("::scanIndex_execSCAN_FRAGCONF() first batch was not full."
               " Asking for new batches from " << data.m_frags_not_started <<
               " fragments with " << 
-              remainingRows / data.m_frags_not_started 
-              <<" rows and " << 
-              (org->batch_size_bytes - data.m_totalBytes)
-              / data.m_frags_not_started 
-              << " bytes.");
+              bs_rows  <<" rows and " << 
+              bs_bytes << " bytes.");
+
+        if (unlikely(bs_rows > bs_bytes))
+          bs_rows = bs_bytes;
+
         scanIndex_send(signal,
                        requestPtr,
                        treeNodePtr,
                        data.m_frags_not_started,
-                       (org->batch_size_bytes - data.m_totalBytes)
-                       / data.m_frags_not_started,
-                       remainingRows / data.m_frags_not_started,
+                       bs_bytes,
+                       bs_rows,
                        batchRange);
         return;
       }
@@ -5735,7 +5774,7 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
 
       DEBUG("scanIndex_execSCAN_NEXTREQ to: " << hex
             << treeNodePtr.p->m_send.m_ref
-              << ", m_node_no=" << treeNodePtr.p->m_node_no
+            << ", m_node_no=" << treeNodePtr.p->m_node_no
             << ", senderData: " << req->senderData);
 
 #ifdef DEBUG_SCAN_FRAGREQ

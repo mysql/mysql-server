@@ -540,10 +540,16 @@ NdbThread_End()
   {
     NdbMutex_Destroy(g_ndb_thread_mutex);
   }
-  
+
   if (g_ndb_thread_condition)
   {
     NdbCondition_Destroy(g_ndb_thread_condition);
+  }
+
+  if (g_main_thread)
+  {
+    NdbMem_Free((char *)g_main_thread);
+    g_main_thread = 0;
   }
 }
 

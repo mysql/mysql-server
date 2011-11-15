@@ -38,6 +38,7 @@ Record::Record(int ncol) : ncolumns(ncol), rec_size(0), nkeys(0), nvalues(0),
 {};
 
 Record::~Record() {
+  m_dict->releaseRecord(ndb_record);
   delete[] handlers;
   delete[] specs;
 };
@@ -129,6 +130,7 @@ void Record::build_null_bitmap() {
 bool Record::complete(NdbDictionary::Dictionary *dict, 
                       const NdbDictionary::Table *table) {
   build_null_bitmap();
+  m_dict = dict;
   ndb_record = dict->createRecord(table, specs, ncolumns, sizeof(specs[0]));
 
   if(!ndb_record) {
@@ -144,6 +146,7 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
 bool Record::complete(NdbDictionary::Dictionary *dict, 
                       const NdbDictionary::Index *ndb_index) {                       
   build_null_bitmap();
+  m_dict = dict;
   ndb_record = dict->createRecord(ndb_index, specs, ncolumns, sizeof(specs[0]));
 
   if(!ndb_record) {

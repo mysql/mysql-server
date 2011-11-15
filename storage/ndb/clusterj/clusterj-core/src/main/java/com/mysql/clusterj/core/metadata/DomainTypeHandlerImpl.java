@@ -244,7 +244,29 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         }
     }
 
-    protected <O extends DynamicObject> String getTableNameForDynamicObject(Class<O> cls) {
+    /** Get the table name mapped to the domain class.
+     * @param cls the domain class
+     * @return the table name for the domain class
+     */
+    protected static String getTableName(Class<?> cls) {
+        String tableName = null;
+        if (DynamicObject.class.isAssignableFrom(cls)) {
+            tableName = getTableNameForDynamicObject((Class<DynamicObject>)cls);
+        } else {
+            PersistenceCapable persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
+            if (persistenceCapable != null) {
+                tableName = persistenceCapable.table();            
+            }
+        }
+        return tableName;
+    }
+
+    /** Get the table name for a dynamic object. The table name is available either from
+     * the PersistenceCapable annotation or via the table() method.
+     * @param cls the dynamic object class
+     * @return the table name for the dynamic object class
+     */
+    protected static <O extends DynamicObject> String getTableNameForDynamicObject(Class<O> cls) {
         DynamicObject dynamicObject;
         PersistenceCapable persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
         String tableName = null;

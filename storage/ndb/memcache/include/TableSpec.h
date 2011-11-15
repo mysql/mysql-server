@@ -69,7 +69,10 @@ class TableSpec {
     unsigned all_val_cols : 1;
     unsigned special_cols : 1;   
   } must_free;
-    
+
+  /* private instance methods */
+  void initialize_flags(void);
+
   /* private class methods */
   static int build_column_list(const char ** const &array, const char *list);  
 };
@@ -103,6 +106,8 @@ inline TableSpec::TableSpec(const char *db, const char *tab,
 inline void TableSpec::setTable(const char *db, const char *table) {
   schema_name = db;
   table_name = table;
+  must_free.schema_name = 1;
+  must_free.table_name  = 1;
 }
 
 

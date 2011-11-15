@@ -21,6 +21,7 @@
 
 #include <ndb_global.h>
 #include <kernel_types.h>
+#include "ArrayPool.hpp"
 #include "Pool.hpp"
 
 /**

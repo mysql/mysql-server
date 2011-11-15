@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,11 +17,12 @@
 
 package com.mysql.clusterj.tie;
 
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.ListConst.Element;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.ListConst.ElementArray;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Table;
@@ -43,9 +44,9 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(DictionaryImpl.class);
 
-    private DictionaryConst ndbDictionary;
+    private Dictionary ndbDictionary;
 
-    public DictionaryImpl(DictionaryConst ndbDictionary) {
+    public DictionaryImpl(Dictionary ndbDictionary) {
         this.ndbDictionary = ndbDictionary;
     }
 
@@ -120,6 +121,10 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
         } else {
             Utility.throwError(null, ndbDictionary.getNdbError(), extra);
         }
+    }
+
+    public void removeCachedTable(String tableName) {
+        ndbDictionary.removeCachedTable(tableName);
     }
 
 }
