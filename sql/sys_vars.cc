@@ -2821,7 +2821,7 @@ static PolyLock_mutex PLock_active_mi(&LOCK_active_mi);
 static bool slave_allow_batching_check(sys_var *self, THD *thd, set_var *var)
 {
   /* Only allow a change if the slave SQL thread is currently stopped */
-  bool slave_sql_running = active_mi->rli.slave_running;
+  bool slave_sql_running = active_mi->rli->slave_running;
 
   if (slave_sql_running)
   {
