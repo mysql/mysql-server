@@ -8494,6 +8494,13 @@ longlong Item_cache_datetime::val_time_temporal()
   DBUG_ASSERT(fixed == 1);
   if ((!value_cached && !cache_value_int()) || null_value)
     return 0;
+  if (is_temporal_with_date())
+  {
+    /* Convert packed date to packed time */
+    MYSQL_TIME ltime;
+    return get_time_from_date(&ltime) ? 0 :
+           TIME_to_longlong_packed(&ltime, field_type());
+  }
   return int_value;
 }
 
@@ -8502,6 +8509,14 @@ longlong Item_cache_datetime::val_date_temporal()
   DBUG_ASSERT(fixed == 1);
   if ((!value_cached && !cache_value_int()) || null_value)
     return 0;
+  if (cached_field_type == MYSQL_TYPE_TIME)
+  {
+    /* Convert packed time to packed date */
+    MYSQL_TIME ltime;
+    return get_date_from_time(&ltime) ? 0 :
+           TIME_to_longlong_datetime_packed(&ltime);
+    
+  }
   return int_value;
 }
 
