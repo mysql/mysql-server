@@ -279,7 +279,7 @@ String *Item::val_string_from_datetime(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (get_date(&ltime, 0) ||
+  if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
   make_datetime((DATE_TIME_FORMAT *) 0, &ltime, str, decimals);
@@ -291,7 +291,7 @@ String *Item::val_string_from_date(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (get_date(&ltime, 0) ||
+  if (get_date(&ltime, TIME_FUZZY_DATE) ||
       (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *) 0;
   make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
@@ -486,7 +486,7 @@ longlong Item::val_int_from_datetime()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  return get_date(&ltime, 0) ?
+  return get_date(&ltime, TIME_FUZZY_DATE) ?
          0LL: (longlong) TIME_to_ulonglong_datetime_round(&ltime);
 }
 
