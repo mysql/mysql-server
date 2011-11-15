@@ -926,7 +926,7 @@ longlong Item_date_func::val_date_temporal()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  return get_date(&ltime, 0) ?
+  return get_date(&ltime, TIME_FUZZY_DATE) ?
          0LL : TIME_to_longlong_date_packed(&ltime);
 }
 
@@ -935,7 +935,7 @@ longlong Item_datetime_func::val_date_temporal()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  return get_date(&ltime, 0) ?
+  return get_date(&ltime, TIME_FUZZY_DATE) ?
          0LL : TIME_to_longlong_datetime_packed(&ltime);
 }
 
