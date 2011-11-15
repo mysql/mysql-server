@@ -11784,30 +11784,24 @@ UgidSet_log_event::UgidSet_log_event(const char *buffer, uint event_len,
 UgidSet_log_event::UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
 : Ignorable_log_event(thd_arg)
 {
+  size_t size= 0;
   uint64 count_ngnos= 0;
   uchar* ptr_buffer= NULL;
   log->sid_lock.rdlock();
   const Group_set* grp_set= log->group_log_state.get_ended_groups();
-  /*
-    Why not ?
-    I need to double check this with Sven.
-    / Alfranio.
-  */
-  // rpl_sidno max_sidno= grp_set->get_max_sidno();
   rpl_sidno max_sidno= log->sid_map.get_max_sidno();
   nsids= max_sidno;
   /*
-    We statically assume that there will be at most 100 intervals
+    We statically assume that there will be at most 2 intervals
     (ini, end) per sidno. So we need to keep track of the total
     number of intervals and if this happens to be wrong we need to
     increase the buffer's size.
   */
-  ngnos= nsids * 100;
-  encoded_buffer=
-    (uchar *) my_malloc(UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN +
-                        ((UGID_SID_INFO_LEN + UGID_NTH_INFO_LEN) * nsids) +
-                        ((UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * ngnos), MYF(0));
-  if (encoded_buffer)
+  ngnos= nsids * 2;
+  size= UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN +
+        ((UGID_SID_INFO_LEN + UGID_NTH_INFO_LEN) * nsids) +
+        ((UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * ngnos);
+  if ((encoded_buffer= (uchar *) my_malloc(size, MYF(0))))
   {
     DBUG_PRINT("info", ("SRC HEADER memory %p nsids %lld size %d, memory %p "
                "ngnos %d size %d", encoded_buffer, nsids, UGID_NTH_INFO_LEN,
@@ -11837,18 +11831,29 @@ UgidSet_log_event::UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
         int8store(ptr_buffer, iv->start);
         ptr_buffer+= UGID_GNO_INFO_LEN;
       
-        int8store(ptr_buffer, iv->end);
+        int8store(ptr_buffer, iv->end - 1);
         ptr_buffer+= UGID_GNO_INFO_LEN;
 
         DBUG_PRINT("info", ("SRC INTERVALS memory %p start %lld end %lld size %d",
                    ptr_buffer - UGID_GNO_INFO_LEN - UGID_GNO_INFO_LEN,
                    iv->start, iv->end, UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN));
-        if (count_ngnos > ngnos)
+        if (count_ngnos > ngnos && (nsids - sidno) != 0)
         {
-          /* This is not implemented yet. */
-          DBUG_ASSERT(0);
+          size_t increase_size= (nsids - sidno) *
+                                (UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * 2;
+          size_t used_size= ptr_buffer - encoded_buffer;
+          uchar* new_encoded_buffer= NULL;
+          if (!(new_encoded_buffer= (uchar *)
+               my_realloc(encoded_buffer, size + increase_size, MYF(0))))
+          {
+            nsids= 0; ngnos= 0;
+            goto err;
+          }
+          encoded_buffer= new_encoded_buffer;
+          ptr_buffer= encoded_buffer + used_size;
+          ngnos+= (nsids - sidno) * 2;
+          size+= increase_size;
         }
-
         count_ngnos++;
         n_intervals++;
         ivit.next();
@@ -11874,7 +11879,7 @@ UgidSet_log_event::UgidSet_log_event(THD* thd_arg, MYSQL_BIN_LOG* log)
              UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN +
              ((UGID_SID_INFO_LEN + UGID_NTH_INFO_LEN) * nsids) +
              ((UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN) * ngnos)));
-
+err:
   ptr_buffer= encoded_buffer;
   int8store(ptr_buffer, nsids);
   ptr_buffer+= UGID_NTH_INFO_LEN;
@@ -11901,6 +11906,7 @@ char* UgidSet_log_event::get_string_representation(size_t* dst_size)
   DBUG_PRINT("info", ("DST ALLOCATING %lld", (nsids * UGID_SID_STRING_INFO_LEN) +
              (ngnos * UGID_GNO_STRING_INFO_LEN)));
 
+  *dst_size= 0;
   if (dst_buffer)
   { 
     dst_buffer= strmov(dst_buffer, "GROUPS: ");

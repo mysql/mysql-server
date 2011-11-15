@@ -5645,9 +5645,34 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   break;
 
+#ifdef HAVE_UGID
+  case UGIDSET_LOG_EVENT:
+    inc_pos= event_len;
+  break;
+
+  case UGID_LOG_EVENT:
+  {
+    rpl_sid sid_decode;
+    Ugid_log_event ugid(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
+                        event_len - BINLOG_CHECKSUM_LEN : event_len,
+                        rli->relay_log.description_event_for_queue);
+    sid_decode.copy_from(ugid.get_ugid_sid());
+
+    rli->relay_log.sid_lock.rdlock();
+    rpl_sidno sidno= rli->relay_log.sid_map.add_permanent(&sid_decode);
+    Group_set* grp_set= const_cast<Group_set *>(rli->relay_log.group_log_state.get_ended_groups());
+    if (grp_set->ensure_sidno(sidno) != RETURN_STATUS_OK ||
+        grp_set->_add(sidno, ugid.get_ugid_gno()) != RETURN_STATUS_OK)
+      goto err;
+    rli->relay_log.sid_lock.unlock();
+    inc_pos= event_len;
+  }
+  break;
+#endif
+
   default:
     inc_pos= event_len;
-    break;
+  break;
   }
 
   /*
@@ -5665,7 +5690,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
-  if ((s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
+  if (buf[EVENT_TYPE_OFFSET] == UGIDSET_LOG_EVENT ||
+      (s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
         If the master is on the ignore list, execution of
@@ -5696,7 +5722,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
-    if (!(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
+    if (buf[EVENT_TYPE_OFFSET] == UGIDSET_LOG_EVENT ||
+        !(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
         (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
          buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&
          buf[EVENT_TYPE_OFFSET] != STOP_EVENT))
