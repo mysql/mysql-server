@@ -1,0 +1,115 @@
+################################################################
+# Test access via unique index 
+#
+# Write-access via unique index is subject to some restrictions:
+#
+# (1) Inserts are not allowed; they will fail with NOT_FOUND
+# (2) Updates that do not contain the PK column are allowed
+# (3) Updates that contain the PK column are allowed if the PK value 
+#     does not change, but attempts to change the PK fail with NOT_STORED.
+
+
+--source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+
+
+# 
+# Configuration change for this test
+#
+
+--disable_query_log
+--disable_result_log
+USE ndbmemcache;
+CREATE TABLE test_unique_idx (pkey int PRIMARY KEY, 
+                              mkey char(40), 
+                              val varchar(200),
+                              UNIQUE INDEX (mkey)
+                              ) ENGINE=ndbcluster;
+
+INSERT INTO containers (name, db_schema, db_table, key_columns, value_columns)
+  VALUES("tt_uidx_pk", "ndbmemcache", "test_unique_idx", "pkey", "mkey,val"),
+        ("tt_uidx_rd", "ndbmemcache", "test_unique_idx", "mkey", "pkey,val"),
+        ("tt_uidx_uk", "ndbmemcache", "test_unique_idx", "mkey", "val");
+
+INSERT INTO key_prefixes(server_role_id, key_prefix, policy, container) 
+  VALUES(0, "tup:", "ndb-only", "tt_uidx_pk"),
+        (0, "tur:", "ndb-only", "tt_uidx_rd"),
+        (0, "tui:", "ndb-only", "tt_uidx_uk");
+
+UPDATE memcache_server_roles set update_timestamp = NOW() where role_id = 0;
+--enable_query_log
+--enable_result_log
+
+# 
+#  Memcache operations for this test
+#
+
+--perl
+
+use strict;
+use Carp;
+use lib "lib";
+use My::Memcache;
+my $mc = My::Memcache->new();  
+my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
+my $r = $mc->connect("localhost",$port);
+
+my $cf_gen = $mc->wait_for_reconf();
+
+if($cf_gen == 0) {
+  Carp::confess("FAILED WAIT_FOR_RECONF");
+}
+
+# 1: SET on primary key
+$mc->set("tup:1","key1\tSuperbe!")        || Carp::confess("Failed test 1.A");
+$mc->set("tup:2","key2\tIncroyable!")     || Carp::confess("Failed test 1.B");
+$mc->set("tup:3","key3\tTres bien fait");
+$mc->set("tup:4","key4\tPas mal");
+
+# 2: GET on primary key
+($mc->get("tup:1") == "key1\tSuperbe!")   || Carp::confess("Failed test 2.A");
+($mc->get("tup:2") == "key2\tIncroyable!")|| Carp::confess("Failed test 2.B");
+
+# 3: GET via unique key (two value columns)
+($mc->get("tur:key1") == "1\tSuperbe!")   || Carp::confess("Failed test 3.");
+
+# 4: GET via unique key (one value column)
+($mc->get("tui:key2") == "Incroyable!")   || Carp::confess("Failed test 4.");
+
+# 5. SET via unique key (one value column, not part of primary key)
+$mc->set("tui:key3", "Assez bien")        || Carp::confess("Failed test 5.A");
+$mc->set("tui:key4", "Pas trop mal...")   || Carp::confess("Failed test 5.B");
+
+# 6. REPLACE via unique key (one value column, not part of primary key)
+$mc->replace("tui:key2", "Passable")  || Carp::confess("Failed test 6");
+
+# 7. Inserts via unique key access fail with NOT_FOUND:
+# (A) SET
+($mc->set("tui:key5", "rien") == 0)   || Carp::confess("Test 7.A SET should fail");
+($mc->{error} =~ "NOT_FOUND")         || Carp::confess("Test 7.A expected NOT_FOUND");
+
+# (B) ADD
+($mc->add("tui:key6", "rien") == 0)   || Carp::confess("Test 7.B ADD should fail");
+($mc->{error} =~ "NOT_FOUND")         || Carp::confess("Test 7.B expected NOT_FOUND");
+
+# 8. Update via unique key succeeds if PK is equal to old PK
+$mc->set("tur:key1", "1\tQuotidien")  || Carp::confess("Failed test 8.A");
+($mc->get("tui:key1") == "Quotidien") || Carp::confess("Failed test 8.B");
+
+# 9. Attempt to change PK fails with NOT_STORED
+($mc->set("tur:key3", "5\tJamais!") == 0) || Carp::confess("Test 9 SET should fail.");
+($mc->{error} =~ "NOT_STORED")         || Carp::confess("Test 9 expected NOT_STORED");
+
+EOF
+
+# At the end of the test the values should be
+# 1 Quotidien
+# 2 Passable 
+# 3 Assez bien
+# 4 Pas trop mal...
+
+
+--sorted_result
+SELECT * FROM ndbmemcache.test_unique_idx;
+DELETE   FROM ndbmemcache.test_unique_idx;
+

@@ -1,0 +1,7 @@
+SELECT * FROM ndbmemcache.test_unique_idx;
+pkey	mkey	val
+1	key1	Quotidien
+2	key2	Passable
+3	key3	Assez bien
+4	key4	Pas trop mal...
+DELETE   FROM ndbmemcache.test_unique_idx;

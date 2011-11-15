@@ -65,3 +65,14 @@ get_schema_type_name(uint type)
   }
   return "<unknown>";
 }
+
+extern struct NDB_SHARE* ndb_schema_share;
+
+bool ndb_schema_dist_is_ready(void)
+{
+  if (ndb_schema_share)
+    return true;
+
+  DBUG_PRINT("info", ("ndb schema dist not ready"));
+  return false;
+}

@@ -429,7 +429,10 @@ TableSpec * config_v1::get_container_record(char *name) {
     /* Instantiate a TableSpec for this container */
     container = new TableSpec(0, keycols, valcols);
     container->setTable(schema, table);
-    
+
+    if(keycols) free(keycols);
+    if(valcols) free(valcols);
+        
     //  `flags` VARCHAR(250) NOT NULL DEFAULT "0",
     /* If the value is non-numeric, use it to set the flags_column field */
     container->flags_column = 0;
@@ -659,7 +662,8 @@ void config_v1::log_signon() {
   op.writeTuple(tx);
   tx->execute(NdbTransaction::Commit);
   tx->getGCI(&signon_gci);
-  
+
+  tx->close();  
   free(op.key_buffer);
   free(op.buffer);
   return;
@@ -742,7 +746,8 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
   db.init(4);
   NdbDictionary::Dictionary *dict = db.getDictionary();
 
-  if(dict->getEvent(event_name) == 0) {
+  const NdbDictionary::Event * stored_event = dict->getEvent(event_name);
+  if(stored_event == 0) {
     if(create_event(dict, event_name) != 0) {
       return -1;
     }
