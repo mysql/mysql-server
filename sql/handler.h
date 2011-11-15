@@ -165,6 +165,10 @@
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
+/*
+  The handler supports read before write removal optimization
+*/
+#define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
