@@ -1,0 +1,32 @@
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+--connection slave
+show variables like 'slave_allow_batching';
+
+--echo Show that slave_allow_batching cannot be changed while slave is running
+--error ER_SLAVE_MUST_STOP
+set global slave_allow_batching=ON;
+show warnings;
+show variables like 'slave_allow_batching';
+
+--echo Now stop slave and change it
+stop slave;
+set global slave_allow_batching=ON;
+show variables like 'slave_allow_batching';
+start slave;
+
+--echo Now the normal test
+--connection master
+
+let $type= 'INNODB' ;
+let $extra_index= ;
+-- source extra/rpl_tests/rpl_row_basic.test
+
+--connection slave
+stop slave;
+set global slave_allow_batching=OFF;
+start slave;
+
+--source include/rpl_end.inc
+

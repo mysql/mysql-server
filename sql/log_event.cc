@@ -7956,6 +7956,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
 #ifndef MCP_WL3733
+    /*
+      Note that unlike the other thd options set here, this one
+      comes from a global, and not from the incoming event.
+    */
     if (slave_allow_batching)
       thd->variables.option_bits|= OPTION_ALLOW_BATCH;
     else
