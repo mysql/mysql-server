@@ -2171,14 +2171,11 @@ static Sys_var_charptr Sys_server_uuid(
        READ_ONLY GLOBAL_VAR(server_uuid_ptr),
        NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
-#ifndef MCP_BUG53205
-extern uint opt_server_id_bits;
 static Sys_var_uint Sys_server_id_bits(
        "server_id_bits",
        "Set number of significant bits in server-id",
        GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
-#endif
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
