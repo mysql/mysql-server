@@ -3323,19 +3323,6 @@ err:
 uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
-#ifndef MCP_BUG59948
-  if (table == NULL || table->file == NULL)
-  {
-    /*
-      This is a sideffect of the ndbcluster_print_error() (called from
-      ndbcluster_commit and ndbcluster_rollback). The function realises that
-      it "knows nothing" so it creates brand new ha_ndbcluster in order to be
-      able to call print_error() function. Unfortunately the handler hasn't
-      been open()ed and thus table pointer is not set.
-     */
-    DBUG_RETURN(-1);
-  }
-#endif
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   table->file->errkey  = (uint) -1;

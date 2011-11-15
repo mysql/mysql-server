@@ -86,6 +86,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_event_data.cc
   ../../sql/ndb_schema_object.cc
   ../../sql/ndb_schema_dist.cc
+  ../../sql/ndb_component.cc
 )
 
 # Include directories used when building ha_ndbcluster

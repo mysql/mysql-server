@@ -45,10 +45,6 @@ const uint error_conflict_fn_violation= 9999;
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
 extern unsigned char g_node_id_map[max_ndb_nodes];
-extern pthread_mutex_t LOCK_ndb_util_thread;
-extern pthread_cond_t COND_ndb_util_thread;
-extern pthread_mutex_t LOCK_ndb_index_stat_thread;
-extern pthread_cond_t COND_ndb_index_stat_thread;
 extern pthread_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
@@ -131,20 +127,12 @@ bool ndb_binlog_setup(THD *thd);
 bool ndb_binlog_is_read_only(void);
 
 extern NDB_SHARE *ndb_apply_status_share;
-extern NDB_SHARE *ndb_schema_share;
 
 extern my_bool ndb_binlog_running;
 
 bool
 ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
                               enum ha_stat_type stat_type);
-
-/*
-  prototypes for ndb handler utility function also needed by
-  the ndb binlog code
-*/
-int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
-            size_t pack_length);
 
 /*
   Helper functions

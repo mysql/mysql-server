@@ -45,11 +45,11 @@ typedef struct workitem {
     unsigned verb        : 4;  /*! READ, DELETE, ADD, STORE, etc. */
     unsigned math_incr   : 1;  /*! incr, or decr ? */
     unsigned math_create : 1;  /*! create record if not existing */
-    unsigned _unused_1   : 1;  /*! (formerly was is_sync) */
+    unsigned _unused_1   : 1;  /*! */
     unsigned has_value   : 1;  /*! are we able to use a no-copy value? */
     unsigned retries     : 3;  /*! how many times this job has been retried */
     unsigned complete    : 1;  /*! is this operation finished? */
-    unsigned broker      : 2;  /*! for use by the flex scheduler */
+    unsigned _unused_2   : 2;  /*! */
     unsigned reschedule  : 1;  /*! inform scheduler to send and poll again */
     unsigned cas_owner   : 1;  /*! set if this engine owns the CAS ID */
   } base;
