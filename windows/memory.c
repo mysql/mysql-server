@@ -46,7 +46,7 @@ void *toku_malloc(size_t size) {
         __sync_add_and_fetch(&status.malloc_count, 1);
         __sync_add_and_fetch(&status.requested,size);
         __sync_add_and_fetch(&status.used, used);
-        if (0) set_max(status.used, status.freed);
+        set_max(status.used, status.freed);
     } else {
         __sync_add_and_fetch(&status.malloc_fail, 1);
     }
@@ -71,7 +71,7 @@ toku_realloc(void *p, size_t size) {
 	__sync_add_and_fetch(&status.requested, size);
 	__sync_add_and_fetch(&status.used, used);
 	__sync_add_and_fetch(&status.freed, used_orig);
-	if (0) set_max(status.used, status.freed);
+	set_max(status.used, status.freed);
     } else {
 	__sync_add_and_fetch(&status.realloc_fail, 1);
     }
@@ -117,7 +117,7 @@ toku_xmalloc(size_t size) {
     __sync_add_and_fetch(&status.malloc_count, 1);
     __sync_add_and_fetch(&status.requested, size);
     __sync_add_and_fetch(&status.used, used);
-    if (0) set_max(status.used, status.freed);
+    set_max(status.used, status.freed);
     return p;
 }
 
@@ -140,7 +140,7 @@ toku_xrealloc(void *v, size_t size) {
     __sync_add_and_fetch(&status.requested, size);
     __sync_add_and_fetch(&status.used, used);
     __sync_add_and_fetch(&status.freed, used_orig);
-    if (0) set_max(status.used, status.freed);
+    set_max(status.used, status.freed);
     return p;
 }
 
