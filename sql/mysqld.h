@@ -204,6 +204,10 @@ extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
+#ifndef MCP_BUG53205
+extern uint opt_server_id_bits;
+extern ulong opt_server_id_mask;
+#endif
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern int mysqld_server_started;
