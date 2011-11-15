@@ -630,8 +630,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
   mysql_cond_signal(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
-#ifndef MCP_BUG46955
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
   if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
   {
     sql_print_warning("NDB : Tables not available after %lu seconds."
@@ -639,7 +639,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
                       opt_ndb_wait_setup);
   }
 #endif
-#endif
+
   return 0;
 }
 

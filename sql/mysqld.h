@@ -222,6 +222,11 @@ extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+/* engine specific hook, to be made generic */
+extern int(*ndb_wait_setup_func)(ulong);
+extern ulong opt_ndb_wait_setup;
+#endif
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern int mysqld_server_started;
