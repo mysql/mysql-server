@@ -15317,16 +15317,16 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
         multi_range_next_entry(m_multi_range_result_ptr, table_share->reclength);
     }
 
-  if (first_running_range == ranges_in_seq)
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    if (m_range_res)   // mrr_funcs.next() has consumed all ranges.
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  /*
-    Read remaining ranges
-  */
-  if ((res= multi_range_start_retrievals(first_running_range)))
-    DBUG_RETURN(res);
+    /*
+      Read remaining ranges
+    */
+    if ((res= multi_range_start_retrievals(first_running_range)))
+      DBUG_RETURN(res);
 
-  }
+  } // for(;;)
 }
 
 
