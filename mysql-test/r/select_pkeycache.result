@@ -4875,4 +4875,31 @@ f1	f1	f1	f1	f2	f1	f1
 18	9	NULL	NULL	NULL	5	7
 SET SESSION join_buffer_size = DEFAULT;
 DROP TABLE t1,t2,t3,t4,t5,t6;
+CREATE TABLE t1(f1 int UNSIGNED) engine=myisam;
+INSERT INTO t1 VALUES (3),(2),(1);
+set sql_buffer_result=0;
+SELECT f1 FROM t1 GROUP BY 1;
+f1
+1
+2
+3
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+f1
+3
+SELECT 1 FROM t1 GROUP BY 1;
+1
+1
+set sql_buffer_result=1;
+SELECT f1 FROM t1 GROUP BY 1;
+f1
+1
+2
+3
+SELECT f1 FROM t1 GROUP BY '123' = 'abc';
+f1
+3
+SELECT 1 FROM t1 GROUP BY 1;
+1
+1
+drop table t1;
 End of 5.1 tests

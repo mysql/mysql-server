@@ -1295,7 +1295,10 @@ JOIN::optimize()
       DBUG_RETURN(1);
     }
     if (old_group_list && !group_list)
+    {
+      DBUG_ASSERT(group);
       select_distinct= 0;
+    }
   }
   if (!group_list && group)
   {
@@ -1303,6 +1306,7 @@ JOIN::optimize()
     simple_order=1;
     select_distinct= 0;                       // No need in distinct for 1 row
     group_optimized_away= 1;
+    implicit_grouping= TRUE;
   }
 
   calc_group_buffer(this, group_list);
