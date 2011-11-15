@@ -828,6 +828,7 @@ DELETE FROM t2;
 ******************** SHOW BINLOG EVENTS ********************
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	UgidSet	#	#	GROUPS: UGID:(X,X)
 master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';
 master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl
 master-bin.000001	#	Ugid	#	#	SET @@SESSION.UGID_NEXT= 'UGID';

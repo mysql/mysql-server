@@ -423,7 +423,7 @@ while ($n)
 COMMIT;
 
 --connection slave
---let $slave_sql_errno= 1197
+--let $slave_sql_errno= 1534,1197
 source include/wait_for_slave_sql_error.inc;
 
 SELECT count(*) FROM t1;
