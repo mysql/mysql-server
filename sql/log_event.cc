@@ -8717,12 +8717,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
-#ifndef MCP_WL3733
+
+    /*
+      Note that unlike the other thd options set here, this one
+      comes from a global, and not from the incoming event.
+    */
     if (slave_allow_batching)
       thd->variables.option_bits|= OPTION_ALLOW_BATCH;
     else
       thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
-#endif
+
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
@@ -9000,10 +9004,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-#ifndef MCP_WL3733
   /* reset OPTION_ALLOW_BATCH as not affect later events */
   thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
-#endif
 
   if (error)
   {
