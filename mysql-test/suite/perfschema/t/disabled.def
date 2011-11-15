@@ -10,3 +10,4 @@
 #
 ##############################################################################
 
+start_server_no_statement_class:    Temporarily disable, loose-performance_schema_max_statement_classes=0 in opt file does not work on window platform.
