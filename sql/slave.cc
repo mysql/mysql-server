@@ -3128,11 +3128,6 @@ int check_temp_dir(char* tmp_file)
   DBUG_RETURN(0);
 }
 
-#ifndef MCP_BUG46955
-extern int(*ndb_wait_setup_func)(ulong);
-extern ulong opt_ndb_wait_setup;
-#endif
-
 /**
   Slave SQL thread entry point.
 
