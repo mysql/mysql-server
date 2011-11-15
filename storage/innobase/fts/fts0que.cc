@@ -438,8 +438,10 @@ fts_query_strcmp(
 	const void*	p1,		/*!< in: pointer to elem */
 	const void*	p2)		/*!< in: pointer to elem */
 {
+	void* temp = const_cast<void*>(p2);
+
 	return(strcmp(static_cast<const char*>(p1),
-		      static_cast<const char*>(p2)));
+		      *(static_cast <char**>(temp))));
 }
 
 /*******************************************************************//**
