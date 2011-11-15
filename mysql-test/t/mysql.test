@@ -575,12 +575,19 @@ DROP DATABASE connected_db;
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
 
---echo
---echo End of tests
-
-
 #
 # WL#3126 TCP address binding for mysql client library;
 # - running mysql --protocol=tcp --bind-address=127.0.0.1
 #
 --exec $MYSQL --protocol=tcp --bind-address=127.0.0.1 -e "select 1 as Connected"
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--exec $MYSQL -uroot --password="" -e "SELECT 1" 2>&1
+# This too should throw single warning message.
+--exec $MYSQL -uroot --password="" --password="" -e "SELECT 1" 2>&1
+
+--echo
+--echo End of tests

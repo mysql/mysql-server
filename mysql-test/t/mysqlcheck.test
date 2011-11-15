@@ -316,3 +316,19 @@ CHECK TABLE bug47205 FOR UPGRADE;
 CHECK TABLE bug47205 FOR UPGRADE;
 
 DROP TABLE bug47205;
+
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS b12688860_db;
+--enable_warnings
+
+CREATE DATABASE b12688860_db;
+--exec $MYSQL_CHECK -uroot --password="" --fix-db-names b12688860_db 2>&1
+DROP DATABASE b12688860_db;
+
+--echo
+--echo End of tests

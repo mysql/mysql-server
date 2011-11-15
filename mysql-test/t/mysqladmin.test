@@ -64,3 +64,12 @@ EOF
 --exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 
 --remove_file $MYSQLTEST_VARDIR/tmp/cnf_file
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--exec $MYSQLADMIN -uroot --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+
+--echo
+--echo End of tests

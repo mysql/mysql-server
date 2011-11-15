@@ -104,3 +104,11 @@ DROP USER 'user3'@'%';
 --replace_result $MYSQLTEST_VARDIR var
 --exec $MYSQL_UPGRADE --skip-verbose --upgrade-system-tables
 
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+--echo $MYSQL_UPGRADE
+--exec $MYSQL_UPGRADE -uroot --password= --skip-verbose --force 2>&1
+
+--echo
+--echo End of tests

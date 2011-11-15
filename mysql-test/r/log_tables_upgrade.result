@@ -11,6 +11,8 @@ Table	Op	Msg_type	Msg_text
 test.bug49823	repair	status	OK
 RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK

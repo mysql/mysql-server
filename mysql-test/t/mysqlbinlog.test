@@ -556,3 +556,12 @@ SHOW TABLES IN test;
 --exec $MYSQL_BINLOG --server-id=2 $MYSQLD_DATADIR/$master_binlog | $MYSQL
 SHOW TABLES IN test;
 eval SET GLOBAL SERVER_ID = $old_server_id;
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--exec $MYSQL_BINLOG -uroot --password="" std_data/master-bin.000001 2>&1
+
+--echo
+--echo End of tests
