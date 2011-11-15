@@ -481,7 +481,7 @@ void Dbacc::initialiseTableRec(Signal* signal)
   for (tabptr.i = 0; tabptr.i < ctablesize; tabptr.i++) {
     refresh_watch_dog();
     ptrAss(tabptr, tabrec);
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
       tabptr.p->fragholder[i] = RNIL;
       tabptr.p->fragptrholder[i] = RNIL;
     }//for
@@ -653,7 +653,7 @@ Dbacc::execDROP_FRAG_REQ(Signal* signal){
   tabPtr.p->tabUserPtr = req->senderData;
   tabPtr.p->tabUserGsn = GSN_DROP_FRAG_REQ;
 
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragholder); i++)
   {
     jam();
     if (tabPtr.p->fragholder[i] == req->fragId)
@@ -677,7 +677,7 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   if (tabPtr.p->tabUserGsn == GSN_DROP_TAB_REQ)
   {
     jam();
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragholder); i++)
     {
       jam();
       if (tabPtr.p->fragholder[i] != RNIL)
@@ -857,7 +857,7 @@ void Dbacc::releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr)
 /* -------------------------------------------------------------------------- */
 bool Dbacc::addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fid) 
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
     jam();
     if (tabptr.p->fragholder[i] == RNIL) {
       jam();
@@ -2493,7 +2493,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     ptrCheckGuard(tabptr, ctablesize, tabrec);
     // find fragment (TUX will know it)
     if (req->fragPtrI == RNIL) {
-      for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+      for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
         jam();
         if (tabptr.p->fragholder[i] == req->fragId){
 	  jam();
@@ -7590,7 +7590,7 @@ void Dbacc::takeOutReadyScanQueue(Signal* signal)
 
 bool Dbacc::getfragmentrec(Signal* signal, FragmentrecPtr& rootPtr, Uint32 fid) 
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragholder); i++) {
     jam();
     if (tabptr.p->fragholder[i] == fid) {
       jam();

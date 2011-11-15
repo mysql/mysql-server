@@ -22,7 +22,10 @@
 #include <Bitmask.hpp>
 
 /*
- * Log part id is from DBDIH.  Number of log parts is fixed as 4.
+ * Log part id is from DBDIH.  Number of log parts is configurable with a
+ * maximum setting and minimum of 4 parts. The below description assumes
+ * 4 parts.
+ *
  * A log part is identified by log part number (0-3)
  *
  *   log part number = log part id % 4
@@ -38,12 +41,12 @@
  * instance (main instance 0 or worker instances 1-4).
  */
 struct NdbLogPartInfo {
-  enum { LogParts = 4 };
+  Uint32 LogParts;
   NdbLogPartInfo(Uint32 instanceNo);
   Uint32 lqhWorkers;
   Uint32 partCount;
-  Uint16 partNo[LogParts];
-  Bitmask<(LogParts+31)/32> partMask;
+  Uint16 partNo[NDB_MAX_LOG_PARTS];
+  Bitmask<(NDB_MAX_LOG_PARTS+31)/32> partMask;
   Uint32 partNoFromId(Uint32 lpid) const;
   bool partNoOwner(Uint32 lpno) const;
   bool partNoOwner(Uint32 tabId, Uint32 fragId);

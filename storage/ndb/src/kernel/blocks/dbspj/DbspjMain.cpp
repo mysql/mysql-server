@@ -1532,7 +1532,17 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
       releaseRow(requestPtr, pos);
       cnt++;
     }
-    treeNodePtr.p->m_row_map.init();
+
+    // Release the (now empty) RowMap
+    RowMap& map = treeNodePtr.p->m_row_map;
+    if (!map.isNull())
+    {
+      jam();
+      RowRef ref;
+      map.copyto(ref);
+      releaseRow(requestPtr, ref);  // Map was allocated in row memory
+      map.init();
+    }
     DEBUG("RowMapIterator: released " << cnt << " rows!");
   }
 }
