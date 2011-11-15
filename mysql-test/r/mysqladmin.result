@@ -1,6 +1,8 @@
+Warning: Using a password on the command line interface can be insecure.
 mysqld is alive
 mysqladmin: unknown variable 'database=db1'
 Warning: mysqladmin: unknown variable 'loose-database=db2'
+Warning: Using a password on the command line interface can be insecure.
 mysqld is alive
 mysqld is alive
 #
@@ -18,3 +20,10 @@ mysqld is alive
 # Creating an empty file 'cnf_file'
 # Using --defaults-extra-file option with 'cnf_file'.
 mysqld is alive
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+Warning: Using a password on the command line interface can be insecure.
+mysqld is alive
+
+End of tests

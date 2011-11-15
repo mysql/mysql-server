@@ -36,6 +36,7 @@ C_MODE_START
 #define GET_SET       13
 #define GET_DOUBLE    14
 #define GET_FLAGSET   15
+#define GET_PASSWORD  16
 
 #define GET_ASK_ADDR	 128
 #define GET_TYPE_MASK	 127
