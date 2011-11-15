@@ -9285,7 +9285,7 @@ void issue_long_find_row_warning(Log_event_type type,
     DBUG_EXECUTE_IF("inject_long_find_row_note", 
                     stmt_ts-=(LONG_FIND_ROW_THRESHOLD*2););
 
-    time_t delta= (now - stmt_ts);
+    long delta= (long) (now - stmt_ts);
 
     if (delta > LONG_FIND_ROW_THRESHOLD)
     {
@@ -9295,7 +9295,7 @@ void issue_long_find_row_warning(Log_event_type type,
 
       sql_print_information("The slave is applying a ROW event on behalf of a%s statement "
                             "on table %s and is currently taking a considerable amount "
-                            "of time (%lu seconds). This is due to the fact that it is %s "
+                            "of time (%ld seconds). This is due to the fact that it is %s "
                             "while looking up records to be processed. Consider adding a "
                             "primary key (or unique key) to the table to improve "
                             "performance.", evt_type, table_name, delta, scan_type);
