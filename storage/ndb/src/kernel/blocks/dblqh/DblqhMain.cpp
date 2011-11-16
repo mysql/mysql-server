@@ -1220,36 +1220,31 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  clogPartFileSize = 4;
 
-  Uint32 nodeLogParts = 4;
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS,
-                            &nodeLogParts);
-  globalData.ndbLogParts = nodeLogParts;
-  ndbrequire(nodeLogParts <= NDB_MAX_LOG_PARTS);
-  {
-    NdbLogPartInfo lpinfo(instance());
-    clogPartFileSize = lpinfo.partCount; // How many are this instance responsible for...
-  }
-
-  if (globalData.ndbMtLqhWorkers > nodeLogParts)
+  /**
+   * TODO move check of log-parts vs. ndbMtLqhWorkers to better place
+   * (Configuration.cpp ??)
+   */
+  ndbrequire(globalData.ndbLogParts <= NDB_MAX_LOG_PARTS);
+  if (globalData.ndbMtLqhWorkers > globalData.ndbLogParts)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start %d LQH workers with only %d log parts, try initial"
       " node restart to be able to use more LQH workers.",
-      globalData.ndbMtLqhWorkers, nodeLogParts);
+      globalData.ndbMtLqhWorkers, globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
-  if (nodeLogParts != 4 &&
-      nodeLogParts != 8 &&
-      nodeLogParts != 16)
+
+  if (globalData.ndbLogParts != 4 &&
+      globalData.ndbLogParts != 8 &&
+      globalData.ndbLogParts != 16)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start with %d log parts, number of log parts can"
       " only be set to 4, 8 or 16.",
-      nodeLogParts);
+      globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
 
@@ -1280,7 +1275,7 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &ctabrecFileSize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TC_CONNECT, 
 					&ctcConnectrecFileSize));
-  clogFileFileSize       = 4 * cnoLogFiles;
+  clogFileFileSize = clogPartFileSize * cnoLogFiles;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
   cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_OP_PER_SCAN;
 
