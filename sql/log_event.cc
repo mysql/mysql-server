@@ -360,7 +360,7 @@ int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         sql_print_warning("Unknown error detected %d in handler", error);
   }
 
@@ -8872,6 +8872,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
+    /* 
+      set the initial time of this ROWS statement if it was not done
+      before in some other ROWS event. 
+     */
+    const_cast<Relay_log_info*>(rli)->set_row_stmt_start_timestamp();
+
     const uchar *saved_m_curr_row= m_curr_row;
     while (error == 0)
     {
@@ -8898,7 +8904,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
         if (idempotent_error || ignored_error)
         {
-          if (global_system_variables.log_warnings)
+          if (log_warnings)
             slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                     get_type_str(),
                                     const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
@@ -8977,7 +8983,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         ignored_error_code(convert_handler_error(error, thd, table)))
     {
 
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
         slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
@@ -10610,6 +10616,50 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
   return res;
 }
 
+/* 
+  Check if we are already spending too much time on this statement.
+  if we are, warn user that it might be because table does not have
+  a PK, but only if the warning was not printed before for this STMT.
+
+  @param type          The event type code.
+  @param table_name    The name of the table that the slave is 
+                       operating.
+  @param is_index_scan States whether the slave is doing an index scan 
+                       or not.
+  @param rli           The relay metadata info.
+*/
+static inline 
+void issue_long_find_row_warning(Log_event_type type, 
+                                 const char *table_name,
+                                 bool is_index_scan,
+                                 const Relay_log_info *rli)
+{
+  if ((log_warnings > 1 && 
+      !const_cast<Relay_log_info*>(rli)->is_long_find_row_note_printed()))
+  {
+    time_t now= my_time(0);
+    time_t stmt_ts= const_cast<Relay_log_info*>(rli)->get_row_stmt_start_timestamp();
+    
+    DBUG_EXECUTE_IF("inject_long_find_row_note", 
+                    stmt_ts-=(LONG_FIND_ROW_THRESHOLD*2););
+
+    long delta= (long) (now - stmt_ts);
+
+    if (delta > LONG_FIND_ROW_THRESHOLD)
+    {
+      const_cast<Relay_log_info*>(rli)->set_long_find_row_note_printed();
+      const char* evt_type= type == DELETE_ROWS_EVENT ? " DELETE" : "n UPDATE";
+      const char* scan_type= is_index_scan ? "scanning an index" : "scanning the table";
+
+      sql_print_information("The slave is applying a ROW event on behalf of a%s statement "
+                            "on table %s and is currently taking a considerable amount "
+                            "of time (%ld seconds). This is due to the fact that it is %s "
+                            "while looking up records to be processed. Consider adding a "
+                            "primary key (or unique key) to the table to improve "
+                            "performance.", evt_type, table_name, delta, scan_type);
+    }
+  }
+}
 
 /**
   Locate the current row in event's table.
@@ -10649,6 +10699,7 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   int error= 0;
   KEY *keyinfo;
   uint key;
+  bool is_table_scan= false, is_index_scan= false;
 
   /*
     rpl_row_tabledefs.test specifies that
@@ -10838,6 +10889,8 @@ INDEX_SCAN:
       }
     }
 
+    is_index_scan=true;
+
     /*
       In case key is not unique, we still have to iterate over records found
       and find the one which is identical to the row given. A copy of the 
@@ -10898,6 +10951,8 @@ TABLE_SCAN:
       goto err;
     }
 
+    is_table_scan= true;
+
     /* Continue until we find the right record or have made a full loop */
     do
     {
@@ -10951,10 +11006,18 @@ TABLE_SCAN:
     goto err;
   }
 ok:
+  if (is_table_scan || is_index_scan)
+    issue_long_find_row_warning(get_type_code(), m_table->alias, 
+                                is_index_scan, rli);
+
   table->default_column_bitmaps();
   DBUG_RETURN(0);
 
 err:
+  if (is_table_scan || is_index_scan)
+    issue_long_find_row_warning(get_type_code(), m_table->alias, 
+                                is_index_scan, rli);
+
   table->default_column_bitmaps();
   DBUG_RETURN(error);
 }

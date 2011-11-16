@@ -5975,7 +5975,7 @@ void THD::issue_unsafe_warnings()
                           ER_BINLOG_UNSAFE_STATEMENT,
                           ER(ER_BINLOG_UNSAFE_STATEMENT),
                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-      if (global_system_variables.log_warnings)
+      if (log_warnings)
       {
         char buf[MYSQL_ERRMSG_SIZE * 2];
         sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),

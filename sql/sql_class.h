@@ -435,8 +435,9 @@ typedef struct system_variables
   */ 
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
-  uint dynamic_variables_head;  /* largest valid variable offset */
-  uint dynamic_variables_size;  /* how many bytes are in use */
+  uint dynamic_variables_head;    /* largest valid variable offset */
+  uint dynamic_variables_size;    /* how many bytes are in use */
+  LIST *dynamic_variables_allocs; /* memory hunks for PLUGIN_VAR_MEMALLOC */
   
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
@@ -489,7 +490,6 @@ typedef struct system_variables
   ulong query_prealloc_size;
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
-  ulong log_warnings;
   ulong group_concat_max_len;
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
@@ -2362,16 +2362,16 @@ public:
 
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_PSI_STATEMENT_INTERFACE */
   /** Idle instrumentation. */
   PSI_idle_locker *m_idle_psi;
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_PSI_IDLE_INTERFACE
   /** Idle instrumentation state. */
   PSI_idle_locker_state m_idle_state;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_PSI_IDLE_INTERFACE */
   /** True if the server code is IDLE for this connection. */
   bool m_server_idle;
 

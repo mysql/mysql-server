@@ -963,17 +963,17 @@ error:
 
 		trx->error_state = DB_SUCCESS;
 
+		if (!dict_locked) {
+			row_mysql_lock_data_dictionary(trx);
+			dict_locked = TRUE;
+		}
+
 		if (new_primary) {
 			if (indexed_table != prebuilt->table) {
 				dict_table_close(indexed_table, dict_locked);
 				row_merge_drop_table(trx, indexed_table);
 			}
 		} else {
-			if (!dict_locked) {
-				row_mysql_lock_data_dictionary(trx);
-				dict_locked = TRUE;
-			}
-
 			row_merge_drop_indexes(trx, indexed_table,
 					       index, num_created);
 		}
