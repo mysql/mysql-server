@@ -1358,7 +1358,7 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
   DBUG_ENTER("wait_for_workers_to_finish");
 
   llstr(const_cast<Relay_log_info*>(rli)->get_event_relay_log_pos(), llbuf);
-  if (global_system_variables.log_warnings > 1)
+  if (log_warnings > 1)
     sql_print_information("Coordinator and workers enter synchronization procedure "
                           "when scheduling event relay-log: %s pos: %s", 
                           const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(), 
@@ -1416,7 +1416,7 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
 
   if (!ignore)
   {
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
       sql_print_information("Coordinator synchronized with Workers, "
                             "waited entries: %d, cant_sync: %d", 
                             ret, cant_sync);
@@ -1815,7 +1815,7 @@ err:
   if (error)
   {
 
-    if (global_system_variables.log_warnings > 1)
+    if (log_warnings > 1)
       sql_print_information("Worker %lu is exiting: killed %i, error %i, "
                             "running_status %d",
                             worker->id, thd->killed, thd->is_error(),

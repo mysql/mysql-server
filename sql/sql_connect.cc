@@ -629,7 +629,7 @@ void end_connection(THD *thd)
 
   if (net->error && net->vio != 0)
   {
-    if (!thd->killed && thd->variables.log_warnings > 1)
+    if (!thd->killed && log_warnings > 1)
     {
       Security_context *sctx= thd->security_ctx;
 

@@ -1306,7 +1306,7 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
 static Sys_var_ulong Sys_log_warnings(
        "log_warnings",
        "Log some not critical warnings to the log file",
-       SESSION_VAR(log_warnings),
+       GLOBAL_VAR(log_warnings),
        CMD_LINE(OPT_ARG, 'W'),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
@@ -1510,6 +1510,12 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
        SESSION_VAR(max_heap_table_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(16384, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1024));
+
+static Sys_var_ulong Sys_metadata_locks_cache_size(
+       "metadata_locks_cache_size", "Size of unused metadata locks cache",
+       READ_ONLY GLOBAL_VAR(mdl_locks_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 1024*1024), DEFAULT(MDL_LOCKS_CACHE_SIZE_DEFAULT),
+       BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_pseudo_thread_id(
        "pseudo_thread_id",
