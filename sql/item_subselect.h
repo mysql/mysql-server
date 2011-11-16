@@ -999,7 +999,7 @@ protected:
 
 
 /*
-  Distinguish the type od (0-based) row numbers from the type of the index into
+  Distinguish the type of (0-based) row numbers from the type of the index into
   an array of row numbers.
 */
 typedef ha_rows rownum_t;
@@ -1075,9 +1075,9 @@ protected:
   /* Count of NULLs per column. */
   ha_rows null_count;
   /* The row number that contains the first NULL in a column. */
-  ha_rows min_null_row;
+  rownum_t min_null_row;
   /* The row number that contains the last NULL in a column. */
-  ha_rows max_null_row;
+  rownum_t max_null_row;
 
 protected:
   bool alloc_keys_buffers();
@@ -1110,6 +1110,10 @@ public:
     DBUG_ASSERT(i < key_column_count);
     return key_columns[i]->field->field_index;
   }
+  rownum_t get_min_null_row() { return min_null_row; }
+  rownum_t get_max_null_row() { return max_null_row; }
+  MY_BITMAP * get_null_key() { return &null_key; }
+  ha_rows get_null_count() { return null_count; }
   /*
     Get the search key element that corresponds to the i-th key part of this
     index.
@@ -1280,6 +1284,8 @@ protected:
   Ordered_key **merge_keys;
   /* The number of elements in merge_keys. */
   uint merge_keys_count;
+  /* The NULL bitmaps of merge keys.*/
+  MY_BITMAP   **null_bitmaps;
   /*
     An index on all non-NULL columns of 'tmp_table'. The index has the
     logical form: <[v_i1 | ... | v_ik], rownum>. It allows to find the row
@@ -1305,6 +1311,7 @@ protected:
   static int cmp_keys_by_cur_rownum(void *arg, uchar *k1, uchar *k2);
 
   bool test_null_row(rownum_t row_num);
+  bool exists_complementing_null_row(MY_BITMAP *keys_to_complement);
   bool partial_match();
 public:
   subselect_rowid_merge_engine(THD *thd_arg,

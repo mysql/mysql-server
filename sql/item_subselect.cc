@@ -4849,13 +4849,13 @@ bool Ordered_key::init(MY_BITMAP *columns_to_index)
   Item_func_lt *fn_less_than;
 
   key_column_count= bitmap_bits_set(columns_to_index);
-
-  // TIMOUR: check for mem allocation err, revert to scan
-
   key_columns= (Item_field**) thd->alloc(key_column_count *
                                          sizeof(Item_field*));
   compare_pred= (Item_func_lt**) thd->alloc(key_column_count *
                                             sizeof(Item_func_lt*));
+
+  if (!key_columns || !compare_pred)
+    return TRUE; /* Revert to table scan partial match. */
 
   for (uint i= 0; i < columns_to_index->n_bits; i++)
   {
@@ -5316,10 +5316,13 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
                merge_keys_count == 1 && non_null_key_parts));
   /*
     Allocate buffers to hold the merged keys and the mapping between rowids and
-    row numbers.
+    row numbers. All small buffers are allocated in the runtime memroot. Big
+    buffers are allocated from the OS via malloc.
   */
   if (!(merge_keys= (Ordered_key**) thd->alloc(merge_keys_count *
                                                sizeof(Ordered_key*))) ||
+      !(null_bitmaps= (MY_BITMAP**) thd->alloc(merge_keys_count *
+                                               sizeof(MY_BITMAP*))) ||
       !(row_num_to_rowid= (uchar*) my_malloc((size_t)(row_count * rowid_length),
         MYF(MY_WME))))
     return TRUE;
@@ -5537,6 +5540,56 @@ bool subselect_rowid_merge_engine::test_null_row(rownum_t row_num)
 }
 
 
+/**
+  Test if a subset of NULL-able columns contains a row of NULLs.
+*/
+
+bool subselect_rowid_merge_engine::
+exists_complementing_null_row(MY_BITMAP *keys_to_complement)
+{
+  rownum_t highest_min_row= 0;
+  rownum_t lowest_max_row= UINT_MAX;
+  uint count_null_keys, i, j;
+  Ordered_key *cur_key;
+
+  count_null_keys= keys_to_complement->n_bits -
+                   bitmap_bits_set(keys_to_complement);
+  if (count_null_keys == 1)
+  {
+    /*
+      The caller guarantees that the complement to keys_to_complement
+      contains only columns with NULLs. Therefore if there is only one column,
+      it is guaranteed to contain NULLs.
+    */
+    return TRUE;
+  }
+
+  for (i= (non_null_key ? 1 : 0), j= 0; i < merge_keys_count; i++)
+  {
+    cur_key= merge_keys[i];
+    if (bitmap_is_set(keys_to_complement, cur_key->get_keyid()))
+      continue;
+    DBUG_ASSERT(cur_key->get_null_count());
+    if (cur_key->get_min_null_row() > highest_min_row)
+      highest_min_row= cur_key->get_min_null_row();
+    if (cur_key->get_max_null_row() < lowest_max_row)
+      lowest_max_row= cur_key->get_max_null_row();
+    null_bitmaps[j++]= cur_key->get_null_key();
+  }
+  DBUG_ASSERT(count_null_keys == j);
+
+  if (lowest_max_row < highest_min_row)
+  {
+    /* The intersection of NULL rows is empty. */
+    return FALSE;
+  }
+
+  return bitmap_exists_intersection((const MY_BITMAP**) null_bitmaps,
+                                    count_null_keys,
+                                    highest_min_row, lowest_max_row);
+}
+
+
 /*
   @retval TRUE  there is a partial match (UNKNOWN)
   @retval FALSE  there is no match at all (FALSE)
@@ -5549,7 +5602,7 @@ bool subselect_rowid_merge_engine::partial_match()
   Ordered_key *cur_key;
   rownum_t cur_row_num;
   uint count_nulls_in_search_key= 0;
-  uint max_covering_null_row_len=
+  uint max_null_in_any_row=
     ((select_materialize_with_stats *) result)->get_max_nulls_in_row();
   bool res= FALSE;
 
@@ -5602,29 +5655,52 @@ bool subselect_rowid_merge_engine::partial_match()
 
   /*
     If the outer reference consists of only NULLs, or if it has NULLs in all
-    nullable columns, the result is UNKNOWN.
+    nullable columns (above we guarantee there is a match for the non-null
+    coumns), the result is UNKNOWN.
   */
-  if (count_nulls_in_search_key ==
-      ((Item_in_subselect *) item)->left_expr->cols() -
-      (non_null_key ? non_null_key->get_column_count() : 0))
+  if (count_nulls_in_search_key == merge_keys_count - test(non_null_key))
   {
     res= TRUE;
     goto end;
   }
 
   /*
-    If there is no NULL (sub)row that covers all NULL columns, and there is no
-    single match for any of the NULL columns, the result is FALSE.
+    If the outer row has NULLs in some columns, and
+    there is no match for any of the remaining columns, and
+    there is a subquery row with NULLs in all unmatched columns,
+    then there is a partial match, otherwise the result is FALSE.
   */
-  if ((pq.elements == 1 && non_null_key &&
-       max_covering_null_row_len < merge_keys_count - 1) ||
-      pq.elements == 0)
+  if (count_nulls_in_search_key && !pq.elements)
   {
-    if (pq.elements == 0)
+    DBUG_ASSERT(!non_null_key);
+    /*
+      Check if the intersection of all NULL bitmaps of all keys that
+      are not in matching_outer_cols is non-empty.
+    */
+    res= exists_complementing_null_row(&matching_outer_cols);
+    goto end;
+  }
+
+  /*
+    If there is no NULL (sub)row that covers all NULL columns, and there is no
+    match for any of the NULL columns, the result is FALSE. Notice that if there
+    is a non-null key, and there is only one matching key, the non-null key is
+    the matching key. This is so, because this method returns FALSE if the
+    non-null key doesn't have a match.
+  */
+  if (!count_nulls_in_search_key &&
+      (!pq.elements ||
+       (pq.elements == 1 && non_null_key &&
+        max_null_in_any_row < merge_keys_count-1)))
+  {
+    if (!pq.elements)
     {
-      DBUG_ASSERT(!non_null_key); /* Must follow from the logic of this method */
-      /* This case must be handled by subselect_partial_match_engine::exec() */
-      DBUG_ASSERT(max_covering_null_row_len != tmp_table->s->fields);
+      DBUG_ASSERT(!non_null_key);
+      /*
+        The case of a covering null row is handled by
+        subselect_partial_match_engine::exec()
+      */
+      DBUG_ASSERT(max_null_in_any_row != tmp_table->s->fields);
     }
     res= FALSE;
     goto end;
