@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -404,6 +404,9 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
+# define os_atomic_increment_uint64(ptr, amount) \
+	os_atomic_increment(ptr, amount)
+
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
 
@@ -471,6 +474,9 @@ amount of increment. */
 
 # define os_atomic_increment_lint(ptr, amount) \
 	os_atomic_increment_ulint((ulong_t*) ptr, amount)
+
+# define os_atomic_increment_uint64(ptr, amount) \
+	atomic_add_64_nv(ptr, amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
@@ -567,6 +573,9 @@ amount of increment. */
 
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
+
+# define os_atomic_increment_uint64(ptr, amount) \
+	((ulint) (win_xchg_and_add(ptr, (lint) amount) + amount))
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the

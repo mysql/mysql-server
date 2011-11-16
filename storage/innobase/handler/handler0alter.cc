@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -26,7 +26,6 @@ Smart ALTER TABLE
 #include <sql_lex.h>                            // SQLCOM_CREATE_INDEX
 #include <mysql/innodb_priv.h>
 
-extern "C" {
 #include "dict0stats.h"
 #include "log0log.h"
 #include "row0merge.h"
@@ -36,7 +35,6 @@ extern "C" {
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "srv0mon.h"
-}
 
 #include "ha_innodb.h"
 
@@ -130,7 +128,7 @@ innobase_col_to_mysql(
 
 /*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -143,7 +141,9 @@ innobase_rec_to_mysql(
 	uint	n_fields	= table->s->fields;
 	uint	i;
 
-	ut_ad(n_fields == dict_table_get_n_user_cols(index->table));
+	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
+	      || (DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID)
+		  && n_fields + 1 == dict_table_get_n_user_cols(index->table)));
 
 	for (i = 0; i < n_fields; i++) {
 		Field*		field	= table->field[i];
@@ -180,7 +180,7 @@ null_field:
 
 /*************************************************************//**
 Resets table->record[0]. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_rec_reset(
 /*===============*/
@@ -916,7 +916,7 @@ UNIV_INTERN
 int
 ha_innobase::add_index(
 /*===================*/
-	TABLE*			table,		/*!< in: Table where indexes
+	TABLE*			in_table,	/*!< in: Table where indexes
 						are created */
 	KEY*			key_info,	/*!< in: Indexes
 						to be created */
@@ -1428,7 +1428,7 @@ UNIV_INTERN
 int
 ha_innobase::prepare_drop_index(
 /*============================*/
-	TABLE*	table,		/*!< in: Table where indexes are dropped */
+	TABLE*	in_table,	/*!< in: Table where indexes are dropped */
 	uint*	key_num,	/*!< in: Key nums to be dropped */
 	uint	num_of_keys)	/*!< in: Number of keys to be dropped */
 {
@@ -1632,7 +1632,8 @@ UNIV_INTERN
 int
 ha_innobase::final_drop_index(
 /*==========================*/
-	TABLE*	table)		/*!< in: Table where indexes are dropped */
+	TABLE*	        iin_table)	/*!< in: Table where indexes
+					are dropped */
 {
 	dict_index_t*	index;		/*!< Index to be dropped */
 	trx_t*		trx;		/*!< Transaction */

@@ -65,7 +65,7 @@ optimize using a 4 byte Doc ID for FIC merge sort to reduce sort size */
 typedef ib_uint64_t doc_id_t;
 
 /** doc_id_t printf format */
-#define FTS_DOC_ID_FORMAT	"%llu"
+#define FTS_DOC_ID_FORMAT	IB_ID_FMT
 
 /** Convert document id to the InnoDB (BIG ENDIAN) storage format. */
 #define fts_write_doc_id(d, s)	mach_write_to_8(d, s)

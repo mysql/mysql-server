@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -594,7 +594,7 @@ struct rw_lock_struct {
 				/*!< Thread id of writer thread. Is only
 				guaranteed to have sane and non-stale
 				value iff recursive flag is set. */
-	os_event_t	event;	/*!< Used by sync0arr.c for thread queueing */
+	os_event_t	event;	/*!< Used by sync0arr.cc for thread queueing */
 	os_event_t	wait_ex_event;
 				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
