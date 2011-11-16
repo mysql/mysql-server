@@ -728,6 +728,8 @@ ut_strerr(
 		return("No index on referencing keys in referencing table");
 	case DB_PARENT_NO_INDEX:
 		return("No index on referenced keys in referenced table");
+	case DB_FTS_INVALID_DOCID:
+		return("FTS Doc ID cannot be zero");
 	case DB_INDEX_CORRUPT:
 		return("Index corrupted");
 	case DB_UNDO_RECORD_TOO_BIG:

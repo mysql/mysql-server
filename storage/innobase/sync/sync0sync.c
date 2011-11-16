@@ -1052,7 +1052,8 @@ sync_thread_levels_nonempty_gen(
 		if (slot->latch != NULL
 		    && (!dict_mutex_allowed
 			|| (slot->level != SYNC_DICT
-			    && slot->level != SYNC_DICT_OPERATION))) {
+			    && slot->level != SYNC_DICT_OPERATION
+			    && slot->level != SYNC_FTS_CACHE))) {
 
 			mutex_exit(&sync_thread_mutex);
 			ut_error;
@@ -1211,7 +1212,11 @@ sync_thread_add_level(
 	case SYNC_MEM_POOL:
 	case SYNC_MEM_HASH:
 	case SYNC_RECV:
+	case SYNC_FTS_BG_THREADS:
 	case SYNC_WORK_QUEUE:
+	case SYNC_FTS_OPTIMIZE:
+	case SYNC_FTS_CACHE:
+	case SYNC_FTS_CACHE_INIT:
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_ANY_LATCH:

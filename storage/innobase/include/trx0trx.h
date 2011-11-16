@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0types.h"
 #include "trx0xa.h"
 #include "ut0vec.h"
+#include "fts0fts.h"
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
@@ -48,7 +49,7 @@ UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
-	trx_t*	   trx); /*!< in: transaction */
+	trx_t*		trx); /*!< in: transaction */
 /******************************************************************//**
 Set detailed error message for the transaction. */
 UNIV_INTERN
@@ -796,6 +797,11 @@ struct trx_struct{
 					when the trx instance is destroyed.
 					Protected by lock_sys->mutex. */
 	/*------------------------------*/
+	fts_trx_t*	fts_trx;	/* FTS information, or NULL if
+					transaction hasn't modified tables
+					with FTS indexes (yet). */
+	doc_id_t	fts_next_doc_id;/* The document id used for updates */
+        /*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
 };

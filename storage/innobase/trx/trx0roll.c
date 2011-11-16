@@ -230,6 +230,10 @@ trx_rollback_last_sql_stat_for_mysql(
 		err = trx_rollback_to_savepoint(
 			trx, &trx->last_sql_stat_start);
 
+		if (trx->fts_trx) {
+			fts_savepoint_rollback_last_stmt(trx);
+		}
+
 		/* The following call should not be needed,
 		but we play it safe: */
 		trx_mark_sql_stat_end(trx);

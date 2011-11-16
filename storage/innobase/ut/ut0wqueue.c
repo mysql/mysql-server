@@ -53,8 +53,6 @@ ib_wqueue_free(
 /*===========*/
 	ib_wqueue_t*	wq)	/*!< in: work queue */
 {
-	ut_a(!ib_list_get_first(wq->items));
-
 	mutex_free(&wq->mutex);
 	ib_list_free(wq->items);
 	os_event_free(wq->event);
@@ -117,4 +115,61 @@ ib_wqueue_wait(
 	mutex_exit(&wq->mutex);
 
 	return(node->data);
+}
+
+
+/********************************************************************
+Wait for a work item to appear in the queue for specified time. */
+
+void*
+ib_wqueue_timedwait(
+/*================*/
+					/* out: work item or NULL on timeout*/
+	ib_wqueue_t*	wq,		/* in: work queue */
+	ib_time_t	wait_in_usecs)	/* in: wait time in micro seconds */
+{
+	ib_list_node_t*	node = NULL;
+
+	for (;;) {
+		ulint		error;
+		ib_int64_t	sig_count;
+
+		mutex_enter(&wq->mutex);
+
+		node = ib_list_get_first(wq->items);
+
+		if (node) {
+			ib_list_remove(wq->items, node);
+
+			mutex_exit(&wq->mutex);
+			break;
+		}
+
+		sig_count = os_event_reset(wq->event);
+
+		mutex_exit(&wq->mutex);
+
+		error = os_event_wait_time_low(wq->event,
+					       (ulint) wait_in_usecs,
+					       sig_count);
+
+		if (error == OS_SYNC_TIME_EXCEEDED) {
+			break;
+		}
+	}
+
+	return(node ? node->data : NULL);
+}
+
+/********************************************************************
+Check if queue is empty. */
+
+ibool
+ib_wqueue_is_empty(
+/*===============*/
+					/* out: TRUE if queue empty
+					else FALSE */
+	const ib_wqueue_t*	wq)	/* in: work queue */
+{
+	return(ib_list_is_empty(wq->items));
 }

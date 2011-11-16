@@ -324,6 +324,11 @@ row_undo_ins_remove_sec_rec(
 	while (node->index != NULL) {
 		dtuple_t*	entry;
 
+		if (node->index->type & DICT_FTS) {
+			dict_table_next_uncorrupted_index(node->index);
+			continue;
+		}
+
 		entry = row_build_index_entry(node->row, node->ext,
 					      node->index, heap);
 		if (UNIV_UNLIKELY(!entry)) {
