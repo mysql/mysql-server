@@ -2603,7 +2603,7 @@ mt_init_thr_map()
   /* Keep mt-classic assignments in MT LQH. */
   const Uint32 thr_GLOBAL = 0;
   const Uint32 thr_LOCAL = 1;
-  const Uint32 thr_RECEIVER = receiver_thread_no;
+  //const Uint32 thr_RECEIVER = receiver_thread_no;
 
   add_thr_map(BACKUP, 0, thr_LOCAL);
   add_thr_map(DBTC, 0, thr_GLOBAL);
@@ -2615,7 +2615,7 @@ mt_init_thr_map()
   add_thr_map(NDBCNTR, 0, thr_GLOBAL);
   add_thr_map(QMGR, 0, thr_GLOBAL);
   add_thr_map(NDBFS, 0, thr_GLOBAL);
-  add_thr_map(CMVMI, 0, thr_RECEIVER);
+  add_thr_map(CMVMI, 0, thr_GLOBAL);
   add_thr_map(TRIX, 0, thr_GLOBAL);
   add_thr_map(DBUTIL, 0, thr_GLOBAL);
   add_thr_map(SUMA, 0, thr_LOCAL);
@@ -2627,6 +2627,7 @@ mt_init_thr_map()
   add_thr_map(DBINFO, 0, thr_LOCAL);
   add_thr_map(DBSPJ, 0, thr_GLOBAL);
   add_thr_map(THRMAN, 0, thr_GLOBAL);
+  add_thr_map(TRPMAN, 0, thr_GLOBAL);
 }
 
 Uint32
@@ -2648,6 +2649,8 @@ mt_get_instance_count(Uint32 block)
   case DBSPJ:
     return globalData.ndbMtTcThreads;
     break;
+  case TRPMAN:
+    return 1;
   case THRMAN:
     return num_threads;
   default:
@@ -2684,6 +2687,9 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
   case DBTC:
   case DBSPJ:
     thr_no += num_lqh_threads + (instance - 1);
+    break;
+  case TRPMAN:
+    thr_no = receiver_thread_no;
     break;
   case THRMAN:
     thr_no = instance - 1;
@@ -2815,14 +2821,9 @@ Uint32 receiverThreadId;
  * As part of the receive loop, we also periodically call update_connections()
  * (this way we are similar to single-threaded ndbd).
  *
- * The CMVMI block (and no other blocks) run in the same thread as this
+ * The TRPMAN block (and no other blocks) run in the same thread as this
  * receive loop; this way we avoid races between update_connections() and
- * CMVMI calls into the transporters.
- *
- * Note that with this setup, local signals to CMVMI cannot wake up the thread
- * if it is sleeping on the receive sockets. Thus CMVMI local signal processing
- * can be (slightly) delayed, however CMVMI is not really performance critical
- * (hopefully).
+ * TRPMAN calls into the transporters.
  */
 extern "C"
 void *
