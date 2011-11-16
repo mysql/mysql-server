@@ -46,6 +46,7 @@ stage/sql/discard_or_import_tablespace	YES	YES
 stage/sql/end	YES	YES
 stage/sql/executing	YES	YES
 stage/sql/Execution of init_command	YES	YES
+stage/sql/explaining	YES	YES
 stage/sql/Finished reading one binlog; switching to next binlog	YES	YES
 stage/sql/Flushing relay log and master info repository.	YES	YES
 stage/sql/Flushing relay-log info file.	YES	YES
