@@ -1,5 +1,3 @@
--- source include/have_ndb.inc
-
 ########################################
 # Define two connections as we want DDL to use its own connection
 # in order to keep DDL statistics counting out of the way
