@@ -1,0 +1,23 @@
+SELECT COUNT(*) = 6 AS 'Expect 1'
+FROM performance_schema.setup_consumers
+WHERE enabled = 'yes';
+Expect 1
+1
+SELECT COUNT(*) = 5 AS 'Expect 1'
+FROM performance_schema.setup_consumers
+WHERE enabled = 'no';
+Expect 1
+1
+SELECT * FROM performance_schema.setup_consumers ORDER BY name;
+NAME	ENABLED
+events_stages_current	NO
+events_stages_history	YES
+events_stages_history_long	NO
+events_statements_current	YES
+events_statements_history	NO
+events_statements_history_long	YES
+events_waits_current	NO
+events_waits_history	YES
+events_waits_history_long	NO
+global_instrumentation	YES
+thread_instrumentation	YES

@@ -1,0 +1,16 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# performance-schema-instrument = 'wait/synch/mutex/sql/% = NO'
+
+eval SELECT COUNT(*) = 6 AS 'Expect 1'
+FROM performance_schema.setup_consumers
+WHERE enabled = 'yes';
+
+eval SELECT COUNT(*) = 5 AS 'Expect 1'
+FROM performance_schema.setup_consumers
+WHERE enabled = 'no';
+
+SELECT * FROM performance_schema.setup_consumers ORDER BY name;
