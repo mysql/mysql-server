@@ -155,6 +155,10 @@ be excluded from instrumentation. */
 
 #endif /* HAVE_PSI_INTERFACE */
 
+#ifdef __WIN__
+# define YY_NO_UNISTD_H
+#endif /* __WIN__ */
+
 /*			DEBUG VERSION CONTROL
 			===================== */
 
@@ -234,6 +238,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_STATS_DEBUG			/* prints various stats
 						related debug info from
 						dict0stats.c */
+#define FTS_INTERNAL_DIAG_PRINT                 /* FTS internal debugging
+                                                info output */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
@@ -507,6 +513,9 @@ it is read. */
 it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
 
+/* Tell the compiler that variable/function is unused. */
+# define UNIV_UNUSED    __attribute__ ((unused))
+
 /* Sun Studio includes sun_prefetch.h as of version 5.9 */
 #elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
        || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
@@ -517,6 +526,8 @@ it is read or written. */
 # undef UNIV_INTERN
 # define UNIV_INTERN __hidden
 #endif /* __SUNPRO_C >= 0x550 */
+
+# define UNIV_UNUSED
 
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
@@ -531,6 +542,7 @@ it is read or written. */
 # endif /* INNODB_COMPILER_HINTS */
 
 #else
+# define UNIV_UNUSED
 /* Dummy versions of the macros */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)

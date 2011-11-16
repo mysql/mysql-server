@@ -6456,8 +6456,24 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   lpt->table= 0;
   lpt->old_table= 0;
   lpt->table_list->table= 0;
-  if (thd->locked_tables_list.reopen_tables(thd))
-    sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+  if (thd->locked_tables_mode)
+  {
+    Diagnostics_area *stmt_da= NULL;
+    Diagnostics_area tmp_stmt_da;
+
+    if (thd->is_error())
+    {
+      /* reopen might fail if we have a previous error, use a temporary da. */
+      stmt_da= thd->get_stmt_da();
+      thd->set_stmt_da(&tmp_stmt_da);
+    }
+
+    if (thd->locked_tables_list.reopen_tables(thd))
+      sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+
+    if (stmt_da)
+      thd->set_stmt_da(stmt_da);
+  }
 }
 
 

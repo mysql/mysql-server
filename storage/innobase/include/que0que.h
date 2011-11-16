@@ -264,6 +264,14 @@ que_node_list_add_last(
 /*===================*/
 	que_node_t*	node_list,	/*!< in: node list, or NULL */
 	que_node_t*	node);		/*!< in: node */
+/*************************************************************************
+Get the last node from the list.*/
+UNIV_INLINE
+que_node_t*
+que_node_list_get_last(
+/*===================*/
+					/* out: node last node from list.*/
+	que_node_t*	node_list);	/* in: node list, or NULL */
 /*********************************************************************//**
 Gets a query graph node list length.
 @return	length, for NULL list 0 */

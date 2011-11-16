@@ -57,6 +57,7 @@ typedef struct ib_rbt_node_struct ib_rbt_node_t;
 typedef struct ib_rbt_bound_struct ib_rbt_bound_t;
 typedef void (*ib_rbt_print_node)(const ib_rbt_node_t* node);
 typedef int (*ib_rbt_compare)(const void* p1, const void* p2);
+typedef int (*ib_rbt_arg_compare)(const void*, const void* p1, const void* p2);
 
 /** Red black tree color types */
 enum ib_rbt_color_enum {
@@ -90,7 +91,11 @@ struct	ib_rbt_struct {
 	ulint		n_nodes;		/* Total number of data nodes */
 
 	ib_rbt_compare	compare;		/* Fn. to use for comparison */
+	ib_rbt_arg_compare
+			compare_with_arg;	/* Fn. to use for comparison
+						with argument */
 	ulint		sizeof_value;		/* Sizeof the item in bytes */
+	void*		cmp_arg;		/* Compare func argument */
 };
 
 /** The result of searching for a key in the tree, this is useful for
@@ -132,6 +137,18 @@ rbt_create(
 /*=======*/
 	size_t		sizeof_value,		/*!< in: size in bytes */
 	ib_rbt_compare	compare);		/*!< in: comparator */
+/**********************************************************************//**
+Create an instance of a red black tree, whose comparison function takes
+an argument
+@return	rb tree instance */
+UNIV_INTERN
+ib_rbt_t*
+rbt_create_arg_cmp(
+/*===============*/
+	size_t		sizeof_value,		/*!< in: size in bytes */
+	ib_rbt_arg_compare
+			compare,		/*!< in: comparator */
+	void*		cmp_arg);		/*!< in: compare fn arg */
 /**********************************************************************//**
 Delete a node from the red black tree, identified by key */
 UNIV_INTERN
@@ -265,7 +282,10 @@ rbt_search_cmp(
 	const ib_rbt_t*	tree,			/*!< in: rb tree */
 	ib_rbt_bound_t*	parent,			/*!< in: search bounds */
 	const void*	key,			/*!< in: key to search */
-	ib_rbt_compare	compare);		/*!< in: comparator */
+	ib_rbt_compare	compare,		/*!< in: comparator */
+	ib_rbt_arg_compare
+			arg_compare);		/*!< in: fn to compare items
+						with argument */
 /**********************************************************************//**
 Clear the tree, deletes (and free's) all the nodes. */
 UNIV_INTERN

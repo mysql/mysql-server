@@ -31,7 +31,6 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "fsp0fsp.h"
 #include "mach0data.h"
-#include "mtr0log.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
@@ -45,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "os0thread.h"
 #include "srv0mon.h"
+#include "mtr0log.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 UNIV_INTERN ulong		srv_max_purge_lag = 0;
@@ -1039,7 +1039,9 @@ trx_purge_attach_undo_recs(
 
 			if (node->undo_recs == NULL) {
 				node->undo_recs = ib_vector_create(
-					node->heap, batch_size);
+					ib_heap_allocator_create(node->heap),
+					sizeof(trx_purge_rec_t),
+					batch_size);
 			} else {
 				ut_a(!ib_vector_is_empty(node->undo_recs));
 			}

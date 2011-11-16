@@ -232,6 +232,18 @@ ut_strreplace(
 	const char*	s1,	/*!< in: string to replace */
 	const char*	s2);	/*!< in: string to replace s1 with */
 
+/********************************************************************
+Concatenate 3 strings.*/
+
+char*
+ut_str3cat(
+/*=======*/
+				/* out, own: concatenated string, must be
+				freed with mem_free() */
+	const char*	s1,	/* in: string 1 */
+	const char*	s2,	/* in: string 2 */
+	const char*	s3);	/* in: string 3 */
+
 /**********************************************************************//**
 Converts a raw binary data to a NUL-terminated hex string. The output is
 truncated if there is not enough space in "hex", make sure "hex_size" is at
