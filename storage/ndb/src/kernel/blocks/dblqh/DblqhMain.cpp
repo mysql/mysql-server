@@ -1219,7 +1219,40 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
-  
+
+  clogPartFileSize = 4;
+
+  Uint32 nodeLogParts = 4;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS,
+                            &nodeLogParts);
+  globalData.ndbLogParts = nodeLogParts;
+  ndbrequire(nodeLogParts <= NDB_MAX_LOG_PARTS);
+  {
+    NdbLogPartInfo lpinfo(instance());
+    clogPartFileSize = lpinfo.partCount; // How many are this instance responsible for...
+  }
+
+  if (globalData.ndbMtLqhWorkers > nodeLogParts)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Trying to start %d LQH workers with only %d log parts, try initial"
+      " node restart to be able to use more LQH workers.",
+      globalData.ndbMtLqhWorkers, nodeLogParts);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+  if (nodeLogParts != 4 &&
+      nodeLogParts != 8 &&
+      nodeLogParts != 16)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Trying to start with %d log parts, number of log parts can"
+      " only be set to 4, 8 or 16.",
+      nodeLogParts);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+
   cnoLogFiles = 8;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_FILES, 
 					&cnoLogFiles));
@@ -1889,7 +1922,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     ptrCheckGuard(tTablePtr, ctabrecFileSize, tablerec);
     FragrecordPtr tFragPtr;
     tFragPtr.i = RNIL;
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tTablePtr.p->fragid); i++) {
       if (tTablePtr.p->fragid[i] == fragptr.p->fragId) {
         jam();
         tFragPtr.i = tTablePtr.p->fragrec[i];
@@ -2633,7 +2666,7 @@ void Dblqh::removeTable(Uint32 tableId)
   tabptr.i = tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] != ZNIL) {
       jam();
@@ -2778,7 +2811,7 @@ Dblqh::wait_reorg_suma_filter_enabled(Signal* signal)
 void
 Dblqh::commit_reorg(TablerecPtr tablePtr)
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tablePtr.p->fragrec); i++)
   {
     jam();
     Ptr<Fragrecord> fragPtr;
@@ -14644,7 +14677,7 @@ void Dblqh::initGcpRecLab(Signal* signal)
   }//for
   // initialize un-used part
   Uint32 Ti;
-  for (Ti = clogPartFileSize; Ti < ZLOG_PART_FILE_SIZE; Ti++) {
+  for (Ti = clogPartFileSize; Ti < NDB_MAX_LOG_PARTS; Ti++) {
     gcpPtr.p->gcpFilePtr[Ti] = ZNIL;
     gcpPtr.p->gcpPageNo[Ti] = ZNIL;
     gcpPtr.p->gcpSyncReady[Ti] = FALSE;
@@ -15698,7 +15731,10 @@ void Dblqh::initWriteEndLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
 /* PAGE ZERO IN FILE ZERO MUST SET LOG LAP TO ONE SINCE IT HAS STARTED       */
 /* WRITING TO THE LOG, ALSO GLOBAL CHECKPOINTS ARE SET TO ZERO.              */
+/* Set number of log parts used to ensure we use correct number of log parts */
+/* at system restart. Was previously hardcoded to 4.                         */
 /*---------------------------------------------------------------------------*/
+    logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS]= globalData.ndbLogParts;
     logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = 1;
     logPagePtr.p->logPageWord[ZPOS_MAX_GCI_STARTED] = 0;
     logPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] = 0;
@@ -15881,6 +15917,8 @@ void Dblqh::initLogpage(Signal* signal)
 {
   TcConnectionrecPtr ilpTcConnectptr;
 
+  /* Ensure all non-used header words are zero */
+  bzero(logPagePtr.p, sizeof(Uint32) * ZPAGE_HEADER_SIZE);
   logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = logPartPtr.p->logLap;
   logPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] = 
         logPartPtr.p->logPartNewestCompletedGCI;
@@ -16423,6 +16461,35 @@ void Dblqh::openSrFrontpageLab(Signal* signal)
  * -------------------------------------------------------------------------- */
 void Dblqh::readSrFrontpageLab(Signal* signal) 
 {
+  Uint32 num_parts_used;
+  if (!ndb_configurable_log_parts(logPagePtr.p->logPageWord[ZPOS_VERSION])) {
+    jam();
+    num_parts_used= 4;
+  }
+  else
+  {
+    jam();
+    num_parts_used = logPagePtr.p->logPageWord[ZPOS_NO_LOG_PARTS];
+  }
+  /* Verify that number of log parts >= number of LQH workers */
+  if (globalData.ndbMtLqhWorkers > num_parts_used) {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Trying to start %d LQH workers with only %d log parts, try initial"
+      " node restart to be able to use more LQH workers.",
+      globalData.ndbMtLqhWorkers, num_parts_used);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+  if (num_parts_used != globalData.ndbLogParts)
+  {
+    char buf[255];
+    BaseString::snprintf(buf, sizeof(buf),
+      "Can only change NoOfLogParts through initial node restart, old"
+      " value of NoOfLogParts = %d, tried using %d",
+      num_parts_used, globalData.ndbLogParts);
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  }
+
   Uint32 fileNo = logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO];
   if (fileNo == 0) {
     jam();
@@ -20050,7 +20117,7 @@ void Dblqh::deleteFragrec(Uint32 fragId)
 {
   Uint32 indexFound= RNIL;
   fragptr.i = RNIL;
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] == fragId) {
       fragptr.i = tabptr.p->fragrec[i];
@@ -20265,7 +20332,7 @@ Dblqh::getFirstInLogQueue(Signal* signal,
 /* ---------------------------------------------------------------- */
 bool Dblqh::getFragmentrec(Signal* signal, Uint32 fragId) 
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] == fragId) {
       fragptr.i = tabptr.p->fragrec[i];
@@ -20328,7 +20395,7 @@ void Dblqh::initialiseGcprec(Signal* signal)
   if (cgcprecFileSize != 0) {
     for (gcpPtr.i = 0; gcpPtr.i < cgcprecFileSize; gcpPtr.i++) {
       ptrAss(gcpPtr, gcpRecord);
-      for (tigpIndex = 0; tigpIndex < ZLOG_PART_FILE_SIZE; tigpIndex++) {
+      for (tigpIndex = 0; tigpIndex < NDB_MAX_LOG_PARTS; tigpIndex++) {
         gcpPtr.p->gcpLogPartState[tigpIndex] = ZIDLE;
         gcpPtr.p->gcpSyncReady[tigpIndex] = ZFALSE;
       }//for
@@ -20616,7 +20683,7 @@ void Dblqh::initialiseTabrec(Signal* signal)
       tabptr.p->tableStatus = Tablerec::NOT_DEFINED;
       tabptr.p->usageCountR = 0;
       tabptr.p->usageCountW = 0;
-      for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+      for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
         tabptr.p->fragid[i] = ZNIL;
         tabptr.p->fragrec[i] = RNIL;
       }//for
@@ -20886,7 +20953,7 @@ bool Dblqh::insertFragrec(Signal* signal, Uint32 fragId)
     terrorCode = ZNO_FREE_FRAGMENTREC;
     return false;
   }
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabptr.p->fragid); i++) {
     jam();
     if (tabptr.p->fragid[i] == ZNIL) {
       jam();
@@ -22579,7 +22646,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 		  i, tabPtr.p->tableStatus,
                   tabPtr.p->usageCountR, tabPtr.p->usageCountW);
 
-	for (Uint32 j = 0; j<MAX_FRAG_PER_NODE; j++)
+	for (Uint32 j = 0; j<NDB_ARRAY_SIZE(tabPtr.p->fragrec); j++)
 	{
 	  FragrecordPtr fragPtr;
 	  if ((fragPtr.i = tabPtr.p->fragrec[j]) != RNIL)

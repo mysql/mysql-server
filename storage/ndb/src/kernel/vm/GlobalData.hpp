@@ -75,6 +75,7 @@ struct GlobalData {
   Uint32     ndbMtLqhWorkers;
   Uint32     ndbMtLqhThreads;
   Uint32     ndbMtTcThreads;
+  Uint32     ndbLogParts;
   
   GlobalData(){ 
     theSignalId = 0; 
@@ -85,6 +86,7 @@ struct GlobalData {
     ndbMtLqhWorkers = 0;
     ndbMtLqhThreads = 0;
     ndbMtTcThreads = 0;
+    ndbLogParts = 0;
 #ifdef GCP_TIMER_HACK
     gcp_timer_limit = 0;
 #endif
