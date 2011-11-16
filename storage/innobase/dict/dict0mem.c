@@ -89,6 +89,8 @@ dict_mem_table_create(
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 				     * sizeof(dict_col_t));
 
+	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+
 #ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
 
@@ -100,9 +102,19 @@ dict_mem_table_create(
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
 	table->n_waiting_or_granted_auto_inc_locks = 0;
+
+	/* If the table has an FTS index or we are in the process
+	of building one, create the table->fts */
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+                table->fts = fts_create(table);
+		table->fts->cache = fts_cache_create(table);
+        } else {
+                table->fts = NULL;
+        }
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
 	return(table);
 }
 

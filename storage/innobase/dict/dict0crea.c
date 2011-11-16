@@ -646,6 +646,11 @@ dict_create_index_tree_step(
 
 	sys_indexes = dict_sys->sys_indexes;
 
+	if (index->type == DICT_FTS) {
+		/* FTS index does not need an index tree */
+		return(DB_SUCCESS);
+	}
+
 	/* Run a mini-transaction in which the index tree is allocated for
 	the index and its root address is written to the index entry in
 	sys_indexes */

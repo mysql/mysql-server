@@ -137,6 +137,15 @@ yylex(void);
 %token PARS_LOCK_TOKEN
 %token PARS_SHARE_TOKEN
 %token PARS_MODE_TOKEN
+%token PARS_LIKE_TOKEN
+%token PARS_LIKE_TOKEN_EXACT
+%token PARS_LIKE_TOKEN_PREFIX
+%token PARS_LIKE_TOKEN_SUFFIX
+%token PARS_LIKE_TOKEN_SUBSTR
+%token PARS_TABLE_NAME_TOKEN
+%token PARS_COMPACT_TOKEN
+%token PARS_BLOCK_SIZE_TOKEN
+%token PARS_BIGINT_TOKEN
 
 %left PARS_AND_TOKEN PARS_OR_TOKEN
 %left PARS_NOT_TOKEN
@@ -201,8 +210,10 @@ exp:
 	| '-' exp %prec NEG 	{ $$ = pars_op('-', $2, NULL); }
 	| '(' exp ')'        	{ $$ = $2; }
 	| exp '=' exp		{ $$ = pars_op('=', $1, $3); }
-	| exp '<' exp		{ $$ = pars_op('<', $1, $3); }
-	| exp '>' exp		{ $$ = pars_op('>', $1, $3); }
+	| exp PARS_LIKE_TOKEN PARS_STR_LIT
+				{ $$ = pars_op(PARS_LIKE_TOKEN, $1, $3); }
+	| exp '<' exp           { $$ = pars_op('<', $1, $3); }
+	| exp '>' exp           { $$ = pars_op('>', $1, $3); }
 	| exp PARS_GE_TOKEN exp	{ $$ = pars_op(PARS_GE_TOKEN, $1, $3); }
 	| exp PARS_LE_TOKEN exp	{ $$ = pars_op(PARS_LE_TOKEN, $1, $3); }
 	| exp PARS_NE_TOKEN exp	{ $$ = pars_op(PARS_NE_TOKEN, $1, $3); }
@@ -257,8 +268,8 @@ user_function_call:
 ;
 
 table_list:
-	PARS_ID_TOKEN		{ $$ = que_node_list_add_last(NULL, $1); }
-	| table_list ',' PARS_ID_TOKEN
+	table_name		{ $$ = que_node_list_add_last(NULL, $1); }
+	| table_list ',' table_name
 				{ $$ = que_node_list_add_last($1, $3); }
 ;
 
@@ -350,7 +361,7 @@ select_statement:
 
 insert_statement_start:
 	PARS_INSERT_TOKEN PARS_INTO_TOKEN
-	PARS_ID_TOKEN		{ $$ = $3; }
+	table_name		{ $$ = $3; }
 ;
 
 insert_statement:
@@ -377,7 +388,7 @@ cursor_positioned:
 ;
 
 update_statement_start:
-	PARS_UPDATE_TOKEN PARS_ID_TOKEN
+	PARS_UPDATE_TOKEN table_name
 	PARS_SET_TOKEN
 	column_assignment_list	{ $$ = pars_update_statement_start(FALSE,
 								$2, $4); }
@@ -395,7 +406,7 @@ update_statement_positioned:
 
 delete_statement_start:
 	PARS_DELETE_TOKEN PARS_FROM_TOKEN
-	PARS_ID_TOKEN		{ $$ = pars_update_statement_start(TRUE,
+	table_name		{ $$ = pars_update_statement_start(TRUE,
 								$3, NULL); }
 ;
 
@@ -524,10 +535,23 @@ not_fit_in_memory:
 					/* pass any non-NULL pointer */ }
 ;
 
+compact:
+	/* Nothing */		{ $$ = NULL; }
+	| PARS_COMPACT_TOKEN	{ $$ = &pars_int_token;
+					/* pass any non-NULL pointer */ }
+;
+
+block_size:
+	/* Nothing */		{ $$ = NULL; }
+	| PARS_BLOCK_SIZE_TOKEN	'=' PARS_INT_LIT
+			{ $$ = $3; }
+;
+
 create_table:
 	PARS_CREATE_TOKEN PARS_TABLE_TOKEN
-	PARS_ID_TOKEN '(' column_def_list ')'
-	not_fit_in_memory	{ $$ = pars_create_table($3, $5, $7); }
+	table_name '(' column_def_list ')'
+	not_fit_in_memory compact block_size
+				{ $$ = pars_create_table($3, $5, $8, $9, $7); }
 ;
 
 column_list:
@@ -550,8 +574,14 @@ create_index:
 	PARS_CREATE_TOKEN unique_def
 	clustered_def
 	PARS_INDEX_TOKEN
-	PARS_ID_TOKEN PARS_ON_TOKEN PARS_ID_TOKEN
+	PARS_ID_TOKEN PARS_ON_TOKEN
+	table_name
 	'(' column_list ')'	{ $$ = pars_create_index($2, $3, $5, $7, $9); }
+;
+
+table_name:
+	PARS_ID_TOKEN		{ $$ = $1; }
+	| PARS_TABLE_NAME_TOKEN	{ $$ = $1; }
 ;
 
 commit_statement:
@@ -567,6 +597,7 @@ rollback_statement:
 type_name:
 	PARS_INT_TOKEN		{ $$ = &pars_int_token; }
 	| PARS_INTEGER_TOKEN	{ $$ = &pars_int_token; }
+	| PARS_BIGINT_TOKEN	{ $$ = &pars_bigint_token; }
 	| PARS_CHAR_TOKEN	{ $$ = &pars_char_token; }
 	| PARS_BINARY_TOKEN	{ $$ = &pars_binary_token; }
 	| PARS_BLOB_TOKEN	{ $$ = &pars_blob_token; }

@@ -44,6 +44,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "row0sel.h" /* sel_node_create(), sel_node_struct */
 #include "row0types.h" /* sel_node_t */
 #include "srv0mon.h"
+#include "ut0vec.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -1432,7 +1433,7 @@ lock_table_has(
 		const lock_t*	lock;
 		enum lock_mode	lock_mode;
 
-		lock = ib_vector_get(trx->lock.table_locks, i);
+		lock = *(lock_t**)ib_vector_get(trx->lock.table_locks, i);
 
 		if (lock == NULL) {
 			continue;
@@ -2308,7 +2309,7 @@ lock_grant(
 		} else {
 			table->autoinc_trx = lock->trx;
 
-			ib_vector_push(lock->trx->autoinc_locks, lock);
+			ib_vector_push(lock->trx->autoinc_locks, &lock);
 		}
 	}
 
@@ -4007,7 +4008,7 @@ lock_table_create(
 
 		table->autoinc_trx = trx;
 
-		ib_vector_push(trx->autoinc_locks, lock);
+		ib_vector_push(trx->autoinc_locks, &lock);
 	} else {
 		lock = mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock));
 	}
@@ -4027,7 +4028,7 @@ lock_table_create(
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
 
-	ib_vector_push(lock->trx->lock.table_locks, lock);
+	ib_vector_push(lock->trx->lock.table_locks, &lock);
 
 	MONITOR_INC(MONITOR_TABLELOCK_CREATED);
 	MONITOR_INC(MONITOR_NUM_TABLELOCK);
@@ -4058,7 +4059,7 @@ lock_table_pop_autoinc_locks(
 			return;
 		}
 
-	} while (ib_vector_get_last(trx->autoinc_locks) == NULL);
+	} while (*(lock_t**)ib_vector_get_last(trx->autoinc_locks) == NULL);
 }
 
 /*************************************************************//**
@@ -4083,7 +4084,7 @@ lock_table_remove_autoinc_lock(
 	to be handled by deleting only those AUTOINC locks that were
 	held by the table being dropped. */
 
-	autoinc_lock = ib_vector_get(trx->autoinc_locks, i);
+	autoinc_lock = *(lock_t**)ib_vector_get(trx->autoinc_locks, i);
 
 	/* This is the default fast case. */
 
@@ -4096,10 +4097,11 @@ lock_table_remove_autoinc_lock(
 		/* Handle freeing the locks from within the stack. */
 
 		while (--i >= 0) {
-			autoinc_lock = ib_vector_get(trx->autoinc_locks, i);
+			autoinc_lock = *(lock_t**)ib_vector_get(trx->autoinc_locks, i);
 
 			if (UNIV_LIKELY(autoinc_lock == lock)) {
-				ib_vector_set(trx->autoinc_locks, i, NULL);
+				void*	null_var = NULL;
+				ib_vector_set(trx->autoinc_locks, i, &null_var);
 				return;
 			}
 		}
@@ -4611,7 +4613,7 @@ lock_trx_table_locks_remove(
 	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
 		const lock_t*	lock;
 
-		lock = ib_vector_get(trx->lock.table_locks, i);
+		lock = *(lock_t**)ib_vector_get(trx->lock.table_locks, i);
 
 		if (lock == NULL) {
 			continue;
@@ -4622,7 +4624,8 @@ lock_trx_table_locks_remove(
 		ut_a(lock->un_member.tab_lock.table != NULL);
 
 		if (lock == lock_to_remove) {
-			ib_vector_set(trx->lock.table_locks, i, NULL);
+			void*	null_var = NULL;
+			ib_vector_set(trx->lock.table_locks, i, &null_var);
 
 			if (!trx->lock.cancel) {
 				trx_mutex_exit(trx);
@@ -5256,7 +5259,7 @@ lock_trx_table_locks_find(
 	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
 		const lock_t*	lock;
 
-		lock = ib_vector_get(trx->lock.table_locks, i);
+		lock = *(lock_t**)ib_vector_get(trx->lock.table_locks, i);
 
 		if (lock == NULL) {
 			continue;
@@ -6172,7 +6175,7 @@ lock_release_autoinc_last_lock(
 
 	/* The lock to be release must be the last lock acquired. */
 	last = ib_vector_size(autoinc_locks) - 1;
-	lock = ib_vector_get(autoinc_locks, last);
+	lock = *(lock_t**)ib_vector_get(autoinc_locks, last);
 
 	/* Should have only AUTOINC locks in the vector. */
 	ut_a(lock_get_mode(lock) == LOCK_AUTO_INC);
