@@ -8136,14 +8136,19 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
   if (field->type() == MYSQL_TYPE_TIME &&
       item->field_type() == MYSQL_TYPE_TIME)
   {
-    /* Field_time[f] and Item_time_with_ref */
     longlong field_value= field->val_time_temporal();
     longlong item_value= item->val_time_temporal();
     return field_value < item_value ? -1 : field_value > item_value ? 1 : 0;
   }
-  if (field->is_temporal_with_date() && item->is_temporal_with_date())
+  if (field->is_temporal_with_date() && item->is_temporal())
   {
-    /* Field_newdate/datetime[f]/timestamp[f] and Item_datetime_with_ref */
+    /*
+      Note, in case of TIME data type we also go here
+      and call item->val_date_temporal(), because we want
+      TIME to be converted to DATE/DATETIME properly.
+      Only non-temporal data types go though get_mysql_time_from_str()
+      in the below code branch.
+    */
     longlong field_value= field->val_date_temporal();
     longlong item_value= item->val_date_temporal();
     return field_value < item_value ? -1 : field_value > item_value ? 1 : 0;
