@@ -85,7 +85,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    checkpoint_group(mts_checkpoint_group), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
-   sql_delay(0), sql_delay_end(0), m_flags(0)
+   sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
+   long_find_row_note_printed(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
