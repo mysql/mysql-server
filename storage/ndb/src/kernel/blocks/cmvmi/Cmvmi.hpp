@@ -18,6 +18,7 @@
 #ifndef Cmvmi_H_
 #define Cmvmi_H_
 
+#include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <LogLevel.hpp>
 
@@ -32,6 +33,16 @@ public:
   virtual ~Cmvmi();
   
 private:
+  /**
+   * These methods used to be reportXXX
+   *
+   * But they in a nasty way intefere with the execution model
+   * they been turned in to exec-Method used via prio A signals
+   */
+  void execDISCONNECT_REP(Signal*);
+  void execCONNECT_REP(Signal*);
+  
+private:
   BLOCK_DEFINES(Cmvmi);
 
   // The signal processing functions
@@ -40,6 +51,9 @@ private:
   void execEVENT_REP(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
+  void execCLOSE_COMREQ(Signal* signal);
+  void execENABLE_COMREQ(Signal* signal);
+  void execOPEN_COMREQ(Signal* signal);
   void execSIZEALT_ACK(Signal* signal);
   void execTEST_ORD(Signal* signal);
 
@@ -50,12 +64,14 @@ private:
   void execDUMP_STATE_ORD(Signal* signal);
 
   void execEVENT_SUBSCRIBE_REQ(Signal *);
-  void execCANCEL_SUBSCRIPTION_REQ(Signal *);
+  void cancelSubscription(NodeId nodeId);
 
   void execTESTSIG(Signal* signal);
   void execNODE_START_REP(Signal* signal);
 
   void execCONTINUEB(Signal* signal);
+
+  void execROUTE_ORD(Signal* signal);
 
   void execDBINFO_SCANREQ(Signal *signal);
 

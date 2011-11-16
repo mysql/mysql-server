@@ -52,7 +52,6 @@
 #include <DbtcProxy.hpp>
 #include <DbspjProxy.hpp>
 #include <thrman.hpp>
-#include <trpman.hpp>
 #include <mt.hpp>
 
 #ifndef VM_TRACE
@@ -91,6 +90,10 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 void
 SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
+#define THR 1
+#ifndef THR
+  noOfBlocks--;
+#endif
   theList = new SimulatedBlock * [noOfBlocks];
   if (!theList)
   {
@@ -162,15 +165,14 @@ SimBlockList::load(EmulatorData& data){
     theList[20]  = NEW_BLOCK(Dbspj)(ctx);
   else
     theList[20]  = NEW_BLOCK(DbspjProxy)(ctx);
+#ifdef THR
   if (NdbIsMultiThreaded() == false)
     theList[21] = NEW_BLOCK(Thrman)(ctx);
   else
     theList[21] = NEW_BLOCK(ThrmanProxy)(ctx);
-  if (NdbIsMultiThreaded() == false)
-    theList[22] = NEW_BLOCK(Trpman)(ctx);
-  else
-    theList[22] = NEW_BLOCK(TrpmanProxy)(ctx);
-  assert(NO_OF_BLOCKS == 23);
+
+  assert(NO_OF_BLOCKS == 22);
+#endif
 
   // Check that all blocks could be created
   for (int i = 0; i < noOfBlocks; i++)

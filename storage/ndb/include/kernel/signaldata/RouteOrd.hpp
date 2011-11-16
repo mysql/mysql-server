@@ -25,17 +25,13 @@
 /**
  * Request to allocate node id
  */
-struct RouteOrd
-{
+struct RouteOrd {
   STATIC_CONST( SignalLength = 4 );
 
   Uint32 dstRef;
   Uint32 srcRef;
   Uint32 gsn;
-  union {
-    Uint32 cnt;
-    Uint32 from;
-  };
+  Uint32 cnt;
 };
 
 #endif
