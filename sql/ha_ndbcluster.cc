@@ -13033,6 +13033,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
 #ifndef NDB_WITHOUT_ONLINE_ALTER
     HA_ONLINE_ALTER |
 #endif
+    HA_READ_BEFORE_WRITE_REMOVAL |
     0;
 
   /*

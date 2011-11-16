@@ -415,10 +415,6 @@ handlerton *partition_hton;
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
 #endif
-#ifndef MCP_BUG46955
-extern int(*ndb_wait_setup_func)(ulong);
-extern ulong opt_ndb_wait_setup;
-#endif
 my_bool read_only= 0, opt_readonly= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;

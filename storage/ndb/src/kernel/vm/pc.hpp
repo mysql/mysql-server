@@ -165,7 +165,7 @@
 // need large value.
 /* ------------------------------------------------------------------------- */
 #define NO_OF_FRAG_PER_NODE 1
-#define MAX_FRAG_PER_NODE 8
+#define MAX_FRAG_PER_LQH 8
 
 /**
 * DIH allocates fragments in chunk for fast find of fragment record.

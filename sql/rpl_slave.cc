@@ -4579,10 +4579,6 @@ void slave_stop_workers(Relay_log_info *rli)
   free_root(&rli->mts_coor_mem_root, MYF(0));
 }
 
-#ifndef MCP_BUG46955
-extern int(*ndb_wait_setup_func)(ulong);
-extern ulong opt_ndb_wait_setup;
-#endif
 
 /**
   Slave SQL thread entry point.

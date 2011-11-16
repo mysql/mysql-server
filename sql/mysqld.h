@@ -223,6 +223,14 @@ extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
+#ifndef MCP_BUG53205
+extern uint opt_server_id_bits;
+extern ulong opt_server_id_mask;
+#endif
+#ifndef MCP_BUG46955
+extern int(*ndb_wait_setup_func)(ulong);
+extern ulong opt_ndb_wait_setup;
+#endif
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern int mysqld_server_started;
