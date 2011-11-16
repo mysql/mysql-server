@@ -3225,5 +3225,34 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug #887479: join_cache_level=3 + semijoin=on 
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (3914,17), (3710,5), (3888,20);
+
+CREATE TABLE t2 (c int, KEY (c));
+INSERT INTO t2 VALUES (27), (17), (33), (20), (3), (7), (18), (2);
+
+SET @tmp887479_optimizer_switch=@@optimizer_switch;
+SET SESSION optimizer_switch='semijoin=on';
+SET SESSION optimizer_switch='semijoin_with_cache=on';
+
+SET SESSION join_cache_level=1;
+EXPLAIN
+SELECT * FROM t1 WHERE (t1.b) IN (SELECT c FROM t2);
+SELECT * FROM t1 WHERE (t1.b) IN (SELECT c FROM t2);
+
+SET SESSION join_cache_level=3;
+EXPLAIN
+SELECT * FROM t1 WHERE (t1.b) IN (SELECT c FROM t2);
+SELECT * FROM t1 WHERE (t1.b) IN (SELECT c FROM t2);
+
+SET SESSION join_cache_level = DEFAULT;
+SET optimizer_switch=@tmp887479_optimizer_switch;
+
+DROP TABLE t1,t2;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
