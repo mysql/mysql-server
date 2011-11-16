@@ -73,7 +73,7 @@ IF(UNIX)
   IF(WITH_INNOBASE_STORAGE_ENGINE)
     # Add path to the InnoDB headers
     INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include)
-    MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.c)
+    MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc)
     IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
       ADD_DEFINITIONS("-DINNOCHECKSUM_SOLARIS")
     ELSE()

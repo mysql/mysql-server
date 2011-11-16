@@ -35,7 +35,6 @@ Created July 18, 2007 Vasil Dimov
 #include <sql_plugin.h>
 #include <mysql/innodb_priv.h>
 
-extern "C" {
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
 #include "buf0buddy.h"	/* for i_s_cmpmem */
@@ -55,7 +54,6 @@ extern "C" {
 #include "fts0priv.h"
 #include "btr0btr.h"
 #include "page0zip.h"
-}
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -1392,11 +1390,11 @@ i_s_cmp_fill_low(
 		table->field[0]->store(UNIV_ZIP_SIZE_MIN << i);
 
 		/* The cumulated counts are not protected by any
-		mutex.  Thus, some operation in page0zip.c could
+		mutex.  Thus, some operation in page0zip.cc could
 		increment a counter between the time we read it and
 		clear it.  We could introduce mutex protection, but it
 		could cause a measureable performance hit in
-		page0zip.c. */
+		page0zip.cc. */
 		table->field[1]->store(zip_stat->compressed);
 		table->field[2]->store(zip_stat->compressed_ok);
 		table->field[3]->store(

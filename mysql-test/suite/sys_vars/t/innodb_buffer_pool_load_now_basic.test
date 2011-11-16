@@ -37,5 +37,3 @@ let $wait_condition =
 SELECT variable_value
 FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
-
-SET GLOBAL innodb_buffer_pool_load_now = @orig;

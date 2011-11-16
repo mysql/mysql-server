@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -640,7 +640,7 @@ struct trx_struct{
 					/*!< If we notice that someone is
 					waiting for our S-lock on the search
 					latch to be released, we wait in
-					row0sel.c for BTR_SEA_TIMEOUT new
+					row0sel.cc for BTR_SEA_TIMEOUT new
 					searches until we try to keep
 					the search latch again over
 					calls from MySQL; this is intended

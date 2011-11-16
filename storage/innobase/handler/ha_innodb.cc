@@ -45,7 +45,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file ha_innodb.cc */
 
 /* Include necessary InnoDB headers */
-extern "C" {
 #include "univ.i"
 #include "buf0dump.h"
 #include "buf0lru.h"
@@ -83,7 +82,6 @@ extern "C" {
 #include "pars0pars.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-}
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -950,7 +948,7 @@ should be allowed to enter InnoDB - the replication thread is treated
 differently than other threads. Also used in
 srv_conc_force_exit_innodb().
 @return	true if thd is the replication thread */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_is_replication_slave_thread(
 /*============================*/
@@ -1035,7 +1033,7 @@ non-transactional tables. Used by the deadlock detector when deciding
 which transaction to rollback in case of a deadlock - we try to avoid
 rolling back transactions that have edited non-transactional tables.
 @return	true if non-transactional tables have been edited */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_has_edited_nontrans_tables(
 /*===========================*/
@@ -1047,7 +1045,7 @@ thd_has_edited_nontrans_tables(
 /******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
 @return	true if thd is executing SELECT */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_is_select(
 /*==========*/
@@ -1060,7 +1058,7 @@ thd_is_select(
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
 @return	true if thd has XA support */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 thd_supports_xa(
 /*============*/
@@ -1073,7 +1071,7 @@ thd_supports_xa(
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulong
 thd_lock_wait_timeout(
 /*==================*/
@@ -1087,7 +1085,7 @@ thd_lock_wait_timeout(
 
 /******************************************************************//**
 Set the time waited for the lock for the current query. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 thd_set_lock_wait_time(
 /*===================*/
@@ -1161,7 +1159,7 @@ Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return	MySQL error code */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 convert_error_code_to_mysql(
 /*========================*/
@@ -1314,7 +1312,7 @@ convert_error_code_to_mysql(
 
 /*************************************************************//**
 Prints info of a THD object (== user session thread) to the given file. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_mysql_print_thd(
 /*=====================*/
@@ -1332,7 +1330,7 @@ innobase_mysql_print_thd(
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_get_cset_width(
 /*====================*/
@@ -1375,7 +1373,7 @@ innobase_get_cset_width(
 
 /******************************************************************//**
 Converts an identifier to a table name. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_convert_from_table_id(
 /*===========================*/
@@ -1391,7 +1389,7 @@ innobase_convert_from_table_id(
 
 /******************************************************************//**
 Converts an identifier to UTF-8. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_convert_from_id(
 /*=====================*/
@@ -1408,7 +1406,7 @@ innobase_convert_from_id(
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
 @return	0 if a=b, <0 if a<b, >1 if a>b */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_strcasecmp(
 /*================*/
@@ -1432,7 +1430,7 @@ innobase_strcasecmp(
 Compares NUL-terminated UTF-8 strings case insensitively. The
 second string contains wildcards.
 @return 0 if a match is found, 1 if not */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_wildcasecmp(
 /*=================*/
@@ -1445,7 +1443,7 @@ innobase_wildcasecmp(
 /******************************************************************//**
 Strip dir name from a full path name and return only the file name
 @return file name or "null" if no file name */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 const char*
 innobase_basename(
 /*==============*/
@@ -1458,7 +1456,7 @@ innobase_basename(
 
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_casedn_str(
 /*================*/
@@ -1470,7 +1468,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return	connection character set */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 struct charset_info_st*
 innobase_get_charset(
 /*=================*/
@@ -1482,7 +1480,7 @@ innobase_get_charset(
 /**********************************************************************//**
 Determines the current SQL statement.
 @return	SQL statement string */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 const char*
 innobase_get_stmt(
 /*==============*/
@@ -1501,7 +1499,7 @@ Get the current setting of the table_def_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
 @return	value of table_def_size */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_get_table_cache_size(void)
 /*===============================*/
@@ -1515,7 +1513,7 @@ mysqld.cc. We do a dirty read because for one there is no synchronization
 object and secondly there is little harm in doing so even if we get a torn
 read.
 @return	value of lower_case_table_names */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_get_lower_case_table_names(void)
 /*=====================================*/
@@ -1528,7 +1526,6 @@ extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
 Map an OS error to an errno value. The OS error number is stored in
 _doserrno and the mapped value is stored in errno) */
-extern "C"
 void __cdecl
 _dosmaperr(
 	unsigned long);	/*!< in: OS error value */
@@ -1536,7 +1533,7 @@ _dosmaperr(
 /*********************************************************************//**
 Creates a temporary file.
 @return	temporary file descriptor, or < 0 on error */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_mysql_tmpfile(void)
 /*========================*/
@@ -1620,7 +1617,7 @@ innobase_mysql_tmpfile(void)
 /*********************************************************************//**
 Creates a temporary file.
 @return	temporary file descriptor, or < 0 on error */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_mysql_tmpfile(void)
 /*========================*/
@@ -1675,7 +1672,7 @@ innobase_mysql_tmpfile(void)
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
 @return	number of bytes copied to 'to' */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_convert_string(
 /*====================*/
@@ -1705,7 +1702,7 @@ The result is always NUL-terminated (provided buf_size > 0) and the
 number of bytes that were written to "buf" is returned (including the
 terminating NUL).
 @return	number of bytes that were written */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_raw_format(
 /*================*/
@@ -1842,7 +1839,7 @@ innobase_trx_init(
 /*********************************************************************//**
 Allocates an InnoDB transaction for a MySQL handler object.
 @return	InnoDB transaction handle */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 trx_t*
 innobase_trx_allocate(
 /*==================*/
@@ -2216,7 +2213,7 @@ innobase_query_caching_of_table_permitted(
 
 /*****************************************************************//**
 Invalidates the MySQL query cache for the table. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 void
 innobase_invalidate_query_cache(
 /*============================*/
@@ -2335,7 +2332,7 @@ no_quote:
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
 and quote it if needed.
 @return	pointer to the end of buf */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 char*
 innobase_convert_name(
 /*==================*/
@@ -2414,7 +2411,7 @@ innobase_format_name(
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
 @return	TRUE if interrupted */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 trx_is_interrupted(
 /*===============*/
@@ -2426,7 +2423,7 @@ trx_is_interrupted(
 /**********************************************************************//**
 Determines if the currently running transaction is in strict mode.
 @return	TRUE if strict */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ibool
 trx_is_strict(
 /*==========*/
@@ -2573,17 +2570,20 @@ innobase_init(
 #ifndef DBUG_OFF
 	static const char	test_filename[] = "-@";
 	char			test_tablename[sizeof test_filename
-				+ sizeof srv_mysql50_table_name_prefix];
-	if ((sizeof test_tablename) - 1
-			!= filename_to_tablename(test_filename, test_tablename,
-			sizeof test_tablename, true)
+				+ sizeof(srv_mysql50_table_name_prefix) - 1];
+	if ((sizeof(test_tablename)) - 1
+			!= filename_to_tablename(test_filename,
+						 test_tablename,
+						 sizeof(test_tablename), true)
 			|| strncmp(test_tablename,
-			srv_mysql50_table_name_prefix,
-			sizeof srv_mysql50_table_name_prefix)
+				   srv_mysql50_table_name_prefix,
+				   sizeof(srv_mysql50_table_name_prefix) - 1)
 			|| strcmp(test_tablename
-			+ sizeof srv_mysql50_table_name_prefix,
-			test_filename)) {
+				  + sizeof(srv_mysql50_table_name_prefix) - 1,
+				  test_filename)) {
+
 		sql_print_error("tablename encoding has been changed");
+
 		goto error;
 	}
 #endif /* DBUG_OFF */
@@ -3491,9 +3491,9 @@ innobase_close_connection(
 
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
-			"InnoDB transaction.  %llu row modifications will "
-			"roll back.",
-			(ullint) trx->undo_no);
+			"InnoDB transaction.  "TRX_ID_FMT" row modifications "
+                        "will roll back.",
+			trx->undo_no);
 	}
 
 	innobase_rollback_trx(trx);
@@ -4061,7 +4061,7 @@ ha_innobase::innobase_initialize_autoinc()
 	} else {
 		dict_index_t*	index;
 		const char*	col_name;
-		ulonglong	read_auto_inc;
+		ib_uint64_t	read_auto_inc;
 		ulint		err;
 
 		update_thd(ha_thd());
@@ -4577,10 +4577,10 @@ field_in_record_is_null(
 /*************************************************************//**
 InnoDB uses this function to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. NOTE that the prototype
-of this function is in rem0cmp.c in InnoDB source code! If you change this
+of this function is in rem0cmp.cc in InnoDB source code! If you change this
 function, remember to update the prototype there!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_mysql_cmp(
 /*===============*/
@@ -4658,7 +4658,7 @@ innobase_mysql_cmp(
 
 /*************************************************************//**
 Get the next token from the given string and store it in *token. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 CHARSET_INFO*
 innobase_get_fts_charset(
 /*=====================*/
@@ -4714,7 +4714,7 @@ is such that we must use MySQL code to compare them. NOTE that the prototype
 of this function is in rem0cmp.c in InnoDB source code! If you change this
 function, remember to update the prototype there!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_mysql_cmp_prefix(
 /*======================*/
@@ -4739,7 +4739,7 @@ innobase_mysql_cmp_prefix(
 }
 /******************************************************************//**
 compare two character string according to their charset. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_fts_text_cmp(
 /*==================*/
@@ -4756,7 +4756,7 @@ innobase_fts_text_cmp(
 }
 /******************************************************************//**
 compare two character string case insensitively according to their charset. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_fts_text_case_cmp(
 /*=======================*/
@@ -4778,7 +4778,7 @@ innobase_fts_text_case_cmp(
 }
 /******************************************************************//**
 Get the first character's code position for FTS index partition. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_strnxfrm(
 /*==============*/
@@ -4807,7 +4807,7 @@ innobase_strnxfrm(
 
 /******************************************************************//**
 compare two character string according to their charset. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_fts_text_cmp_prefix(
 /*=========================*/
@@ -4829,7 +4829,7 @@ innobase_fts_text_cmp_prefix(
 }
 /******************************************************************//**
 compare two character string according to their charset. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 int
 innobase_fts_string_cmp(
 /*====================*/
@@ -4846,7 +4846,7 @@ innobase_fts_string_cmp(
 }
 /******************************************************************//**
 Makes all characters in a string lower case. */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 size_t
 innobase_fts_casedn_str(
 /*====================*/
@@ -4877,7 +4877,7 @@ innobase_fts_casedn_str(
 Get the next token from the given string and store it in *token.
 It is mostly copied from MyISAM's doc parsing function ft_simple_get_word()
 @return length of string processed */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
@@ -4949,7 +4949,7 @@ Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
 VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'.
 @return	DATA_BINARY, DATA_VARCHAR, ... */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 get_innobase_type_from_mysql_type(
 /*==============================*/
@@ -5814,16 +5814,16 @@ ha_innobase::innobase_lock_autoinc(void)
 		etc. type of statement. */
 		if (thd_sql_command(user_thd) == SQLCOM_INSERT
 		    || thd_sql_command(user_thd) == SQLCOM_REPLACE) {
-			dict_table_t*	table = prebuilt->table;
+			dict_table_t*	ib_table = prebuilt->table;
 
 			/* Acquire the AUTOINC mutex. */
-			dict_table_autoinc_lock(table);
+			dict_table_autoinc_lock(ib_table);
 
 			/* We need to check that another transaction isn't
 			already holding the AUTOINC lock on the table. */
-			if (table->n_waiting_or_granted_auto_inc_locks) {
+			if (ib_table->n_waiting_or_granted_auto_inc_locks) {
 				/* Release the mutex to avoid deadlocks. */
-				dict_table_autoinc_unlock(table);
+				dict_table_autoinc_unlock(ib_table);
 			} else {
 				break;
 			}
@@ -6366,9 +6366,10 @@ calc_row_difference(
 			ut_ad(innodb_table->fts->cache);
 			if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
 				fprintf(stderr,
-                                        "InnoDB: FTS Doc ID must be large than"
-                                        " %llu for table",
-                                        innodb_table->fts->cache->next_doc_id - 1);
+                                        "InnoDB: FTS Doc ID must be larger than"
+                                        " "IB_ID_FMT" for table",
+                                        innodb_table->fts->cache->next_doc_id
+                                        - 1);
                                 ut_print_name(stderr, trx,
 					      TRUE, innodb_table->name);
                                 putc('\n', stderr);
@@ -8459,7 +8460,7 @@ ha_innobase::create(
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
-	Drop table etc. do this latching in row0mysql.c. */
+	Drop table etc. do this latching in row0mysql.cc. */
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -9248,7 +9249,7 @@ ha_innobase::estimate_rows_upper_bound()
 
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
-	new statistics in row0mysql.c when a table has grown by a threshold
+	new statistics in row0mysql.cc when a table has grown by a threshold
 	factor, we must add a safety factor 2 in front of the formula below. */
 
 	estimate = 2 * local_data_file_length /
@@ -11898,7 +11899,7 @@ characters for prefix indexes using a multibyte character set. The function
 finds charset information and returns length of prefix_len characters in the
 index field in bytes.
 @return	number of bytes occupied by the first n characters */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 ulint
 innobase_get_at_most_n_mbchars(
 /*===========================*/
@@ -13086,7 +13087,7 @@ innodb_monitor_update_wildcard(
 	ut_a(name);
 
 	for (ulint use = 0; use < NUM_MONITOR; use++) {
-		monitor_type_t	type;
+		ulint		type;
 		monitor_id_t	monitor_id = static_cast<monitor_id_t>(use);
 		monitor_info_t*	monitor_info;
 
@@ -13546,7 +13547,7 @@ system default primary index name 'GEN_CLUST_INDEX'. If a name
 matches, this function pushes an warning message to the client,
 and returns true.
 @return true if the index name matches the reserved name */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 bool
 innobase_index_name_is_reserved(
 /*============================*/
@@ -13792,7 +13793,7 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
-  NULL, NULL, 200, 100, ~0L, 0);
+  NULL, NULL, 200, 100, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   PLUGIN_VAR_OPCMDARG,
@@ -13848,7 +13849,7 @@ static MYSQL_SYSVAR_BOOL(file_format_check, innobase_file_format_check,
 
 /* If a new file format is introduced, the file format
 name needs to be updated accordingly. Please refer to
-file_format_name_map[] defined in trx0sys.c for the next
+file_format_name_map[] defined in trx0sys.cc for the next
 file format name. */
 static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   PLUGIN_VAR_OPCMDARG,
@@ -13918,7 +13919,7 @@ static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
   "Desired maximum length of the purge queue (0 = no limit)",
-  NULL, NULL, 0, 0, ~0L, 0);
+  NULL, NULL, 0, 0, ~0UL, 0);
 
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -14035,7 +14036,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_st
 static MYSQL_SYSVAR_ULONG(lru_scan_depth, srv_LRU_scan_depth,
   PLUGIN_VAR_RQCMDARG,
   "How deep to scan LRU to keep it clean",
-  NULL, NULL, 1024, 100, ~0L, 0);
+  NULL, NULL, 1024, 100, ~0UL, 0);
 
 static MYSQL_SYSVAR_BOOL(flush_neighbors, srv_flush_neighbors,
   PLUGIN_VAR_NOCMDARG,
@@ -14050,7 +14051,7 @@ static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
 static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
   PLUGIN_VAR_RQCMDARG,
   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
-  NULL, NULL, 500L, 1L, ~0L, 0);
+  NULL, NULL, 500L, 1L, ~0UL, 0);
 
 static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
@@ -14164,12 +14165,12 @@ static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
 static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   PLUGIN_VAR_RQCMDARG,
   "Count of spin-loop rounds in InnoDB mutexes (30 by default)",
-  NULL, NULL, 30L, 0L, ~0L, 0);
+  NULL, NULL, 30L, 0L, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
   PLUGIN_VAR_OPCMDARG,
   "Maximum delay between polling for a spin lock (6 by default)",
-  NULL, NULL, 6L, 0L, ~0L, 0);
+  NULL, NULL, 6L, 0L, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -14194,7 +14195,7 @@ static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   NULL, NULL,
   10000L,
   0L,
-  ~0L, 0);
+  ~0UL, 0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -14690,7 +14691,7 @@ ha_innobase::multi_range_read_info(
 /*************************************************************//**
 InnoDB index push-down condition check
 @return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
-extern "C" UNIV_INTERN
+UNIV_INTERN
 enum icp_result
 innobase_index_cond(
 /*================*/
