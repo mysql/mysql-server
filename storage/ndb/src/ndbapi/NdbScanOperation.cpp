@@ -57,22 +57,27 @@ NdbScanOperation::~NdbScanOperation()
 }
 
 void
-NdbScanOperation::setErrorCode(int aErrorCode){
+NdbScanOperation::setErrorCode(int aErrorCode) const
+{
+  NdbScanOperation *pnonConstThis=const_cast<NdbScanOperation *>(this);
+
   NdbTransaction* tmp = theNdbCon;
-  theNdbCon = m_transConnection;
+  pnonConstThis->theNdbCon = m_transConnection;
   NdbOperation::setErrorCode(aErrorCode);
-  theNdbCon = tmp;
+  pnonConstThis->theNdbCon = tmp;
 }
 
 void
-NdbScanOperation::setErrorCodeAbort(int aErrorCode){
+NdbScanOperation::setErrorCodeAbort(int aErrorCode) const
+{
+  NdbScanOperation *pnonConstThis=const_cast<NdbScanOperation *>(this);
+
   NdbTransaction* tmp = theNdbCon;
-  theNdbCon = m_transConnection;
+  pnonConstThis->theNdbCon = m_transConnection;
   NdbOperation::setErrorCodeAbort(aErrorCode);
-  theNdbCon = tmp;
+  pnonConstThis->theNdbCon = tmp;
 }
 
-  
 /*****************************************************************************
  * int init();
  *
@@ -2028,7 +2033,9 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
 }
 
 int 
-NdbScanOperation::prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId)
+NdbScanOperation::prepareSend(Uint32  TC_ConnectPtr,
+                              Uint64  TransactionId,
+                              NdbOperation::AbortOption)
 {
   abort();
   return 0;
@@ -4064,3 +4071,14 @@ NdbScanOperation::getPruned() const
           (m_pruneState == SPS_FIXED));
 }
 
+NdbBlob*
+NdbScanOperation::getBlobHandle(const char* anAttrName) const
+{
+  return NdbOperation::getBlobHandle(anAttrName);
+}
+
+NdbBlob*
+NdbScanOperation::getBlobHandle(Uint32 anAttrId) const
+{
+  return NdbOperation::getBlobHandle(anAttrId);
+}
