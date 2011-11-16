@@ -312,13 +312,11 @@ enough free extents so that the compression will always succeed if done! */
 void
 btr_compress(
 /*=========*/
-	btr_cur_t*	cursor,	/* in/out: cursor on the page to merge
-				or lift; the page must not be empty:
-				when deleting records, use btr_discard_page()
-				if the page would become empty */
-	ibool		adjust,	/* in: TRUE if should adjust the
-				cursor position even if compression occurs */
-	mtr_t*		mtr);	/* in/out: mini-transaction */
+	btr_cur_t*	cursor,	/* in: cursor on the page to merge or lift;
+				the page must not be empty: in record delete
+				use btr_discard_page if the page would become
+				empty */
+	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Discards a page from a B-tree. This is used to remove the last record from
 a B-tree page: the whole page must be removed at the same time. This cannot
@@ -379,11 +377,7 @@ btr_page_alloc(
 					page split is made */
 	ulint		level,		/* in: level where the page is placed
 					in the tree */
-	mtr_t*		mtr,		/* in/out: mini-transaction
-					for the allocation */
-	mtr_t*		init_mtr);	/* in/out: mini-transaction
-					for x-latching and initializing
-					the page */
+	mtr_t*		mtr);		/* in: mtr */
 /******************************************************************
 Frees a file page used in an index tree. NOTE: cannot free field external
 storage pages because the page must contain info on its level. */
@@ -406,31 +400,6 @@ btr_page_free_low(
 	page_t*		page,	/* in: page to be freed, x-latched */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr);	/* in: mtr */
-/**************************************************************//**
-Marks all MTR_MEMO_FREE_CLUST_LEAF pages nonfree or free.
-For invoking btr_store_big_rec_extern_fields() after an update,
-we must temporarily mark freed clustered index pages allocated, so
-that off-page columns will not be allocated from them. Between the
-btr_store_big_rec_extern_fields() and mtr_commit() we have to
-mark the pages free again, so that no pages will be leaked. */
-
-void
-btr_mark_freed_leaves(
-/*==================*/
-	dict_index_t*	index,	/* in/out: clustered index */
-	mtr_t*		mtr,	/* in/out: mini-transaction */
-	ibool		nonfree);/* in: TRUE=mark nonfree, FALSE=mark freed */
-#ifdef UNIV_DEBUG
-/**************************************************************//**
-Validates all pages marked MTR_MEMO_FREE_CLUST_LEAF.
-See btr_mark_freed_leaves(). */
-
-ibool
-btr_freed_leaves_validate(
-/*======================*/
-			/* out: TRUE if valid */
-	mtr_t*	mtr);	/* in: mini-transaction */
-#endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*****************************************************************
 Prints size info of a B-tree. */

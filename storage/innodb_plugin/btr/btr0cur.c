@@ -2099,9 +2099,7 @@ btr_cur_pessimistic_update(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/*!< in/out: cursor on the record to update;
-				cursor may become invalid if *big_rec == NULL
-				|| !(flags & BTR_KEEP_POS_FLAG) */
+	btr_cur_t*	cursor,	/*!< in: cursor on the record to update */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
@@ -2240,7 +2238,7 @@ btr_cur_pessimistic_update(
 	record to be inserted: we have to remember which fields were such */
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
-	ut_ad(rec_offs_validate(rec, index, offsets));
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
 	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -2263,10 +2261,6 @@ make_external:
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
 		}
-
-		ut_ad(page_is_leaf(page));
-		ut_ad(dict_index_is_clust(index));
-		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2294,8 +2288,6 @@ make_external:
 	rec = btr_cur_insert_if_possible(cursor, new_entry, n_ext, mtr);
 
 	if (rec) {
-		page_cursor->rec = rec;
-
 		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
 						   rec, block);
 
@@ -2309,10 +2301,7 @@ make_external:
 						     rec, index, offsets, mtr);
 		}
 
-		btr_cur_compress_if_useful(
-			cursor,
-			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
-			mtr);
+		btr_cur_compress_if_useful(cursor, mtr);
 
 		if (page_zip && !dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
@@ -2332,21 +2321,6 @@ make_external:
 		}
 	}
 
-	if (big_rec_vec) {
-		ut_ad(page_is_leaf(page));
-		ut_ad(dict_index_is_clust(index));
-		ut_ad(flags & BTR_KEEP_POS_FLAG);
-
-		/* btr_page_split_and_insert() in
-		btr_cur_pessimistic_insert() invokes
-		mtr_memo_release(mtr, index->lock, MTR_MEMO_X_LOCK).
-		We must keep the index->lock when we created a
-		big_rec, so that row_upd_clust_rec() can store the
-		big_rec in the same mini-transaction. */
-
-		mtr_x_lock(dict_index_get_lock(index), mtr);
-	}
-
 	/* Was the record to be updated positioned as the first user
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
@@ -2362,7 +2336,6 @@ make_external:
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
-	page_cursor->rec = rec;
 
 	if (dict_index_is_sec_or_ibuf(index)) {
 		/* Update PAGE_MAX_TRX_ID in the index page header.
@@ -2796,12 +2769,10 @@ UNIV_INTERN
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
-	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to compress;
-				cursor does not stay valid if !adjust and
-				compression occurs */
-	ibool		adjust,	/*!< in: TRUE if should adjust the
-				cursor position even if compression occurs */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	btr_cur_t*	cursor,	/*!< in: cursor on the page to compress;
+				cursor does not stay valid if compression
+				occurs */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ut_ad(mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
@@ -2810,7 +2781,7 @@ btr_cur_compress_if_useful(
 				MTR_MEMO_PAGE_X_FIX));
 
 	return(btr_cur_compress_recommendation(cursor, mtr)
-	       && btr_compress(cursor, adjust, mtr));
+	       && btr_compress(cursor, mtr));
 }
 
 /*******************************************************//**
@@ -3052,7 +3023,7 @@ return_after_reservations:
 	mem_heap_free(heap);
 
 	if (ret == FALSE) {
-		ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
+		ret = btr_cur_compress_if_useful(cursor, mtr);
 	}
 
 	if (n_extents > 0) {
@@ -3863,9 +3834,6 @@ btr_store_big_rec_extern_fields_func(
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
-	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
-					to be stored externally */
-
 #ifdef UNIV_DEBUG
 	mtr_t*		local_mtr,	/*!< in: mtr containing the
 					latch to rec and to the tree */
@@ -3874,11 +3842,9 @@ btr_store_big_rec_extern_fields_func(
 	ibool		update_in_place,/*! in: TRUE if the record is updated
 					in place (not delete+insert) */
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	mtr_t*		alloc_mtr)	/*!< in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
+	const big_rec_t*big_rec_vec)	/*!< in: vector containing fields
+					to be stored externally */
+
 {
 	ulint	rec_page_no;
 	byte*	field_ref;
@@ -3897,9 +3863,6 @@ btr_store_big_rec_extern_fields_func(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_any_extern(offsets));
-	ut_ad(local_mtr);
-	ut_ad(!alloc_mtr || alloc_mtr == local_mtr);
-	ut_ad(!update_in_place || alloc_mtr);
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, rec_block, MTR_MEMO_PAGE_X_FIX));
@@ -3914,25 +3877,6 @@ btr_store_big_rec_extern_fields_func(
 	zip_size = buf_block_get_zip_size(rec_block);
 	rec_page_no = buf_block_get_page_no(rec_block);
 	ut_a(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
-
-	if (alloc_mtr) {
-		/* Because alloc_mtr will be committed after
-		mtr, it is possible that the tablespace has been
-		extended when the B-tree record was updated or
-		inserted, or it will be extended while allocating
-		pages for big_rec.
-
-		TODO: In mtr (not alloc_mtr), write a redo log record
-		about extending the tablespace to its current size,
-		and remember the current size. Whenever the tablespace
-		grows as pages are allocated, write further redo log
-		records to mtr. (Currently tablespace extension is not
-		covered by the redo log. If it were, the record would
-		only be written to alloc_mtr, which is committed after
-		mtr.) */
-	} else {
-		alloc_mtr = &mtr;
-	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
@@ -4010,7 +3954,7 @@ btr_store_big_rec_extern_fields_func(
 			}
 
 			block = btr_page_alloc(index, hint_page_no,
-					       FSP_NO_DIR, 0, alloc_mtr, &mtr);
+					       FSP_NO_DIR, 0, &mtr);
 			if (UNIV_UNLIKELY(block == NULL)) {
 
 				mtr_commit(&mtr);
@@ -4137,15 +4081,11 @@ btr_store_big_rec_extern_fields_func(
 					goto next_zip_page;
 				}
 
-				if (alloc_mtr == &mtr) {
-					rec_block = buf_page_get(
-						space_id, zip_size,
-						rec_page_no,
-						RW_X_LATCH, &mtr);
-					buf_block_dbg_add_level(
-						rec_block,
-						SYNC_NO_ORDER_CHECK);
-				}
+				rec_block = buf_page_get(space_id, zip_size,
+							 rec_page_no,
+							 RW_X_LATCH, &mtr);
+				buf_block_dbg_add_level(rec_block,
+							SYNC_NO_ORDER_CHECK);
 
 				if (err == Z_STREAM_END) {
 					mach_write_to_4(field_ref
@@ -4179,8 +4119,7 @@ btr_store_big_rec_extern_fields_func(
 
 				page_zip_write_blob_ptr(
 					page_zip, rec, index, offsets,
-					big_rec_vec->fields[i].field_no,
-					alloc_mtr);
+					big_rec_vec->fields[i].field_no, &mtr);
 
 next_zip_page:
 				prev_page_no = page_no;
@@ -4225,23 +4164,19 @@ next_zip_page:
 
 				extern_len -= store_len;
 
-				if (alloc_mtr == &mtr) {
-					rec_block = buf_page_get(
-						space_id, zip_size,
-						rec_page_no,
-						RW_X_LATCH, &mtr);
-					buf_block_dbg_add_level(
-						rec_block,
-						SYNC_NO_ORDER_CHECK);
-				}
+				rec_block = buf_page_get(space_id, zip_size,
+							 rec_page_no,
+							 RW_X_LATCH, &mtr);
+				buf_block_dbg_add_level(rec_block,
+							SYNC_NO_ORDER_CHECK);
 
 				mlog_write_ulint(field_ref + BTR_EXTERN_LEN, 0,
-						 MLOG_4BYTES, alloc_mtr);
+						 MLOG_4BYTES, &mtr);
 				mlog_write_ulint(field_ref
 						 + BTR_EXTERN_LEN + 4,
 						 big_rec_vec->fields[i].len
 						 - extern_len,
-						 MLOG_4BYTES, alloc_mtr);
+						 MLOG_4BYTES, &mtr);
 
 				if (prev_page_no == FIL_NULL) {
 					btr_blob_dbg_add_blob(
@@ -4251,19 +4186,18 @@ next_zip_page:
 
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_SPACE_ID,
-							 space_id, MLOG_4BYTES,
-							 alloc_mtr);
+							 space_id,
+							 MLOG_4BYTES, &mtr);
 
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_PAGE_NO,
-							 page_no, MLOG_4BYTES,
-							 alloc_mtr);
+							 page_no,
+							 MLOG_4BYTES, &mtr);
 
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_OFFSET,
 							 FIL_PAGE_DATA,
-							 MLOG_4BYTES,
-							 alloc_mtr);
+							 MLOG_4BYTES, &mtr);
 				}
 
 				prev_page_no = page_no;

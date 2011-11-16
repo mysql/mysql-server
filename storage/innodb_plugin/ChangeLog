@@ -17,7 +17,7 @@
 
 2011-10-20	The InnoDB Team
 
-	* btr/brt0cur.c:
+	* btr/btr0cur.c:
 	Fix Bug#13116045 Compilation failure using GCC 4.6.1 in btr/btr0cur.c
 
 2011-10-12	The InnoDB Team
