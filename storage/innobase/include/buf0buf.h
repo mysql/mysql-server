@@ -654,25 +654,6 @@ buf_page_address_fold(
 			/* out: the folded value */
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: offset of the page within space */
-#ifdef UNIV_SYNC_DEBUG
-/***********************************************************************
-Increments the bufferfix count. */
-UNIV_INLINE
-void
-buf_block_buf_fix_inc_debug(
-/*========================*/
-	buf_block_t*	block,	/* in: block to bufferfix */
-	const char*	file __attribute__ ((unused)),	/* in: file name */
-	ulint		line __attribute__ ((unused)));	/* in: line */
-#else /* UNIV_SYNC_DEBUG */
-/***********************************************************************
-Increments the bufferfix count. */
-UNIV_INLINE
-void
-buf_block_buf_fix_inc(
-/*==================*/
-	buf_block_t*	block);	/* in: block to bufferfix */
-#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Returns the control block of a file page, NULL if not found. */
 UNIV_INLINE

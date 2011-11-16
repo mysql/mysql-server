@@ -912,7 +912,7 @@ trx_undo_add_page(
 	page_no = fseg_alloc_free_page_general(header_page + TRX_UNDO_SEG_HDR
 					       + TRX_UNDO_FSEG_HEADER,
 					       undo->top_page_no + 1, FSP_UP,
-					       TRUE, mtr, mtr);
+					       TRUE, mtr);
 
 	fil_space_release_free_extents(undo->space, n_reserved);
 

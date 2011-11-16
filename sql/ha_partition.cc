@@ -6490,7 +6490,25 @@ int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   */
   for (file= m_file; *file; file++)
     if ((ret=  (*file)->add_index(table_arg, key_info, num_of_keys)))
-      break;
+      goto err;
+  return ret;
+err:
+  if (file > m_file)
+  {
+    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
+    KEY *old_key_info= table_arg->key_info;
+    uint i;
+    /* Use the newly added key_info as table->key_info to remove them. */
+    for (i= 0; i < num_of_keys; i++)
+      key_numbers[i]= i;
+    table_arg->key_info= key_info;
+    while (--file >= m_file)
+    {
+      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
+      (void) (*file)->final_drop_index(table_arg);
+    }
+    table_arg->key_info= old_key_info;
+  }
   return ret;
 }
 
