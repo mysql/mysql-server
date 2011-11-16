@@ -222,8 +222,10 @@ bool add_pfs_instr_to_array(const char* name, const char* value)
   e->m_value_length= value_length;
   e->m_value[value_length]= '\0';
 
-  e->m_enabled= true;
-  e->m_timed= true;
+  /* Unrecognized values default to 'disabled'. */
+  e->m_enabled= false;
+  e->m_timed= false;
+  bool valid= true;
 
   /* Set flags accordingly */
   if (!my_strcasecmp(&my_charset_latin1, e->m_value, "counted"))
@@ -235,6 +237,7 @@ bool add_pfs_instr_to_array(const char* name, const char* value)
   if (!my_strcasecmp(&my_charset_latin1, e->m_value, "true") ||
       !my_strcasecmp(&my_charset_latin1, e->m_value, "on") ||
       !my_strcasecmp(&my_charset_latin1, e->m_value, "1") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "yes") ||
       !my_strcasecmp(&my_charset_latin1, e->m_value, "enabled"))
   {
     e->m_enabled= true;
@@ -244,17 +247,21 @@ bool add_pfs_instr_to_array(const char* name, const char* value)
   if (!my_strcasecmp(&my_charset_latin1, e->m_value, "false") ||
       !my_strcasecmp(&my_charset_latin1, e->m_value, "off") ||
       !my_strcasecmp(&my_charset_latin1, e->m_value, "0") ||
+      !my_strcasecmp(&my_charset_latin1, e->m_value, "no") ||
       !my_strcasecmp(&my_charset_latin1, e->m_value, "disabled"))
   {
     e->m_enabled= false;
     e->m_timed= false;
   }
+  else
+  {
+    valid= false; /* ignore invalid option values */
+  }
 
-  if (insert_dynamic(&pfs_instr_init_array, &e))
+  if (valid && insert_dynamic(&pfs_instr_init_array, &e))
   {
     my_free(e);
     return 1;
   }
   return 0;
 }
-

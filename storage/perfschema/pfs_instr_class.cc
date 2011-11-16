@@ -47,6 +47,7 @@
 my_bool pfs_enabled= TRUE;
 
 DYNAMIC_ARRAY pfs_instr_init_array;
+static void configure_instr_class(PFS_instr_class *entry);
 
 /**
   Current number of elements in mutex_class_array.
@@ -183,6 +184,8 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_table_io_class.m_enabled= true;
   global_table_io_class.m_timed= true;
   global_table_io_class.m_event_name_index= table_class_start;
+  /* Set user-defined defaults. */
+  configure_instr_class(&global_table_io_class);
 
   memcpy(global_table_lock_class.m_name, "wait/lock/table/sql/handler", 27);
   global_table_lock_class.m_name_length= 27;
@@ -190,6 +193,8 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_table_lock_class.m_enabled= true;
   global_table_lock_class.m_timed= true;
   global_table_lock_class.m_event_name_index= table_class_start + 1;
+  /* Set user-defined defaults. */
+  configure_instr_class(&global_table_lock_class);
 
   memcpy(global_idle_class.m_name, "idle", 4);
   global_idle_class.m_name_length= 4;
@@ -197,6 +202,8 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_idle_class.m_enabled= true;
   global_idle_class.m_timed= true;
   global_idle_class.m_event_name_index= table_class_start + 2;
+  /* Set user-defined defaults. */
+  configure_instr_class(&global_idle_class);
 }
 
 /**
@@ -588,27 +595,36 @@ static void init_instr_class(PFS_instr_class *klass,
 }
 
 /**
-  Set user-defined configuration values for an instrument
+  Set user-defined configuration values for an instrument.
 */
 static void configure_instr_class(PFS_instr_class *entry)
 {
+  uint match_length= 0; /* length of matching pattern */
+
   for (uint i= 0; i < pfs_instr_init_array.elements; i++)
   {
     PFS_instr_init* e;
     get_dynamic(&pfs_instr_init_array, (uchar*)&e, i);
 
     /**
-      Call it a match if the configuration value equals all or part of the
-      full instrument name.
+      Compare class name to all configuration entries. In case of multiple
+      matches, the longer specification wins. For example, the pattern
+      'ABC/DEF/GHI=ON' has precedence over 'ABC/DEF/%=OFF' regardless of
+      position within the configuration file or command line.
+
+      Consecutive wildcards affect the count.
     */
-    if (entry->m_name_length >= e->m_name_length)
+    if (!my_wildcmp(&my_charset_latin1,
+		                entry->m_name, entry->m_name+entry->m_name_length,
+		                e->m_name, e->m_name+e->m_name_length,
+		                '\\', '?','%'))
     {
-      if (!strncmp(entry->m_name, e->m_name, e->m_name_length))
-      {
-        entry->m_enabled= e->m_enabled;
-        entry->m_timed= e->m_timed;
-        break;
-      }
+        if (e->m_name_length >= match_length)
+        {
+           entry->m_enabled= e->m_enabled;
+           entry->m_timed= e->m_timed;
+           match_length= max(e->m_name_length, match_length);
+        }
     }
   }
 }
