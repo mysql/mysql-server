@@ -2932,7 +2932,8 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzydate)
     if (null_value)
       return true;
     TIME_from_longlong_packed(ltime, datetime_item->field_type(), result);
-    return false;
+    int warnings;
+    return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
   }
 
   switch (field_type())
