@@ -34,7 +34,7 @@ class CloseComReqConf {
    * Sender(s) / Reciver(s)
    */
   friend class Qmgr;
-  friend class Trpman;
+  friend class Cmvmi;
 
   /**
    * For printing

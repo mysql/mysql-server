@@ -606,7 +606,7 @@ void Qmgr::execCM_INFOCONF(Signal* signal)
   signal->theData[0] = 0; // no answer
   signal->theData[1] = 0; // no id
   signal->theData[2] = NodeInfo::DB;
-  sendSignal(TRPMAN_REF, GSN_OPEN_COMREQ, signal, 3, JBB);
+  sendSignal(CMVMI_REF, GSN_OPEN_COMREQ, signal, 3, JBB);
 
   cpresident = ZNIL;
   cpresidentAlive = ZFALSE;
@@ -1987,7 +1987,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
     nodePtr.p->failState = NORMAL;
     signal->theData[0] = 0;
     signal->theData[1] = nodePtr.i;
-    sendSignal(TRPMAN_REF, GSN_OPEN_COMREQ, signal, 2, JBB);
+    sendSignal(CMVMI_REF, GSN_OPEN_COMREQ, signal, 2, JBA);
 #endif
     return;
   case ZSTARTING:
@@ -2143,8 +2143,8 @@ void Qmgr::execCM_ADD(Signal* signal)
     enableComReq->m_senderData = ENABLE_COM_CM_ADD_COMMIT;
     NodeBitmask::clear(enableComReq->m_nodeIds);
     NodeBitmask::set(enableComReq->m_nodeIds, addNodePtr.i);
-    sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
-               EnableComReq::SignalLength, JBB);
+    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+               EnableComReq::SignalLength, JBA);
     break;
   }
   case CmAdd::CommitNew:
@@ -2249,8 +2249,8 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
   if (!NodeBitmask::isclear(enableComReq->m_nodeIds))
   {
     jam();
-    sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
-               EnableComReq::SignalLength, JBB);
+    sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+               EnableComReq::SignalLength, JBA);
   }
   else
   {
@@ -2924,7 +2924,7 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
         setNodeInfo(nodePtr.i).m_heartbeat_cnt= 0;
         signal->theData[0] = 0;
         signal->theData[1] = nodePtr.i;
-        sendSignal(TRPMAN_REF, GSN_OPEN_COMREQ, signal, 2, JBB);
+        sendSignal(CMVMI_REF, GSN_OPEN_COMREQ, signal, 2, JBA);
       }
       else
       {
@@ -3019,7 +3019,6 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
   RouteOrd* routeOrd = (RouteOrd*) &signal->theData[0];
   routeOrd->srcRef = reference();
   routeOrd->gsn = GSN_API_FAILREQ;
-  routeOrd->from = failedNodeNo;
 
   NodeRecPtr failedNodePtr;
   failedNodePtr.i = failedNodeNo;
@@ -3039,19 +3038,19 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
     jam();
     add_failconf_block(failedNodePtr, DBTC);
     routeOrd->dstRef = DBTC_REF;
-    sendSignalNoRelease(TRPMAN_REF, GSN_ROUTE_ORD, signal,
+    sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
                         RouteOrd::SignalLength,
                         JBA, &handle);
 
     add_failconf_block(failedNodePtr, DBDICT);
     routeOrd->dstRef = DBDICT_REF;
-    sendSignalNoRelease(TRPMAN_REF, GSN_ROUTE_ORD, signal,
+    sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
                         RouteOrd::SignalLength,
                         JBA, &handle);
 
     add_failconf_block(failedNodePtr, DBSPJ);
     routeOrd->dstRef = DBSPJ_REF;
-    sendSignalNoRelease(TRPMAN_REF, GSN_ROUTE_ORD, signal,
+    sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
                         RouteOrd::SignalLength,
                         JBA, &handle);
   }
@@ -3059,7 +3058,7 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
   /* Suma always notified */
   add_failconf_block(failedNodePtr, SUMA);
   routeOrd->dstRef = SUMA_REF;
-  sendSignal(TRPMAN_REF, GSN_ROUTE_ORD, signal,
+  sendSignal(CMVMI_REF, GSN_ROUTE_ORD, signal,
              RouteOrd::SignalLength,
              JBA, &handle);
 }//Qmgr::sendApiFailReq()
@@ -3418,8 +3417,8 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     closeCom->noOfNodes   = 1;
     NodeBitmask::clear(closeCom->theNodes);
     NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
-    sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-               CloseComReqConf::SignalLength, JBB);
+    sendSignal(CMVMI_REF, GSN_CLOSE_COMREQ, signal, 
+               CloseComReqConf::SignalLength, JBA);
   }//if
   return;
 }
@@ -3487,8 +3486,8 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
   closeCom->noOfNodes   = 1;
   NodeBitmask::clear(closeCom->theNodes);
   NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
-  sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-             CloseComReqConf::SignalLength, JBB);
+  sendSignal(CMVMI_REF, GSN_CLOSE_COMREQ, signal, 
+             CloseComReqConf::SignalLength, JBA);
 } // api_failed
 
 /**--------------------------------------------------------------------------
@@ -3597,8 +3596,8 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
       enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
       NodeBitmask::clear(enableComReq->m_nodeIds);
       NodeBitmask::set(enableComReq->m_nodeIds, apiNodePtr.i);
-      sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
-                 EnableComReq::SignalLength, JBB);
+      sendSignal(CMVMI_REF, GSN_ENABLE_COMREQ, signal,
+                 EnableComReq::SignalLength, JBA);
       return;
     }
   }
@@ -4997,8 +4996,8 @@ void Qmgr::sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 aFailNo)
     NodeBitmask::set(closeCom->theNodes, nodeId);
   }
 
-  sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-	     CloseComReqConf::SignalLength, JBB);
+  sendSignal(CMVMI_REF, GSN_CLOSE_COMREQ, signal, 
+	     CloseComReqConf::SignalLength, JBA);
 
 }//Qmgr::sendCloseComReq()
 
