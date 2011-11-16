@@ -87,7 +87,7 @@ static Sys_var_mybool Sys_pfs_enabled(
 
 static Sys_var_charptr Sys_pfs_instrument(
        "performance_schema_instrument",
-       "Enable performance schema instrument.",
+       "Enable a performance schema instrument.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_instrument),
        CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT),
        IN_FS_CHARSET,
