@@ -1793,6 +1793,14 @@ const char *MYSQL_TIME_cache::cptr()
 }
 
 
+bool MYSQL_TIME_cache::get_date(MYSQL_TIME *ltime, uint fuzzydate) const
+{
+  int warnings;
+  get_TIME(ltime);
+  return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+}
+
+
 String *MYSQL_TIME_cache::val_str(String *str)
 {
   cache_string();

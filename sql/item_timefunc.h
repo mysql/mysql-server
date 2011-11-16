@@ -762,6 +762,14 @@ class MYSQL_TIME_cache
     reset_string();
     dec= 0;
   }
+  /**
+    Store MYSQL_TIME representation into the given MYSQL_TIME variable.
+  */
+  void get_TIME(MYSQL_TIME *ltime) const
+  {
+    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    *ltime= time;
+  }
 public:
 
   MYSQL_TIME_cache()
@@ -821,12 +829,17 @@ public:
     return time_packed;
   }
   /**
-    Store MYSQL_TIME representation into the given MYSQL_TIME variable.
+    Store MYSQL_TIME representation into the given date/datetime variable
+    checking date flags.
   */
-  void get_TIME(MYSQL_TIME *ltime) const
+  bool get_date(MYSQL_TIME *ltime, uint fuzzyflags) const;
+  /**
+    Store MYSQL_TIME representation into the given time variable.
+  */
+  bool get_time(MYSQL_TIME *ltime) const
   {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
-    *ltime= time;
+    get_TIME(ltime);
+    return false;
   }
   /**
     Return pointer to MYSQL_TIME representation.
@@ -874,8 +887,7 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     DBUG_ASSERT(fixed);
-    cached_time.get_TIME(ltime);
-    return false;
+    return cached_time.get_date(ltime, fuzzy_date);
   }
   String *val_str(String *str)
   {
@@ -932,8 +944,7 @@ public:
   bool get_time(MYSQL_TIME *ltime)
   {
     DBUG_ASSERT(fixed);
-    cached_time.get_TIME(ltime);
-    return false;
+    return cached_time.get_time(ltime);
   }
   String *val_str(String *str)
   {
@@ -990,8 +1001,7 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   {
     DBUG_ASSERT(fixed);
-    cached_time.get_TIME(ltime);
-    return false;
+    return cached_time.get_date(ltime, fuzzy_date);
   }
   String *val_str(String *str)
   {
@@ -1042,8 +1052,7 @@ public:
   bool get_time(MYSQL_TIME *ltime)
   {
     DBUG_ASSERT(fixed == 1);
-    cached_time.get_TIME(ltime);
-    return false;
+    return cached_time.get_time(ltime);
   }
   String *val_str(String *str)
   {
@@ -1091,8 +1100,7 @@ public:
   bool get_date(MYSQL_TIME *res, uint fuzzy_date)
   {
     DBUG_ASSERT(fixed == 1);
-    cached_time.get_TIME(res);
-    return false;
+    return cached_time.get_time(res);
   }
   String *val_str(String *str)
   {
@@ -1145,8 +1153,7 @@ public:
   bool get_date(MYSQL_TIME *res, uint fuzzy_date)
   {
     DBUG_ASSERT(fixed == 1);
-    cached_time.get_TIME(res);
-    return false;
+    return cached_time.get_time(res);
   }
   String *val_str(String *str)
   {
