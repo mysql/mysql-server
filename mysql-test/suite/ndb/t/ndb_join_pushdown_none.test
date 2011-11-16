@@ -1,0 +1,38 @@
+#
+# Test of pushed joins, aka SPJ, or AQL.
+# (Turns off new 5.6 optimizer switches, even MRR)
+#
+
+--source include/have_ndb.inc
+
+--disable_query_log
+if (`select locate('semijoin', @@global.optimizer_switch) > 0`) 
+{
+  set @@global.optimizer_switch='semijoin=off';
+}
+if (`select locate('materialization', @@global.optimizer_switch) > 0`) 
+{
+  set @@global.optimizer_switch='materialization=off';
+}
+if (`select locate('firstmatch', @@global.optimizer_switch) > 0`) 
+{
+  set @@global.optimizer_switch='firstmatch=off';
+}
+if (`select locate('loosescan', @@global.optimizer_switch) > 0`) 
+{
+  set @@global.optimizer_switch='loosescan=off';
+}
+if (`select locate('batch_key_access', @@global.optimizer_switch) > 0`) 
+{
+  set @@global.optimizer_switch='batch_key_access=off';
+}
+if (`select locate('mrr', @@global.optimizer_switch) > 0`) 
+{
+  set @@global.optimizer_switch='mrr=off';
+}
+--enable_query_log
+
+
+--source ndb_join_pushdown.inc 
+
+set @@global.optimizer_switch=default;
