@@ -228,6 +228,12 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
+#ifndef MCP_WL5906
+/*
+  The handler supports read before write removal optimization
+*/
+#define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
+#endif
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
