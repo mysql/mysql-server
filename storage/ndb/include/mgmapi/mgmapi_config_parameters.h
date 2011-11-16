@@ -68,6 +68,7 @@
 
 #define CFG_DB_FILESYSTEM_PATH        125
 #define CFG_DB_NO_REDOLOG_FILES       126
+#define CFG_DB_NO_REDOLOG_PARTS       632
 #define CFG_DB_REDOLOG_FILE_SIZE      140
 
 #define CFG_DB_LCP_DISC_PAGES_TUP     127
@@ -198,6 +199,7 @@
 #define CFG_DB_MT_THREAD_CONFIG          628
 
 #define CFG_DB_CRASH_ON_CORRUPTED_TUPLE  629
+/* 632 used for CFG_DB_NO_REDOLOG_PARTS */
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

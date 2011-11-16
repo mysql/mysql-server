@@ -120,7 +120,7 @@ public:
 
 private:
   // sizes are in words (Uint32)
-  STATIC_CONST( MaxIndexFragments = MAX_FRAG_PER_NODE );
+  STATIC_CONST( MaxIndexFragments = MAX_FRAG_PER_LQH );
   STATIC_CONST( MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX );
   STATIC_CONST( MaxAttrDataSize = 2 * MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS );
   STATIC_CONST( MaxXfrmDataSize = MaxAttrDataSize * MAX_XFRM_MULTIPLY);

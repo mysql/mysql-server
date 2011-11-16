@@ -20,6 +20,7 @@
 
 NdbLogPartInfo::NdbLogPartInfo(Uint32 instanceNo)
 {
+  LogParts = globalData.ndbLogParts;
   lqhWorkers = globalData.ndbMtLqhWorkers;
   partCount = 0;
   partMask.clear();

@@ -36,9 +36,7 @@ void Dblqh::initData()
   clcpFileSize = ZNO_CONCURRENT_LCP;
   clfoFileSize = 0;
   clogFileFileSize = 0;
-
-  NdbLogPartInfo lpinfo(instance());
-  clogPartFileSize = lpinfo.partCount;
+  clogPartFileSize = 0; // Not valid until READ_CONFIG
 
   cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
   cscanrecFileSize = 0;
@@ -117,7 +115,7 @@ void Dblqh::initRecords()
 
   logPartRecord = (LogPartRecord*)allocRecord("LogPartRecord",
 					      sizeof(LogPartRecord), 
-					      clogPartFileSize);
+					      NDB_MAX_LOG_PARTS);
 
   logFileRecord = (LogFileRecord*)allocRecord("LogFileRecord",
 					      sizeof(LogFileRecord),
