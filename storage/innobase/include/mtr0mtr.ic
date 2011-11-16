@@ -26,7 +26,6 @@ mtr_start(
 
 	mtr->log_mode = MTR_LOG_ALL;
 	mtr->modifications = FALSE;
-	mtr->freed_clust_leaf = FALSE;
 	mtr->n_log_recs = 0;
 
 #ifdef UNIV_DEBUG
@@ -51,8 +50,7 @@ mtr_memo_push(
 
 	ut_ad(object);
 	ut_ad(type >= MTR_MEMO_PAGE_S_FIX);
-	ut_ad(type <= MTR_MEMO_FREE_CLUST_LEAF);
-	ut_ad(type != MTR_MEMO_FREE_CLUST_LEAF || mtr->freed_clust_leaf);
+	ut_ad(type <= MTR_MEMO_X_LOCK);
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 

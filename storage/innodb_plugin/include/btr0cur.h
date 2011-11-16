@@ -36,9 +36,6 @@ Created 10/16/1994 Heikki Tuuri
 #define BTR_NO_LOCKING_FLAG	2	/* do no record lock checking */
 #define BTR_KEEP_SYS_FLAG	4	/* sys fields will be found from the
 					update vector or inserted entry */
-#define BTR_KEEP_POS_FLAG	8	/* btr_cur_pessimistic_update()
-					must keep cursor position when
-					moving columns to big_rec */
 
 #ifndef UNIV_HOTBACKUP
 #include "que0types.h"
@@ -312,9 +309,7 @@ btr_cur_pessimistic_update(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
 				flags */
-	btr_cur_t*	cursor,	/*!< in/out: cursor on the record to update;
-				cursor may become invalid if *big_rec == NULL
-				|| !(flags & BTR_KEEP_POS_FLAG) */
+	btr_cur_t*	cursor,	/*!< in: cursor on the record to update */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
@@ -381,13 +376,10 @@ UNIV_INTERN
 ibool
 btr_cur_compress_if_useful(
 /*=======================*/
-	btr_cur_t*	cursor,	/*!< in/out: cursor on the page to compress;
+	btr_cur_t*	cursor,	/*!< in: cursor on the page to compress;
 				cursor does not stay valid if compression
 				occurs */
-	ibool		adjust,	/*!< in: TRUE if should adjust the
-				cursor position even if compression occurs */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*		mtr);	/*!< in: mtr */
 /*******************************************************//**
 Removes the record on which the tree cursor is positioned. It is assumed
 that the mtr has an x-latch on the page where the cursor is positioned,
@@ -530,8 +522,6 @@ btr_store_big_rec_extern_fields_func(
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
-	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
-					to be stored externally */
 #ifdef UNIV_DEBUG
 	mtr_t*		local_mtr,	/*!< in: mtr containing the
 					latch to rec and to the tree */
@@ -540,12 +530,9 @@ btr_store_big_rec_extern_fields_func(
 	ibool		update_in_place,/*! in: TRUE if the record is updated
 					in place (not delete+insert) */
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	mtr_t*		alloc_mtr)	/*!< in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
+	const big_rec_t*big_rec_vec)	/*!< in: vector containing fields
+					to be stored externally */
+	__attribute__((nonnull));
 
 /** Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
@@ -554,22 +541,21 @@ file segment of the index tree.
 @param index	in: clustered index; MUST be X-latched by mtr
 @param b	in/out: block containing rec; MUST be X-latched by mtr
 @param rec	in/out: clustered index record
-@param offs	in: rec_get_offsets(rec, index);
+@param offsets	in: rec_get_offsets(rec, index);
 		the "external storage" flags in offsets will not be adjusted
-@param big	in: vector containing fields to be stored externally
 @param mtr	in: mini-transaction that holds x-latch on index and b
 @param upd	in: TRUE if the record is updated in place (not delete+insert)
-@param rmtr	in/out: in updates, the mini-transaction that holds rec
+@param big	in: vector containing fields to be stored externally
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 #ifdef UNIV_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,mtr,upd,rmtr)
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,mtr,upd,big)
 #elif defined UNIV_BLOB_LIGHT_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,upd,rmtr)
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,upd,big)
 #else
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,rmtr)
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,big)
 #endif
 
 /*******************************************************************//**
