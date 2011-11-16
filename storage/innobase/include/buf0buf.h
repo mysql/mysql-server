@@ -280,6 +280,7 @@ UNIV_INTERN
 lsn_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
+
 /********************************************************************//**
 Allocates a buf_page_t descriptor. This function must succeed. In case
 of failure we assert in this function. */
@@ -664,6 +665,17 @@ buf_pool_contains_zip(
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	const void*	data);		/*!< in: pointer to compressed page */
 #endif /* UNIV_DEBUG */
+
+/***********************************************************************
+FIXME_FTS: Gets the frame the pointer is pointing to. */
+UNIV_INLINE
+buf_frame_t*
+buf_frame_align(
+/*============*/
+                        /* out: pointer to frame */
+        byte*   ptr);   /* in: pointer to a frame */
+
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /*********************************************************************//**
 Validates the buffer pool data structure.

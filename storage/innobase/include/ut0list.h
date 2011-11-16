@@ -142,6 +142,15 @@ ib_list_get_last(
 /*=============*/
 	ib_list_t*	list);	/*!< in: list */
 
+/********************************************************************
+Check if list is empty. */
+UNIV_INLINE
+ibool
+ib_list_is_empty(
+/*=============*/
+					/* out: TRUE if empty else  */
+	const ib_list_t*	list);	/* in: list */
+
 /* List. */
 struct ib_list_struct {
 	ib_list_node_t*		first;		/*!< first node */

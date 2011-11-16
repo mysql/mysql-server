@@ -160,6 +160,12 @@ dict_stats_update_transient(
 	}
 
 	do {
+
+		if (index->type & DICT_FTS) {
+			index = dict_table_get_next_index(index);
+			continue;
+		}
+
 		if (UNIV_LIKELY
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
@@ -1371,6 +1377,10 @@ dict_stats_update_persistent(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		dict_stats_analyze_index(index);
 
 		table->stat_sum_of_other_index_sizes
@@ -1699,7 +1709,7 @@ written to it.
 dict_stats_fetch_table_stats_step() @{
 @return non-NULL dummy */
 static
-void*
+ibool
 dict_stats_fetch_table_stats_step(
 /*==============================*/
 	void*	node_void,	/*!< in: select node */
@@ -1768,7 +1778,7 @@ dict_stats_fetch_table_stats_step(
 	ut_a(i == 3 /*n_rows,clustered_index_size,sum_of_other_index_sizes*/);
 
 	/* XXX this is not used but returning non-NULL is necessary */
-	return((void*) 1);
+	return(TRUE);
 }
 /* @} */
 
@@ -1799,7 +1809,7 @@ simpler N^2 algorithm.
 dict_stats_fetch_index_stats_step() @{
 @return non-NULL dummy */
 static
-void*
+ibool
 dict_stats_fetch_index_stats_step(
 /*==============================*/
 	void*	node_void,	/*!< in: select node */
@@ -1855,7 +1865,7 @@ dict_stats_fetch_index_stats_step(
 			column */
 			if (index == NULL) {
 
-				return((void*) 1);
+				return(TRUE);
 			}
 
 			break;
@@ -1965,7 +1975,7 @@ dict_stats_fetch_index_stats_step(
 				index->name,
 				(int) stat_name_len,
 				stat_name);
-			return((void*) 1);
+			return(TRUE);
 		}
 		/* else */
 
@@ -1993,7 +2003,7 @@ dict_stats_fetch_index_stats_step(
 				(int) stat_name_len,
 				stat_name,
 				dict_index_get_n_unique(index));
-			return((void*) 1);
+			return(TRUE);
 		}
 		/* else */
 
@@ -2014,7 +2024,7 @@ dict_stats_fetch_index_stats_step(
 	}
 
 	/* XXX this is not used but returning non-NULL is necessary */
-	return((void*) 1);
+	return(TRUE);
 }
 /* @} */
 
@@ -2056,17 +2066,17 @@ dict_stats_fetch_from_ps(
 	pars_info_add_str_literal(pinfo, "table_name",
 				  dict_remove_db_name(table->name));
 
-	pars_info_add_function(pinfo,
+	pars_info_bind_function(pinfo,
 			       "fetch_table_stats_step",
 			       dict_stats_fetch_table_stats_step,
 			       table);
 
 	index_fetch_arg.table = table;
 	index_fetch_arg.stats_were_modified = FALSE;
-	pars_info_add_function(pinfo,
-			       "fetch_index_stats_step",
-			       dict_stats_fetch_index_stats_step,
-			       &index_fetch_arg);
+	pars_info_bind_function(pinfo,
+			        "fetch_index_stats_step",
+			        dict_stats_fetch_index_stats_step,
+			        &index_fetch_arg);
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE FETCH_STATS () IS\n"
@@ -2201,6 +2211,16 @@ dict_stats_update(
 		/* Persistent recalculation requested, called from
 		ANALYZE TABLE or from TRUNCATE TABLE */
 
+		/* FTS auxiliary tables do not need persistent stats */
+		if ((ut_strcount(table->name, "FTS") > 0
+		&& (ut_strcount(table->name, "CONFIG") > 0
+		    || ut_strcount(table->name, "INDEX") > 0
+		    || ut_strcount(table->name, "DELETED") > 0
+		    || ut_strcount(table->name, "DOC_ID") > 0
+		    || ut_strcount(table->name, "ADDED") > 0))) {
+			goto transient;
+		}
+
 		/* check if the persistent statistics storage exists
 		before calling the potentially slow function
 		dict_stats_update_persistent(); that is a
@@ -2279,7 +2299,13 @@ dict_stats_update(
 
 		if (strchr(table->name, '/') == NULL
 		    || strcmp(table->name, INDEX_STATS_NAME) == 0
-		    || strcmp(table->name, TABLE_STATS_NAME) == 0) {
+		    || strcmp(table->name, TABLE_STATS_NAME) == 0
+		    || (ut_strcount(table->name, "FTS") > 0
+		        && (ut_strcount(table->name, "CONFIG") > 0
+			    || ut_strcount(table->name, "INDEX") > 0
+			    || ut_strcount(table->name, "DELETED") > 0
+			    || ut_strcount(table->name, "DOC_ID") > 0
+			    || ut_strcount(table->name, "ADDED") > 0))) {
 			/* Use the quick transient stats method for
 			InnoDB internal tables, because we know the
 			persistent stats storage does not contain data

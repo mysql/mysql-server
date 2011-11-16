@@ -81,6 +81,7 @@ UNIV_INTERN pars_res_word_t	pars_distinct_token = {PARS_DISTINCT_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_binary_token = {PARS_BINARY_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_blob_token = {PARS_BLOB_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_int_token = {PARS_INT_TOKEN};
+UNIV_INTERN pars_res_word_t	pars_bigint_token = {PARS_BIGINT_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_char_token = {PARS_CHAR_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_float_token = {PARS_FLOAT_TOKEN};
 UNIV_INTERN pars_res_word_t	pars_update_token = {PARS_UPDATE_TOKEN};
@@ -95,6 +96,87 @@ UNIV_INTERN pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 /** Global variable used to denote the '*' in SELECT * FROM.. */
 UNIV_INTERN ulint	pars_star_denoter	= 12345678;
 
+
+/********************************************************************
+Get user function with the given name.*/
+UNIV_INLINE
+pars_user_func_t*
+pars_info_lookup_user_func(
+/*=======================*/
+					/* out: user func, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: function name to find*/
+{
+	if (info && info->funcs) {
+		ulint		i;
+		ib_vector_t*	vec = info->funcs;
+
+		for (i = 0; i < ib_vector_size(vec); i++) {
+			pars_user_func_t*	puf = ib_vector_get(vec, i);
+
+			if (strcmp(puf->name, name) == 0) {
+				return(puf);
+			}
+		}
+	}
+
+	return(NULL);
+}
+
+/********************************************************************
+Get bound identifier with the given name.*/
+UNIV_INLINE
+pars_bound_id_t*
+pars_info_lookup_bound_id(
+/*======================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound literal name to find */
+{
+	if (info && info->bound_ids) {
+		ulint		i;
+		ib_vector_t*	vec = info->bound_ids;
+
+		for (i = 0; i < ib_vector_size(vec); i++) {
+			pars_bound_id_t*	bid = ib_vector_get(vec, i);
+
+			if (strcmp(bid->name, name) == 0) {
+				return(bid);
+			}
+		}
+	}
+
+	return(NULL);
+}
+
+/********************************************************************
+Get bound literal with the given name.*/
+UNIV_INLINE
+pars_bound_lit_t*
+pars_info_lookup_bound_lit(
+/*=======================*/
+					/* out: bound literal, or NULL if
+					not found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound literal name to find */
+{
+	if (info && info->bound_lits) {
+		ulint		i;
+		ib_vector_t*	vec = info->bound_lits;
+
+		for (i = 0; i < ib_vector_size(vec); i++) {
+			pars_bound_lit_t*	pbl = ib_vector_get(vec, i);
+
+			if (strcmp(pbl->name, name) == 0) {
+				return(pbl);
+			}
+		}
+	}
+
+	return(NULL);
+}
 
 /*********************************************************************//**
 Determines the class of a function code.
@@ -161,7 +243,7 @@ pars_func_low(
 
 	node->func = func;
 
-	node->class = pars_func_get_class(func);
+	node->node_class = pars_func_get_class(func);
 
 	node->args = arg;
 
@@ -183,6 +265,177 @@ pars_func(
 	return(pars_func_low(((pars_res_word_t*)res_word)->code, arg));
 }
 
+/*************************************************************************
+Rebind a LIKE search string. NOTE: We ignore any '%' characters embedded
+within the search string.*/
+
+int
+pars_like_rebind(
+/*=============*/
+				/* out, own: function node in a query tree */
+	sym_node_t*	node,	/* in: The search string node.*/
+	const byte*	ptr,	/* in: literal to (re)bind */
+	ulint		ptr_len)/* in: length of literal to (re)bind*/
+{
+	dtype_t*	dtype;
+	dfield_t*	dfield;
+	ib_like_t	op_check;
+	sym_node_t*	like_node;
+	sym_node_t*	str_node = NULL;
+	ib_like_t	op = IB_LIKE_EXACT;
+	int		func = PARS_LIKE_TOKEN_EXACT;
+
+	/* Is this a STRING% ? */
+	if (ptr[ptr_len - 1] == '%') {
+		op = IB_LIKE_PREFIX;
+	}
+
+	/* Is this a '%STRING' or %STRING% ?*/
+	if (*ptr == '%') {
+		op = (op == IB_LIKE_PREFIX) ? IB_LIKE_SUBSTR : IB_LIKE_SUFFIX;
+	}
+
+	if (node->like_node == NULL) {
+		/* Add the LIKE operator info node to the node list.
+		This will be used during the comparison phase to determine
+		how to match.*/
+		like_node = sym_tab_add_int_lit(node->sym_table, op);
+		que_node_list_add_last(NULL, like_node);
+		node->like_node = like_node;
+		str_node = sym_tab_add_str_lit(node->sym_table, ptr, ptr_len);
+		que_node_list_add_last(like_node, str_node);
+	} else {
+		like_node = node->like_node;
+
+		/* Change the value of the string in the existing
+		string node of like node */
+		str_node = que_node_list_get_last(like_node);
+
+		/* Must find the string node */
+		ut_a(str_node);
+		ut_a(str_node != like_node);
+		ut_a(str_node->token_type == SYM_LIT);
+
+		dfield = que_node_get_val(str_node);
+		dfield_set_data(dfield, ptr, ptr_len);
+	}
+
+	dfield = que_node_get_val(like_node);
+	dtype = dfield_get_type(dfield);
+
+	ut_a(dtype_get_mtype(dtype) == DATA_INT);
+	op_check = mach_read_from_4(dfield_get_data(dfield));
+
+	switch (op_check) {
+	case	IB_LIKE_PREFIX:
+	case	IB_LIKE_SUFFIX:
+	case	IB_LIKE_SUBSTR:
+	case	IB_LIKE_EXACT:
+		break;
+
+	default:
+		ut_error;
+	}
+
+	mach_write_to_4(dfield_get_data(dfield), op);
+
+	dfield = que_node_get_val(node);
+
+	/* Adjust the length of the search value so the '%' is not
+	visible. Then create and add a search string node to the
+	search value node. Searching for %SUFFIX and %SUBSTR% requires
+	a full table scan and so we set the search value to ''.
+	For PREFIX% we simply remove the trailing '%'.*/
+
+	switch (op) {
+	case	IB_LIKE_EXACT:
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr, ptr_len);
+		break;
+
+	case	IB_LIKE_PREFIX:
+		func = PARS_LIKE_TOKEN_PREFIX;
+
+		/* Modify the original node */
+		dfield_set_len(dfield, ptr_len - 1);
+
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr, ptr_len - 1);
+		break;
+
+	case	IB_LIKE_SUFFIX:
+		func = PARS_LIKE_TOKEN_SUFFIX;
+
+		/* Modify the original node */
+		/* Make it an '' empty string */
+		dfield_set_len(dfield, 0);
+
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr + 1, ptr_len - 1);
+		break;
+
+	case	IB_LIKE_SUBSTR:
+		func = PARS_LIKE_TOKEN_SUBSTR;
+
+		/* Modify the original node */
+		/* Make it an '' empty string */
+		dfield_set_len(dfield, 0);
+
+		dfield = que_node_get_val(str_node);
+		dtype = dfield_get_type(dfield);
+
+		ut_a(dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+		dfield_set_data(dfield, ptr + 1, ptr_len - 2);
+		break;
+
+	default:
+		ut_error;
+	}
+
+	return(func);
+}
+
+/*************************************************************************
+Parses a LIKE operator expression. */
+static
+int
+pars_like_op(
+/*=========*/
+				/* out, own: function node in a query tree */
+	que_node_t*	arg)	/* in: LIKE comparison string.*/
+{
+	char*		ptr;
+	ulint		ptr_len;
+	int		func = PARS_LIKE_TOKEN_EXACT;
+	dfield_t*	dfield = que_node_get_val(arg);
+	dtype_t*	dtype = dfield_get_type(dfield);
+
+	ut_a(dtype_get_mtype(dtype) == DATA_CHAR
+	     || dtype_get_mtype(dtype) == DATA_VARCHAR);
+
+	ptr = dfield_get_data(dfield);
+	ptr_len = strlen(ptr);
+
+	if (ptr_len) {
+
+		func = pars_like_rebind(arg, (byte*) ptr, ptr_len);
+	}
+
+	return(func);
+}
 /*********************************************************************//**
 Parses an operator expression.
 @return	own: function node in a query tree */
@@ -199,6 +452,20 @@ pars_op(
 
 	if (arg2) {
 		que_node_list_add_last(arg1, arg2);
+	}
+
+	/* We need to parse the string and determine whether it's a
+	PREFIX, SUFFIX or SUBSTRING comparison */
+	if (func == PARS_LIKE_TOKEN) {
+
+		ut_a(que_node_get_type(arg2) == QUE_NODE_SYMBOL);
+
+		func = pars_like_op(arg2);
+
+		ut_a(func == PARS_LIKE_TOKEN_EXACT
+		     || func == PARS_LIKE_TOKEN_PREFIX
+		     || func == PARS_LIKE_TOKEN_SUFFIX
+		     || func == PARS_LIKE_TOKEN_SUBSTR);
 	}
 
 	return(pars_func_low(func, arg1));
@@ -337,6 +604,14 @@ pars_resolve_func_data_type(
 	case PARS_RND_TOKEN:
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
+		break;
+
+	case PARS_LIKE_TOKEN_EXACT:
+	case PARS_LIKE_TOKEN_PREFIX:
+	case PARS_LIKE_TOKEN_SUFFIX:
+	case PARS_LIKE_TOKEN_SUBSTR:
+		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
+			  DATA_ENGLISH, 0);
 		break;
 
 	default:
@@ -688,7 +963,7 @@ pars_check_aggregate(
 
 			func_node = exp_node;
 
-			if (func_node->class == PARS_FUNC_AGGREGATE) {
+			if (func_node->node_class == PARS_FUNC_AGGREGATE) {
 
 				n_aggregate_nodes++;
 			}
@@ -1131,16 +1406,20 @@ pars_set_dfield_type(
 		flags |= DATA_UNSIGNED;
 	}
 
-	if (type == &pars_int_token) {
+	if (type == &pars_bigint_token) {
+		ut_a(len == 0);
+
+		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 8);
+	} else if (type == &pars_int_token) {
 		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4);
 
 	} else if (type == &pars_char_token) {
-		ut_a(len == 0);
+		//ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
-			  DATA_ENGLISH | flags, 0);
+			  DATA_ENGLISH | flags, len);
 	} else if (type == &pars_binary_token) {
 		ut_a(len != 0);
 
@@ -1606,6 +1885,8 @@ pars_create_table(
 	sym_node_t*	table_sym,	/*!< in: table name node in the symbol
 					table */
 	sym_node_t*	column_defs,	/*!< in: list of column names */
+	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
+	sym_node_t*	block_size,	/* in: block size (can be NULL) */
 	void*		not_fit_in_memory __attribute__((unused)))
 					/*!< in: a non-NULL pointer means that
 					this is a table which in simulations
@@ -1623,13 +1904,43 @@ pars_create_table(
 	tab_node_t*	node;
 	const dtype_t*	dtype;
 	ulint		n_cols;
+	ulint		flags = 0;
+
+	if (compact != NULL) {
+		flags |= DICT_TF_COMPACT;
+	}
+
+	if (block_size != NULL) {
+		ulint		size;
+		dfield_t*	dfield;
+
+		dfield = que_node_get_val(block_size);
+
+		ut_a(dfield_get_len(dfield) == 4);
+		size = mach_read_from_4(dfield_get_data(dfield));
+
+
+                switch (size) {
+		case 0:
+			break;
+
+                case 1: case 2: case 4: case 8: case 16:
+                	flags |= DICT_TF_COMPACT;
+			/* FTS-FIXME: needs the zip changes */
+			/* flags |= size << DICT_TF_COMPRESSED_SHIFT; */
+			break;
+
+		default:
+			ut_error;
+		}
+	}
 
 	n_cols = que_node_list_get_len(column_defs);
 
 	/* As the InnoDB SQL parser is for internal use only,
 	for creating some system tables, this function will only
 	create tables in the old (not compact) record format. */
-	table = dict_mem_table_create(table_sym->name, 0, n_cols, 0, 0);
+	table = dict_mem_table_create(table_sym->name, 0, n_cols, flags, 0);
 
 #ifdef UNIV_DEBUG
 	if (not_fit_in_memory != NULL) {
@@ -1887,6 +2198,8 @@ pars_sql(
 	graph->sym_tab = pars_sym_tab_global;
 	graph->info = info;
 
+	pars_sym_tab_global = NULL;
+
 	/* fprintf(stderr, "SQL graph size %lu\n", mem_heap_get_size(heap)); */
 
 	return(graph);
@@ -1979,13 +2292,18 @@ pars_info_add_literal(
 	pbl = mem_heap_alloc(info->heap, sizeof(*pbl));
 
 	pbl->name = name;
+
 	pbl->address = address;
 	pbl->length = length;
 	pbl->type = type;
 	pbl->prtype = prtype;
 
 	if (!info->bound_lits) {
-		info->bound_lits = ib_vector_create(info->heap, 8);
+		ib_alloc_t*     heap_alloc;
+
+		heap_alloc = ib_heap_allocator_create(info->heap);
+
+		info->bound_lits = ib_vector_create(heap_alloc, sizeof(*pbl), 8);
 	}
 
 	ib_vector_push(info->bound_lits, pbl);
@@ -2004,6 +2322,63 @@ pars_info_add_str_literal(
 {
 	pars_info_add_literal(info, name, str, strlen(str),
 			      DATA_VARCHAR, DATA_ENGLISH);
+}
+
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry.*/
+UNIV_INTERN
+void
+pars_info_bind_literal(
+/*===================*/
+	pars_info_t*	info,		/* in: info struct */
+	const char*	name,		/* in: name */
+	const void*	address,	/* in: address */
+	ulint		length,		/* in: length of data */
+	ulint		type,		/* in: type, e.g. DATA_FIXBINARY */
+	ulint		prtype)		/* in: precise type, e.g. */
+{
+	pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, address, length, type, prtype);
+	} else {
+		pbl->address = address;
+		pbl->length = length;
+
+		sym_tab_rebind_lit(pbl->node, address, length);
+	}
+}
+
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry.*/
+UNIV_INTERN
+void
+pars_info_bind_varchar_literal(
+/*===========================*/
+	pars_info_t*	info,		/*!< in: info struct */
+	const char*	name,		/*!< in: name */
+	const byte*	str,		/*!< in: string */
+	ulint		str_len)	/*!< in: string length */
+{
+	pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, str, str_len, DATA_VARCHAR, DATA_ENGLISH);
+	} else {
+
+		pbl->address = str;
+		pbl->length = str_len;
+
+		sym_tab_rebind_lit(pbl->node, str, str_len);
+	}
 }
 
 /****************************************************************//**
@@ -2027,6 +2402,59 @@ pars_info_add_int4_literal(
 
 	mach_write_to_4(buf, val);
 	pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
+}
+
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_int4_literal(
+/*========================*/
+	pars_info_t*		info,   /* in: info struct */
+	const char*		name,   /* in: name */
+	const ib_uint32_t*	val)    /* in: value */
+{
+	pars_bound_lit_t*       pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(info, name, val, 4, DATA_INT, 0);
+	} else {
+
+		pbl->address = val;
+		pbl->length = sizeof(*val);
+
+		sym_tab_rebind_lit(pbl->node, val, sizeof(*val));
+	}
+}
+
+/********************************************************************
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_int8_literal(
+/*========================*/
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name,	/* in: name */
+	const ib_uint64_t*	val)	/* in: value */
+{
+        pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, val, sizeof(*val), DATA_INT, 0);
+	} else {
+
+		pbl->address = val;
+		pbl->length = sizeof(*val);
+
+		sym_tab_rebind_lit(pbl->node, val, sizeof(*val));
+	}
 }
 
 /****************************************************************//**
@@ -2057,8 +2485,8 @@ pars_info_add_ull_literal(
 Add user function. */
 UNIV_INTERN
 void
-pars_info_add_function(
-/*===================*/
+pars_info_bind_function(
+/*====================*/
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name,	/*!< in: function name */
 	pars_user_func_cb_t	func,	/*!< in: function address */
@@ -2066,45 +2494,75 @@ pars_info_add_function(
 {
 	pars_user_func_t*	puf;
 
-	ut_ad(!pars_info_get_user_func(info, name));
+	puf = pars_info_lookup_user_func(info, name);
 
-	puf = mem_heap_alloc(info->heap, sizeof(*puf));
+	if (!puf) {
+		if (!info->funcs) {
+			ib_alloc_t*     heap_alloc;
 
-	puf->name = name;
-	puf->func = func;
-	puf->arg = arg;
+			heap_alloc = ib_heap_allocator_create(info->heap);
 
-	if (!info->funcs) {
-		info->funcs = ib_vector_create(info->heap, 8);
+			info->funcs = ib_vector_create(
+				heap_alloc, sizeof(*puf), 8);
+		}
+
+		/* Create a "new" element */
+		puf = ib_vector_push(info->funcs, NULL);
+		puf->name = name;
 	}
 
-	ib_vector_push(info->funcs, puf);
+	puf->arg = arg;
+	puf->func = func;
 }
 
-/****************************************************************//**
+/********************************************************************
 Add bound id. */
 UNIV_INTERN
 void
-pars_info_add_id(
-/*=============*/
+pars_info_bind_id(
+/*==============*/
 	pars_info_t*	info,		/*!< in: info struct */
+	ibool		copy_name,	/* in: copy name if TRUE */
 	const char*	name,		/*!< in: name */
 	const char*	id)		/*!< in: id */
 {
 	pars_bound_id_t*	bid;
 
-	ut_ad(!pars_info_get_bound_id(info, name));
+	bid = pars_info_lookup_bound_id(info, name);
 
-	bid = mem_heap_alloc(info->heap, sizeof(*bid));
+	if (!bid) {
 
-	bid->name = name;
-	bid->id = id;
+		if (!info->bound_ids) {
+			ib_alloc_t*     heap_alloc;
 
-	if (!info->bound_ids) {
-		info->bound_ids = ib_vector_create(info->heap, 8);
+			heap_alloc = ib_heap_allocator_create(info->heap);
+
+			info->bound_ids = ib_vector_create(
+				heap_alloc, sizeof(*bid), 8);
+		}
+
+		/* Create a "new" element */
+		bid = ib_vector_push(info->bound_ids, NULL);
+
+		bid->name = (copy_name)
+		    ? mem_heap_strdup(info->heap, name) : name;
 	}
 
-	ib_vector_push(info->bound_ids, bid);
+	bid->id = id;
+}
+
+/********************************************************************
+Get bound identifier with the given name.*/
+
+pars_bound_id_t*
+pars_info_get_bound_id(
+/*===================*/
+					/* out: bound id, or NULL if not
+					found */
+	pars_info_t*		info,	/* in: info struct */
+	const char*		name)	/* in: bound id name to find */
+{
+	return(pars_info_lookup_bound_id(info, name));
 }
 
 /****************************************************************//**
@@ -2117,24 +2575,7 @@ pars_info_get_user_func(
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name)	/*!< in: function name to find*/
 {
-	ulint		i;
-	ib_vector_t*	vec;
-
-	if (!info || !info->funcs) {
-		return(NULL);
-	}
-
-	vec = info->funcs;
-
-	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_user_func_t*	puf = ib_vector_get(vec, i);
-
-		if (strcmp(puf->name, name) == 0) {
-			return(puf);
-		}
-	}
-
-	return(NULL);
+	return(pars_info_lookup_user_func(info, name));
 }
 
 /****************************************************************//**
@@ -2147,52 +2588,6 @@ pars_info_get_bound_lit(
 	pars_info_t*		info,	/*!< in: info struct */
 	const char*		name)	/*!< in: bound literal name to find */
 {
-	ulint		i;
-	ib_vector_t*	vec;
-
-	if (!info || !info->bound_lits) {
-		return(NULL);
-	}
-
-	vec = info->bound_lits;
-
-	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_bound_lit_t*	pbl = ib_vector_get(vec, i);
-
-		if (strcmp(pbl->name, name) == 0) {
-			return(pbl);
-		}
-	}
-
-	return(NULL);
+	return(pars_info_lookup_bound_lit(info, name));
 }
 
-/****************************************************************//**
-Get bound id with the given name.
-@return	bound id, or NULL if not found */
-UNIV_INTERN
-pars_bound_id_t*
-pars_info_get_bound_id(
-/*===================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name)	/*!< in: bound id name to find */
-{
-	ulint		i;
-	ib_vector_t*	vec;
-
-	if (!info || !info->bound_ids) {
-		return(NULL);
-	}
-
-	vec = info->bound_ids;
-
-	for (i = 0; i < ib_vector_size(vec); i++) {
-		pars_bound_id_t*	bid = ib_vector_get(vec, i);
-
-		if (strcmp(bid->name, name) == 0) {
-			return(bid);
-		}
-	}
-
-	return(NULL);
-}

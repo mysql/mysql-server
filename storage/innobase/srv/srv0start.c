@@ -2424,8 +2424,42 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_was_started = TRUE;
 
+	/* Create the thread that will optimize the FTS sub-system
+	in a separate background thread. */
+	fts_optimize_init();
+
 	return((int) DB_SUCCESS);
 }
+
+#if 0
+/********************************************************************
+Sync all FTS cache before shutdown */
+static
+void
+srv_fts_close(void)
+/*===============*/
+{
+	dict_table_t*	table;
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		fts_t*          fts = table->fts;
+
+		if (fts != NULL) {
+			fts_sync_table(table);
+		}
+	}
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		fts_t*          fts = table->fts;
+
+		if (fts != NULL) {
+			fts_sync_table(table);
+		}
+	}
+}
+#endif
 
 /****************************************************************//**
 Shuts down the InnoDB database.
@@ -2447,6 +2481,11 @@ innobase_shutdown_for_mysql(void)
 
 		return(DB_SUCCESS);
 	}
+
+	/* Shutdown the FTS optimize sub system. */
+	fts_optimize_start_shutdown();
+
+	fts_optimize_end();
 
 	/* 1. Flush the buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive.
@@ -2614,3 +2653,81 @@ innobase_shutdown_for_mysql(void)
 	return((int) DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+
+/********************************************************************
+Signal all per-table background threads to shutdown, and wait for them to do
+so. */
+
+void
+srv_shutdown_table_bg_threads(void)
+/*===============================*/
+{
+	dict_table_t*	table;
+	dict_table_t*	first;
+	dict_table_t*	last = NULL;
+
+	mutex_enter(&dict_sys->mutex);
+
+	/* Signal all threads that they should stop. */
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	first = table;
+	while (table) {
+		dict_table_t*	next;
+		fts_t*		fts = table->fts;
+
+		if (fts != NULL) {
+			fts_start_shutdown(table, fts);
+		}
+
+		next = UT_LIST_GET_NEXT(table_LRU, table);
+
+		if (!next) {
+			last = table;
+		}
+
+		table = next;
+	}
+
+	/* We must release dict_sys->mutex here; if we hold on to it in the
+	loop below, we will deadlock if any of the background threads try to
+	acquire it (for example, the FTS thread by calling que_eval_sql).
+
+	Releasing it here and going through dict_sys->table_LRU without
+	holding it is safe because:
+
+	 a) MySQL only starts the shutdown procedure after all client
+	 threads have been disconnected and no new ones are accepted, so no
+	 new tables are added or old ones dropped.
+
+	 b) Despite its name, the list is not LRU, and the order stays
+	 fixed.
+
+	To safeguard against the above assumptions ever changing, we store
+	the first and last items in the list above, and then check that
+	they've stayed the same below. */
+
+	mutex_exit(&dict_sys->mutex);
+
+	/* Wait for the threads of each table to stop. This is not inside
+	the above loop, because by signaling all the threads first we can
+	overlap their shutting down delays. */
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	ut_a(first == table);
+	while (table) {
+		dict_table_t*	next;
+		fts_t*		fts = table->fts;
+
+		if (fts != NULL) {
+			fts_shutdown(table, fts);
+		}
+
+		next = UT_LIST_GET_NEXT(table_LRU, table);
+
+		if (table == last) {
+			ut_a(!next);
+		}
+
+		table = next;
+	}
+}

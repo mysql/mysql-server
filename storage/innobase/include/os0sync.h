@@ -99,6 +99,9 @@ typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
 typedef os_mutex_str_t*		os_mutex_t;
 
+/** Return value of os_event_wait_time() when the time is exceeded */
+#define OS_SYNC_TIME_EXCEEDED	1
+
 /** Mutex protecting counts and the event and OS 'slow' mutex lists */
 extern os_mutex_t	os_sync_mutex;
 
@@ -193,7 +196,7 @@ os_event_wait_low(
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
-@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+@return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 UNIV_INTERN
 ulint
 os_event_wait_time_low(
