@@ -1,0 +1,24 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# performance-schema-instrument = 'wait/synch/mutex/sql/% = NO'
+
+eval SELECT COUNT(*) = 31 AS 'Expect 1'
+FROM performance_schema.setup_instruments
+WHERE name LIKE 'wait/synch/mutex/sql/%' AND enabled = 'no' and timed = 'no';
+
+eval SELECT COUNT(*) = 1 AS 'Expect 1'
+FROM performance_schema.setup_instruments
+WHERE name = 'wait/synch/mutex/sql/LOCK_thread_count' AND enabled = 'no' and timed = 'no';
+
+eval SELECT COUNT(*) = 4 AS 'Expect 1'
+FROM performance_schema.setup_instruments
+WHERE name LIKE 'wait/synch/mutex/sql/LOCK_%' AND enabled = 'yes' and timed = 'no';
+
+eval SELECT COUNT(*) = 1 AS 'Expect 1'
+FROM performance_schema.setup_instruments
+WHERE name LIKE 'stage/%' AND enabled = 'yes' and timed = 'no';
+
+SELECT * FROM performance_schema.setup_instruments ORDER BY name;
