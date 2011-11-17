@@ -668,8 +668,16 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   crc(0), thd(thd_arg),
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
-  server_id=	thd->server_id;
-  when=		thd->start_time;
+  if (thd)
+  {
+    server_id= thd->server_id;
+    when= thd->start_time;
+  }
+  else
+  {
+    server_id= ::server_id;
+    when= 0;
+  }
 }
 
 /**
@@ -11963,6 +11971,66 @@ char* UgidSet_log_event::get_string_representation(size_t* dst_size)
   }
   DBUG_RETURN(buffer);
 }
+
+#ifndef MYSQL_CLIENT
+Group_set* UgidSet_log_event::get_group_representation(Group_log_state* grp_state, Sid_map* sid_map)
+{
+  DBUG_ENTER("UgidSet_log_event::get_group_representation");
+  Group_set* grp_set= new Group_set(sid_map);
+  char *src_buffer= (char *) (encoded_buffer + UGID_NTH_INFO_LEN + UGID_NTH_INFO_LEN);
+
+  if (grp_set)
+  { 
+    for (uint64 sidno_count= 1; sidno_count <= nsids; sidno_count++)
+    {
+      rpl_sid sid_decode;
+      const uchar* sid= (const uchar*) src_buffer;
+      sid_decode.copy_from(sid);
+      rpl_sidno sidno= sid_map->add_permanent(&sid_decode);
+      grp_set->ensure_sidno(sidno);
+      /*if (grp_state->ensure_sidno() != RETURN_STATUS_OK)
+      {
+        delete grp_set;
+        DBUG_RETURN(NULL);
+      }*/
+
+      DBUG_PRINT("info", ("DST memory %p sid %d size %d",
+                 src_buffer, sidno, UGID_SID_INFO_LEN));
+      src_buffer+= UGID_SID_INFO_LEN;
+      
+      uint64 interval= 0; 
+      uint64 n_intervals= uint8korr(src_buffer);
+      src_buffer+= UGID_NTH_INFO_LEN;
+      DBUG_PRINT("info", ("DST N-INTERVALS memory %p interval %lld size %d",
+                 src_buffer - UGID_NTH_INFO_LEN, n_intervals, UGID_NTH_INFO_LEN));
+      if (n_intervals)
+      {
+        while (interval < n_intervals)
+        {
+          uint64 gno_start= uint8korr(src_buffer);
+          src_buffer+= UGID_GNO_INFO_LEN;
+          uint64 gno_end= uint8korr(src_buffer);
+          src_buffer+= UGID_GNO_INFO_LEN;
+
+          Group_set::Interval_iterator ivit(grp_set, sidno);
+          if (grp_set->add(&ivit, gno_start, gno_end + 1) != RETURN_STATUS_OK)
+          {
+            delete grp_set;
+            DBUG_RETURN(NULL);
+          }
+
+          DBUG_PRINT("info", ("DST INTERVALS memory %p start %lld end %lld size %d",
+                     src_buffer - UGID_GNO_INFO_LEN - UGID_GNO_INFO_LEN, gno_start,
+                     gno_end, UGID_GNO_INFO_LEN + UGID_GNO_INFO_LEN));
+
+          interval++;
+        }
+      }
+    }
+  }
+  DBUG_RETURN(grp_set);
+}
+#endif
 
 #ifndef MYSQL_CLIENT
 void UgidSet_log_event::pack_info(Protocol *protocol)

@@ -4645,7 +4645,8 @@ public:
   }
 
   char* get_string_representation(size_t *dst_size);
-
+  Group_set* get_group_representation(Group_log_state* grp_state,
+                                      Sid_map* sid_map);
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif

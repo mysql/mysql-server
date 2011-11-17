@@ -160,4 +160,18 @@ enum_return_status Group_log_state::ensure_sidno()
 }
 
 
+bool Group_log_state::update_state_from_ugid(const uchar* sid, rpl_gno gno)
+{
+  sid_lock->assert_some_rdlock();
+
+  rpl_sid sid_decode;
+  sid_decode.copy_from(sid);
+
+  rpl_sidno sidno= sid_map->add_permanent(&sid_decode);
+  if (ensure_sidno() != RETURN_STATUS_OK ||
+      end_group(sidno, gno) != RETURN_STATUS_OK)
+    return true;
+
+  return false;
+}
 #endif /* HAVE_UGID */

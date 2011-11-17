@@ -24,9 +24,15 @@
 #include "rpl_handler.h"
 #include "rpl_info_factory.h"
 #include "debug_sync.h"
+#include <set>
+#include <string>
+#include <iterator>
 
 using std::max;
 using std::min;
+using std::set;
+using std::string;
+using std::iterator;
 
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -1853,6 +1859,159 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   return FALSE;
 }
 
+#ifdef HAVE_UGID
+typedef set<string> FileSet;
+bool MYSQL_BIN_LOG::restore_ugid()
+{
+  Log_event *ev= NULL;
+  LOG_INFO linfo;
+  IO_CACHE log;
+  File file= -1;
+  const char *errmsg= NULL;
+  FileSet file_set;
+  bool found_ugidset= false;
+  DBUG_ENTER("MYSQL_BIN_LOG::restore_ugid");
+
+  /*
+    Creates a format descriptor that is used to read events from
+    either the binary or relay log.
+  */
+  Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
+  if (!p_fdle->is_valid())
+    DBUG_RETURN(true);
+
+  /*
+    Acquires the necessary locks to ensure that logs are not either
+    removed or updated when we are reading from it.
+  */
+  mysql_mutex_lock(&LOCK_log);
+  mysql_mutex_lock(&LOCK_index);
+
+  /*
+    Gathers the set of files to be accessed.
+  */
+  for (int error= find_log_pos(&linfo, NULL, false); !error;
+       error= find_next_log(&linfo, false))
+    file_set.insert(string(linfo.log_file_name));
+
+  /*
+    Iterates through the gathered files in order to get information
+    on UGIDs.
+  */
+  for (FileSet::reverse_iterator it= file_set.rbegin();
+       it != file_set.rend(); ++it)
+  {
+    DBUG_PRINT("info", ("Reading file %s", (*it).c_str()));
+
+    /*
+      Tries to open a file and get checksum information by looking
+      for the actual checksum algorithm that is present in a FD at
+      head events of the log.
+    */
+    bool checksum_detected= false;
+    if ((file= open_binlog_file(&log, (*it).c_str(), &errmsg)) < 0)
+    {
+      sql_print_error("%s", errmsg);
+      goto err;
+    }
+    if (!checksum_detected)
+    {
+      for (int i=0; i < 3; i++)
+      {
+        if ((ev= Log_event::read_log_event(&log,
+                                           (mysql_mutex_t*) 0, p_fdle, 0))
+            && ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          p_fdle->checksum_alg= ev->checksum_alg;
+        checksum_detected= true;
+      }
+      if (!checksum_detected)
+      {
+        sql_print_error("%s", "malformed or very old log which "
+                        "does not have FormatDescriptor");
+        goto err;
+      }
+    }
+
+    /*
+      Seek for Reads events in the files by seeking for 
+    */
+    my_b_seek(&log, BIN_LOG_HEADER_SIZE);
+    while ((ev= Log_event::read_log_event(&log, 0, p_fdle,
+                                          opt_slave_sql_verify_checksum)))
+    {
+      if (ev->get_type_code() == UGIDSET_LOG_EVENT)
+      {
+        if (found_ugidset)
+        {
+          delete ev;
+          goto next_file;
+        }
+        sid_lock.rdlock();
+        UgidSet_log_event *ugidset= (UgidSet_log_event*) ev;
+        Group_set* grp_set= ugidset->get_group_representation(&group_log_state, &sid_map);
+        if (grp_set == NULL)
+        {
+          delete ev;
+          sid_lock.unlock();
+          goto err;
+        }
+        Group_set *ended_group= const_cast<Group_set *>(group_log_state.get_ended_groups());
+        if (ended_group->add(grp_set) != RETURN_STATUS_OK)
+        {
+          delete grp_set;
+          delete ev;
+          sid_lock.unlock();
+          goto err;
+        }
+        found_ugidset= true;
+        delete grp_set;
+        sid_lock.unlock();
+      }
+      if (ev->get_type_code() == UGID_LOG_EVENT)
+      {
+        Ugid_log_event *ugid= (Ugid_log_event*) ev; 
+
+        sid_lock.rdlock();
+        if (group_log_state.update_state_from_ugid(ugid->get_ugid_sid(),
+                                                   ugid->get_ugid_gno()))
+        {
+          sid_lock.unlock();
+          delete ev;
+          goto err;
+        }
+        sid_lock.unlock();
+      }
+      delete ev;
+    }
+next_file:
+    end_io_cache(&log);
+    mysql_file_close(file, MYF(MY_WME));
+    file= -1;
+  }
+
+  if (file_set.size() > 1)
+  {
+    UgidSet_log_event uset(current_thd, this);
+    if (uset.write(&log_file))
+      goto err;
+    bytes_written+= uset.data_written;
+  }
+
+  mysql_mutex_unlock(&LOCK_index);
+  mysql_mutex_unlock(&LOCK_log);
+  DBUG_RETURN(false);
+
+err:
+  if (file != -1)
+  {
+    end_io_cache(&log);
+    mysql_file_close(file, MYF(MY_WME));
+  }
+  mysql_mutex_unlock(&LOCK_index);
+  mysql_mutex_unlock(&LOCK_log);
+  DBUG_RETURN(true);
+}
+#endif
 
 /**
   Open a (new) binlog file.
@@ -1994,7 +2153,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       bytes_written+= s.data_written;
       if (current_thd)
       {
-        UgidSet_log_event uset (current_thd, this);
+        UgidSet_log_event uset(current_thd, this);
         if (uset.write(&log_file))
           goto err;
         bytes_written+= uset.data_written;

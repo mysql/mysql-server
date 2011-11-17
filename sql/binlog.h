@@ -188,6 +188,7 @@ public:
     @retval 1 Error (out of memory or IO error).
   */
   int init_sid_map();
+  bool restore_ugid();
 #endif
 
 private:
