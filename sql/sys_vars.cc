@@ -87,7 +87,7 @@ static Sys_var_mybool Sys_pfs_enabled(
 
 static Sys_var_charptr Sys_pfs_instrument(
        "performance_schema_instrument",
-       "Enable a performance schema instrument.",
+       "Default startup value for a performance schema instrument.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_instrument),
        CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT),
        IN_FS_CHARSET,
@@ -96,77 +96,77 @@ static Sys_var_charptr Sys_pfs_instrument(
 
 static Sys_var_mybool Sys_pfs_consumer_events_stages_current(
        "performance_schema_consumer_events_stages_current",
-       "Enable the events_stages_current consumer.",
+       "Default startup value for the events_stages_current consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_stages_current_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_stages_history(
        "performance_schema_consumer_events_stages_history",
-       "Enable the events_stages_history consumer.",
+       "Default startup value for the events_stages_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_stages_history_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_stages_history_long(
        "performance_schema_consumer_events_stages_history_long",
-       "Enable the events_stages_history_long consumer.",
+       "Default startup value for the events_stages_history_long consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_stages_history_long_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_statements_current(
        "performance_schema_consumer_events_statements_current",
-       "Enable the events_statements_current consumer.",
+       "Default startup value for the events_statements_current consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_current_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_statements_history(
        "performance_schema_consumer_events_statements_history",
-       "Enable the events_statements_history consumer.",
+       "Default startup value for the events_statements_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_history_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_statements_history_long(
        "performance_schema_consumer_events_statements_history_long",
-       "Enable the events_statements_history_long consumer.",
+       "Default startup value for the events_statements_history_long consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_history_long_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_waits_current(
        "performance_schema_consumer_events_waits_current",
-       "Enable the events_waits_current consumer.",
+       "Default startup value for the events_waits_current consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_waits_current_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_waits_history(
        "performance_schema_consumer_events_waits_history",
-       "Enable the events_waits_history consumer.",
+       "Default startup value for the events_waits_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_waits_history_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_waits_history_long(
        "performance_schema_consumer_events_waits_history_long",
-       "Enable the events_waits_history_long consumer.",
+       "Default startup value for the events_waits_history_long consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_waits_history_long_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_global_instrumentation(
        "performance_schema_consumer_global_instrumentation",
-       "Enable the global_instrumentation consumer.",
+       "Default startup value for the global_instrumentation consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_global_instrumentation_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_thread_instrumentation(
        "performance_schema_consumer_thread_instrumentation",
-       "Enable the thread_instrumentation consumer.",
+       "Default startup value for the thread_instrumentation consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_thread_instrumentation_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);

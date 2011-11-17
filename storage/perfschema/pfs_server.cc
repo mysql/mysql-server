@@ -197,10 +197,16 @@ void init_pfs_instrument_array()
 }
 
 /**
-  Process one PFS_INSTRUMENT configuration string. Isolate the instrument name,
-  evaluate the option value, and store them in a dynamic array.
+  Process one performance_schema_instrument configuration string. Isolate the
+  instrument name, evaluate the option value, and store them in a dynamic array.
+  Return 'false' for success, 'true' for error.
+
+  @param name    Instrument name
+  @param value   Configuration option: 'on', 'off', etc.
+  @return 0 for success, non zero for errors
 */
-bool add_pfs_instr_to_array(const char* name, const char* value)
+
+int add_pfs_instr_to_array(const char* name, const char* value)
 {
   int name_length= strlen(name);
   int value_length= strlen(value);
@@ -210,58 +216,50 @@ bool add_pfs_instr_to_array(const char* name, const char* value)
                        + name_length + 1 + value_length + 1, MYF(MY_WME));
   if (!e) return 1;
   
-  /* Copy the name string */
+  /* Copy the instrument name */
   e->m_name= (char*)e + sizeof(PFS_instr_init);
   memcpy(e->m_name, name, name_length);
   e->m_name_length= name_length;
   e->m_name[name_length]= '\0';
   
-  /* Copy the option string */
-  e->m_value= e->m_name + name_length + 1;
-  memcpy(e->m_value, value, value_length);
-  e->m_value_length= value_length;
-  e->m_value[value_length]= '\0';
-
-  /* Unrecognized values default to 'disabled'. */
-  e->m_enabled= false;
-  e->m_timed= false;
-  bool valid= true;
-
   /* Set flags accordingly */
-  if (!my_strcasecmp(&my_charset_latin1, e->m_value, "counted"))
+  if (!my_strcasecmp(&my_charset_latin1, value, "counted"))
   {
     e->m_enabled= true;
     e->m_timed= false;
   }
   else
-  if (!my_strcasecmp(&my_charset_latin1, e->m_value, "true") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "on") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "1") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "yes") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "enabled"))
+  if (!my_strcasecmp(&my_charset_latin1, value, "true") ||
+      !my_strcasecmp(&my_charset_latin1, value, "on") ||
+      !my_strcasecmp(&my_charset_latin1, value, "1") ||
+      !my_strcasecmp(&my_charset_latin1, value, "yes") ||
+      !my_strcasecmp(&my_charset_latin1, value, "enabled"))
   {
     e->m_enabled= true;
     e->m_timed= true;
   }
   else
-  if (!my_strcasecmp(&my_charset_latin1, e->m_value, "false") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "off") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "0") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "no") ||
-      !my_strcasecmp(&my_charset_latin1, e->m_value, "disabled"))
+  if (!my_strcasecmp(&my_charset_latin1, value, "false") ||
+      !my_strcasecmp(&my_charset_latin1, value, "off") ||
+      !my_strcasecmp(&my_charset_latin1, value, "0") ||
+      !my_strcasecmp(&my_charset_latin1, value, "no") ||
+      !my_strcasecmp(&my_charset_latin1, value, "disabled"))
   {
     e->m_enabled= false;
     e->m_timed= false;
   }
   else
   {
-    valid= false; /* ignore invalid option values */
+    my_free(e);
+    return 1;
   }
 
-  if (valid && insert_dynamic(&pfs_instr_init_array, &e))
+  /* Add to the array of default startup options */
+  if (insert_dynamic(&pfs_instr_init_array, &e))
   {
     my_free(e);
     return 1;
   }
+
   return 0;
 }

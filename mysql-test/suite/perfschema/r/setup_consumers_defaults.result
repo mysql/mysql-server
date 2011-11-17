@@ -1,13 +1,3 @@
-SELECT COUNT(*) = 6 AS 'Expect 1'
-FROM performance_schema.setup_consumers
-WHERE enabled = 'yes';
-Expect 1
-1
-SELECT COUNT(*) = 5 AS 'Expect 1'
-FROM performance_schema.setup_consumers
-WHERE enabled = 'no';
-Expect 1
-1
 SELECT * FROM performance_schema.setup_consumers ORDER BY name;
 NAME	ENABLED
 events_stages_current	NO
