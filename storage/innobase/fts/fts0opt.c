@@ -1738,10 +1738,9 @@ fts_optimize_get_time_limit(
 	trx_t*		trx,			/*!< in: transaction */
 	fts_table_t*	fts_table)		/*!< in: aux table */
 {
-	ulint		error;
 	ib_time_t	time_limit = 0;
 
-	error = fts_config_get_ulint(
+	fts_config_get_ulint(
 		trx, fts_table,
 		FTS_OPTIMIZE_LIMIT_IN_SECS, (ulint*) &time_limit);
 
@@ -2120,12 +2119,9 @@ fts_optimize_purge_deleted_doc_id_snapshot(
 /*=======================================*/
 	fts_optimize_t*	optim)	/*!< in: optimize instance */
 {
-	pars_info_t*	info;
 	ulint		error;
 	que_t*		graph;
 	char*		sql_str;
-
-	info = pars_info_create();
 
 	/* Since we only replace the table_id and don't construct
 	the full name, we do the '%s' substitution ourselves. */
@@ -2346,8 +2342,9 @@ fts_optimize_reset_start_time(
 /*==========================*/
 	fts_optimize_t*	optim)	/*!< in: optimize instance */
 {
-	ulint		i;
 	ulint		error = DB_SUCCESS;
+#ifdef FTS_OPTIMIZE_DEBUG
+	ulint		i;
 	fts_t*		fts = optim->table->fts;
 
 	/* Optimization should have been completed for all indexes. */
@@ -2356,15 +2353,14 @@ fts_optimize_reset_start_time(
 	for (i = 0; i < ib_vector_size(fts->indexes); ++i) {
 		dict_index_t*	index;
 
-#ifdef FTS_OPTIMIZE_DEBUG
 		ib_time_t	start_time = 0;
 
 		/* Reset the start time to 0 for this index. */
 		error = fts_optimize_set_index_start_time(
 			optim->trx, index, start_time);
-#endif
 		index = ib_vector_getp(fts->indexes, i);
 	}
+#endif
 
 	if (error == DB_SUCCESS) {
 		fts_sql_commit(optim->trx);
@@ -2848,7 +2844,6 @@ fts_optimize_thread(
 	void*		arg)			/*!< in: work queue*/
 {
 	mem_heap_t*	heap;
-	ulint		error;
 	ib_vector_t*	tables;
 	ib_alloc_t*	heap_alloc;
 	ulint		current = 0;
@@ -2884,7 +2879,7 @@ fts_optimize_thread(
 
 				slot->state = FTS_STATE_RUNNING;
 
-				error = fts_optimize_table_bk(slot);
+				fts_optimize_table_bk(slot);
 			}
 
 			++current;
