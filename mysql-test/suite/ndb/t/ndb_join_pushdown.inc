@@ -3947,8 +3947,8 @@ let $pushed_reads_at_end = query_get_value(show status like 'Ndb_pushed_reads', 
 --disable_query_log
 # There is some random variation in scan_count, probably due to statistics
 # being updated at unpredictable intervals. Therefore, we only test for 
-# deviations greater than on tenth of the expected value.
---eval select round(($scan_count_at_end - $scan_count_at_startup)/2524, 1) as scan_count_derived
+# deviations greater than an tenth of the expected value.
+#--eval select round(($scan_count_at_end - $scan_count_at_startup)/2524, 1) as scan_count_derived
 --eval select $pruned_scan_count_at_end - $pruned_scan_count_at_startup as pruned_scan_count
 --eval select $sorted_scan_count_at_end - $sorted_scan_count_at_startup as sorted_scan_count
 --eval select $pushed_queries_defined_at_end - $pushed_queries_defined_at_startup as pushed_queries_defined
