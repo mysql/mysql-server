@@ -151,7 +151,7 @@ static void GCALC_DBUG_PRINT_SLICE(const char *header,
     else
       lnbuf+= gcalc_pi_str(buf+lnbuf, slice->next_pi, "\t");
     buf[lnbuf]= 0;
-    GCALC_DBUG_PRINT((buf));
+    GCALC_DBUG_PRINT(("%s", buf));
   }
 }
 

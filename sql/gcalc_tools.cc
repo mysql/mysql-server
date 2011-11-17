@@ -133,7 +133,7 @@ int Gcalc_function::count_internal(const char *cur_func, uint set_type,
   uint n_ops= c_op & ~(op_any | op_not | v_mask);
   uint n_shape= c_op & ~(op_any | op_not | v_mask); /* same as n_ops */
   value v_state= (value) (c_op & v_mask);
-  int result;
+  int result= 0;
   const char *sav_cur_func= cur_func;
 
   // GCALC_DBUG_ENTER("Gcalc_function::count_internal");
