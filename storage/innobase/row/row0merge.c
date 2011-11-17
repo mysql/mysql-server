@@ -263,7 +263,6 @@ row_merge_buf_add(
 	const dict_field_t*	ifield;
 	ulint			n_row_added = 0;
 	ulint			bucket = 0;
-	ulint			zip_size;
 	doc_id_t		write_doc_id;
 
 	if (buf->n_tuples >= buf->max_tuples) {
@@ -278,8 +277,6 @@ row_merge_buf_add(
 	index = (buf->index->type & DICT_FTS) ? fts_index : buf->index;
 
 	n_fields = dict_index_get_n_fields(index);
-
-	zip_size = dict_table_zip_size(index->table);
 
 	entry = mem_heap_alloc(buf->heap, n_fields * sizeof *entry);
 	buf->tuples[buf->n_tuples] = entry;
