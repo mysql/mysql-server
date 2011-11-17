@@ -41,7 +41,9 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
-int toku_txn_maybe_fsync_log(TOKUTXN txn, YIELDF yield, void *yieldv);
+int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv);
+
+void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn);
 void toku_txn_close_txn(TOKUTXN txn);
 
 XIDS toku_txn_get_xids (TOKUTXN);

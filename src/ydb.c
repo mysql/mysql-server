@@ -2688,9 +2688,20 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
 
     // Close the logger after releasing the locks
     r = toku_txn_release_locks(txn);
-    //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
-    toku_txn_maybe_fsync_log(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
-    toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
+    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+    TOKULOGGER logger = txn->mgrp->i->logger;
+    LSN do_fsync_lsn;
+    BOOL do_fsync;
+    //
+    // quickie fix for 5.2.0, need to extract these variables so that
+    // we can do the fsync after the close of txn. We need to do it 
+    // after the close because if we do it before, there are race
+    // conditions exposed by test_stress1.c (#4145, #4153)
+    //
+    toku_txn_get_fsync_info(ttxn, &do_fsync, &do_fsync_lsn);
+    toku_txn_close_txn(ttxn);
+    toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync, ydb_yield, NULL);
+    
     // the toxutxn is freed, and we must free the rest. */
 
     //Promote list to parent (dbs that must close before abort)
@@ -2759,7 +2770,6 @@ toku_txn_abort(DB_TXN * txn,
     assert(r==0);
     r = toku_txn_release_locks(txn);
     //toku_logger_txn_close(db_txn_struct_i(txn)->tokutxn);
-    toku_txn_maybe_fsync_log(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     toku_txn_close_txn(db_txn_struct_i(txn)->tokutxn);
 
 #if !TOKUDB_NATIVE_H

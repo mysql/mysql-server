@@ -440,25 +440,31 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 }
 
 struct txn_fsync_log_info {
-    TOKUTXN txn;
+    TOKULOGGER logger;
+    LSN do_fsync_lsn;
     int r;
 };
 
 static void do_txn_fsync_log(void *thunk) {
     struct txn_fsync_log_info *info = (struct txn_fsync_log_info *) thunk;
-    TOKUTXN txn = info->txn;
-    info->r = toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
+    info->r = toku_logger_fsync_if_lsn_not_fsynced(info->logger, info->do_fsync_lsn);
 }
 
-int toku_txn_maybe_fsync_log(TOKUTXN txn, YIELDF yield, void *yieldv) {
+int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv) {
     int r = 0;
-    if (txn->logger && txn->do_fsync) {
-        struct txn_fsync_log_info info = { .txn = txn };
+    if (logger && do_fsync) {
+        struct txn_fsync_log_info info = { .logger = logger, .do_fsync_lsn = do_fsync_lsn };
         yield(do_txn_fsync_log, &info, yieldv);
         r = info.r;
     }
     return r;
 }
+
+void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn) {
+    *do_fsync = ttxn->do_fsync;
+    *do_fsync_lsn = ttxn->do_fsync_lsn;
+}
+
 
 void toku_txn_close_txn(TOKUTXN txn) {
     TOKULOGGER logger = txn->logger;
