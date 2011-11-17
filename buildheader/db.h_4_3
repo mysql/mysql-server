@@ -112,7 +112,6 @@ typedef struct __toku_engine_status {
   u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ 
   u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ 
   u_int64_t        maybe_get_and_pin_hits;  /* how many times has get_and_pin(_clean) returned with a node */ 
-  u_int64_t        maybe_get_and_pin_if_in_memorys;  /* how many times has get_and_pin_if_in_memory been called */ 
   int64_t          cachetable_size_current; /* sum of the sizes of the nodes represented in the cachetable */ 
   int64_t          cachetable_size_limit;   /* the limit to the sum of the node sizes */ 
   int64_t          cachetable_size_max;     /* the max value (high water mark) of cachetable_size_current */ 

@@ -2244,6 +2244,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_last_lsn              %"PRIu64"\n", engstat.checkpoint_last_lsn);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_count                 %"PRIu32"\n", engstat.checkpoint_count);
 	n += snprintf(buff + n, bufsiz - n, "checkpoint_count_fail            %"PRIu32"\n", engstat.checkpoint_count_fail);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu32"\n", engstat.cleaner_period);
+	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu32"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);
 	n += snprintf(buff + n, bufsiz - n, "txn_commit                       %"PRIu64"\n", engstat.txn_commit);
 	n += snprintf(buff + n, bufsiz - n, "txn_abort                        %"PRIu64"\n", engstat.txn_abort);
@@ -2354,8 +2356,6 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
         n += snprintf(buff + n, bufsiz - n, "msg_bytes_max                    %"PRIu64"\n", engstat.msg_bytes_max); 
         n += snprintf(buff + n, bufsiz - n, "msg_num                          %"PRIu64"\n", engstat.msg_num); 
         n += snprintf(buff + n, bufsiz - n, "msg_num_broadcast                %"PRIu64"\n", engstat.msg_num_broadcast); 
-	n += snprintf(buff + n, bufsiz - n, "cleaner_period                   %"PRIu32"\n", engstat.cleaner_period);
-	n += snprintf(buff + n, bufsiz - n, "cleaner_iterations               %"PRIu32"\n", engstat.cleaner_iterations);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
