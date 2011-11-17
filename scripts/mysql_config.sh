@@ -116,16 +116,6 @@ libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openss
 embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
 embedded_libs="$embedded_libs @QUOTED_CMAKE_CXX_LINK_FLAGS@"
 
-if [ -r "$pkglibdir/libmygcc.a" ]; then
-  # When linking against the static library with a different version of GCC
-  # from what was used to compile the library, some symbols may not be defined
-  # automatically.  We package the libmygcc.a from the build host, to provide
-  # definitions for those.  Bugs 4921, 19561, 19817, 21158, etc.
-  libs="$libs -lmygcc "
-  libs_r="$libs_r -lmygcc "
-  embedded_libs="$embedded_libs -lmygcc "
-fi
-
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 cxxflags="-I$pkgincludedir @CXXFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
