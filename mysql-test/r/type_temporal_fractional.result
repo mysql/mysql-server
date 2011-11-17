@@ -16644,3 +16644,48 @@ Warning	1292	Truncated incorrect time value: '0000-00-00'
 Warning	1292	Truncated incorrect time value: '2002-11-24'
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#13401354 ITEM->FIELD_TYPE() == MYSQL_TYPE_TIME || ITEM->FIELD_TYPE() == MYSQL_TYPE_NULL
+#
+CREATE TABLE t1 (col_time_not_null TIME NOT NULL);
+SELECT * FROM t1
+WHERE  col_time_not_null = DATE(NULL) AND col_time_not_null = TIME(NULL);
+col_time_not_null
+DROP TABLE t1;
+CREATE TABLE t1 (
+col_date DATE,
+col_time_not_null TIME not null,
+pk TIMESTAMP(6),
+col_timestamp_3_not_null_key TIMESTAMP(3) NOT NULL,
+col_date_not_null DATE NOT NULL,
+col_time_3_key TIME(3),
+col_timestamp_6_key TIMESTAMP(6) NOT NULL,
+col_datetime DATETIME,
+col_datetime_6 DATETIME(6),
+col_timestamp_3_key TIMESTAMP(3) NOT NULL,
+col_time_6_not_null TIME(6) NOT NULL,
+col_time_6 TIME(6),
+col_time_6_not_null_key TIME(6) NOT NULL,
+col_datetime_not_null DATETIME NOT NULL,
+col_datetime_3_not_null_key DATETIME(3) NOT NULL,
+KEY (col_datetime_3_not_null_key));
+SELECT col_time_6 AS c1, NOW() AS c2 FROM t1
+WHERE
+col_datetime_not_null BETWEEN SUBTIME('0000-00-00','00:00:00') AND col_date_not_null
+AND
+col_time_not_null=STR_TO_DATE(DATE_FORMAT(TIME('00:00:00.000000'),CONCAT_WS('-','%s','%k' )),CONCAT_WS(':','%i','%M'))
+AND
+col_date BETWEEN UNIX_TIMESTAMP('0000-00-00 00:00:00') AND col_timestamp_3_key
+AND
+col_datetime_6 NOT IN (col_time_6_not_null,'0000-00-00')
+AND
+col_time_not_null = TIMEDIFF(CURDATE(),'00:00:00.000000')
+AND
+col_time_3_key NOT IN (col_timestamp_6_key,pk)
+AND
+col_timestamp_3_not_null_key < col_datetime;
+c1	c2
+Warnings:
+Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
+Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
+DROP TABLE t1;
