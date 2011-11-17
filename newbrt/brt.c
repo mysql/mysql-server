@@ -876,7 +876,7 @@ exit:
 }
 
 
-static void flush_some_child(struct brt_header* h, BRTNODE node, int *n_dirtied, int cascades);
+static void flush_some_child(struct brt_header* h, BRTNODE node, int *n_dirtied, int cascades, bool suppress_leaf_merge);
 static void bring_node_fully_into_memory(BRTNODE node, struct brt_header *h);
 
 // TODO 3988 Leif set cleaner_nodes_dirtied
@@ -931,7 +931,7 @@ toku_brtnode_cleaner_callback(void *brtnode_pv, BLOCKNUM blocknum, u_int32_t ful
     // Either flush_some_child will unlock the node, or we do it here.
     if (toku_bnc_nbytesinbuf(BNC(node, childnum)) > 0) {
         int n_dirtied = 0;
-        flush_some_child(h, node, &n_dirtied, 0);
+        flush_some_child(h, node, &n_dirtied, 0, true);
         brt_status.cleaner_nodes_dirtied += n_dirtied;
     } else {
         toku_unpin_brtnode_off_client_thread(h, node);
@@ -1981,7 +1981,7 @@ static void call_flusher_thread_callback(int ft_state) {
 //  - possibly flush either new children created from split, otherwise unlock children
 //
 static void
-brt_split_child (struct brt_header* h, BRTNODE node, int childnum, BRTNODE child)
+brt_split_child (struct brt_header* h, BRTNODE node, int childnum, BRTNODE child, bool suppress_leaf_merge)
 {
     assert(node->height>0);
     assert(toku_bnc_nbytesinbuf(BNC(node, childnum))==0); // require that the buffer for this child is empty
@@ -2014,11 +2014,11 @@ brt_split_child (struct brt_header* h, BRTNODE node, int childnum, BRTNODE child
     toku_unpin_brtnode_off_client_thread(h, node);
     if (nodea->height > 0 && nonleaf_node_is_gorged(nodea)) {
         toku_unpin_brtnode_off_client_thread(h, nodeb);
-        flush_some_child(h, nodea, NULL, 0);
+        flush_some_child(h, nodea, NULL, 0, suppress_leaf_merge);
     }
     else if (nodeb->height > 0 && nonleaf_node_is_gorged(nodeb)) {
         toku_unpin_brtnode_off_client_thread(h, nodea);
-        flush_some_child(h, nodeb, NULL, 0);
+        flush_some_child(h, nodeb, NULL, 0, suppress_leaf_merge);
     }
     else {
         toku_unpin_brtnode_off_client_thread(h, nodea);
@@ -2902,7 +2902,7 @@ maybe_merge_pinned_nodes (BRTNODE parent, struct kv_pair *parent_splitk,
 // As output, two of node's children are merged or rebalanced, and node is unlocked
 //
 static void
-brt_merge_child (struct brt_header* h, BRTNODE node, int childnum_to_merge, BOOL *did_react)
+brt_merge_child (struct brt_header* h, BRTNODE node, int childnum_to_merge, BOOL *did_react, bool suppress_leaf_merge)
 {
     if (node->n_children < 2) {
         toku_unpin_brtnode_off_client_thread(h, node);
@@ -3033,7 +3033,7 @@ brt_merge_child (struct brt_header* h, BRTNODE node, int childnum_to_merge, BOOL
         toku_unpin_brtnode_off_client_thread(h, childb);
     }
     if (childa->height > 0 && nonleaf_node_is_gorged(childa)) {
-        flush_some_child(h, childa, NULL, 0);
+        flush_some_child(h, childa, NULL, 0, suppress_leaf_merge);
     }
     else {
         toku_unpin_brtnode_off_client_thread(h, childa);
@@ -3231,7 +3231,7 @@ update_flush_status(BRTNODE UU(parent), BRTNODE child, int cascades)
 }
 
 static void
-flush_some_child (struct brt_header* h, BRTNODE parent, int *n_dirtied, int cascades)
+flush_some_child (struct brt_header* h, BRTNODE parent, int *n_dirtied, int cascades, bool suppress_leaf_merge)
 // Effect: This function does the following:
 //   - Pick a child of parent (the heaviest child), 
 //   - flush from parent to child, 
@@ -3340,6 +3340,11 @@ flush_some_child (struct brt_header* h, BRTNODE parent, int *n_dirtied, int casc
     // it is possible that the flush got rid of some values
     // and now the parent is no longer reactive
     child_re = get_node_reactivity(child);
+    if (suppress_leaf_merge && child->height == 0 && child_re == RE_FUSIBLE) {
+        // prevent merging leaf nodes, sometimes (when the cleaner thread
+        // called us)
+        child_re = RE_STABLE;
+    }
     // if the parent has been unpinned above, then
     // this is our only option, even if the child is not stable
     // if the child is not stable, we'll handle it the next 
@@ -3352,7 +3357,7 @@ flush_some_child (struct brt_header* h, BRTNODE parent, int *n_dirtied, int casc
         // it is the responsibility of flush_some_child to unpin parent
         //
         if (child->height > 0 && nonleaf_node_is_gorged(child)) {
-            flush_some_child(h, child, n_dirtied, cascades+1);
+            flush_some_child(h, child, n_dirtied, cascades+1, suppress_leaf_merge);
         }
         else {
             toku_unpin_brtnode_off_client_thread(h, child);
@@ -3363,7 +3368,7 @@ flush_some_child (struct brt_header* h, BRTNODE parent, int *n_dirtied, int casc
         // it is responsibility of brt_split_child to unlock nodes
         // of parent and child as it sees fit
         //
-        brt_split_child(h, parent, childnum, child);
+        brt_split_child(h, parent, childnum, child, suppress_leaf_merge);
     }
     else if (child_re == RE_FUSIBLE) {
         BOOL did_react;
@@ -3378,7 +3383,7 @@ flush_some_child (struct brt_header* h, BRTNODE parent, int *n_dirtied, int casc
         //
         // it is responsibility of brt_merge_child to unlock parent
         //
-        brt_merge_child(h, parent, childnum, &did_react);
+        brt_merge_child(h, parent, childnum, &did_react, suppress_leaf_merge);
     }
     else {
         assert(FALSE);
@@ -3671,7 +3676,7 @@ static void flush_node_fun(void *fe_v)
         // of flush_some_child to unlock the node
         // otherwise, we unlock the node here.
         if (fe->node->height > 0 && nonleaf_node_is_gorged(fe->node)) {
-            flush_some_child(fe->h, fe->node, NULL, 0);
+            flush_some_child(fe->h, fe->node, NULL, 0, false);
         }
         else {
             toku_unpin_brtnode_off_client_thread(fe->h,fe->node);
@@ -3682,7 +3687,7 @@ static void flush_node_fun(void *fe_v)
         // bnc, which means we are tasked with flushing some
         // buffer in the node.
         // It is the responsibility of flush_some_child to unlock the node
-        flush_some_child(fe->h, fe->node, NULL, 0);
+        flush_some_child(fe->h, fe->node, NULL, 0, false);
     }
     remove_background_job(fe->h->cf, false);
     toku_free(fe);
