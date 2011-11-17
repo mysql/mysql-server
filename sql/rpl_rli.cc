@@ -1370,6 +1370,15 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);
     }
+    relay_log.sid_lock.rdlock();
+    int ret= relay_log.init_sid_map();
+    relay_log.sid_lock.unlock();
+
+    if (ret || (!current_thd && relay_log.restore_ugid()))
+    {
+      sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
+      DBUG_RETURN(1);
+    }
   }
 
    /*

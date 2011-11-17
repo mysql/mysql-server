@@ -5652,20 +5652,17 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   case UGID_LOG_EVENT:
   {
-    rpl_sid sid_decode;
     Ugid_log_event ugid(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                         event_len - BINLOG_CHECKSUM_LEN : event_len,
                         rli->relay_log.description_event_for_queue);
-    sid_decode.copy_from(ugid.get_ugid_sid());
-    THD* thd= rli->info_thd ? rli->info_thd : current_thd;
 
     rli->relay_log.sid_lock.rdlock();
-    rpl_sidno sidno= rli->relay_log.sid_map.add_permanent(&sid_decode);
-    rpl_gno gno= ugid.get_ugid_gno();
-    if (rli->relay_log.group_log_state.ensure_sidno() != RETURN_STATUS_OK ||
-        rli->relay_log.group_log_state.acquire_ownership(sidno, gno, thd) != RETURN_STATUS_OK ||
-        rli->relay_log.group_log_state.end_group(sidno, gno) != RETURN_STATUS_OK)
+    if (rli->relay_log.group_log_state.update_state_from_ugid(ugid.get_ugid_sid(),
+                                                              ugid.get_ugid_gno()))
+    {
+      rli->relay_log.sid_lock.unlock();
       goto err;
+    }
     rli->relay_log.sid_lock.unlock();
     inc_pos= event_len;
   }
@@ -6978,9 +6975,6 @@ int reset_slave(THD *thd, Master_info* mi)
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
-  #ifdef HAVE_UGID
-  mysql_bin_log.sid_lock.rdlock();
-#endif
   init_thread_mask(&thread_mask,mi,0 /* not inverse */);
   if (thread_mask) // We refuse if any slave thread is running
   {
@@ -7010,19 +7004,8 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-#ifdef HAVE_UGID
-  mysql_bin_log.group_log_state.clear();
-  if (mysql_bin_log.sid_map.clear() != RETURN_STATUS_OK ||
-      mysql_bin_log.init_sid_map() != 0 ||
-      mysql_bin_log.group_log_state.ensure_sidno() != RETURN_STATUS_OK)
-    goto err;
-#endif
-
   (void) RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
 err:
-#ifdef HAVE_UGID
-  mysql_bin_log.sid_lock.unlock();
-#endif
   unlock_slave_threads(mi);
   if (error)
     my_error(sql_errno, MYF(0), errmsg);

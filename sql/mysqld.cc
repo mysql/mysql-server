@@ -4547,8 +4547,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-  if (opt_bin_log && mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
-                                               WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
+  if (opt_bin_log &&
+       mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
+                                 WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
     unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
@@ -5006,6 +5007,9 @@ int mysqld_main(int argc, char **argv)
       int ret= mysql_bin_log.init_sid_map();
       mysql_bin_log.sid_lock.unlock();
       if (ret)
+        unireg_abort(1);
+
+      if (mysql_bin_log.restore_ugid())
         unireg_abort(1);
     }
 #endif

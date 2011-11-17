@@ -1614,6 +1614,20 @@ public:
     Const_interval_iterator ivit;
   };
 
+  /**
+    Adds the interval (start, end) to the given Interval_iterator.
+
+    This is the lowest-level function that adds groups; this is where
+    Interval objects are added, grown, or merged.
+
+    @param ivitp Pointer to iterator.  After this function returns,
+    the current_element of the iterator will be the interval that
+    contains start and end.
+    @param start The first GNO in the interval.
+    @param end The first GNO after the interval.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status add(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
 
 private:
   /**
@@ -1663,20 +1677,6 @@ private:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status remove(rpl_sidno sidno, Const_interval_iterator ivit);
-  /**
-    Adds the interval (start, end) to the given Interval_iterator.
-
-    This is the lowest-level function that adds groups; this is where
-    Interval objects are added, grown, or merged.
-
-    @param ivitp Pointer to iterator.  After this function returns,
-    the current_element of the iterator will be the interval that
-    contains start and end.
-    @param start The first GNO in the interval.
-    @param end The first GNO after the interval.
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
-  */
-  enum_return_status add(Interval_iterator *ivitp, rpl_gno start, rpl_gno end);
   /**
     Removes the interval (start, end) from the given
     Interval_iterator. This is the lowest-level function that removes
@@ -2184,6 +2184,8 @@ public:
   const Owned_groups *get_owned_groups() { return &owned_groups; }
   /// Return Sid_map used by this Group_log_state.
   const Sid_map *get_sid_map() { return sid_map; }
+
+  bool update_state_from_ugid(const uchar* sid, rpl_gno gno);
 #ifndef DBUG_OFF
   size_t get_string_length() const
   {
