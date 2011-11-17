@@ -12729,6 +12729,11 @@ innodb_internal_table_validate(
 
 	table_name = value->val_str(value, buff, &len);
 
+	if (!table_name) {
+		*static_cast<const char**>(save) = NULL;
+		return(0);
+	}
+
 	user_table = dict_table_open_on_name_no_stats(
 			table_name, FALSE, DICT_ERR_IGNORE_NONE);
 
