@@ -21,4 +21,3 @@ eval SELECT COUNT(*) = 1 AS 'Expect 1'
 FROM performance_schema.setup_instruments
 WHERE name LIKE 'stage/%' AND enabled = 'yes' and timed = 'no';
 
-SELECT * FROM performance_schema.setup_instruments ORDER BY name;

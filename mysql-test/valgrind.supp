@@ -804,7 +804,6 @@
    fun:main
 }
 
-
 {
    Bug 59874 Valgrind warning in InnoDB compression code
    Memcheck:Cond
