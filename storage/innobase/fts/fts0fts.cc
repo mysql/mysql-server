@@ -326,29 +326,31 @@ fts_load_default_stopword(
 /*======================*/
 	fts_stopword_t*		stopword_info)	/*!< in: stopword info */
 {
-	ib_alloc_t*		allocator;
-	fts_tokenizer_word_t	new_word;
 	mem_heap_t*		heap;
-	fts_string_t		str;
-	ulint			ix = 0;
+	ib_alloc_t*		allocator;
 	ib_rbt_t*		stop_words;
 
 	allocator = stopword_info->heap;
 	heap = static_cast<mem_heap_t*>(allocator->arg);
 	stop_words = stopword_info->cached_stopword;
 
-	while (fts_default_stopword[ix]) {
-		new_word.nodes = ib_vector_create(allocator,
-						  sizeof(fts_node_t), 4);
+	for (ulint i = 0; fts_default_stopword[i]; ++i) {
+		fts_string_t		str;
+		char*			word;
+		fts_tokenizer_word_t	new_word;
 
-		str.f_str = (byte*) fts_default_stopword[ix];
-		str.f_len = ut_strlen((char*) fts_default_stopword[ix]);
+		/* We are going to duplicate the value below. */
+		word = const_cast<char*>(fts_default_stopword[i]);
+
+		new_word.nodes = ib_vector_create(
+			allocator, sizeof(fts_node_t), 4);
+
+		str.f_len = ut_strlen(word);
+		str.f_str = reinterpret_cast<byte*>(word);
 
 		fts_utf8_string_dup(&new_word.text, &str, heap);
 
 		rbt_insert(stop_words, &new_word, &new_word);
-
-		ix++;
 	}
 
 	stopword_info->status = STOPWORD_FROM_DEFAULT;
@@ -364,16 +366,15 @@ fts_read_stopword(
 	void*		row,		/*!< in: sel_node_t* */
 	void*		user_arg)	/*!< in: pointer to ib_vector_t */
 {
-	ib_alloc_t*		allocator;
-	fts_stopword_t*		stopword_info;
-	sel_node_t*		sel_node;
-	que_node_t*		exp;
-	ib_rbt_t*		stop_words;
-	dfield_t*		dfield;
-	fts_string_t		str;
-	fts_tokenizer_word_t	new_word;
-	mem_heap_t*		heap;
-	ib_rbt_bound_t		parent;
+	ib_alloc_t*	allocator;
+	fts_stopword_t*	stopword_info;
+	sel_node_t*	sel_node;
+	que_node_t*	exp;
+	ib_rbt_t*	stop_words;
+	dfield_t*	dfield;
+	fts_string_t	str;
+	mem_heap_t*	heap;
+	ib_rbt_bound_t	parent;
 
 	stopword_info = static_cast<fts_stopword_t*>(user_arg);
 	sel_node = static_cast<sel_node_t*>(row);
@@ -392,12 +393,17 @@ fts_read_stopword(
 	/* Only create new node if it is a value not already existed */
 	if (str.f_len != UNIV_SQL_NULL
 	    && rbt_search(stop_words, &parent, &str) != 0) {
-		new_word.nodes = ib_vector_create(allocator,
-						  sizeof(fts_node_t), 4);
+
+		fts_tokenizer_word_t	new_word;
+
+		new_word.nodes = ib_vector_create(
+			allocator, sizeof(fts_node_t), 4);
 
 		new_word.text.f_str = static_cast<byte*>(
 			 mem_heap_alloc(heap, str.f_len + 1));
+
 		memcpy(new_word.text.f_str, str.f_str, str.f_len);
+
 		new_word.text.f_len = str.f_len;
 		new_word.text.f_str[str.f_len] = 0;
 
@@ -504,6 +510,7 @@ cleanup:
 	trx_free_for_background(trx);
 	return(ret);
 }
+
 /******************************************************************//**
 Initialize the index cache. */
 static
@@ -569,7 +576,7 @@ UNIV_INTERN
 fts_cache_t*
 fts_cache_create(
 /*=============*/
-	dict_table_t*		table)	/*!< in: table owns the FTS cache */
+	dict_table_t*	table)	/*!< in: table owns the FTS cache */
 {
 	mem_heap_t*	heap;
 	fts_cache_t*	cache;
@@ -578,8 +585,6 @@ fts_cache_create(
 
 	cache = static_cast<fts_cache_t*>(
 		mem_heap_zalloc(heap, sizeof(*cache)));
-
-	memset(cache, 0, sizeof(*cache));
 
 	cache->cache_heap = heap;
 
@@ -600,9 +605,10 @@ fts_cache_create(
 	/* This is a transient heap, used for storing sync data. */
 	cache->sync_heap = ib_heap_allocator_create(heap);
 	cache->sync_heap->arg = NULL;
+
 	cache->sync = static_cast<fts_sync_t*>(
-		mem_heap_alloc(heap, sizeof(fts_sync_t)));
-	memset(cache->sync, 0, sizeof(fts_sync_t));
+		mem_heap_zalloc(heap, sizeof(fts_sync_t)));
+
 	cache->sync->table = table;
 
 	/* Create the index cache vector that will hold the inverted indexes. */
@@ -677,7 +683,9 @@ fts_reset_get_doc(
 
 		get_doc = static_cast<fts_get_doc_t*>(
 			ib_vector_push(cache->get_docs, NULL));
+
 		memset(get_doc, 0x0, sizeof(*get_doc));
+
 		get_doc->index_cache = ind_cache;
 	}
 
@@ -804,6 +812,7 @@ fts_drop_index(
 		as to keep track of incrementing Doc IDs */
 		if (!DICT_TF2_FLAG_IS_SET(
 			table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
 			err = fts_drop_tables(trx, table);
 
 			err = fts_drop_index_tables(trx, index);
@@ -891,6 +900,7 @@ innobase_get_fts_charset(
 /*=====================*/
 	int		mysql_type,	/*!< in: MySQL type */
 	uint		charset_number);/*!< in: number of the charset */
+
 /****************************************************************//**
 Create an FTS index cache. */
 UNIV_INTERN
@@ -970,14 +980,12 @@ fts_cache_index_cache_create(
 	n_bytes = sizeof(que_t*) * sizeof(fts_index_selector);
 
 	index_cache->ins_graph = static_cast<que_t**>(
-		mem_heap_alloc(static_cast<mem_heap_t*>(
-			cache->self_heap->arg), n_bytes));
-	index_cache->sel_graph = static_cast<que_t**>(
-		mem_heap_alloc(static_cast<mem_heap_t*>(
+		mem_heap_zalloc(static_cast<mem_heap_t*>(
 			cache->self_heap->arg), n_bytes));
 
-	memset(index_cache->ins_graph, 0x0, n_bytes);
-	memset(index_cache->sel_graph, 0x0, n_bytes);
+	index_cache->sel_graph = static_cast<que_t**>(
+		mem_heap_zalloc(static_cast<mem_heap_t*>(
+			cache->self_heap->arg), n_bytes));
 
 	fts_index_cache_init(cache->sync_heap, index_cache);
 
@@ -1061,6 +1069,7 @@ fts_cache_clear(
 				fts_que_graph_free_check_lock(
 					NULL, index_cache,
 					index_cache->ins_graph[j]);
+
 				index_cache->ins_graph[j] = NULL;
 			}
 
@@ -1069,6 +1078,7 @@ fts_cache_clear(
 				fts_que_graph_free_check_lock(
 					NULL, index_cache,
 					index_cache->sel_graph[j]);
+
 				index_cache->sel_graph[j] = NULL;
 			}
 		}
@@ -1191,17 +1201,17 @@ fts_tokenizer_word_get(
 
 	/* If it is a stopword, do not index it */
 	if (rbt_search(cache->stopword_info.cached_stopword,
-            &parent, text) == 0) {
+		       &parent, text) == 0) {
+
 		return NULL;
 	}
 
 	/* Check if we found a match, if not then add word to tree. */
 	if (rbt_search(index_cache->words, &parent, text) != 0) {
-		fts_tokenizer_word_t	new_word;
 		mem_heap_t*		heap;
+		fts_tokenizer_word_t	new_word;
 
 		heap = static_cast<mem_heap_t*>(cache->sync_heap->arg);
-		memset(&new_word, 0, sizeof(new_word));
 
 		new_word.nodes = ib_vector_create(
 			cache->sync_heap, sizeof(fts_node_t), 4);

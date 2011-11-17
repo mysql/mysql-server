@@ -555,7 +555,7 @@ fts_query_add_word_freq(
 
 		memset(&word_freq, 0, sizeof(word_freq));
 
-		word_freq.word = static_cast<unsigned char*>(
+		word_freq.word = static_cast<byte*>(
 			mem_heap_alloc(query->heap, len));
 
 		/* Need to copy the NUL character too. */
