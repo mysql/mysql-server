@@ -45,6 +45,7 @@ struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Field;
+class Field_temporal_with_date_and_time;
 
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -980,6 +981,8 @@ private:
 
   friend struct TABLE_share;
 
+  Field_temporal_with_date_and_time *timestamp_field;
+
 public:
 
   THD	*in_use;                        /* Which thread uses this */
@@ -1017,7 +1020,6 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
-  Field_timestamp *timestamp_field;
 
   /* Table's triggers, 0 if there are no of them */
   Table_triggers_list *triggers;
@@ -1225,6 +1227,9 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
+
+  void set_timestamp_field(Field *field_arg);
+  Field *get_timestamp_field();
 
   bool update_const_key_parts(Item *conds);
 };

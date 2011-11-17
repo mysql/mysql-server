@@ -45,7 +45,7 @@ CHARACTER_SET_NAME	varchar(32)	YES		NULL
 COLLATION_NAME	varchar(32)	YES		NULL	
 COLUMN_TYPE	longtext	NO		NULL	
 COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(27)	NO			
+EXTRA	varchar(30)	NO			
 PRIVILEGES	varchar(80)	NO			
 COLUMN_COMMENT	varchar(1024)	NO			
 SHOW CREATE TABLE information_schema.COLUMNS;
@@ -68,7 +68,7 @@ COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
   `COLLATION_NAME` varchar(32) DEFAULT NULL,
   `COLUMN_TYPE` longtext NOT NULL,
   `COLUMN_KEY` varchar(3) NOT NULL DEFAULT '',
-  `EXTRA` varchar(27) NOT NULL DEFAULT '',
+  `EXTRA` varchar(30) NOT NULL DEFAULT '',
   `PRIVILEGES` varchar(80) NOT NULL DEFAULT '',
   `COLUMN_COMMENT` varchar(1024) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
@@ -91,7 +91,7 @@ CHARACTER_SET_NAME	varchar(32)	YES		NULL
 COLLATION_NAME	varchar(32)	YES		NULL	
 COLUMN_TYPE	longtext	NO		NULL	
 COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(27)	NO			
+EXTRA	varchar(30)	NO			
 PRIVILEGES	varchar(80)	NO			
 COLUMN_COMMENT	varchar(1024)	NO			
 SELECT table_catalog, table_schema, table_name, column_name

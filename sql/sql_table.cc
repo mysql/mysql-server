@@ -2864,6 +2864,8 @@ int prepare_create_field(Create_field *sql_field,
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_TIME:
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIME2:
+  case MYSQL_TYPE_DATETIME2:
   case MYSQL_TYPE_NULL:
     sql_field->pack_flag=f_settype((uint) sql_field->sql_type);
     break;
@@ -2882,6 +2884,7 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
     /* We should replace old TIMESTAMP fields with their newer analogs */
     if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
     {
@@ -3858,7 +3861,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
         !sql_field->def &&
-        sql_field->sql_type == MYSQL_TYPE_TIMESTAMP &&
+        real_type_with_now_as_default(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
     {
@@ -5692,7 +5695,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     */
     if ((def->sql_type == MYSQL_TYPE_DATE ||
          def->sql_type == MYSQL_TYPE_NEWDATE ||
-         def->sql_type == MYSQL_TYPE_DATETIME) &&
+         def->sql_type == MYSQL_TYPE_DATETIME ||
+         def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_info->datetime_field &&
          !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
          thd->variables.sql_mode & MODE_NO_ZERO_DATE)
@@ -7171,27 +7175,30 @@ err:
   if (alter_info->error_if_not_empty &&
       thd->get_stmt_da()->current_row_for_warning())
   {
-    const char *f_val= 0;
+    uint f_length;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
     switch (alter_info->datetime_field->sql_type)
     {
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_NEWDATE:
-        f_val= "0000-00-00";
+        f_length= MAX_DATE_WIDTH; // "0000-00-00";
         t_type= MYSQL_TIMESTAMP_DATE;
         break;
       case MYSQL_TYPE_DATETIME:
-        f_val= "0000-00-00 00:00:00";
+      case MYSQL_TYPE_DATETIME2:
+        f_length= MAX_DATETIME_WIDTH; // "0000-00-00 00:00:00";
         t_type= MYSQL_TIMESTAMP_DATETIME;
         break;
       default:
         /* Shouldn't get here. */
+        f_length= 0;
         DBUG_ASSERT(0);
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= TRUE;
     make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                                 f_val, strlength(f_val), t_type,
+                                 ErrConvString(my_zero_datetime6, f_length),
+                                 t_type,
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
   }
