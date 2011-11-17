@@ -96,7 +96,6 @@ UNIV_INTERN pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 /** Global variable used to denote the '*' in SELECT * FROM.. */
 UNIV_INTERN ulint	pars_star_denoter	= 12345678;
 
-
 /********************************************************************
 Get user function with the given name.*/
 UNIV_INLINE
@@ -113,7 +112,10 @@ pars_info_lookup_user_func(
 		ib_vector_t*	vec = info->funcs;
 
 		for (i = 0; i < ib_vector_size(vec); i++) {
-			pars_user_func_t*	puf = static_cast<pars_user_func_t*>(ib_vector_get(vec, i));
+			pars_user_func_t*	puf;
+
+			puf = static_cast<pars_user_func_t*>(
+				ib_vector_get(vec, i));
 
 			if (strcmp(puf->name, name) == 0) {
 				return(puf);
@@ -140,7 +142,10 @@ pars_info_lookup_bound_id(
 		ib_vector_t*	vec = info->bound_ids;
 
 		for (i = 0; i < ib_vector_size(vec); i++) {
-			pars_bound_id_t*	bid = static_cast<pars_bound_id_t*>(ib_vector_get(vec, i));
+			pars_bound_id_t*	bid;
+
+		       	bid = static_cast<pars_bound_id_t*>(
+				ib_vector_get(vec, i));
 
 			if (strcmp(bid->name, name) == 0) {
 				return(bid);
@@ -167,7 +172,10 @@ pars_info_lookup_bound_lit(
 		ib_vector_t*	vec = info->bound_lits;
 
 		for (i = 0; i < ib_vector_size(vec); i++) {
-			pars_bound_lit_t*	pbl = static_cast<pars_bound_lit_t*>(ib_vector_get(vec, i));
+			pars_bound_lit_t*	pbl;
+		       
+			pbl = static_cast<pars_bound_lit_t*>(
+				ib_vector_get(vec, i));
 
 			if (strcmp(pbl->name, name) == 0) {
 				return(pbl);
@@ -2123,11 +2131,10 @@ pars_stored_procedure_call(
 /*************************************************************//**
 Retrieves characters to the lexical analyzer. */
 UNIV_INTERN
-void
+int
 pars_get_lex_chars(
 /*===============*/
 	char*	buf,		/*!< in/out: buffer where to copy */
-	int*	result,		/*!< out: number of characters copied or EOF */
 	int	max_size)	/*!< in: maximum number of characters which fit
 				in the buffer */
 {
@@ -2139,9 +2146,7 @@ pars_get_lex_chars(
 #ifdef YYDEBUG
 		/* fputs("SQL string ends\n", stderr); */
 #endif
-		*result = 0;
-
-		return;
+		return(0);
 	}
 
 	if (len > max_size) {
@@ -2163,9 +2168,10 @@ pars_get_lex_chars(
 
 	ut_memcpy(buf, pars_sym_tab_global->sql_string
 		  + pars_sym_tab_global->next_char_pos, len);
-	*result = len;
 
 	pars_sym_tab_global->next_char_pos += len;
+
+	return(len);
 }
 
 /*************************************************************//**
@@ -2622,51 +2628,4 @@ pars_info_get_bound_lit(
 	const char*		name)	/*!< in: bound literal name to find */
 {
 	return(pars_info_lookup_bound_lit(info, name));
-}
-
-/*************************************************************//**
-Retrieves characters to the lexical analyzer.
-@return number of characters copied or 0 on EOF */
-UNIV_INTERN
-int
-pars_get_lex_chars(
-/*===============*/
-        char*   buf,            /*!< in/out: buffer where to copy */
-        int     max_size)       /*!< in: maximum number of characters which fit
-                                in the buffer */
-{
-        int     len;
-
-        len = pars_sym_tab_global->string_len
-                - pars_sym_tab_global->next_char_pos;
-        if (len == 0) {
-#ifdef YYDEBUG
-                /* fputs("SQL string ends\n", stderr); */
-#endif
-                return(0);
-        }
-
-        if (len > max_size) {
-                len = max_size;
-        }
-
-#ifdef UNIV_SQL_DEBUG
-        if (pars_print_lexed) {
-
-                if (len >= 5) {
-                        len = 5;
-                }
-
-                fwrite(pars_sym_tab_global->sql_string
-                       + pars_sym_tab_global->next_char_pos,
-                       1, len, stderr);
-        }
-#endif /* UNIV_SQL_DEBUG */
-
-        ut_memcpy(buf, pars_sym_tab_global->sql_string
-                  + pars_sym_tab_global->next_char_pos, len);
-
-        pars_sym_tab_global->next_char_pos += len;
-
-        return(len);
 }
