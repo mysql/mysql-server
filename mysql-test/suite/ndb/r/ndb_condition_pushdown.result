@@ -2271,9 +2271,7 @@ Note	9999	Table 't2' is not pushable: GROUP BY cannot be done using index on gro
 Note	9999	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
 Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 drop table tx;
-set engine_condition_pushdown = on;
-Warnings:
-Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+set @@optimizer_switch = 'engine_condition_pushdown=on';
 create table t (pk int, i int) engine = ndb;
 insert into t values (1,3), (3,6), (6,9), (9,1);
 create table subq (pk int, i int) engine = ndb;
