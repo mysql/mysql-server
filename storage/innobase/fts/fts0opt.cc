@@ -304,13 +304,10 @@ fts_zip_create(
 {
 	fts_zip_t*	zip;
 
-	zip = static_cast<fts_zip_t*>(mem_heap_alloc(heap, sizeof(*zip)));
-
-	memset(zip, 0, sizeof(*zip));
+	zip = static_cast<fts_zip_t*>(mem_heap_zalloc(heap, sizeof(*zip)));
 
 	zip->word.f_str = static_cast<byte*>(
-		mem_heap_alloc(heap, FTS_MAX_WORD_LEN + 1));
-	memset(zip->word.f_str, 0, FTS_MAX_WORD_LEN + 1);
+		mem_heap_zalloc(heap, FTS_MAX_WORD_LEN + 1));
 
 	zip->block_sz = block_sz;
 
@@ -321,8 +318,7 @@ fts_zip_create(
 	zip->max_words = max_words;
 
 	zip->zp =  static_cast<z_stream*>(
-		mem_heap_alloc(heap, sizeof(*zip->zp)));
-	memset(zip->zp, 0, sizeof(*zip->zp));
+		mem_heap_zalloc(heap, sizeof(*zip->zp)));
 
 	return(zip);
 }
@@ -2599,8 +2595,9 @@ fts_optimize_remove_table(
 
 	/* We will wait on this event until signalled by the consumer. */
 	event = os_event_create(table->name);
-	remove = static_cast<fts_msg_del_t*>(mem_heap_alloc(
-		msg->heap, sizeof(*remove)));
+
+	remove = static_cast<fts_msg_del_t*>(
+		mem_heap_alloc(msg->heap, sizeof(*remove)));
 
 	remove->table = table;
 	remove->event = event;
