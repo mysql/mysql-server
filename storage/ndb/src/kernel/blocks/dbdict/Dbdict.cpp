@@ -2234,7 +2234,6 @@ void Dbdict::initRecords()
   initNodeRecords();
   initPageRecords();
   initTableRecords();
-  initTriggerRecords();
 }//Dbdict::initRecords()
 
 void Dbdict::initSendSchemaRecord()
@@ -2375,29 +2374,15 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->m_obj_ptr_i = RNIL;
 }//Dbdict::initialiseTableRecord()
 
-void Dbdict::initTriggerRecords()
-{
-  TriggerRecordPtr triggerPtr;
-  while (1) {
-    jam();
-    refresh_watch_dog();
-    c_triggerRecordPool.seize(triggerPtr);
-    if (triggerPtr.i == RNIL) {
-      jam();
-      break;
-    }//if
-    initialiseTriggerRecord(triggerPtr);
-  }//while
-}
-
-void Dbdict::initialiseTriggerRecord(TriggerRecordPtr triggerPtr)
+void Dbdict::initialiseTriggerRecord(TriggerRecordPtr triggerPtr, Uint32 triggerId)
 {
   new (triggerPtr.p) TriggerRecord();
   triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
-  triggerPtr.p->triggerId = RNIL;
+  triggerPtr.p->triggerId = triggerId;
   triggerPtr.p->tableId = RNIL;
   triggerPtr.p->attributeMask.clear();
   triggerPtr.p->indexId = RNIL;
+  triggerPtr.p->m_obj_ptr_i = RNIL;
 }
 
 Uint32 Dbdict::getFsConnRecord()
@@ -2460,16 +2445,47 @@ Uint32 Dbdict::getFreeTriggerRecord()
 {
   const Uint32 size = c_triggerRecordPool.getSize();
   TriggerRecordPtr triggerPtr;
-  for (triggerPtr.i = 0; triggerPtr.i < size; triggerPtr.i++) {
+  for (Uint32 id = 0; id < size; id++) {
     jam();
-    c_triggerRecordPool.getPtr(triggerPtr);
-    if (triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED) {
+    bool ok = find_object(triggerPtr, id);
+    if (!ok)
+    {
       jam();
-      initialiseTriggerRecord(triggerPtr);
-      return triggerPtr.i;
+      return id;
     }
   }
   return RNIL;
+}
+
+bool Dbdict::seizeTriggerRecord(TriggerRecordPtr& triggerPtr, Uint32 triggerId)
+{
+  if (triggerId == RNIL)
+  {
+    triggerId = getFreeTriggerRecord();
+  }
+  else
+  {
+    TriggerRecordPtr ptr;
+    bool ok =  find_object(ptr, triggerId);
+    if (ok)
+    { // triggerId already in use
+      jam();
+      return false;
+    }
+  }
+  if (triggerId == RNIL)
+  {
+    jam();
+    return false;
+  }
+  c_triggerRecordPool.seize(triggerPtr);
+  if (triggerPtr.isNull())
+  {
+    jam();
+    return false;
+  }
+  initialiseTriggerRecord(triggerPtr, triggerId);
+  return true;
 }
 
 Uint32
@@ -4694,11 +4710,7 @@ Dbdict::release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p){
   name.erase();
 
   c_obj_name_hash.remove(ptr);
-  if (!DictTabInfo::isTrigger(obj_ptr_p->m_type))
-  {
-    jam();
-    c_obj_id_hash.remove(ptr);
-  }
+  c_obj_id_hash.remove(ptr);
   c_obj_pool.release(ptr);
 }
 
@@ -5067,13 +5079,17 @@ Dbdict::upgrade_seizeTrigger(TableRecordPtr tabPtr,
   if (updateTriggerId != RNIL)
   {
     jam();
-    c_triggerRecordPool.getPtr(triggerPtr, updateTriggerId);
-    if (triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED)
+    bool ok = find_object(triggerPtr, updateTriggerId);
+    if (!ok)
     {
       jam();
-      initialiseTriggerRecord(triggerPtr);
+      bool ok = seizeTriggerRecord(triggerPtr, updateTriggerId);
+      if (!ok)
+      {
+        jam();
+        ndbrequire(ok);
+      }
       triggerPtr.p->triggerState = TriggerRecord::TS_FAKE_UPGRADE;
-      triggerPtr.p->triggerId = triggerPtr.i;
       triggerPtr.p->tableId = tabPtr.p->primaryTableId;
       triggerPtr.p->indexId = tabPtr.i;
       TriggerInfo::packTriggerInfo(triggerPtr.p->triggerInfo,
@@ -5088,30 +5104,35 @@ Dbdict::upgrade_seizeTrigger(TableRecordPtr tabPtr,
       }
 
       DictObjectPtr obj_ptr;
-      bool ok = c_obj_pool.seize(obj_ptr);
+      ok = c_obj_pool.seize(obj_ptr);
       ndbrequire(ok);
       new (obj_ptr.p) DictObject();
 
       obj_ptr.p->m_name = triggerPtr.p->triggerName;
       obj_ptr.p->m_ref_count = 0;
 
-      triggerPtr.p->m_obj_ptr_i = obj_ptr.i;
       obj_ptr.p->m_id = triggerPtr.p->triggerId;
       obj_ptr.p->m_type =TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
+      link_object(obj_ptr, triggerPtr);
       c_obj_name_hash.add(obj_ptr);
+      c_obj_id_hash.add(obj_ptr);
     }
   }
 
   if (deleteTriggerId != RNIL)
   {
     jam();
-    c_triggerRecordPool.getPtr(triggerPtr, deleteTriggerId);
-    if (triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED)
+    bool ok = find_object(triggerPtr, deleteTriggerId); // TODO: msundell seizeTriggerRecord
+    if (!ok)
     {
       jam();
-      initialiseTriggerRecord(triggerPtr);
+      bool ok = seizeTriggerRecord(triggerPtr, deleteTriggerId);
+      if (!ok)
+      {
+        jam();
+        ndbrequire(ok);
+      }
       triggerPtr.p->triggerState = TriggerRecord::TS_FAKE_UPGRADE;
-      triggerPtr.p->triggerId = triggerPtr.i;
       triggerPtr.p->tableId = tabPtr.p->primaryTableId;
       triggerPtr.p->indexId = tabPtr.i;
       TriggerInfo::packTriggerInfo(triggerPtr.p->triggerInfo,
@@ -5126,17 +5147,18 @@ Dbdict::upgrade_seizeTrigger(TableRecordPtr tabPtr,
       }
 
       DictObjectPtr obj_ptr;
-      bool ok = c_obj_pool.seize(obj_ptr);
+      ok = c_obj_pool.seize(obj_ptr);
       ndbrequire(ok);
       new (obj_ptr.p) DictObject();
 
       obj_ptr.p->m_name = triggerPtr.p->triggerName;
       obj_ptr.p->m_ref_count = 0;
 
-      triggerPtr.p->m_obj_ptr_i = obj_ptr.i;
       obj_ptr.p->m_id = triggerPtr.p->triggerId;
       obj_ptr.p->m_type =TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
+      link_object(obj_ptr, triggerPtr);
       c_obj_name_hash.add(obj_ptr);
+      c_obj_id_hash.add(obj_ptr);
     }
   }
 }
@@ -7124,9 +7146,12 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
       {
         jam();
         TriggerRecordPtr triggerPtr;
-        c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-        triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
-        release_object(triggerPtr.p->m_obj_ptr_i);
+        bool ok = find_object(triggerPtr, triggerId);
+        if (ok)
+        {
+          release_object(triggerPtr.p->m_obj_ptr_i);
+          c_triggerRecordPool.release(triggerPtr);
+        }
       }
 
       triggerId = tablePtr.p->m_upgrade_trigger_handling.deleteTriggerId;
@@ -7134,13 +7159,15 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
       {
         jam();
         TriggerRecordPtr triggerPtr;
-        c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-        triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
-        release_object(triggerPtr.p->m_obj_ptr_i);
+        bool ok = find_object(triggerPtr, triggerId);
+        if (ok)
+        {
+          release_object(triggerPtr.p->m_obj_ptr_i);
+          c_triggerRecordPool.release(triggerPtr);
+        }
       }
     }
   }
-
 }//releaseTableObject()
 
 // CreateTable: END
@@ -10192,24 +10219,30 @@ void Dbdict::sendOLD_LIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     }
     if(DictTabInfo::isTrigger(type)){
       TriggerRecordPtr triggerPtr;
-      c_triggerRecordPool.getPtr(triggerPtr, iter.curr.p->m_id);
-
+      bool ok = find_object(triggerPtr, iter.curr.p->m_id);
       conf->tableData[pos] = 0;
-      conf->setTableId(pos, triggerPtr.i);
+      conf->setTableId(pos, iter.curr.p->m_id);
       conf->setTableType(pos, type);
-      switch (triggerPtr.p->triggerState) {
-      case TriggerRecord::TS_DEFINING:
-	conf->setTableState(pos, DictTabInfo::StateBuilding);
-	break;
-      case TriggerRecord::TS_OFFLINE:
-	conf->setTableState(pos, DictTabInfo::StateOffline);
-	break;
-      case TriggerRecord::TS_ONLINE:
-	conf->setTableState(pos, DictTabInfo::StateOnline);
-	break;
-      default:
-	conf->setTableState(pos, DictTabInfo::StateBroken);
-	break;
+      if (!ok)
+      {
+        conf->setTableState(pos, DictTabInfo::StateBroken);
+      }
+      else
+      {
+        switch (triggerPtr.p->triggerState) {
+        case TriggerRecord::TS_DEFINING:
+          conf->setTableState(pos, DictTabInfo::StateBuilding);
+          break;
+        case TriggerRecord::TS_OFFLINE:
+          conf->setTableState(pos, DictTabInfo::StateOffline);
+          break;
+        case TriggerRecord::TS_ONLINE:
+          conf->setTableState(pos, DictTabInfo::StateOnline);
+          break;
+        default:
+          conf->setTableState(pos, DictTabInfo::StateBroken);
+          break;
+        }
       }
       conf->setTableStore(pos, DictTabInfo::StoreNotLogged);
       pos++;
@@ -10413,24 +10446,31 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     }
     if(DictTabInfo::isTrigger(type)){
       TriggerRecordPtr triggerPtr;
-      c_triggerRecordPool.getPtr(triggerPtr, iter.curr.p->m_id);
+      bool ok = find_object(triggerPtr, iter.curr.p->m_id);
 
       ltd.requestData = 0;
-      ltd.setTableId(triggerPtr.i);
+      ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type);
-      switch (triggerPtr.p->triggerState) {
-      case TriggerRecord::TS_DEFINING:
-	ltd.setTableState(DictTabInfo::StateBuilding);
-	break;
-      case TriggerRecord::TS_OFFLINE:
-	ltd.setTableState(DictTabInfo::StateOffline);
-	break;
-      case TriggerRecord::TS_ONLINE:
-	ltd.setTableState(DictTabInfo::StateOnline);
-	break;
-      default:
-	ltd.setTableState(DictTabInfo::StateBroken);
-	break;
+      if (!ok)
+      {
+        ltd.setTableState(DictTabInfo::StateBroken);
+      }
+      else
+      {
+        switch (triggerPtr.p->triggerState) {
+        case TriggerRecord::TS_DEFINING:
+          ltd.setTableState(DictTabInfo::StateBuilding);
+          break;
+        case TriggerRecord::TS_OFFLINE:
+          ltd.setTableState(DictTabInfo::StateOffline);
+          break;
+        case TriggerRecord::TS_ONLINE:
+          ltd.setTableState(DictTabInfo::StateOnline);
+          break;
+        default:
+          ltd.setTableState(DictTabInfo::StateBroken);
+          break;
+        }
       }
       ltd.setTableStore(DictTabInfo::StoreNotLogged);
     }
@@ -17735,12 +17775,17 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
       impl_req->triggerId = getFreeTriggerRecord();
       if (impl_req->triggerId == RNIL)
       {
-	jam();
-	setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
-	return;
+        jam();
+        setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
+        return;
       }
-      c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
-      ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_NOT_DEFINED);
+      bool ok = find_object(triggerPtr, impl_req->triggerId);
+      if (ok)
+      {
+        jam();
+        setError(error, CreateTrigRef::TriggerExists, __LINE__);
+        return;
+      }
       D("master allocated triggerId " << impl_req->triggerId);
     }
     else
@@ -17751,12 +17796,12 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
 	setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
 	return;
       }
-      c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
-      if (triggerPtr.p->triggerState != TriggerRecord::TS_NOT_DEFINED)
+      bool ok = find_object(triggerPtr, impl_req->triggerId);
+      if (ok)
       {
-	jam();
-	setError(error, CreateTrigRef::TriggerExists, __LINE__);
-	return;
+        jam();
+        setError(error, CreateTrigRef::TriggerExists, __LINE__);
+        return;
       }
       D("master forced triggerId " << impl_req->triggerId);
     }
@@ -17771,8 +17816,8 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
       setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
       return;
     }
-    c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
-    if (triggerPtr.p->triggerState != TriggerRecord::TS_NOT_DEFINED)
+    bool ok = find_object(triggerPtr, impl_req->triggerId);
+    if (ok)
     {
       jam();
       setError(error, CreateTrigRef::TriggerExists, __LINE__);
@@ -17781,15 +17826,20 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     D("slave allocated triggerId " << hex << impl_req->triggerId);
   }
 
-  initialiseTriggerRecord(triggerPtr);
-
-  triggerPtr.p->triggerId = impl_req->triggerId;
+  bool ok = seizeTriggerRecord(triggerPtr, impl_req->triggerId);
+  if (!ok)
+  {
+    jam();
+    setError(error, CreateTrigRef::TooManyTriggers, __LINE__);
+    return;
+  }
   triggerPtr.p->tableId = impl_req->tableId;
   triggerPtr.p->indexId = RNIL; // feedback method connects to index
   triggerPtr.p->triggerInfo = impl_req->triggerInfo;
   triggerPtr.p->receiverRef = impl_req->receiverRef;
   triggerPtr.p->triggerState = TriggerRecord::TS_DEFINING;
 
+  // TODO:msundell on failure below, leak of TriggerRecord
   if (handle.m_cnt >= 2)
   {
     jam();
@@ -17829,12 +17879,13 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   // connect to new DictObject
   {
     DictObjectPtr obj_ptr;
-    seizeDictObject(op_ptr, obj_ptr, triggerPtr.p->triggerName);
+    seizeDictObject(op_ptr, obj_ptr, triggerPtr.p->triggerName); // added to c_obj_name_hash
 
     obj_ptr.p->m_id = impl_req->triggerId; // wl3600_todo id
     obj_ptr.p->m_type =
       TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
-    triggerPtr.p->m_obj_ptr_i = obj_ptr.i;
+    link_object(obj_ptr, triggerPtr);
+    c_obj_id_hash.add(obj_ptr);
   }
 
   {
@@ -17911,7 +17962,12 @@ Dbdict::createTrigger_parse_endpoint(Signal* signal,
   }
 
   TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+  bool ok = find_object(triggerPtr, impl_req->triggerId);
+  if (!ok)
+  {
+    jam();
+    return;
+  }
   switch(TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo)){
   case TriggerType::REORG_TRIGGER:
     jam();
@@ -18226,8 +18282,8 @@ Dbdict::createTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
 
     Uint32 triggerId = impl_req->triggerId;
     TriggerRecordPtr triggerPtr;
-    c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-
+    bool ok = find_object(triggerPtr, triggerId);
+    ndbrequire(ok);
     triggerPtr.p->triggerState = TriggerRecord::TS_ONLINE;
     unlinkDictObject(op_ptr);
   }
@@ -18291,20 +18347,20 @@ Dbdict::createTrigger_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       goto done;
     }
 
-    c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-
-    if (triggerPtr.p->triggerState == TriggerRecord::TS_DEFINING)
+    bool ok = find_object(triggerPtr, triggerId);
+    if (ok)
     {
       jam();
-      triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
-    }
 
-    if (triggerPtr.p->indexId != RNIL)
-    {
-      TableRecordPtr indexPtr;
-      c_tableRecordPool.getPtr(indexPtr, triggerPtr.p->indexId);
-      triggerPtr.p->indexId = RNIL;
-      indexPtr.p->triggerId = RNIL;
+      if (triggerPtr.p->indexId != RNIL)
+      {
+        TableRecordPtr indexPtr;
+        c_tableRecordPool.getPtr(indexPtr, triggerPtr.p->indexId);
+        triggerPtr.p->indexId = RNIL;
+        indexPtr.p->triggerId = RNIL;
+      }
+
+      c_triggerRecordPool.release(triggerPtr);
     }
 
     // ignore Feedback for now (referencing object will be dropped too)
@@ -18390,8 +18446,8 @@ Dbdict::send_create_trig_req(Signal* signal,
   const CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
 
   TriggerRecordPtr triggerPtr;
-  c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
-
+  bool ok = find_object(triggerPtr, impl_req->triggerId);
+  ndbrequire(ok);
   D("send_create_trig_req");
 
   CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
@@ -18641,7 +18697,13 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
       setError(error, DropTrigImplRef::TriggerNotFound, __LINE__);
       return;
     }
-    c_triggerRecordPool.getPtr(triggerPtr, impl_req->triggerId);
+    bool ok = find_object(triggerPtr, impl_req->triggerId);
+    if (!ok)
+    {
+      jam();
+      setError(error, DropTrigImplRef::TriggerNotFound, __LINE__);
+      return;
+    }
     // wl3600_todo state check
   }
 
@@ -18952,8 +19014,8 @@ Dbdict::dropTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
     Uint32 triggerId = dropTriggerPtr.p->m_request.triggerId;
 
     TriggerRecordPtr triggerPtr;
-    c_triggerRecordPool.getPtr(triggerPtr, triggerId);
-
+    bool ok = find_object(triggerPtr, triggerId);
+    ndbrequire(ok);
     if (triggerPtr.p->indexId != RNIL)
     {
       TableRecordPtr indexPtr;
@@ -18963,8 +19025,8 @@ Dbdict::dropTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
     }
 
     // remove trigger
+    c_triggerRecordPool.release(triggerPtr);
     releaseDictObject(op_ptr);
-    triggerPtr.p->triggerState = TriggerRecord::TS_NOT_DEFINED;
 
     sendTransConf(signal, op_ptr);
     return;
@@ -29019,10 +29081,11 @@ Dbdict::check_consistency()
 
   // triggers // should be in schema file
   TriggerRecordPtr triggerPtr;
-  for (triggerPtr.i = 0;
-      triggerPtr.i < c_triggerRecordPool.getSize();
-      triggerPtr.i++) {
-    c_triggerRecordPool.getPtr(triggerPtr);
+  for (Uint32 id = 0;
+      id < c_triggerRecordPool.getSize();
+      id++) {
+    bool ok = find_object(triggerPtr, id);
+    if (!ok) continue;
     switch (triggerPtr.p->triggerState) {
     case TriggerRecord::TS_NOT_DEFINED:
       continue;
@@ -29131,13 +29194,10 @@ Dbdict::check_consistency_index(TableRecordPtr indexPtr)
   }
 
   TriggerRecordPtr triggerPtr;
-  triggerPtr.i = indexPtr.p->triggerId;
-  ndbrequire(triggerPtr.i != RNIL);
-  c_triggerRecordPool.getPtr(triggerPtr);
-
+  bool ok = find_object(triggerPtr, indexPtr.p->triggerId);
+  ndbrequire(ok);
   ndbrequire(triggerPtr.p->tableId == tablePtr.p->tableId);
   ndbrequire(triggerPtr.p->indexId == indexPtr.p->tableId);
-  ndbrequire(triggerPtr.p->triggerId == triggerPtr.i);
 
   check_consistency_trigger(triggerPtr);
 
@@ -29163,7 +29223,6 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
   {
     ndbrequire(triggerPtr.p->triggerState == TriggerRecord::TS_ONLINE);
   }
-  ndbrequire(triggerPtr.p->triggerId == triggerPtr.i);
 
   TableRecordPtr tablePtr;
   tablePtr.i = triggerPtr.p->tableId;
@@ -29185,7 +29244,7 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
     case TriggerEvent::TE_CUSTOM:
       if (! (triggerPtr.p->triggerState == TriggerRecord::TS_FAKE_UPGRADE))
       {
-        ndbrequire(triggerPtr.i == indexPtr.p->triggerId);
+        ndbrequire(triggerPtr.p->triggerId == indexPtr.p->triggerId);
       }
       break;
     default:

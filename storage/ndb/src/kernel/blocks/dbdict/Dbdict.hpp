@@ -459,6 +459,7 @@ public:
    */
   struct TriggerRecord {
     TriggerRecord() {}
+    static bool isCompatible(Uint32 type) { return DictTabInfo::isTrigger(type); }
 
     /** Trigger state */
     enum TriggerState {
@@ -506,6 +507,7 @@ public:
 
   Uint32 c_maxNoOfTriggers;
   TriggerRecord_pool c_triggerRecordPool;
+  TriggerRecord_pool& get_pool(TriggerRecordPtr) { return c_triggerRecordPool; }
   RSS_AP_SNAPSHOT(c_triggerRecordPool);
 
   /**
@@ -771,11 +773,31 @@ public:
     return find_object(obj, object, id);
   }
 
+  bool find_object(DictObjectPtr& obj, Ptr<TriggerRecord>& object, Uint32 id)
+  {
+    if (!find_trigger_object(obj, id))
+    {
+      object.setNull();
+      return false;
+    }
+    get_pool(object).getPtr(object, obj.p->m_object_ptr_i);
+    return !object.isNull();
+  }
+
   bool find_object(DictObjectPtr& object, Uint32 id)
   {
     DictObject key;
     key.m_id = id;
     key.m_type = 0; // Not a trigger atleast
+    bool ok = c_obj_id_hash.find(object, key);
+    return ok;
+  }
+
+  bool find_trigger_object(DictObjectPtr& object, Uint32 id)
+  {
+    DictObject key;
+    key.m_id = id;
+    key.m_type = DictTabInfo::HashIndexTrigger; // A trigger type
     bool ok = c_obj_id_hash.find(object, key);
     return ok;
   }
@@ -3736,6 +3758,8 @@ private:
   Uint32 getFreeObjId(bool both = false);
   Uint32 getFreeTableRecord();
   Uint32 getFreeTriggerRecord();
+  bool seizeTriggerRecord(TriggerRecordPtr& tableRecord, Uint32 triggerId);
+  void releaseTriggerObject(Uint32 trigger_ptr_i);
   bool getNewAttributeRecord(TableRecordPtr tablePtr,
 			     AttributeRecordPtr & attrPtr);
   void packTableIntoPages(Signal* signal);
@@ -3990,8 +4014,7 @@ private:
   void initNodeRecords();
   void initTableRecords();
   void initialiseTableRecord(TableRecordPtr tablePtr);
-  void initTriggerRecords();
-  void initialiseTriggerRecord(TriggerRecordPtr triggerPtr);
+  void initialiseTriggerRecord(TriggerRecordPtr triggerPtr, Uint32 triggerId);
   void initPageRecords();
 
   Uint32 getFsConnRecord();
