@@ -306,9 +306,8 @@ sym_tab_rebind_lit(
 		 || dtype_get_mtype(dtype) == DATA_VARCHAR);
 
 		/* Don't force [FALSE] creation of sub-nodes (for LIKE) */
-		pars_like_rebind(node,
-				 static_cast<const unsigned char*>(address),
-				 length);
+		pars_like_rebind(
+			node,static_cast<const byte*>(address), length);
 	}
 
 	/* FIXME: What's this ? */
