@@ -456,29 +456,40 @@ The following options may be given as the first argument:
  --performance-schema-accounts-size=# 
  Maximum number of instrumented user@host accounts.
  --performance-schema-consumer-events-stages-current 
- Enable the events_stages_current consumer.
+ Default startup value for the events_stages_current
+ consumer.
  --performance-schema-consumer-events-stages-history 
- Enable the events_stages_history consumer.
+ Default startup value for the events_stages_history
+ consumer.
  --performance-schema-consumer-events-stages-history-long 
- Enable the events_stages_history_long consumer.
+ Default startup value for the events_stages_history_long
+ consumer.
  --performance-schema-consumer-events-statements-current 
- Enable the events_statements_current consumer.
+ Default startup value for the events_statements_current
+ consumer.
  (Defaults to on; use --skip-performance-schema-consumer-events-statements-current to disable.)
  --performance-schema-consumer-events-statements-history 
- Enable the events_statements_history consumer.
+ Default startup value for the events_statements_history
+ consumer.
  --performance-schema-consumer-events-statements-history-long 
- Enable the events_statements_history_long consumer.
+ Default startup value for the
+ events_statements_history_long consumer.
  --performance-schema-consumer-events-waits-current 
- Enable the events_waits_current consumer.
+ Default startup value for the events_waits_current
+ consumer.
  --performance-schema-consumer-events-waits-history 
- Enable the events_waits_history consumer.
+ Default startup value for the events_waits_history
+ consumer.
  --performance-schema-consumer-events-waits-history-long 
- Enable the events_waits_history_long consumer.
+ Default startup value for the events_waits_history_long
+ consumer.
  --performance-schema-consumer-global-instrumentation 
- Enable the global_instrumentation consumer.
+ Default startup value for the global_instrumentation
+ consumer.
  (Defaults to on; use --skip-performance-schema-consumer-global-instrumentation to disable.)
  --performance-schema-consumer-thread-instrumentation 
- Enable the thread_instrumentation consumer.
+ Default startup value for the thread_instrumentation
+ consumer.
  (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG.
@@ -495,7 +506,8 @@ The following options may be given as the first argument:
  --performance-schema-hosts-size=# 
  Maximum number of instrumented hosts.
  --performance-schema-instrument[=name] 
- Enable a performance schema instrument.
+ Default startup value for a performance schema
+ instrument.
  --performance-schema-max-cond-classes=# 
  Maximum number of condition instruments.
  --performance-schema-max-cond-instances=# 
