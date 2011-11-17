@@ -3750,13 +3750,14 @@ private:
   /* ------------------------------------------------------------ */
   // Drop Table Handling
   /* ------------------------------------------------------------ */
-  void releaseTableObject(Uint32 tableId, bool removeFromHash = true);
+  void releaseTableObject(Uint32 table_ptr_i, bool removeFromHash = true);
 
   /* ------------------------------------------------------------ */
   // General Stuff
   /* ------------------------------------------------------------ */
   Uint32 getFreeObjId(bool both = false);
   Uint32 getFreeTableRecord();
+  bool seizeTableRecord(TableRecordPtr& tableRecord, Uint32& schemaFileId);
   Uint32 getFreeTriggerRecord();
   bool seizeTriggerRecord(TriggerRecordPtr& tableRecord, Uint32 triggerId);
   void releaseTriggerObject(Uint32 trigger_ptr_i);
@@ -4012,8 +4013,7 @@ private:
   void initWriteSchemaRecord();
 
   void initNodeRecords();
-  void initTableRecords();
-  void initialiseTableRecord(TableRecordPtr tablePtr);
+  void initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId);
   void initialiseTriggerRecord(TriggerRecordPtr triggerPtr, Uint32 triggerId);
   void initPageRecords();
 
