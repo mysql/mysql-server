@@ -6160,8 +6160,6 @@ READS_RECEIVED	0
 TABLE_SCANS_RECEIVED	0
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
-scan_count_derived
-8.9
 pruned_scan_count
 3362
 sorted_scan_count
