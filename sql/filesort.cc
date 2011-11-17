@@ -961,7 +961,11 @@ static void make_sortkey(register Sort_param *param,
       }
       case INT_RESULT:
 	{
-          longlong value= item->val_int_result();
+          longlong value= item->field_type() == MYSQL_TYPE_TIME ?
+                          item->val_time_temporal_result() :
+                          item->is_temporal_with_date() ?
+                          item->val_date_temporal_result() :
+                          item->val_int_result();
           if (maybe_null)
           {
 	    *to++=1;				/* purecov: inspected */
@@ -1738,7 +1742,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
     else
     {
       sortorder->result_type= sortorder->item->result_type();
-      if (sortorder->item->result_as_longlong())
+      if (sortorder->item->is_temporal())
         sortorder->result_type= INT_RESULT;
       switch (sortorder->result_type) {
       case STRING_RESULT:

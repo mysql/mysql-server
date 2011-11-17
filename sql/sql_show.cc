@@ -1287,6 +1287,35 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 
 #define LIST_PROCESS_HOST_LEN 64
 
+/**
+  Print "ON UPDATE" clause of a field into a string.
+
+  @param timestamp_field   Pointer to timestamp field of a table.
+  @param field             The field to generate ON UPDATE clause for.
+  @bool  lcase             Whether to print in lower case.
+  @return                  false on success, true on error.
+*/
+static bool get_field_on_update_clause(Field *timestamp_field,
+                                       Field *field, String *val, bool lcase)
+{
+  DBUG_ASSERT(val->charset()->mbminlen == 1);
+  val->length(0);
+  if (timestamp_field == field &&
+      field->unireg_check != Field::TIMESTAMP_DN_FIELD)
+  {
+    if (lcase)
+      val->copy(STRING_WITH_LEN("on update "), val->charset());
+    else
+      val->copy(STRING_WITH_LEN("ON UPDATE "), val->charset());
+    val->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
+    if (field->decimals() > 0)
+      val->append_parenthesized(field->decimals());
+    return true;
+  }
+  return false;
+}
+
+
 static bool get_field_default_value(THD *thd, Field *timestamp_field,
                                     Field *field, String *def_value,
                                     bool quoted)
@@ -1312,7 +1341,11 @@ static bool get_field_default_value(THD *thd, Field *timestamp_field,
   if (has_default)
   {
     if (has_now_default)
+    {
       def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
+      if (field->decimals() > 0)
+        def_value->append_parenthesized(field->decimals());
+    }
     else if (!field->is_null())
     {                                             // Not null by default
       char tmp[MAX_FIELD_WIDTH];
@@ -1504,16 +1537,21 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
-    if (get_field_default_value(thd, table->timestamp_field,
+    if (get_field_default_value(thd, table->get_timestamp_field(),
                                 field, &def_value, 1))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
     }
 
-    if (!limited_mysql_mode && table->timestamp_field == field && 
-        field->unireg_check != Field::TIMESTAMP_DN_FIELD)
-      packet->append(STRING_WITH_LEN(" ON UPDATE CURRENT_TIMESTAMP"));
+    if (!limited_mysql_mode &&
+        get_field_on_update_clause(table->get_timestamp_field(),
+                                   field, &def_value, false))
+    
+    {
+      packet->append(STRING_WITH_LEN(" "));
+      packet->append(def_value);
+    }
 
     if (field->unireg_check == Field::NEXT_NUMBER && 
         !(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS))
@@ -1575,13 +1613,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
            table->field[key_part->fieldnr-1]->key_length() &&
            !(key_info->flags & (HA_FULLTEXT | HA_SPATIAL))))
       {
-        char *end;
-        buff[0] = '(';
-        end= int10_to_str((long) key_part->length /
-                          key_part->field->charset()->mbmaxlen,
-                          buff + 1,10);
-        *end++ = ')';
-        packet->append(buff,(uint) (end-buff));
+        packet->append_parenthesized((long) key_part->length /
+                                      key_part->field->charset()->mbmaxlen);
       }
     }
     packet->append(')');
@@ -2078,7 +2111,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
             CSET_STRING(q, q ? length : 0, tmp->query_charset());
         }
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
-        thd_info->start_time= tmp->start_time;
+        thd_info->start_time= tmp->start_time.tv_sec;
         thread_infos.push_front(thd_info);
       }
     }
@@ -2176,8 +2209,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
         table->field[4]->store(command_name[tmp->get_command()].str,
                                command_name[tmp->get_command()].length, cs);
       /* MYSQL_TIME */
-      table->field[5]->store((longlong)(tmp->start_time ?
-                                      now - tmp->start_time : 0), FALSE);
+      table->field[5]->store((longlong)(tmp->start_time.tv_sec ?
+                                      now - tmp->start_time.tv_sec : 0), FALSE);
       /* STATE */
       if ((val= thread_state_info(tmp)))
       {
@@ -4339,21 +4372,21 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.create_time);
-        table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[14]->store_time(&time);
         table->field[14]->set_notnull();
       }
       if (file->stats.update_time)
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.update_time);
-        table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[15]->store_time(&time);
         table->field[15]->set_notnull();
       }
       if (file->stats.check_time)
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.check_time);
-        table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[16]->store_time(&time);
         table->field[16]->set_notnull();
       }
       if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
@@ -4486,7 +4519,7 @@ void store_column_type(TABLE *table, Field *field, CHARSET_INFO *cs,
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_TIME:
     /* DATETIME_PRECISION column */
-    table->field[offset + 5]->store(0, TRUE);
+    table->field[offset + 5]->store(field->decimals(), TRUE);
     table->field[offset + 5]->set_notnull();
     field_length= decimals= -1;
     break;
@@ -4554,7 +4587,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   show_table= tables->table;
   count= 0;
   ptr= show_table->field;
-  timestamp_field= show_table->timestamp_field;
+  timestamp_field= show_table->get_timestamp_field();
   show_table->use_all_columns();               // Required for default
   restore_record(show_table, s->default_values);
 
@@ -4626,12 +4659,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 
     if (field->unireg_check == Field::NEXT_NUMBER)
       table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("auto_increment"),
-                                           cs);
-    if (timestamp_field == field &&
-        field->unireg_check != Field::TIMESTAMP_DN_FIELD)
-      table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN
-                                           ("on update CURRENT_TIMESTAMP"), cs);
-
+                                            cs);
+    if (get_field_on_update_clause(timestamp_field, field, &type, true))
+      table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
     table->field[IS_COLUMNS_COLUMN_COMMENT]->store(field->comment.str,
                                                    field->comment.length, cs);
     if (schema_table_store_record(thd, table))
@@ -5120,15 +5150,11 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                            proc_table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]);
 
       memset(&time, 0, sizeof(time));
-      ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_CREATED])->
-        get_time(&time);
-      table->field[IS_ROUTINES_CREATED]->
-                   store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      proc_table->field[MYSQL_PROC_FIELD_CREATED]->get_time(&time);
+      table->field[IS_ROUTINES_CREATED]->store_time(&time);
       memset(&time, 0, sizeof(time));
-      ((Field_timestamp *) proc_table->field[MYSQL_PROC_FIELD_MODIFIED])->
-        get_time(&time);
-      table->field[IS_ROUTINES_LAST_ALTERED]->
-                   store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      proc_table->field[MYSQL_PROC_FIELD_MODIFIED]->get_time(&time);
+      table->field[IS_ROUTINES_LAST_ALTERED]->store_time(&time);
       copy_field_as_string(table->field[IS_ROUTINES_SQL_MODE],
                            proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]);
       copy_field_as_string(table->field[IS_ROUTINES_ROUTINE_COMMENT],
@@ -5838,21 +5864,21 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.create_time);
-    table->field[18]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[18]->store_time(&time);
     table->field[18]->set_notnull();
   }
   if (stat_info.update_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.update_time);
-    table->field[19]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[19]->store_time(&time);
     table->field[19]->set_notnull();
   }
   if (stat_info.check_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.check_time);
-    table->field[20]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[20]->store_time(&time);
     table->field[20]->set_notnull();
   }
   if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
@@ -6267,15 +6293,13 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     /* starts & ends . STARTS is always set - see sql_yacc.yy */
     et.time_zone->gmt_sec_to_TIME(&time, et.starts);
     sch_table->field[ISE_STARTS]->set_notnull();
-    sch_table->field[ISE_STARTS]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_STARTS]->store_time(&time);
 
     if (!et.ends_null)
     {
       et.time_zone->gmt_sec_to_TIME(&time, et.ends);
       sch_table->field[ISE_ENDS]->set_notnull();
-      sch_table->field[ISE_ENDS]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      sch_table->field[ISE_ENDS]->store_time(&time);
     }
   }
   else
@@ -6285,8 +6309,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
     et.time_zone->gmt_sec_to_TIME(&time, et.execute_at);
     sch_table->field[ISE_EXECUTE_AT]->set_notnull();
-    sch_table->field[ISE_EXECUTE_AT]->
-                          store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_EXECUTE_AT]->store_time(&time);
   }
 
   /* status */
@@ -6318,19 +6341,17 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     
   number_to_datetime(et.created, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[ISE_CREATED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_CREATED]->store_time(&time);
 
   number_to_datetime(et.modified, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[ISE_LAST_ALTERED]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_LAST_ALTERED]->store_time(&time);
 
   if (et.last_executed)
   {
     et.time_zone->gmt_sec_to_TIME(&time, et.last_executed);
     sch_table->field[ISE_LAST_EXECUTED]->set_notnull();
-    sch_table->field[ISE_LAST_EXECUTED]->
-                       store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_LAST_EXECUTED]->store_time(&time);
   }
 
   sch_table->field[ISE_EVENT_COMMENT]->
@@ -7343,7 +7364,7 @@ ST_FIELD_INFO columns_fields_info[]=
    OPEN_FRM_ONLY},
   {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type", OPEN_FRM_ONLY},
   {"COLUMN_KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key", OPEN_FRM_ONLY},
-  {"EXTRA", 27, MYSQL_TYPE_STRING, 0, 0, "Extra", OPEN_FRM_ONLY},
+  {"EXTRA", 30, MYSQL_TYPE_STRING, 0, 0, "Extra", OPEN_FRM_ONLY},
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges", OPEN_FRM_ONLY},
   {"COLUMN_COMMENT", COLUMN_COMMENT_MAXLEN, MYSQL_TYPE_STRING, 0, 0, 
    "Comment", OPEN_FRM_ONLY},

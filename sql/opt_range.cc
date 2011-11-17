@@ -6306,10 +6306,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   */
   if (field->result_type() == STRING_RESULT &&
-      ((Field_str*) field)->match_collation_to_optimize_range() &&
+      field->match_collation_to_optimize_range() &&
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
-      ((Field_str*)field)->charset() != conf_func->compare_collation() &&
+      field->charset() != conf_func->compare_collation() &&
       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
   {
@@ -6466,7 +6466,11 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   {
     // Note that value may be a stored function call, executed here.
-    err= value->save_in_field_no_warnings(field, 1);
+    if (value->type() == Item::INT_ITEM && value->is_temporal() &&
+        field->is_temporal_with_time())
+      err= value->save_in_field_packed_no_warnings(field);
+    else
+      err= value->save_in_field_no_warnings(field, 1);
   }
   if (err > 0)
   {
@@ -11124,8 +11128,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
             */
             ((args[1]->result_type() == STRING_RESULT &&
               image_type == Field::itRAW &&
-              ((Field_str*) min_max_arg_item->field)->charset() !=
-              pred->compare_collation())
+              min_max_arg_item->field->charset() != pred->compare_collation())
              ||
              /*
                We can't always use indexes when comparing a string index to a

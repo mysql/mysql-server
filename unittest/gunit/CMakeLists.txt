@@ -228,6 +228,7 @@ SET(TESTS
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
+  field
   item
   my_decimal
   opt_range

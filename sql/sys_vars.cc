@@ -2820,40 +2820,51 @@ static Sys_var_harows Sys_select_limit(
 static bool update_timestamp(THD *thd, set_var *var)
 {
   if (var->value)
-    thd->set_time((time_t) var->save_result.ulonglong_value);
+  {
+    double fl= floor(var->save_result.double_value); // Truncate integer part
+    struct timeval tmp;
+    tmp.tv_sec= (ulonglong) fl;
+    /* Round nanoseconds to nearest microsecond */
+    tmp.tv_usec= (ulonglong) rint((var->save_result.double_value - fl) * 1000000);
+    thd->set_time(&tmp);
+  }
   else // SET timestamp=DEFAULT
-    thd->user_time= 0;
+  {
+    thd->user_time.tv_sec= 0;
+    thd->user_time.tv_usec= 0;
+  }
   return false;
 }
-static ulonglong read_timestamp(THD *thd)
+static double read_timestamp(THD *thd)
 {
-  return (ulonglong) thd->start_time;
+  return (double) thd->start_time.tv_sec +
+         (double) thd->start_time.tv_usec / 1000000;
 }
 
 
 static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
 {
-  longlong val;
+  double val;
 
   if (!var->value)
     return FALSE;
 
-  val= (longlong) var->save_result.ulonglong_value;
+  val= var->save_result.double_value;
   if (val != 0 &&          // this is how you set the default value
       (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
   {
-    char buf[64];
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
+    ErrConvString prm(val);
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", prm.ptr());
     return TRUE;
   }
   return FALSE;
 }
 
 
-static Sys_var_session_special Sys_timestamp(
+static Sys_var_session_special_double Sys_timestamp(
        "timestamp", "Set the time for this client",
        sys_var::ONLY_SESSION, NO_CMD_LINE,
-       VALID_RANGE(0, ~(time_t)0), BLOCK_SIZE(1),
+       VALID_RANGE(0, 0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_timestamp), 
        ON_UPDATE(update_timestamp), ON_READ(read_timestamp));
 

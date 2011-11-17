@@ -622,6 +622,14 @@ public:
   inline void quick_fix_field() { fixed= 1; }
   /* Function returns 1 on overflow and -1 on fatal errors */
   int save_in_field_no_warnings(Field *field, bool no_conversions);
+  /**
+    Save a temporal value in packed longlong format into a Field.
+    Used in optimizer.
+    @param OUT field  The field to set the value to.
+    @retval 0         On success.
+    @retval >0        In error.
+  */
+  int save_in_field_packed_no_warnings(Field *field);
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
@@ -630,6 +638,14 @@ public:
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
+  /**
+    Result type when an item appear in a numeric context.
+    See Field::numeric_context_result_type() for more comments.
+  */
+  virtual enum Item_result numeric_context_result_type() const
+  {
+    return result_type();
+  }
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;
@@ -703,6 +719,32 @@ public:
       If value is not null null_value flag will be reset to FALSE.
   */
   virtual longlong val_int()=0;
+  /**
+    Return date value of item in packed longlong format.
+  */
+  virtual longlong val_date_temporal();
+  /**
+    Return time value of item in packed longlong format.
+  */
+  virtual longlong val_time_temporal();
+  /**
+    Return date or time value of item in packed longlong format,
+    depending on item field type.
+  */
+  longlong val_temporal_by_field_type()
+  {
+    if (field_type() == MYSQL_TYPE_TIME)
+      return val_time_temporal();
+    DBUG_ASSERT(is_temporal_with_date());
+    return val_date_temporal();
+  }
+  /**
+    Get date or time value in packed longlong format.
+    Before conversion from MYSQL_TIME to packed format,
+    the MYSQL_TIME value is rounded to "dec" fractional digits.
+  */
+  longlong val_temporal_with_round(enum_field_types type, uint8 dec);
+
   /*
     This is just a shortcut to avoid the cast. You should still use
     unsigned_flag to check the sign of the item.
@@ -842,17 +884,94 @@ public:
   */
   virtual bool val_bool();
   virtual String *val_nodeset(String*) { return 0; }
+
+protected:
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
   String *val_string_from_int(String *str);
   String *val_string_from_decimal(String *str);
+  String *val_string_from_date(String *str);
+  String *val_string_from_datetime(String *str);
+  String *val_string_from_time(String *str);
   my_decimal *val_decimal_from_real(my_decimal *decimal_value);
   my_decimal *val_decimal_from_int(my_decimal *decimal_value);
   my_decimal *val_decimal_from_string(my_decimal *decimal_value);
   my_decimal *val_decimal_from_date(my_decimal *decimal_value);
   my_decimal *val_decimal_from_time(my_decimal *decimal_value);
   longlong val_int_from_decimal();
+  longlong val_int_from_date();
+  longlong val_int_from_time();
+  longlong val_int_from_datetime();
   double val_real_from_decimal();
+
+  /**
+    Convert val_str() to date in MYSQL_TIME
+  */
+  bool get_date_from_string(MYSQL_TIME *ltime, uint flags);
+  /**
+    Convert val_real() to date in MYSQL_TIME
+  */
+  bool get_date_from_real(MYSQL_TIME *ltime, uint flags);
+  /**
+    Convert val_decimal() to date in MYSQL_TIME
+  */
+  bool get_date_from_decimal(MYSQL_TIME *ltime, uint flags);
+  /**
+    Convert val_int() to date in MYSQL_TIME
+  */
+  bool get_date_from_int(MYSQL_TIME *ltime, uint flags);
+  /**
+    Convert get_time() from time to date in MYSQL_TIME
+  */
+  bool get_date_from_time(MYSQL_TIME *ltime);
+
+  /**
+    Convert a numeric type to date
+  */
+  bool get_date_from_numeric(MYSQL_TIME *ltime, uint fuzzydate);
+
+  /**
+    Convert a non-temporal type to date
+  */
+  bool get_date_from_non_temporal(MYSQL_TIME *ltime, uint fuzzydate);
+
+  /**
+    Convert val_str() to time in MYSQL_TIME
+  */
+  bool get_time_from_string(MYSQL_TIME *ltime);
+  /**
+    Convert val_real() to time in MYSQL_TIME
+  */
+  bool get_time_from_real(MYSQL_TIME *ltime);
+  /**
+    Convert val_decimal() to time in MYSQL_TIME
+  */
+  bool get_time_from_decimal(MYSQL_TIME *ltime);
+  /**
+    Convert val_int() to time in MYSQL_TIME
+  */
+  bool get_time_from_int(MYSQL_TIME *ltime);
+  /**
+    Convert date to time
+  */
+  bool get_time_from_date(MYSQL_TIME *ltime);
+  /**
+    Convert datetime to time
+  */
+  bool get_time_from_datetime(MYSQL_TIME *ltime);
+
+  /**
+    Convert a numeric type to time
+  */
+  bool get_time_from_numeric(MYSQL_TIME *ltime);
+
+  /**
+    Convert a non-temporal type to time
+  */
+  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
+
+
+public:
 
   int save_time_in_field(Field *field);
   int save_date_in_field(Field *field);
@@ -871,6 +990,14 @@ public:
   */
   virtual double  val_result() { return val_real(); }
   virtual longlong val_int_result() { return val_int(); }
+  /**
+    Get time value in packed longlong format. NULL is converted to 0.
+  */
+  virtual longlong val_time_temporal_result() { return val_time_temporal(); }
+  /**
+    Get date value in packed longlong format. NULL is converted to 0.
+  */
+  virtual longlong val_date_temporal_result() { return val_date_temporal(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
   virtual my_decimal *val_decimal_result(my_decimal *val)
   { return val_decimal(val); }
@@ -904,6 +1031,14 @@ public:
   virtual uint decimal_precision() const;
   inline int decimal_int_part() const
   { return my_decimal_int_part(decimal_precision(), decimals); }
+  /**
+    TIME precision of the item: 0..6
+  */
+  virtual uint time_precision();
+  /**
+    DATETIME precision of the item: 0..6
+  */
+  virtual uint datetime_precision();
   /* 
     Returns true if this is constant (during query execution, i.e. its value
     will not change until next fix_fields) and its value is known.
@@ -940,8 +1075,14 @@ public:
   void split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
                        List<Item> &fields,
                        Item **ref, bool skip_registered);
-  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
-  virtual bool get_time(MYSQL_TIME *ltime);
+  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate)= 0;
+  virtual bool get_time(MYSQL_TIME *ltime)= 0;
+  /**
+    Get timestamp in "struct timeval" format.
+    @retval  false on success
+    @retval  true  on error
+  */
+  virtual bool get_timeval(struct timeval *tm);
   virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
@@ -1192,26 +1333,21 @@ public:
   {
     return 0;
   }
-  /*
-    result_as_longlong() must return TRUE for Items representing DATE/TIME
-    functions and DATE/TIME table fields.
-    Those Items have result_type()==STRING_RESULT (and not INT_RESULT), but
-    their values should be compared as integers (because the integer
-    representation is more precise than the string one).
-  */
-  virtual bool result_as_longlong() { return FALSE; }
-  inline bool is_datetime() const
+  inline bool is_temporal_with_date() const
   {
-    switch (field_type())
-    {
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_TIMESTAMP:
-        return TRUE;
-      default:
-        break;
-    }
-    return FALSE;
+    return is_temporal_type_with_date(field_type());
+  }
+  inline bool is_temporal_with_date_and_time() const
+  {
+    return is_temporal_type_with_date_and_time(field_type());
+  }
+  inline bool is_temporal_with_time() const
+  {
+    return is_temporal_type_with_time(field_type());
+  }
+  inline bool is_temporal() const
+  {
+    return is_temporal_type(field_type());
   }
   /**
     Check whether this and the given item has compatible comparison context.
@@ -1228,10 +1364,11 @@ public:
     if (cmp_context == (Item_result)-1 || item->cmp_context == cmp_context)
       return TRUE;
     /* DATETIME comparison context. */
-    if (is_datetime())
-      return item->is_datetime() || item->cmp_context == STRING_RESULT;
-    if (item->is_datetime())
-      return is_datetime() || cmp_context == STRING_RESULT;
+    if (is_temporal_with_date())
+      return item->is_temporal_with_date() ||
+             item->cmp_context == STRING_RESULT;
+    if (item->is_temporal_with_date())
+      return is_temporal_with_date() || cmp_context == STRING_RESULT;
     return FALSE;
   }
   virtual Field::geometry_type get_geometry_type() const
@@ -1290,6 +1427,13 @@ public:
   {
     collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
     fix_char_length(max_char_length_arg);
+  }
+  void fix_length_and_dec_and_charset_datetime(uint32 max_char_length_arg,
+                                               uint8 dec_arg)
+  {
+    decimals= dec_arg;
+    fix_length_and_charset_datetime(max_char_length_arg +
+                                    (dec_arg ? dec_arg + 1 : 0));
   }
   /*
     Return TRUE if the item points to a column of an outer-joined table.
@@ -1378,6 +1522,8 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *decimal_value);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool is_null();
 
 public:
@@ -1590,6 +1736,8 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   bool is_null();
   virtual void print(String *str, enum_query_type query_type);
 
@@ -1740,6 +1888,14 @@ public:
   longlong val_int() { return field->val_int(); }
   String *val_str(String *str) { return field->val_str(str); }
   my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return field->get_date(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return field->get_time(ltime);
+  }
   void make_field(Send_field *tmp_field);
   CHARSET_INFO *charset_for_protocol(void) const
   { return (CHARSET_INFO *)field->charset_for_protocol(); }
@@ -1787,10 +1943,14 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   double val_real();
   longlong val_int();
+  longlong val_time_temporal();
+  longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
   double val_result();
   longlong val_int_result();
+  longlong val_time_temporal_result();
+  longlong val_date_temporal_result();
   String *str_result(String* tmp);
   my_decimal *val_decimal_result(my_decimal *);
   bool val_bool_result();
@@ -1806,6 +1966,10 @@ public:
   enum Item_result result_type () const
   {
     return field->result_type();
+  }
+  enum Item_result numeric_context_result_type() const
+  {
+    return field->numeric_context_result_type();
   }
   Item_result cast_to_int_type() const
   {
@@ -1825,6 +1989,7 @@ public:
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
+  bool get_timeval(struct timeval *tm);
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
@@ -1834,10 +1999,6 @@ public:
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   void cleanup();
-  bool result_as_longlong()
-  {
-    return field->can_be_compared_as_longlong();
-  }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
   Item *equal_fields_propagator(uchar *arg);
@@ -1907,8 +2068,18 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   double val_real();
   longlong val_int();
+  longlong val_time_temporal() { return val_int(); }
+  longlong val_date_temporal() { return val_int(); }
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return true;
+  }
   int save_in_field(Field *field, bool no_conversions);
   int save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
@@ -2126,6 +2297,14 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_int(name,value,max_length); }
@@ -2135,6 +2314,40 @@ public:
   { return (uint)(max_length - test(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+};
+
+
+/*
+  Item_temporal is used to store numeric representation
+  of time/date/datetime values for queries like:
+
+     WHERE datetime_column NOT IN
+     ('2006-04-25 10:00:00','2006-04-25 10:02:00', ...);
+*/
+class Item_temporal :public Item_int
+{
+public:
+  Item_temporal(longlong i): Item_int(i) { }
+  Item_temporal(const char *str_arg, longlong i, uint length): Item_int(i)
+  { max_length= length; name= (char*) str_arg; fixed= 1; }
+  Item *clone_item() { return new Item_temporal(value); }
+  longlong val_time_temporal() { return val_int(); }
+  longlong val_date_temporal() { return val_int(); }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    DBUG_ASSERT(0);
+    return false;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(0);
+    return false;
+  }
+  enum_field_types field_type() const
+  {
+    // Currently we don't need to distinguish between DATE, DATETIME, or TIME.
+    return MYSQL_TYPE_DATETIME;
+  }
 };
 
 
@@ -2177,6 +2390,14 @@ public:
   double val_real();
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *val) { return &decimal_value; }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item()
@@ -2236,6 +2457,14 @@ public:
   }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   bool basic_const_item() const { return 1; }
   Item *clone_item()
   { return new Item_float(name, value, decimals, max_length); }
@@ -2333,6 +2562,14 @@ public:
     return (String*) &str_value;
   }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
@@ -2442,7 +2679,7 @@ public:
   Item_return_date_time(const char *name_arg, enum_field_types field_type_arg)
     :Item_partition_func_safe_string(name_arg, 0, &my_charset_bin),
      date_time_field_type(field_type_arg)
-  { }
+  { decimals= 0; }
   enum_field_types field_type() const { return date_time_field_type; }
 };
 
@@ -2504,6 +2741,14 @@ public:
   bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   int save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
@@ -2606,6 +2851,8 @@ public:
   }
   double val_real();
   longlong val_int();
+  longlong val_time_temporal();
+  longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   String *val_str(String* tmp);
@@ -2659,10 +2906,6 @@ public:
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t);
   virtual void print(String *str, enum_query_type query_type);
-  bool result_as_longlong()
-  {
-    return (*ref)->result_as_longlong();
-  }
   void cleanup();
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
@@ -2738,6 +2981,8 @@ public:
 
   double val_real();
   longlong val_int();
+  longlong val_time_temporal();
+  longlong val_date_temporal();
   String *val_str(String* tmp);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
@@ -2860,6 +3105,8 @@ public:
      owner(master) {}
   double val_real();
   longlong val_int();
+  longlong val_time_temporal();
+  longlong val_date_temporal();
   String* val_str(String* s);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
@@ -2877,7 +3124,7 @@ public:
 };
 
 /*
-  The following class is used to optimize comparing of date and bigint columns
+  The following class is used to optimize comparing of bigint columns.
   We need to save the original item ('ref') to be able to call
   ref->save_in_field(). This is used to create index search keys.
   
@@ -2887,6 +3134,7 @@ public:
 
 class Item_int_with_ref :public Item_int
 {
+protected:
   Item *ref;
 public:
   Item_int_with_ref(longlong i, Item *ref_arg, my_bool unsigned_arg) :
@@ -2901,6 +3149,102 @@ public:
   Item *clone_item();
   virtual Item *real_item() { return ref; }
 };
+
+
+/*
+  Similar to Item_int_with_ref, but to optimize comparing of temporal columns.
+*/
+class Item_temporal_with_ref :public Item_int_with_ref
+{
+private:
+  enum_field_types cached_field_type;
+public:
+  Item_temporal_with_ref(enum_field_types field_type_arg,
+                         uint8 decimals_arg, longlong i, Item *ref_arg,
+                         bool unsigned_flag):
+    Item_int_with_ref(i, ref_arg, unsigned_flag),
+    cached_field_type(field_type_arg)
+  {
+    decimals= decimals_arg;
+  }
+  enum_field_types field_type() const { return cached_field_type; }
+  void print(String *str, enum_query_type query_type);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+
+};
+
+
+/*
+  Item_datetime_with_ref is used to optimize queries like:
+    SELECT ... FROM t1 WHERE date_or_datetime_column = 20110101101010;
+  The numeric constant is replaced to Item_datetime_with_ref
+  by convert_constant_item().
+*/
+class Item_datetime_with_ref :public Item_temporal_with_ref
+{
+private:
+  enum_field_types cached_field_type;
+public:
+  /**
+    Constructor for Item_datetime_with_ref.
+    @param    field_type_arg Data type: MYSQL_TYPE_DATE or MYSQL_TYPE_DATETIME
+    @param    decimals_arg   Number of fractional digits.
+    @param    i              Temporal value in packed format.
+    @param    ref_arg        Pointer to the original numeric Item.
+  */
+  Item_datetime_with_ref(enum_field_types field_type_arg,
+                         uint8 decimals_arg, longlong i, Item *ref_arg):
+    Item_temporal_with_ref(field_type_arg, decimals_arg, i, ref_arg, true),
+    cached_field_type(field_type_arg)
+  {
+  }
+  Item *clone_item();
+  longlong val_date_temporal() { return val_int(); }
+  longlong val_time_temporal()
+  {
+    DBUG_ASSERT(0);
+    return val_int();
+  }
+};
+
+
+/*
+  Item_time_with_ref is used to optimize queries like:
+    SELECT ... FROM t1 WHERE time_column = 20110101101010;
+  The numeric constant is replaced to Item_time_with_ref
+  by convert_constant_item().
+*/
+class Item_time_with_ref :public Item_temporal_with_ref
+{
+public:
+  /**
+    Constructor for Item_time_with_ref.
+    @param    decimals_arg   Number of fractional digits.
+    @param    i              Temporal value in packed format.
+    @param    ref_arg        Pointer to the original numeric Item.
+  */
+  Item_time_with_ref(uint8 decimals_arg, longlong i, Item *ref_arg):
+    Item_temporal_with_ref(MYSQL_TYPE_TIME, decimals_arg, i, ref_arg, 0)
+  {
+  }
+  Item *clone_item();
+  longlong val_time_temporal() { return val_int(); }
+  longlong val_date_temporal()
+  {
+    DBUG_ASSERT(0);
+    return val_int();
+  }
+};
+
 
 #ifdef MYSQL_SERVER
 #include "gstream.h"
@@ -3014,6 +3358,8 @@ public:
   virtual my_decimal *val_decimal(my_decimal *) = 0;
   virtual double val_real() = 0;
   virtual longlong val_int() = 0;
+  virtual bool get_date(MYSQL_TIME *ltime, uint fuzzydate)= 0;
+  virtual bool get_time(MYSQL_TIME *ltime)= 0;
   virtual int save_in_field(Field *field, bool no_conversions) = 0;
 };
 
@@ -3031,6 +3377,8 @@ public:
   my_decimal *val_decimal(my_decimal *);
   double val_real();
   longlong val_int();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   void copy();
   int save_in_field(Field *field, bool no_conversions);
 };
@@ -3053,6 +3401,14 @@ public:
   virtual longlong val_int()
   {
     return null_value ? LL(0) : cached_value;
+  }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
   }
   virtual void copy();
 };
@@ -3092,6 +3448,14 @@ public:
   {
     return (longlong) rint(val_real());
   }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   void copy()
   {
     cached_value= item->val_real();
@@ -3115,6 +3479,14 @@ public:
   }
   double val_real();
   longlong val_int();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   void copy();
 };
 
@@ -3462,10 +3834,19 @@ public:
   void store(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
+  longlong val_time_temporal() { return val_int(); }
+  longlong val_date_temporal() { return val_int(); }
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   enum Item_result result_type() const { return INT_RESULT; }
-  bool result_as_longlong() { return TRUE; }
   bool cache_value();
 };
 
@@ -3481,6 +3862,14 @@ public:
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   enum Item_result result_type() const { return REAL_RESULT; }
   bool cache_value();
 };
@@ -3497,6 +3886,14 @@ public:
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_decimal(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_decimal(ltime);
+  }
   enum Item_result result_type() const { return DECIMAL_RESULT; }
   bool cache_value();
 };
@@ -3521,6 +3918,14 @@ public:
   longlong val_int();
   String* val_str(String *);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   enum Item_result result_type() const { return STRING_RESULT; }
   const CHARSET_INFO *charset() const { return value->charset(); };
   int save_in_field(Field *field, bool no_conversions);
@@ -3573,6 +3978,16 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    illegal_method_call((const char *) "get_date");
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    illegal_method_call((const char *) "get_time");
+    return true;
+  }
 
   enum Item_result result_type() const { return ROW_RESULT; }
   
@@ -3614,10 +4029,13 @@ public:
   void store(Item *item);
   double val_real();
   longlong val_int();
+  longlong val_time_temporal();
+  longlong val_date_temporal();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   enum Item_result result_type() const { return STRING_RESULT; }
-  bool result_as_longlong() { return TRUE; }
   /*
     In order to avoid INT <-> STRING conversion of a DATETIME value
     two cache_value functions are introduced. One (cache_value) caches STRING
@@ -3659,6 +4077,16 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(0);
+    return true;
+  }
   bool join_types(THD *thd, Item *);
   Field *make_field_by_type(TABLE *table);
   static uint32 display_length(Item *item);

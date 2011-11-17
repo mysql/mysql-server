@@ -504,6 +504,24 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
   return FALSE;
 }
 
+
+/**
+  Append a parenthesized number to String.
+  Used in various pieces of SHOW related code.
+
+  @param nr     Number
+  @param radix  Radix, optional parameter, 10 by default.
+*/
+bool String::append_parenthesized(long nr, int radix)
+{
+  char buff[64], *end;
+  buff[0]= '(';
+  end= int10_to_str(nr, buff + 1, radix);
+  *end++ = ')';
+  return append(buff, (uint) (end - buff));
+}
+
+
 bool String::append_with_prefill(const char *s,uint32 arg_length,
 		 uint32 full_length, char fill_char)
 {
