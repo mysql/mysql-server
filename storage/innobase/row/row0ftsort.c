@@ -521,7 +521,6 @@ fts_parallel_tokenization(
 	void*		arg)	/*!< in: psort_info for the thread */
 {
 	fts_psort_t*		psort_info = (fts_psort_t*)arg;
-	ulint			id;
 	ulint			i;
 	fts_doc_item_t*		doc_item = NULL;
 	fts_doc_item_t*		prev_doc_item = NULL;
@@ -529,7 +528,6 @@ fts_parallel_tokenization(
 	ibool			processed = FALSE;
 	merge_file_t**		merge_file;
 	row_merge_block_t**	block;
-	ulint			error;
 	int			tmpfd[FTS_NUM_AUX_INDEX];
 	ulint			mycount[FTS_NUM_AUX_INDEX];
 	ib_uint64_t		total_rec = 0;
@@ -546,7 +544,6 @@ fts_parallel_tokenization(
 
 	ut_ad(psort_info);
 
-	id = psort_info->psort_id;
 	buf = psort_info->merge_buf;
 	merge_file = psort_info->merge_file;
 	blob_heap = mem_heap_create(512);
@@ -731,7 +728,7 @@ exit:
 		}
 
 		tmpfd[i] = innobase_mysql_tmpfile();
-		error = row_merge_sort(psort_info->psort_common->trx,
+		row_merge_sort(psort_info->psort_common->trx,
 				       psort_info->psort_common->sort_index,
 				       merge_file[i],
 				       (row_merge_block_t*) block[i], &tmpfd[i],

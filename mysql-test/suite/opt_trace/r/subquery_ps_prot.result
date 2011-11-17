@@ -1669,11 +1669,12 @@ field4,field5,field6	{
                   "item": "`alias2`.`col_varchar_nokey`"
                 },
                 {
-                  "item": "`alias2`.`col_varchar_nokey`"
+                  "item": "`alias2`.`col_varchar_nokey`",
+                  "duplicate_item": true
                 }
               ] /* items */,
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,`alias2`.`col_varchar_nokey`,`alias2`.`col_varchar_nokey`"
+              "resulting_clause": "`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_date_key`,`alias2`.`col_varchar_nokey`"
             } /* clause_processing */
           },
           {
@@ -1716,12 +1717,6 @@ field4,field5,field6	{
                 "database": "",
                 "table": "",
                 "field": "col_date_key"
-              },
-              {
-                "direction": "asc",
-                "database": "",
-                "table": "",
-                "field": "col_varchar_nokey"
               },
               {
                 "direction": "asc",
