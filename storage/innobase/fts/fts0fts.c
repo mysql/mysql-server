@@ -3202,7 +3202,6 @@ fts_add_doc_by_id(
 	fts_cache_t*   	cache = ftt->table->fts->cache;
 	dict_index_t*   clust_index;
 	dict_table_t*	table; 
-	dict_index_t*	index;
 	dtuple_t*	tuple; 
 	doc_id_t        temp_doc_id;
 	dfield_t*       dfield;
@@ -3225,7 +3224,6 @@ fts_add_doc_by_id(
 	ut_ad(get_doc);
 
 	table = get_doc->index_cache->index->table;
-	index = get_doc->index_cache->index;
 
 	heap = mem_heap_create(512);
 	
@@ -5326,12 +5324,10 @@ fts_savepoint_laststmt_refresh(
         trx_t*          trx)            /*!< in: transaction */
 {
 
-	mem_heap_t*             heap;
 	fts_trx_t*              fts_trx;
 	fts_savepoint_t*        savepoint;
 
 	fts_trx = trx->fts_trx;
-	heap = fts_trx->heap;
 
 	savepoint = ib_vector_pop(fts_trx->last_stmt);
 	fts_savepoint_free(savepoint);
@@ -6129,7 +6125,6 @@ fts_init_index(
 	ibool		has_cache_lock)	/*!< in: Whether we already have
 					cache lock */
 {
-	ulint           error = DB_SUCCESS;
 	doc_id_t        start_doc;
 	fts_cache_t*    cache = table->fts->cache;
 	fts_get_doc_t*  get_doc = NULL;
@@ -6154,7 +6149,7 @@ fts_init_index(
 	start_doc = cache->synced_doc_id;
 
 	if (!start_doc) {
-		error = fts_cmp_set_sync_doc_id(table, 0, TRUE, &start_doc);
+		fts_cmp_set_sync_doc_id(table, 0, TRUE, &start_doc);
 		cache->synced_doc_id = start_doc;
 	}
 

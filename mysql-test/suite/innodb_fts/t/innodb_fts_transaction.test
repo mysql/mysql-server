@@ -580,6 +580,7 @@ SELECT * FROM t1
 
 --disconnect con1
 --disconnect con2
+--source include/wait_until_disconnected.inc
 
 --connection default
 DROP TABLE t1;
@@ -1029,6 +1030,8 @@ SELECT * FROM t1;
 
 --disconnect con1
 --disconnect con2
+--source include/wait_until_disconnected.inc
+
 
 --connection default
 DROP TABLE t1;
