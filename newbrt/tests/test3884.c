@@ -86,10 +86,13 @@ test_split_on_boundary(void)
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children - 1, sn.childkeys);
     sn.totalchildkeylens = 0;
+    const MSN new_msn = { .msn = 2 * MIN_MSN.msn };
     for (int bn = 0; bn < sn.n_children; ++bn) {
         BP_STATE(&sn,bn) = PT_AVAIL;
         set_BLB(&sn, bn, toku_create_empty_bn());
 	BASEMENTNODE basement = BLB(&sn, bn);
+        // Write an MSN to this basement node.
+        BLB_MAX_MSN_APPLIED(&sn, bn) = new_msn;
 	struct mempool * mp = &basement->buffer_mempool;
 	toku_mempool_construct(mp, maxbnsize);
         BLB_NBYTESINBUF(&sn,bn) = 0;
@@ -118,6 +121,19 @@ test_split_on_boundary(void)
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
     brtleaf_split(brt->h, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
+
+    // Verify that the MSN is the same on the basement nodes after the split.
+    int a_children = nodea->n_children;
+    int b_children = nodeb->n_children;
+    for(int i = 0; i < a_children; ++i)
+    {
+        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodea, i).msn);
+    }
+
+    for(int i = 0; i < b_children; ++i)
+    {
+        assert(new_msn.msn == BLB_MAX_MSN_APPLIED(nodeb, i).msn);
+    }
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
