@@ -3,21 +3,34 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-# performance-schema-instrument = 'wait/synch/mutex/sql/% = NO'
+# Verify that the configuration options were applied correctly to the
+# setup_instruments table. These instruments that are known to persist across
+# platforms and the various compile options.
 
-eval SELECT COUNT(*) = 31 AS 'Expect 1'
-FROM performance_schema.setup_instruments
-WHERE name LIKE 'wait/synch/mutex/sql/%' AND enabled = 'no' and timed = 'no';
+SELECT * FROM performance_schema.setup_instruments
+WHERE name IN (
+  'wait/synch/mutex/sql/LOCK_user_conn',
+  'wait/synch/mutex/sql/LOCK_uuid_generator',
+  'wait/synch/mutex/sql/LOCK_xid_cache'
+  'stage/sql/creating table')
+AND enabled = 'yes' AND timed = 'no'
+ORDER BY name;
 
-eval SELECT COUNT(*) = 1 AS 'Expect 1'
-FROM performance_schema.setup_instruments
-WHERE name = 'wait/synch/mutex/sql/LOCK_thread_count' AND enabled = 'no' and timed = 'no';
+SELECT * FROM performance_schema.setup_instruments
+WHERE name = 'wait/synch/mutex/sql/LOCK_thread_count'
+AND enabled = 'no' AND timed = 'no';
 
-eval SELECT COUNT(*) = 4 AS 'Expect 1'
-FROM performance_schema.setup_instruments
-WHERE name LIKE 'wait/synch/mutex/sql/LOCK_%' AND enabled = 'yes' and timed = 'no';
+SELECT * FROM performance_schema.setup_instruments
+WHERE name IN (
+  'wait/synch/mutex/sql/LOG_INFO::lock',
+  'wait/synch/mutex/sql/THD::LOCK_thd_data')
+AND enabled = 'yes' AND timed = 'yes'
+ORDER BY name;
 
-eval SELECT COUNT(*) = 1 AS 'Expect 1'
-FROM performance_schema.setup_instruments
-WHERE name LIKE 'stage/%' AND enabled = 'yes' and timed = 'no';
+SELECT * FROM performance_schema.setup_instruments
+WHERE name IN (
+  'wait/synch/mutex/sql/Delayed_insert::mutex',
+  'wait/synch/mutex/sql/hash_filo::lock')
+AND enabled = 'no' AND timed = 'no'
+ORDER BY name;
 

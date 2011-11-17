@@ -7857,12 +7857,22 @@ mysqld_get_one_option(int optid,
     
     /* Assignment required */
     if (!(p= strchr(argument, '=')))
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Missing value for performance_schema_instrument "
+                             "'%s'", argument);
       return 0;
+    }
     
     /* Option value */
     val= p + 1;
     if (!*val)
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Missing value for performance_schema_instrument "
+                             "'%s'", argument);
       return 0;
+    }
     
     /* Trim leading spaces from instrument name */
     while (*name && my_isspace(mysqld_charset, *name))
@@ -7874,12 +7884,16 @@ mysqld_get_one_option(int optid,
     *p= 0;
 
     if (!*name)
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Invalid instrument name for "
+                             "performance_schema_instrument '%s'", argument);
       return 0;
+    }
 
     /* Trim leading and trailing spaces from option value */
     while (*val && my_isspace(mysqld_charset, *val))
       val++;
-
     p= val + strlen(val);
 
     while(p > val && my_isspace(mysqld_charset, p[-1]))
@@ -7887,10 +7901,22 @@ mysqld_get_one_option(int optid,
     *p= 0;
 
     if (!*val)
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Invalid value for performance_schema_instrument "
+                             "'%s'", argument);
       return 0;
+    }
 
     /* Add instrument name and value to array of configuration options */
-    add_pfs_instr_to_array(name, val);
+    if (add_pfs_instr_to_array(name, val))
+    {
+       my_getopt_error_reporter(WARNING_LEVEL,
+                             "Invalid value for performance_schema_instrument "
+                             "'%s'", argument);
+      return 0;
+    }
+
 #endif
     break;
   }

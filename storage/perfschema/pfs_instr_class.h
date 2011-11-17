@@ -86,10 +86,6 @@ struct PFS_instr_init
   char *m_name;
   /* Name length. */
   uint m_name_length;
-  /* Instrument option value: ON, OFF, TIMED. */
-  char *m_value;
-  /* Value length. */
-  uint m_value_length;
   /** Enabled flag. */
   bool m_enabled;
   /** Timed flag. */

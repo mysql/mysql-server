@@ -272,7 +272,7 @@ void init_pfs_instrument_array();
 /**
   Process one PFS_INSTRUMENT configuration string.
 */
-bool add_pfs_instr_to_array(const char* name, const char* value);
+int add_pfs_instr_to_array(const char* name, const char* value);
 
 /**
   Shutdown the performance schema.
