@@ -23,7 +23,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     const int num_threads = cli_args->num_update_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env);
+        arg_init(&myargs[i], n, dbp, env, cli_args);
         // make the guy that updates the db
         myargs[i].operation = update_op;
     }
