@@ -276,7 +276,9 @@ row_ins_sec_index_entry_by_modify(
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 						 &heap, &dummy_big_rec, update,
 						 0, thr, mtr);
+		/* XXX merge conflicts, should this be here?
 		ut_ad(!dummy_big_rec);
+		*/
 	}
 func_exit:
 	mem_heap_free(heap);
