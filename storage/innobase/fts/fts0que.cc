@@ -2406,6 +2406,8 @@ fts_query_visitor(
 
 	ut_a(node);
 
+	token.f_n_char = 0;
+
 	query->oper = oper;
 
 	query->cur_node = node;
