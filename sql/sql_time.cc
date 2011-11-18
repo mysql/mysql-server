@@ -637,6 +637,116 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
 }
 
 
+/**
+  Convert a datetime MYSQL_TIME representation
+  to corresponding "struct timeval" value.
+
+  ltime must previously be checked for TIME_NO_ZERO_IN_DATE.
+  Things like '0000-01-01', '2000-00-01', '2000-01-00' are not allowed
+  and asserted.
+
+  Things like '0000-00-00 10:30:30' or '0000-00-00 00:00:00.123456'
+  (i.e. empty date with non-empty time) return error.
+
+  Zero datetime '0000-00-00 00:00:00.000000'
+  is allowed and is mapper to {tv_sec=0, tv_usec=0}.
+
+  Note: In case of error, tm value is not initialized.
+
+  Note: "warnings" is not initialized to zero,
+  so new warnings are added to the old ones.
+  Caller must make sure to initialize "warnings".
+
+  @param IN  thd       current thd
+  @param IN  ltime     datetime value
+  @param OUT tm        timeval value
+  @param OUT warnings  pointer to warnings vector
+  @return
+  @retval      false on success
+  @retval      true on error
+*/
+bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
+                                              const MYSQL_TIME *ltime,
+                                              struct timeval *tm,
+                                              int *warnings)
+{
+  if (!ltime->month) /* Zero date */
+  {
+    DBUG_ASSERT(!ltime->year && !ltime->day);
+    if (non_zero_time(ltime))
+    {
+      /*
+        Return error for zero date with non-zero time, e.g.:
+        '0000-00-00 10:20:30' or '0000-00-00 00:00:00.123456'
+      */
+      *warnings|= MYSQL_TIME_WARN_TRUNCATED;
+      return true;
+    }
+    tm->tv_sec= tm->tv_usec= 0; // '0000-00-00 00:00:00.000000'
+    return false;
+  }
+
+  my_bool in_dst_time_gap;
+  if (!(tm->tv_sec= TIME_to_timestamp(current_thd, ltime, &in_dst_time_gap)))
+  {
+    /*
+      Date was outside of the supported timestamp range.
+      For example: '3001-01-01 00:00:00' or '1000-01-01 00:00:00'
+    */
+    *warnings|= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return true;
+  }
+  else if (in_dst_time_gap)
+  {
+    /*
+      Set MYSQL_TIME_WARN_INVALID_TIMESTAMP warning to indicate
+      that date was fine but pointed to winter/summer time switch gap.
+      In this case tm is set to the fist second after gap.
+      For example: '2003-03-30 02:30:00 MSK' -> '2003-03-30 03:00:00 MSK'
+    */
+    *warnings|= MYSQL_TIME_WARN_INVALID_TIMESTAMP;
+  }
+  tm->tv_usec= ltime->second_part;
+  return false;
+}
+
+
+/**
+  Convert a datetime MYSQL_TIME representation
+  to corresponding "struct timeval" value.
+
+  Things like '0000-01-01', '2000-00-01', '2000-01-00'
+  (i.e. incomplete date) return error.
+
+  Things like '0000-00-00 10:30:30' or '0000-00-00 00:00:00.123456'
+  (i.e. empty date with non-empty time) return error.
+
+  Zero datetime '0000-00-00 00:00:00.000000'
+  is allowed and is mapper to {tv_sec=0, tv_usec=0}.
+
+  Note: In case of error, tm value is not initialized.
+
+  Note: "warnings" is not initialized to zero,
+  so new warnings are added to the old ones.
+  Caller must make sure to initialize "warnings".
+
+  @param IN  thd       current thd
+  @param IN  ltime     datetime value
+  @param OUT tm        timeval value
+  @param OUT warnings  pointer to warnings vector
+  @return
+  @retval      false on success
+  @retval      true on error
+*/
+bool datetime_to_timeval(THD *thd, const MYSQL_TIME *ltime,
+                         struct timeval *tm, int *warnings)
+{
+  return
+    check_date(ltime, non_zero_date(ltime), TIME_NO_ZERO_IN_DATE, warnings) ||
+    datetime_with_no_zero_in_date_to_timeval(current_thd, ltime, tm, warnings);
+}
+
+
 /*
   Convert a time string to a MYSQL_TIME struct and produce a warning
   if string was cut during conversion.
