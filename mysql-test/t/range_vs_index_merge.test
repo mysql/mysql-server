@@ -1074,6 +1074,21 @@ SELECT * FROM t1
 
 DROP TABLE t1;
 
+#
+# LP bug #891953: always true OR    
+#              
+
+CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX idx(b));
+INSERT INTO t1 VALUES (167,9999), (168,10000);
+
+EXPLAIN
+SELECT * FROM t1
+  WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
+SELECT * FROM t1
+  WHERE a BETWEEN 4 AND 5 AND b IN (255,4) OR a IN (2,14,25) OR a!=2;
+
+DROP TABLE t1;
+
 #the following command must be the last one in the file
 set session optimizer_switch='index_merge_sort_intersection=default';
 

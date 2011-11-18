@@ -1208,13 +1208,13 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
 
     if (result)
     {
+      result->keys_map= result_keys;
       if (result_keys.is_clear_all())
         result->type= SEL_TREE::ALWAYS;
       if ((result->type == SEL_TREE::MAYBE) ||
           (result->type == SEL_TREE::ALWAYS))
         return 1;
       /* SEL_TREE::IMPOSSIBLE is impossible here */
-      result->keys_map= result_keys; 
       *or_tree= result;
       was_ored= TRUE;
     }
